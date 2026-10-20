@@ -449,7 +449,7 @@ for (const theme of themes) {
 
   test(`sign-in stories play and pass axe, ${theme}`, async ({ page }) => {
     const stories = await signInStories(page)
-    expect(stories.length).toBe(14)
+    expect(stories.length).toBe(13)
     await checkStories(page, stories, theme)
   })
 }

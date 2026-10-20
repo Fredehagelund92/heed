@@ -992,7 +992,8 @@ test.describe('Ask on a phone', () => {
   test('the About line scrolls sideways under a finger, and the page does not', async ({
     page,
   }) => {
-    await openAsk(page, phone)
+    // The narrowest phone: the three chips of the market in the page (a short name) must not fit.
+    await openAsk(page, { ...phone, width: 320 })
     await carryThree(page)
     const line = (await reads(page).boundingBox())!
     const cdp = await page.context().newCDPSession(page)
@@ -1006,7 +1007,7 @@ test.describe('Ask on a phone', () => {
     await cdp.detach()
     await expect.poll(async () => (await measure(page)).scroll).toBeGreaterThan(0)
     await expect(reads(page)).toHaveAttribute('data-clip-start', 'true')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
   })
 
   test('a wide table scrolls sideways inside the answer, never the screen', async ({ page }) => {
