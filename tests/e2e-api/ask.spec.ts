@@ -212,7 +212,7 @@ test('a question built from chips goes with exactly their scope, and the answer 
   await expect(offer).toContainText('Make “average order value” a chip?', { timeout: 15_000 })
   await page.keyboard.press('Tab')
   // @ picks a market at the caret.
-  await page.keyboard.type('@Highl')
+  await page.keyboard.type('@Great')
   await expect(page.getByRole('option', { name: /^United Kingdom/ }).first()).toBeVisible()
   await page.keyboard.press('Enter')
   // The dates panel puts the dates in; the service's today is 7 Oct 2026.
@@ -241,7 +241,7 @@ test('a question built from chips goes with exactly their scope, and the answer 
   }
   expect(messages.findLast((message) => message.role === 'user')?.parts[0]).toMatchObject({
     type: 'text',
-    text: 'What applies to average order value in the United Kingdom the last 30 days',
+    text: 'What applies to average order value in United Kingdom the last 30 days',
   })
   expect(sentScope(body)).toEqual({
     metrics: ['metric:average_order_value'],

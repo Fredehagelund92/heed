@@ -773,12 +773,12 @@ export async function bulkSeed(
          select 'vocab:' || s.term_key || ':' || encode(t.content_digest, 'hex') as line
            from vocab_term_service s join vocab_term_versions t on t.id = s.version_id
           where lower(s.editions) = $1),
-       vocabulary as (select string_agg(line, E'\\n' order by line) as block from lines)
+       vocabulary as (select string_agg(line, E'\\n' order by line collate "C") as block from lines)
        update editions e set sealed_at = now(), digest = sha256(convert_to(concat_ws(E'\\n',
-         (select string_agg(line, E'\\n' order by line) from (
+         (select string_agg(line, E'\\n' order by line collate "C") from (
             select 'domain:' || d.term_key || ':' || d.area_id as line
               from source_domain_service d where d.editions @> e.seq) z),
-         (select string_agg(line, E'\\n' order by line) from (
+         (select string_agg(line, E'\\n' order by line collate "C") from (
             select 'item:' || s.item_id || ':' || encode(v.content_digest, 'hex') as line
               from item_version_service s join item_versions v on v.id = s.version_id
              where s.editions @> e.seq) y),

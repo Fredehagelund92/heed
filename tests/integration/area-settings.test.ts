@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AreaDetail, AuditEntry, TrafficSummary } from '../../src/contract/index.ts'
 import { buildApp } from '../../src/server/app.ts'
@@ -269,6 +270,38 @@ describe('areas from settings', () => {
       "select review_days from areas where id='payments'",
     )
     expect(rows[0]!.review_days).toBe(5)
+  })
+
+  it('takes the role lock before the log lock, so creating an area with a team cannot deadlock a role change', async () => {
+    // Another transaction holds the role lock, as a role change does, and then wants the log's.
+    const other = new pg.Client({ connectionString: url })
+    await other.connect()
+    try {
+      await other.query('begin')
+      await other.query("select pg_advisory_xact_lock(hashtextextended('heed.roles', 0))")
+      const created = call('POST', '/areas', 'admin', {
+        ...payments,
+        id: 'lock_order',
+        name: 'Lock order',
+        team: { ownerIds: [people.owner] },
+      })
+      // The creation waits for the role lock before it writes its first log entry.
+      for (let tries = 0; ; tries++) {
+        const { rowCount } = await client.query(
+          "select 1 from pg_locks where locktype = 'advisory' and not granted",
+        )
+        if (rowCount) break
+        expect(tries, 'the creation never waited for the role lock').toBeLessThan(200)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      // Taking the log's lock now would be a deadlock if the creation already held it.
+      await other.query("select pg_advisory_xact_lock(hashtextextended('context_layer.audit', 0))")
+      await other.query('commit')
+      const response = await created
+      expect(response.statusCode, response.body).toBe(200)
+    } finally {
+      await other.end()
+    }
   })
 
   it("lets the domain's owner say what it is, recorded and served at once (FR-813)", async () => {

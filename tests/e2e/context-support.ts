@@ -21,7 +21,7 @@ export async function fillContext(
   const summary = summaryField(page)
   await summary.fill('A reporting delay affected ')
   if (mention) {
-    await summary.pressSequentially('@North')
+    await summary.pressSequentially('@Norw')
     await expect(
       page.getByRole('listbox', { name: 'Mention a metric, value, fact or domain' }),
     ).toBeVisible()

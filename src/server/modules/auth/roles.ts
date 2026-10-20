@@ -164,6 +164,15 @@ async function recordChanges(
 }
 
 /**
+ * One role change at a time. A transaction that also writes the history log takes this lock
+ * before its first entry: the log's own lock comes after it, and two transactions taking the two
+ * in opposite orders would deadlock. Where the areas lock is also taken, it comes first.
+ */
+export async function lockRoles(tx: Queryable) {
+  await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.roles',0))")
+}
+
+/**
  * Gives and removes roles in one transaction (FR-804): all of them, or none. Role changes are
  * serialized under one lock, the actor's authority is checked again, and each change writes its
  * own history entry in the same transaction, in a handful of statements whatever the batch's
@@ -199,7 +208,7 @@ export async function changeGrants(
       })
     seen.add(key)
   }
-  await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.roles',0))")
+  await lockRoles(tx)
   const [actor] = await tx.query<{ allowed: boolean; id: string }>(
     'select cl_is_admin_now() as allowed, cl_person()::text as id',
   )
