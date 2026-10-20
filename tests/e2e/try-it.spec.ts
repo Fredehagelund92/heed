@@ -165,7 +165,7 @@ test.describe('the Try it page', () => {
     await expect(absence).toContainText('which doesn’t mean nothing happened')
     // What the AI app tells the person names what was checked; the rule is its next step.
     await expect(page.locator('[data-slot="try-it-say"]')).toContainText(
-      'Nothing is written down for Average order value in the United Kingdom from 5 to 6 January 1999. Only that was checked.',
+      'Nothing is written down for Average order value in United Kingdom from 5 to 6 January 1999. Only that was checked.',
     )
     await expect(page.locator('[data-slot="try-it-next"]')).toContainText(
       'That does not prove there is no caveat',
@@ -215,7 +215,7 @@ test.describe('the Try it page', () => {
     await page.getByRole('checkbox', { name: 'Reported by people' }).click()
     await page.keyboard.press('Escape')
     await expect(page).toHaveURL(/view=gaps.*origin=person|origin=person.*view=gaps/)
-    await list.getByRole('link', { name: /^Average order value in the United Kingdom/ }).click()
+    await list.getByRole('link', { name: /^Average order value in United Kingdom/ }).click()
     const record = page.locator('[data-slot="record-pane"]')
     await expect(record.locator('[data-slot="from-people-badge"]')).toBeVisible()
     await expect(record.getByText('January 1999. A person reported it.')).toBeVisible()
