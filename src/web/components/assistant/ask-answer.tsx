@@ -4,8 +4,6 @@ import type { MentionRenderer } from '@/components/form/markdown'
 import {
   ArrowRightIcon,
   CheckIcon,
-  ChevronRightIcon,
-  CircleCheckIcon,
   CircleSlashIcon,
   CopyIcon,
   ExternalLinkIcon,
@@ -27,10 +25,8 @@ import {
   TriangleAlertIcon,
   type Icon,
 } from '@/components/icons'
-import { DomainBadge, KindIcon } from '@/components/item/item-marks'
 import { StepTrail, type TrailStep } from '@/components/change/step-trail'
 import { MentionChip } from '@/components/item/mention-chip'
-import { ReviewStamp, useReviewStamps } from '@/components/item/review-stamp'
 import { AbsenceLine } from '@/components/page/absence-line'
 import { PreviewLink } from '@/components/preview/preview-link'
 import { Alert, AlertContent, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -39,22 +35,20 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   checkedWords,
-  factCount,
+  factSentence,
   limitWords,
   REMOVED_TARGET,
   removedWords,
   stepsSummary,
   type AnswerView,
-  type FactRead,
-  type FactVerdict,
   type StepView,
 } from '@/lib/assistant'
-import { formatDay, type LibraryRow } from '@/lib/library'
-import type { ReviewStampView } from '@/lib/review-stamp'
+import { formatDay } from '@/lib/library'
 import { draftSearch, type TryItScope } from '@/lib/try-it'
 import { cn } from '@/lib/utils'
-import { AnswerMarkdown } from './answer-markdown'
+import { AnswerMarkdown, type FactItemRenderer } from './answer-markdown'
 import { DraftConfirm } from './ask-draft-card'
+import { FACTS_CAPTION, FactBlock, FactsRead, factMeta, type FactLookup } from './ask-facts'
 import { AssistantLabel } from './ask-turn'
 import './answer-motion.css'
 
@@ -72,8 +66,7 @@ import './answer-motion.css'
   after another. An answer that was already there when the conversation was opened does not move.
 */
 
-/** A fact of the library index, for a chip's kind and a row's domain. */
-export type FactLookup = (id: string) => Pick<LibraryRow, 'kind' | 'areaName' | 'areaLabel'> | null
+export { FactsRead, type FactLookup }
 
 const stepIcons: Record<StepView['icon'], Icon> = {
   search: SearchIcon,
@@ -89,7 +82,7 @@ function StepFacts({ facts, titleOf }: { facts: string[]; titleOf: (id: string) 
   return (
     <ul aria-label="Facts this step returned" className="flex flex-col gap-1">
       {facts.map((id) => (
-        <li key={id} className="truncate">
+        <li key={id} className="break-words">
           <Link
             to="/library/$itemId"
             params={{ itemId: id }}
@@ -150,121 +143,12 @@ const Steps = memo(function Steps({
   )
 })
 
-const verdictLook: Record<
-  Exclude<FactVerdict, 'read'>,
-  { label: string; icon: Icon; className: string }
-> = {
-  applies: { label: 'Applies', icon: CircleCheckIcon, className: 'text-status-success-fg' },
-  partial: { label: 'Applies in part', icon: CircleCheckIcon, className: 'text-status-success-fg' },
-  not: { label: 'Doesn’t apply', icon: CircleSlashIcon, className: 'text-muted-foreground' },
-}
-
-/** One fact the answer read: what it is, how it stands, why, and how it was reviewed. */
-function FactRow({
-  fact,
-  lookup,
-  stamp,
-}: {
-  fact: FactRead
-  lookup: FactLookup
-  stamp: ReviewStampView | null
-}) {
-  const row = lookup(fact.id)
-  const kind = row?.kind ?? fact.kind
-  const look = fact.verdict === 'read' ? null : verdictLook[fact.verdict]
-  return (
-    <li data-slot="ask-fact" data-verdict={fact.verdict} className="flex min-w-0 gap-3 px-4 py-3">
-      {kind ? (
-        <span className="flex h-5 shrink-0 items-center">
-          <KindIcon kind={kind} size="md" />
-        </span>
-      ) : null}
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex min-w-0 flex-col items-start gap-1 @sm:flex-row @sm:gap-2">
-          <Link
-            to="/library/$itemId"
-            params={{ itemId: fact.id }}
-            className="min-w-0 text-dense font-bold break-words underline-offset-4 hover:underline focus-visible:underline @sm:flex-1"
-          >
-            {fact.title}
-          </Link>
-          {look ? (
-            <span
-              className={cn(
-                'flex shrink-0 items-center gap-1 text-caption font-bold',
-                look.className,
-              )}
-            >
-              <look.icon aria-hidden="true" className="size-icon-sm" />
-              {look.label}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground">
-          {row ? <DomainBadge name={row.areaName} label={row.areaLabel} size="sm" /> : null}
-          <span className="font-mono" translate="no">
-            {fact.id}
-          </span>
-        </div>
-        {fact.reason ? <p className="text-caption text-muted-foreground">{fact.reason}</p> : null}
-        {stamp ? <ReviewStamp view={stamp} /> : null}
-      </div>
-    </li>
-  )
-}
-
-/**
- * "Read 4 facts": how each fact stands (it names no edition, which show only on the Editions page), folded when there are many. Drawn
- * again only when its answer changes, so a long conversation stays quick while an answer streams.
- */
-export const FactsRead = memo(function FactsRead({
-  answer,
-  lookup,
-  side = false,
-  className,
-}: {
-  answer: AnswerView
-  lookup: FactLookup
-  /** In the page's side column, which names the edition above it. */
-  side?: boolean
-  className?: string
-}) {
-  const facts = answer.facts
-  const stampOf = useReviewStamps(facts)
-  if (!facts.length) return null
-  const named = answer.report?.cited.length ?? 0
-  return (
-    <details
-      open={facts.length <= 6}
-      data-slot="ask-facts"
-      className={cn('group/facts @container rounded-lg border bg-card', className)}
-    >
-      <summary className="flex min-h-control-lg cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 text-dense focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-        <ChevronRightIcon
-          aria-hidden="true"
-          className="size-icon-sm shrink-0 text-muted-foreground transition-transform group-open/facts:rotate-90 motion-reduce:transition-none"
-        />
-        <span className="font-bold">{side ? 'Facts read' : `Read ${factCount(facts.length)}`}</span>
-        <span className="min-w-0 truncate text-caption text-muted-foreground tabular-nums">
-          {side
-            ? facts.length.toLocaleString('en')
-            : facts.length > 6 && named
-              ? `${named.toLocaleString('en')} named in this answer`
-              : null}
-        </span>
-      </summary>
-      <ul aria-label="Facts read in this answer" className="flex flex-col divide-y border-t">
-        {facts.map((fact) => (
-          <FactRow key={fact.id} fact={fact} lookup={lookup} stamp={stampOf(fact)} />
-        ))}
-      </ul>
-    </details>
-  )
-})
-
 /** "Checked before you saw it": the citation check's own report, never the model's words. */
 export function CheckedRow({ answer, className }: { answer: AnswerView; className?: string }) {
   if (!answer.report) return null
+  // An answer that names no fact, quotes none and had nothing removed has nothing to check.
+  const { cited, quoted } = answer.report
+  if (!cited.length && !answer.report.removed.length && !quoted) return null
   const { lead, removed } = checkedWords(answer.report)
   return (
     <div
@@ -291,6 +175,30 @@ export function CheckedRow({ answer, className }: { answer: AnswerView; classNam
   )
 }
 
+/**
+ * A list item of the answer that starts with a fact it read, as that fact's block: the whole
+ * title, the quiet line of kind, domain and date, and the words the answer says about it, or the
+ * fact's own sentence when the answer says none.
+ */
+function factItemRenderer(answer: AnswerView, lookup: FactLookup): FactItemRenderer {
+  return ({ target }, rest) => {
+    const id = target.startsWith('item:') ? target.slice(5) : null
+    const fact = id ? answer.facts.find((read) => read.id === id) : undefined
+    if (!id || !fact) return null
+    const row = lookup(id)
+    return (
+      <FactBlock
+        id={id}
+        title={fact.title}
+        kind={row?.kind ?? fact.kind}
+        meta={factMeta(row, fact.kind)}
+      >
+        {rest ?? (row ? factSentence(row.summary, fact.title) : null)}
+      </FactBlock>
+    )
+  }
+}
+
 /** A cited fact in the answer: a chip that links to it, previews it, and shows it was checked. */
 function citeRenderer(answer: AnswerView, lookup: FactLookup): MentionRenderer {
   const read = new Set(answer.facts.map((fact) => fact.id))
@@ -313,13 +221,18 @@ function citeRenderer(answer: AnswerView, lookup: FactLookup): MentionRenderer {
     if (!id || !read.has(id)) return <>{label}</>
     const kind = lookup(id)?.kind ?? answer.facts.find((fact) => fact.id === id)?.kind ?? 'note'
     return (
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex max-w-full min-w-0 items-center gap-1">
         <PreviewLink
           preview={{ type: 'item', id }}
-          className="rounded-badge outline-none focus-visible:outline-2 focus-visible:outline-ring hover:[&>[data-slot=mention-chip]]:bg-accent"
+          className="min-w-0 rounded-badge outline-none focus-visible:outline-2 focus-visible:outline-ring hover:[&>[data-slot=mention-chip]]:bg-accent"
         >
-          <MentionChip target={{ type: 'item', kind }} name={label} hint={false} />
-          <span className="sr-only">, read in this answer</span>
+          {/* The whole title, wrapped when it must: a screen reader and a copy get all of it. */}
+          <MentionChip
+            target={{ type: 'item', kind }}
+            name={answer.facts.find((fact) => fact.id === id)?.title ?? label}
+            hint={false}
+            full
+          />
         </PreviewLink>
         <CheckIcon
           aria-hidden="true"
@@ -390,6 +303,8 @@ const AnswerText = memo(function AnswerText({
           source={answer.markup}
           streaming={working}
           renderMention={citeRenderer(answer, lookup)}
+          renderFactItem={factItemRenderer(answer, lookup)}
+          factsCaption={FACTS_CAPTION}
           onLeave={onLeave}
         />
         {folds ? (

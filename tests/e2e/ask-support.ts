@@ -16,6 +16,15 @@ export const ASK_NO_MATCH =
 export const ASK_DRAFT =
   'Draft this: A new rule gives Netherlands customers 14 days to send back online orders, so average order value may fall. I am not sure of the date. Source: https://consumer.example/eu/right-of-withdrawal, which says "Consumers have 14 days to withdraw from an online purchase without giving any reason." Do not conclude that every online order is sent back.'
 
+/** A question about a change: the answer starts with what the facts cannot show, then lists what applies. */
+export const ASK_CHANGE = 'Why did average order value drop in the United Kingdom in June 2026?'
+
+/**
+ * A question without dates, in the demo whose date is fixed: the answer says which day it read at,
+ * and runs a few lines past the fold on a phone.
+ */
+export const ASK_UNDATED = 'Which facts apply to Average order value in the United Kingdom?'
+
 /**
  * A question the scripted assistant answers in three short lines, which fit under the fold: a
  * short answer shows in full, with no fade and no "Show the rest of the answer".

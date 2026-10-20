@@ -16,6 +16,7 @@ import { scopeTermWords } from '@/components/mentions/scope-term'
 import { formatDay } from '@/lib/library'
 import {
   answerAsMarkdown,
+  dayWords,
   factCountWords,
   rangeWords,
   readAnswer,
@@ -128,7 +129,7 @@ const Question = memo(function Question({
   const notes = [
     carriedWords.length ? `Also about ${carriedWords.join(', ')}, from your last question.` : null,
     question.assumedDay
-      ? `No dates given, so I used today, ${formatDay(question.assumedDay, 'long')}.`
+      ? `No dates given, so I used ${dayWords(question.assumedDay, (day) => formatDay(day, 'long'))}.`
       : null,
   ].filter(Boolean)
   return (

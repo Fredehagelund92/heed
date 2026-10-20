@@ -7,9 +7,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, api } from '@/api'
 import { MOCK_SCENARIO_KEY } from '@/api/mock-scenario'
 import { AskComposer } from '@/components/assistant/ask-composer'
+import { carriedOf } from '@/components/assistant/ask-reads'
 import { AskTranscript } from '@/components/assistant/ask-view'
 import { NewChatButton, NewChatConfirm } from '@/components/app-shell/new-chat'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { readQuestion } from '@/lib/assistant'
 import { askChat, askInNewChat, resetAskChat } from '@/lib/assistant-chat'
 import type { TryItScope } from '@/lib/try-it'
 
@@ -122,6 +124,84 @@ describe('the Ask tab', { timeout: 30_000 }, () => {
       'aria-pressed',
       'false',
     )
+  })
+
+  /*
+    The captain, 20 October 2026: "Make this clearer: why did average order value drop in
+    Netherlands?", then "what you mean?" carried the metric and the market as the new scope,
+    assumed a date and looked up eight facts.
+  */
+  it('answers "what you mean?" from the conversation: nothing carried or assumed, no lookup', async () => {
+    const user = userEvent.setup()
+    await renderAsk()
+    const starters = await screen.findByRole('list', { name: 'Suggested questions' }, slow)
+    await user.click(
+      await within(starters).findByRole('button', { name: /Sharpen a question/ }, slow),
+    )
+    const [first] = await screen.findAllByRole('article', { name: 'Answer' }, slow)
+    await waitFor(() => expect(first).toHaveAttribute('data-state', 'done'), slow)
+    // Asked as a question, the next one would carry the metric and the market.
+    const reads = document.querySelector('[data-slot=ask-reads]')!
+    expect(reads).not.toHaveAttribute('hidden')
+    const box = screen.getByRole('textbox', { name: 'Your question' })
+    await user.type(box, 'what you mean?')
+    // Typed, it reads nothing: the line is gone, with its carried chips and its assumed day.
+    expect(reads).toHaveAttribute('hidden')
+    expect(box).not.toHaveAccessibleDescription(/carried|demo|today/i)
+    await user.type(box, '{Enter}')
+    await waitFor(
+      () => expect(screen.getAllByRole('article', { name: 'Answer' })).toHaveLength(2),
+      slow,
+    )
+    const second = screen.getAllByRole('article', { name: 'Answer' })[1]!
+    await waitFor(() => expect(second).toHaveAttribute('data-state', 'done'), slow)
+    expect(second).toHaveTextContent(/^Assistant\s*Let me put it another way\. The main point: /)
+    // No steps, no facts, no checked row: nothing was looked up, so nothing is listed.
+    expect(within(second).queryByRole('button', { name: /What the assistant did/ })).toBeNull()
+    expect(second.querySelector('[data-slot=ask-facts]')).toBeNull()
+    expect(within(second).queryByRole('note')).toBeNull()
+    // Its question carries no scope and no note about a day it assumed.
+    const questions = [...document.querySelectorAll('[data-slot=ask-question]')]
+    const asked = questions.at(-1)!
+    expect(asked).toHaveTextContent('what you mean?')
+    expect(within(asked as HTMLElement).queryByRole('list', { name: 'Asked about' })).toBeNull()
+    expect(asked.querySelector('[data-slot=ask-question-notes]')).toBeNull()
+    expect(askChat().store.messages.at(-2)?.metadata).toEqual({})
+    // The follow-up has no scope of its own and is passed over: the next question still carries
+    // what the one before it was about.
+    const messages = askChat().store.messages
+    expect(carriedOf(messages)).not.toBeNull()
+    expect(carriedOf(messages)).toEqual(readQuestion(messages[0]!).scope)
+  })
+
+  it('draws each fact an answer lists as a block with its whole title, and folds the ones that do not apply', async () => {
+    const user = userEvent.setup()
+    await renderAsk()
+    await user.type(
+      screen.getByRole('textbox', { name: 'Your question' }),
+      'Why did average order value drop in Netherlands?{Enter}',
+    )
+    const answer = await screen.findByRole('article', { name: 'Answer' }, slow)
+    await waitFor(() => expect(answer).toHaveAttribute('data-state', 'done'), slow)
+    // The first sentence says what the facts cannot show.
+    expect(answer).toHaveTextContent(/The facts can't show whether .+ dropped, or why\./)
+    const blocks = [...answer.querySelectorAll('[data-slot=answer-fact]')]
+    expect(blocks.length).toBeGreaterThan(1)
+    const titles = blocks.map((block) => block.querySelector('.font-bold')?.textContent)
+    // Whole titles, never cut, and two facts with one title tell apart by their line.
+    for (const title of titles) expect(title).not.toMatch(/…|\.\.\.$/)
+    for (const block of blocks)
+      expect(block.textContent).toMatch(/(?:Event|Note|Guide|Example|Issue) · .+ · .*\d{4}/)
+    // That the facts were read for this answer is said once, above the list, not on every line.
+    expect(within(answer).getAllByText('Facts I read for this answer')).toHaveLength(1)
+    expect(answer).not.toHaveTextContent(/read in this answer/i)
+    // The facts that do not apply are not in the words, and are folded under their own control.
+    const apart = answer.querySelector('[data-slot=ask-facts-apart]')
+    expect(apart).not.toBeNull()
+    expect(apart).not.toHaveAttribute('open')
+    expect(within(apart as HTMLElement).getByText('Facts that don’t apply')).toBeInTheDocument()
+    for (const title of apart!.querySelectorAll('.font-bold:not(summary *)'))
+      expect(titles).not.toContain(title.textContent)
   })
 
   it('rates an answer once, sending only the verdict and the metrics of its scope', async () => {

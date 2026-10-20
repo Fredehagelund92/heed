@@ -7,7 +7,7 @@ summary: What the assistant does, where its answers come from, and what it never
 audience: [everyone]
 minutes: 3
 owner: Product team
-reviewed: 2026-10-19
+reviewed: 2026-10-20
 screens: [/assistant]
 related: [what-is-heed, mcp, add-your-first-context]
 ---
@@ -22,13 +22,15 @@ The assistant is the helper built into the app. Ask it in your own words which f
 - _What a word means._ What a metric means, where its definition comes from, and what the facts add to it.
 - _What a domain holds._ What a domain covers, which of its facts need checking, and what changed lately.
 - _How it works._ What an MCP is, what the stop switch does, or how to review a proposal.
+- _Its last answer._ Say _what do you mean?_, _say it simpler_, _shorter_ or _why?_. It answers from the chat: it looks nothing up, carries nothing over from your last question and assumes no date.
 - _A draft._ Paste what happened, or a link to where you read it, and it drafts a fact for you to check. The draft comes on a card with every field and where each one came from. A line beside a field marks what it filled in itself. Nothing is saved until you choose **Create draft**.
 
 ## Where its answers come from
 
 Above each answer, the assistant lists the steps it took, such as _Read the overview of Sales_ or _Looked up facts · 4 checked, 2 apply_. Once the answer is done, the steps fold into one line. Open it to see each one.
 
-- _Facts_ come from what AI apps get today, through the same tools your AI app uses. The assistant names each fact it uses, and you can open it.
+- _Facts_ come from what AI apps get today, through the same tools your AI app uses. The assistant names each fact it uses, and you can open it. Each one shows its whole title, what kind of fact it is, its domain and its date, then what it says. The facts that don't apply are folded under _Facts that don't apply_, apart from the ones that do.
+- _A change or its cause._ The facts are written notes, not the numbers. Asked whether a number dropped, or why, the assistant starts by saying what the facts can't show, then names only the facts that could be related. It never says one of them caused it unless a fact says so. When you give no dates, it says which day it read at. In the demo, the date is fixed, so it calls it the demo's date.
 - _How it works_ comes from these help pages. The assistant searches them, answers from the page it found and links that page. So a question such as _What is an MCP?_ gets the same answer here, in the Docs and in your AI app. MCP (Model Context Protocol) is the connection AI apps use to check these facts.
 - _A sentence it can't back up_ with what it read is removed before you see it. A quote must be copied exactly from what it read, or from your own message.
 - _About our business_, the background an admin writes, helps it understand your words. It's never a source: the assistant doesn't cite it or quote it. See [Tell {{product}} about your business](tell-heed-about-your-business.md).

@@ -1,10 +1,12 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import {
+  ASK_CHANGE,
   ASK_MATCH,
   ASK_NO_MATCH,
   ASK_SHORT,
   ASK_TABLE,
+  ASK_UNDATED,
   askAndWait,
   chipEditor,
   questionWords,
@@ -120,9 +122,7 @@ test.describe('Ask in the panel', () => {
       'Looked up facts · 4 checked, 2 apply',
     )
     await expect(
-      answer(page).getByText(
-        "Two facts apply to Average order value, United Kingdom. Two others don't.",
-      ),
+      answer(page).getByText('Two facts apply to Average order value, United Kingdom.'),
     ).toBeVisible()
     await expect(announcer(page)).toHaveText('Answer ready. Two facts apply, 2 don’t.')
 
@@ -132,18 +132,22 @@ test.describe('Ask in the panel', () => {
     await chip.hover()
     await expect(page.locator('[data-slot="preview-card"]').first()).toBeVisible()
 
-    const facts = answer(page).getByRole('list', { name: 'Facts read in this answer' })
-    await expect(facts.getByRole('listitem')).toHaveCount(4)
+    const facts = answer(page).getByRole('list', { name: 'Facts read for this answer' })
+    await expect(facts.getByRole('listitem')).toHaveCount(2)
     await expect(facts.locator('[data-verdict="applies"]')).toHaveCount(1)
     await expect(facts.locator('[data-verdict="partial"]')).toHaveCount(1)
-    await expect(facts.locator('[data-verdict="not"]')).toHaveCount(2)
+    // The facts that do not apply are not in the words: they are folded under their own control.
+    const apart = answer(page).locator('[data-slot="ask-facts-apart"]')
+    await expect(apart).not.toHaveAttribute('open')
+    await apart.getByText('Facts that don’t apply').click()
+    await expect(apart.locator('[data-verdict="not"]')).toHaveCount(2)
     // The facts that apply were served, and say who accepted them (FR-326, contract 9.8).
     for (const verdict of ['applies', 'partial'])
       await expect(
         facts.locator(`[data-verdict="${verdict}"] [data-slot="review-stamp"]`),
       ).toContainText(/^Accepted \d{1,2} \w+ \d{4} by Jon Abara, owner of Sales/)
     await expect(answer(page).getByRole('note')).toHaveText(
-      'Checked before you saw it. All 4 facts above come from the library, and the quote matches its source word for word.',
+      'Checked before you saw it. All 2 facts above come from the library, and the quote matches its source word for word.',
     )
     // A thumb is stored as a count (FR-712): it stays pressed, and the answer takes no other.
     await page.mouse.move(0, 0)
@@ -297,7 +301,7 @@ test.describe('Ask in the panel', () => {
     await panel.getByRole('button', { name: 'Remove dates' }).click()
     await expect(chips(page)).toHaveCount(0)
     await expect(reads(page).locator('[data-source="assumed"]')).toHaveText(
-      'Today, 7 Oct 2026 · no dates given',
+      'The demo’s date, 7 Oct 2026 · no dates given',
     )
     await expect(answer(page)).toHaveCount(0)
   })
@@ -375,13 +379,13 @@ test.describe('Ask in the panel', () => {
       .click()
     await expect(box(page)).toBeFocused()
     await expect(reads(page).locator('[data-source="assumed"]')).toHaveText(
-      'Today, 7 Oct 2026 · no dates given',
+      'The demo’s date, 7 Oct 2026 · no dates given',
     )
     await box(page).press('Enter')
     await expect(answer(page)).toHaveAttribute('data-state', 'done', { timeout: 15_000 })
     const question = page.locator('[data-slot="ask-question"]').last()
     await expect(question).toContainText(
-      'Also about Average order value, from your last question. No dates given, so I used today, 7 October 2026.',
+      'Also about Average order value, from your last question. No dates given, so I used the demo’s date, 7 October 2026.',
     )
     // New chat starts over: nothing is carried into it.
     await assistant(page).getByRole('button', { name: 'New chat' }).click()
@@ -519,7 +523,7 @@ test.describe('Ask in the panel', () => {
     page,
   }) => {
     await openAsk(page, phone)
-    await askAndWait(page, ASK_NO_MATCH)
+    await askAndWait(page, ASK_UNDATED)
     const text = answer(page).locator('[data-slot="ask-answer-text"]')
     // Its words run past the fold (18rem), by less than half the fold again.
     const [content, frame] = await text.evaluate((node) => [
@@ -1032,6 +1036,84 @@ test.describe('Ask on a phone', () => {
   })
 })
 
+/*
+  The captain, 20 October 2026: "what you mean?" after an answer carried the last question's metric
+  and market as the new scope, assumed a date and looked up eight facts; and the facts an answer
+  listed cut their titles, so two read the same.
+*/
+test.describe('A follow-up on the last answer', () => {
+  test('is answered from the chat: nothing carried, assumed or looked up, and the line is gone', async ({
+    page,
+  }) => {
+    await openAsk(page)
+    await askAndWait(page, ASK_SHORT)
+    // Asked as a question, the next one would carry the metric and the market.
+    await expect(reads(page).locator('[data-source="carried"]').first()).toBeVisible()
+    await box(page).fill('what you mean?')
+    await expect(reads(page)).toBeHidden()
+    await box(page).press('Enter')
+    await expect(answer(page)).toContainText('Let me put it another way.', { timeout: 15_000 })
+    await expect(answer(page)).toHaveAttribute('data-state', 'done', { timeout: 15_000 })
+    // No steps, no facts, nothing to check: it looked nothing up.
+    await expect(answer(page).getByRole('button', { name: /^What the assistant did/ })).toHaveCount(
+      0,
+    )
+    await expect(answer(page).locator('[data-slot="ask-facts"]')).toHaveCount(0)
+    await expect(answer(page).getByRole('note')).toHaveCount(0)
+    // Its question has no scope of its own, and no day it assumed.
+    const question = page.locator('[data-slot="ask-question"]').last()
+    await expect(question).toContainText('what you mean?')
+    await expect(question.getByRole('list', { name: 'Asked about' })).toHaveCount(0)
+    await expect(question).not.toContainText(/from your last question|No dates given/)
+    // The next question is a question again, and carries what the one before the follow-up was about.
+    await box(page).fill('and for Germany?')
+    await expect(reads(page).locator('[data-source="carried"]').first()).toBeVisible()
+    // Both answers are in view, none under the panel's bar.
+    await page.locator('[data-slot="ask-question"]').first().scrollIntoViewIfNeeded()
+    await settle(page)
+    const results = await new AxeBuilder({ page }).withTags(wcag).analyze()
+    expect(results.violations.map((v) => v.id)).toEqual([])
+  })
+
+  for (const size of [widths[0], widths[2]]) {
+    for (const theme of themes) {
+      test(`lists each fact as a block with its whole title, at ${size.name}px, ${theme}`, async ({
+        page,
+      }) => {
+        await openAsk(page, { ...size, theme })
+        await askAndWait(page, ASK_CHANGE)
+        // A question about a change starts with what the facts cannot show.
+        await expect(answer(page).locator('[data-slot="ask-answer-text"]')).toContainText(
+          /^The facts can't show whether .+ dropped, or why\./,
+        )
+        const blocks = answer(page).locator('[data-slot="answer-fact"]')
+        await expect(blocks.first()).toBeVisible()
+        const count = await blocks.count()
+        expect(count).toBeGreaterThan(0)
+        for (let index = 0; index < count; index++) {
+          const block = blocks.nth(index)
+          const title = block.locator('a').first()
+          // The whole title: never cut with an ellipsis, wrapped when it must, and inside its block.
+          expect(((await title.textContent()) ?? '').trim()).not.toMatch(/…|\.\.\.$/)
+          const fits = await block.evaluate((node) => node.scrollWidth <= node.clientWidth)
+          expect(fits).toBe(true)
+          // A quiet line with its kind, domain and date, then what it says.
+          await expect(block).toContainText(/(?:Event|Note|Guide|Example|Issue) · .+ · .*\d{4}/)
+        }
+        // That the facts were read for this answer is said once, above the list.
+        await expect(answer(page).getByText('Facts I read for this answer')).toHaveCount(1)
+        await expect(answer(page)).not.toContainText(/read in this answer/i)
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+          size.width,
+        )
+        await settle(page)
+        const results = await new AxeBuilder({ page }).withTags(wcag).analyze()
+        expect(results.violations.map((v) => v.id)).toEqual([])
+      })
+    }
+  }
+})
+
 const wcag = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 const states = [
   { name: 'empty' },
@@ -1040,6 +1122,7 @@ const states = [
   { name: 'limit', question: ASK_MATCH, scenario: 'assistant-limit' },
   { name: 'failed', question: ASK_MATCH, scenario: 'assistant-fails' },
   { name: 'refused', question: ASK_MATCH, scenario: 'assistant-refuses' },
+  { name: 'a change asked about', question: ASK_CHANGE },
   { name: 'long', question: 'What does the Sales domain cover?' },
   { name: 'table', question: ASK_TABLE },
   // The line with words to choose between and dates it cannot read, after an answer it carries.

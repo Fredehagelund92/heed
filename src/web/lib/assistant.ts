@@ -11,6 +11,7 @@ import { namedKeys, type ServedStamp } from '@/lib/agent-reply'
 import { tidyAnswer } from '@/lib/answer-markdown'
 import { addToScope } from '@/lib/mention-targets'
 import { siteOf } from '@/lib/provenance'
+import { formatDay } from '@/lib/library'
 import { lastDayFromEnd } from '@/lib/validity-range'
 import type { TryItSearch } from '@/lib/search-params'
 import { emptyScope, scopeFromSearch, tryItInput, type TryItScope } from '@/lib/try-it'
@@ -622,6 +623,10 @@ const label = (title: string) =>
     .join('')
     .replace(/\|/g, '\\|')
 
+/** A title as a link's words in the copied answer: whole, with only what would end the link early. */
+const linkLabel = (title: string) =>
+  title.replace(/[[\]]/g, (c) => (c === '[' ? '(' : ')')).replace(/\|/g, '\\|')
+
 /**
  * Puts the words for a removed statement where the notice was. A notice on its own line under a
  * table's row was that row, so it stays a row of the table, across it, and the table holds
@@ -941,7 +946,7 @@ export function answerAsMarkdown(
     scopeWords,
   }: { origin: string; titleOf: (id: string) => string; scopeWords: string | null },
 ): string {
-  const link = (id: string) => `[${label(titleOf(id))}](${origin}/library/${id})`
+  const link = (id: string) => `[${linkLabel(titleOf(id))}](${origin}/library/${id})`
   let body = answer.plain
   for (const [reason, notice] of Object.entries(removedNotice))
     body = placeNotice(body, notice, `(${removedWords[reason as keyof typeof removedNotice]})`)
@@ -965,6 +970,46 @@ export function answerAsMarkdown(
  */
 export function scopeLine(scope: TryItScope): string {
   return `${SCOPE_LINE} ${JSON.stringify(tryItInput(scope))}`
+}
+
+/**
+ * When a fact applies, as its line says it: "from 15 Jun 2026" while it goes on, "1 to 30 Jun 2026"
+ * once it has ended. Two facts with the same title differ by this.
+ */
+export function factDatesWords(fact: {
+  validity: { start: string }
+  until: string | null
+}): string {
+  return fact.until
+    ? (rangeWords(fact.validity.start, fact.until, formatDay) ?? '')
+    : `from ${formatDay(fact.validity.start)}`
+}
+
+/** The one sentence of what a fact says: its summary's first sentence that is not its title again. */
+export function factSentence(summary: string, title: string): string {
+  const sentences = summary.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [summary]
+  const same = (sentence: string) =>
+    sentence
+      .trim()
+      .replace(/[.!?]+$/, '')
+      .toLowerCase() ===
+    title
+      .trim()
+      .replace(/[.!?]+$/, '')
+      .toLowerCase()
+  return (sentences.find((sentence) => !same(sentence)) ?? '').trim()
+}
+
+/**
+ * The day a question without dates was read at, in words: "today, 7 Oct 2026", or "the demo's
+ * date, 7 Oct 2026" when the day is not the real one, because a demo or a test fixes the clock.
+ * A day within one of the browser's own is today: time zones differ by that much.
+ */
+export function dayWords(day: string, format: (day: string) => string, now = new Date()): string {
+  const own = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const apart =
+    Math.abs(Date.parse(`${day}T00:00:00Z`) - Date.parse(`${own}T00:00:00Z`)) / 86_400_000
+  return `${apart > 1 ? 'the demo’s date' : 'today'}, ${format(day)}`
 }
 
 /**

@@ -429,7 +429,7 @@ for (const theme of themes) {
   test(`Ask stories play and pass axe, ${theme}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const stories = await askStories(page)
-    expect(stories.length).toBe(33)
+    expect(stories.length).toBe(35)
     await checkStories(page, stories, theme)
   })
 

@@ -31,8 +31,20 @@ import './answer-motion.css'
 /** How the blocks read: inside an answer, or as a help page with its own outline. */
 export type MarkdownLook = 'answer' | 'docs'
 
+/**
+ * How a list item that starts with a fact the answer read is drawn, as a block of its own: the
+ * mention that starts it, and the words after it. Null draws it as the list item it is.
+ */
+export type FactItemRenderer = (
+  fact: { label: string; target: string },
+  rest: ReactNode,
+) => ReactNode
+
 type Draw = {
   mention: MentionRenderer
+  /** A list item that starts with a fact read: its block, and the one line above such a list. */
+  factItem?: FactItemRenderer | undefined
+  factsCaption?: string | undefined
   /** Going to a page of Heed from the answer: the phone's full-screen panel closes. */
   onLeave: (() => void) | undefined
   look: MarkdownLook
@@ -43,6 +55,8 @@ export function AnswerMarkdown({
   source,
   streaming = false,
   renderMention,
+  renderFactItem,
+  factsCaption,
   onLeave,
   className,
 }: {
@@ -50,6 +64,10 @@ export function AnswerMarkdown({
   /** The answer is still arriving: a table shows once its header and delimiter lines have. */
   streaming?: boolean
   renderMention: MentionRenderer
+  /** Draws a list item that starts with a fact the answer read as a block of its own. */
+  renderFactItem?: FactItemRenderer
+  /** Said once above a list of such blocks: that these facts were read for this answer. */
+  factsCaption?: string
   onLeave?: () => void
   className?: string
 }) {
@@ -61,7 +79,14 @@ export function AnswerMarkdown({
     current = readStreaming(source, { streaming, before: reading })
     setReading(current)
   }
-  const draw: Draw = { mention: renderMention, onLeave, look: 'answer', figure: undefined }
+  const draw: Draw = {
+    mention: renderMention,
+    factItem: renderFactItem,
+    factsCaption,
+    onLeave,
+    look: 'answer',
+    figure: undefined,
+  }
   return (
     <div
       data-slot="answer-markdown"
@@ -153,19 +178,35 @@ function Block({ block, draw }: { block: AnswerBlock; draw: Draw }) {
     case 'list': {
       const List = block.ordered ? 'ol' : 'ul'
       const tasks = block.items.some((item) => item.checked !== null)
-      return (
+      // An item that starts with a fact the answer read is a block of its own (title, line, what
+      // it says); a list of them says once that they were read for this answer.
+      const facts = block.items.map((item) => (tasks ? null : factItemOf(item, draw)))
+      const allFacts = facts.length > 0 && facts.every((fact) => fact !== null)
+      const list = (
         <List
           start={block.ordered && block.start !== 1 ? block.start : undefined}
           className={cn(
             'flex flex-col',
             // A page's steps have room between them, each with its result under it.
-            draw.look === 'docs' ? (block.ordered ? 'gap-4' : 'gap-2') : 'gap-1',
-            tasks ? 'list-none' : cn('pl-6', block.ordered ? 'list-decimal' : 'list-disc'),
-            enter,
+            draw.look === 'docs'
+              ? block.ordered
+                ? 'gap-4'
+                : 'gap-2'
+              : allFacts
+                ? 'gap-3'
+                : 'gap-1',
+            tasks || allFacts
+              ? 'list-none'
+              : cn('pl-6', block.ordered ? 'list-decimal' : 'list-disc'),
+            allFacts ? undefined : enter,
           )}
         >
           {block.items.map((item, index) =>
-            item.checked === null ? (
+            facts[index] ? (
+              <li key={index} data-slot="answer-fact" className={cn('min-w-0', arriving(item))}>
+                {facts[index]}
+              </li>
+            ) : item.checked === null ? (
               <li key={index} className={cn('pl-1', arriving(item))}>
                 <ItemBody blocks={item.children} draw={draw} />
               </li>
@@ -179,6 +220,14 @@ function Block({ block, draw }: { block: AnswerBlock; draw: Draw }) {
             ),
           )}
         </List>
+      )
+      return allFacts && draw.factsCaption ? (
+        <div data-slot="answer-facts" className={cn('flex flex-col gap-2', enter)}>
+          <p className="text-caption text-muted-foreground">{draw.factsCaption}</p>
+          {list}
+        </div>
+      ) : (
+        list
       )
     }
     case 'quote':
@@ -212,6 +261,58 @@ function Block({ block, draw }: { block: AnswerBlock; draw: Draw }) {
     case 'figure':
       return draw.figure?.(block) ?? null
   }
+}
+
+/** The nodes of a list item's first words, and the mention that starts them, when one does. */
+function startsWithMention(
+  nodes: AnswerInline[],
+): { mention: { label: string; target: string }; rest: AnswerInline[] } | null {
+  const at = nodes.findIndex((node) => !(node.type === 'text' && node.text.trim() === ''))
+  const first = nodes[at]
+  if (!first) return null
+  if (first.type === 'mention')
+    return { mention: first, rest: [...nodes.slice(0, at), ...nodes.slice(at + 1)] }
+  // Words that arrive in an update of a streaming answer wrap what they hold.
+  if (first.type === 'arrive') {
+    const inner = startsWithMention(first.children)
+    if (inner)
+      return {
+        mention: inner.mention,
+        rest: [...nodes.slice(0, at), { ...first, children: inner.rest }, ...nodes.slice(at + 1)],
+      }
+  }
+  return null
+}
+
+/** The words after a fact's title in a list item, without the colon or dash that joined them. */
+function afterFact(rest: AnswerInline[]): AnswerInline[] {
+  const at = rest.findIndex((node) => !(node.type === 'text' && node.text.trim() === ''))
+  const first = rest[at]
+  if (first?.type === 'text')
+    return [
+      ...rest.slice(0, at),
+      { type: 'text', text: first.text.replace(/^\s*[:\u2013\u2014-]*\s*/, '') },
+      ...rest.slice(at + 1),
+    ]
+  return rest
+}
+
+/** A list item that starts with a fact the answer read, drawn as its block; null for any other. */
+function factItemOf(item: { children: AnswerBlock[] }, draw: Draw): ReactNode {
+  const [first, ...more] = item.children
+  if (!draw.factItem || first?.type !== 'paragraph') return null
+  const start = startsWithMention(first.children)
+  if (!start) return null
+  const words = afterFact(start.rest)
+  const said = words.some((node) => !(node.type === 'text' && node.text.trim() === ''))
+  const rest =
+    said || more.length ? (
+      <>
+        {said ? <Inline nodes={words} draw={draw} /> : null}
+        {more.length ? <Blocks blocks={more} draw={draw} /> : null}
+      </>
+    ) : null
+  return draw.factItem(start.mention, rest)
 }
 
 /** A list item's blocks: a tight item's one paragraph reads as the item itself. */

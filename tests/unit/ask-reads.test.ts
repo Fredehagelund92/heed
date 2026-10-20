@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { TryItReading } from '@/api'
 import { datesTarget } from '@/lib/ask-draft'
-import { draftTagged, readsOf, readsSomething } from '@/lib/ask-reads'
+import { draftTagged, isChatQuestion, readsOf, readsSomething } from '@/lib/ask-reads'
+import type { AskMessage } from '@/lib/assistant'
 import { addToScope } from '@/lib/mention-targets'
 import { emptyScope, type TryItScope } from '@/lib/try-it'
 
@@ -297,5 +298,60 @@ describe('items and domains in the question', () => {
     })
     expect(reads.scope.scope).toEqual(addToScope(emptyScope, 'metric:orders'))
     expect(reads.wire.carried).toEqual([])
+  })
+})
+
+/*
+  The captain, 20 October 2026: "what you mean?" after an answer carried the last question's metric
+  and market, assumed a date and ran a new lookup. A greeting, thanks or a follow-up on the last
+  reply is about the chat: it reads nothing, so the line shows no scope for it.
+*/
+describe('a question that is only about the chat', () => {
+  const said: AskMessage[] = [
+    { id: 'q', role: 'user', parts: [{ type: 'text', text: 'Why did orders drop?' }] },
+    { id: 'a', role: 'assistant', parts: [{ type: 'text', text: 'One fact may be related.' }] },
+  ]
+  const first: AskMessage[] = [said[0]!]
+  const chat = (
+    words: string,
+    messages = said,
+    picked: TryItScope | null = null,
+    tagged = null as ReturnType<typeof draftTagged>,
+    read: TryItReading | null = null,
+  ) => isChatQuestion(words, messages, picked, tagged, read)
+
+  it('is a follow-up on the last reply once the assistant has answered', () => {
+    for (const words of ['what you mean?', 'explain', 'say it simpler', 'shorter', 'why?'])
+      expect(chat(words)).toBe(true)
+    expect(chat('what you mean?', first)).toBe(false)
+    expect(chat('why?', [])).toBe(false)
+  })
+
+  it('is a greeting or thanks at any time', () => {
+    expect(chat('thanks!', first)).toBe(true)
+    expect(chat('hi', [])).toBe(true)
+  })
+
+  it('is a question when it asks about something: other words, a chip, a pick or what the words name', () => {
+    expect(chat('Why did orders drop in Norway?')).toBe(false)
+    expect(chat('and for Spain?')).toBe(false)
+    const norway = scopeOf(['val:market/norway'])
+    expect(chat('why?', said, norway)).toBe(false)
+    expect(chat('why?', said, scopeOf([], '2026-09-01', '2026-09-30'))).toBe(false)
+    expect(chat('why?', said, null, { ...norway, about: [] })).toBe(false)
+    expect(chat('explain', said, null, null, revenueIn2026)).toBe(false)
+    expect(chat('explain', said, null, null, reading())).toBe(true)
+  })
+
+  it('shows nothing carried: with no scope, the line reads nothing', () => {
+    const carried = scopeOf(['metric:orders', 'val:market/norway'], '2026-09-01', '2026-09-30')
+    // As a question it would carry both and the dates.
+    expect(
+      readsSomething(readsOf({ reading: null, picked: null, carried, dropped: none, today })),
+    ).toBe(true)
+    // As a follow-up it is read with nothing: no terms, no period, so no `read` part is sent.
+    const quiet = readsOf({ reading: null, picked: null, carried: null, dropped: none, today })
+    expect(quiet.terms).toEqual([])
+    expect(readsSomething(quiet)).toBe(false)
   })
 })

@@ -55,8 +55,16 @@ async function ask(question: string) {
   await userEvent.type(await questionBox(), `${question}{Enter}`)
 }
 
+/** The latest answer is done: its words are in, whether or not it had a fact to check. */
 const answered = () =>
-  screen.findByRole('note', {}, { timeout: 10_000 }).then((note) => expect(note).toBeVisible())
+  waitFor(
+    () =>
+      expect([...document.querySelectorAll('[data-slot="ask-answer"]')].at(-1)).toHaveAttribute(
+        'data-state',
+        'done',
+      ),
+    { timeout: 10_000 },
+  )
 
 /** Before the first question: what the assistant does, and five questions that teach it. */
 export const Empty: Story = {
@@ -69,7 +77,10 @@ export const Empty: Story = {
   },
 }
 
-/** Two facts apply, two don't: chips that preview each fact, and the check's own report. */
+/**
+ * Two facts apply, and the two that don't are folded apart: each fact is a block that previews it,
+ * and the check's own report.
+ */
 export const Answer: Story = {
   render: () => <StoryApp path="/" />,
   play: async () => {
@@ -77,8 +88,9 @@ export const Answer: Story = {
     await ask(MATCH)
     await answered()
     await expect(
-      screen.getByText("Two facts apply to Average order value, United Kingdom. Two others don't."),
+      screen.getByText('Two facts apply to Average order value, United Kingdom.'),
     ).toBeVisible()
+    await expect(screen.getByText('Facts that don’t apply')).toBeVisible()
     // It read a scope: a link to it, and What an agent would get for it.
     await expect(
       screen.getByRole('button', { name: 'Copy a link to these metrics and dates' }),
@@ -102,6 +114,32 @@ export const Greeting: Story = {
   },
 }
 
+/**
+ * "What you mean?" after an answer is about that answer: it is answered from the chat, with no
+ * step, no fact, no scope carried from the question before and no date assumed.
+ */
+export const FollowUp: Story = {
+  render: () => <StoryApp path="/" />,
+  play: async () => {
+    const panel = await openAsk()
+    await ask('Make this clearer: why did average order value drop in the Netherlands?')
+    await answered()
+    await ask('what you mean?')
+    await waitFor(() => expect(panel.querySelectorAll('[data-slot="ask-answer"]')).toHaveLength(2))
+    await answered()
+    const second = [...panel.querySelectorAll<HTMLElement>('[data-slot="ask-answer"]')].at(-1)!
+    await expect(second).toHaveTextContent(/Let me put it another way\./)
+    await expect(
+      within(second).queryByRole('button', { name: /What the assistant did/ }),
+    ).toBeNull()
+    const question = [...panel.querySelectorAll<HTMLElement>('[data-slot="ask-question"]')].at(-1)!
+    await expect(question).not.toHaveTextContent(/from your last question|No dates given/)
+    await expect(within(question).queryByRole('list', { name: 'Asked about' })).toBeNull()
+    // Both answers in view: the first one's row is not left under the panel's bar.
+    panel.querySelector('[data-slot="ask-question"]')?.scrollIntoView({ block: 'center' })
+  },
+}
+
 /** Two questions and their answers: each turn says who wrote it, You on the right. */
 export const Conversation: Story = {
   render: () => <StoryApp path="/" />,
@@ -120,6 +158,8 @@ export const Conversation: Story = {
       'user',
       'assistant',
     ])
+    // Both answers in view: the first one's row is not left under the panel's bar.
+    panel.querySelector('[data-slot="ask-question"]')?.scrollIntoView({ block: 'center' })
   },
 }
 
@@ -480,6 +520,40 @@ export const Phone: Story = {
   },
 }
 
+/** The library's words for the facts of an invented answer: kind, domain and dates. */
+const library: Record<
+  string,
+  {
+    kind: 'event' | 'note'
+    areaName: string
+    summary: string
+    validity: { start: string; end: string | null }
+    until: string | null
+  }
+> = {
+  itm_bc82d3vq: {
+    kind: 'event',
+    areaName: 'Paid media',
+    summary: 'We switched the Netherlands to a new payment provider on 19 February 2025.',
+    validity: { start: '2025-02-19', end: null },
+    until: null,
+  },
+  itm_kuof5rah: {
+    kind: 'event',
+    areaName: 'Marketing',
+    summary: 'We switched the Netherlands to a new payment provider on 27 September 2024.',
+    validity: { start: '2024-09-27', end: null },
+    until: null,
+  },
+  itm_0im6wo6d: {
+    kind: 'note',
+    areaName: 'Sales',
+    summary: 'Which markets moved most against the Netherlands?',
+    validity: { start: '2026-05-16', end: '2027-01-18' },
+    until: '2027-01-17',
+  },
+}
+
 const noop = () => undefined
 const actions: AnswerActions = {
   onOpenAgent: noop,
@@ -529,6 +603,121 @@ const removed: AskMessage = {
       },
     },
   ],
+}
+
+/**
+ * An invented answer to a question about a change: it starts with what the facts cannot show, then
+ * lists the facts that apply as blocks. Two facts share a title and differ by their dates, one
+ * title is long enough to wrap, and a fact that doesn't apply waits in a folded list of its own.
+ */
+const facts: AskMessage = {
+  id: 'a2',
+  role: 'assistant',
+  parts: [
+    {
+      type: 'dynamic-tool',
+      toolName: 'get_context',
+      toolCallId: 'c2',
+      state: 'output-available',
+      input: {},
+      output: {
+        edition: '2026-10-07.2',
+        items: [
+          {
+            id: 'itm_bc82d3vq',
+            kind: 'event',
+            title: 'Payment provider switched in the Netherlands on 19 February 2025',
+          },
+          {
+            id: 'itm_kuof5rah',
+            kind: 'event',
+            title: 'Payment provider switched in the Netherlands on 27 September 2024',
+          },
+          {
+            id: 'itm_0im6wo6d',
+            kind: 'note',
+            title:
+              'Which markets drove the change in Online share, with the Netherlands as the baseline?',
+          },
+        ],
+      },
+    },
+    {
+      type: 'dynamic-tool',
+      toolName: 'explain_item',
+      toolCallId: 'c3',
+      state: 'output-available',
+      input: {},
+      output: {
+        id: 'itm_00ci02mc',
+        title: 'Outage affected tracking in the Netherlands on 3 March 2026',
+        applies: false,
+        reason: "It's about other metrics.",
+      },
+    },
+    {
+      type: 'text',
+      state: 'done',
+      text: [
+        "**The facts can't show whether Average order value in the Netherlands dropped, or why.**",
+        "Three facts are related to Average order value, Netherlands. A fact can't prove a cause.",
+        '- [itm_bc82d3vq] We switched the Netherlands to a new payment provider on 19 February 2025.',
+        '- [itm_kuof5rah] We switched the Netherlands to a new payment provider on 27 September 2024.',
+        '- [itm_0im6wo6d]',
+      ].join('\n\n'),
+    },
+    {
+      type: 'data-citations',
+      data: {
+        cited: ['itm_bc82d3vq', 'itm_kuof5rah', 'itm_0im6wo6d'],
+        removed: [],
+        quoted: 0,
+      },
+    },
+  ],
+}
+
+export const FactBlocks: Story = {
+  render: () => (
+    <QueryFrame>
+      <RouterFrame>
+        <div className="max-w-dock p-6">
+          <AskAnswer
+            answer={readAnswer(facts)}
+            scope={null}
+            scopeText={null}
+            lookup={(id) => library[id] ?? null}
+            working={false}
+            failed={null}
+            latest
+            actions={actions}
+          />
+        </div>
+      </RouterFrame>
+    </QueryFrame>
+  ),
+  play: async () => {
+    await expect(
+      await screen.findByText(
+        "The facts can't show whether Average order value in the Netherlands dropped, or why.",
+      ),
+    ).toBeVisible()
+    // That they were read for this answer is said once, above the list; each block has its whole
+    // title, a quiet line that tells the two switches apart, and what it says.
+    await expect(screen.getAllByText('Facts I read for this answer')).toHaveLength(1)
+    const blocks = document.querySelectorAll('[data-slot="answer-fact"]')
+    await expect(blocks).toHaveLength(3)
+    await expect(blocks[0]).toHaveTextContent('Event · Paid media · from 19 Feb 2025')
+    await expect(blocks[1]).toHaveTextContent('Event · Marketing · from 27 Sept 2024')
+    await expect(blocks[2]).toHaveTextContent(
+      'Which markets drove the change in Online share, with the Netherlands as the baseline?',
+    )
+    await expect(blocks[2]).toHaveTextContent('Note · Sales · 16 May 2026 to 17 Jan 2027')
+    // The fact that doesn't apply is folded apart, never in the words.
+    const apart = document.querySelector('[data-slot="ask-facts-apart"]')!
+    await expect(apart).not.toHaveAttribute('open')
+    await expect(within(apart as HTMLElement).getByText('Facts that don’t apply')).toBeVisible()
+  },
 }
 
 export const RemovedStatements: Story = {

@@ -14,7 +14,12 @@ import { ABOUT_BUSINESS_END } from '../../../domain/about-business.ts'
 import { domainsInText } from '../../../domain/domain-match.ts'
 import { normalizeName } from '../../../domain/vocabulary.ts'
 import {
+  asksAboutChange,
+  changeLead,
+  changeSubject,
   demoFallback,
+  followUpKind,
+  followUpReply,
   helpQuestion,
   looksLikeDataQuestion,
   metaKind,
@@ -105,6 +110,11 @@ function turn(prompt: LanguageModelV4Prompt) {
     .flatMap((message) =>
       message.role === 'user' ? [textOf(message.content as { type: string }[])] : [],
     )
+  // What the assistant said last, before this question: a follow-up on it ("what do you mean?").
+  const answered = prompt
+    .slice(0, Math.max(last, 0))
+    .findLast((message) => message.role === 'assistant')
+  const reply = answered ? textOf(answered.content).trim() || null : null
   const system = prompt
     .flatMap((message) => (message.role === 'system' ? [message.content] : []))
     .join('\n')
@@ -135,7 +145,7 @@ function turn(prompt: LanguageModelV4Prompt) {
       })
     }
   }
-  return { user, earlier, results, system }
+  return { user, earlier, reply, results, system }
 }
 
 /**
@@ -461,10 +471,21 @@ function draftFromText(user: string, system: string, uncertain = false): Choice 
 /** Whether the person's words quote their source themselves: a quotation of 20 or more characters. */
 const quotesSource = (user: string) => /["“][^"”]{20,}["”]/.test(user)
 
-function choose(message: string, system: string, earlier: readonly string[] = []): Choice {
+function choose(
+  message: string,
+  system: string,
+  earlier: readonly string[] = [],
+  reply: string | null = null,
+): Choice {
   const { words: user, scope: picked } = pickedScope(message)
   const context = turnContextOf(system)
   const attached = attachedOf(system)
+  // "What do you mean?", "say it simpler", "shorter", "why?": about the last reply, so answered
+  // from it, with no lookup. What the person attached or picked for the question is more than
+  // that, and is read as a question.
+  const followUp = followUpKind(user)
+  if (followUp && !attached.length && !Object.keys(picked).length)
+    return { text: followUpReply(followUp, reply, metaFactsOf(system)) }
   // "Last week" is the week the turn context names, unless the person picked dates.
   const scope =
     context.lastWeek && !picked.window && /\blast week\b/i.test(user)
@@ -570,6 +591,39 @@ const factLine = (item: Item) => {
 /** The most facts a reply lists: a real model picks what matters, and so does this one. */
 const FACTS_SHOWN = 5
 
+/**
+ * The metrics and the values a get_context reply read, as words: its keys without their kind
+ * ("metric:average_order_value" is "average order value", "val:market/united_kingdom" is "United
+ * Kingdom"), for the sentence that says what the facts cannot show.
+ */
+function subjectOf(output: Output): [string[], string[]] {
+  const used = (output.scope_used ?? {}) as {
+    metrics?: string[]
+    filters?: Record<string, string[]>
+  }
+  const nice = (key: string) =>
+    key
+      .slice(key.lastIndexOf(':') + 1)
+      .split('/')
+      .pop()!
+      .replace(/_/g, ' ')
+  const title = (words: string) => words.replace(/\b\p{L}/gu, (c) => c.toUpperCase())
+  return [
+    (used.metrics ?? []).map(nice),
+    Object.values(used.filters ?? {})
+      .flat()
+      .map((key) => title(nice(key))),
+  ]
+}
+
+/** The sentence for the day a question without dates was read at: the demo's date, or today. */
+function assumedWords(assumed: unknown, system: string): string {
+  const { date, sentence } = (assumed ?? {}) as { date?: string; sentence?: string }
+  if (date && /The clock here is fixed for the demo/.test(system))
+    return `I used the demo's date, ${longDayWords(date)}, because you gave no dates. Tell me if you meant a different period.`
+  return sentence ?? ''
+}
+
 /** Which of the metric, the market and the dates a get_context reply says the question lacks. */
 function missingScope(output: Output): string {
   const fields = ((output.options as { field?: string }[] | undefined) ?? []).map((o) => o.field)
@@ -625,19 +679,31 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
       const items = (output.items as Item[] | undefined) ?? []
       // Read at today because nothing gave dates: what is attached comes first, as above.
       const about = attached.length && output.assumed_date ? [aboutAttached(attached)] : []
+      // A question about a change or its cause: the facts are notes, never the numbers, so the
+      // answer says first what they cannot show.
+      const question = pickedScope(user).words
+      const lead = asksAboutChange(question)
+        ? [changeLead(question, changeSubject(...subjectOf(output)))]
+        : []
+      // The day it was read at when no dates were given, as the turn context says it is called.
+      const assumed = output.assumed_date ? [assumedWords(output.assumed_date, system)] : []
       // The check's own statements are written for AI apps; a reply says what they mean.
       if (!items.length)
         return [
           ...about,
+          ...lead,
           'Nothing is written down for that. Nobody has added a fact about it yet. If you know of something, I can help you write it down.',
+          ...assumed,
         ].join('\n')
       const shown = items.slice(0, FACTS_SHOWN)
       return [
         ...about,
+        ...lead,
         items.length === 1
-          ? 'One fact applies:'
+          ? 'One fact may be related:'
           : `${items.length} facts apply.${items.length > shown.length ? ` These ${shown.length} come first:` : ''}`,
         ...shown.map((item) => `- ${factLine(item)}`),
+        ...assumed,
       ].join('\n')
     }
     case 'read_item': {
@@ -886,7 +952,7 @@ function draftFromPage(page: Output, user: string, system: string): Choice {
 
 function assist(options: LanguageModelV4CallOptions): Promise<LanguageModelV4GenerateResult> {
   const prompt = options.prompt
-  const { user, earlier, results, system } = turn(prompt)
+  const { user, earlier, reply, results, system } = turn(prompt)
   // A page read for a draft, and no draft proposed yet: the draft comes next, from the page, or
   // from the person's own words when the page could not be read.
   const read = results.find((r) => r.toolName === 'read_source')
@@ -915,7 +981,7 @@ function assist(options: LanguageModelV4CallOptions): Promise<LanguageModelV4Gen
     const text = results.map((r) => explain(r, attached, user, system)).join('\n\n')
     return Promise.resolve(result([{ type: 'text', text }], prompt, 'stop'))
   }
-  const chosen = choose(user, system, earlier)
+  const chosen = choose(user, system, earlier, reply)
   if ('text' in chosen)
     return Promise.resolve(result([{ type: 'text', text: chosen.text }], prompt, 'stop'))
   const { tool, input, words } = chosen

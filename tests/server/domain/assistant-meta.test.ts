@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  aboutTheChat,
+  asksAboutChange,
+  changeLead,
+  changeSubject,
   demoFallback,
+  followUpKind,
+  followUpReply,
   helpQuestion,
   looksLikeDataQuestion,
+  mainPoint,
   metaKind,
   metaReply,
+  type FollowUpKind,
   type MetaKind,
 } from '../../../src/domain/assistant-meta.ts'
 
@@ -201,5 +209,139 @@ describe('a data question', () => {
       expect({ text, data: looksLikeDataQuestion(text) }).toEqual({ text, data: true })
     for (const text of ['what can you do', 'zebra', 'good afternoon'])
       expect({ text, data: looksLikeDataQuestion(text) }).toEqual({ text, data: false })
+  })
+})
+
+/*
+  The captain, 20 October 2026: "Make this clearer: why did average order value drop in
+  Netherlands?" was read as a wording question, and "what you mean?" after it ran a brand-new
+  lookup on the carried scope. A message about the assistant's own last reply is answered from the
+  conversation.
+*/
+describe("a follow-up on the assistant's last reply", () => {
+  it.each<[string, FollowUpKind]>([
+    ['what you mean?', 'explain'],
+    ['what do you mean?', 'explain'],
+    ['What do you mean by that?', 'explain'],
+    ['what does that mean', 'explain'],
+    ['explain', 'explain'],
+    ['Explain that please', 'explain'],
+    ['can you explain it again', 'explain'],
+    ["I don't understand", 'explain'],
+    ['huh?', 'explain'],
+    ['say it simpler', 'simpler'],
+    ['Can you say that in simpler words?', 'simpler'],
+    ['make it simpler', 'simpler'],
+    ['in plain english', 'simpler'],
+    ['simpler', 'simpler'],
+    ['shorter', 'shorter'],
+    ['make it shorter please', 'shorter'],
+    ['say it in one sentence', 'shorter'],
+    ['tl;dr', 'shorter'],
+    ['why?', 'why'],
+    ['why is that', 'why'],
+    ['how come', 'why'],
+    ['why did you say that?', 'why'],
+    ['how do you know?', 'why'],
+  ])('reads %j as %s', (text, kind) => {
+    expect(followUpKind(text)).toBe(kind)
+  })
+
+  it.each([
+    'Why did average order value drop in Netherlands?',
+    'why did orders drop',
+    'Explain item itm_abcd1234 to me',
+    'explain the VAT rate change in the Netherlands',
+    'What does GMV mean?',
+    'what do you know about orders',
+    'Make this clearer: why did average order value drop in Netherlands?',
+    'shorter delivery times in Norway',
+    'What changed this week?',
+    'thanks',
+    'hi',
+  ])('leaves %j to the tools or to the other kinds', (text) => {
+    expect(followUpKind(text)).toBeNull()
+  })
+
+  it('is about the chat for a greeting or thanks, and for a follow-up only after an answer', () => {
+    expect(aboutTheChat('hi', false)).toBe(true)
+    expect(aboutTheChat('thanks!', true)).toBe(true)
+    expect(aboutTheChat('what you mean?', true)).toBe(true)
+    expect(aboutTheChat('what you mean?', false)).toBe(false)
+    expect(aboutTheChat('why?', false)).toBe(false)
+    expect(aboutTheChat('Why did orders drop?', true)).toBe(false)
+    expect(aboutTheChat('what can you do', true)).toBe(false)
+  })
+
+  it('answers from the last reply: its first sentence, no id, no quotation marks, no question about the scope', () => {
+    const reply =
+      'One fact may be related: the Netherlands switched payment provider on 12 June [itm_0im6wo6d]. It says "a new provider" and no more.'
+    for (const kind of ['explain', 'simpler', 'shorter', 'why'] as const) {
+      const said = followUpReply(kind, reply, facts)
+      expect(said).toContain(
+        'One fact may be related: the Netherlands switched payment provider on 12 June.',
+      )
+      expect(said).not.toMatch(/itm_|["“”]/)
+      expect(scopeQuestion.test(said)).toBe(false)
+    }
+    expect(followUpReply('shorter', reply, facts)).toMatch(/^In short: /)
+    expect(followUpReply('simpler', reply, facts)).toMatch(/^Simply put: /)
+    expect(followUpReply('explain', reply, facts)).toMatch(/^Let me put it another way\./)
+  })
+
+  it('says it has nothing to explain before it has said anything', () => {
+    expect(followUpReply('explain', null, facts)).toMatch(
+      /^I haven't said anything to explain yet\./,
+    )
+  })
+
+  it('takes the main point of a reply from its first line of words, past bullets and tables', () => {
+    expect(
+      mainPoint('**A clearer question names what, where and when.**\n\nName the metric.'),
+    ).toBe('A clearer question names what, where and when.')
+    expect(mainPoint('- First point here. And more.\n- Second')).toBe('First point here.')
+    expect(mainPoint('| a | b |\n| - | - |\nThe table says so.')).toBe('The table says so.')
+    expect(mainPoint('  ')).toBeNull()
+  })
+})
+
+describe('a question about a change, which the facts cannot show', () => {
+  it.each([
+    'Why did average order value drop in Netherlands?',
+    'why was units per order down in June',
+    'Did returns rise in Spain last month?',
+    'what happened to orders in Norway',
+    'Orders fell in Poland',
+  ])('reads %j as one', (text) => {
+    expect(asksAboutChange(text)).toBe(true)
+  })
+
+  it.each([
+    'Which facts apply to Orders in Norway last week?',
+    'What does the Sandbox domain cover?',
+    'What does churn rate mean?',
+  ])('leaves %j alone', (text) => {
+    expect(asksAboutChange(text)).toBe(false)
+  })
+
+  it('says first, in one plain sentence, what the facts cannot show, and claims no cause', () => {
+    const subject = changeSubject(['Average order value'], ['Netherlands'])
+    expect(subject).toBe('Average order value in the Netherlands')
+    expect(changeLead('Why did average order value drop in Netherlands?', subject)).toBe(
+      "The facts can't show whether Average order value in the Netherlands dropped, or why.",
+    )
+    expect(changeLead('Did returns rise in Spain?', 'Returns in Spain')).toBe(
+      "The facts can't show whether Returns in Spain rose.",
+    )
+    expect(changeLead('Why did it fall?', null)).toBe(
+      "The facts can't show whether it fell, or why.",
+    )
+    expect(changeLead('what happened to orders', null)).toBe(
+      "The facts can't show whether it changed.",
+    )
+    expect(changeSubject([], [])).toBeNull()
+    expect(changeSubject(['Orders', 'Revenue'], ['Norway', 'Sweden'])).toBe(
+      'Orders and Revenue in Norway and Sweden',
+    )
   })
 })

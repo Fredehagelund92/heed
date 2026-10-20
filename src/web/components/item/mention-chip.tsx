@@ -73,6 +73,7 @@ export function MentionChip({
   missing = false,
   status = 'current',
   hint = true,
+  full = false,
   className,
 }: {
   target: MentionChipTarget
@@ -82,9 +83,11 @@ export function MentionChip({
   status?: MentionStatus
   /** The native tooltip; off inside a preview trigger, whose card says more. */
   hint?: boolean
+  /** The whole title, wrapped when it must, never cut to the chip's limit (an answer's facts). */
+  full?: boolean
   className?: string
 }) {
-  const text = mentionText(target.type, name)
+  const text = full ? name : mentionText(target.type, name)
   const struck = missing || status === 'source_missing'
   const dashed = struck || status === 'retired'
   const area = target.type === 'area' && !dashed
@@ -117,6 +120,7 @@ export function MentionChip({
       data-slot="mention-chip"
       data-target={target.type}
       data-missing={missing || undefined}
+      data-full={full || undefined}
       data-status={status === 'current' ? undefined : status}
       data-tone={area ? target.label : 'neutral'}
       title={

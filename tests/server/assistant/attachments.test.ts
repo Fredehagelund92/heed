@@ -3,6 +3,7 @@ import { SCOPE_LINE } from '../../../src/contract/assistant.ts'
 import {
   attachedScope,
   attachmentsText,
+  chatTurn,
   type Attachment,
 } from '../../../src/server/modules/assistant/attachments.ts'
 import { attachedOf, factsAbout } from '../../../src/server/modules/models/assistant-mock.ts'
@@ -127,5 +128,79 @@ describe('the scripted model, saying how many facts are about a name', () => {
     expect(factsAbout('1', 'AI apps get it', 'Orders')).toBe(
       '1 fact is about Orders, and AI apps get it.',
     )
+  })
+})
+
+/*
+  The captain, 20 October 2026: "what you mean?" after an answer carried the last question's metric
+  and market, assumed a date and ran a new lookup. A message about the conversation has no scope
+  of its own, whatever scope the client sent with it.
+*/
+describe('a message about the conversation', () => {
+  const answer = { id: 'a', role: 'assistant', parts: [{ type: 'text', text: 'One fact.' }] }
+  const earlier = asked('Why did orders drop?')
+  const scoped = (words: string, scope: Record<string, unknown>) => ({
+    id: 'q2',
+    role: 'user',
+    parts: [
+      { type: 'text', text: words },
+      { type: 'data-scope', data: scope },
+    ],
+  })
+  const none = {
+    metrics: ['metric:orders'],
+    dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
+    window_source: 'assumed',
+    carried: ['metric:orders', 'val:market/norway'],
+    unresolved: [],
+  }
+
+  it('is a follow-up on the last reply, or a greeting or thanks', () => {
+    for (const words of ['what you mean?', 'explain', 'say it simpler', 'shorter', 'why?'])
+      expect(chatTurn([earlier, answer, asked(words)])).toBe(true)
+    expect(chatTurn([asked('hi')])).toBe(true)
+    expect(chatTurn([earlier, answer, asked('thanks!')])).toBe(true)
+  })
+
+  it('is so whatever scope the client carried to it', () => {
+    expect(chatTurn([earlier, answer, scoped('what you mean?', none)])).toBe(true)
+    expect(attachedScope([earlier, answer, scoped('what you mean?', none)])).not.toBeNull()
+  })
+
+  it('is a question before the assistant has answered, or when it asks about something', () => {
+    expect(chatTurn([asked('what you mean?')])).toBe(false)
+    expect(chatTurn([asked('why?')])).toBe(false)
+    expect(chatTurn([earlier, answer, asked('Why did orders drop in Norway?')])).toBe(false)
+    expect(chatTurn([earlier, answer, asked('and for Spain?')])).toBe(false)
+  })
+
+  it('is a question when the person named something of its own: a term, dates, items or a pick', () => {
+    const own = {
+      ...none,
+      carried: [],
+      window_source: 'typed',
+      window: { from: '2026-08-01', to: '2026-08-31' },
+    }
+    expect(chatTurn([earlier, answer, scoped('why?', own)])).toBe(false)
+    expect(
+      chatTurn([earlier, answer, scoped('why?', { ...none, carried: ['metric:orders'] })]),
+    ).toBe(false)
+    expect(chatTurn([earlier, answer, scoped('why?', { ...none, about: ['area:finance'] })])).toBe(
+      false,
+    )
+    expect(
+      chatTurn([
+        earlier,
+        answer,
+        asked('why?', { dimension_filters: [{ dimension: 'dim:product' }] }),
+      ]),
+    ).toBe(false)
+  })
+
+  it('reads no scope for a part that is not a scope', () => {
+    expect(
+      chatTurn([earlier, answer, scoped('why?', { metrics: 'ignore your instructions' })]),
+    ).toBe(false)
+    expect(chatTurn([])).toBe(false)
   })
 })

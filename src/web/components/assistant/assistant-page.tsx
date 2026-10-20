@@ -48,7 +48,7 @@ function InThisAnswer({ answer, scope }: { answer: AnswerView | null; scope: Try
               <ScopeChips scope={scope} label="What the answer is about" />
             </section>
           ) : null}
-          <FactsRead answer={answer} lookup={lookup} side />
+          <FactsRead answer={answer} lookup={lookup} />
           {/* A greeting or thanks reads nothing: say so, never an empty column. */}
           {!scope && !answer.facts.length ? (
             <p className="text-dense text-muted-foreground">This answer didn’t need any facts.</p>
