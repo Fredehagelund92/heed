@@ -55,11 +55,8 @@ for (const size of [widths[0], phone]) {
     })
 
     test('writes a mention by keyboard, removes it whole and undoes it', async ({ page }) => {
-      // Keyboard only: from the second scope field, Tab passes "Add a list" and reaches the first
-      // summary.
+      // Keyboard only: from the second scope field, Tab reaches the first summary.
       await page.getByRole('combobox', { name: 'Where it applies' }).nth(1).focus()
-      await page.keyboard.press('Tab')
-      await expect(page.getByRole('button', { name: 'Add a list' }).nth(1)).toBeFocused()
       await page.keyboard.press('Tab')
       const field = summary(page, 0)
       await expect(field).toBeFocused()

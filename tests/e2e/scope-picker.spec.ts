@@ -5,8 +5,8 @@ import { openPage, themes, widths } from './support'
 /*
   "Where it applies" with a dimension that holds thousands of values (FR-107, FR-126): the list
   stays empty until the person types, the service searches, each dimension shows a count, "Any
-  value" picks the dimension on its own, a dimension is searched a page at a time, a pasted list
-  is matched name by name, and chips fold after eight. On the design preview, by keyboard, at
+  value" picks the dimension on its own, a dimension is searched a page at a time, a paste
+  is only text, and chips fold after eight. On the design preview, by keyboard, at
   1440 and 360 pixels, with axe.
 */
 
@@ -18,13 +18,18 @@ const scopeField = (page: Page, index = 0) =>
 /** What the first scope field stores. */
 const stored = (page: Page) => page.locator('[data-slot="stored"]').first()
 
+/** Sends a paste to the field; true when the page took it over instead of leaving it to the field. */
 async function paste(field: Locator, text: string) {
-  await field.evaluate((element, words) => {
+  return field.evaluate((element, words) => {
     const data = new DataTransfer()
     data.setData('text/plain', words)
-    element.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
-    )
+    const event = new ClipboardEvent('paste', {
+      clipboardData: data,
+      bubbles: true,
+      cancelable: true,
+    })
+    element.dispatchEvent(event)
+    return event.defaultPrevented
   }, text)
 }
 
@@ -110,18 +115,26 @@ for (const size of [widths[0], phone]) {
       expect(overflow).toBe(0)
     })
 
-    test('adds a pasted list, names what it could not find and folds the chips', async ({
-      page,
-    }) => {
+    test('folds the chips after eight', async ({ page }) => {
       const field = scopeField(page)
-      await field.focus()
-      await paste(
-        field,
-        'Norway\nSpain\nPolska\nFrance\nGermany\nGreat Britain\nNetherlands\nItaly\nCanada\nSweden\nXland, Narnia',
-      )
-      await expect(page.getByText('Added 10 names.', { exact: true })).toBeVisible()
-      await expect(page.getByText('Not found (2)')).toBeVisible()
-      await expect(page.getByText('Xland, Narnia')).toBeVisible()
+      for (const name of [
+        'Norway',
+        'Spain',
+        'Poland',
+        'France',
+        'Germany',
+        'United Kingdom',
+        'Netherlands',
+        'Italy',
+        'Canada',
+        'Sweden',
+      ]) {
+        await field.fill(name)
+        await page
+          .getByRole('option', { name: new RegExp(`^${name}`) })
+          .first()
+          .click()
+      }
       const chips = page.getByRole('list', { name: 'Chosen' }).first()
       await expect(chips.getByRole('listitem')).toHaveCount(8)
       await page.getByRole('button', { name: '+2 more' }).click()
@@ -133,19 +146,18 @@ for (const size of [widths[0], phone]) {
       expect(overflow).toBe(0)
     })
 
-    test('adds a typed list from Add a list', async ({ page }) => {
-      await page.getByRole('button', { name: 'Add a list' }).first().click()
-      await page.getByRole('textbox', { name: 'Names to add' }).fill('Units sold\nNorge')
-      await page.getByRole('button', { name: 'Add these' }).click()
-      await expect(stored(page)).toHaveText(
-        '{"metrics":["metric:units_sold"],"dimensions":[],"dimensionValues":[{"dimension":"dim:market","value":"val:market/norway"}]}',
-      )
+    test('leaves a pasted list to the field and adds no chips', async ({ page }) => {
+      const field = scopeField(page)
+      await field.focus()
+      const before = (await stored(page).textContent()) ?? ''
+      expect(await paste(field, 'Norway, Spain\nXland')).toBe(false)
+      await expect(stored(page)).toHaveText(before)
     })
   })
 }
 
 for (const theme of themes)
-  test(`passes axe with the list open across dimensions, inside one, and after a paste (${theme})`, async ({
+  test(`passes axe with the list open across dimensions and inside one (${theme})`, async ({
     page,
   }) => {
     await openPage(page, path, { ...widths[0], theme })
@@ -157,11 +169,6 @@ for (const theme of themes)
     await page.keyboard.press('ArrowUp')
     await page.keyboard.press('Enter')
     await expect(page.getByRole('listbox', { name: /^Values of/ })).toContainText('1 to 12 of')
-    expect(await axe(page)).toEqual([])
-    await field.fill('')
-    await page.keyboard.press('Backspace')
-    await paste(field, 'Norway, Xland')
-    await expect(page.getByText('Not found (1)')).toBeVisible()
     expect(await axe(page)).toEqual([])
   })
 

@@ -4,29 +4,24 @@ import {
   useMemo,
   useRef,
   useState,
-  type ClipboardEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { Scope } from '@domain/item'
-import { scopeEntries } from '@domain/scope-search'
-import type { ScopeHit, ScopeMatchResult } from '@/api'
-import { scopeMatchQuery, scopeSearchQuery, scopeTermsQuery } from '@/api/queries'
-import { HeedSourceMissingIcon, ListIcon, SplitIcon, XIcon } from '@/components/icons'
+import type { ScopeHit } from '@/api'
+import { scopeSearchQuery, scopeTermsQuery } from '@/api/queries'
+import { HeedSourceMissingIcon, SplitIcon, XIcon } from '@/components/icons'
 import { optionId } from '@/components/mentions/mention-list'
 import { ScopeList, type ScopeRow, type ScopeSection } from '@/components/mentions/scope-list'
 import { PreviewLink } from '@/components/preview/preview-link'
 import {
   ScopeTermLabel,
   scopeTermKind,
-  scopeTermSpoken,
   scopeTermWords,
   type ScopeTermView,
 } from '@/components/mentions/scope-term'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { addToScope, removeFromScope, scopeKeys } from '@/lib/mention-targets'
 import { previewTargetOf } from '@/lib/preview'
 import { anyValueInSentence } from '@/lib/library-core'
@@ -49,7 +44,7 @@ const idOf = (key: string) =>
     .split('/')
     .pop() ?? key
 
-const plurals: Record<string, string> = { match: 'matches', entry: 'entries' }
+const plurals: Record<string, string> = { match: 'matches' }
 const humanize = (id: string) => {
   const words = id.replace(/_/g, ' ')
   return words.charAt(0).toLocaleUpperCase('en') + words.slice(1)
@@ -144,16 +139,12 @@ function ScopeChip({
   )
 }
 
-/** What a pasted list did: how many it added, and what it could not match. */
-type PasteReport = { added: number; known: number; result: ScopeMatchResult }
-
 /**
  * "Where it applies" (contract 9.6, FR-107): a combobox with chips. A dimension can hold
  * thousands of values, so nothing is listed until the person types, and the service searches: a
  * page of metrics and, per dimension, "Any value", a few values with how many match, and a row to
  * search all of them. Recent and often-used terms come first. Inside one dimension the list pages
- * through its values. A pasted list (lines, commas or semicolons), or one typed into "Add a list",
- * is matched name by name and what is not found is named. Another name finds the main one and
+ * through its values. Another name finds the main one and
  * says so. An unknown word is never accepted: the list says so and can offer to ask an owner.
  * After eight chips the rest fold into "+N more". Backspace in an empty field leaves a dimension,
  * then selects the last chip, and a second Backspace removes it.
@@ -190,7 +181,6 @@ export function ScopeInput({
   'aria-describedby'?: string
   'aria-invalid'?: boolean
 }) {
-  const queryClient = useQueryClient()
   const generatedId = useId()
   const inputId = id ?? `${generatedId}-input`
   const listId = `${generatedId}-list`
@@ -204,9 +194,6 @@ export function ScopeInput({
   const [unfolded, setUnfolded] = useState(false)
   const [announcement, setAnnouncement] = useState('')
   const [picked, setPicked] = useState<ReadonlyMap<string, ScopeHit>>(new Map())
-  const [listOpen, setListOpen] = useState(false)
-  const [listText, setListText] = useState('')
-  const [report, setReport] = useState<PasteReport | null>(null)
   const debounced = useDebounced(query.trim(), SEARCH_DELAY_MS)
   // Clearing the words takes effect at once; only typing waits.
   const words = query.trim() ? debounced : ''
@@ -402,35 +389,6 @@ export function ScopeInput({
     } else askOwner(row.words)
   }
 
-  /** Matches a list name by name, adds what it found and keeps what it did not for the person. */
-  const addList = async (text: string) => {
-    const entries = scopeEntries(text)
-    if (!entries.length) return
-    const input = { entries, ...(within ? { dimension: within.key } : {}) }
-    const match = await queryClient.fetchQuery(scopeMatchQuery(input))
-    let next = value
-    for (const hit of match.found) next = addToScope(next, hit.key)
-    const added = match.found.filter((hit) => !keys.includes(hit.key)).length
-    remember(match.found)
-    if (added) onChange(next)
-    setReport({ added, known: match.found.length - added, result: match })
-    setListOpen(false)
-    setListText('')
-    const missing = match.missing.length + match.ambiguous.length
-    setAnnouncement(
-      `Added ${count(added, within ? 'value' : 'name')}.` +
-        (missing ? ` ${count(missing, 'entry')} need checking.` : ''),
-    )
-  }
-  const onPaste = (event: ClipboardEvent<HTMLInputElement>) => {
-    const text = event.clipboardData.getData('text')
-    if (scopeEntries(text).length < 2) return
-    event.preventDefault()
-    setQuery('')
-    setOpen(false)
-    void addList(text)
-  }
-
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     const position = activeId ? rows.findIndex((row) => row.id === activeId) : -1
     const activeRow = position >= 0 ? rows[position] : undefined
@@ -611,7 +569,6 @@ export function ScopeInput({
             onFocus={() => {
               if (within) setOpen(true)
             }}
-            onPaste={onPaste}
             onKeyDown={onKeyDown}
             onBlur={() => {
               setOpen(false)
@@ -619,19 +576,6 @@ export function ScopeInput({
             }}
             className="h-control-md min-w-0 flex-1 basis-32 bg-transparent px-1 text-body outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed pointer-coarse:text-large"
           />
-          {listOpen ? null : (
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              disabled={disabled}
-              aria-label="Add a list"
-              title="Add a list: one name per line"
-              onClick={() => setListOpen(true)}
-              className="ml-auto text-muted-foreground"
-            >
-              <ListIcon aria-hidden="true" />
-            </Button>
-          )}
         </div>
         {expanded ? (
           <div className="absolute inset-x-0 top-full z-popover pt-1">
@@ -650,95 +594,9 @@ export function ScopeInput({
           <div id={listId} role="listbox" aria-label={listLabel} hidden />
         )}
       </div>
-      {report ? (
-        <PasteSummary report={report} onPick={add} onClose={() => setReport(null)} />
-      ) : null}
-      {listOpen ? (
-        <div className="flex flex-col gap-2">
-          <Textarea
-            aria-label={within ? `Values of ${within.name} to add` : 'Names to add'}
-            placeholder={`One per line, or separated by commas${within ? `, all values of ${within.name}` : ''}`}
-            value={listText}
-            disabled={disabled}
-            onChange={(event) => setListText(event.target.value)}
-            className="min-h-16 text-body"
-          />
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={disabled || scopeEntries(listText).length === 0}
-              onClick={() => void addList(listText)}
-            >
-              Add these
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setListOpen(false)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : null}
       <span role="status" className="sr-only">
         {spokenStatus}
       </span>
-    </div>
-  )
-}
-
-/**
- * What a pasted list did: the count it added, the entries that name more than one term (pick
- * one), and the entries that name nothing, which stay here to copy and fix.
- */
-function PasteSummary({
-  report,
-  onPick,
-  onClose,
-}: {
-  report: PasteReport
-  onPick: (hit: ScopeHit) => void
-  onClose: () => void
-}) {
-  const { added, known, result } = report
-  return (
-    <div
-      data-slot="scope-paste-report"
-      className="flex flex-col gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-dense"
-    >
-      <div className="flex items-start gap-2">
-        <p className="min-w-0 flex-1">
-          {added > 0 ? `Added ${count(added, 'name')}.` : 'Nothing new was added.'}
-          {known > 0
-            ? ` ${count(known, 'name')} ${known === 1 ? 'was' : 'were'} already chosen.`
-            : ''}
-        </p>
-        <button
-          type="button"
-          aria-label="Close the list summary"
-          onClick={onClose}
-          className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <XIcon aria-hidden="true" className="size-icon-sm" />
-        </button>
-      </div>
-      {result.ambiguous.map(({ entry, options }) => (
-        <div key={entry} className="flex flex-col gap-1">
-          <p className="text-muted-foreground">{`“${entry}” names more than one. Pick one:`}</p>
-          <div className="flex flex-wrap gap-2">
-            {options.map((hit) => (
-              <Button key={hit.key} size="sm" variant="outline" onClick={() => onPick(hit)}>
-                <span className="sr-only">Add </span>
-                {scopeTermSpoken(viewOf(hit))}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ))}
-      {result.missing.length ? (
-        <div className="flex flex-col gap-1">
-          <p className="font-bold">{`Not found (${result.missing.length.toLocaleString('en')})`}</p>
-          <p className="break-words text-muted-foreground">{result.missing.join(', ')}</p>
-        </div>
-      ) : null}
     </div>
   )
 }

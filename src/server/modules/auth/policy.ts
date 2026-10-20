@@ -114,7 +114,6 @@ export const policies = {
   'sources.test': 'admin',
   'vocabulary.get': 'read',
   'vocabulary.search': 'read',
-  'vocabulary.match': 'read',
   'vocabulary.describe': 'read',
   'library.index': 'read',
   'library.freshness': 'read',

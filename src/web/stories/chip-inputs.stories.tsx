@@ -304,17 +304,6 @@ export const ScopeManyChips: Story = {
   ),
 }
 
-/** A pasted list adds what it finds and names what it could not find. */
-export const ScopePastedList: Story = {
-  render: () => <ScopeField />,
-  play: async ({ canvasElement }) => {
-    const field = await within(canvasElement).findByRole('combobox')
-    await userEvent.click(field)
-    await userEvent.paste('Norway\nPolska\nDeposits, Xland, Narnia')
-    await within(canvasElement).findByText('Not found (2)')
-  },
-}
-
 export const ScopeOtherName: Story = {
   render: () => <ScopeField />,
   play: typeInto('Norge', 'combobox'),

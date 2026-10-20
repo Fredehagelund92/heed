@@ -30,7 +30,6 @@ import {
   type QueueEntry,
   type Review,
   type ReviewProposal,
-  type ScopeMatchInput,
   type ScopeSearchInput,
   type TryItInput,
   type QueueParams,
@@ -73,7 +72,6 @@ export const queryKeys = {
   people: ['people'] as const,
   vocabulary: ['vocabulary'] as const,
   scopeSearch: (input: ScopeSearchInput) => ['vocabulary', 'scope-search', input] as const,
-  scopeMatch: (input: ScopeMatchInput) => ['vocabulary', 'scope-match', input] as const,
   scopeTerms: (keys: readonly string[]) => ['vocabulary', 'scope-terms', keys] as const,
   catalogue: ['catalogue'] as const,
   termCandidates: ['vocabulary', 'candidates'] as const,
@@ -248,14 +246,6 @@ export const scopeSearchQuery = (input: ScopeSearchInput) =>
   queryOptions({
     queryKey: queryKeys.scopeSearch(input),
     queryFn: () => api.searchScope(input),
-    staleTime: 30_000,
-  })
-
-/** A pasted list matched name by name, read once per list. */
-export const scopeMatchQuery = (input: ScopeMatchInput) =>
-  queryOptions({
-    queryKey: queryKeys.scopeMatch(input),
-    queryFn: () => api.matchScope(input),
     staleTime: 30_000,
   })
 

@@ -157,42 +157,16 @@ describe('ScopeInput', () => {
     expect(await findOption(/^Footwear/)).toBeInTheDocument()
   })
 
-  it('adds a pasted list and names what it could not find', async () => {
+  it('puts pasted text with commas and new lines in the field, without adding chips', async () => {
     const user = userEvent.setup()
     const onScope = vi.fn()
     render(<Harness onScope={onScope} />)
-    const field = screen.getByRole('combobox')
+    const field = screen.getByRole('combobox', { name: 'Where it applies' })
     await user.click(field)
-    await user.paste('Norway\nHispania\nPolska, Orders; Xland')
-    await waitFor(() =>
-      expect(onScope).toHaveBeenLastCalledWith({
-        metrics: ['metric:orders'],
-        dimensions: [],
-        dimensionValues: [
-          { dimension: 'dim:market', value: 'val:market/norway' },
-          { dimension: 'dim:market', value: 'val:market/poland' },
-        ],
-      }),
-    )
-    expect(screen.getByText('Added 3 names.')).toBeInTheDocument()
-    expect(screen.getByText('Not found (2)')).toBeInTheDocument()
-    expect(screen.getByText('Hispania, Xland')).toBeInTheDocument()
-  })
-
-  it('adds a typed list from Add a list', async () => {
-    const user = userEvent.setup()
-    const onScope = vi.fn()
-    render(<Harness onScope={onScope} />)
-    await user.click(screen.getByRole('button', { name: 'Add a list' }))
-    await user.type(screen.getByRole('textbox', { name: 'Names to add' }), 'Units sold, Germany')
-    await user.click(screen.getByRole('button', { name: 'Add these' }))
-    await waitFor(() =>
-      expect(onScope).toHaveBeenLastCalledWith({
-        metrics: ['metric:units_sold'],
-        dimensions: [],
-        dimensionValues: [{ dimension: 'dim:market', value: 'val:market/germany' }],
-      }),
-    )
+    await user.paste('Norway, Spain\nOrders')
+    expect((field as HTMLInputElement).value).toContain('Norway, Spain')
+    expect(onScope).not.toHaveBeenCalled()
+    expect(screen.queryByRole('list', { name: 'Chosen' })).toBeNull()
   })
 
   it('folds chips after eight into +N more', async () => {

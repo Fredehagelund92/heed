@@ -417,7 +417,6 @@ export function createMockApi({
         return person.getWeeklyCalls(params)
       }),
     searchScope: (input) => act((person) => person.searchScope(input)),
-    matchScope: (input) => act((person) => person.matchScope(input)),
     describeScope: (keys) => act((person) => person.describeScope(keys)),
     getEvalRun: (id) => act((person) => orNull(() => person.getEvalRun(id))),
     listTestQuestions: (params) => act((person) => person.listTestQuestions(params)),
@@ -625,7 +624,6 @@ type ReadMethods = Omit<
   | 'getTopicCounts'
   | 'getWeeklyCalls'
   | 'searchScope'
-  | 'matchScope'
   | 'describeScope'
   | 'getEvalRun'
   | 'listTestQuestions'

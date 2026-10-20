@@ -201,8 +201,6 @@ import {
 import {
   scopeDescribeInputSchema,
   scopeHitSchema,
-  scopeMatchInputSchema,
-  scopeMatchSchema,
   scopeSearchInputSchema,
   scopeSearchSchema,
 } from './scope.ts'
@@ -299,13 +297,7 @@ export type {
   Untested,
   Upkeep,
 } from './quality.ts'
-export type {
-  ScopeHit,
-  ScopeMatchInput,
-  ScopeMatchResult,
-  ScopeSearchInput,
-  ScopeSearchResult,
-} from './scope.ts'
+export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
 export type {
   Catalogue,
   CatalogueDefinition,
@@ -1432,15 +1424,6 @@ export const contract = {
       })
       .input(scopeSearchInputSchema)
       .output(scopeSearchSchema),
-    match: read
-      .route({
-        method: 'POST',
-        path: '/vocabulary/match',
-        tags: ['reference'],
-        summary: 'Match a pasted list name by name, and name the entries that match nothing',
-      })
-      .input(scopeMatchInputSchema)
-      .output(scopeMatchSchema),
     describe: read
       .route({
         method: 'POST',

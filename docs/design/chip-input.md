@@ -57,7 +57,7 @@ offers; `person` is held for proposal comments and discussion and offers nothing
 name a dimension with any value (FR-126, 10 October 2026), "Where it applies" searches on the
 service instead (`vocabulary.search`, `src/domain/scope-search.ts`), because a dimension can hold
 thousands of values: its own list (`ScopeList`) shows per dimension "Any value", a count and a few
-values, pages inside one dimension, and a pasted list is matched with `vocabulary.match`.
+values and pages inside one dimension.
 
 ## What the spike found
 

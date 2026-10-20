@@ -1632,22 +1632,6 @@
         }
       }
     },
-    "match": {
-      "~orpc": {
-        "errorMap": {},
-        "meta": {
-          "scope": "read"
-        },
-        "route": {
-          "method": "POST",
-          "path": "/vocabulary/match",
-          "tags": [
-            "reference"
-          ],
-          "summary": "Match a pasted list name by name, and name the entries that match nothing"
-        }
-      }
-    },
     "describe": {
       "~orpc": {
         "errorMap": {},

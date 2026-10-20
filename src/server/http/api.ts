@@ -715,9 +715,6 @@ export function createRouter({
           ...(input.limit === undefined ? {} : { limit: input.limit }),
         }),
       ),
-      match: authorized.vocabulary.match.handler(({ context, input }) =>
-        context.vocabulary.match(input.entries, input.dimension),
-      ),
       describe: authorized.vocabulary.describe.handler(({ context, input }) =>
         context.vocabulary.describe(input.keys),
       ),

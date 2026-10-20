@@ -1,10 +1,8 @@
 import type { Vocabulary } from '../../../domain/item.ts'
 import {
   describeScope,
-  matchScope,
   searchScope,
   type ScopeHit,
-  type ScopeMatch,
   type ScopeSearch,
   type ScopeSearchInput,
   type ScopeUsage,
@@ -17,8 +15,6 @@ export interface VocabularyService {
   get(): Promise<Vocabulary>
   /** A page of terms for the scope picker, recent and often used first (FR-107). */
   search(input: ScopeSearchInput): Promise<ScopeSearch>
-  /** A pasted list, matched name by name. */
-  match(entries: readonly string[], dimension?: string): Promise<ScopeMatch>
   /** The chips of a scope; a key the live vocabulary no longer holds is left out. */
   describe(keys: readonly string[]): Promise<ScopeHit[]>
 }
@@ -114,11 +110,6 @@ export function createVocabularyService(database: Queryable): VocabularyService 
       const vocabulary = await searchTerms()
       const used = await usage()
       return searchScope(vocabulary, used, input)
-    },
-    async match(entries, dimension) {
-      const vocabulary = await searchTerms()
-      const used = await usage()
-      return matchScope(vocabulary, used, entries, dimension)
     },
     async describe(keys) {
       if (!keys.length) return []

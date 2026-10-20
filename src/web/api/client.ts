@@ -24,8 +24,6 @@ import type {
   LibraryItem,
   ListItemsParams,
   ScopeHit,
-  ScopeMatchInput,
-  ScopeMatchResult,
   ScopeSearchInput,
   ScopeSearchResult,
 } from '../../contract/index.ts'
@@ -281,8 +279,6 @@ export type {
   ProposalTest,
   ReviewProposal,
   ScopeHit,
-  ScopeMatchInput,
-  ScopeMatchResult,
   ScopeSearchInput,
   ScopeSearchResult,
   Setting,
@@ -576,8 +572,6 @@ export interface ContextApi {
    * used first. Inside one dimension it pages through the values. Empty words find nothing there.
    */
   searchScope: (input: ScopeSearchInput) => Promise<ScopeSearchResult>
-  /** A pasted list, matched name by name; what matches nothing is named. */
-  matchScope: (input: ScopeMatchInput) => Promise<ScopeMatchResult>
   /** The names of a scope's keys, for its chips. A key no longer in use is left out. */
   describeScope: (keys: string[]) => Promise<ScopeHit[]>
   /**
@@ -984,7 +978,6 @@ export const contextApiMethods = [
   'listPeople',
   'getVocabulary',
   'searchScope',
-  'matchScope',
   'describeScope',
   'listCatalogue',
   'getCatalogueTerm',

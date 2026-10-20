@@ -117,13 +117,8 @@ import { questionReading } from '../../domain/question-reading.ts'
 import type { Term } from '../../domain/vocabulary.ts'
 import { previewItemId, type ServedReview } from '../../domain/served-review.ts'
 import type { ItemReview } from '../../contract/review.ts'
-import {
-  describeScope,
-  matchScope,
-  searchScope,
-  type ScopeUsage,
-} from '../../domain/scope-search.ts'
-import type { ScopeMatchInput, ScopeSearchInput } from '../../contract/scope.ts'
+import { describeScope, searchScope, type ScopeUsage } from '../../domain/scope-search.ts'
+import type { ScopeSearchInput } from '../../contract/scope.ts'
 import { isCalendarDate, shiftDate } from '../../domain/validity.ts'
 import type {
   CommentInput,
@@ -5555,8 +5550,6 @@ export function createMockWorkflow(start: MockWorld) {
           ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
           ...(input.limit === undefined ? {} : { limit: input.limit }),
         }),
-      matchScope: (input: ScopeMatchInput) =>
-        matchScope(terms, scopeUsage(), input.entries, input.dimension),
       describeScope: (keys: readonly string[]) => describeScope(terms, scopeUsage(), keys),
     }
 
