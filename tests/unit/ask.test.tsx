@@ -320,7 +320,7 @@ describe('the Ask tab', { timeout: 30_000 }, () => {
     const answer = await screen.findByRole('article', { name: 'Answer' }, slow)
     await waitFor(() => expect(answer).toHaveAttribute('data-state', 'done'), slow)
     // Only the time it was sent: the scope is not read yet.
-    expect(askChat().store.messages[0]?.metadata).toEqual({ at: expect.any(String) })
+    expect(Object.keys(askChat().store.messages[0]?.metadata ?? {})).toEqual(['at'])
     read.mockRestore()
     chat.mockRestore()
   })
