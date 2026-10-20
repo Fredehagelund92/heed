@@ -507,14 +507,17 @@ export type WorkbenchSearch = z.output<typeof workbenchSearchSchema>
 
 /**
  * The Try it page: the scope's keys (`about`) and its first and last day. They are the scope last
- * asked, so the reply under them is the one a link shows. Its old second tab, Connect your AI
- * (`tab=connect`), is a setting of the person's own now; a link to it is sent there.
+ * asked, so the reply under them is the one a link shows. A fact opens in the docked panel as in
+ * the library (`panel`, and `tab` for its Source, History or Links). Its old second tab, Connect
+ * your AI (`tab=connect`), is a setting of the person's own now; a link to it is sent there.
  */
 export const tryItSearchSchema = z.object({
-  tab: z.optional(z.enum(['agent', 'connect'])),
+  tab: z.optional(z.enum(['agent', 'connect', 'source', 'history', 'links'])),
   about: z.optional(scopeKeys),
   from: z.optional(calendarDay),
   to: z.optional(calendarDay),
+  /** The fact open in the docked panel, as in the library, and the panel's tab (Read when left out). */
+  panel: z.optional(itemIdParam),
 })
 export type TryItSearch = z.output<typeof tryItSearchSchema>
 export const validateTryItSearch = lenientSearch(tryItSearchSchema)

@@ -3,7 +3,7 @@ import { shiftDate } from '@domain/validity'
 import type { PreviewReply, TryIt, TryItInput } from '@/api/client'
 import { namedKeys, readAgentReply, type ReplyItem } from '@/lib/agent-reply'
 import { addToScope, scopeKeys } from '@/lib/mention-targets'
-import type { TryItSearch } from '@/lib/search-params'
+import type { ItemTab, TryItSearch } from '@/lib/search-params'
 
 /*
   What an agent would get (Try it): a typed scope (metrics, market or product values, and the
@@ -47,6 +47,28 @@ export function searchOf(tried: TryItScope): Pick<TryItSearch, 'about' | 'from' 
     about: keys.length ? keys.join(',') : undefined,
     from: tried.from ?? undefined,
     to: tried.to ?? undefined,
+  }
+}
+
+/** The tab of the fact open in the panel; Read when the address names none (or the old Connect). */
+export function panelTabOf(search: Pick<TryItSearch, 'tab'>): ItemTab {
+  const { tab } = search
+  return tab === 'source' || tab === 'history' || tab === 'links' ? tab : 'read'
+}
+
+/**
+ * The address of the page with a fact open in the panel on a tab, or with none open: the scope
+ * asked stays in it, so the reply under the panel is the one the link shows.
+ */
+export function panelSearchOf(
+  asked: TryItScope | null,
+  id: string | null,
+  tab: ItemTab,
+): Pick<TryItSearch, 'about' | 'from' | 'to' | 'panel' | 'tab'> {
+  return {
+    ...(asked ? searchOf(asked) : {}),
+    panel: id ?? undefined,
+    tab: id && tab !== 'read' ? tab : undefined,
   }
 }
 

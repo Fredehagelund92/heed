@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useEffect, type ReactElement } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ContextItem } from '@domain/item'
 import { itemQuery, useRecordVisit } from '@/api/queries'
@@ -16,8 +15,7 @@ import { DockPanel } from '@/components/page/dock-panel'
 import { PageRail } from '@/components/page/page-rail'
 import { Button } from '@/components/ui/button'
 import { kindNames } from '@/lib/library'
-import { rememberCursor } from '@/lib/list-memory'
-import type { ItemTab, LibrarySearch } from '@/lib/search-params'
+import type { ItemTab } from '@/lib/search-params'
 import { ListEmpty } from './list-state'
 
 type ItemPanelProps = {
@@ -29,8 +27,10 @@ type ItemPanelProps = {
   onPrevious?: () => void
   onNext?: () => void
   onClose: () => void
-  /** The list's own params, carried to the item page by expand. */
-  listSearch: LibrarySearch
+  /** The link to the item's page, shown as the expand button: the list it came from decides it. */
+  expand: (itemId: string, tab: ItemTab) => ReactElement
+  /** Takes focus when it opens, as a panel opened from a link in a page's content does. */
+  focusOnOpen?: boolean
 }
 
 /**
@@ -39,6 +39,7 @@ type ItemPanelProps = {
  * Source, History and Links tabs, and its action group, here in the footer); the bar names the
  * kind and the place in the list instead of the id, so reading an item
  * in the panel and on its page is the same. Expand opens the item page, which keeps the list.
+ * The library opens it from its rows, and Try a question from the facts of a reply.
  */
 export function ItemPanel(props: ItemPanelProps) {
   const { data: item, isPending } = useQuery(itemQuery(props.itemId))
@@ -50,6 +51,7 @@ export function ItemPanel(props: ItemPanelProps) {
       onClose={props.onClose}
       onPrevious={props.onPrevious}
       onNext={props.onNext}
+      focusOnOpen={props.focusOnOpen}
     >
       {isPending ? null : (
         <ListEmpty
@@ -75,7 +77,8 @@ function ItemPanelContent({
   onPrevious,
   onNext,
   onClose,
-  listSearch,
+  expand,
+  focusOnOpen,
 }: ItemPanelProps & { item: ContextItem }) {
   const facts = useItemFacts(item)
   const stamp = useItemReviewStamp(item)
@@ -120,16 +123,8 @@ function ItemPanelContent({
       onPrevious={onPrevious}
       onNext={onNext}
       onClose={onClose}
-      expand={
-        <Link
-          to="/library/$itemId"
-          params={{ itemId: item.id }}
-          search={{ ...listSearch, tab: tab === 'read' ? undefined : tab }}
-          // The item page carries this list, and its Escape comes back to it, panel and all.
-          state={{ fromList: true, fromParent: true }}
-          onClick={() => rememberCursor(listSearch, item.id)}
-        />
-      }
+      expand={expand(item.id, tab)}
+      focusOnOpen={focusOnOpen}
       // A check moves on to the next item, so a run through Needs a look is one key per item.
       footer={<ItemActionGroup item={item} facts={facts} onChecked={onNext} />}
     >

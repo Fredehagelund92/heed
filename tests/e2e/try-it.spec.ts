@@ -250,6 +250,156 @@ test.describe('the Try it page', () => {
   })
 })
 
+test.describe('a fact opens beside the reply on the Try it page', () => {
+  const panel = (page: Page) => page.locator('[data-slot="dock-panel"]')
+  const facts = (page: Page) => delivered(page).locator('[data-row-id]')
+  const factIds = (page: Page) =>
+    facts(page).evaluateAll((rows) => rows.map((row) => row.getAttribute('data-row-id') ?? ''))
+  const link = (page: Page, id: string) => page.locator(`[data-row-id="${id}"] [data-row-link]`)
+  const focusedFactId = (page: Page) =>
+    page.evaluate(() =>
+      document.activeElement?.closest('[data-row-id]')?.getAttribute('data-row-id'),
+    )
+
+  test('a click opens the fact in the docked panel and keeps the reply and the bar behind it', async ({
+    page,
+  }) => {
+    await openPage(page, TRY_IT_MATCH, desktop)
+    await expect(delivered(page)).toBeVisible()
+    const [first, second] = await factIds(page)
+    const title = await link(page, first!).innerText()
+    // Typing in the bar without asking is not lost by opening a fact.
+    await addChip(page, 'Netherlands')
+    const before = await page.evaluate(() => window.scrollY)
+
+    await link(page, first!).click()
+    await expect(page).toHaveURL(new RegExp(`/try-it\\?.*&panel=${first}$`))
+    await expect(panel(page)).toHaveAttribute('data-mode', 'docked')
+    await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText(title)
+    // The same parts as the library's panel: the kind and the place in the reply, then the tabs.
+    await expect(panel(page).locator('[data-slot="dock-meta"]')).toContainText(/of \d+$/)
+    await expect(panel(page).getByRole('tab', { name: 'Source' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Remove Market Netherlands' })).toBeVisible()
+    await expect(delivered(page)).toBeVisible()
+    expect(await page.evaluate(() => window.scrollY)).toBe(before)
+    // The open fact is marked in the list, and focus is in the panel.
+    await expect(page.locator(`[data-row-id="${first}"]`)).toHaveAttribute('data-open', 'true')
+    await expect(link(page, first!)).toHaveAttribute('aria-current', 'page')
+    await expect(panel(page)).toBeFocused()
+
+    // Another fact swaps the panel in the same history entry.
+    await link(page, second!).click()
+    await expect(page).toHaveURL(new RegExp(`panel=${second}$`))
+    await expect(page.locator(`[data-row-id="${first}"]`)).not.toHaveAttribute('data-open', 'true')
+    await expect(page.locator(`[data-row-id="${second}"]`)).toHaveAttribute('data-open', 'true')
+    await expect(panel(page)).toHaveCount(1)
+    await expect(panel(page).getByRole('heading', { level: 2 })).toHaveText(
+      await link(page, second!).innerText(),
+    )
+
+    // Back closes the panel, not a step through the facts, and puts focus on the fact.
+    await page.goBack()
+    await expect(page).not.toHaveURL(/panel=/)
+    await expect(panel(page)).toHaveCount(0)
+    await expect.poll(() => focusedFactId(page)).toBe(second)
+    await expect(page.getByRole('button', { name: 'Remove Market Netherlands' })).toBeVisible()
+    await page.goForward()
+    await expect(panel(page)).toBeVisible()
+    await expect(page).toHaveURL(new RegExp(`panel=${second}$`))
+  })
+
+  test('Escape and the close button close it, and focus returns to the fact', async ({ page }) => {
+    await openPage(page, TRY_IT_MATCH, desktop)
+    await expect(delivered(page)).toBeVisible()
+    const [first, second] = await factIds(page)
+    await link(page, second!).click()
+    await expect(panel(page)).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(panel(page)).toHaveCount(0)
+    await expect(page).toHaveURL(
+      new RegExp(`${TRY_IT_MATCH.replace('?', '\\?')}$`.replace(/[:/]/g, '.')),
+    )
+    await expect.poll(() => focusedFactId(page)).toBe(second)
+
+    await link(page, first!).click()
+    await expect(panel(page)).toBeVisible()
+    await panel(page).getByRole('button', { name: 'Close' }).click()
+    await expect(panel(page)).toHaveCount(0)
+    await expect.poll(() => focusedFactId(page)).toBe(first)
+  })
+
+  test('the keys step through the facts, and expand opens the fact page, which comes back', async ({
+    page,
+  }) => {
+    await openPage(page, TRY_IT_MATCH, desktop)
+    await expect(delivered(page)).toBeVisible()
+    const [first, second] = await factIds(page)
+    const secondTitle = await link(page, second!).innerText()
+    await link(page, first!).click()
+    await panel(page).getByRole('tab', { name: 'History' }).click()
+    await expect(page).toHaveURL(new RegExp(`panel=${first}&tab=history$`))
+    // Next keeps the tab, in the order the reply gave.
+    await panel(page).getByRole('button', { name: 'Next' }).click()
+    await expect(page).toHaveURL(new RegExp(`panel=${second}&tab=history$`))
+    await expect(panel(page).locator('[data-slot="dock-meta"]')).toContainText('2 of')
+
+    await panel(page).getByRole('link', { name: 'Open page' }).click()
+    await expect(page).toHaveURL(new RegExp(`/library/${second}\\?tab=history$`))
+    // Its page, not the Try it page still showing while the fact's page loads.
+    await expect(page.getByRole('heading', { level: 1, name: secondTitle })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page).toHaveURL(new RegExp(`/try-it\\?.*panel=${second}&tab=history$`))
+    await expect(panel(page)).toBeVisible()
+    await expect(delivered(page)).toBeVisible()
+  })
+
+  test('a link opens the fact on its tab, with the reply behind it and the fact marked', async ({
+    page,
+  }) => {
+    await openPage(page, TRY_IT_MATCH, desktop)
+    await expect(delivered(page)).toBeVisible()
+    const [, second] = await factIds(page)
+    await openPage(page, `${TRY_IT_MATCH}&panel=${second}&tab=source`, desktop)
+    await expect(panel(page)).toBeVisible()
+    await expect(panel(page).getByRole('tab', { name: 'Source' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    )
+    await expect(page.locator(`[data-row-id="${second}"]`)).toHaveAttribute('data-open', 'true')
+    await expect.poll(() => focusedFactId(page)).toBe(second)
+    await expect(page.locator(`[data-row-id="${second}"]`)).toBeInViewport()
+  })
+
+  test('a fact that is not in the library says so, with the reply still behind it', async ({
+    page,
+  }) => {
+    await openPage(page, `${TRY_IT_MATCH}&panel=itm_missing0`, desktop)
+    await expect(panel(page).getByRole('heading', { name: 'Fact not found' })).toBeVisible()
+    await expect(delivered(page)).toBeVisible()
+    await panel(page).getByRole('button', { name: 'Close' }).first().click()
+    await expect(panel(page)).toHaveCount(0)
+  })
+
+  test('on a phone the panel fills the screen, and closing returns to the reply', async ({
+    page,
+  }) => {
+    await openPage(page, TRY_IT_MATCH, phone)
+    await expect(delivered(page)).toBeVisible()
+    const [first] = await factIds(page)
+    await link(page, first!).click()
+    const sheet = page.getByRole('dialog')
+    await expect(sheet).toHaveAttribute('data-mode', 'full')
+    const box = await sheet.boundingBox()
+    expect(box).toMatchObject({ x: 0, y: 0, width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await sheet.getByRole('button', { name: 'Close' }).click()
+    await expect(sheet).toHaveCount(0)
+    await expect(page).not.toHaveURL(/panel=/)
+    await expect(delivered(page)).toBeVisible()
+    await expect.poll(() => focusedFactId(page)).toBe(first)
+  })
+})
+
 test.describe('Connect an AI app', () => {
   test('Home, the user menu and the palette all lead to it', async ({ page }) => {
     await openPage(page, '/', desktop)

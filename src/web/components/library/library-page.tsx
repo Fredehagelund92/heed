@@ -668,7 +668,16 @@ export function LibraryPage({ search }: { search: LibraryRouteSearch }) {
           onPrevious={panelPrevious ? () => openPanel(panelPrevious) : undefined}
           onNext={panelNext ? () => openPanel(panelNext) : undefined}
           onClose={closePanel}
-          listSearch={carried}
+          expand={(itemId, tab) => (
+            <Link
+              to="/library/$itemId"
+              params={{ itemId }}
+              search={{ ...carried, tab: tab === 'read' ? undefined : tab }}
+              // The item page carries this list, and its Escape comes back to it, panel and all.
+              state={{ fromList: true, fromParent: true }}
+              onClick={() => rememberCursor(carried, itemId)}
+            />
+          )}
         />
       ) : null}
     </Page>

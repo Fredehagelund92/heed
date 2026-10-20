@@ -17,6 +17,8 @@ import { AbsenceLine } from '@/components/page/absence-line'
 import { outcomeLook, validityWords } from '@/components/proposal/agent-preview'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { openRowClass } from '@/components/page/dock-panel'
+import { panelRowHistory } from '@/lib/history'
 import { formatDay } from '@/lib/library'
 import type { ReviewStampView } from '@/lib/review-stamp'
 import {
@@ -30,6 +32,7 @@ import {
 } from '@/lib/try-it'
 import { cn } from '@/lib/utils'
 import { CopyBlock } from './copy-block'
+import type { FactPanelState } from './fact-panel'
 
 /*
   The reply of What an agent would get (Assistant board, direction A, with the Try it frames): the
@@ -97,11 +100,15 @@ function Part({
   )
 }
 
+const factTitle =
+  'text-dense font-bold break-words underline-offset-4 hover:underline focus-visible:underline'
+
 function Fact({
   fact,
   domain,
   stamp,
   rankOf,
+  panel,
   onLeave,
 }: {
   fact: DeliveredFact
@@ -109,24 +116,46 @@ function Fact({
   /** How it was reviewed before it was served (FR-326). */
   stamp: ReviewStampView | null
   rankOf: (id: string) => number | null
+  /** Where a fact opens, on the page: beside the reply. The panel has none: it leaves for the fact's page. */
+  panel?: FactPanelState
   onLeave?: () => void
 }) {
   const conflicts = fact.conflictsWith.map(rankOf).filter((rank): rank is number => rank !== null)
   const when = validityWords(fact.validity)
   return (
-    <li data-slot="try-it-fact" className="flex min-w-0 gap-3 px-4 py-3">
+    <li
+      data-slot="try-it-fact"
+      data-row-id={fact.id}
+      data-open={panel?.openId === fact.id || undefined}
+      className={cn('relative flex min-w-0 gap-3 px-4 py-3', openRowClass)}
+    >
       <span className="flex h-5 shrink-0 items-center">
         <KindIcon kind={fact.kind} size="md" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <Link
-          to="/library/$itemId"
-          params={{ itemId: fact.id }}
-          onClick={onLeave}
-          className="text-dense font-bold break-words underline-offset-4 hover:underline focus-visible:underline"
-        >
-          {fact.title}
-        </Link>
+        {panel ? (
+          // Opens in the docked panel, as a row of the library does; while one is open the next
+          // replaces it, so Back closes the panel (lib/history.ts).
+          <Link
+            to="/try-it"
+            search={panel.to(fact.id, panel.tab)}
+            {...panelRowHistory(panel.openId !== null)}
+            resetScroll={false}
+            data-row-link
+            className={factTitle}
+          >
+            {fact.title}
+          </Link>
+        ) : (
+          <Link
+            to="/library/$itemId"
+            params={{ itemId: fact.id }}
+            onClick={onLeave}
+            className={factTitle}
+          >
+            {fact.title}
+          </Link>
+        )}
         <div className="flex flex-wrap items-center gap-2 text-caption">
           <span className="font-bold tabular-nums" aria-label={`Ranked ${fact.rank}`}>
             #{fact.rank}
@@ -209,6 +238,7 @@ export function TryItReply({
   about,
   today,
   domainOf,
+  panel,
   onLeave,
 }: {
   reply: TriedReply
@@ -220,6 +250,8 @@ export function TryItReply({
   today: string | null
   /** A fact's domain, from the library index; the reply does not carry it. */
   domainOf: (itemId: string) => Pick<Area, 'name' | 'label'> | null
+  /** On the page, a fact opens in the docked panel beside the reply; without it, on its page. */
+  panel?: FactPanelState
   /** Going to another page from the reply (a fact, Add a fact). */
   onLeave?: () => void
 }) {
@@ -302,6 +334,7 @@ export function TryItReply({
                 domain={domainOf(fact.id)}
                 stamp={stampOf(fact)}
                 rankOf={rankOf}
+                panel={panel}
                 onLeave={onLeave}
               />
             ))}
