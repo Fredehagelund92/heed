@@ -93,7 +93,14 @@ function download(name: string, content: string) {
 }
 
 /** Export chat: Copy as text, and Download as JSON, under a line that says what the export has. */
-export function ExportChatButton({ className }: { className?: string }) {
+export function ExportChatButton({
+  inline = false,
+  className,
+}: {
+  /** A text button for a line of text (the phone's, under the box), not the header's. */
+  inline?: boolean
+  className?: string
+}) {
   const [open, setOpen] = useState(false)
   const exported = useChatExport(open)
   const disabled = exported === null
@@ -107,17 +114,17 @@ export function ExportChatButton({ className }: { className?: string }) {
                 <Button
                   type="button"
                   variant="ghost"
-                  size="toolbar"
+                  size={inline ? 'sm' : 'toolbar'}
                   disabled={disabled}
                   data-slot="ask-export-chat"
-                  className={cn('max-md:size-control-touch max-md:px-0', className)}
+                  className={cn(!inline && 'max-md:size-control-touch max-md:px-0', className)}
                 />
               }
             />
           }
         >
           <DownloadIcon />
-          <span className="max-md:sr-only">Export chat</span>
+          <span className={cn(!inline && 'max-md:sr-only')}>Export chat</span>
         </TooltipTrigger>
         <TooltipContent>
           {disabled ? 'This chat is empty' : 'Copy this chat, or save it as a file'}

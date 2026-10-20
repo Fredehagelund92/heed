@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Page, PageContent, PageStickyBar } from '@/components/page/page'
 import { readAnswer, type AnswerView } from '@/lib/assistant'
 import { sharedScope, useAskChat } from '@/lib/assistant-chat'
@@ -62,6 +63,7 @@ function InThisAnswer({ answer, scope }: { answer: AnswerView | null; scope: Try
 
 export function AssistantPage({ search }: { search: AssistantSearch }) {
   const navigate = useNavigate()
+  const phone = useIsMobile()
   const scope = scopeFromSearch(search)
   const { messages } = useAskChat()
   const setScope = (next: TryItScope | null) => {
@@ -89,8 +91,13 @@ export function AssistantPage({ search }: { search: AssistantSearch }) {
   const answer = latest ? readAnswer(latest) : null
   return (
     <Page title="Assistant">
+      {/* A phone's header has no room for a third button: there, Export chat is under the box. */}
+      {phone ? null : (
+        <HeaderActions>
+          <ExportChatButton />
+        </HeaderActions>
+      )}
       <HeaderActions phone>
-        <ExportChatButton />
         <NewChatButton />
       </HeaderActions>
       <NewChatConfirm />
@@ -107,7 +114,12 @@ export function AssistantPage({ search }: { search: AssistantSearch }) {
             />
           </PageContent>
           <PageStickyBar>
-            <AskComposer scope={scope} onScopeChange={setScope} className="max-w-reading" />
+            <AskComposer
+              scope={scope}
+              onScopeChange={setScope}
+              noteAction={phone ? <ExportChatButton inline /> : undefined}
+              className="max-w-reading"
+            />
           </PageStickyBar>
         </div>
         <InThisAnswer answer={answer} scope={answer?.scopeUsed ?? scope} />
