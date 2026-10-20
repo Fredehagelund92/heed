@@ -9,16 +9,13 @@ import { ApiError } from '@/api/errors'
 import { areasQuery, operationsQuery, useApiWrite } from '@/api/queries'
 import { sourceTypesQuery } from '@/api/source-queries'
 import {
-  BookOpenIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   CircleAlertIcon,
   CircleCheckIcon,
   CircleDashedIcon,
-  CloudIcon,
   CodeIcon,
   DatabaseIcon,
-  FileTextIcon,
   FolderIcon,
   GitBranchIcon,
   GlobeIcon,
@@ -95,6 +92,7 @@ import {
 } from '@/lib/sources'
 import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
+import { ComingSoonNote, connectorIcons } from './coming-soon-sources'
 import { SettingsBlock } from './settings-parts'
 import { SourcesLoading } from './sources-loading'
 
@@ -134,16 +132,6 @@ export const fieldIcon = (key: string, kind: ManifestField['kind'] | 'secret'): 
   keyIcons[key] ?? kindIcons[kind]
 
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
-
-/** A connector's picture, from the few its manifest may name; a plug when it names none. */
-const connectorIcons: Record<NonNullable<ConnectorManifest['icon']>, Icon> = {
-  database: DatabaseIcon,
-  git: GitBranchIcon,
-  file: FileTextIcon,
-  list: ListIcon,
-  cloud: CloudIcon,
-  book: BookOpenIcon,
-}
 
 function ConnectorGlyph({ manifest }: { manifest: ConnectorManifest }) {
   const Glyph = manifest.icon ? connectorIcons[manifest.icon] : PlugIcon
@@ -303,6 +291,7 @@ function ConnectorList({ listings }: { listings: readonly ConnectorListing[] }) 
           </SettingsBlock>
         ))
       )}
+      <ComingSoonNote />
     </PageContent>
   )
 }
