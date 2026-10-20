@@ -1,0 +1,466 @@
+import { ORPCError } from '@orpc/client'
+import type * as z from 'zod/mini'
+import type { EvalRun, runDetailSchema } from '../../../contract/evals.ts'
+import type { LevelResult } from '../../../contract/review.ts'
+import type { Agreement } from '../../../domain/golden-question.ts'
+import type { Queryable } from '../../db/database.ts'
+import {
+  exportQuestions,
+  getQuestion,
+  importQuestions,
+  listQuestions,
+  saveQuestion,
+  setAside,
+} from './questions.ts'
+import {
+  liveHead,
+  planArea,
+  queueAreaRun,
+  resumeRun,
+  runColumns,
+  type EvalDeps,
+  type RunRow,
+  type RunState,
+  type Scorecard,
+} from './runs.ts'
+import { createRetrievalService } from './retrieval.ts'
+import { formatUsd } from './spend.ts'
+
+type RunDetail = z.infer<typeof runDetailSchema>
+
+export function publicRun(
+  row: RunRow & { test_set_digest?: string; tool_schema_digest?: string },
+): EvalRun {
+  return {
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
+    areaId: row.area_id,
+    proposalId: row.proposal_id,
+    itemVersionId: row.item_version_id,
+    edition: row.summary.edition,
+    modelId: row.model_id,
+    judgeModelId: row.judge_model_id,
+    modelProvider: row.answer_provider,
+    judgeProvider: row.judge_provider,
+    modelFamily: row.answer_family,
+    judgeFamily: row.judge_family,
+    judgeSameFamily:
+      row.answer_family && row.judge_family ? row.answer_family === row.judge_family : null,
+    modelVendor: row.answer_vendor,
+    judgeVendor: row.judge_vendor,
+    judgeSameVendor:
+      row.answer_vendor && row.judge_vendor ? row.answer_vendor === row.judge_vendor : null,
+    trigger: row.summary.trigger ?? null,
+    toolSchemaDigest: row.tool_schema_digest ?? '',
+    testSetDigest: row.test_set_digest ?? '',
+    tries: row.tries,
+    flipRepeats: row.flip_repeats,
+    questions: row.summary.plan.questions.length,
+    setAside: row.summary.plan.setAside.length,
+    estimatedCostMicros: Number(row.estimated_cost_micros),
+    actualCostMicros: Number(row.actual_cost_micros),
+    costCeilingMicros: row.cost_ceiling_micros === null ? null : Number(row.cost_ceiling_micros),
+    passRule: row.summary.passRule ?? 'majority',
+    requestedBy: row.requested_by,
+    approvedBy: row.approved_by,
+    failure: row.failure,
+    createdAt: row.created_at,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+  }
+}
+const columns = `${runColumns},tool_schema_digest,encode(test_set_digest,'hex') as test_set_digest`
+/**
+ * A proposal's runs are visible to whoever may read the proposal (row security decides), so its
+ * review screen shows them to the proposer and the approvers. Other runs are test results: for
+ * the owners and deputies of their area, administrators, and the person who started the run.
+ */
+const visible = `(case when proposal_id is not null
+    then exists (select 1 from proposals p where p.id=eval_runs.proposal_id)
+    else cl_is_admin_now() or requested_by = cl_person()
+         or (area_id is not null and cl_is_owner_now(area_id)) end)`
+
+async function maintains(tx: Queryable, area: string | null) {
+  const [row] = await tx.query<{ ok: boolean }>(
+    'select cl_is_admin_now() or ($1::text is not null and cl_is_owner_now($1)) as ok',
+    [area],
+  )
+  return row?.ok ?? false
+}
+
+/**
+ * Held-out questions are for checks and reports only (FR-503): writers never learn which they
+ * are. Returns the ids among `ids` the reader may not see: held-out, outside the areas they
+ * maintain.
+ */
+export async function hiddenQuestions(tx: Queryable, ids: readonly string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set()
+  const rows = await tx.query<{ id: string }>(
+    `select id from golden_questions where id=any($1) and split='held_out'
+       and not (cl_is_admin_now() or cl_is_owner_now(area_id))`,
+    [[...new Set(ids)]],
+  )
+  return new Set(rows.map((r) => r.id))
+}
+export const heldOutLabel = 'held-out'
+type PublicScorecard = Omit<Scorecard, 'layers' | 'failedChecks' | 'agreement'> & {
+  layers: NonNullable<Scorecard['layers']> | null
+  failedChecks: NonNullable<Scorecard['failedChecks']> | null
+  agreement: NonNullable<Scorecard['agreement']> | null
+}
+/** Judge against code, with held-out questions named as such to those who may not see them. */
+function redactAgreement<T extends Agreement | null | undefined>(
+  agreement: T,
+  hidden: Set<string>,
+): T {
+  if (!agreement) return agreement
+  const shown = (ids: string[]) => ids.map((id) => (hidden.has(id) ? heldOutLabel : id))
+  return {
+    ...agreement,
+    judgePassedCodeFailed: shown(agreement.judgePassedCodeFailed),
+    codePassedJudgeFailed: shown(agreement.codePassedJudgeFailed),
+  }
+}
+function redactCard(card: Scorecard | null, hidden: Set<string>): PublicScorecard | null {
+  if (!card) return null
+  const shown = (ids: string[]) => ids.map((id) => (hidden.has(id) ? heldOutLabel : id))
+  return {
+    ...card,
+    failing: shown(card.failing),
+    regressions: shown(card.regressions),
+    // Runs scored before the layers were kept have none.
+    layers: card.layers ?? null,
+    failedChecks: card.failedChecks ?? null,
+    agreement: redactAgreement(card.agreement ?? null, hidden),
+  }
+}
+
+/**
+ * How the review gate shows the answer levels (FR-513): a result counts only for the live
+ * edition it ran against; otherwise the gate says what is happening instead (queued, running,
+ * waiting for an administrator, or out of date and about to run again).
+ */
+export async function answerLevelView(
+  tx: Queryable,
+  versionId: string,
+  levels: LevelResult[],
+): Promise<LevelResult[]> {
+  if (!levels.some((l) => l.level.startsWith('answer_'))) return levels
+  const head = await liveHead(tx)
+  const [run] = head
+    ? await tx.query<{ id: string; state: RunState; estimated: string }>(
+        `select id::text,state::text,estimated_cost_micros::text as estimated from eval_runs
+          where item_version_id=$1 and baseline_edition_seq=$2 order by created_at desc limit 1`,
+        [versionId, head.seq],
+      )
+    : []
+  return levels.map((level): LevelResult => {
+    if (level.level !== 'answer_impact' && level.level !== 'answer_full') return level
+    const ranOn = level.details.edition ?? null
+    if (level.outcome !== 'not_run' && head && ranOn === head.label) return level
+    const message =
+      run?.state === 'awaiting_approval'
+        ? `The answer tests are estimated at ${formatUsd(Number(run.estimated))}, above the run budget. An administrator must approve the run.`
+        : run && ['queued', 'running'].includes(run.state)
+          ? 'The answer tests are running against the live edition.'
+          : run?.state === 'cancelled'
+            ? 'The answer tests were cancelled. Run the checks again to start them.'
+            : run?.state === 'incomplete'
+              ? 'The answer tests stopped before every answer was made: a model provider kept failing, or a spending limit was reached. They are resumed shortly, or resume them from the run.'
+              : level.outcome !== 'not_run'
+                ? `The answer tests ran on edition ${ranOn ?? 'unknown'}; the live edition is now ${head?.label ?? 'unknown'}. They run again within a minute.`
+                : 'Answer tests have not run yet. The evaluation runner starts them within a minute.'
+    return {
+      ...level,
+      outcome: 'not_run',
+      details: {
+        message,
+        ...(run ? { run: run.id, runState: run.state } : {}),
+        ...(level.outcome !== 'not_run' ? { previous: level.outcome, previousEdition: ranOn } : {}),
+      },
+    }
+  })
+}
+
+/**
+ * `reader` is who reads runs: a signed-in person sees the runs they requested or maintain, while
+ * the operator, at the command line with the database's own credentials (`npm run eval`), reads
+ * any run. Held-out questions stay hidden from both unless the person maintains their area.
+ */
+export function createEvalsService(
+  tx: Queryable,
+  deps: EvalDeps,
+  reader: 'person' | 'operator' = 'person',
+) {
+  const seen = reader === 'operator' ? 'true' : visible
+  async function loadRun(
+    id: string,
+    lock = false,
+  ): Promise<RunRow & { test_set_digest: string; tool_schema_digest: string }> {
+    const [row] = await tx.query<RunRow & { test_set_digest: string; tool_schema_digest: string }>(
+      `select ${columns} from eval_runs where id=$1 and ${seen}${lock ? ' for update' : ''}`,
+      [id],
+    )
+    if (!row) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this test run." })
+    return row
+  }
+  return {
+    questions: {
+      list: (filter: Parameters<typeof listQuestions>[1]) => listQuestions(tx, filter),
+      get: (id: string) => getQuestion(tx, id),
+      save(input: {
+        id: string
+        revision?: number | undefined
+        question: Parameters<typeof saveQuestion>[1]
+      }) {
+        if (input.question.id !== input.id)
+          throw new ORPCError('BAD_REQUEST', {
+            message:
+              "This test question doesn't match the one you opened. Reload the page, then try again.",
+          })
+        return saveQuestion(tx, input.question, input.revision ?? null)
+      },
+      setAside: (input: { id: string; revision: number; reason: string | null }) =>
+        setAside(tx, input.id, input.revision, input.reason),
+      import: (input: { content: string; dryRun: boolean }) =>
+        importQuestions(tx, input.content, input.dryRun),
+      async export(area: string | undefined) {
+        return { content: await exportQuestions(tx, area) }
+      },
+    },
+    runs: {
+      async list(filter: {
+        area?: string | undefined
+        proposal?: string | undefined
+        limit?: number | undefined
+      }) {
+        const rows = await tx.query<
+          RunRow & { test_set_digest: string; tool_schema_digest: string }
+        >(
+          `select ${columns} from eval_runs
+            where ($1::text is null or area_id=$1) and ($2::uuid is null or proposal_id=$2) and ${seen}
+            order by created_at desc limit $3`,
+          [filter.area ?? null, filter.proposal ?? null, filter.limit ?? 20],
+        )
+        return rows.map(publicRun)
+      },
+      async get(id: string): Promise<RunDetail> {
+        const row = await loadRun(id)
+        const cells = await tx.query<RunDetail['cells'][number]>(
+          `select id::text,question_id as "questionId",wording::int as wording,arm::text as arm,trial::int as trial,
+                  state::text as state,passed,refused,reused_from is not null as reused,error,
+                  failure_kind as "failureKind",
+                  coalesce(cost_micros,0)::float8 as "costMicros"
+             from eval_cells where run_id=$1 order by question_id,wording,arm,trial`,
+          [id],
+        )
+        const [judging] = await tx.query<RunDetail['judging']>(
+          `select count(*) filter (where state='finished' and not refused)::int as judged,
+                  count(*) filter (where state='finished' and scores ? 'judgeError')::int as errors
+             from eval_cells where run_id=$1`,
+          [id],
+        )
+        const hidden = await hiddenQuestions(tx, [
+          ...row.summary.plan.questions.map((q) => q.id),
+          ...cells.map((c) => c.questionId),
+        ])
+        const shown = (id: string) => (hidden.has(id) ? heldOutLabel : id)
+        const results = (row.summary.result?.questions ?? []).map((q) => ({
+          ...q,
+          id: shown(q.id),
+          layers: q.layers ?? null,
+        }))
+        return {
+          run: publicRun(row),
+          results,
+          flips: results.flatMap((q) => (q.flip ? [{ id: q.id, flip: q.flip }] : [])),
+          levels: row.summary.result?.levels ?? {},
+          scorecard: redactCard(row.summary.result?.scorecard ?? null, hidden),
+          links: row.summary.result?.links
+            ? {
+                ...row.summary.result.links,
+                gained: row.summary.result.links.gained.map(shown),
+                lost: row.summary.result.links.lost.map(shown),
+              }
+            : null,
+          replay: row.summary.replay ?? null,
+          agreement: row.summary.result?.agreement
+            ? {
+                baseline: redactAgreement(row.summary.result.agreement.baseline, hidden),
+                candidate: redactAgreement(row.summary.result.agreement.candidate, hidden),
+              }
+            : null,
+          judging: judging ?? { judged: 0, errors: 0 },
+          stopped: row.state === 'incomplete' ? (row.summary.stopped ?? null) : null,
+          cells: cells.map((c) => ({ ...c, questionId: shown(c.questionId) })),
+        }
+      },
+      async estimate(area: string, kind: 'full' | 'links' = 'full') {
+        const plan = await planArea(tx, deps, area, kind)
+        const [budget] = await tx.query<{ n: number }>(
+          "select (value #>> '{}')::bigint::float8 as n from settings_current where key='evals.run_budget_micros'",
+        )
+        const budgetMicros = budget?.n ?? 2_000_000
+        return {
+          area,
+          kind,
+          edition: plan?.head.label ?? null,
+          questions: plan?.planned.length ?? 0,
+          setAside: plan?.setAside.length ?? 0,
+          cells: plan?.cost.cells ?? 0,
+          cached: plan?.cost.cached ?? 0,
+          costMicros: plan?.cost.micros ?? 0,
+          budgetMicros,
+          needsApproval: (plan?.cost.micros ?? 0) > budgetMicros,
+          modelId: plan?.models.answer.id ?? deps.port.choose('eval_answer').id,
+        }
+      },
+      /**
+       * A full run of an area on the live edition, or a links run (FR-523), started by an owner
+       * or an administrator.
+       */
+      async start(area: string, kind: 'full' | 'links' = 'full') {
+        if (!(await maintains(tx, area)))
+          throw new ORPCError('FORBIDDEN', {
+            message: 'Only the owners of the domain and admins can start its test runs.',
+          })
+        const run = await queueAreaRun(tx, deps, area, kind, true)
+        if (!run)
+          throw new ORPCError('PRECONDITION_FAILED', {
+            message: "Nothing is shared with AI apps yet, so test runs can't start.",
+          })
+        return publicRun(await loadRun(run.id))
+      },
+      /** FR-516: an administrator approves a run estimated above the budget. */
+      async approve(id: string) {
+        const run = await loadRun(id, true)
+        if (run.state !== 'awaiting_approval')
+          throw new ORPCError('CONFLICT', {
+            message: 'This test run no longer waits for approval.',
+          })
+        await tx.query("update eval_runs set state='queued',approved_by=cl_person() where id=$1", [
+          id,
+        ])
+        await tx.query(
+          `insert into audit_log(actor_id,actor_kind,action,area_id,subject_type,subject_id,details)
+           values(cl_person(),'person','eval_run.approved',$1,'eval_run',$2,$3)`,
+          [
+            run.area_id,
+            id,
+            JSON.stringify({ estimatedCostMicros: Number(run.estimated_cost_micros) }),
+          ],
+        )
+        return publicRun(await loadRun(id))
+      },
+      async cancel(id: string) {
+        const run = await loadRun(id, true)
+        const [me] = await tx.query<{ id: string | null }>('select cl_person()::text as id')
+        const requester = run.requested_by !== null && me?.id === run.requested_by
+        if (!requester && !(await maintains(tx, run.area_id)))
+          throw new ORPCError('FORBIDDEN', {
+            message:
+              'Only the person who started this test run, an owner of the domain or an admin can cancel it.',
+          })
+        if (['finished', 'failed', 'cancelled'].includes(run.state))
+          throw new ORPCError('CONFLICT', { message: 'This test run has already ended.' })
+        await tx.query(
+          "update eval_runs set state='cancelled',finished_at=now(),worker=null,lease_until=null where id=$1",
+          [id],
+        )
+        return publicRun(await loadRun(id))
+      },
+      /**
+       * R6: an incomplete run is queued again; only its missing answers are made. A run approved
+       * with a cost ceiling at the command line ran with that command's models: it is resumed there.
+       */
+      async resume(id: string) {
+        const run = await loadRun(id, true)
+        const [me] = await tx.query<{ id: string | null }>('select cl_person()::text as id')
+        const requester = run.requested_by !== null && me?.id === run.requested_by
+        if (!requester && !(await maintains(tx, run.area_id)))
+          throw new ORPCError('FORBIDDEN', {
+            message:
+              'Only the person who started this test run, an owner of the domain or an admin can resume it.',
+          })
+        if (run.state !== 'incomplete')
+          throw new ORPCError('CONFLICT', {
+            message: 'Only a test run that stopped before it finished can be resumed.',
+          })
+        if (run.cost_ceiling_micros !== null)
+          throw new ORPCError('CONFLICT', {
+            message: `This test run was approved at the command line with a spending limit. Resume it there: npm run eval -- --resume ${id}`,
+          })
+        await resumeRun(tx, id)
+        return publicRun(await loadRun(id))
+      },
+    },
+    /** FR-519: an owner or deputy of the question's area, or an administrator, reads a transcript. */
+    async transcript(cellId: string) {
+      const [row] = await tx.query<{
+        cellId: string
+        runId: string
+        questionId: string
+        revision: number
+        wording: number
+        arm: 'baseline' | 'candidate'
+        trial: number
+        passed: boolean | null
+        refused: boolean
+        scores: Record<string, unknown> | null
+        messages: unknown[]
+        toolCalls: unknown[]
+      }>(
+        `select c.id::text as "cellId",c.run_id::text as "runId",c.question_id as "questionId",
+                c.question_revision as revision,c.wording::int as wording,c.arm::text as arm,c.trial::int as trial,
+                c.passed,c.refused,c.scores,t.messages,t.tool_calls as "toolCalls"
+           from eval_cells c join eval_transcripts t on t.cell_id=coalesce(c.reused_from,c.id)
+          where c.id=$1 and (cl_is_admin_now() or cl_is_owner_now(
+                  (select q.area_id from golden_questions q where q.id=c.question_id)))`,
+        [cellId],
+      )
+      if (!row)
+        throw new ORPCError('NOT_FOUND', {
+          message: "We couldn't find this transcript, or you can't see it.",
+        })
+      const [body] = await tx.query<{ text: string }>(
+        `select body->'wordings'->$3::int->>'text' as text from golden_question_revisions
+          where question_id=$1 and revision=$2`,
+        [row.questionId, row.revision, row.wording],
+      )
+      const { revision: _r, ...rest } = row
+      return { ...rest, wording: body?.text ?? '', scores: row.scores ?? {} }
+    },
+    retrieval: createRetrievalService(tx),
+    async scorecard(area: string) {
+      if (!(await maintains(tx, area)))
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only the owners of the domain and admins can see its test results.',
+        })
+      const [row] = await tx.query<
+        RunRow & { test_set_digest: string; tool_schema_digest: string }
+      >(
+        `select ${columns} from eval_runs where area_id=$1 and kind='scheduled' and state='finished'
+          order by finished_at desc limit 1`,
+        [area],
+      )
+      const [baseline] = await tx.query<{ run: string; at: string }>(
+        'select run_id::text as run,set_at::text as at from eval_baselines where area_id=$1 order by set_at desc limit 1',
+        [area],
+      )
+      const card = row?.summary.result?.scorecard ?? null
+      const hidden = await hiddenQuestions(tx, [
+        ...(card?.failing ?? []),
+        ...(card?.regressions ?? []),
+      ])
+      return {
+        area,
+        run: row ? publicRun(row) : null,
+        scorecard: redactCard(card, hidden),
+        baselineRun: baseline?.run ?? null,
+        baselineSetAt: baseline?.at ?? null,
+      }
+    },
+  }
+}
+export type EvalsService = ReturnType<typeof createEvalsService>

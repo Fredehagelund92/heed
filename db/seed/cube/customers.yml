@@ -1,0 +1,63 @@
+cubes:
+  - name: customer_facts
+    public: false
+    sql_table: demo.customer_days
+    measures:
+      - name: active_customers
+        title: Active customers
+        type: count_distinct
+        sql: customer_id
+        description: >-
+          Customers who placed at least one paid order in the period. A customer counts once,
+          whatever the number of product groups they bought from.
+      - name: new_customers
+        title: New customers
+        type: count_distinct
+        sql: CASE WHEN is_first_day THEN customer_id END
+        description: >-
+          Customers who created an account in the period and confirmed it. Test and staff
+          accounts are left out.
+      - name: first_time_buyers
+        title: First-time buyers
+        type: count_distinct
+        sql: CASE WHEN is_first_order THEN customer_id END
+        description: >-
+          Customers whose first paid order fell in the period, whenever they signed up.
+      - name: repeat_purchase_rate
+        title: Repeat purchase rate
+        type: number
+        sql: SUM(returning_customers) / NULLIF(SUM(customers_at_start), 0)
+        description: >-
+          The share of customers active in the previous month who are active again this month.
+      - name: churn_rate
+        title: Churn rate
+        type: number
+        sql: SUM(churned_customers) / NULLIF(SUM(customers_at_start), 0)
+        description: >-
+          The share of customers active in the previous month who placed no order this month.
+      - name: customer_lifetime_value
+        title: Customer lifetime value
+        type: avg
+        sql: predicted_value_eur
+        description: >-
+          The net revenue a customer is expected to bring over two years, in euros, from the
+          customer value forecast run each Monday.
+    dimensions:
+      - name: customer_day
+        type: string
+        sql: customer_day_id
+        primary_key: true
+
+views:
+  - name: customers
+    meta:
+      domain: area_customer_value
+    cubes:
+      - join_path: customer_facts
+        includes:
+          - active_customers
+          - new_customers
+          - first_time_buyers
+          - repeat_purchase_rate
+          - churn_rate
+          - customer_lifetime_value

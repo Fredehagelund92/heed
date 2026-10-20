@@ -1,0 +1,30 @@
+name: An idea
+description: Something Heed could do for you.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Tell us about the problem first. A good problem often has a better answer than the first idea.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Who runs into it, and when? What do they do today?
+      placeholder: When I review a fact, I can't see ...
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like Heed to do
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Other ways you thought of
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A sketch, a screenshot or an example helps.

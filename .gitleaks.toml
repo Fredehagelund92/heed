@@ -1,0 +1,22 @@
+# Secret scanning (.github/workflows/security.yml): gitleaks' default rules over the whole history.
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "The made-up AWS key the content-safety tests must recognise (FR-117)"
+condition = "AND"
+paths = ['''^tests/server/domain/draft\.test\.ts$''']
+regexes = ['''AKIA1234567890ABCDEF''']
+
+[[allowlists]]
+description = "Fake test fixture: the made-up GitLab token the Sources e2e spec types into the add-a-source form"
+condition = "AND"
+paths = ['''^tests/e2e/sources\.spec\.ts$''']
+regexes = ['''^glpat-e2e-readonly-''']
+
+[[allowlists]]
+description = "Fake test fixture: the made-up idempotency key in the Sources integration test"
+condition = "AND"
+paths = ['''^tests/integration/sources\.test\.ts$''']
+regexes = ['''a1b2c3d4e5f60718293a4b5c6d7e8f90''']

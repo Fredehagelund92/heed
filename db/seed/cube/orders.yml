@@ -1,0 +1,43 @@
+# The demo Cube model: an invented semantic layer over invented tables, read offline by the Cube
+# connector. The bulk seed stores what the connector reads from this folder; no data is queried.
+cubes:
+  - name: order_facts
+    public: false
+    sql_table: demo.order_payments
+    measures:
+      - name: orders
+        title: Orders
+        type: sum
+        sql: order_amount
+        description: >-
+          The value of orders customers completed and paid for, in euros at the daily rate.
+          Cancelled orders and failed payments are left out.
+      - name: returns
+        title: Returns
+        type: sum
+        sql: refund_amount
+        description: >-
+          The value of products customers sent back, in euros at the daily rate, on the day the
+          payment provider confirmed the refund.
+    dimensions:
+      - name: order_id
+        type: string
+        sql: order_id
+        primary_key: true
+      - name: market
+        title: Market
+        type: string
+        sql: market_code
+        description: >-
+          The country or region the order ships to.
+
+views:
+  - name: orders
+    meta:
+      domain: area_sales
+    cubes:
+      - join_path: order_facts
+        includes:
+          - orders
+          - returns
+          - market

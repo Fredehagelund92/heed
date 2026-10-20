@@ -1,0 +1,40 @@
+cubes:
+  - name: revenue_facts
+    public: false
+    sql_table: demo.revenue_daily
+    measures:
+      - name: net_revenue
+        title: Net revenue
+        type: sum
+        sql: net_revenue_eur
+        description: >-
+          Gross sales after returns, discounts, VAT and payment fees, in euros. The figure
+          finance reports each month.
+      - name: gross_sales
+        title: Gross sales
+        type: sum
+        sql: gross_sales_eur
+        description: >-
+          The value of every order at full price, in euros, before returns, discounts and VAT.
+      - name: units_sold
+        title: Units sold
+        type: sum
+        sql: units
+        description: >-
+          The number of units customers bought, including units paid with store credit.
+    dimensions:
+      - name: revenue_day
+        type: time
+        sql: revenue_day
+        primary_key: true
+
+views:
+  - name: revenue
+    meta:
+      domain: area_sales
+    cubes:
+      - join_path: revenue_facts
+        includes:
+          - net_revenue
+          - gross_sales
+          - units_sold

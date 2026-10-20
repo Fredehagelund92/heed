@@ -1,0 +1,193 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Types, lint, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint (ESLint with the Tailwind and token guard rails, then Stylelint)
+        run: npm run lint
+      - name: Plain words (no file gains old words; plain-words.baseline.json, docs/design/voice.md)
+        run: npm run lint:words
+      - name: Format
+        run: npm run format:check
+      - name: Unit, service and guard rail tests
+        run: npm test
+      - name: Registry is valid and its built output is committed
+        run: |
+          npm run registry:validate
+          npm run registry:build
+          git diff --exit-code -- registry
+      - name: Build and check the first load budget
+        run: |
+          npm run build
+          npm run size
+
+  seal:
+    # FR-525: a pull request may not change the sealed held-out cases together with src/, nor open
+    # them outside the seal's own files (scripts/check-held-out-seal.ts). It needs only git. No
+    # cases are sealed at present; the rules on the sealed file hold again once fresh ones are.
+    name: Held-out seal
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The merge commit and its first parent, the base branch: their difference is the change.
+          fetch-depth: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: The pull request keeps the held-out cases sealed
+        # The base branch's copy of the guard judges the change, so a pull request cannot loosen
+        # it; only the pull request that adds the guard runs its own.
+        run: |
+          if git cat-file -e HEAD^1:scripts/check-held-out-seal.ts 2>/dev/null; then
+            git show HEAD^1:scripts/check-held-out-seal.ts > "$RUNNER_TEMP/check-held-out-seal.ts"
+          else
+            cp scripts/check-held-out-seal.ts "$RUNNER_TEMP/check-held-out-seal.ts"
+          fi
+          node "$RUNNER_TEMP/check-held-out-seal.ts" HEAD^1 HEAD
+
+  service:
+    name: Service integration tests (PostgreSQL 18)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: context_layer_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d context_layer_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/context_layer_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: PostgreSQL 18 client tools (pg_dump and pg_restore for the restore drill and the canary)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+          echo /usr/lib/postgresql/18/bin >> "$GITHUB_PATH"
+      - name: Integration tests (real database)
+        run: |
+          pg_dump --version
+          npm run test:integration
+
+  library-api:
+    name: Library on the real API (PostgreSQL 18, Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # The local roles have no passwords, so the runner signs in as the container's superuser and
+    # takes the role each step needs: the owner migrates, the application role serves.
+    env:
+      DATABASE_URL_BOOTSTRAP: postgres://postgres:postgres@localhost:5432/postgres
+      DATABASE_URL_MIGRATE: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_owner
+      DATABASE_URL_SEED: postgres://postgres:postgres@localhost:5432/context_layer_dev
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_api
+      E2E_DATABASE_SERVE_URL: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_serve
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Database (roles, schema, 1,500 demo items)
+        run: npm run db:migrate && npm run seed -- --items-only
+      - name: The front end in http mode against the service
+        run: npm run test:e2e:api
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report-api
+          path: |
+            playwright-report/e2e-api
+            test-results/e2e-api
+          retention-days: 7
+
+  storybook:
+    name: Storybook build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build-storybook
+
+  e2e:
+    name: Playwright (layout, axe, screenshots when baselines exist)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

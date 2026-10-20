@@ -1,0 +1,18 @@
+# What the images never need (Dockerfile): installed packages and builds are made inside, and no
+# local key, setting or private overlay leaves this computer.
+.git
+node_modules
+dist
+coverage
+storybook-static
+playwright-report
+test-results
+.tanstack
+.env
+.env.*
+!.env.example
+.heed-*
+*.pem
+*held-out*.key
+overlay
+.claude

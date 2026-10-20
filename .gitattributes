@@ -1,0 +1,5 @@
+* text=auto eol=lf
+src/web/routeTree.gen.ts linguist-generated=true
+registry/r/** linguist-generated=true
+package-lock.json linguist-generated=true
+tests/e2e/__screenshots__/** binary

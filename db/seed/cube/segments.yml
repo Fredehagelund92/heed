@@ -1,0 +1,52 @@
+# The dimensions every domain uses, so the view has no domain of its own. Cube lists the
+# dimensions; owners keep their values in the vocabulary (CON-514).
+cubes:
+  - name: segment_facts
+    public: false
+    sql_table: demo.customer_segments
+    dimensions:
+      - name: segment_id
+        type: string
+        sql: segment_id
+        primary_key: true
+      - name: market
+        title: Market
+        type: string
+        sql: market_code
+        description: >-
+          The country or region the order ships to.
+      - name: product
+        title: Product
+        type: string
+        sql: product_code
+        description: >-
+          The product group the sale belongs to: footwear, clothing, camping or climbing.
+      - name: channel
+        title: Channel
+        type: string
+        sql: acquisition_channel
+        description: >-
+          How the customer first came to us, from the attribution at sign-up.
+      - name: platform
+        title: Platform
+        type: string
+        sql: platform_code
+        description: >-
+          Where the order was placed: the website, the iOS app or the Android app.
+      - name: campaign
+        title: Campaign
+        type: string
+        sql: campaign_code
+        description: >-
+          The marketing campaign the customer was acquired through. There are thousands.
+
+views:
+  - name: segments
+    cubes:
+      - join_path: segment_facts
+        includes:
+          - market
+          - product
+          - channel
+          - platform
+          - campaign

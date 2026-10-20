@@ -1,0 +1,114 @@
+# Item template: copy this file, replace the three worked examples with your own items, then
+#
+#   npm run heed -- import my-items.yaml --as <your email>           # dry run: checks only
+#   npm run heed -- import my-items.yaml --apply --as <your email>   # proposals, sent for review
+#
+# (`--drafts` with `--apply` keeps them as drafts.) `heed` talks to http://127.0.0.1:3000; name
+# another service with --url.
+# Administration › Import facts does the same in the browser. An import never accepts anything:
+# each item becomes a proposal that the domain's owner accepts in Heed. The web form,
+# the assistant ("draft a caveat from this") and capture from a page make the same proposals. A law
+# or a regulation has a template of its own: docs/templates/regulatory-event.yaml. To turn lessons
+# or instructions you already have into this format, see convert-lessons.md.
+#
+# The examples are about the practice domain (`npm run seed -- --practice`): an invented bakery
+# with three kiosks. They describe no real metric, so on a database with that domain they pass
+# the dry run as they are.
+#
+# What goes in (the pilot's data rule): metric and dimension names, dates, launches, tracking
+# changes, known data breaks and caveats in your own words. Never partner or customer names,
+# personal data, revenue or other figures, contract terms or secrets; the checks refuse text that
+# looks like an email address, a phone number, a key or a password. Only write what a model could
+# not know from the data: definitions stay in Cube.
+#
+# Every field: `npm run heed -- schema`. The ones you need:
+#   title          what an agent reads first, up to 200 characters
+#   kind           note (a standing caveat), issue (a problem with a window), event (something
+#                  that happened), guide or example; a note when left out
+#   summary        the caveat itself, 1 to 3 sentences. Or summaryMarkup, the same text with
+#                  mentions: @[words](target), target metric:<key>, dim:<key>, val:<dim>/<value>,
+#                  item:<id> or area:<id>
+#   body           optional detail, or bodyMarkup with mentions
+#   scope          where it applies, in the live vocabulary's keys: metrics (metric: or group:),
+#                  dimensionValues ({dimension, value}) and dimensions (a dimension with any of
+#                  its values: broad, so the reviewer is told). At least one.
+#   validity       start, and end (null when it has none)
+#   reviewDate     when the owner checks it again; needed when end is null, null otherwise
+#   evidence       at least one source: url, a sentence quoted from it, the day you read it
+#   riskLevel      low, normal or high. Be honest, and know the cost: low needs no answer test;
+#                  normal runs a paid impact test before it can be accepted, high a full one.
+#   claimLevel     fact_only (a fact, no cause proven), or effect_stated with claimAuthority (who
+#                  states the effect) and claimQuote (their words)
+#   notToConclude  optional, the form's "What not to conclude": what someone might wrongly conclude
+#                  from it, in one or two plain sentences. Start with "It doesn't tell you ...",
+#                  "Don't use this for ..." or "Check with ...". Left out: cause not proven.
+#
+# Left out, Heed fills in: the domain (from the scope's metrics), the owner (the domain's
+# owner), the kind, the risk (low for a note), the claim level and a review date in 90 days.
+# A change to an accepted item names its id (`id: itm_...`) and only the fields that change.
+
+items:
+  # 1. A standing caveat: no end date, so it needs a review date. Mentions link the metric.
+  - title: 'Practice: loaves baked counts a loaf when it leaves the oven'
+    kind: note
+    summaryMarkup: >-
+      @[Loaves baked](metric:practice_loaves_baked) counts a loaf when it leaves the oven, so
+      loaves that burn or are given away still count.
+    body: Invented for the practice domain; it describes no real metric.
+    scope:
+      metrics: [metric:practice_loaves_baked]
+      dimensions: []
+      dimensionValues: []
+    validity: { start: '2026-09-01', end: null }
+    reviewDate: '2027-01-15'
+    evidence:
+      - url: https://example.test/practice/bakery-handbook
+        quote: A loaf is logged as it comes out of the oven
+        date: '2026-09-01'
+    riskLevel: low
+    claimLevel: fact_only
+    notToConclude: It doesn't tell you how many loaves were sold.
+
+  # 2. A known data break with a window: an issue for one kiosk, ending on a set day.
+  - title: 'Practice: Old Town door sensor missed visits for a week'
+    kind: issue
+    summary: >-
+      The Old Town door sensor was faulty for a week, so kiosk visits there are too low for those
+      days and should not be compared with other weeks.
+    scope:
+      metrics: [metric:practice_kiosk_visits]
+      dimensions: []
+      dimensionValues:
+        - { dimension: dim:practice_kiosk, value: val:practice_kiosk/old_town }
+    validity: { start: '2026-09-14', end: '2026-09-20' }
+    reviewDate: null
+    evidence:
+      - url: https://example.test/practice/maintenance-log
+        quote: Old Town door sensor replaced after a week of missed counts
+        date: '2026-09-21'
+    riskLevel: low
+    claimLevel: fact_only
+    notToConclude: Low visits that week do not mean fewer people came. Don't compare it with other weeks.
+
+  # 3. An event whose effect someone named has stated: effect_stated needs who and their words.
+  - title: 'Practice: North Pier opened an hour earlier from October'
+    kind: event
+    summary: >-
+      North Pier opens an hour earlier from 1 October, and the kiosk team says the extra hour
+      brings more morning visits.
+    scope:
+      metrics: [metric:practice_kiosk_visits, metric:practice_loaves_baked]
+      dimensions: []
+      dimensionValues:
+        - { dimension: dim:practice_kiosk, value: val:practice_kiosk/north_pier }
+    validity: { start: '2026-10-01', end: null }
+    reviewDate: '2027-01-31'
+    evidence:
+      - url: https://example.test/practice/opening-hours
+        quote: From 1 October North Pier opens at seven
+        date: '2026-09-25'
+    riskLevel: low
+    claimLevel: effect_stated
+    claimAuthority: The practice kiosk team
+    claimQuote: The early hour brings in the morning commuters
+    notToConclude: The earlier opening is not proven to explain any other change

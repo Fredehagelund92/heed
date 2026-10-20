@@ -1,0 +1,58 @@
+cubes:
+  - name: marketing_facts
+    public: false
+    sql_table: demo.marketing_daily
+    measures:
+      - name: discount_cost
+        title: Discount cost
+        type: sum
+        sql: discount_eur
+        description: >-
+          The value of the discounts and gift vouchers customers used, in euros, on the day they
+          used them.
+      - name: marketing_spend
+        title: Marketing spend
+        type: sum
+        sql: spend_eur
+        description: >-
+          Money paid to media, partners and agencies, in euros, on the day the cost was booked.
+          Discounts are not marketing spend.
+      - name: cost_per_acquisition
+        title: Cost per acquisition
+        type: number
+        sql: SUM(spend_eur) / NULLIF(SUM(first_time_buyers), 0)
+        description: >-
+          Marketing spend divided by first-time buyers in the same period, in euros.
+      - name: return_on_ad_spend
+        title: Return on ad spend
+        type: number
+        sql: SUM(attributed_revenue_eur) / NULLIF(SUM(paid_media_spend_eur), 0)
+        description: >-
+          Net revenue attributed to paid media divided by paid media spend. Attribution is the
+          last click within 30 days.
+        meta:
+          domain: area_paid_media
+      - name: conversion_rate
+        title: Conversion rate
+        type: number
+        sql: SUM(first_time_buyers) / NULLIF(SUM(new_accounts), 0)
+        description: >-
+          The share of new accounts that place a first paid order within 30 days.
+    dimensions:
+      - name: marketing_day
+        type: time
+        sql: marketing_day
+        primary_key: true
+
+views:
+  - name: marketing
+    meta:
+      domain: area_marketing
+    cubes:
+      - join_path: marketing_facts
+        includes:
+          - discount_cost
+          - marketing_spend
+          - cost_per_acquisition
+          - return_on_ad_spend
+          - conversion_rate

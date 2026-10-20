@@ -1,0 +1,174 @@
+{
+  "docs/help/assistant.md": {
+    "model": 1
+  },
+  "docs/help/common-questions.md": {
+    "edition": 1
+  },
+  "docs/help/editions.md": {
+    "live edition": 1
+  },
+  "docs/help/glossary.md": {
+    "administrator": 1,
+    "agent": 1,
+    "audience": 1,
+    "dimension": 2,
+    "edition": 3,
+    "item": 1,
+    "language model": 1,
+    "live edition": 1,
+    "model": 1,
+    "re-check": 1,
+    "retire": 1,
+    "steward": 1,
+    "try it": 1,
+    "vocabulary": 1
+  },
+  "docs/help/mcp.md": {
+    "model": 3
+  },
+  "docs/help/tour.md": {
+    "edition": 1
+  },
+  "src/server/modules/notifications/activity.ts": {
+    "is not": 1
+  },
+  "src/server/modules/notifications/inbox.ts": {
+    "is not": 1
+  },
+  "src/server/modules/notifications/relay.ts": {
+    "cannot": 1,
+    "delivered": 1
+  },
+  "src/server/modules/notifications/stream.ts": {
+    "is not": 1
+  },
+  "src/server/modules/notifications/visibility.ts": {
+    "area": 3,
+    "edition": 1,
+    "item": 2,
+    "vocabulary": 2
+  },
+  "src/web/api/mock-admin.ts": {
+    "administrator": 2,
+    "agent": 1,
+    "edition": 1,
+    "item": 1,
+    "live edition": 1,
+    "model": 5,
+    "token": 1
+  },
+  "src/web/api/mock-assistant.ts": {
+    "do not": 1,
+    "does not": 1,
+    "model": 1
+  },
+  "src/web/api/mock-runs.ts": {
+    "caveat": 2,
+    "context item": 1,
+    "do not": 2,
+    "does not": 1
+  },
+  "src/web/api/mock-workflow.ts": {
+    "administrator": 1,
+    "agent": 1,
+    "delivered": 1,
+    "has not": 2,
+    "retired": 1,
+    "source tool": 1,
+    "token": 1
+  },
+  "src/web/components/assistant/ask-composer.tsx": {
+    "scope": 1
+  },
+  "src/web/components/assistant/ask-editor.tsx": {
+    "dimension": 1
+  },
+  "src/web/components/assistant/ask-scope.tsx": {
+    "live edition": 1,
+    "scope": 3
+  },
+  "src/web/components/catalogue/catalogue-page.tsx": {
+    "term": 1
+  },
+  "src/web/components/catalogue/term-panel.tsx": {
+    "term": 3
+  },
+  "src/web/components/catalogue/term-parts.tsx": {
+    "model": 4
+  },
+  "src/web/components/item/connected-items.tsx": {
+    "dimension": 1
+  },
+  "src/web/components/item/mention-chip.tsx": {
+    "dimension": 1
+  },
+  "src/web/components/proposal/proposal-fields.tsx": {
+    "dimension": 1
+  },
+  "src/web/lib/catalogue.ts": {
+    "dimension": 1
+  },
+  "src/web/lib/connect.ts": {
+    "caveat": 2
+  },
+  "src/web/lib/crumbs.ts": {
+    "dimension": 1,
+    "edition": 1
+  },
+  "src/web/lib/mention-targets.ts": {
+    "dimension": 2
+  },
+  "src/web/lib/nav.ts": {
+    "edition": 1
+  },
+  "src/web/lib/question-form.ts": {
+    "rubric": 2
+  },
+  "src/web/lib/term-page.ts": {
+    "model": 2
+  },
+  "src/web/mocks/answers.ts": {
+    "agent": 1,
+    "caveat": 2,
+    "connect your ai": 1,
+    "does not": 2,
+    "edition": 2,
+    "item": 2,
+    "needs a look": 2,
+    "scope": 1
+  },
+  "src/web/mocks/catalogue.ts": {
+    "model": 1
+  },
+  "src/web/mocks/caveats.ts": {
+    "do not": 1
+  },
+  "src/web/mocks/cube-model.ts": {
+    "are not": 1
+  },
+  "src/web/mocks/gaps.ts": {
+    "item": 1
+  },
+  "src/web/mocks/items.ts": {
+    "are not": 3,
+    "could not": 1,
+    "is not": 2,
+    "source tool": 1,
+    "were not": 1
+  },
+  "src/web/mocks/source-types.ts": {
+    "model": 11,
+    "token": 4
+  },
+  "src/web/mocks/sources.ts": {
+    "could not": 1,
+    "model": 1
+  },
+  "src/web/mocks/story-facts.ts": {
+    "are not": 2
+  },
+  "src/web/mocks/test-questions.ts": {
+    "source tool": 1
+  }
+}

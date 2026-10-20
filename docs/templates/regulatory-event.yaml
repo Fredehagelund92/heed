@@ -1,0 +1,67 @@
+# Regulatory event template: a law, a regulation or a ban that changes what the numbers mean in a
+# market. Copy this file, replace the worked example with your own, then
+#
+#   npm run heed -- import my-event.yaml --as <your email>           # dry run: checks only
+#   npm run heed -- import my-event.yaml --apply --as <your email>   # a proposal, sent for review
+#
+# The assistant ("draft a caveat from this link") and Claude Code with draft_context follow the
+# same shape. Replace the scope with your own vocabulary's keys (the Catalogue, or
+# `npm run heed -- schema`): the keys below are an example and are not in the demo data.
+#
+# What makes a regulatory item right:
+#   kind           event: something that happened on a day.
+#   validity       start on the day the measure takes effect, as its own text says (the day it is
+#                  published, or a day it names). Keep the other dates in the body, each with the
+#                  sentence that sets it: a measure often has several (in force, orders held,
+#                  carriers stopped, permits ended), and "ten days after" is easy to count wrong.
+#   reviewDate     the source's own deadline when it has one (a provisional measure lapses unless
+#                  it is converted), not the 90-day default.
+#   evidence       the official text first: its page, one sentence copied character for character
+#                  in its own language (never a translation; the summary may translate), and the day
+#                  you read it. A second source for a date the text leaves to others, such as the
+#                  ministry's own explainer. Prefer either to a news report: reports go stale.
+#   riskLevel      high: legal and regulatory matters are high risk (two approvals and the full
+#                  answer tests); the owner confirms it.
+#   claimLevel     fact_only: the item records that the measure exists, not what it caused.
+#   notToConclude  ("What not to conclude" in the form) that it is not legal advice, that the
+#                  measure alone does not prove why numbers changed, and whether it is
+#                  provisional or contested.
+#
+# Heed records a documented fact for analytics agents. It is not a legal reading of the measure.
+
+items:
+  # An invented example: Freeland's provisional customs order on webshop parcels, read on
+  # 15 October 2026. Freeland, its order and its pages are made up; use your own measure's text.
+  - title: 'Freeland holds webshop parcels from abroad from 25 Sep 2026 (Customs Order 12/2026, provisional)'
+    kind: event
+    summary: >-
+      Customs Order 12/2026 holds parcels from webshops outside Freeland at the border from
+      25 September 2026; carriers had to stop accepting them from 6 October. It is provisional: it
+      lapses unless parliament confirms it by 23 November 2026.
+    body: >-
+      In force on publication, 25 September 2026 (art. 30). New webshop orders could not be cleared
+      from publication (art. 7, paragraph 1). Carriers had to stop accepting webshop parcels ten
+      days after publication (art. 7), which the finance ministry reads as from 6 October. Import
+      permits end thirty days after publication (art. 4). Parliament deliberates until
+      23 November 2026.
+    scope:
+      metrics: [metric:net_sales, metric:online_orders]
+      dimensions: []
+      dimensionValues:
+        - { dimension: dim:market, value: val:market/freeland }
+    validity: { start: '2026-09-25', end: null }
+    reviewDate: '2026-11-23'
+    evidence:
+      - url: https://customs.example/freeland/orders/12-2026
+        quote: >-
+          Art. 1. Parcels sent to buyers in Freeland by webshops established abroad are held at the
+          border, whether the order was placed in a shop, by post or online.
+        date: '2026-10-15'
+      - url: https://finance.example/freeland/customs-order-12-2026-explained
+        quote: 'From 6 October: carriers stop accepting webshop parcels'
+        date: '2026-10-15'
+    riskLevel: high
+    claimLevel: fact_only
+    notToConclude: >-
+      Not legal advice. The order alone does not prove why Freeland numbers changed. The order is
+      provisional: it may lapse on 23 November 2026 or change in parliament or in court.

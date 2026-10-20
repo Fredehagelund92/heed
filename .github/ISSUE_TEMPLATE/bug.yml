@@ -1,0 +1,70 @@
+name: Something is wrong
+description: Heed does something it shouldn't, or doesn't do what it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for telling us. Found a security problem? Please don't open an issue: `SECURITY.md` says how to tell us privately.
+
+        Use made-up data. Leave out real access keys, passwords and personal data.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see? Paste the exact words on the screen if there are any.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to see it
+      description: The steps from a fresh start, one per line.
+      placeholder: |
+        1. Run `npm run dev`
+        2. Open the library
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - The web app
+        - An AI app over MCP
+        - The service API
+        - The command line
+        - The help pages
+        - Somewhere else
+    validations:
+      required: true
+  - type: dropdown
+    id: api
+    attributes:
+      label: What the web app ran on
+      options:
+        - The mock API (`npm run dev`)
+        - The service (`npm run dev:http`)
+        - Not the web app
+  - type: input
+    id: commit
+    attributes:
+      label: Commit
+      description: The output of `git rev-parse --short HEAD`.
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and system
+      placeholder: Firefox 140 on macOS 26
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: A screenshot, or the lines of a log around the problem.

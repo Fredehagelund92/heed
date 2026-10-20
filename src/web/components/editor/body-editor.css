@@ -1,0 +1,104 @@
+/*
+  The body editor's text, drawn as the item page draws the same Markdown (components/form/
+  markdown.tsx), so writing looks like reading. It loads with the editor's own chunk, not with the
+  first page: the rules are Tailwind utilities applied here instead of in the markup.
+*/
+@reference '../../styles/index.css';
+
+.body-editor-text {
+  @apply flex w-full max-w-prose min-w-0 flex-col gap-3 break-words whitespace-pre-wrap outline-none;
+
+  font-variant-ligatures: none;
+
+  & h2 {
+    @apply text-title font-bold;
+  }
+
+  & h3 {
+    @apply text-large font-bold;
+  }
+
+  & ul,
+  & ol {
+    @apply flex flex-col gap-1 pl-6;
+  }
+
+  & ul {
+    @apply list-disc;
+  }
+
+  & ol {
+    @apply list-decimal;
+  }
+
+  & li {
+    @apply pl-1;
+  }
+
+  & blockquote {
+    @apply flex flex-col gap-3 border-l-2 border-border pl-4 text-muted-foreground;
+  }
+
+  & pre {
+    @apply overflow-x-auto rounded-md bg-muted p-3 font-mono text-dense whitespace-pre;
+  }
+
+  & :not(pre) > code {
+    @apply rounded-sm bg-muted px-1 font-mono text-body;
+  }
+
+  & a {
+    @apply text-brand-ink underline underline-offset-4;
+  }
+
+  & strong {
+    @apply font-bold;
+  }
+
+  & [data-selected] > [data-slot='mention-chip'] {
+    @apply ring-2 ring-ring;
+  }
+
+  & [data-selected] {
+    @apply selection:bg-transparent;
+  }
+}
+
+/*
+  The size and the box, per field. The item page's zone is borderless in text-large. A field in a
+  form (what a domain is, About our business) has the look of a Textarea, whose box takes the
+  focus ring and turns red when invalid, and reads at the size of the record that shows it. Here,
+  not in the markup, so none of it adds to the first load.
+*/
+[data-slot='body-editor-box'] {
+  & .body-editor-text {
+    @apply min-h-control-md;
+  }
+
+  & .body-editor-text,
+  & [data-slot='body-editor-placeholder'] {
+    @apply text-large;
+  }
+
+  &[data-size='reading'] .body-editor-text,
+  &[data-size='reading'] [data-slot='body-editor-placeholder'] {
+    @apply text-reading pointer-coarse:text-large;
+  }
+
+  &[data-appearance='field'] {
+    @apply rounded-md border border-input bg-transparent px-3 py-2 transition-colors focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring data-invalid:border-destructive dark:bg-input/30 dark:data-invalid:border-destructive/50;
+
+    & .body-editor-text {
+      @apply min-h-editor;
+    }
+
+    & [data-slot='body-editor-placeholder'] {
+      @apply inset-x-3 top-2;
+    }
+  }
+}
+
+/* The selection toolbar's pressed buttons (bold on, a heading on). */
+[data-slot='format-toolbar'] [aria-pressed='true'] {
+  @apply bg-muted text-foreground;
+}

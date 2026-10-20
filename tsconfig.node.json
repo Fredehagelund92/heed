@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"],
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
+  },
+  "include": [
+    "vite.config.ts",
+    "vitest.config.ts",
+    "eslint.class-rules.d.ts",
+    "eslint.plain-words.d.ts",
+    "playwright.config.ts",
+    "playwright.api.config.ts",
+    "playwright.demo.config.ts",
+    "tests/e2e",
+    "tests/e2e-api",
+    "tests/demo",
+    "tests/lint/*.ts",
+    "scripts",
+    ".storybook/main.ts",
+    ".storybook/vite.config.ts"
+  ]
+}

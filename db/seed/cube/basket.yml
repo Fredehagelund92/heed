@@ -1,0 +1,47 @@
+cubes:
+  - name: basket_facts
+    public: false
+    sql_table: demo.order_lines
+    measures:
+      - name: average_order_value
+        title: Average order value
+        type: avg
+        sql: order_value_eur
+        description: >-
+          The mean value of a paid order, in euros, after discounts. Gift-card purchases are left
+          out.
+      - name: units_per_order
+        title: Units per order
+        type: avg
+        sql: units
+        description: >-
+          The mean number of units in a paid order. A product bought in two sizes counts twice.
+      - name: gross_margin
+        title: Gross margin
+        type: number
+        sql: SUM(net_revenue_eur - cost_of_goods_eur) / NULLIF(SUM(net_revenue_eur), 0)
+        description: >-
+          Net revenue minus what the goods cost us, as a share of net revenue, for orders shipped.
+      - name: online_share
+        title: Online share
+        type: number
+        sql: SUM(CASE WHEN is_online THEN net_revenue_eur END) / NULLIF(SUM(net_revenue_eur), 0)
+        description: >-
+          The share of net revenue from orders placed in the webshop or the apps, not in a store.
+    dimensions:
+      - name: line_id
+        type: string
+        sql: line_id
+        primary_key: true
+
+views:
+  - name: basket
+    meta:
+      domain: area_sales
+    cubes:
+      - join_path: basket_facts
+        includes:
+          - average_order_value
+          - units_per_order
+          - gross_margin
+          - online_share

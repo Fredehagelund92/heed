@@ -1,0 +1,30 @@
+# No domain on purpose: the connector warns about the view, and the catalogue shows its members
+# without a domain until the vocabulary or Cube names one.
+cubes:
+  - name: operations_facts
+    public: false
+    sql_table: demo.operations_daily
+    measures:
+      - name: support_contacts
+        title: Support contacts
+        type: sum
+        sql: contacts
+        description: >-
+          Chats, emails and calls to customer service that someone on our team answered.
+      - name: on_time_shipping_rate
+        title: On-time shipping rate
+        type: number
+        sql: SUM(shipped_on_time) / NULLIF(SUM(orders_shipped), 0)
+    dimensions:
+      - name: operations_day
+        type: time
+        sql: operations_day
+        primary_key: true
+
+views:
+  - name: operations
+    cubes:
+      - join_path: operations_facts
+        includes:
+          - support_contacts
+          - on_time_shipping_rate

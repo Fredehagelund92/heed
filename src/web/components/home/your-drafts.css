@@ -1,0 +1,25 @@
+/*
+  The columns of Your drafts. It loads with Home's chunk, not with the first page.
+  The rules are in the utilities layer, where they were as @utility in styles/index.css.
+*/
+
+@layer utilities {
+  /*
+    The columns of Your drafts on Home (contract 8.13), set on the list; each row is a subgrid of it,
+    so the domain, the Draft mark and the age each have one column, as wide as its widest entry
+    (the domain at most a domain column), and line up from row to row, as Linear's property
+    columns do. From the `@xl` container the parts sit in a line under the title (the glyph, then
+    the domain, the mark and the age, the title across all three, then the menu); from `@3xl` in
+    one line beside it (the glyph, the title, the domain, the mark, the age, the menu). Under
+    `@xl`, a phone, the list is not a grid and the parts wrap after the title.
+  */
+  .draft-columns {
+    @container (width >= 36rem) {
+      grid-template-columns: auto fit-content(var(--column-domain)) auto minmax(0, 1fr) auto;
+    }
+
+    @container (width >= 48rem) {
+      grid-template-columns: auto minmax(0, 1fr) fit-content(var(--column-domain)) auto auto auto;
+    }
+  }
+}

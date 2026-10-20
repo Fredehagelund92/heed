@@ -1,0 +1,185 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './shadcn.css';
+@import '@fontsource-variable/nunito-sans';
+@import '@fontsource-variable/geist-mono';
+@import './tokens.css';
+
+/*
+  Only the app's own classes go into its one stylesheet: the class merge tables are data, not
+  class names, the stories' extra classes come in through .storybook/preview.css, and the design
+  preview's through its own chunk (design-preview/design-preview.css).
+*/
+@source not '../lib/cn-tables.gen.ts';
+@source not '../stories';
+@source not '../design-preview';
+@source not '../routes/design-preview';
+
+/*
+  Words Tailwind finds in comments, prose and code that no class uses, but that each name a
+  utility: `filter` and `transform` bring nine and five @property rules with them, `container`
+  a rule per breakpoint. Before using one of these as a class, take it out of this list.
+*/
+@source not inline('blur collapse container filter lowercase outline paused running resize ring static transform visible table');
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background font-sans text-body text-foreground antialiased;
+
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+    One focus ring for every interactive element (contract 6.8): 2px of --ring, 2px outside the
+    element. Anything that clips its children (rows, menu items, tabs) sets the offset inside.
+    The ring never animates and is never removed without a replacement of equal visibility.
+  */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
+    A part of the docs a link points at (a page's heading, a section of the docs home) stops
+    under the shell's header, where a page rail that stays in view stops too.
+  */
+  [data-docs] [id] {
+    scroll-margin-top: var(--rail-sticky-top);
+  }
+}
+
+/* Layout transitions for the shell (sidebar width, offsets). One named utility instead of arbitrary values. */
+@utility transition-layout {
+  transition-property: left, right, width, height, margin, padding, opacity;
+  transition-timing-function: var(--default-transition-timing-function);
+  transition-duration: var(--default-transition-duration);
+}
+
+/*
+  The viewport minus one 16px gutter on each side. A dialog takes it as its width and its named
+  size (`max-w-dialog`) as its cap, so the two never compete for one property; the toast stack
+  takes it as its cap.
+*/
+@utility w-inset {
+  width: calc(100% - 32px);
+}
+
+@utility max-w-inset {
+  max-width: calc(100% - 32px);
+}
+
+/*
+  The drawer follows the finger while it is swiped: Base UI writes the distance into
+  --drawer-swipe-movement-y. The enter and exit slide use the separate translate property.
+*/
+@utility drawer-swipe {
+  transform: translate3d(0, var(--drawer-swipe-movement-y, 0), 0);
+}
+
+/* Buttons: colour changes on hover and the 0.97 press scale, both instant (contract 10, rule 8). */
+@utility transition-press {
+  transition-property: color, background-color, border-color, scale;
+  transition-timing-function: var(--ease-out);
+  transition-duration: var(--duration-instant);
+}
+
+/*
+  The badge anatomy (contract 6.13): a mark (a 14 pixel icon, 12 in sm) and a label in a
+  24 pixel box, 20 in compact rows. Form and tone are classes on the badge component; these two
+  utilities hold the sizes that sit between the 4 pixel spacing steps.
+*/
+@utility badge-md {
+  height: var(--badge-md);
+  padding-inline: var(--badge-pad-md);
+  gap: var(--badge-gap-md);
+  font-size: var(--text-dense);
+  line-height: var(--text-caption--line-height);
+
+  /* A bare badge is the mark and the label only: no box, so it sits on the cell's text line. */
+  &[data-form='bare'] {
+    height: auto;
+    padding-inline: 0;
+  }
+}
+
+@utility badge-sm {
+  height: var(--badge-sm);
+  padding-inline: var(--badge-pad-sm);
+  gap: var(--badge-gap-sm);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+
+  /* A bare badge is the mark and the label only: no box, so it sits on the cell's text line. */
+  &[data-form='bare'] {
+    height: auto;
+    padding-inline: 0;
+  }
+}
+
+/*
+  A row's own controls (the professional pass, rule 8): its checkbox and its menu show while the
+  row (`group/row`) is hovered, focused from the keyboard or selected, while the control's menu
+  is open, and always on a touch screen, which has no hover. `row-rest` is what gives way to them:
+  the row's kind. Transparent, a control stays in the accessibility tree and on its keyboard route.
+*/
+@utility row-control {
+  opacity: 0;
+
+  &:where(.group\/row:is(:hover, :has(:focus-visible), [data-selected]) *),
+  &[data-popup-open] {
+    opacity: 1;
+  }
+
+  @media (pointer: coarse) {
+    opacity: 1;
+  }
+}
+
+@utility row-rest {
+  &:where(.group\/row:is(:hover, :has(:focus-visible), [data-selected]) *) {
+    opacity: 0;
+  }
+
+  @media (pointer: coarse) {
+    opacity: 0;
+  }
+}
+
+/*
+  Text for a screen reader only that stays in the line. `sr-only` takes text out of the flow, and
+  inside a text field a screen reader then reads it as a line of its own.
+*/
+@utility sr-inline {
+  display: inline-block;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+}

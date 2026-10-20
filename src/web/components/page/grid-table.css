@@ -1,0 +1,52 @@
+/*
+  The overview grids on a phone. It loads with the grids' chunks, not with the first page.
+  The rules are in the utilities layer, where they were as @utility in styles/index.css.
+*/
+@reference '../../styles/index.css';
+
+@layer utilities {
+  /* Overview grids use one title line and a wrapping metadata line on phones. Header semantics
+     remain available to assistive technology, while the visual grid becomes a list. A cell's
+     `data-phone-label` names its column where the header is gone, and only there. */
+  .phone-grid {
+    & [data-phone-label] {
+      display: none;
+    }
+
+    @media (width < 48rem) {
+      & [data-phone-label] {
+        display: inline;
+      }
+
+      & > [role='rowgroup']:first-child {
+        @apply sr-only;
+      }
+
+      & > [role='rowgroup']:last-child {
+        border-top: 0;
+      }
+
+      & > [role='rowgroup'] > [role='row'] {
+        @apply min-h-row-phone flex-wrap gap-x-3 gap-y-1 px-3 py-3;
+      }
+
+      & > [role='rowgroup'] > [role='row'] > :is([role='cell'], [role='rowheader']) {
+        @apply w-auto flex-none border-0 p-0;
+      }
+
+      & > [role='rowgroup'] > [role='row'] > :first-child {
+        @apply w-full;
+      }
+
+      /* The assistant launcher floats over the right end of the rows as they scroll by, so a
+         title wraps before it and the launcher never covers its words. */
+      body:has([data-slot='assistant-launcher'])
+        &
+        > [role='rowgroup']
+        > [role='row']
+        > :first-child {
+        padding-inline-end: var(--control-touch);
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.server.tsbuildinfo"
+  },
+  "include": [
+    "src/server",
+    "src/contract",
+    "src/connectors",
+    "src/cli",
+    "db/prepare.ts",
+    "db/seed",
+    "tests/server",
+    "tests/integration",
+    "tests/conformance"
+  ]
+}

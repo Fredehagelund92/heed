@@ -1,0 +1,1 @@
+export { describeAlpha } from './service'

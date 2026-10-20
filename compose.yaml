@@ -1,0 +1,77 @@
+# Heed on this computer: PostgreSQL 18, the service and the web app (README, "Quick start").
+#
+#   docker compose up       then open http://localhost:8080
+#
+# A new database gets the demo (SEED_DEMO=on): invented people, domains and facts about the demo
+# Cube model in db/seed/cube. To run on your own Cube model instead, name its folder in
+# CUBE_MODEL_DIR (README, "Use your own data"); the demo is then left out. HEED_WEB_PORT and
+# HEED_PORT move the web app (8080) and the service (3000). Both listen on this computer only:
+# anyone who reaches them can sign in as any of the demo people.
+#
+# Not for production: the database trusts every connection inside this network, and sign-in is
+# the demo's people picker.
+
+name: heed
+
+services:
+  db:
+    image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  heed:
+    build:
+      context: .
+      target: service
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The superuser makes Heed's roles and database and loads the demo; each part of the service
+      # then connects as its own role (db/README.md).
+      DATABASE_URL_BOOTSTRAP: postgres://postgres@db:5432/postgres
+      DATABASE_URL_MIGRATE: postgres://context_layer_owner@db:5432/heed
+      DATABASE_URL: postgres://context_layer_api@db:5432/heed
+      SEED_DEMO: ${SEED_DEMO:-on}
+      CUBE_MODEL_DIR: /cube-model
+      CL_WEB_ORIGINS: http://localhost:${HEED_WEB_PORT:-8080}
+      MCP_RESOURCE_URL: http://localhost:${HEED_PORT:-3000}/mcp
+    volumes:
+      - ${CUBE_MODEL_DIR:-./db/seed/cube}:/cube-model:ro
+      - keys:/var/lib/heed
+    ports:
+      - 127.0.0.1:${HEED_PORT:-3000}:3000
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      # Every 2 seconds while it starts (the first start loads the demo, a minute or two), then
+      # every 30.
+      start_period: 5m
+      start_interval: 2s
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  web:
+    build:
+      context: .
+      target: web
+    depends_on:
+      heed:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${HEED_WEB_PORT:-8080}:80
+
+volumes:
+  db:
+  keys:

@@ -1,0 +1,43 @@
+/*
+  The @ mention chip. It loads with the chunks that show one, not with the first page.
+  The rules are in the utilities layer, where they were as @utility in styles/index.css.
+*/
+
+@layer utilities {
+  /*
+    The @ mention chip (contract 6.13): the badge family inline in running text. It is sized from
+    the surrounding text (1.4em high, the label at 94%), so it never changes the line box. It is an
+    inline box, not a flex box: a flex box turns each part into a block, and a screen reader then
+    reads the chip in a text field as lines of their own ("Norway", ", dimension value"). So the
+    mark sits on the text with vertical-align, and the gap after it is its end margin.
+  */
+  .mention-chip {
+    display: inline;
+    padding-block: var(--mention-pad-block);
+    padding-inline: var(--mention-pad-start) var(--mention-pad-end);
+    font-size: var(--mention-text);
+    line-height: 1.25;
+    white-space: nowrap;
+
+    & svg {
+      display: inline-block;
+      margin-inline-end: var(--mention-gap);
+      width: var(--mention-mark);
+      height: var(--mention-mark);
+      vertical-align: var(--mention-mark-align);
+    }
+
+    /* A domain's name has no length limit, so its chip wraps like the words around it instead of
+       running past the paragraph. */
+    &[data-target='area'] {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      box-decoration-break: clone;
+    }
+
+    /* The state glyph after the label (source changed) has the gap before it. */
+    & svg[data-slot='mention-state'] {
+      margin-inline: var(--mention-gap) 0;
+    }
+  }
+}

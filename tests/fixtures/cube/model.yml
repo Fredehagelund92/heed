@@ -1,0 +1,44 @@
+cubes:
+  - name: orders
+    public: false
+    sql: SELECT amount, country FROM example_orders
+    measures:
+      - name: revenue
+        type: sum
+        sql: amount
+        description: Total order revenue.
+      - name: count
+        type: count
+        meta:
+          domain: commerce
+    dimensions:
+      - name: country
+        type: string
+        sql: country
+views:
+  - name: sales
+    meta:
+      domain: finance
+    cubes:
+      - join_path: orders
+        includes: '*'
+  - name: marketing
+    cubes:
+      - join_path: orders
+        prefix: true
+        includes:
+          - name: revenue
+            alias: income
+          - country
+  - name: operations
+    cubes:
+      - join_path: orders
+        includes:
+          - revenue
+  - name: growth
+    meta:
+      domain: marketing
+    cubes:
+      - join_path: orders
+        includes:
+          - revenue

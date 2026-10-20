@@ -1,0 +1,294 @@
+[
+  {
+    "type": "start"
+  },
+  {
+    "type": "start-step"
+  },
+  {
+    "type": "tool-input-available",
+    "toolCallId": "call_get_context_23c418a4",
+    "toolName": "get_context",
+    "input": {
+      "question": "Which facts apply to this scope?\nThe scope I picked in Heed: Online share (metric:online_share); Italy (val:market/italy); from 2026-06-01 to 2026-06-30.",
+      "max_items": 20
+    },
+    "dynamic": true
+  },
+  {
+    "type": "tool-output-available",
+    "toolCallId": "call_get_context_23c418a4",
+    "output": {
+      "edition": "2026-10-07.2",
+      "overlay": "82",
+      "tool_schema_digest": "d7b7cbef4d8efa8665f1148fcfd039c26a0042286e2d93f4059ac7ed34bb4c4b",
+      "status": "matched",
+      "scope_used": {
+        "metrics": ["metric:online_share"],
+        "filters": {
+          "dim:market": ["val:market/italy"]
+        },
+        "window": {
+          "start": "2026-06-01",
+          "end": "2026-07-01"
+        }
+      },
+      "items": [
+        {
+          "id": "itm_is8x9bcp",
+          "version": 2,
+          "edition": "2026-10-07.2",
+          "kind": "event",
+          "title": "A change to the returns rules in Italy took effect on 10 May 2025, which also changed how returns are counted in the weekly reports",
+          "summary": "A change to the returns rules in Italy took effect on 10 May 2025, which also changed how returns are counted in the weekly reports. Compare against a market that was not affected. Check the source tool before you quote the number. The cause is not proven.",
+          "validity": {
+            "start": "2025-05-10",
+            "end": null
+          },
+          "claim_level": "fact_only",
+          "risk": "normal",
+          "freshness": "verified",
+          "evidence": [
+            {
+              "url": "https://example.com/context/itm_is8x9bcp",
+              "quote": "Treat any comparison across this date with care.",
+              "read_on": "2025-05-29"
+            }
+          ],
+          "owner": {
+            "team": null,
+            "owner": "Jon Abara"
+          },
+          "links": [
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "metric",
+                "id": "metric:online_share",
+                "label": "Online share",
+                "status": "current",
+                "source_ref": "cube:basket.online_share"
+              }
+            },
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "dimension_value",
+                "id": "val:market/italy",
+                "label": "Italy",
+                "status": "current"
+              }
+            },
+            {
+              "rel": "mentions",
+              "target": {
+                "type": "dimension_value",
+                "id": "val:market/italy",
+                "label": "Italy",
+                "status": "current"
+              }
+            },
+            {
+              "rel": "in_area",
+              "target": {
+                "type": "area",
+                "id": "area_sales",
+                "label": "Sales",
+                "status": "current"
+              }
+            }
+          ],
+          "match": "exact"
+        },
+        {
+          "id": "itm_00ae5tb0",
+          "version": 1,
+          "edition": "2026-10-07.2",
+          "kind": "note",
+          "title": "Online share lags by one day in the source tool",
+          "summary": "Online share lags by one day in the source tool. The cause is not proven by this note. The cause is not proven by this note. Treat any comparison across this date with care.",
+          "validity": {
+            "start": "2024-04-19",
+            "end": null
+          },
+          "claim_level": "fact_only",
+          "risk": "low",
+          "freshness": "verified",
+          "evidence": [
+            {
+              "url": "https://example.com/context/itm_00ae5tb0",
+              "quote": "Do not combine this metric with figures from the old tracking tool.",
+              "read_on": "2024-04-20"
+            }
+          ],
+          "owner": {
+            "team": null,
+            "owner": "Jon Abara"
+          },
+          "links": [
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "metric",
+                "id": "metric:online_share",
+                "label": "Online share",
+                "status": "current",
+                "source_ref": "cube:basket.online_share"
+              }
+            },
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "metric",
+                "id": "metric:returns",
+                "label": "Returns",
+                "status": "current",
+                "source_ref": "cube:payments.returns"
+              }
+            },
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "dimension_value",
+                "id": "val:market/italy",
+                "label": "Italy",
+                "status": "current"
+              }
+            },
+            {
+              "rel": "applies_to",
+              "target": {
+                "type": "dimension_value",
+                "id": "val:product/camping",
+                "label": "Camping",
+                "status": "current"
+              }
+            },
+            {
+              "rel": "mentions",
+              "target": {
+                "type": "metric",
+                "id": "metric:online_share",
+                "label": "Online share",
+                "status": "current",
+                "source_ref": "cube:basket.online_share"
+              }
+            },
+            {
+              "rel": "in_area",
+              "target": {
+                "type": "area",
+                "id": "area_sales",
+                "label": "Sales",
+                "status": "current"
+              }
+            }
+          ],
+          "match": "partial",
+          "applies_note": "Applies to dim:product: val:product/camping only."
+        }
+      ],
+      "options": [],
+      "check_report": {
+        "status": "matched",
+        "matched": 2,
+        "withheld": 1,
+        "links_withheld": 0,
+        "cut": false,
+        "cut_ids": [],
+        "checked": [
+          "edition",
+          "scope",
+          "validity",
+          "audience",
+          "source_visibility",
+          "area",
+          "stop_switch",
+          "freshness"
+        ],
+        "statements": ["No match does not prove that no caveat exists."]
+      },
+      "instructions": "State the documented fact with its source and dates. Say \"might be related\" only for an event whose dates overlap and whose metric is in scope, and state that the context does not prove a cause. Never say \"caused by\" unless the claim level is effect_stated. Suggest a check that would test the effect. A link shows what text refers to; it proves neither cause nor applicability. Other guidance in the data tools still applies. To follow a useful item link, call read_item with its id."
+    },
+    "dynamic": true
+  },
+  {
+    "type": "finish-step"
+  },
+  {
+    "type": "start-step"
+  },
+  {
+    "type": "text-start",
+    "id": "text-0"
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "In edition 2026-10-07.2, this context applies:\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "- [itm_is8x9bcp] A change to the returns rules in Italy took effect on 10 May 2025, which also changed how returns are counted in the weekly reports: A change to the returns rules in Italy took effect on 10 May 2025, which also changed how returns are counted in the weekly reports. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "Compare against a market that was not affected. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "Check the source tool before you quote the number. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "The cause is not proven.\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "- [itm_00ae5tb0] Online share lags by one day in the source tool: Online share lags by one day in the source tool. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "The cause is not proven by this note. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "The cause is not proven by this note. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "Treat any comparison across this date with care.\n"
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "No match does not prove that no caveat exists."
+  },
+  {
+    "type": "text-end",
+    "id": "text-0"
+  },
+  {
+    "type": "finish-step"
+  },
+  {
+    "type": "data-citations",
+    "data": {
+      "cited": ["itm_00ae5tb0", "itm_is8x9bcp"],
+      "removed": [],
+      "quoted": 0
+    }
+  },
+  {
+    "type": "finish",
+    "finishReason": "stop"
+  }
+]

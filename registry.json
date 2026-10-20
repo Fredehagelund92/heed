@@ -1,0 +1,35 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry.json",
+  "name": "heed",
+  "homepage": "https://github.com/Fredehagelund92/heed",
+  "items": [
+    {
+      "name": "page",
+      "type": "registry:component",
+      "title": "Page templates",
+      "description": "Page, PageToolbar and PageContent: the regions every page is built from. They share one gutter, so the left edges of the header, toolbar and content line up.",
+      "dependencies": ["class-variance-authority", "cn"],
+      "files": [
+        {
+          "path": "src/web/components/page/page.tsx",
+          "type": "registry:component",
+          "target": "components/page/page.tsx"
+        }
+      ]
+    },
+    {
+      "name": "person-avatar",
+      "type": "registry:component",
+      "title": "Person avatar",
+      "description": "A person as a tinted circle with initials. The only way a person is shown as an avatar.",
+      "registryDependencies": ["avatar"],
+      "files": [
+        {
+          "path": "src/web/components/person-avatar.tsx",
+          "type": "registry:component",
+          "target": "components/person-avatar.tsx"
+        }
+      ]
+    }
+  ]
+}

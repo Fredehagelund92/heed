@@ -1,0 +1,123 @@
+# Test question template: copy this file, replace the three worked examples with your own
+# questions, then
+#
+#   npm run heed -- import-tests my-questions.yaml --as <your email>           # dry run
+#   npm run heed -- import-tests my-questions.yaml --apply --as <your email>   # saves them
+#
+# or POST the file's text to /api/v1/evals/import as `{ "content": "...", "dryRun": false }`
+# (signed in, with the CSRF header and an Idempotency-Key, as every change). Nothing is saved
+# unless every question is valid; a question with an id that exists already is replaced by a new
+# revision. `GET /api/v1/evals/export` writes them back out in this format. Owners
+# keep the questions of their domains, administrators all of them.
+#
+# The first two examples are cases of the golden set (db/seed/golden-set.yml) in this format, so
+# they are about the demo library's invented domains and items: they pass on the demo database
+# (`npm run seed`), not on yours. The third is written for this template only, because
+# the golden set's held-out cases are sealed and never shown. Write yours for your own domains.
+#
+# A good set per domain: at least 10 questions, each with a natural and a precise wording, some
+# that expect no item, and about a third held out (split: held_out), which nobody tunes items to.
+# A question is never a real one someone asked: no names, figures or partner details.
+#
+#   id          3 to 81 lower-case letters, digits and dashes; your choice, stable
+#   area        the domain id
+#   wordings    two to six: at least one `natural` (as a person asks) and one `precise`
+#   scope       what get_context is asked, in the vocabulary's keys: metrics, dimension_filters
+#               (a dimension and its values; no values means "by" that dimension), window
+#   expected    must_deliver: item ids the answer needs (an item's id is on its page, itm_...)
+#               must_not_deliver: item ids that must not be given as applying
+#               status: matched, no_match (nothing documented) or need_more_detail
+#               caveat: a sentence every answer must carry (strict: every try)
+#               no_cause_claim: the answer may not claim a cause (true unless you say false)
+#               clarifying_question: the answer should ask one first
+#   rubrics     up to ten plain sentences a judge checks the answer against
+#   risk        low, normal or high: how bad a wrong answer would be
+#   source      where the question comes from, in a few words
+#   split       development (the default) or held_out
+#   as_of       the day the question is asked on (YYYY-MM-DD): a run reads it at that day, so
+#               "this past week" means the week its expectations were written for; left out,
+#               the run's own day
+#
+# The daily retrieval pass (no model, no cost) checks every question's delivery each day:
+# GET /api/v1/evals/retrieval?area=<domain>. Answer runs are paid; see docs/evaluations.md.
+
+questions:
+  # 1. Answer, and keep the caveat: one item must reach the agent and one must not, and every
+  #    answer must carry the caveat.
+  - id: gs-baseline-orders-united-kingdom
+    area: area_sales
+    as_of: '2026-10-07'
+    wordings:
+      - kind: natural
+        text: How much did customers spend in the United Kingdom this past week?
+      - kind: precise
+        text: What should an analyst know about orders for market United Kingdom from 1 to 7 October 2026?
+    scope:
+      metrics: [metric:orders]
+      dimension_filters:
+        - dimension: dim:market
+          values: [val:market/united_kingdom]
+      window: { from: '2026-10-01', to: '2026-10-07' }
+    expected:
+      must_deliver: [itm_yakb4kwg]
+      must_not_deliver: [itm_9omvkhl1]
+      status: matched
+      caveat: Orders excludes test accounts.
+      no_cause_claim: true
+      clarifying_question: false
+    rubrics: []
+    risk: normal
+    source: 'Re-worded seed question orders-united-kingdom-test-accounts: a note on the metric and market, still in force'
+    status: active
+    split: development
+
+  # 2. Expect no item: nothing is documented, so the answer says so and invents nothing.
+  - id: gs-missing-repeat-purchase-norway
+    area: area_customer_value
+    as_of: '2026-10-07'
+    wordings:
+      - kind: natural
+        text: Anything I should know about Norway retention in the first week of June 2025?
+      - kind: precise
+        text: What documented context applies to repeat purchase rate for market Norway from 1 to 7 June 2025?
+    scope:
+      metrics: [metric:repeat_purchase_rate]
+      dimension_filters:
+        - dimension: dim:market
+          values: [val:market/norway]
+      window: { from: '2025-06-01', to: '2025-06-07' }
+    expected:
+      must_deliver: []
+      must_not_deliver: []
+      status: no_match
+      no_cause_claim: true
+      clarifying_question: false
+    rubrics:
+      - Says no documented context covers it
+    risk: normal
+    source: 'Library: a metric and market no item of any domain covers for the week'
+    status: active
+    split: development
+
+  # 3. Held out, and ambiguous: asked without a market, the answer should ask which one first.
+  - id: example-ambiguous-units-sold-no-market
+    area: area_sales
+    wordings:
+      - kind: natural
+        text: Why were units sold down last week?
+      - kind: precise
+        text: What explains lower units sold from 28 September to 4 October 2026?
+    scope:
+      metrics: [metric:units_sold]
+      window: { from: '2026-09-28', to: '2026-10-04' }
+    expected:
+      must_deliver: []
+      must_not_deliver: []
+      no_cause_claim: true
+      clarifying_question: true
+    rubrics:
+      - Asks which market is meant before explaining, or says the items found each apply to one market only
+    risk: normal
+    source: 'Template example: a metric with items in many markets, asked without a market'
+    status: active
+    split: held_out

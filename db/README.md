@@ -1,0 +1,464 @@
+# Heed database baseline
+
+PostgreSQL 18 is required. `npm run db:migrate` (`db/prepare.ts`) gets a database ready; it never
+starts PostgreSQL. With a superuser in `DATABASE_URL_BOOTSTRAP` it first creates
+`context_layer_owner` (migrator, CREATEDB), `context_layer_api`, `context_layer_serve` and
+`context_layer_readonly`, and the database `DATABASE_URL_MIGRATE` names, owned by the owner, when
+they are missing. Without it they must exist already. It then applies new migrations and the grants
+as the owner (`DATABASE_URL_MIGRATE`), and with `SEED_DEMO=on` loads the demo (below). The
+container (`compose.yaml`) runs it before every start. The three runtime roles cannot create
+databases, inherit privileges or bypass row security. Local login uses the server's existing
+loopback authentication, and the compose file's database trusts its own network; neither changes
+`pg_hba.conf` or installs passwords.
+
+`db/migrations` holds forward-only SQL. `0001_baseline.sql` is the whole schema: the job queue's,
+then the types, functions, tables and views, the rows a new installation starts with (the proposal
+workflow, the AI app tools and clients, one version of each setting), then the indexes,
+constraints, triggers and row security. It replaced the migrations that built the schema step by
+step, and a schema-only `pg_dump` of a database it makes equals one of a database they made. A
+database those earlier migrations made cannot be upgraded: the runner refuses it, naming the
+migration its history starts with. Its data is demo data, so make it again: `docker compose down
+--volumes` for the compose file's database, or drop the database and run `npm run db:migrate`
+(and `npm run seed`, or `SEED_DEMO=on`) for a local one.
+
+The migration runner serializes callers with an advisory lock, commits one file at a time,
+and records its SHA-256. Missing, reordered or edited applied files fail before new SQL runs.
+Add a migration to change an installed database; never edit or rename one that has been applied.
+
+A new migration takes the number after the last one on `main` when it merges: numbers run from
+0001 without a gap and no two files share one, so the first after the baseline is 0002. If `main`
+gains a migration while your branch waits, rebase and renumber yours before merging. Files run in
+name order, so two branches that took the same number would sort by the rest of the name, and a
+database migrated between their merges would be refused. The runner and
+`tests/server/migration-files.test.ts` refuse a shared or skipped number. SQL enum additions that
+need to be used in another statement belong in their own migration transaction.
+
+`db/bootstrap/grants.sql` is applied after migrations with identifier-quoted environment role
+names. Migrations do not create cluster roles. Functions have no PUBLIC execution privilege;
+serving and analytics have explicit read surfaces. The jobs schema is below.
+
+The API is a trusted application role. Auth and application authorization must set
+`cl.person_id` with `set_config('cl.person_id', personId, true)` inside each transaction.
+Row policies are defense in depth, not a login system: a holder of the API database credential
+can set that value. Runtime connections must never use the owner or a superuser.
+
+## Reviewed schema changes
+
+- Version child reads follow the parent's row policy, including the link view. Inserting all
+  version content is one transaction; adding children to a committed version is refused.
+- Service changes must use a real, unsealed edition after sealed history. Vocabulary and area
+  ranges have the same protection as item ranges. Retirement checks the version's own area.
+- Audit chaining can read earlier rows despite request RLS and hashes timestamps in UTC.
+  Overlay counter updates run under the schema owner's privileges.
+- Anonymous record ids must be UUIDv4. Delivery, feedback, note and request hours cannot carry
+  sub-hour precision. Integration tests pin their allowed columns.
+- The API view includes the active check flag; analytics cannot read person-bearing editions,
+  evaluation runs or the item list. Maintenance functions are owner-only, except those the
+  scheduled jobs call (see Jobs and Gaps).
+
+## Mentions
+
+Tokens are `@[label](target)` in optional summary/body markup. Targets are `metric:`, `dim:`,
+`val:`, `item:` and `area:`; metric groups are excluded. Labels have 1-120 characters, without
+`]`, CR or LF. A backslash immediately before `@[` keeps the whole sequence literal,
+including the backslash in plain text. Token positions start at zero separately in each field.
+The database compares target, label, field and position at commit, caps the total at 50,
+rejects self/unknown targets, and requires the markup's visible text to equal the plain field.
+Mentions never supply scope. Live-target and source-health validation belongs to the write
+services; link filtering and `get_related` are the pure resolver in `src/domain/links.ts`.
+`get_related` starts switched off in `tool_config` (FR-332, FR-407); the `links` evaluation kind is
+a paired run with the tool off and on (FR-523).
+
+## Jobs
+
+The baseline starts with pg-boss 12.37.0's own schema (`pgboss`), generated by the library and
+never edited; `tests/server/job-queue-schema.test.ts` fails when the installed pg-boss would
+create anything else. The service starts pg-boss with `migrate: false`, so upgrading pg-boss
+means a new migration from its `getMigrationPlans()`. The API role reads and writes the queue
+tables and has no DDL there: every queue shares the one job table, and index rebuilds are off.
+
+`job_heartbeats.registered_at` makes a job that never succeeded still become overdue. Both
+partition helpers run as the owner and make at most 12 months of monthly partitions ahead; the
+baseline makes this month's and the next two. The API role may execute `cl_retention_run()`, `cl_ensure_delivery_partitions(int)` and
+`cl_ensure_request_partitions(int)`, which all run as the owner. Because the API role can also
+write settings, `cl_retention_run()` refuses a missing retention period or one under a day,
+which would otherwise drop partitions still being written. Notes follow `retention.note_days` at
+delete time, by their creation hour, so a changed setting also re-ages existing notes. Of pg-boss's functions the API role
+may run only `job_now`, `create_queue` and `delete_queue`; `job_table_run` serves its install.
+The serving and analytics roles can reach neither the maintenance functions nor `pgboss`.
+
+## Gaps, counts and privacy
+
+`topic_week_counts` is kept by a trigger on `deliveries`: each agent
+delivery with a topic adds one call (and one no-item call when it delivered nothing) to its week
+and status. Evaluation, preview and replay calls are not demand. The counts outlive the delivery
+partitions that retention drops.
+
+Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
+updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores
+evidence from before its `status_since` hour, and newer evidence opens a new gap. `report_gap`
+is case 2. `cl_gaps_detect()`, run by the `gaps.detect` job, adds case 1 (agent `no_match`
+calls about a topic reach `gaps.no_item_threshold` within its days), case 3 (negative feedback
+on an agent delivery; the note moves into `gap_notes` under row security) and case 4 (a
+definition's change mark changed; recent topics about a metric it defines get an `outdated`
+gap). It is safe to repeat. Case 5 is `cl_report_gap_person`: it
+counts a signed-in person's report like `report_gap`, with the type the person chose, marks it
+in `gap_weekly_counts.human_reports` (a part of `reports`), and never reads `cl.person_id`.
+`gap_report_keys` keeps the digests of a report's retry key and request for a day, so a retry
+counts once without naming anyone. Retention also clears feedback notes after `retention.note_days`.
+
+Gap times, note expiry and verification times keep hour precision, like every other anonymous
+record. The analytics role reads `v_topic_counts_public` (a topic only in weeks it reaches
+`privacy.min_count`, with a no-item count hidden when it is from one to just under the minimum) and `v_gap_totals` (gap totals per area, type and status) instead of the raw
+topic and gap tables. The API hides every call count from one to just under the minimum, shows
+a gap to others only through topic weeks that reach it (full detail only to the area's owners and administrators), and reads review times through
+`cl_area_review_times`, so they do not depend on who looks.
+
+The anonymity suite is `tests/integration/privacy.test.ts` (column contracts, forbidden column
+names, foreign keys across every schema, hour and UUIDv4 constraints, serving read-back) and the
+runtime canary `tests/integration/canary.test.ts`: one signed-in person makes 1,000 `get_context`
+calls through HTTP and MCP with a marker sentence, a cookie, a user agent and a forwarded address,
+and no new row in any schema, no log line and no export may contain any of them.
+
+## Source domains
+
+The domain of a term is one rule everywhere (CON-206, FR-136): the
+area the vocabulary gives it, otherwise the domain its definition gives (`definitions.area_hint`,
+Cube's `meta.domain`). `source_domain_service` pins the second half per edition, with the ranges
+and guards of `area_state_service`; it is part of the edition digest, the export, the restore drill
+and a rollback. Every edition the service publishes calls `edition_pin_source_domains`, and a
+definition sync publishes an `area_map_changed` edition when `cl_source_domains_behind()` says the
+live edition is behind the source (FR-215). An edition with no pinned source domains keeps its
+digest and replies (FR-327); the next sync pins them. Serving, gap topics and the catalogue read the pinned map.
+`cl_manages_topic` lets the owners of every domain of a topic manage its gap, in the service
+and in the row security of `gap_notes` and `gap_tests`, so a topic that spans domains reaches
+each of their owners. After a publish, `cl_topics_adopt_domains()` gives an area-less topic the
+one domain its metrics now have, with the key `topicFor` gives that scope, so later reports count
+against the same gap.
+
+## Gap tests
+
+Gaps are verified by test (FR-610), and tests can be attached to a draft (FR-524).
+`gaps.resolved_edition_seq` is the live edition when an owner resolved the gap; a constraint
+allows it only on a resolved gap, and `verified_at` only with it, so leaving `resolved` must clear
+both.
+`gap_tests` links a gap to the test questions that capture it and records each test's first pass
+at or after the resolving edition (run, edition, question revision, hour; all four or none);
+`proposal_tests` lists the tests attached to a proposal. Neither names a person, and both keep the
+hour only: the history log says who linked or attached.
+
+A linked or attached question must be in the gap's or the proposal's area, and a held-out question
+is never attached (FR-503). A trigger checks both after row security, and a guard on
+`golden_questions` refuses holding a question out while an open proposal carries it, or moving it
+to another area while a gap or an open proposal uses it. Row security gives a gap's links to its
+managers (administrators and the area's owners). A transaction without a person
+reads no links and writes none; the scheduled run's verification will record passes through an
+owner-run function. The API role may update only the pass columns. Attached tests are read with
+their proposal, except a question held out since, which only its area's maintainers read; the
+draft's author attaches and detaches while it is a draft, the area's maintainers until a decision.
+The rules that decide when a gap is verified are pure functions in `src/domain/gaps.ts`.
+
+## Agent drafts
+
+`proposals.provenance` is set on a draft an AI agent (the MCP tool
+`draft_context`, FR-121) or the assistant wrote for the person: who wrote it, a mark per field and
+the flags of its words; null for a draft a person wrote. `draft_context` starts switched off in
+`tool_config`, and the setting `limits.agent_drafts` allows each person 10 in 24 hours and 20
+waiting. `cl_similar_items` is an owner-run read of the accepted items whose title or summary reads like a
+draft (pg_trgm's `similarity`, which the API role does not hold). The limits count the person's
+own `mcp` proposals, so no counter names anyone, and the person is named only where every proposal
+names its proposer.
+
+`proposals.answers_round` is unique: when the person answers the
+tool's open questions in their AI app (MCP elicitation), the draft is saved once with the id of
+that question round, so a replayed request state cannot save a second draft. It sits on the
+proposal, so no other row names the person.
+
+`gaps.verified_edition_seq` is the edition a gap was verified on,
+recorded with `verified_at` (both or neither, never before the resolving edition), so the fact
+stays when a test is unlinked later. Two owner-run functions reach past that row security for the
+gap's record: `cl_gap_history` gives a gap's managers its rows of the history log (action, hour
+and details, never who), and `cl_gap_draft_tests` attaches a gap's linked, active development
+questions to a draft started from it, for the draft's author only.
+
+A proposal's attached tests stay in its area: when a draft's
+author or a reviewer moves a proposal to another area, a trigger detaches the tests of the area it
+leaves, as the owner whatever row security would let the mover delete, and writes each to the
+history log as `proposal.test_detached` with the reason `area_changed`.
+
+## The library read API
+
+`v_item_list` carries the current version's mention markup, `v_item_api` puts it in the
+ContextItem JSON (`summaryMarkup`, `bodyMarkup`, omitted when null), and both expose the columns
+the API filters and sorts on. The active check flag comes from one join instead of a lookup per
+row. The current version's `notToConclude` is there too, so Suggest a change starts from the
+stored words. The library module (`src/server/modules/library`) reads these views and
+`item_version_mentions` as `context_layer_api`; an item with an audience group is treated as
+absent until groups return.
+
+## Notifications
+
+`outbox_events.actor_id` defaults to the transaction's `cl.person_id`, and `relay_seq` is the order in which the relay delivered each event. Outbox `seq`
+values are taken at insert, so they can commit out of order; `relay_seq` values cannot, because
+`cl_outbox_relay(int)` serialises relays with an advisory lock. Live streams resume by
+`relay_seq`. The relay runs as the owner, because inbox rows belong to other people than the
+caller and row security limits the API role to the signed-in person's own inbox; the API role
+may execute it, the serving and analytics roles may not. `cl_inbox_recipients` holds the
+recipient rules. Inbox items are unique per person and event, so relaying twice adds nothing.
+
+## Source flags and stale links
+
+Each term mention records the definition the term pointed at and
+its change mark when the version was written (`item_version_mentions.definition_ref` and
+`change_mark`, filled by a trigger from the live vocabulary, so a writer cannot supply them).
+`serving_links` returns both, `v_mention_status` gives every mention's status against the live
+edition (`current`, `retired`, `replaced`, `source_changed`, `source_missing`, `unresolved`), and
+`v_stale_links` lists the live items' mentions that are not current. `cl_inbox_recipients` also
+sends source notices (`item.flagged`, `item.links_stale`, `vocabulary.domain_changed`) to the
+area's owners. Source flags themselves stay overlay events. The bulk seed
+below loads mentions with triggers off, so seeded mentions record no mark and read as current.
+
+A term can name several definitions: `vocab_term_refs` holds a version's definition ids
+(append-only, written with the version). A dimension such as
+market holds each view's member of its name. `serving_vocabulary` returns `definition_refs`
+sorted by ref. Only the members in the views of an item's metrics matter to it
+(`cl_relevant_refs`, the SQL twin of `relevantRefs`): a mention records that member's mark, and
+`v_mention_status` reads them. A term's source domain (`cl_source_domains_now`) is the area all
+its definitions agree on, so a dimension shared by views of different domains has none.
+
+## Seed data
+
+`npm run seed` (`db/seed/main.ts`) is the one command for data to develop, test and show Heed on.
+It reads `.env.local`: a library goes into `DATABASE_URL_SEED`, an empty local
+`context_layer_dev` or `context_layer_test` database, as a superuser.
+
+```sh
+npm run seed                          # the demo: the bulk seed below, then its quality history
+npm run seed -- --items-only          # the bulk seed alone, as CI's end-to-end tests expect
+npm run seed -- --items-only --count 50000   # a larger generated library, for performance
+npm run seed -- --library golden      # the golden set's library (below), with the history
+npm run seed -- --library norway   # the show's library (docs/demo.md), with the history
+npm run seed -- --practice            # the practice domain (below), into any migrated database
+```
+
+### The demo on a new database
+
+With `SEED_DEMO=on`, `npm run db:migrate` (`db/prepare.ts`) loads the same demo as `npm run seed`
+into a database that holds no item, person or edition yet, as the superuser in
+`DATABASE_URL_BOOTSTRAP`. The demo is about the demo Cube model, so it loads only while
+`CUBE_MODEL_DIR` holds exactly that model (`db/seed/cube`); beside another model it loads nothing
+and says why. `SEED_DEMO` is off unless set and refused when `NODE_ENV=production`; `.env.example`
+and `compose.yaml` turn it on.
+
+### Demo bulk seed
+
+The bulk seed (`bulkSeed`, `db/seed/bulk.ts`) is the explicit superuser-only
+performance/screenshot path. It requires an empty database and refuses production or a nonlocal
+CLI target. It disables user triggers inside one
+transaction, keeps foreign keys and checks enabled, restores triggers before commit, and
+rolls the entire load back on error. It never truncates or replaces data.
+
+The source is the existing frontend fixture generator. Person ids map deterministically to
+UUIDs; all audiences are `everyone` while groups are parked; areas get their fixture state.
+Every version of an item is stored, each in service from its own edition on the day the
+generator's `versionDays` gives it (editions `day.N`: N is 2 and up for acceptances, 9 for
+retirements), so item history reads the same as in the mock. A version stores the item's content,
+except where `versionDays` says it had something else: the demo regression's note had no end date
+in its first version. Evidence, references, mention
+markup and mention rows, check flags and retired items roundtrip through `v_item_api`. Every item
+and vocabulary version gets the content digest the write path would give it, computed from its
+stored content, and every bulk edition its recomputed digest, so exports and the restore drill
+verify the demo data exactly.
+Every version also gets the review history the serving guards require (FR-205 to FR-207): an
+accepted proposal, passing results of the check levels its risk requires, an accept decision by
+an owner of the area (another owner when the first proposed a normal or high risk version) and, for
+high risk, by an approver; a retired item gets its owner's retire decision. So every seeded
+version passes `cl_item_version_problem`, and going back to any seeded edition serves its
+versions again. Roles hold from the first day of that history. Where the fixtures need someone the
+mock's roster lacks (a second owner in Marketing, Paid media and Sandbox, approvers outside Commercial),
+the seed grants a former role that ended the day after the history, so today's roster stays the
+mock's. These fixtures bypass the review path itself and must never be treated as reviewed
+production content.
+
+The seed also stores what the Cube connector reads from the demo model in `db/seed/cube`
+(`src/web/mocks/cube-model.ts`, kept equal to a real read by
+`tests/server/connectors/demo-model.test.ts`): the connector `cube`, two reads (a first one and
+the newest, on 7 October 2026), the definitions with their description copies, types and domains,
+and their change marks. Every metric and dimension of the vocabulary names its definition, and
+Support contacts gets an area from the area map. Between the two reads Cube changed Retention
+rate and removed a legacy view. Fixture items record the marks they were checked against: an
+item flagged `needs_check` carries an older mark, and one flagged `source_missing` references a
+member of the legacy view, so a new read of the demo model (`CUBE_MODEL_DIR=db/seed/cube`)
+changes no flag.
+
+### Demo quality history
+
+The bulk seed leaves Quality, Gaps and the Workbench empty, and CI's end-to-end tests rely on
+that (`npm run seed -- --items-only`). The demo (`npm run seed`, `loadDemo`) runs the bulk seed of
+1,500 items and then `seedDemo` (`db/seed/demo.ts`),
+which adds, in one transaction and offline with the scripted mock model: the mock's gaps
+(`db/seed/gaps.ts`), a handful of test questions in every area about seeded items
+(`db/seed/test-questions.ts`), a retrieval pass of every edition sealed since the first of them,
+and a finished weekly run of every live area each Monday for the twelve weeks up to the newest
+edition. The runs and passes are the service's own (the evaluation worker through the MCP gateway,
+and the retrieval pass), each on the edition live then with the clock set to that day: the seed
+points the live edition back for each Monday and restores it, and moves the service's time stamps
+to the days they stand for. The newest Commercial run fails the demo's regression on its caveat,
+and the open gap about net revenue in Spain is linked to that question with the failing run as
+evidence. The seed checks this story and rolls back if a run tells another. `seedDemo` also runs on
+its own right after the bulk seed, before the service has made any run, retrieval pass or gap.
+
+### Golden set library
+
+```sh
+npm run seed -- --items-only --library golden
+```
+
+The golden set (`db/seed/golden-set.yml`, the output test plan's cases) is about the 1,500 demo
+items plus 18 hand-written fixture items (`db/seed/golden-fixtures.ts`, demo data only): four
+conflict pairs, injected text with canary tokens, an invented customer's name in an evidence quote,
+companions, and a note whose second version changed its wording. `--library golden` seeds them after the
+generated items, so every generated id stays, together with the extras the bulk seed takes for
+them: the conflicts, the aliases Net sales, GMV and Margin rate, the renamed Cube member
+`basket.margin_rate`, the first version's wording, and a domain that holds nothing yet ("Stores &
+Suplliers", `stores_suppliers`, misspelt on purpose) with three Cube members mapped to it that no
+term names, for the `pilot` assistant cases. `npm run seed -- --library golden` adds the
+demo's quality history to the same library. The integration test `tests/integration/golden-set.test.ts` seeds the same library and
+runs every case's L1 checks (`goldenL1`, `src/server/modules/evals/golden.ts`) with no model.
+The held-out cases go in `db/seed/golden-held-out.age`, sealed, and run there only with the key,
+as counts (README, "The sealed held-out cases"). No cases are sealed at present, so that test
+says the held-out cases did not run and is skipped.
+
+### Practice domain
+
+```sh
+npm run seed -- --practice    # DATABASE_URL and CL_DEV_PEOPLE_FILE as for the service
+```
+
+`db/seed/practice.ts` adds the domain `practice` ("Practice (invented)") to any migrated local
+database, empty or not, to learn and show the workflow on without inventing anything about a real
+metric. Its vocabulary is its own: an invented bakery's two metrics (`metric:practice_loaves_baked`,
+`metric:practice_kiosk_visits`) and its kiosks (`dim:practice_kiosk`), every name ending in
+"(practice)", every title starting "Practice:". It holds:
+
+- proposals in every state: five accepted (one a second version), and one each rejected, changes
+  requested, in review, submitted, withdrawn and still a draft;
+- three gaps reported by a person: one open with a note, one resolved, one set aside (`wont_fix`);
+- its editions: one per vocabulary term and acceptance, and two for going live.
+
+It writes through the service's own API, started in the seed's process on a free loopback port,
+as four invented people of the domain (`practicePeople`: practice.owner, practice.second-owner,
+practice.approver and practice.contributor, all `@example.test`), so every step passes the same
+checks, guards and history log as a person would. The first administrator of the dev people file
+creates the domain, decides its vocabulary and sets it live, with an override reason for the start
+checks a practice domain does not meet. Every item is low risk, so nothing waits for a paid answer
+test. Dates count from the seed's day (`CL_FIXED_TODAY`, else today), so the content stays
+current. Run again on a database with the finished domain, it changes nothing; on one where a first run stopped half way (a gap on kiosk visits, in any status, is its last write) it prints that the domain is half-seeded, to reset and seed again, and exits non-zero. To sign in as a practice
+person, add them to the dev people file.
+
+## Review and release
+
+An area's approvers read its proposals and versions (they give the high-risk accept), a
+vocabulary proposal may have no area (an administrator decides an area-less term), and an item
+has at most one open retirement proposal. The API role may run the gate functions
+the serving guards use (`cl_required_levels`, `cl_version_gate_ok`, `cl_item_version_problem` and
+their role helpers), so the review screen shows the database's own verdict. Publishing still goes
+only through the `edition_*` functions.
+
+## Evaluations
+
+A run of the evaluation runner records
+who it acts for (`requested_by`: the proposer, or whoever started it), so it reads the
+unaccepted version and records `answer_impact` and `answer_full` under that person's row
+security; scheduled runs act for nobody and touch only the live edition. One run may be open per
+version and live edition. Cells say when the model refused (`refused`, with `passed` null) or a
+call failed (`error`). Transcripts stay append-only: the API role inserts them with the finished
+cell and has no UPDATE. `cl_eval_versions_due()` runs as the owner and returns only the ids of
+versions under review that have no run against the live edition, for the job to plan under the
+proposer. The settings add the tries, flip repeats, the run budget, the evaluation spending cap
+and the model per feature.
+
+`models.assistant` is the assistant's model. The assistant
+writes only drafts (channel `assistant`), proposal history and the spend ledger; its own test
+runs are `eval_runs` of kind `assistant_mock` or `assistant_real`, with per-case verdicts in the
+summary and no conversation text.
+
+`estimated_calls` in `llm_spend_daily` and `llm_spend_monthly` counts the model calls that ended early (abort, timeout, provider error) and were recorded as an
+estimate, so they can be told from reported usage.
+
+Each `models.<role>` setting, `models.test_authoring` among them, is a provider and a model
+(`{"provider": "anthropic", "model": "claude-sonnet-5-5"}`). `eval_runs` records
+`answer_provider` and `judge_provider` next to the families and vendors, and `llm_spend_monthly`
+is kept per provider (`provider` joins its key). The caps count every provider.
+
+## Administration, import and export
+
+Administrators change `settings_versions` (a new version each time,
+`changed_by` set to the person), `tool_config` and `client_policies` through the API, each with a
+history log entry. The serving role reads `settings_current`, for the request limits in
+`limits.mcp_rate_per_minute` and `limits.mcp_requests_per_minute`, but not `settings_versions`, which names who changed a setting. An
+applied item import writes one `import_batches` row (mode `apply`; a dry run writes nothing),
+and each of its proposals carries the batch id and the channel `import`. Edition export reads
+the item versions in service, which row security lets every signed-in person read.
+
+## Request ids and the web API limit
+
+`audit_log.request_id` defaults to `cl.request_id`,
+which the service sets with `cl.person_id` in every transaction it opens for an HTTP request (the
+id its log lines carry). No writer passes it, and work outside a request (jobs, the relay) leaves
+it unset, so those entries have no id. The default is applied before the chain trigger, so the id
+is part of the hash. `limits.api_rate_per_minute` (`{"person": 600, "ip": 120}`) is the web
+API's requests per minute.
+
+## MCP person rate
+
+`limits.mcp_requests_per_minute` (`{"person": 30, "client": 120}`) is MCP calls per minute for
+each person (one token) and for each client label whose `client_policies.rate_per_minute` is
+null, so one person cannot spend everyone's budget.
+
+## AI app families
+
+`mcp_requests` records the family of the AI app that called
+(`app_family`), a read tool's outcome (`result_status`: `matched`, `need_more_detail` or
+`no_match`, else null) and the status `invalid_input`, for a tool call whose arguments do not fit
+its schema (FR-410, FR-345). The service maps the name an app sends about itself (MCP
+`clientInfo`) to a fixed list in `src/domain/app-family.ts`, and a check constraint holds the
+column to that list, so a raw name, a version or any other free text cannot be stored. Requests
+that name no app are `unknown`. Health reads the counts per
+family and week, small ones hidden (`GET /quality/apps`).
+
+## Backup and restore
+
+A `pg_dump` backup restores: `pg_restore` loads data with an empty `search_path`, so a function
+that a constraint, default or index calls names its own search path (or qualifies its calls).
+
+`npm run db:restore-drill` (README, "Security, scanning and the restore drill") dumps a database
+in one read-only snapshot, restores it into `<name>_drill_<random>` owned by the source's owner,
+compares every table and sequence, recomputes every edition digest, every served version's
+content digest and the history log's chain, then drops the copy. It only ever drops the copy it
+created, by its exact name.
+
+## Tests
+
+`npm run test:integration` uses a superuser connection in `TEST_DATABASE_URL` (the scaffold's
+local default is `postgres://localhost:5432/postgres`). CI passes the PostgreSQL 18
+service connection. Setup builds one freshly migrated, granted template per invocation; every
+test file clones it and drops its own database. Tests commit so deferred constraints really run.
+Roles are shared idempotent bootstrap objects; database names contain the process id and random
+suffix, so concurrent runs do not reset one another. Teardown only drops the exact names created
+by that run. A killed process may leave its own `context_layer_test_<pid>_<random>` databases;
+remove only those known abandoned names, never sweep other runs' prefix.
+
+A fresh template avoids stale migration checksums and grants.
+
+## Domains are always served
+
+A domain that exists is served, with no `not_started`, `starting`, `live` or `paused` state and no
+start checks (FR-320, FR-802). `area_state_service` and the `area_state` enum remain: edition
+digests, the edition export and the restore drill read them, and a new edition carries their rows
+forward unchanged. `delivery_status` keeps `area_not_live`. `serving_metadata` lists every domain
+from `areas` (and an archived one that items in the edition still name), with no state. The stop
+switch is the one way to hold a domain's items back. `areas.summary` (one line, at most 160
+characters) and `areas.description` (at most 1,500, line breaks allowed), both empty by default,
+say what the domain is and what kind of data it holds, written by one of its owners or an
+administrator (FR-813).

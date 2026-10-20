@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="hf" width="640" height="280" viewBox="0 0 640 280" role="img">
+  <title>The loop: write, review, share, use and learn</title>
+  <style>
+    .hf { --hf-ink: #13161d; --hf-muted: #60636a; --hf-paper: #ffffff; --hf-soft: #f2f3f6; --hf-line: #d9dbe0; --hf-accent: #2c5dbd; --hf-on-accent: #ffffff; --hf-tint: #e1ecff; }
+    @media (prefers-color-scheme: dark) {
+      .hf { --hf-ink: #f4f5f8; --hf-muted: #a1a4ac; --hf-paper: #1c1e24; --hf-soft: #25272e; --hf-line: #3a3d45; --hf-accent: #4170cb; --hf-on-accent: #ffffff; --hf-tint: #1f2734; }
+    }
+    .hf text { font-family: var(--font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif); font-size: 13px; fill: var(--foreground, var(--hf-ink)); }
+    .hf .hf-mono { font-family: var(--font-mono, ui-monospace, 'SF Mono', monospace); }
+    .hf .hf-title { font-size: 14px; font-weight: 700; }
+    .hf .hf-muted { fill: var(--muted-foreground, var(--hf-muted)); }
+    .hf .hf-on-accent { fill: var(--primary-foreground, var(--hf-on-accent)); font-weight: 700; }
+    .hf .hf-box { fill: var(--card, var(--hf-paper)); stroke: var(--input, var(--hf-line)); stroke-width: 1; }
+    .hf .hf-soft { fill: var(--muted, var(--hf-soft)); stroke: none; }
+    .hf .hf-key { fill: var(--selected, var(--hf-tint)); stroke: var(--primary, var(--hf-accent)); stroke-width: 1.5; }
+    .hf .hf-accent { fill: var(--primary, var(--hf-accent)); stroke: none; }
+    .hf .hf-line { fill: none; stroke: var(--muted-foreground, var(--hf-muted)); stroke-width: 1.5; }
+    .hf .hf-dash { stroke-dasharray: 4 4; }
+    .hf .hf-head { fill: var(--muted-foreground, var(--hf-muted)); stroke: none; }
+    .hf .hf-label-bg { fill: var(--background, var(--hf-paper)); stroke: none; }
+  </style>
+  <rect class="hf-box" x="16" y="24" width="128" height="84" rx="8"/>
+  <circle class="hf-accent" cx="38" cy="46" r="10"/>
+  <text class="hf-on-accent" x="38" y="50.5" text-anchor="middle">1</text>
+  <text class="hf-title" x="56" y="51">Write</text>
+  <text class="hf-muted" x="32" y="78">Anyone writes</text>
+  <text class="hf-muted" x="32" y="96">a fact</text>
+  <rect class="hf-box" x="176" y="24" width="128" height="84" rx="8"/>
+  <circle class="hf-accent" cx="198" cy="46" r="10"/>
+  <text class="hf-on-accent" x="198" y="50.5" text-anchor="middle">2</text>
+  <text class="hf-title" x="216" y="51">Review</text>
+  <text class="hf-muted" x="192" y="78">The owner</text>
+  <text class="hf-muted" x="192" y="96">checks it</text>
+  <rect class="hf-key" x="336" y="24" width="128" height="84" rx="8"/>
+  <circle class="hf-accent" cx="358" cy="46" r="10"/>
+  <text class="hf-on-accent" x="358" y="50.5" text-anchor="middle">3</text>
+  <text class="hf-title" x="376" y="51">Share</text>
+  <text class="hf-muted" x="352" y="78">AI apps get it</text>
+  <text class="hf-muted" x="352" y="96">at once</text>
+  <rect class="hf-box" x="496" y="24" width="128" height="84" rx="8"/>
+  <circle class="hf-accent" cx="518" cy="46" r="10"/>
+  <text class="hf-on-accent" x="518" y="50.5" text-anchor="middle">4</text>
+  <text class="hf-title" x="536" y="51">Use</text>
+  <text class="hf-muted" x="512" y="78">AI apps read it</text>
+  <text class="hf-muted" x="512" y="96">before answering</text>
+  <path class="hf-line" d="M144 66 L169.0 66.0"/>
+  <path class="hf-head" d="M176.0 66.0 L168.0 70.5 L168.0 61.5 Z"/>
+  <path class="hf-line" d="M304 66 L329.0 66.0"/>
+  <path class="hf-head" d="M336.0 66.0 L328.0 70.5 L328.0 61.5 Z"/>
+  <path class="hf-line" d="M464 66 L489.0 66.0"/>
+  <path class="hf-head" d="M496.0 66.0 L488.0 70.5 L488.0 61.5 Z"/>
+  <rect class="hf-box" x="232" y="186" width="176" height="84" rx="8"/>
+  <circle class="hf-accent" cx="254" cy="208" r="10"/>
+  <text class="hf-on-accent" x="254" y="212.5" text-anchor="middle">5</text>
+  <text class="hf-title" x="272" y="213">Learn</text>
+  <text class="hf-muted" x="248" y="240">Found nothing? That</text>
+  <text class="hf-muted" x="248" y="258">counts as a gap</text>
+  <path class="hf-line" d="M560 108 L560 228 L415.0 228.0"/>
+  <path class="hf-head" d="M408.0 228.0 L416.0 223.5 L416.0 232.5 Z"/>
+  <path class="hf-line" d="M232 228 L80 228 L80.0 115.0"/>
+  <path class="hf-head" d="M80.0 108.0 L84.5 116.0 L75.5 116.0 Z"/>
+  <text class="hf-muted" x="484" y="220" text-anchor="middle">no fact applies</text>
+  <text class="hf-muted" x="156" y="220" text-anchor="middle">people fill it</text>
+</svg>

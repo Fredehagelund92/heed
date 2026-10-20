@@ -1,0 +1,100 @@
+[
+  {
+    "type": "start"
+  },
+  {
+    "type": "start-step"
+  },
+  {
+    "type": "tool-input-available",
+    "toolCallId": "call_get_context_63cf2abb",
+    "toolName": "get_context",
+    "input": {
+      "question": "Why did online share change?\nThe scope I picked in Heed: Online share (metric:online_share); Italy (val:market/italy); from 2023-01-01 to 2023-01-31.",
+      "max_items": 20
+    },
+    "dynamic": true
+  },
+  {
+    "type": "tool-output-available",
+    "toolCallId": "call_get_context_63cf2abb",
+    "output": {
+      "edition": "2026-10-07.2",
+      "overlay": "82",
+      "tool_schema_digest": "d7b7cbef4d8efa8665f1148fcfd039c26a0042286e2d93f4059ac7ed34bb4c4b",
+      "status": "no_match",
+      "scope_used": {
+        "metrics": ["metric:online_share"],
+        "filters": {
+          "dim:market": ["val:market/italy"]
+        },
+        "window": {
+          "start": "2023-01-01",
+          "end": "2023-02-01"
+        }
+      },
+      "items": [],
+      "options": [],
+      "check_report": {
+        "status": "no_match",
+        "matched": 0,
+        "withheld": 0,
+        "links_withheld": 0,
+        "cut": false,
+        "cut_ids": [],
+        "checked": [
+          "edition",
+          "scope",
+          "validity",
+          "audience",
+          "source_visibility",
+          "area",
+          "stop_switch",
+          "freshness"
+        ],
+        "statements": ["No match does not prove that no caveat exists."]
+      },
+      "instructions": "State the documented fact with its source and dates. Say \"might be related\" only for an event whose dates overlap and whose metric is in scope, and state that the context does not prove a cause. Never say \"caused by\" unless the claim level is effect_stated. Suggest a check that would test the effect. A link shows what text refers to; it proves neither cause nor applicability. Other guidance in the data tools still applies. To follow a useful item link, call read_item with its id."
+    },
+    "dynamic": true
+  },
+  {
+    "type": "finish-step"
+  },
+  {
+    "type": "start-step"
+  },
+  {
+    "type": "text-start",
+    "id": "text-0"
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "No governed context applies in edition 2026-10-07.2. "
+  },
+  {
+    "type": "text-delta",
+    "id": "text-0",
+    "delta": "No match does not prove that no caveat exists."
+  },
+  {
+    "type": "text-end",
+    "id": "text-0"
+  },
+  {
+    "type": "finish-step"
+  },
+  {
+    "type": "data-citations",
+    "data": {
+      "cited": [],
+      "removed": [],
+      "quoted": 0
+    }
+  },
+  {
+    "type": "finish",
+    "finishReason": "stop"
+  }
+]
