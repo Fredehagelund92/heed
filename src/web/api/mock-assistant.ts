@@ -818,7 +818,7 @@ export async function* mockAssistantTurn(
   }: { signal?: AbortSignal; pause: () => Promise<void>; mode?: MockAssistantMode },
 ): AsyncGenerator<UIMessageChunk> {
   const { question, scope, input, about, reply } = lastQuestion(messages)
-  yield { type: 'start' }
+  yield { type: 'start', messageMetadata: { model: { name: 'scripted-demo', mock: true } } }
   const notice = function* (text: string): Generator<UIMessageChunk> {
     yield { type: 'text-start', id: 'notice' }
     yield { type: 'text-delta', id: 'notice', delta: text }

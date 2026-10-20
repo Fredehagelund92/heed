@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { AskComposer } from '@/components/assistant/ask-composer'
+import { ExportChatButton } from './export-chat'
 import { NewChatButton, NewChatConfirm } from './new-chat'
 import { agentHrefOf, AskTranscript } from '@/components/assistant/ask-view'
 import { DockPanel, useDockMode, type DockTab } from '@/components/page/dock-panel'
@@ -62,7 +63,14 @@ export function AssistantPanel({
       tabsLabel="Assistant"
       browse={false}
       expand={expand}
-      controls={tab === 'ask' ? <NewChatButton /> : undefined}
+      controls={
+        tab === 'ask' ? (
+          <>
+            <ExportChatButton />
+            <NewChatButton />
+          </>
+        ) : undefined
+      }
       focusOnOpen
       leaving={leaving}
       onClose={onClose}

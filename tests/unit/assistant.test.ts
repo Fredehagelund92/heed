@@ -710,7 +710,10 @@ describe('the scripted assistant of the mock binding', () => {
   it('answers in the service’s stream, citing only facts its tools read', async () => {
     const chunks = await turn('Which facts apply?', 'answer', `${item.scope.metrics[0]},${market}`)
     const answer = readAnswer(await assemble(chunks))
-    expect(chunks[0]).toEqual({ type: 'start' })
+    expect(chunks[0]).toEqual({
+      type: 'start',
+      messageMetadata: { model: { name: 'scripted-demo', mock: true } },
+    })
     expect(chunks.at(-1)).toMatchObject({ type: 'finish', finishReason: 'stop' })
     expect(answer.facts.some((fact) => fact.id === item.id)).toBe(true)
     const read = new Set(answer.facts.map((fact) => fact.id))

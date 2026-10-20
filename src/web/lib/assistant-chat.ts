@@ -170,7 +170,12 @@ class AskChat {
     metadata?: AskMessage['metadata']
     ready?: Promise<AskMessage['metadata']>
   }) {
-    this.store.pushMessage({ id: newId(), role: 'user', parts: [{ type: 'text', text }], metadata })
+    this.store.pushMessage({
+      id: newId(),
+      role: 'user',
+      parts: [{ type: 'text', text }],
+      metadata: { ...metadata, at: new Date().toISOString() },
+    })
     return this.#answer(ready)
   }
 
@@ -241,13 +246,14 @@ class AskChat {
         return
       }
       const asked = store.messages[question]
-      if (metadata && asked?.role === 'user') store.replaceMessage(question, { ...asked, metadata })
+      if (metadata && asked?.role === 'user')
+        store.replaceMessage(question, { ...asked, metadata: { ...asked.metadata, ...metadata } })
     }
     const goesOn = store.messages.at(-1)?.role === 'assistant'
     let index = goesOn ? store.messages.length - 1 : -1
     let message: AskMessage = goesOn
       ? store.messages[index]!
-      : { id: newId(), role: 'assistant', parts: [], metadata: {} }
+      : { id: newId(), role: 'assistant', parts: [], metadata: { at: new Date().toISOString() } }
     const state = newStreamState()
     const write = (next: AskMessage) => {
       message = next

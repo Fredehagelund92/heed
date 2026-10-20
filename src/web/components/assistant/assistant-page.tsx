@@ -12,6 +12,7 @@ import { ScopeChips } from './ask-scope'
 import { agentHrefOf, AskTranscript } from './ask-view'
 import { DockButton } from '@/components/app-shell/dock-button'
 import { HeaderActions } from '@/components/app-shell/header-actions'
+import { ExportChatButton } from '@/components/app-shell/export-chat'
 import { NewChatButton, NewChatConfirm } from '@/components/app-shell/new-chat'
 
 /*
@@ -89,6 +90,7 @@ export function AssistantPage({ search }: { search: AssistantSearch }) {
   return (
     <Page title="Assistant">
       <HeaderActions phone>
+        <ExportChatButton />
         <NewChatButton />
       </HeaderActions>
       <NewChatConfirm />
