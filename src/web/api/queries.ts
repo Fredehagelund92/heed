@@ -354,6 +354,17 @@ export function useSetFavorite() {
   })
 }
 
+/**
+ * Asks for a first version of About our business, written from what Heed knows. It changes
+ * nothing: the text goes in the box and is saved only when the administrator saves it.
+ */
+export function useDraftAboutBusiness() {
+  return useMutation({
+    mutationKey: ['draft', 'aboutBusiness'],
+    mutationFn: () => api.draftAboutBusiness(),
+  })
+}
+
 /** Records that the person opened an item, so it leads the quick switcher next time. */
 export function useRecordVisit() {
   const queryClient = useQueryClient()

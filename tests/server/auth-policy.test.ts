@@ -83,6 +83,7 @@ const adminOperations = [
   'settings.list',
   'settings.history',
   'settings.set',
+  'settings.draftBusiness',
   'tools.list',
   'tools.set',
   'clients.list',

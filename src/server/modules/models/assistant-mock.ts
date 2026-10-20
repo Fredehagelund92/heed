@@ -10,7 +10,12 @@ import { randomUUID } from 'node:crypto'
 import { MockLanguageModelV4 } from 'ai/test'
 import { SCOPE_LINE } from '../../../contract/assistant.ts'
 import { longDayWords } from '../../../domain/dates.ts'
-import { ABOUT_BUSINESS_END } from '../../../domain/about-business.ts'
+import {
+  ABOUT_BUSINESS_END,
+  ABOUT_BUSINESS_FACTS_TAG,
+  draftAboutBusiness,
+  type BusinessFacts,
+} from '../../../domain/about-business.ts'
 import { domainsInText } from '../../../domain/domain-match.ts'
 import { normalizeName } from '../../../domain/vocabulary.ts'
 import {
@@ -884,8 +889,28 @@ function draftFromPage(page: Output, user: string, system: string): Choice {
   }
 }
 
+/**
+ * The first version of About our business, asked for with the facts in a tag (assistant/
+ * about-business-draft.ts): the scripted model writes what Heed writes from the same facts, so the
+ * demo gives the same draft every time and costs nothing. Null for any other message.
+ */
+function businessDraft(user: string): string | null {
+  const facts = new RegExp(
+    `<${ABOUT_BUSINESS_FACTS_TAG}>([\\s\\S]*)</${ABOUT_BUSINESS_FACTS_TAG}>`,
+  ).exec(user)
+  if (!facts) return null
+  try {
+    return draftAboutBusiness(JSON.parse(facts[1]!) as BusinessFacts)
+  } catch {
+    return null
+  }
+}
+
 function assist(options: LanguageModelV4CallOptions): Promise<LanguageModelV4GenerateResult> {
   const prompt = options.prompt
+  const asked = businessDraft(turn(prompt).user)
+  if (asked !== null)
+    return Promise.resolve(result([{ type: 'text', text: asked }], prompt, 'stop'))
   const { user, earlier, results, system } = turn(prompt)
   // A page read for a draft, and no draft proposed yet: the draft comes next, from the page, or
   // from the person's own words when the page could not be read.

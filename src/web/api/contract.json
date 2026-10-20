@@ -2366,6 +2366,22 @@
           "summary": "Change a setting with a reason, as a new version (FR-806, FR-809)"
         }
       }
+    },
+    "draftBusiness": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/settings/business-about/draft",
+          "tags": [
+            "admin"
+          ],
+          "summary": "A first version of About our business, written from the domains and the metrics and dimensions of the definition source; nothing is saved"
+        }
+      }
     }
   },
   "tools": {

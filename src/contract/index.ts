@@ -221,6 +221,7 @@ import {
   saveClientSchema,
   setSettingSchema,
   settingKeyInputSchema,
+  businessDraftSchema,
   settingSchema,
   setToolSchema,
   toolSwitchSchema,
@@ -1847,6 +1848,15 @@ export const contract = {
       })
       .input(setSettingSchema)
       .output(settingSchema),
+    draftBusiness: admin
+      .route({
+        method: 'POST',
+        path: '/settings/business-about/draft',
+        tags: ['admin'],
+        summary:
+          'A first version of About our business, written from the domains and the metrics and dimensions of the definition source; nothing is saved',
+      })
+      .output(businessDraftSchema),
   },
   tools: {
     list: admin

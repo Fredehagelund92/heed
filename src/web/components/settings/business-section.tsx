@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  ABOUT_BUSINESS_GUIDE,
   ABOUT_BUSINESS_MAX,
   ABOUT_BUSINESS_STARTER,
   aboutBusinessBlock,
   aboutBusinessLength,
 } from '@domain/about-business'
 import { toApiError, type Setting } from '@/api'
-import { settingsQuery, useApiWrite } from '@/api/queries'
+import { settingsQuery, useApiWrite, useDraftAboutBusiness } from '@/api/queries'
 import { BodyInput } from '@/components/editor/body-input'
 import { HelpLink } from '@/components/help/help-link'
 import {
@@ -17,6 +18,8 @@ import {
   LoaderCircleIcon,
   MessageSquareIcon,
   RotateCcwIcon,
+  SparklesIcon,
+  Undo2Icon,
 } from '@/components/icons'
 import { PageContent } from '@/components/page/page'
 import { CopyBlock } from '@/components/try-it/copy-block'
@@ -36,6 +39,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { usePendingIndicator } from '@/hooks/use-pending-indicator'
+import { productName } from '@/lib/brand'
 import { formatMoment } from '@/lib/library'
 import { showToast } from '@/lib/toast'
 import { SettingHistory } from './setting-panel'
@@ -109,6 +113,12 @@ function BusinessForm({ setting }: { setting: Setting }) {
   const [busy, setBusy] = useState(false)
   const spinning = usePendingIndicator(busy)
   const save = useApiWrite('setSetting')
+  const draft = useDraftAboutBusiness()
+  const drafting = usePendingIndicator(draft.isPending)
+  /** What the box held before a first version replaced it, for putting it back. */
+  const [drafted, setDrafted] = useState<{ before: string } | null>(null)
+  const [nothingToWrite, setNothingToWrite] = useState(false)
+  const [draftFailure, setDraftFailure] = useState<string | null>(null)
   const { nameOf } = usePeople()
   const block = aboutBusinessBlock(text)
 
@@ -130,6 +140,27 @@ function BusinessForm({ setting }: { setting: Setting }) {
       ...(errors.text && problems.text ? { text: problems.text } : {}),
       ...(errors.reason && problems.reason ? { reason: problems.reason } : {}),
     })
+  }
+
+  /** Puts a first version in the box. It is not saved: the administrator reads and edits it first. */
+  const writeFirstVersion = async () => {
+    if (busy || draft.isPending) return
+    setDraftFailure(null)
+    setNothingToWrite(false)
+    try {
+      const written = await draft.mutateAsync()
+      if (!written.text) {
+        setDrafted(null)
+        setNothingToWrite(true)
+        return
+      }
+      setDrafted({ before: text })
+      setText(written.text)
+      setErrors({})
+      document.getElementById('business-text')?.focus()
+    } catch (error) {
+      setDraftFailure(toApiError(error).message || 'Try again.')
+    }
   }
 
   const submit = async (event: FormEvent) => {
@@ -180,10 +211,8 @@ function BusinessForm({ setting }: { setting: Setting }) {
         slot="business-text"
         description={
           <>
-            What the company does, then the words people use that are easy to misread. Keep it
-            short, with no figures, deals or legal conclusions. Headings, lists and links show as
-            you type.{' '}
-            <HelpLink to="tell-heed-about-your-business">What makes a good text?</HelpLink>
+            Headings, lists and links show as you type.{' '}
+            <HelpLink to="tell-heed-about-your-business">More on what makes a good text</HelpLink>
           </>
         }
       >
@@ -217,8 +246,26 @@ function BusinessForm({ setting }: { setting: Setting }) {
                 >
                   About our business
                 </FieldLabel>
-                <FieldDescription id="business-text-hint">
-                  Leave it empty to give the assistant and AI apps no background.
+                <FieldDescription
+                  id="business-text-hint"
+                  render={<div />}
+                  data-slot="business-guide"
+                  className="flex flex-col gap-2"
+                >
+                  <ol className="flex list-decimal flex-col gap-1 pl-4 marker:font-bold">
+                    {ABOUT_BUSINESS_GUIDE.parts.map((part) => (
+                      <li key={part.title}>
+                        <span className="font-bold text-foreground">{part.title}.</span> {part.hint}
+                      </li>
+                    ))}
+                  </ol>
+                  <p>
+                    <span className="font-bold text-foreground">
+                      {ABOUT_BUSINESS_GUIDE.leaveOut.title}:
+                    </span>{' '}
+                    {ABOUT_BUSINESS_GUIDE.leaveOut.hint}
+                  </p>
+                  <p>{ABOUT_BUSINESS_GUIDE.empty}</p>
                 </FieldDescription>
               </FieldHeader>
               {/* The editor item text uses (contract 9.6), mentions off: the text stays the
@@ -235,6 +282,8 @@ function BusinessForm({ setting }: { setting: Setting }) {
                 value={text}
                 onChange={(next) => {
                   setText(next)
+                  setDrafted(null)
+                  setNothingToWrite(false)
                   recheck(next, reason)
                 }}
                 max={ABOUT_BUSINESS_MAX}
@@ -244,22 +293,87 @@ function BusinessForm({ setting }: { setting: Setting }) {
               />
               <FieldError id="business-text-error">{errors.text || undefined}</FieldError>
             </Field>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy || text === ABOUT_BUSINESS_STARTER}
-                onClick={() => {
-                  setText(ABOUT_BUSINESS_STARTER)
-                  recheck(ABOUT_BUSINESS_STARTER, reason)
-                }}
-              >
-                <RotateCcwIcon aria-hidden />
-                Reset to the starter text
-              </Button>
-              <p className="text-dense text-muted-foreground">
-                Puts back the starter text. Nothing changes until you save.
+            <div className="flex flex-col gap-3" data-slot="business-helpers">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-disabled={busy || draft.isPending || undefined}
+                  onClick={() => void writeFirstVersion()}
+                  className="relative"
+                >
+                  <span className={drafting ? 'opacity-0' : 'inline-flex items-center gap-2'}>
+                    <SparklesIcon aria-hidden />
+                    Write a first version for me
+                  </span>
+                  {drafting ? (
+                    <LoaderCircleIcon
+                      aria-hidden
+                      className="absolute inset-0 m-auto motion-safe:animate-spin"
+                    />
+                  ) : null}
+                </Button>
+                <p className="text-dense text-muted-foreground">
+                  Drafts from what {productName} knows. Nothing changes until you save.
+                </p>
+              </div>
+              <p role="status" className="sr-only">
+                {draft.isPending ? 'Writing a first version' : ''}
               </p>
+              {draftFailure ? (
+                <Alert variant="danger" role="alert">
+                  <CircleAlertIcon aria-hidden />
+                  <AlertContent>
+                    <AlertTitle>We couldn&apos;t write a first version</AlertTitle>
+                    <AlertDescription>{draftFailure}</AlertDescription>
+                  </AlertContent>
+                </Alert>
+              ) : null}
+              {drafted ? (
+                <div data-slot="business-drafted" className="flex flex-col items-start gap-2">
+                  <p role="status" className="text-dense text-muted-foreground">
+                    A first version is in the box. {productName} can&apos;t know what your company
+                    sells, so check the first lines and change what&apos;s wrong, then save.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setText(drafted.before)
+                      recheck(drafted.before, reason)
+                      setDrafted(null)
+                    }}
+                  >
+                    <Undo2Icon aria-hidden />
+                    Put back my text
+                  </Button>
+                </div>
+              ) : null}
+              {nothingToWrite ? (
+                <p role="status" className="text-dense text-muted-foreground">
+                  {productName} doesn&apos;t know enough to write a first version yet. Add a domain
+                  or connect a definition source first, or write the text yourself.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || text === ABOUT_BUSINESS_STARTER}
+                  onClick={() => {
+                    setText(ABOUT_BUSINESS_STARTER)
+                    setDrafted(null)
+                    recheck(ABOUT_BUSINESS_STARTER, reason)
+                  }}
+                >
+                  <RotateCcwIcon aria-hidden />
+                  Reset to the starter text
+                </Button>
+                <p className="text-dense text-muted-foreground">
+                  Puts back the starter text. Nothing changes until you save.
+                </p>
+              </div>
             </div>
             <Field name="reason" invalid={Boolean(errors.reason)} disabled={busy}>
               <FieldHeader>

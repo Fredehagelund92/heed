@@ -391,6 +391,12 @@ export function createHttpApi({
       withIsoChange(
         await write('settings.set', input, (options) => client.settings.set(input, options)),
       ),
+    // Sent as POST because it asks a model and spends: it carries the change token. It changes
+    // no setting.
+    draftAboutBusiness: () =>
+      write('settings.draftBusiness', null, (options) =>
+        client.settings.draftBusiness(undefined, options),
+      ),
     searchPeople: (params) => read(() => client.people.search(params)),
     getPersonSheet: (id) => orNull(() => client.people.sheet({ id })),
     listGrants: async () => {

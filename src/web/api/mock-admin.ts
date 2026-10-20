@@ -9,7 +9,7 @@
  * Times are counted from the fixture day, so a story or a screenshot that plays the same steps
  * gets the same answers.
  */
-import { ABOUT_BUSINESS_STARTER } from '../../domain/about-business.ts'
+import { ABOUT_BUSINESS_STARTER, draftAboutBusiness } from '../../domain/about-business.ts'
 import { domainHues, type Area, type Person } from '../../domain/item.ts'
 import {
   areaRemovalOutcome,
@@ -21,7 +21,9 @@ import { textFindings } from '../../domain/draft.ts'
 import { shiftDate } from '../../domain/validity.ts'
 import {
   type AuditEntry,
+  type BusinessDraft,
   type ClientPolicy,
+  businessFacts,
   type Setting,
   type SettingKey,
   settingSchemas,
@@ -1364,6 +1366,21 @@ export function createMockAdmin(world: MockAdminWorld) {
         valid(/^[a-z_]+(\.[a-z_]+)*$/.test(key) && key.length <= 100)
         const versions = settings.get(key) ?? refuse('not-found', "We couldn't find this setting.")
         return structuredClone(versions)
+      },
+
+      /**
+       * A first version of About our business from the domains and the catalogue: the demo has no
+       * model, so Heed's own draft from the same facts, the same every time. Nothing is saved.
+       */
+      async draftAboutBusiness(
+        catalogue: () => Promise<Parameters<typeof businessFacts>[0]>,
+        areas: Parameters<typeof businessFacts>[1],
+      ): Promise<BusinessDraft> {
+        adminOnly()
+        return {
+          text: draftAboutBusiness(businessFacts(await catalogue(), areas)),
+          writtenBy: 'facts',
+        }
       },
 
       setSetting(input: SetSettingInput): Setting {

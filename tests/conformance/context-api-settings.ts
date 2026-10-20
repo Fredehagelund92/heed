@@ -74,6 +74,22 @@ export function describeContextApiSettings(
       expect((await refusal(as('ella').listSettings())).kind).toBe('forbidden')
     })
 
+    it('writes a first version of About our business from what Heed knows, for administrators only, and saves nothing', async () => {
+      const key = 'business.about'
+      const before = (await as('ravi').listSettings()).find((setting) => setting.key === key)!
+      const draft = await as('ravi').draftAboutBusiness()
+      // The domains, then the words; no number, and room left for what the company does.
+      expect(draft.text).toMatch(/^We keep our facts in these domains: .*Sales/)
+      expect(draft.text).not.toMatch(/\d/)
+      expect([...draft.text].length).toBeLessThanOrEqual(1000)
+      // The same facts give the same draft.
+      expect(await as('ravi').draftAboutBusiness()).toEqual(draft)
+      const after = (await as('ravi').listSettings()).find((setting) => setting.key === key)!
+      expect(after.version).toBe(before.version)
+      for (const person of ['jon', 'ella', 'tomas', 'kofi'] as const)
+        expect((await refusal(as(person).draftAboutBusiness())).kind, person).toBe('forbidden')
+    })
+
     it('changes a setting as a new version with a reason, newest first in its history', async () => {
       const key = 'review.open_issue_days'
       const before = (await as('ravi').listSettings()).find((setting) => setting.key === key)!

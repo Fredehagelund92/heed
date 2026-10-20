@@ -7,12 +7,14 @@ import {
   ABOUT_BUSINESS_MAX,
   aboutBusinessLength,
   normalizeAboutBusiness,
+  type BusinessFacts,
 } from '../domain/about-business.ts'
 import { EDITION_EXPORT_FORMAT } from '../domain/edition-export.ts'
 import { ITEM_FILE_MAX_LENGTH } from '../domain/item-file.ts'
 import { itemVersionSchema } from '../domain/item-version.ts'
 import { areaStates } from '../domain/item.ts'
 import { calendarDateSchema } from '../domain/validity.ts'
+import type { CatalogueTerm } from './catalogue.ts'
 import { findingSchema } from './proposals.ts'
 
 const reason = z.string().check(z.minLength(1), z.maxLength(500))
@@ -135,6 +137,38 @@ export const setSettingSchema = z.strictObject({
   value: z.unknown(),
   reason,
 })
+
+/**
+ * A first version of About our business, written from what Heed already knows. It is shown in the
+ * box and saved only when an administrator saves it. `model` means the assistant's model worded
+ * it from the facts; `facts` that Heed wrote it from the facts alone (the demo, a model that could
+ * not be reached or a spending limit). The text is empty when Heed knows too little to write one.
+ */
+export const businessDraftSchema = z.object({
+  text: z.string(),
+  writtenBy: z.enum(['model', 'facts']),
+})
+export type BusinessDraft = z.infer<typeof businessDraftSchema>
+
+/**
+ * What a first version of About our business is written from: the domains, and the metrics and
+ * dimensions of the catalogue with the definition source's own description of each. Both bindings
+ * read it the same way.
+ */
+export function businessFacts(
+  catalogue: { terms: readonly Pick<CatalogueTerm, 'kind' | 'name' | 'aliases' | 'definition'>[] },
+  areas: readonly { name: string; summary: string }[],
+): BusinessFacts {
+  return {
+    domains: areas.map((area) => ({ name: area.name, summary: area.summary })),
+    terms: catalogue.terms.map((term) => ({
+      kind: term.kind,
+      name: term.name,
+      aliases: term.aliases,
+      description: term.definition?.descriptionCopy ?? null,
+    })),
+  }
+}
 
 export const toolSwitchSchema = z.object({
   tool: z.string(),

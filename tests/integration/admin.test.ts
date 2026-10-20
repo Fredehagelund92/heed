@@ -263,6 +263,25 @@ describe('settings and limits', () => {
     expect(empty.value).toBe('')
     expect((await serving.policy('claude-code')).about).toBe('')
   })
+
+  it('writes a first version from the domains and the catalogue, for administrators, and saves nothing', async () => {
+    const path = '/settings/business-about/draft'
+    expect((await call('POST', path, 'owner')).statusCode).toBe(403)
+    const versions = async () =>
+      (await ok<Setting[]>('GET', '/settings', 'admin')).find((s) => s.key === 'business.about')
+        ?.version
+    const [version, audits] = [await versions(), await auditRows()]
+    const draft = await ok<{ text: string; writtenBy: string }>('POST', path, 'admin')
+    // The scripted model words it as Heed would: the domains first, no number or legal conclusion.
+    expect(draft.text).toMatch(/^We keep our facts in these domains: /)
+    expect(draft.text).not.toMatch(/\d/)
+    expect(draft.text.length).toBeLessThanOrEqual(ABOUT_BUSINESS_MAX)
+    expect(draft.writtenBy).toBe('model')
+    // The same facts give the same draft, and nothing is saved or recorded.
+    expect(await ok('POST', path, 'admin')).toEqual(draft)
+    expect(await versions()).toBe(version)
+    expect(await auditRows()).toBe(audits)
+  })
 })
 
 describe('tool switch and client policies', () => {
