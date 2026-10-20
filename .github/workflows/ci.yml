@@ -172,10 +172,11 @@ jobs:
 
   e2e:
     # About 3,000 tests (every page at its widths and themes): one runner with two workers needs
-    # over an hour, so the run is split into shards that each take a part of the tests.
+    # over an hour, so the run is split into shards that each take a part of the tests. The
+    # Storybook tests (about 50, each playing dozens of stories) fall in one shard: 40 minutes.
     name: Playwright (layout, axe, screenshots when baselines exist) (shard ${{ matrix.shard }} of 8)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
