@@ -949,9 +949,9 @@ test('the Gaps view marks the gaps people reported, and links to the topic count
   await signInAs(page, 'per_jon')
   await openPage(page, '/health?view=gaps&origin=person', { ...desktop, theme: 'light' })
   // Return on ad spend has five reports from people, but Jon does not manage Paid media.
-  await expect(rows(page)).toHaveText([/^Orders in Norway/, /^Returns in the United Kingdom/])
+  await expect(rows(page)).toHaveText([/^Orders in Norway/, /^Returns in United Kingdom/])
   await workList(page)
-    .getByRole('link', { name: /^Returns in the United Kingdom/ })
+    .getByRole('link', { name: /^Returns in United Kingdom/ })
     .click()
   await expect(pane(page).getByText('October 2026. A person reported it.')).toBeVisible()
   // Two reports, both from people: below five, so neither is printed.
@@ -1050,7 +1050,7 @@ test('the work list ranks what needs the owner, grouped by why', async ({ page }
   await expect(first.locator('[data-slot="work-status"]')).toHaveText('Got worse')
   await expect(first).toContainText('Failed: fact mentioned, expected facts given')
   // A gap shows its status and its counts through the privacy rule.
-  const small = workList(page).locator('li', { hasText: 'Returns in the United Kingdom' })
+  const small = workList(page).locator('li', { hasText: 'Returns in United Kingdom' })
   await expect(small).toContainText('fewer than 5 calls found nothing')
   for (const text of await rows(page).allTextContents())
     expect(text).not.toMatch(/(^|[^\d.,])[1-4] (calls?|reports?)\b/)

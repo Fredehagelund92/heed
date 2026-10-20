@@ -63,7 +63,7 @@ for (const size of [widths[0], phone]) {
       await page.keyboard.press('Tab')
       const field = summary(page, 0)
       await expect(field).toBeFocused()
-      await page.keyboard.type('Sales stopped in @north')
+      await page.keyboard.type('Sales stopped in @norw')
       const list = page.getByRole('listbox', { name: 'Mention a metric, value, fact or domain' })
       await expect(list).toBeVisible()
       await expect(field).toHaveAttribute('aria-activedescendant', /norway/)
@@ -81,7 +81,7 @@ for (const size of [widths[0], phone]) {
         name: 'What happened',
         value: 'Sales stopped in Norway, value on 4 August.',
       })
-      await expect(page.getByText('39 of 280 characters')).toBeVisible()
+      await expect(page.getByText('36 of 280 characters')).toBeVisible()
 
       for (let i = 0; i < ' on 4 August.'.length; i++) await page.keyboard.press('Backspace')
       await page.keyboard.press('Backspace')
@@ -115,14 +115,14 @@ for (const size of [widths[0], phone]) {
 
     test('# lists values only, Escape closes the list and keeps the words', async ({ page }) => {
       await summary(page, 0).focus()
-      await page.keyboard.type('Also in #so')
+      await page.keyboard.type('Also in #spai')
       const list = page.getByRole('listbox', { name: 'Mention a value' })
       await expect(list.getByRole('option').first()).toContainText('Spain')
       await expect(list.getByRole('group', { name: 'Metrics' })).toHaveCount(0)
       await page.keyboard.press('Escape')
       await expect(list).toBeHidden()
-      await page.keyboard.type('mething')
-      await expect(stored(page, 2)).toHaveText('Also in #something')
+      await page.keyboard.type('nish')
+      await expect(stored(page, 2)).toHaveText('Also in #spainish')
       await page.keyboard.type(' @Narnia')
       await expect(page.getByRole('option', { name: 'Ask an owner to add “Narnia”' })).toBeVisible()
     })
