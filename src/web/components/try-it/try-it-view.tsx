@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDockMode } from '@/components/page/dock-panel'
 import { targetsByKey } from '@/lib/mention-targets'
 import {
   countWords,
@@ -27,6 +28,7 @@ import { formatDay } from '@/lib/library'
 import { useLibrary } from '@/lib/use-library'
 import { useMentionTargets } from '@/lib/use-mention-targets'
 import { cn } from '@/lib/utils'
+import { FactPanel, type FactPanelState } from './fact-panel'
 import { TryItReply } from './try-it-reply'
 
 /*
@@ -102,6 +104,7 @@ export function TryItView({
   onAsk,
   onLeave,
   idPrefix,
+  panel,
 }: {
   /** The scope last asked, whose reply shows; null before the first. */
   asked: TryItScope | null
@@ -110,6 +113,11 @@ export function TryItView({
   onLeave?: () => void
   /** Keeps the fields' ids apart when the panel and the page are both on screen. */
   idPrefix?: string
+  /**
+   * The page opens a fact beside the reply, in the docked panel as the library does. The
+   * assistant's panel is that panel already, so it has none and a fact opens on its page.
+   */
+  panel?: FactPanelState
 }) {
   const library = useLibrary()
   const today = library.today
@@ -175,6 +183,12 @@ export function TryItView({
     const areaId = library.rows.find((row) => row.id === itemId)?.areaId
     return areas?.find((area) => area.id === areaId) ?? null
   }
+  const factIds = useMemo(() => reply?.delivered.map((fact) => fact.id) ?? [], [reply])
+  // The facts' region, which the panel's keys and focus find the rows in.
+  const [region, setRegion] = useState<HTMLDivElement | null>(null)
+  // On a phone the panel fills the screen: what is under it is out of reach until it closes.
+  const dockMode = useDockMode()
+  const covered = panel?.openId != null && dockMode === 'full'
   const failure = query.isError ? toApiError(query.error) : null
   const announcement = !asked
     ? ''
@@ -187,118 +201,127 @@ export function TryItView({
           : ''
 
   return (
-    <div data-slot="try-it" className="flex min-w-0 flex-col gap-4">
-      <form
-        aria-label="What the question is about"
-        noValidate
-        onSubmit={(event) => {
-          event.preventDefault()
-          ask()
-        }}
-        onKeyDown={onKeyDown}
-        className="@container flex flex-col gap-4 rounded-lg border bg-background p-4"
+    <>
+      <div
+        data-slot="try-it"
+        ref={setRegion}
+        inert={covered || undefined}
+        className="flex min-w-0 flex-col gap-4"
       >
-        <Field invalid={missing}>
-          <FieldLabel htmlFor={`${ids}-scope`}>What it is about</FieldLabel>
-          <div ref={scopeRef}>
-            <ScopeInput
-              id={`${ids}-scope`}
-              value={draft.scope}
-              onChange={(scope) => {
-                setDraft((now) => ({ ...now, scope }))
-                if (hasTerms(scope)) setMissing(false)
-              }}
-              aria-invalid={missing || undefined}
-              aria-describedby={missing ? `${ids}-scope-error` : undefined}
-              className="bg-background"
-            />
-          </div>
-          {missing ? (
-            <FieldError id={`${ids}-scope-error`}>
-              Add a metric, a market or a product first.
-            </FieldError>
-          ) : null}
-        </Field>
-        <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor={`${ids}-from`}>From</FieldLabel>
-            <DateField
-              id={`${ids}-from`}
-              value={current.from}
-              onValueChange={(from) => setDraft((now) => ({ ...now, from }))}
-              calendarLabel="Choose the first day"
-              placeholder="First day"
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={`${ids}-to`}>To</FieldLabel>
-            <DateField
-              id={`${ids}-to`}
-              value={current.to}
-              min={current.from ?? undefined}
-              onValueChange={(to) => setDraft((now) => ({ ...now, to }))}
-              calendarLabel="Choose the last day"
-              placeholder="Last day"
-            />
-          </Field>
-        </div>
-        <Button
-          type="submit"
-          size="lg"
-          aria-keyshortcuts="Meta+Enter Control+Enter"
-          className="w-fit"
+        <form
+          aria-label="What the question is about"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault()
+            ask()
+          }}
+          onKeyDown={onKeyDown}
+          className="@container flex flex-col gap-4 rounded-lg border bg-background p-4"
         >
-          <SearchIcon />
-          Show what AI apps get
-        </Button>
-      </form>
-      <span role="status" className="sr-only">
-        {announcement}
-      </span>
-      <section
-        aria-label="What AI apps get"
-        aria-busy={query.isFetching || undefined}
-        className={cn('flex flex-col gap-4', query.isFetching && reply && 'opacity-60')}
-      >
-        {!asked ? (
-          <Intro onLeave={onLeave} />
-        ) : failure?.kind === 'precondition' ? (
-          <Empty data-state="try-it-not-live" className="flex-none border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <CircleAlertIcon />
-              </EmptyMedia>
-              <EmptyTitle>AI apps don&apos;t get any facts yet</EmptyTitle>
-              <EmptyDescription>
-                They start once an admin shares the facts for the first time. Facts accepted now are
-                part of it.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : failure ? (
-          <Alert variant="danger" data-slot="try-it-error">
-            <CircleAlertIcon />
-            <AlertContent>
-              <AlertTitle>We couldn&apos;t get what AI apps get</AlertTitle>
-              <AlertDescription>{describeApiError(failure).description}</AlertDescription>
-              <Button variant="outline" className="w-fit" onClick={() => void query.refetch()}>
-                Try again
-              </Button>
-            </AlertContent>
-          </Alert>
-        ) : reply ? (
-          <TryItReply
-            reply={reply}
-            tried={asked}
-            about={scopeWords(asked, nameOf, (day) => formatDay(day, 'long'))}
-            today={today}
-            domainOf={domainOf}
-            onLeave={onLeave}
-          />
-        ) : (
-          <Loading />
-        )}
-      </section>
-    </div>
+          <Field invalid={missing}>
+            <FieldLabel htmlFor={`${ids}-scope`}>What it is about</FieldLabel>
+            <div ref={scopeRef}>
+              <ScopeInput
+                id={`${ids}-scope`}
+                value={draft.scope}
+                onChange={(scope) => {
+                  setDraft((now) => ({ ...now, scope }))
+                  if (hasTerms(scope)) setMissing(false)
+                }}
+                aria-invalid={missing || undefined}
+                aria-describedby={missing ? `${ids}-scope-error` : undefined}
+                className="bg-background"
+              />
+            </div>
+            {missing ? (
+              <FieldError id={`${ids}-scope-error`}>
+                Add a metric, a market or a product first.
+              </FieldError>
+            ) : null}
+          </Field>
+          <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor={`${ids}-from`}>From</FieldLabel>
+              <DateField
+                id={`${ids}-from`}
+                value={current.from}
+                onValueChange={(from) => setDraft((now) => ({ ...now, from }))}
+                calendarLabel="Choose the first day"
+                placeholder="First day"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${ids}-to`}>To</FieldLabel>
+              <DateField
+                id={`${ids}-to`}
+                value={current.to}
+                min={current.from ?? undefined}
+                onValueChange={(to) => setDraft((now) => ({ ...now, to }))}
+                calendarLabel="Choose the last day"
+                placeholder="Last day"
+              />
+            </Field>
+          </div>
+          <Button
+            type="submit"
+            size="lg"
+            aria-keyshortcuts="Meta+Enter Control+Enter"
+            className="w-fit"
+          >
+            <SearchIcon />
+            Show what AI apps get
+          </Button>
+        </form>
+        <span role="status" className="sr-only">
+          {announcement}
+        </span>
+        <section
+          aria-label="What AI apps get"
+          aria-busy={query.isFetching || undefined}
+          className={cn('flex flex-col gap-4', query.isFetching && reply && 'opacity-60')}
+        >
+          {!asked ? (
+            <Intro onLeave={onLeave} />
+          ) : failure?.kind === 'precondition' ? (
+            <Empty data-state="try-it-not-live" className="flex-none border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CircleAlertIcon />
+                </EmptyMedia>
+                <EmptyTitle>AI apps don&apos;t get any facts yet</EmptyTitle>
+                <EmptyDescription>
+                  They start once an admin shares the facts for the first time. Facts accepted now
+                  are part of it.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : failure ? (
+            <Alert variant="danger" data-slot="try-it-error">
+              <CircleAlertIcon />
+              <AlertContent>
+                <AlertTitle>We couldn&apos;t get what AI apps get</AlertTitle>
+                <AlertDescription>{describeApiError(failure).description}</AlertDescription>
+                <Button variant="outline" className="w-fit" onClick={() => void query.refetch()}>
+                  Try again
+                </Button>
+              </AlertContent>
+            </Alert>
+          ) : reply ? (
+            <TryItReply
+              reply={reply}
+              tried={asked}
+              about={scopeWords(asked, nameOf, (day) => formatDay(day, 'long'))}
+              today={today}
+              domainOf={domainOf}
+              panel={panel}
+              onLeave={onLeave}
+            />
+          ) : (
+            <Loading />
+          )}
+        </section>
+      </div>
+      {panel ? <FactPanel state={panel} ids={factIds} region={region} /> : null}
+    </>
   )
 }

@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, api, type TryIt } from '@/api'
 import { MOCK_PERSON_KEY, MOCK_SCENARIO_KEY } from '@/api/mock-scenario'
 import { ConnectSection } from '@/components/settings/connect-section'
+import type { FactPanelState } from '@/components/try-it/fact-panel'
 import { TryItView } from '@/components/try-it/try-it-view'
 import { namedKeys } from '@/lib/agent-reply'
 import { formValues, withScope } from '@/lib/context-form'
@@ -27,6 +28,8 @@ import {
   defaultWindow,
   draftSearch,
   formatKb,
+  panelSearchOf,
+  panelTabOf,
   readTryIt,
   sameScope,
   scopeFromSearch,
@@ -38,6 +41,8 @@ import {
 
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof Router>()),
+  useNavigate: () => vi.fn(),
+  useRouter: () => ({ history: { location: { state: {} }, back: vi.fn() } }),
   Link: ({
     to,
     params,
@@ -53,13 +58,35 @@ vi.mock('@tanstack/react-router', async (original) => ({
       (href, [key, value]) => href.replace(`$${key}`, value),
       to,
     )
-    const query = new URLSearchParams(search ?? {}).toString()
+    const query = new URLSearchParams(
+      Object.entries(search ?? {}).filter(([, value]) => value !== undefined),
+    ).toString()
     return (
       <a href={query ? `${path}?${query}` : path} {...props}>
         {children}
       </a>
     )
   },
+}))
+
+// The library's panel is tested with the library; here it is what the page opens a fact in.
+vi.mock('@/components/library/item-panel', () => ({
+  ItemPanel: ({
+    itemId,
+    tab,
+    position,
+  }: {
+    itemId: string
+    tab: string
+    position: { index: number; total: number } | null
+  }) => (
+    <section
+      aria-label="Fact panel"
+      data-item={itemId}
+      data-tab={tab}
+      data-place={position ? `${position.index + 1} of ${position.total}` : undefined}
+    />
+  ),
 }))
 
 afterEach(() => {
@@ -175,6 +202,48 @@ describe('a scope to try', () => {
     const chosen = { ...formValues(), validity: { start: '2026-01-01', end: null } }
     expect(withScope(chosen, [], '2026-09-08').validity.start).toBe('2026-01-01')
     expect(withScope(chosen, undefined, undefined)).toBe(chosen)
+  })
+})
+
+describe('a fact open in the panel', () => {
+  it('is in the address with its tab, and the scope asked stays in it', () => {
+    expect(panelSearchOf(unitedKingdom, 'itm_abc12345', 'read')).toEqual({
+      ...searchOf(unitedKingdom),
+      panel: 'itm_abc12345',
+      tab: undefined,
+    })
+    expect(panelSearchOf(unitedKingdom, 'itm_abc12345', 'history')).toMatchObject({
+      panel: 'itm_abc12345',
+      tab: 'history',
+    })
+    // Closed, neither the fact nor its tab is left in the address.
+    expect(panelSearchOf(unitedKingdom, null, 'history')).toEqual({
+      ...searchOf(unitedKingdom),
+      panel: undefined,
+      tab: undefined,
+    })
+    expect(panelSearchOf(null, 'itm_abc12345', 'read')).toEqual({
+      panel: 'itm_abc12345',
+      tab: undefined,
+    })
+  })
+
+  it('reads the fact and its tab from the address, and drops what it cannot trust', () => {
+    const search = validateTryItSearch({
+      ...searchOf(unitedKingdom),
+      panel: 'itm_abc12345',
+      tab: 'links',
+    })
+    expect(search).toMatchObject({ panel: 'itm_abc12345', tab: 'links' })
+    expect(panelTabOf(search)).toBe('links')
+    expect(panelTabOf({})).toBe('read')
+    // Connect is still a setting of the person's own, never a tab of a fact.
+    expect(panelTabOf({ tab: 'connect' })).toBe('read')
+    expect(panelTabOf({ tab: 'agent' })).toBe('read')
+    expect(validateTryItSearch({ panel: '../etc/passwd', tab: 'nonsense' })).toEqual({
+      panel: undefined,
+      tab: undefined,
+    })
   })
 })
 
@@ -552,6 +621,58 @@ describe('What an agent would get', () => {
     spy.mockRestore()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('list', { name: /What the AI app gets/ })).toBeVisible()
+  })
+})
+
+/** The page holds the fact open in the address; here, in state. */
+function Page({ start, openId = null }: { start: TryItScope; openId?: string | null }) {
+  const panel: FactPanelState = {
+    openId,
+    tab: 'read',
+    to: (id, tab) => panelSearchOf(start, id, tab),
+  }
+  return <TryItView asked={start} onAsk={() => undefined} idPrefix="test" panel={panel} />
+}
+
+describe('What an agent would get, on its page', () => {
+  it('opens a fact beside the reply instead of leaving the page, and marks the open one', async () => {
+    const { unmount } = render(withQueries(<Page start={unitedKingdom} />))
+    const delivered = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const facts = within(delivered).getAllByRole('listitem')
+    const links = facts.map((fact) => within(fact).getByRole('link'))
+    for (const link of links) {
+      const href = link.getAttribute('href') ?? ''
+      // The same page, with the scope asked and the fact in the address (`?panel=`).
+      expect(href).toMatch(/^\/try-it\?.*about=metric%3Aaverage_order_value.*&panel=itm_[a-z0-9]+$/)
+      expect(link).toHaveAttribute('data-row-link')
+    }
+    const ids = facts.map((fact) => fact.getAttribute('data-row-id'))
+    expect(ids.every(Boolean)).toBe(true)
+    expect(facts.some((fact) => fact.hasAttribute('data-open'))).toBe(false)
+    unmount()
+
+    // The fact in the panel is the one marked in the list.
+    render(withQueries(<Page start={unitedKingdom} openId={ids[1]} />))
+    const again = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const marked = within(again)
+      .getAllByRole('listitem')
+      .filter((fact) => fact.hasAttribute('data-open'))
+    expect(marked.map((fact) => fact.getAttribute('data-row-id'))).toEqual([ids[1]])
+    // The panel holds that fact, and says where it is in the reply.
+    const open = screen.getByRole('region', { name: 'Fact panel' })
+    expect(open).toHaveAttribute('data-item', ids[1])
+    expect(open).toHaveAttribute('data-tab', 'read')
+    expect(open).toHaveAttribute('data-place', `2 of ${ids.length}`)
+  }, 20_000)
+
+  it("keeps the assistant's panel on the facts' own pages: it is the panel already", async () => {
+    render(withQueries(<Panel start={unitedKingdom} />))
+    const delivered = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const link = within(within(delivered).getAllByRole('listitem')[0]!).getByRole('link')
+    expect(link).toHaveAttribute('href', expect.stringMatching(/^\/library\/itm_/))
+    expect(link).not.toHaveAttribute('data-row-link')
+    expect(delivered.querySelector('[data-open]')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Fact panel' })).toBeNull()
   })
 })
 
