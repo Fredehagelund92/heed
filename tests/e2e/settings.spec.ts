@@ -245,6 +245,19 @@ test.describe('about our business', () => {
     const block = page.locator('[data-slot="business-text"]')
     const counter = block.locator('[data-slot="body-counter"]')
     await expect(counter).toHaveText('1,102 of 1,200 characters')
+    // The box says what to write, in two parts, and what to leave out, so nobody has to guess.
+    const guide = block.locator('[data-slot="business-guide"]')
+    await expect(guide.getByRole('listitem')).toHaveText([
+      /^What the company does\. One or two sentences: what it sells, to whom and where\.$/,
+      /^Words an outsider would misread\. One per line, as the word, a colon and what it means\. For example, First-time buyer: .*everyday talk\.$/,
+    ])
+    await expect(guide).toContainText(
+      'Leave out: numbers, deals, dates and what happened in a market',
+    )
+    await expect(guide).toContainText('legal conclusions, and secrets or personal data')
+    await expect(guide).toContainText(
+      'Leave it empty to give the assistant and AI apps no background.',
+    )
     await expect(block.locator('[data-slot="business-saved"]')).toContainText('Version 1, saved')
     await expect(block.locator('[data-slot="business-saved"]')).toContainText(
       'when the app was set up',
@@ -323,7 +336,7 @@ test.describe('about our business', () => {
         const text = page.getByRole('textbox', { name: 'About our business' })
         await expect(text.getByRole('listitem').first()).toBeVisible()
         await expect(text).toHaveAccessibleDescription(
-          /Leave it empty to give the assistant and AI apps no background\. 1,102 of 1,200 characters/,
+          /What the company does\. .*Words an outsider would misread\. .*Leave out: .*Leave it empty to give the assistant and AI apps no background\. 1,102 of 1,200 characters/,
         )
         // Words selected show the formatting toolbar, which has no mention.
         await text.getByRole('listitem').first().selectText()

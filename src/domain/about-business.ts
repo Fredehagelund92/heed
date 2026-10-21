@@ -66,3 +66,27 @@ export function aboutBusinessBlock(value: unknown): string | null {
     ABOUT_BUSINESS_END,
   ].join('\n')
 }
+
+/**
+ * What the About our business box tells an administrator to write, in the field itself so nobody
+ * has to leave the screen (docs/help/tell-heed-about-your-business.md says the same at more
+ * length): two parts, then what stays out. The text is still one plain Markdown text.
+ */
+export const ABOUT_BUSINESS_GUIDE = {
+  parts: [
+    {
+      title: 'What the company does',
+      hint: 'One or two sentences: what it sells, to whom and where.',
+    },
+    {
+      title: 'Words an outsider would misread',
+      hint: 'One per line, as the word, a colon and what it means. For example, First-time buyer: a customer whose first paid order falls in the period. A word that already has a definition in the Catalogue does not need to be repeated here, because this list is for the words people misread in everyday talk.',
+    },
+  ],
+  leaveOut: {
+    title: 'Leave out',
+    hint: 'numbers, deals, dates and what happened in a market (those are facts, and belong in the library), legal conclusions, and secrets or personal data.',
+  },
+  /** What leaving the box empty does. */
+  empty: 'Leave it empty to give the assistant and AI apps no background.',
+} as const

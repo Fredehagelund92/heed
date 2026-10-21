@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  ABOUT_BUSINESS_GUIDE,
   ABOUT_BUSINESS_MAX,
   ABOUT_BUSINESS_STARTER,
   aboutBusinessBlock,
@@ -180,10 +181,8 @@ function BusinessForm({ setting }: { setting: Setting }) {
         slot="business-text"
         description={
           <>
-            What the company does, then the words people use that are easy to misread. Keep it
-            short, with no figures, deals or legal conclusions. Headings, lists and links show as
-            you type.{' '}
-            <HelpLink to="tell-heed-about-your-business">What makes a good text?</HelpLink>
+            Headings, lists and links show as you type.{' '}
+            <HelpLink to="tell-heed-about-your-business">More on what makes a good text</HelpLink>
           </>
         }
       >
@@ -217,8 +216,26 @@ function BusinessForm({ setting }: { setting: Setting }) {
                 >
                   About our business
                 </FieldLabel>
-                <FieldDescription id="business-text-hint">
-                  Leave it empty to give the assistant and AI apps no background.
+                <FieldDescription
+                  id="business-text-hint"
+                  render={<div />}
+                  data-slot="business-guide"
+                  className="flex flex-col gap-2"
+                >
+                  <ol className="flex list-decimal flex-col gap-1 pl-4 marker:font-bold">
+                    {ABOUT_BUSINESS_GUIDE.parts.map((part) => (
+                      <li key={part.title}>
+                        <span className="font-bold text-foreground">{part.title}.</span> {part.hint}
+                      </li>
+                    ))}
+                  </ol>
+                  <p>
+                    <span className="font-bold text-foreground">
+                      {ABOUT_BUSINESS_GUIDE.leaveOut.title}:
+                    </span>{' '}
+                    {ABOUT_BUSINESS_GUIDE.leaveOut.hint}
+                  </p>
+                  <p>{ABOUT_BUSINESS_GUIDE.empty}</p>
                 </FieldDescription>
               </FieldHeader>
               {/* The editor item text uses (contract 9.6), mentions off: the text stays the
