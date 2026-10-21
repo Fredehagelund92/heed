@@ -45,7 +45,7 @@ describe('the app with another product name', () => {
     expect(document.title).not.toMatch(old)
   })
 
-  it('says it in the lines an AI app is given, and the update advice needs no name', () => {
+  it('says it in the lines an agent is given, and the update advice needs no name', () => {
     for (const line of askHeedFirst) expect(line.text).toContain(other)
     expect(askHeedFirst.map((line) => `${line.where} ${line.text}`).join(' ')).not.toMatch(old)
     expect(updateAdvice('page')).toBe(

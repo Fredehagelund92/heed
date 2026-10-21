@@ -124,7 +124,7 @@ describe('fitting an item of a deleted domain to another domain', () => {
       world(),
     )
     expect(scopeless.problem).toBe(
-      'None of the metrics or markets it applies to exist any more, so AI apps could never get it.',
+      'None of the metrics or markets it applies to exist any more, so agents could never get it.',
     )
   })
 })

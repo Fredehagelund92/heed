@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { openPage, settle, themes, widths } from './support'
 
 /*
-  A draft an AI app wrote with the MCP draft tool (FR-121), on the mock: Priya opens the draft
+  A draft an agent wrote with the MCP draft tool (FR-121), on the mock: Priya opens the draft
   the app saved for her and sees which fields to check, and Tomas, the owner of Marketing,
   reviews the one she submitted. Nothing on either screen says who wrote a field: the stored
   provenance only decides which fields to check and which flags to show. The demo drafts are
@@ -20,7 +20,7 @@ async function signInAs(page: Page, personId: string) {
 }
 const row = (page: Page, id: string) => page.locator(`[data-slot="diff-row"][data-row="${id}"]`)
 const NO_AUTHORSHIP =
-  /AI app wrote|Assistant wrote|Suggested by|drafted this|Drafted with|A line marks/
+  /agent wrote|Assistant wrote|Suggested by|drafted this|Drafted with|A line marks/
 
 async function axe(page: Page) {
   await settle(page)
@@ -66,7 +66,7 @@ test('the owner reads the proposal with its flags, and nothing that says who wro
   await expect(page.getByRole('button', { name: /^How it was drafted/ })).toHaveCount(0)
   await expect(page.locator('[data-slot="provenance-mark"]')).toHaveCount(0)
   await expect(page.locator('.ai-mark')).toHaveCount(0)
-  await expect(page.locator('[data-slot="ai-app-mark"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="agent-mark"]')).toHaveCount(0)
   await expect(page.getByText(NO_AUTHORSHIP)).toHaveCount(0)
   // A new item's diff leaves out what the proposer left empty, and names it under the rows (#219).
   // The stored default of what not to conclude is no line of the proposer's own (FR-104).
@@ -121,7 +121,7 @@ test("the owner's queue shows the proposer as one plain avatar", async ({ page }
   const owner = queueRow().locator('[data-slot="owner"]')
   await expect(owner).toContainText('Priya Nair')
   await expect(owner.locator('[data-slot="avatar"]')).toHaveCount(1)
-  await expect(owner.locator('[data-slot="ai-app-mark"]')).toHaveCount(0)
+  await expect(owner.locator('[data-slot="agent-mark"]')).toHaveCount(0)
   await expect(queueRow().locator('[data-slot="drafted-mark"]')).toHaveCount(0)
 })
 

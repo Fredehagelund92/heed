@@ -68,7 +68,7 @@ describe('the page an origin opens', () => {
     expect(page('/editions?edition=2026-10-07.1')?.label).toBe('Editions')
     expect(page('/editions/2026-10-06.2')?.label).toBe('2026-10-06.2')
     expect(page('/library/itm_jyfuvl07')?.label).toBe('Fact')
-    expect(page('/settings?section=connect')?.label).toBe('Connect an AI app')
+    expect(page('/settings?section=connect')?.label).toBe('Connect an agent')
     expect(page('/')?.label).toBe('Home')
   })
 

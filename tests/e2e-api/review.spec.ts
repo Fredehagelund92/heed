@@ -139,7 +139,7 @@ test('Maria writes, Jon reviews and accepts, an edition is published and Maria s
   const edition = ((await response.json()) as { edition: { label: string } | null }).edition?.label
   expect(edition).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/)
   await expect(dialog).toBeHidden({ timeout: 0 })
-  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('AI apps get it.', {
+  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('Agents get it.', {
     timeout: 15_000,
   })
 
@@ -149,14 +149,14 @@ test('Maria writes, Jon reviews and accepts, an edition is published and Maria s
   }[]
   expect(editions.find((candidate) => candidate.live)?.label).toBe(edition)
 
-  // Maria, in her own session, sees it accepted, and that AI apps get it.
+  // Maria, in her own session, sees it accepted, and that agents get it.
   await context.clearCookies()
   await signIn(context.request, origin, 'per_maria@example.test')
   const read = answer(page, 'GET', `/api/v1/proposals/${id}/review`)
   await page.goto(`/proposals/${id}`)
   expect((await read).ok()).toBe(true)
   await expect(page.locator('[data-slot="proposal-badges"]')).toContainText('Accepted')
-  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('AI apps get it.')
+  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('Agents get it.')
 })
 
 test('Jon raises a note to high risk in review and every check runs again', async ({
@@ -277,7 +277,7 @@ test('an administrator accepts their own item and their own term, and the histor
   const decided = answer(page, 'POST', `/api/v1/proposals/${draft.id}/decisions`)
   await dialog.getByRole('button', { name: 'Accept' }).click()
   expect((await decided).ok()).toBe(true)
-  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('AI apps get it.', {
+  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('Agents get it.', {
     timeout: 15_000,
   })
   // Decided, it reads as the proposer's status page, its history open.

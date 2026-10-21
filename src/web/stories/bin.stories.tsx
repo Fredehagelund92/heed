@@ -78,7 +78,7 @@ export const ItemInTheBin: Story = {
     const [title] = within(table).getAllByRole('link')
     await userEvent.click(title!)
     await expect(
-      await canvas.findByText("In the Bin. AI apps don't get it.", {}, { timeout: 10_000 }),
+      await canvas.findByText("In the Bin. Agents don't get it.", {}, { timeout: 10_000 }),
     ).toBeVisible()
     await expect(canvas.getByRole('button', { name: 'Restore' })).toBeVisible()
   },

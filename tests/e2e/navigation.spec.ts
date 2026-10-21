@@ -378,7 +378,7 @@ test.describe('the trail', () => {
     await openPage(page, '/settings', desktop)
     await expectTrail(page, '[Settings] › Profile and appearance')
     await openPage(page, '/settings?section=connect', desktop)
-    await expectTrail(page, '[Settings] › Connect an AI app')
+    await expectTrail(page, '[Settings] › Connect an agent')
     await openPage(page, '/admin?section=audit', desktop)
     await expectTrail(page, '[Administration] › History log')
     await expect(page).toHaveTitle('History log - Administration - Heed')
@@ -503,6 +503,6 @@ test.describe('the phone header', () => {
     await expect(
       page.getByRole('banner').getByRole('link', { name: 'Back to Settings' }),
     ).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1, name: 'Connect an AI app' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Connect an agent' })).toBeVisible()
   })
 })

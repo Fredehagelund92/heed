@@ -181,7 +181,7 @@ test('shows what a change does to the accepted item, field by field', async ({ p
   await expect(row).toContainText('since the reporting upgrade')
   await expect(row).toContainText('Before')
   await expect(row).toContainText('Cube gets Units sold a day late')
-  await page.getByRole('tab', { name: 'What AI apps will get' }).click()
+  await page.getByRole('tab', { name: 'What agents will get' }).click()
   await expect(page).toHaveURL(/tab=preview/)
   await expect(page.locator('[data-slot="agent-preview"]')).toBeVisible()
 })

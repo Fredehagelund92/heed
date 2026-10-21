@@ -203,7 +203,7 @@ export const goldenSetChecks: Record<string, (set: GoldenSet) => void> = {
       expects.some((e) => e.forbidden_phrases.includes('Heed has no items about revenue')),
     ).toBe(true)
     expect(expects.some((e) => e.confirmation_or_question === 'create_draft')).toBe(true)
-    expect(expects.some((e) => e.tools_any?.includes('find_context'))).toBe(true)
+    expect(expects.some((e) => e.tools_any?.includes('find_facts'))).toBe(true)
   },
   'asks what depends on the business, visible, and never cites the background': (set) => {
     // The captain, 15 October 2026: the assistant should not start from level zero on what the
@@ -259,7 +259,7 @@ export const goldenSetChecks: Record<string, (set: GoldenSet) => void> = {
     for (const turn of first) {
       expect(turn.expect.asks_no_scope).toBe(true)
       expect(turn.expect.tools_none).toEqual(
-        expect.arrayContaining(['get_context', 'improve_question', 'create_draft']),
+        expect.arrayContaining(['get_facts', 'improve_question', 'create_draft']),
       )
     }
     // A data question after a greeting is still asked for what it lacks.
@@ -282,12 +282,12 @@ export const goldenSetChecks: Record<string, (set: GoldenSet) => void> = {
         for (const turn of asked) {
           expect(turn.expect.asks_no_scope).toBe(true)
           expect(turn.expect.tools_none).toEqual(
-            expect.arrayContaining(['get_context', 'find_context', 'explain_item', 'create_draft']),
+            expect.arrayContaining(['get_facts', 'find_facts', 'explain_item', 'create_draft']),
           )
         }
       }
       // A question after one is a question again, and a change starts with what the facts cannot show.
-      expect(followUps.some((c) => c.turns.at(-1)!.expect.tools_any?.includes('get_context'))).toBe(
+      expect(followUps.some((c) => c.turns.at(-1)!.expect.tools_any?.includes('get_facts'))).toBe(
         true,
       )
       const change = set.assistant.find((c) => c.id === 'companion-change-first-sentence')!

@@ -49,7 +49,7 @@ export const Stamp: Story = {
       <Fact title="Accepted, named behind sign-in">
         <ReviewStamp view={accepted} />
       </Fact>
-      <Fact title="The role alone, as an AI app reads it, until who is read">
+      <Fact title="The role alone, as an agent reads it, until who is read">
         <ReviewStamp view={{ ...accepted, person: null, checks: null }} />
       </Fact>
       <Fact title="Accepted by an admin">
@@ -77,7 +77,7 @@ export const Stamp: Story = {
     await expect(stamps[1]).toHaveTextContent(/^Accepted 4 August 2026 by the owner of Sales/)
     await expect(stamps[1]).not.toHaveTextContent('Checks passed')
     await expect(
-      canvas.getByText(/Not reviewed yet. AI apps get it once the owner of Sales/),
+      canvas.getByText(/Not reviewed yet. Agents get it once the owner of Sales/),
     ).toBeVisible()
   },
 }
@@ -102,7 +102,7 @@ export const Absence: Story = {
           </div>
         }
       >
-        No reviewed fact applies to Orders, Norway, 1 to 31 August 2026. AI apps are told that
+        No reviewed fact applies to Orders, Norway, 1 to 31 August 2026. Agents are told that
         nothing is written down for this.
       </AbsenceLine>
       <AbsenceLine title={`Nothing written down for ${long}`}>{long}</AbsenceLine>

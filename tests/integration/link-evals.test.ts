@@ -53,7 +53,7 @@ const scope = { metrics: ['metric:orders'], window: { from: '2026-08-01', to: '2
 beforeAll(async () => {
   await foundation(client)
   await transaction(client, async () => {
-    // The refund rule ended before August: get_context never delivers it for an August question.
+    // The refund rule ended before August: get_facts never delivers it for an August question.
     const refunds = await version(client, {
       title: 'Refund rule',
       summary: 'Orders are counted net of refunds.',
@@ -226,7 +226,7 @@ it('shows that following links helps, what it costs, and leaves the tool switche
     },
   ])
   expect(result.links).toMatchObject({ gained: ['link-refund-rule'], lost: [], gain: true })
-  // One get_context call without links; with them, one more get_related call per answer.
+  // One get_facts call without links; with them, one more get_related call per answer.
   expect(result.links.arms.baseline.calls).toBe(1)
   expect(result.links.arms.candidate.calls).toBe(2)
   expect(result.links.arms.candidate.answers).toBe(result.links.arms.baseline.answers)
@@ -236,9 +236,9 @@ it('shows that following links helps, what it costs, and leaves the tool switche
     const response = await call('GET', `/evals/cells/${cell.id}/transcript`, 'owner')
     return response.json<{ toolCalls: { tool: string; items: string[] }[] }>()
   }
-  expect((await transcript('baseline')).toolCalls.map((c) => c.tool)).toEqual(['get_context'])
+  expect((await transcript('baseline')).toolCalls.map((c) => c.tool)).toEqual(['get_facts'])
   const followed = (await transcript('candidate')).toolCalls
-  expect(followed.map((c) => c.tool)).toEqual(['get_context', 'get_related'])
+  expect(followed.map((c) => c.tool)).toEqual(['get_facts', 'get_related'])
   // The retired rule is a marker with the author's words: never read, never cited.
   expect(followed[1]!.items).toEqual([ids.refunds])
 

@@ -140,7 +140,7 @@ describe('the Quality page in the mock', () => {
         },
         delivered: [],
       },
-      toolCalls: [{ tool: 'get_context', status: 'no_match', items: [] }],
+      toolCalls: [{ tool: 'get_facts', status: 'no_match', items: [] }],
     })
     const then = await tryOf(before!.run)
     expect(then.result).toMatchObject({ baseline: 'pass' })
@@ -210,7 +210,7 @@ describe('the Quality page in the mock', () => {
   })
 })
 
-describe('the AI apps in the mock (FR-410)', () => {
+describe('the agents in the mock (FR-410)', () => {
   const world = createMockWorkflow({
     today: FIXTURE_TODAY,
     areas,

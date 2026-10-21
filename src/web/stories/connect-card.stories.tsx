@@ -7,7 +7,7 @@ import { ConnectCard } from '@/components/connect/connect-card'
 import { StoryApp } from './story-app'
 
 /*
-  Connect an AI app in one step (D9): the card at the top of Connect an AI app. The prompt to paste
+  Connect an agent in one step (D9): the card at the top of Connect an agent. The prompt to paste
   with the Ask first line built in, the live state from the person's connected apps, and the Heed
   skill to download. In the page on the mock (connected, and with no app connected), and on its
   own for an install where apps connect with a token, several apps switched on and a long name.

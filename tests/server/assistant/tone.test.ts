@@ -16,21 +16,21 @@ import {
 describe('the tone check', () => {
   it('flags the old voice the review measured', () => {
     const before =
-      'I help you understand, write and improve context items. These are short governed facts that analytics agents receive with their data. I never submit, accept, publish, retire or edit items.'
+      'I help you understand, write and improve context items. These are short governed facts that AI apps receive with their data. I never submit, accept, publish, retire or edit items.'
     expect(toneProblems(before, ['what can you do'])).toEqual([
       'said "context item": write fact',
       'said "item": write fact',
-      'said "agent": write AI app',
+      'said "AI app": write agent',
       'said "governed": write checked',
       'said "retire": write archive',
     ])
     const machinery =
-      '**I could not find a fact for this scope.** Edition 2026-10-07.2 has nothing that applies to Orders, France: get_context returned no_match for itm_0a1b2c3d.'
+      '**I could not find a fact for this scope.** Edition 2026-10-07.2 has nothing that applies to Orders, France: get_facts returned no_match for itm_0a1b2c3d.'
     expect(toneProblems(machinery, ['anything about orders in france?'])).toEqual([
       'said "scope": write where it applies',
-      'said "edition": write what AI apps get today',
+      'said "edition": write what agents get today',
       'said "no_match": write nothing is written down for this',
-      'named the tool get_context',
+      'named the tool get_facts',
       'showed an edition label',
       "showed a fact's id outside a citation",
     ])

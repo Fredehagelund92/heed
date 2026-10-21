@@ -37,7 +37,7 @@ describe('the item header', () => {
     render(<ItemHeader item={item} area={undefined} state={state} />)
     expect(screen.getByText('High risk')).toBeVisible()
     expect(screen.getByText('Source missing')).toBeVisible()
-    expect(screen.getByText('AI apps may not get it until Jon Abara checks it.')).toBeVisible()
+    expect(screen.getByText('Agents may not get it until Jon Abara checks it.')).toBeVisible()
   })
 })
 

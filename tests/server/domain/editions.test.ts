@@ -57,7 +57,7 @@ describe('the sentence of an edition', () => {
       '"Fee" was added to Payments. Restored from the Bin by Jon.',
     )
     expect(one('removed', 'rollback')).toBe(
-      'AI apps no longer get "Fee" in Payments. Jon went back to an earlier edition.',
+      'Agents no longer get "Fee" in Payments. Jon went back to an earlier edition.',
     )
   })
 
@@ -107,7 +107,7 @@ describe('the sentence of an edition', () => {
         }),
       ),
     ).toBe(
-      'A domain was switched on or off, before AI apps got every domain. Changed by Ann. Why: Start checks pass.',
+      'A domain was switched on or off, before agents got every domain. Changed by Ann. Why: Start checks pass.',
     )
     expect(
       changeSentence(edition({ reason: 'vocabulary_changed', vocabulary: 2400, actor: 'Ann' })),

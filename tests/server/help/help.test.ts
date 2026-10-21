@@ -52,11 +52,13 @@ describe("the service's help pages", () => {
     ['What is an MCP?', '/docs/mcp#in-one-minute'],
     ['What is Heed?', '/docs/what-is-heed#in-one-minute'],
     ['What is an edition?', '/docs/glossary#edition'],
-    ['How do I connect Claude Code to Heed?', '/docs/connect-your-ai-app#before-you-start'],
+    ['How do I connect Claude Code to Heed?', '/docs/connect-an-agent#before-you-start'],
     ['How do I review a proposal?', '/docs/review-a-proposal#before-you-start'],
     ['What is a gap?', '/docs/glossary#gap'],
     ['What does the stop switch do?', '/docs/editions#the-stop-switch'],
     ['Does Heed keep my questions?', '/docs/common-questions#does-it-keep-my-questions'],
+    // The retired name still finds the page.
+    ['How do I set up an AI app in Heed?', '/docs/connect-an-agent#before-you-start'],
   ])('answers %s from %s', (query, url) => {
     const result = answer(query)
     expect(result.status).toBe('matched')
@@ -78,7 +80,7 @@ describe("the service's help pages", () => {
     expect(result.results!.length).toBeLessThanOrEqual(3)
   })
 
-  it('gives an AI app outside Heed whole addresses on the web app, for the page and its links', () => {
+  it('gives an agent outside Heed whole addresses on the web app, for the page and its links', () => {
     const result = answer('Does Heed keep my questions?', 'https://heed.example')
     const first = result.results![0]!
     expect(first.url).toBe('https://heed.example/docs/common-questions#does-it-keep-my-questions')
@@ -101,7 +103,7 @@ describe("the service's help pages", () => {
   it('says when nothing matched, that the pages are about Heed and not data, and lists them', () => {
     const result = answer('zzzz qqqq')
     expect(result.status).toBe('no_match')
-    expect(result.say).toContain('call get_context')
+    expect(result.say).toContain('call get_facts')
     expect(result.results).toBeUndefined()
     expect(result.pages?.map((page) => page.url)).toContain('/docs/mcp')
   })

@@ -84,7 +84,7 @@ test('nets a year of editions into one windowed list, as the service counts it',
   const panel = page.locator('[data-slot="dock-panel"]')
   await expect(panel.getByRole('heading', { name: title })).toBeVisible()
   await expect(panel.getByRole('article', { name: `What changed in ${title}` })).toContainText(
-    'Added. AI apps get this fact from this edition on.',
+    'Added. Agents get this fact from this edition on.',
   )
   await expect(panel.getByRole('article')).toContainText(/Accepted by .+ as owner\./)
   await page.keyboard.press('v')

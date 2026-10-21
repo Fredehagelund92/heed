@@ -514,7 +514,7 @@ describe('going back', () => {
     })
     expect(refused.statusCode, refused.body).toBe(409)
     expect(refused.json()).toMatchObject({
-      message: `You can't go back to edition ${e.added!.label}. "Norway closure" (version 1) can't be shared with AI apps again: a required check has not passed.`,
+      message: `You can't go back to edition ${e.added!.label}. "Norway closure" (version 1) can't be shared with agents again: a required check has not passed.`,
       data: { blocked: preview.blocked },
     })
     const [live] = await read<Edition[]>('/editions?limit=1')

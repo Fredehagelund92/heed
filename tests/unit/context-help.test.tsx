@@ -97,7 +97,7 @@ describe('CaveatField', () => {
     )
   }
 
-  it('says how AI apps use the line, in plain sight, and shows the kind example', () => {
+  it('says how agents use the line, in plain sight, and shows the kind example', () => {
     render(<Harness />)
     const box = screen.getByRole('textbox', { name: caveatWords.title })
     expect(box).toHaveValue('')

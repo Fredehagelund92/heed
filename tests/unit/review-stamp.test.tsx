@@ -36,7 +36,7 @@ describe('the review stamp, in words (FR-326)', () => {
       checks: ['format', 'matching', 'delivery'],
     })
     expect(reviewStampWords(view)).toBe(
-      'Accepted 4 Aug 2026 by Jon Abara, owner of Commercial. Checks passed: Complete, Finds the right questions and Reaches AI apps.',
+      'Accepted 4 Aug 2026 by Jon Abara, owner of Commercial. Checks passed: Complete, Finds the right questions and Reaches agents.',
     )
   })
 
@@ -89,7 +89,7 @@ describe('ReviewStamp and AbsenceLine', () => {
       'pending',
     )
     expect(
-      screen.getByText('Not reviewed yet. AI apps get it once the owner of Commercial accepts it.'),
+      screen.getByText('Not reviewed yet. Agents get it once the owner of Commercial accepts it.'),
     ).toBeVisible()
   })
 

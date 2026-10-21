@@ -4,7 +4,7 @@ import { StoryApp } from './story-app'
 
 /**
  * A person's own Settings (navigation decision, 12 October 2026) in the real shell with the mock:
- * Profile and appearance, and Connect an AI app with the AI apps connected as them, opened from the
+ * Profile and appearance, and Connect an agent with the agents connected as them, opened from the
  * user menu. Maria Lindqvist is a contributor and Ravi Kapoor an administrator, who also gets the
  * way to MCP and gateway.
  */
@@ -27,14 +27,14 @@ export const Profile: Story = {
   },
 }
 
-/** Connect an AI app: the address, a setup per client, the tools and the connected apps. */
+/** Connect an agent: the address, a setup per client, the tools and the connected agents. */
 export const ConnectYourAI: Story = {
   render: () => <StoryApp path="/settings?section=connect" />,
   play: async () => {
-    await expect(await screen.findByText('Sign in from your AI app')).toBeVisible()
+    await expect(await screen.findByText('Sign in from your agent')).toBeVisible()
     await expect(screen.getByLabelText('the setup for Claude Code')).toBeVisible()
     // Every tool is listed, the ones switched off marked Off.
-    const tools = screen.getByRole('list', { name: 'The tools an AI app gets' })
+    const tools = screen.getByRole('list', { name: 'The tools an agent gets' })
     await expect(within(tools).getByText('Save a draft')).toBeVisible()
     await expect(within(tools).getAllByText('Off')).toHaveLength(2)
     // The lines that make a client more likely to ask Heed first, each to copy.
@@ -72,6 +72,6 @@ export const ConnectPhone: Story = {
   globals: { viewport: { value: 'phone', isRotated: false } },
   play: async () => {
     await expect(await screen.findByLabelText('the setup for Claude Code')).toBeVisible()
-    await expect(screen.getByRole('button', { name: 'Section: Connect an AI app' })).toBeVisible()
+    await expect(screen.getByRole('button', { name: 'Section: Connect an agent' })).toBeVisible()
   },
 }

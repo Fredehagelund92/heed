@@ -37,7 +37,7 @@ const sections = [
       'Add a connector',
     ],
   },
-  { name: 'Connecting AI apps', pages: ['Add to your AI app'] },
+  { name: 'Connecting agents', pages: ['Set up an agent'] },
   { name: 'Reference', pages: ['Glossary'] },
   { name: 'Questions', pages: ['Common questions'] },
 ] as const
@@ -324,25 +324,25 @@ test.describe('the Docs area', () => {
   test('no section shares its name with another place in the sidebar, palette or trail', async ({
     page,
   }) => {
-    // The person's own Connect an AI app is where they connect; the docs explain it, by other names.
-    await openPage(page, '/docs/connect-your-ai-app', desktop)
-    await expect(trail(page)).toHaveText('DocsConnecting AI apps')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Add to your AI app')
-    await page.locator('main').getByRole('link', { name: 'Connect an AI app', exact: true }).click()
+    // The person's own Connect an agent is where they connect; the docs explain it, by other names.
+    await openPage(page, '/docs/connect-an-agent', desktop)
+    await expect(trail(page)).toHaveText('DocsConnecting agents')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Set up an agent')
+    await page.locator('main').getByRole('link', { name: 'Connect an agent', exact: true }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
-    await expect(trail(page)).toHaveText('SettingsConnect an AI app')
+    await expect(trail(page)).toHaveText('SettingsConnect an agent')
     await page.keyboard.press('Control+k')
     await page.getByRole('combobox', { name: 'Search facts, pages and actions' }).fill('connect')
     const dialog = page.getByRole('dialog', { name: 'Command palette' })
     // The page is the one place of that name; the guide is under its own. The glossary names the
     // place, as it names every place, and no docs page or section takes the name.
     const named = (group: string) =>
-      dialog.getByRole('group', { name: group }).getByRole('option', { name: /^Connect an AI app/ })
+      dialog.getByRole('group', { name: group }).getByRole('option', { name: /^Connect an agent/ })
     await expect(named('Go to')).toHaveCount(1)
     await expect(named('Docs')).toHaveCount(1)
     await expect(named('Docs')).toContainText('Glossary')
-    await expect(dialog.getByRole('group', { name: 'Go to' })).toContainText('Connect an AI app')
-    await expect(dialog.getByRole('group', { name: 'Docs' })).toContainText('Add to your AI app')
+    await expect(dialog.getByRole('group', { name: 'Go to' })).toContainText('Connect an agent')
+    await expect(dialog.getByRole('group', { name: 'Docs' })).toContainText('Set up an agent')
   })
 
   test('a concept opens with its meta line, its answer in one minute, its pictures and its outline', async ({
@@ -367,7 +367,7 @@ test.describe('the Docs area', () => {
     const minute = page.getByRole('region', { name: 'In one minute' })
     await expect(minute).toContainText('MCP stands for Model Context Protocol.')
     // Each picture is drawn inline with its alt text as its name.
-    await expect(page.getByRole('img', { name: /^The plug: AI apps/ })).toBeVisible()
+    await expect(page.getByRole('img', { name: /^The plug: agents/ })).toBeVisible()
     await expect(page.getByRole('img', { name: /^One question, five steps/ })).toBeAttached()
     // On this page sits beside the page and opens a section at its heading.
     await expect(page.locator('[data-slot="doc-outline"]')).toBeHidden()

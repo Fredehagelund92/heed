@@ -11,7 +11,7 @@ const { client } = testDatabase()
 /*
   The demo's quality history on the bulk seed (db/seed/demo.ts). The seed checks its own story
   (every weekly run passes but the newest Sales one, which fails the regression on its
-  note), so a change to the library or to get_context that breaks it fails here.
+  note), so a change to the library or to get_facts that breaks it fails here.
 */
 it(
   'adds weekly runs, retrieval passes, gaps and the linked regression to the bulk seed',

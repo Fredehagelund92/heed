@@ -165,11 +165,11 @@ it('follows visible links and shows a retired target only as the author’s word
 
 it('never names a hidden target, nor shows a canary, through any tool', async () => {
   const replies = await Promise.all([
-    ask('get_context', { question: 'Orders in August 2026' }),
+    ask('get_facts', { question: 'Orders in August 2026' }),
     ask('read_item', { id: ids.closure }),
     ask('read_item', { id: ids.hidden }),
-    ask('search_context', { query: canary }),
-    ask('search_context', { mentions: ids.hidden }),
+    ask('search_facts', { query: canary }),
+    ask('search_facts', { mentions: ids.hidden }),
     ask('get_related', { id: ids.closure, depth: 2 }),
     ask('get_related', { id: ids.mentioning, depth: 2 }),
     ask('get_related', { id: 'metric:orders', depth: 2, max_nodes: 50 }),

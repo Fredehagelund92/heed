@@ -74,7 +74,7 @@ test.describe('the page', () => {
     await openPage(page, '/catalogue/metric/orders', desktop)
     await metricReady(page)
     await expect(note(page)).toHaveText(
-      'AI apps warn about Payment provider delays order data in Poland in answers that touch Orders, until 14 Oct 2026.',
+      'Agents warn about Payment provider delays order data in Poland in answers that touch Orders, until 14 Oct 2026.',
     )
     await note(page).getByRole('link').click()
     await expect(page).toHaveURL(/\/library\/itm_/)
@@ -200,7 +200,7 @@ test.describe('the tabs', () => {
     await expect(context.getByText(/^The 5 newest of \d+\.$/)).toBeVisible()
     // A mention is not scope (FR-131), and the list says so.
     await expect(context).toContainText(
-      "These facts name Orders in their text. A mention isn't what a fact is about, so AI apps don't get a fact for its mention alone.",
+      "These facts name Orders in their text. A mention isn't what a fact is about, so agents don't get a fact for its mention alone.",
     )
     await trigger.click()
     await expect(mentions).toHaveCount(0)
@@ -261,7 +261,7 @@ test.describe('states', () => {
     )
     await expect(page.locator('[data-slot="read-chip"]')).toHaveText('Copy read 6 Oct 2026')
     await expect(note(page)).toHaveText(
-      'Cube no longer lists basket.gross_margin. AI apps are told the 86 facts about Gross margin may be out of date until Jon Abara, who owns Sales, checks them.',
+      'Cube no longer lists basket.gross_margin. Agents are told the 86 facts about Gross margin may be out of date until Jon Abara, who owns Sales, checks them.',
     )
     await tab(page, 'Source').click()
     await expect(fieldTable(page, 'Where it comes from')).toContainText(

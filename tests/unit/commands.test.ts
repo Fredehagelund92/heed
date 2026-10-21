@@ -81,7 +81,7 @@ describe('command registry', () => {
       expect(commands.some((command) => command.id === `go.${gone}`)).toBe(false)
     for (const key of ['g>q', 'g>r', 'g>t'])
       expect(commands.some((command) => command.hotkey === key)).toBe(false)
-    // Connect an AI app is a section of the person's own Settings.
+    // Connect an agent is a section of the person's own Settings.
     const connect = context()
     byId('go.connect').run(connect)
     expect(connect.navigate).toHaveBeenCalledWith('/settings', { section: 'connect' })
@@ -105,6 +105,12 @@ describe('command registry', () => {
     go.run(tryIt)
     expect(tryIt.navigate).toHaveBeenCalledWith('/assistant')
     expect(commands.some((command) => command.id === 'go.try-it')).toBe(false)
+  })
+
+  it('keeps the retired name, AI app, findable in the palette for the pages on agents', () => {
+    // 21 October 2026: no screen writes it, and people still type it.
+    expect(byId('ask.agent').keywords).toContain('ai app')
+    expect(byId('go.connect').keywords).toContain('ai app')
   })
 
   it('docks the assistant with Command or Control backslash, and G then I on its second tab', () => {
@@ -162,7 +168,7 @@ describe('command registry', () => {
         .filter((command) => command.group === 'Go to' && isAvailable(command, ctx))
         .map((command) => command.id.slice('go.'.length))
     const everyone = ['home', 'assistant', 'library', 'catalogue', 'proposals']
-    // Connect an AI app and Settings have no sidebar row, but the palette offers them to everyone;
+    // Connect an agent and Settings have no sidebar row, but the palette offers them to everyone;
     // Docs, the help pages, are for everyone too.
     const last = ['connect', 'docs', 'settings']
     // Health holds the gaps for the people it is for; everyone else goes to Gaps. Owners read

@@ -109,7 +109,7 @@ test('never accepts a failed check in bulk, and sends after the Undo window', as
   await expect(dialog.getByRole('region', { name: 'Left out' })).toContainText(
     /A check it needs failed: .+\. Open it to read why\./,
   )
-  await expect(dialog).toContainText('AI apps get it within a minute.')
+  await expect(dialog).toContainText('Agents get it within a minute.')
   await dialog
     .getByRole('textbox', { name: 'Why are you accepting them?' })
     .fill('Markets and dates are right')
@@ -120,7 +120,7 @@ test('never accepts a failed check in bulk, and sends after the Undo window', as
   await page.keyboard.press('Control+z')
   await expect(row(page, titles.low)).toBeVisible()
 
-  // Again, and this time let it go: the toast after says that AI apps get it.
+  // Again, and this time let it go: the toast after says that agents get it.
   await selectionBar(page).getByRole('button', { name: 'Accept' }).click()
   await dialog
     .getByRole('textbox', { name: 'Why are you accepting them?' })
@@ -128,7 +128,7 @@ test('never accepts a failed check in bulk, and sends after the Undo window', as
   await dialog.getByRole('button', { name: 'Accept 1' }).click()
   await expect(toast(page)).toContainText('1 proposal left out stays selected')
   // The answer comes as soon as the service gives it, while the Undo toast may still be leaving.
-  await expect(toast(page).filter({ hasText: 'AI apps get it within a minute.' })).toBeVisible({
+  await expect(toast(page).filter({ hasText: 'Agents get it within a minute.' })).toBeVisible({
     timeout: 20_000,
   })
   await expect(row(page, titles.low)).toHaveCount(0)

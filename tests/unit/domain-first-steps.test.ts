@@ -101,7 +101,7 @@ describe('deleting a domain in one step (FR-814)', () => {
     ])
     expect(lines[0]).toMatchObject({
       detail: expect.stringMatching(
-        /^They move to the Bin, and AI apps stop getting them at once/,
+        /^They move to the Bin, and agents stop getting them at once/,
       ) as string,
       entries: [{ label: 'Kiosk closed', detail: 'Event' }],
       more: 1,
@@ -146,7 +146,7 @@ describe('deleting a domain in one step (FR-814)', () => {
         edition: { label: '2026-10-16.2' } as AreaRemoved['edition'],
       }),
     ).toEqual([
-      '4 facts moved to the Bin and 6 names left this domain. AI apps no longer get them.',
+      '4 facts moved to the Bin and 6 names left this domain. Agents no longer get them.',
       '3 proposals withdrawn.',
       '1 draft kept for its author.',
       '3 team roles ended.',

@@ -255,7 +255,7 @@ describe('restoring an item of a deleted domain into another domain', () => {
           { field: 'scope', before: 'Loaves baked', after: null },
         ],
         problem:
-          'None of the metrics or markets it applies to exist any more, so AI apps could never get it.',
+          'None of the metrics or markets it applies to exist any more, so agents could never get it.',
       },
     ])
     const cellar = await call('POST', '/bin/rescue-preview', 'admin', {
@@ -274,7 +274,7 @@ describe('restoring an item of a deleted domain into another domain', () => {
     })
     expect(response.statusCode).toBe(422)
     expect(response.json<{ message: string }>().message).toBe(
-      '"Rye loaves counted twice" can\'t move to Pantry: None of the metrics or markets it applies to exist any more, so AI apps could never get it. Nothing was restored.',
+      '"Rye loaves counted twice" can\'t move to Pantry: None of the metrics or markets it applies to exist any more, so agents could never get it. Nothing was restored.',
     )
     const binned = await client.query<{ item_id: string }>(
       'select item_id from item_bin where restored_at is null order by item_id',

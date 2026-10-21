@@ -8,7 +8,7 @@ import {
 } from '../../../src/server/modules/models/assistant-mock.ts'
 
 describe('the scripted assistant reads the scope picked in the Ask tab', () => {
-  it('as get_context’s fields, and leaves the question’s own words', () => {
+  it('as get_facts’s fields, and leaves the question’s own words', () => {
     const fields = {
       metrics: ['metric:average_order_value'],
       dimension_filters: [{ dimension: 'dim:market', values: ['val:market/netherlands'] }],
@@ -19,7 +19,7 @@ describe('the scripted assistant reads the scope picked in the Ask tab', () => {
     ).toEqual({ words: 'Which facts apply in September 2026?', scope: fields })
   })
 
-  it('keeps only get_context’s scope fields, and ignores a line that is not JSON', () => {
+  it('keeps only get_facts’s scope fields, and ignores a line that is not JSON', () => {
     expect(pickedScope(`Why?\n${SCOPE_LINE} {"edition":"x","metrics":["metric:a"]}`).scope).toEqual(
       {
         metrics: ['metric:a'],
@@ -36,7 +36,7 @@ describe('the scripted assistant reads the scope picked in the Ask tab', () => {
 /*
   The captain, 14 October 2026: "what can you do" was answered with "Which metric, market and
   dates do you mean?", because the scripted model sent every message it could not place to
-  get_context. A message about the assistant itself is answered at once; a data question is
+  get_facts. A message about the assistant itself is answered at once; a data question is
   asked only for what it lacks; words it cannot place get the demo model's plain answer.
 */
 describe('the scripted assistant answers messages about itself', () => {
@@ -47,9 +47,11 @@ describe('the scripted assistant answers messages about itself', () => {
     '- Sales (area_sales): 120 facts, mostly about Orders, Units sold. Names it knows: 2 metrics. Owner: Jon Abara.',
     '- Marketing (area_marketing): 40 facts. No names of its own yet. No owner yet.',
   ].join('\n')
-  const tools = ['get_context', 'find_context', 'improve_question', 'domain_overview'].map(
-    (name) => ({ type: 'function' as const, name, inputSchema: { type: 'object' as const } }),
-  )
+  const tools = ['get_facts', 'find_facts', 'improve_question', 'domain_overview'].map((name) => ({
+    type: 'function' as const,
+    name,
+    inputSchema: { type: 'object' as const },
+  }))
   const prompt = (text: string, result?: unknown): LanguageModelV4Prompt => [
     { role: 'system', content: system },
     { role: 'user', content: [{ type: 'text', text }] },
@@ -62,7 +64,7 @@ describe('the scripted assistant answers messages about itself', () => {
               {
                 type: 'tool-call' as const,
                 toolCallId: 'call_1',
-                toolName: 'get_context',
+                toolName: 'get_facts',
                 input: {},
               },
             ],
@@ -73,7 +75,7 @@ describe('the scripted assistant answers messages about itself', () => {
               {
                 type: 'tool-result' as const,
                 toolCallId: 'call_1',
-                toolName: 'get_context',
+                toolName: 'get_facts',
                 output: { type: 'json' as const, value: result as never },
               },
             ],
@@ -120,7 +122,7 @@ describe('the scripted assistant answers messages about itself', () => {
     'snow report feed in the Netherlands',
   ])('sends %j to the tools, never declining it as outside Heed', async (text) => {
     const { tool, words } = await step(text)
-    expect({ tool, words }).toEqual({ tool: 'get_context', words: '' })
+    expect({ tool, words }).toEqual({ tool: 'get_facts', words: '' })
   })
 
   it('greets the person by name, and says what it can do with a question to try', async () => {
@@ -133,7 +135,7 @@ describe('the scripted assistant answers messages about itself', () => {
   })
 
   it('asks a data question only for what it lacks', async () => {
-    expect((await step('Why did revenue go down?')).tool).toBe('get_context')
+    expect((await step('Why did revenue go down?')).tool).toBe('get_facts')
     const nothing = {
       status: 'need_more_detail',
       options: [{ field: 'scope' }, { field: 'dates' }],
@@ -168,7 +170,7 @@ describe('the scripted assistant answers from the conversation', () => {
     "Today is Wednesday 7 October 2026 (2026-10-07, time zone UTC). Count today from these. The clock here is fixed for the demo, so this is the demo's date, not the real one.",
     "You are talking to Maria Lindqvist, signed in to Heed: they aren't an owner, approver or admin.",
   ].join('\n')
-  const tools = ['get_context', 'find_context', 'improve_question'].map((name) => ({
+  const tools = ['get_facts', 'find_facts', 'improve_question'].map((name) => ({
     type: 'function' as const,
     name,
     inputSchema: { type: 'object' as const },
@@ -225,7 +227,7 @@ describe('the scripted assistant answers from the conversation', () => {
     const picked = `explain\n${SCOPE_LINE} ${JSON.stringify({ metrics: ['metric:orders'] })}`
     expect(
       (await run([{ role: 'system', content: system }, replied(last), said(picked)])).tool,
-    ).toBe('get_context')
+    ).toBe('get_facts')
   })
 
   it('says first what the facts cannot show, and says the demo’s date, on a question about a change', async () => {
@@ -254,7 +256,7 @@ describe('the scripted assistant answers from the conversation', () => {
         said(asked),
         {
           role: 'assistant',
-          content: [{ type: 'tool-call', toolCallId: 'c1', toolName: 'get_context', input: {} }],
+          content: [{ type: 'tool-call', toolCallId: 'c1', toolName: 'get_facts', input: {} }],
         },
         {
           role: 'tool',
@@ -262,7 +264,7 @@ describe('the scripted assistant answers from the conversation', () => {
             {
               type: 'tool-result',
               toolCallId: 'c1',
-              toolName: 'get_context',
+              toolName: 'get_facts',
               output: { type: 'json', value: result as never },
             },
           ],
@@ -287,7 +289,7 @@ describe('the scripted assistant drafts in the domain the words name', () => {
     '- Practice (invented) (area_practice): live, agents get its items; 4 items. Owner: Practice Owner.',
     '- Sandbox (area_sandbox): live, agents get its items; 2 items. No owner yet.',
   ].join('\n')
-  const tools = ['get_context', 'create_draft'].map((name) => ({
+  const tools = ['get_facts', 'create_draft'].map((name) => ({
     type: 'function' as const,
     name,
     inputSchema: { type: 'object' as const },

@@ -14,7 +14,7 @@ import { StoryApp } from './story-app'
   What an agent would get (Try it; Assistant board) on the mock: the page and the panel, a scope
   that delivers facts, one that matches nothing, one without dates, a slow and a failed answer,
   and the reply's parts with every note (a conflict, an unverified fact, held back and cut) from
-  an invented reply. Connect an AI app is a section of Settings (settings.stories.tsx). Use the
+  an invented reply. Connect an agent is a section of Settings (settings.stories.tsx). Use the
   viewport menu for 1440, 1024 and 390 and the theme menu for dark.
 */
 
@@ -30,13 +30,13 @@ const unitedKingdom = 'about=metric:average_order_value,val:market/united_kingdo
 const delivered = `/try-it?${unitedKingdom}&from=2026-09-08&to=2026-10-07`
 
 const facts = () =>
-  screen.findByRole('list', { name: 'What the AI app gets, in order' }, { timeout: 5000 })
+  screen.findByRole('list', { name: 'What the agent gets, in order' }, { timeout: 5000 })
 
 /** Before anything is asked: what it shows, with the last 30 days ready. */
 export const Empty: Story = {
   render: () => <StoryApp path="/try-it" />,
   play: async () => {
-    await expect(await screen.findByText('See what an AI app gets')).toBeVisible()
+    await expect(await screen.findByText('See what an agent gets')).toBeVisible()
   },
 }
 
@@ -154,7 +154,7 @@ export const NoDates: Story = {
 export const Loading: Story = {
   render: () => <StoryApp path={delivered} scenario="slow" />,
   play: async () => {
-    await expect(await screen.findByText('Asking as an AI app would.')).toBeInTheDocument()
+    await expect(await screen.findByText('Asking as an agent would.')).toBeInTheDocument()
   },
 }
 
@@ -162,7 +162,7 @@ export const Failed: Story = {
   render: () => <StoryApp path={delivered} scenario="error" />,
   play: async () => {
     await expect(
-      await screen.findByText("We couldn't get what AI apps get", {}, { timeout: 5000 }),
+      await screen.findByText("We couldn't get what agents get", {}, { timeout: 5000 }),
     ).toBeVisible()
   },
 }
@@ -183,7 +183,7 @@ export const InThePanel: Story = {
     await userEvent.click(await screen.findByRole('button', { name: 'Assistant' }))
     const panel = await screen.findByRole('region', { name: 'Assistant' })
     await userEvent.click(within(panel).getByRole('tab', { name: 'Try a question' }))
-    await expect(await within(panel).findByText('See what an AI app gets')).toBeVisible()
+    await expect(await within(panel).findByText('See what an agent gets')).toBeVisible()
   },
 }
 
@@ -214,7 +214,7 @@ const everyNote: TryIt = {
   bytes: 61_420,
   limit: 100_000,
   result: {
-    say: "2 facts apply to Average order value in the United Kingdom in June 2026. Only that was checked. 1 of them applies to only part of that question. 1 of them may be out of date. Some of them disagree. 1 more fact applies but didn't fit in this reply. 1 more fact matches but isn't shared with AI apps: it's for another group.",
+    say: "2 facts apply to Average order value in the United Kingdom in June 2026. Only that was checked. 1 of them applies to only part of that question. 1 of them may be out of date. Some of them disagree. 1 more fact applies but didn't fit in this reply. 1 more fact matches but isn't shared with agents: it's for another group.",
     next: 'applies_note says which part each partial fact covers. Give both sides of conflicts_with and say they disagree. cut_ids lists the facts left out: call again with response_format concise or a higher max_bytes to get them.',
     status: 'conflict',
     edition: '2026-10-07.2',
@@ -285,7 +285,7 @@ export const ReplyWithEveryNote: Story = {
   ),
   play: async () => {
     await expect(await screen.findByText(/says something different from #2/)).toBeVisible()
-    // What the AI app may tell the person, and the next step it is told (FR-344).
+    // What the agent may tell the person, and the next step it is told (FR-344).
     await expect(
       screen.getByText(/^2 facts apply to Average order value in the United Kingdom/),
     ).toBeVisible()

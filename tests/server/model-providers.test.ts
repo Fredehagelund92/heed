@@ -306,7 +306,7 @@ describe('the Vercel AI Gateway entry (OpenAI-compatible)', () => {
                 {
                   id: 'call_1',
                   type: 'function',
-                  function: { name: 'get_context', arguments: '{"question":"Orders"}' },
+                  function: { name: 'get_facts', arguments: '{"question":"Orders"}' },
                 },
               ],
             }
@@ -326,7 +326,7 @@ describe('the Vercel AI Gateway entry (OpenAI-compatible)', () => {
     })
     const arm = {
       tools: {
-        get_context: dynamicTool({
+        get_facts: dynamicTool({
           description: 'Context for a question',
           inputSchema: jsonSchema({ type: 'object' }),
           execute: () => Promise.resolve({ status: 'matched', items: [{ id: 'itm_abc12345' }] }),

@@ -72,7 +72,7 @@ describe('the authorize request', () => {
   it('shows a page and redirects nowhere when the client or its redirect address is unknown', async () => {
     const clientId = await registered()
     expect(await shownPage(await authorize('hc_' + 'a'.repeat(43)))).toContain(
-      'We don’t know this app',
+      'We don’t know this agent',
     )
     expect(await shownPage(await authorize(''))).toContain('didn’t say')
     for (const address of [
@@ -248,7 +248,7 @@ describe('client registration', () => {
     expect(await shownPage(await authorize(id))).toContain('in a way we can’t accept')
     // A document that cannot be read, and addresses that are not acceptable document addresses.
     expect(await shownPage(await authorize('https://unreachable.example/c.json'))).toContain(
-      'We couldn’t read the app’s description',
+      'We couldn’t read the agent’s description',
     )
     for (const bad of [
       'https://app.example/',
@@ -717,7 +717,7 @@ describe('what anyone can make the login server store', () => {
     harness.advance(86_401)
     // The next registration prunes; it is never refused for the number of others.
     const fresh = await registered()
-    expect(await shownPage(await authorize(unused))).toContain('We don’t know this app')
+    expect(await shownPage(await authorize(unused))).toContain('We don’t know this agent')
     expect((await authorize(used)).status).toBe(302)
     expect((await authorize(fresh)).status).toBe(302)
   })

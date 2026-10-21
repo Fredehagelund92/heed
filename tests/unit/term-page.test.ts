@@ -105,12 +105,12 @@ describe('the shelf', () => {
 
   it('says the newest change, what ended and what needs a look in one sentence', () => {
     expect(shelfSentence(shelf())).toBe(
-      'Newest change 2 Oct 2026. 25 have ended, and AI apps still get them for their period. 3 need checking.',
+      'Newest change 2 Oct 2026. 25 have ended, and agents still get them for their period. 3 need checking.',
     )
     expect(
       shelfSentence(shelf({ ended: 1, needsALook: 1, lastUpdated: '2026-09-27T00:00:00Z' })),
     ).toBe(
-      'Newest change 27 Sept 2026. 1 has ended, and AI apps still get it for its period. 1 needs checking.',
+      'Newest change 27 Sept 2026. 1 has ended, and agents still get it for its period. 1 needs checking.',
     )
     expect(shelfSentence(shelf({ items: 0, ended: 0, needsALook: 0, lastUpdated: null }))).toBe(
       null,
@@ -180,13 +180,13 @@ describe('the header', () => {
       kind: 'issue',
       issue: { id: 'itm_1', title: 'Payment provider delays order data' },
       count: 1,
-      lead: 'AI apps warn about ',
+      lead: 'Agents warn about ',
       tail: 'in answers that touch Orders, until 14 Oct 2026.',
     })
     const two = [...issues, { ...issue, id: 'itm_2' } as unknown as LibraryRow]
     expect(termNote(metric(), { owner: jon, issues: two })).toMatchObject({
       issue: null,
-      lead: 'AI apps warn about 2 active issues ',
+      lead: 'Agents warn about 2 active issues ',
     })
 
     const definition = metric().definition
@@ -194,14 +194,14 @@ describe('the header', () => {
     const gone = metric({ definition: { ...definition, state: 'missing' }, status: 'gone' })
     expect(termNote(gone, { owner: jon, issues })).toEqual({
       kind: 'gone',
-      text: 'Cube no longer lists orders.orders. AI apps are told the 92 facts about Orders may be out of date until Jon Abara, who owns Sales, checks them.',
+      text: 'Cube no longer lists orders.orders. Agents are told the 92 facts about Orders may be out of date until Jon Abara, who owns Sales, checks them.',
     })
     const changed = metric({
       definition: { ...definition, state: 'changed', changedAt: '2026-10-07T05:00:00Z' },
     })
     expect(termNote(changed, { owner: jon, issues })).toMatchObject({
       kind: 'changed',
-      text: 'Cube changed orders.orders on 7 Oct 2026. AI apps are told the facts written before the change may be out of date until Jon Abara, who owns Sales, checks them.',
+      text: 'Cube changed orders.orders on 7 Oct 2026. Agents are told the facts written before the change may be out of date until Jon Abara, who owns Sales, checks them.',
     })
     const calm = metric({ status: 'in_sync', shelf: shelf({ activeIssues: 0 }) })
     expect(termNote(calm, { owner: jon, issues: [] })).toBe(null)

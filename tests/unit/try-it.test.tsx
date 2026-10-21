@@ -109,7 +109,7 @@ const unitedKingdom: TryItScope = {
 }
 
 describe('a scope to try', () => {
-  it('asks get_context with the metrics, the values by dimension and both days', () => {
+  it('asks get_facts with the metrics, the values by dimension and both days', () => {
     expect(tryItInput(unitedKingdom)).toEqual({
       metrics: ['metric:average_order_value'],
       dimension_filters: [
@@ -130,7 +130,7 @@ describe('a scope to try', () => {
     expect(tryItInput({ ...unitedKingdom, from: null, to: null })).not.toHaveProperty('window')
   })
 
-  it('names a dimension with any value without a value, as get_context reads it', () => {
+  it('names a dimension with any value without a value, as get_facts reads it', () => {
     const anyMarket: TryItScope = {
       ...unitedKingdom,
       scope: { metrics: ['metric:orders'], dimensions: ['dim:market'], dimensionValues: [] },
@@ -247,7 +247,7 @@ describe('a fact open in the panel', () => {
   })
 })
 
-describe("get_context's reply, in words", () => {
+describe("get_facts's reply, in words", () => {
   const reply = (extra: Partial<TryIt['result']> = {}): TryIt => ({
     bytes: 3140,
     limit: 100_000,
@@ -343,7 +343,7 @@ describe("get_context's reply, in words", () => {
   })
 })
 
-describe('Connect an AI app, in words', () => {
+describe('Connect an agent, in words', () => {
   it('gives each client a snippet with the address and a place for the token', () => {
     const address = 'https://heed.example.test/mcp'
     const claude = snippetFor('claude-code', address)
@@ -390,12 +390,12 @@ describe('Connect an AI app, in words', () => {
 
   it('gives the ask Heed first lines word for word as the help guide does, promising no call', () => {
     const guide = withProductName(
-      readFileSync('docs/help/connect-your-ai-app.md', 'utf8'),
+      readFileSync('docs/help/connect-an-agent.md', 'utf8'),
       productName,
     )
     for (const line of askHeedFirst) {
       expect(guide).toContain(`\n${line.text}\n`)
-      expect(line.text).toMatch(/get_context/)
+      expect(line.text).toMatch(/get_facts/)
       // A line raises the chance of a call; no words here may say it is sure.
       expect(`${line.where} ${line.text}`).not.toMatch(
         /\b(always|guarantee|every time|ensures?)\b/i,
@@ -405,7 +405,7 @@ describe('Connect an AI app, in words', () => {
 
   it("lists the tools in the gateway's order, with their names and what they do", () => {
     const tools = toolsInWords(
-      ['report_gap', 'new_tool', 'get_context'].map((tool) => ({
+      ['report_gap', 'new_tool', 'get_facts'].map((tool) => ({
         tool,
         enabled: tool !== 'report_gap',
         personOnly: false,
@@ -453,8 +453,8 @@ describe('What an agent would get', () => {
     const user = userEvent.setup()
     const spy = vi.spyOn(api, 'tryIt')
     render(withQueries(<Panel />))
-    expect(await screen.findByText('See what an AI app gets')).toBeVisible()
-    await user.click(screen.getByRole('button', { name: 'Show what AI apps get' }))
+    expect(await screen.findByText('See what an agent gets')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Show what agents get' }))
     expect(await screen.findByText('Add a metric, a market or a product first.')).toBeVisible()
     expect(screen.getByRole('combobox', { name: 'What it is about' })).toHaveFocus()
     expect(spy).not.toHaveBeenCalled()
@@ -479,7 +479,7 @@ describe('What an agent would get', () => {
     await user.keyboard('{Enter}')
     await user.keyboard('{Control>}{Enter}{/Control}')
     const delivered = await screen.findByRole('list', {
-      name: 'What the AI app gets, in order',
+      name: 'What the agent gets, in order',
     })
     const facts = within(delivered).getAllByRole('listitem')
     expect(facts.length).toBeGreaterThan(0)
@@ -500,22 +500,22 @@ describe('What an agent would get', () => {
     )
     // One polite announcement when the reply is ready, never the list read item by item.
     expect(screen.getByText(/^Ready\. \d+ facts?/)).toHaveAttribute('role', 'status')
-    expect(screen.getByRole('region', { name: 'What AI apps get' })).toBeVisible()
-    expect(screen.getByLabelText('what the AI app is told')).toHaveTextContent(
+    expect(screen.getByRole('region', { name: 'What agents get' })).toBeVisible()
+    expect(screen.getByLabelText('what the agent is told')).toHaveTextContent(
       /^State the documented fact/,
     )
     expect(screen.getByText('Nothing is saved.')).toBeVisible()
     // The reply stays the one asked while the bar changes.
     await user.click(screen.getByRole('button', { name: 'Remove Market United Kingdom' }))
-    expect(screen.getByRole('list', { name: 'What the AI app gets, in order' })).toBe(delivered)
+    expect(screen.getByRole('list', { name: 'What the agent gets, in order' })).toBe(delivered)
   }, 20_000)
 
   it('asks the service again when the same scope is asked again', async () => {
     const spy = vi.spyOn(api, 'tryIt')
     render(withQueries(<Panel start={unitedKingdom} />))
-    await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    await screen.findByRole('list', { name: 'What the agent gets, in order' })
     expect(spy).toHaveBeenCalledTimes(1)
-    await userEvent.click(screen.getByRole('button', { name: 'Show what AI apps get' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Show what agents get' }))
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(2))
     spy.mockRestore()
   })
@@ -579,7 +579,7 @@ describe('What an agent would get', () => {
       .spyOn(api, 'reportGap')
       .mockRejectedValueOnce(new ApiError('unavailable', 'Too many reports', { status: 429 }))
     render(withQueries(<Panel start={unitedKingdom} />))
-    await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    await screen.findByRole('list', { name: 'What the agent gets, in order' })
     await user.click(screen.getByRole('button', { name: 'Report a gap' }))
     const dialog = await screen.findByRole('dialog', { name: 'Report a gap' })
     // It starts on Missing, the most common, even when facts were delivered.
@@ -599,11 +599,11 @@ describe('What an agent would get', () => {
     render(withQueries(<Panel start={{ ...unitedKingdom, from: null, to: null }} />))
     expect(
       await screen.findByText(
-        "You didn't choose dates, so this is what applies today, 7 October 2026. AI apps are told to say so. Add a first and last day to see another period.",
+        "You didn't choose dates, so this is what applies today, 7 October 2026. Agents are told to say so. Add a first and last day to see another period.",
       ),
     ).toBeVisible()
     expect(screen.queryByText('Add the first and last day the question is about.')).toBeNull()
-    expect(screen.getByRole('list', { name: /What the AI app gets/ })).toBeVisible()
+    expect(screen.getByRole('list', { name: /What the agent gets/ })).toBeVisible()
   })
 
   it('says plainly when no edition is live, and offers a retry when the service fails', async () => {
@@ -613,14 +613,14 @@ describe('What an agent would get', () => {
         new ApiError('precondition', 'No edition is live yet', { status: 412 }),
       )
     const { unmount } = render(withQueries(<Panel start={unitedKingdom} />))
-    expect(await screen.findByText("AI apps don't get any facts yet")).toBeVisible()
+    expect(await screen.findByText("Agents don't get any facts yet")).toBeVisible()
     unmount()
     spy.mockRejectedValueOnce(new ApiError('unavailable', 'The service did not answer'))
     render(withQueries(<Panel start={unitedKingdom} />))
-    expect(await screen.findByText("We couldn't get what AI apps get")).toBeVisible()
+    expect(await screen.findByText("We couldn't get what agents get")).toBeVisible()
     spy.mockRestore()
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
-    expect(await screen.findByRole('list', { name: /What the AI app gets/ })).toBeVisible()
+    expect(await screen.findByRole('list', { name: /What the agent gets/ })).toBeVisible()
   })
 })
 
@@ -637,7 +637,7 @@ function Page({ start, openId = null }: { start: TryItScope; openId?: string | n
 describe('What an agent would get, on its page', () => {
   it('opens a fact beside the reply instead of leaving the page, and marks the open one', async () => {
     const { unmount } = render(withQueries(<Page start={unitedKingdom} />))
-    const delivered = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const delivered = await screen.findByRole('list', { name: 'What the agent gets, in order' })
     const facts = within(delivered).getAllByRole('listitem')
     const links = facts.map((fact) => within(fact).getByRole('link'))
     for (const link of links) {
@@ -653,7 +653,7 @@ describe('What an agent would get, on its page', () => {
 
     // The fact in the panel is the one marked in the list.
     render(withQueries(<Page start={unitedKingdom} openId={ids[1]} />))
-    const again = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const again = await screen.findByRole('list', { name: 'What the agent gets, in order' })
     const marked = within(again)
       .getAllByRole('listitem')
       .filter((fact) => fact.hasAttribute('data-open'))
@@ -667,7 +667,7 @@ describe('What an agent would get, on its page', () => {
 
   it("keeps the assistant's panel on the facts' own pages: it is the panel already", async () => {
     render(withQueries(<Panel start={unitedKingdom} />))
-    const delivered = await screen.findByRole('list', { name: 'What the AI app gets, in order' })
+    const delivered = await screen.findByRole('list', { name: 'What the agent gets, in order' })
     const link = within(within(delivered).getAllByRole('listitem')[0]!).getByRole('link')
     expect(link).toHaveAttribute('href', expect.stringMatching(/^\/library\/itm_/))
     expect(link).not.toHaveAttribute('data-row-link')
@@ -676,20 +676,20 @@ describe('What an agent would get, on its page', () => {
   })
 })
 
-describe('Connect an AI app', () => {
+describe('Connect an agent', () => {
   it('gives the address, a setup per client, the tools and what to do next', async () => {
     render(withQueries(<ConnectSection />))
-    expect(await screen.findByLabelText('the address for AI apps')).toHaveTextContent(
+    expect(await screen.findByLabelText('the address for agents')).toHaveTextContent(
       'http://localhost:3000/mcp',
     )
-    expect(screen.getByText('Sign in from your AI app')).toBeVisible()
+    expect(screen.getByText('Sign in from your agent')).toBeVisible()
     expect(screen.getByLabelText('the setup for Claude Code')).toHaveTextContent(
       'claude mcp add --transport http heed http://localhost:3000/mcp',
     )
     // Cursor is switched off in the mock, and the evaluation runner is no one's client.
     expect(screen.queryByText('Cursor')).toBeNull()
     expect(screen.queryByText(/Evaluation runner/)).toBeNull()
-    const tools = screen.getByRole('list', { name: 'The tools an AI app gets' })
+    const tools = screen.getByRole('list', { name: 'The tools an agent gets' })
     const rows = within(tools).getAllByRole('listitem')
     expect(rows[0]).toHaveTextContent('Get facts for a question')
     expect(rows[0]).not.toHaveTextContent('Off')
@@ -699,7 +699,7 @@ describe('Connect an AI app', () => {
     expect(related).toHaveTextContent('An admin can switch it on.')
     const draft = rows.find((row) => row.textContent.includes('Save a draft'))!
     expect(draft).toHaveTextContent('Off')
-    expect(draft).toHaveTextContent('It works only in an AI app you signed in from')
+    expect(draft).toHaveTextContent('It works only in an agent you signed in from')
     expect(draft).toHaveTextContent('It only drafts, and never sends.')
     // The lines that make a client more likely to ask Heed first, each with a copy button, and
     // words that do not promise it.

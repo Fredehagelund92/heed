@@ -74,7 +74,7 @@ export const TypeToConfirm: Story = {
       <ConfirmDialog
         open
         title="Go back to how it was on 6 October 2026?"
-        effect="AI apps get the facts of edition 2026-10-06.2 again. 14 facts change: 3 return to an earlier version, 1 archived fact comes back and 10 newer facts stop being shared."
+        effect="Agents get the facts of edition 2026-10-06.2 again. 14 facts change: 3 return to an earlier version, 1 archived fact comes back and 10 newer facts stop being shared."
         action="Go back"
         actionIcon={RotateCcwIcon}
         tone="destructive"
@@ -100,17 +100,17 @@ export const EffectFirst: Story = {
       <ConfirmDialog
         open
         title="Go back to how it was on 6 October 2026?"
-        effect="AI apps get the facts of edition 2026-10-06.2 again. Nothing is deleted, and you can undo this."
+        effect="Agents get the facts of edition 2026-10-06.2 again. Nothing is deleted, and you can undo this."
         review={{
           state: 'ready',
           content: (
             <div className="flex flex-col gap-3">
               <p className="text-body">
-                3 facts change for AI apps: 1 stops being shared, 1 comes back and 1 returns to an
+                3 facts change for agents: 1 stops being shared, 1 comes back and 1 returns to an
                 earlier version.
               </p>
               <ul
-                aria-label="What changes for AI apps"
+                aria-label="What changes for agents"
                 className="flex flex-col divide-y divide-border-subtle rounded-sm border"
               >
                 {[
@@ -146,7 +146,7 @@ export const EffectLoading: Story = {
       <ConfirmDialog
         open
         title="Go back to how it was on 6 October 2026?"
-        effect="AI apps get the facts of edition 2026-10-06.2 again."
+        effect="Agents get the facts of edition 2026-10-06.2 again."
         review={{ state: 'pending', content: <p className="text-body">Loading what changes…</p> }}
         action="Go back"
         tone="destructive"
@@ -165,12 +165,12 @@ export const EffectRefused: Story = {
       <ConfirmDialog
         open
         title="Go back to how it was on 2 August 2026?"
-        effect="AI apps get the facts of edition 2026-08-02.1 again."
+        effect="Agents get the facts of edition 2026-08-02.1 again."
         review={{
           state: 'refused',
           content: (
             <p className="text-body">
-              One of its fact versions can&apos;t be shared with AI apps again. Nothing has changed.
+              One of its fact versions can&apos;t be shared with agents again. Nothing has changed.
             </p>
           ),
         }}
@@ -196,7 +196,7 @@ export const Done: Story = {
           </Button>
         }
         title="Go back to how it was on 6 October 2026?"
-        effect="AI apps get the facts of edition 2026-10-06.2 again."
+        effect="Agents get the facts of edition 2026-10-06.2 again."
         action="Go back"
         actionIcon={RotateCcwIcon}
         tone="destructive"
@@ -205,7 +205,7 @@ export const Done: Story = {
           title: 'Went back to 6 October 2026',
           content: (
             <p className="text-body">
-              From now on, AI apps get the facts of edition 2026-10-06.2 again, saved as the new
+              From now on, agents get the facts of edition 2026-10-06.2 again, saved as the new
               edition 2026-10-08.1. Nothing was deleted.
             </p>
           ),
@@ -245,8 +245,8 @@ export const Gating: Story = {
             Stop sharing
           </Button>
         }
-        title="Stop sharing Sales with AI apps?"
-        effect="Within a minute, AI apps get no facts from Sales. Nothing is lost, and you can start again at any time."
+        title="Stop sharing Sales with agents?"
+        effect="Within a minute, agents get no facts from Sales. Nothing is lost, and you can start again at any time."
         action="Stop sharing"
         actionIcon={CircleStopIcon}
         tone="destructive"
@@ -260,7 +260,7 @@ export const Gating: Story = {
     const canvas = within(canvasElement)
     await userEvent.click(canvas.getByRole('button', { name: 'Stop sharing' }))
     const dialog = await screen.findByRole('alertdialog', {
-      name: 'Stop sharing Sales with AI apps?',
+      name: 'Stop sharing Sales with agents?',
     })
     const why = within(dialog).getByRole('textbox', { name: 'Why' })
     await waitFor(() => expect(why).toHaveFocus())
@@ -291,7 +291,7 @@ export const Decisions: Story = {
           effect={
             <>
               This is a <strong className="font-bold">high-risk</strong> change. We save your yes
-              now. AI apps get it once the approver accepts too.
+              now. Agents get it once the approver accepts too.
             </>
           }
           action="Accept"
@@ -326,7 +326,7 @@ export const Decisions: Story = {
         <ConfirmDialog
           trigger={<Button variant="destructive">Reject</Button>}
           title="Reject this proposal?"
-          effect="Rejecting closes it, and AI apps never get it. Kofi can start a new draft from it."
+          effect="Rejecting closes it, and agents never get it. Kofi can start a new draft from it."
           action="Reject"
           tone="destructive"
           reason={{
@@ -355,7 +355,7 @@ export const ReasonChips: Story = {
           </Button>
         }
         title="Accept this proposal?"
-        effect="AI apps get it within a minute."
+        effect="Agents get it within a minute."
         action="Accept"
         actionIcon={CheckIcon}
         reason={{
@@ -387,7 +387,7 @@ export const Retire: Story = {
         title="Archive this fact?"
         effect={
           <>
-            AI apps stop getting it at once. You can still read it and its history.{' '}
+            Agents stop getting it at once. You can still read it and its history.{' '}
             <strong className="font-bold">4 facts mention it</strong>, and those links will show
             &quot;Archived&quot;.
           </>
@@ -414,7 +414,7 @@ export const Failed: Story = {
       <ConfirmDialog
         open
         title="Suggest archiving this fact?"
-        effect="An owner of Sales decides. AI apps keep getting the fact until then."
+        effect="An owner of Sales decides. Agents keep getting the fact until then."
         action="Suggest archiving"
         actionIcon={SendIcon}
         reason={{
@@ -442,7 +442,7 @@ export const Submitting: Story = {
       <ConfirmDialog
         open
         title="Checked, still correct?"
-        effect="You checked the fact against its source. It stays as written, and AI apps are no longer told it may be out of date."
+        effect="You checked the fact against its source. It stays as written, and agents are no longer told it may be out of date."
         action="Checked, still correct"
         actionIcon={CheckIcon}
         reason={{
@@ -631,10 +631,10 @@ export const PhoneDrawer: Story = {
   render: () => (
     <StoryPaper>
       <Drawer defaultOpen>
-        <DrawerTrigger render={<Button variant="outline">What AI apps will get</Button>} />
+        <DrawerTrigger render={<Button variant="outline">What agents will get</Button>} />
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle>What AI apps will get</DrawerTitle>
+            <DrawerTitle>What agents will get</DrawerTitle>
             <DrawerDescription>
               For a question about Units sold in Norway on 4 Aug 2026.
             </DrawerDescription>

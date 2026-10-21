@@ -14,7 +14,7 @@ const { client } = testDatabase()
 /*
   Stage 1 of the output test plan: the golden set's L1 pass, with no model (USD 0). The golden
   library is the bulk seed's 1,500 items plus the fixtures; every case's wordings and follow-ups
-  go through get_context's own code at the case's as-of date, as served. A change to the library, the fixtures or get_context that alters what any case is given
+  go through get_facts's own code at the case's as-of date, as served. A change to the library, the fixtures or get_facts that alters what any case is given
   fails here, until the case or the change is fixed (a known product gap is declared in the case
   and fails here once it closes). The held-out cases are sealed (FR-525): they run here only where
   they exist and the key holder gives the key, and say only how many passed and failed, by type.
@@ -98,7 +98,7 @@ it("serves the items of every domain, and names the asked metric's domain with w
 
 /*
   Round 4 of the real-model test, "a different dead end": asked in the natural wording, the agent
-  called get_context with plain names and no dates, got need_more_detail with no items, and gave
+  called get_facts with plain names and no dates, got need_more_detail with no items, and gave
   up, although with dates the same question got 6 of 6. The captain's decision (14 October 2026):
   a question without dates is read at today, and the reply says so. Stage 0 of the composer (option
   B, 14 October 2026) reads the dates the words give instead: "this past week" is the 7 days to the

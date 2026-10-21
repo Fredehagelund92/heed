@@ -4,7 +4,7 @@ import { expectFlatRail, openPage, themes, widths } from './support'
 /*
   The proposal parts (slice W1b of the front end plan) in a real browser, on the design preview
   page that composes them as the status page will: the checks open by keyboard on a phone, name
-  the day of what AI apps got rather than an edition number, an edition number reaches the
+  the day of what agents got rather than an edition number, an edition number reaches the
   clipboard, overlaps link to their item and proposal, the companion
   stacks under the activity below 1280, and nothing scrolls sideways at any width. axe and the
   screenshots run on the same page through `previews` in support.ts.
@@ -24,7 +24,7 @@ test('the activity is one list, newest first, with a time in UTC', async ({ page
   await expect(time).toHaveText('8 Oct, 09:12')
   await expect(time).toHaveAttribute('title', '8 October 2026 at 09:12 UTC')
   await expect(events.nth(3).getByRole('list', { name: 'Check outcomes' })).toContainText(
-    'CompleteFinds the right questionsReaches AI appsAnswers stay right',
+    'CompleteFinds the right questionsReaches agentsAnswers stay right',
   )
 })
 
@@ -34,8 +34,8 @@ test('the checks card names each level and its outcome', async ({ page }) => {
   await expect(card.getByRole('heading', { name: 'Checks' })).toBeVisible()
   await expect(card.locator('[data-slot="check-row"]')).toHaveCount(4)
   await expect(card.getByRole('img', { name: 'Passed' })).toHaveCount(4)
-  await expect(card).toContainText('AI apps get it. No test answer got worse (31 checked)')
-  await expect(card).toContainText('Checked against what AI apps got on 7 October 2026')
+  await expect(card).toContainText('Agents get it. No test answer got worse (31 checked)')
+  await expect(card).toContainText('Checked against what agents got on 7 October 2026')
   await expect(card).not.toContainText('2026-10-07.2')
 })
 

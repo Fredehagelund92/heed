@@ -98,7 +98,7 @@ it('delivers accepted PostgreSQL content over MCP using only serving-role privil
     (await pool.query<{ current_user: string }>('select current_user')).rows[0]!.current_user,
   ).toBe('context_layer_serve')
   const reply = await wire.callTool({
-    name: 'get_context',
+    name: 'get_facts',
     arguments: { question: 'CANARY-private@example.test orders August 2026' },
   })
   expect(reply.isError).not.toBe(true)

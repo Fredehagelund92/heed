@@ -88,7 +88,7 @@ const adminOperations = [
   'clients.list',
   'clients.save',
   'traffic.summary',
-  // Every person's AI apps (security check F3): seen and disconnected by administrators only.
+  // Every person's agents (security check F3): seen and disconnected by administrators only.
   'aiConnections.list',
   'aiConnections.disconnect',
   'aiConnections.disconnectPerson',
@@ -102,7 +102,7 @@ const adminOperations = [
 /** FR-808: the history log is for administrators and auditors, and so is finding people for its filter. */
 const auditOperations = ['audit.search', 'audit.export', 'audit.verify', 'people.search']
 const readOperations = [
-  // A person's own AI apps: every signed-in person answers their own sign-ins and lists and
+  // A person's own agents: every signed-in person answers their own sign-ins and lists and
   // disconnects their own apps (the service narrows to the person).
   'connections.request',
   'connections.decide',

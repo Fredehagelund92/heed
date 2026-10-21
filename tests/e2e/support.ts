@@ -76,7 +76,7 @@ export const TRY_IT_MATCH =
   '/try-it?about=metric:average_order_value,val:market/united_kingdom&from=2026-09-08&to=2026-10-07'
 
 /**
- * What an agent would get and Connect an AI app in their states: facts delivered, none apply, the
+ * What an agent would get and Connect an agent in their states: facts delivered, none apply, the
  * dates missing, the Connect tab, and the Connect page for an administrator.
  */
 export const tryItPages = [
@@ -212,7 +212,7 @@ export const GATEWAY_ADMIN = 'per_ravi'
 
 /**
  * Settings and Administration (slice W11b; navigation decision, 12 October 2026) in their
- * sections, for the people who open each: everyone's profile and Connect an AI app, an auditor's
+ * sections, for the people who open each: everyone's profile and Connect an agent, an auditor's
  * history log, a section refused to an auditor, Administration refused to an owner, and every
  * section of an administrator, with a setting and a log entry open in the docked panel. `ready`
  * is what shows once the data is in.

@@ -53,14 +53,14 @@ describe('edition change sentences and counts', () => {
 
   it('never confuses removal by going back with retirement', () => {
     expect(itemChangeSentence(comparisonState('removed').change!)).toBe(
-      'AI apps no longer get this fact in this edition. Its history stays.',
+      'Agents no longer get this fact in this edition. Its history stays.',
     )
     expect(itemChangeSentence(comparisonState('retired').change!)).toContain('Archived.')
     expect(itemChangeSentence(comparisonState('checked').change!)).toContain(
       'Checked, still correct.',
     )
     expect(itemChangeSentence(comparisonState('resaved').change!)).toContain(
-      'What AI apps read is the same.',
+      'What agents read is the same.',
     )
   })
 

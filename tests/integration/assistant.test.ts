@@ -372,7 +372,7 @@ afterAll(async () => {
 })
 
 describe('explaining deliveries and items (FR-703)', () => {
-  it('streams an answer that names the edition and cites what get_context delivered', async () => {
+  it('streams an answer that names the edition and cites what get_facts delivered', async () => {
     const deliveries = await count('deliveries')
     const chunks = await chat('author', [
       userMessage('Orders in Norway from 2026-08-01 to 2026-08-31'),
@@ -400,7 +400,7 @@ describe('explaining deliveries and items (FR-703)', () => {
     expect(await count('deliveries')).toBe(deliveries)
   })
 
-  it('reads the scope picked in the Ask tab as get_context fields, over the question’s words', async () => {
+  it('reads the scope picked in the Ask tab as get_facts fields, over the question’s words', async () => {
     const [first] = toolOutputs(
       await chat('author', [userMessage('Orders in Norway from 2026-08-01 to 2026-08-31')]),
     )
@@ -473,12 +473,12 @@ describe('explaining deliveries and items (FR-703)', () => {
     expect(toolOutputs(stopped)[0]).toMatchObject({
       applies: false,
       code: 'stopped',
-      reason: "It's switched off, so AI apps don't get it for now.",
+      reason: "It's switched off, so AI agents don't get it for now.",
     })
     expect((await stop(false)).statusCode).toBe(200)
     const missing = await chat('author', [userMessage('Why does itm_missing0001 apply here?')])
     expect(toolOutputs(missing)[0]).toMatchObject({ status: 'not_found' })
-    expect(answer(missing)).toBe("I couldn't find that fact in what AI apps get today.")
+    expect(answer(missing)).toBe("I couldn't find that fact in what AI agents get today.")
   })
 
   it('reads one item and cites it', async () => {
@@ -698,7 +698,7 @@ describe('the turn context (the companion review F3)', () => {
       expect(JSON.stringify(seen[0]!.prompt)).not.toContain(id)
   })
 
-  it('counts last week from today, not from the edition, when it asks get_context', async () => {
+  it('counts last week from today, not from the edition, when it asks get_facts', async () => {
     const chunks = await chat('author', [
       userMessage('Which facts apply to orders in Norway last week?'),
     ])
@@ -814,7 +814,7 @@ describe('what the person attached to a question (Ask tab, scope picker)', () =>
       `- Product: a dimension, attached with any value, so the question is about every Product value, not one of them. Its definition, from the definition source: "${definition}" Its values: Camping and Clothing. No item of the live edition is about it yet.`,
     )
     expect(block).toMatch(
-      /- Norway: a value of the dimension Market\. .* items? of the live edition (is|are) about it, the count Heed's catalogue and scope picker show; AI apps get .+\./,
+      /- Norway: a value of the dimension Market\. .* items? of the live edition (is|are) about it, the count Heed's catalogue and scope picker show; AI agents get .+\./,
     )
     expect(block).toContain('- Dates: 2026-08-01 to 2026-08-31.')
     // A key the live vocabulary does not hold came from the client: counted, never named.
@@ -841,7 +841,7 @@ describe('what the person attached to a question (Ask tab, scope picker)', () =>
   it('looks up facts for "which facts apply to this", and never asks which metric, market and dates', async () => {
     const chunks = await chat('author', [attached('Which facts apply to this?', anyProduct)])
     const asked = chunks.find((c) => c.type === 'tool-input-available')
-    expect(asked).toMatchObject({ toolName: 'get_context', input: anyProduct })
+    expect(asked).toMatchObject({ toolName: 'get_facts', input: anyProduct })
     const said = answer(chunks)
     expect(said).not.toMatch(/which metric/i)
     expect(said).toContain('Product: every Product')
@@ -879,8 +879,8 @@ describe('the scope the person saw (Ask composer, "Heed reads")', () => {
     window: { from: '2025-03-01', to: '2025-03-31' },
   }
 
-  it('binds get_context to exactly the scope shown, whatever scope the model gives', async () => {
-    script = [toolCall('get_context', elsewhere), text('Done.')]
+  it('binds get_facts to exactly the scope shown, whatever scope the model gives', async () => {
+    script = [toolCall('get_facts', elsewhere), text('Done.')]
     const chunks = await chat('author', [
       shown('What were orders in Norway in August 2026?', norway),
     ])
@@ -897,13 +897,13 @@ describe('the scope the person saw (Ask composer, "Heed reads")', () => {
     // The model reads the scope and that it binds the turn, after Heed's context for the turn.
     const block = systemOf(seen[0]!)[2]!
     expect(block).toMatch(/^The scope of the person's latest question, as Heed read it/)
-    expect(block).toContain('Heed binds every get_context and explain_item call in this turn')
+    expect(block).toContain('Heed binds every get_facts and explain_item call in this turn')
     expect(block).toContain('- Orders: a metric.')
     expect(block).toContain('- Dates: 2026-08-01 to 2026-08-31, from their words.')
   })
 
   it('reads at today, and says so, when the question gave no dates and the model gives some', async () => {
-    script = [toolCall('get_context', elsewhere), text('Done.')]
+    script = [toolCall('get_facts', elsewhere), text('Done.')]
     const today = {
       ...norway,
       window: undefined,
@@ -920,14 +920,14 @@ describe('the scope the person saw (Ask composer, "Heed reads")', () => {
       assumed_date: { date: '2026-10-08', reason: 'no date given' },
     })
     const block = systemOf(seen[0]!)[2]!
-    expect(block).toContain('- Dates: none given, so get_context reads the question at today')
+    expect(block).toContain('- Dates: none given, so get_facts reads the question at today')
     expect(block).toContain('- Carried from their last question: Orders.')
   })
 
   it('binds explain_item too, and leaves the other tools as the model calls them', async () => {
     script = [
       toolCall('explain_item', { id: closure, ...elsewhere }),
-      toolCall('find_context', { query: 'Spain' }),
+      toolCall('find_facts', { query: 'Spain' }),
       text('Done.'),
     ]
     const chunks = await chat('author', [shown(`Why does ${closure} apply?`, norway)])
@@ -950,9 +950,7 @@ describe('the scope the person saw (Ask composer, "Heed reads")', () => {
     const block = systemOf(seen[0]!)[2]!
     expect(block).toMatch(/^The scope of the person's latest question, as Heed read it/)
     expect(block).toContain('Heed binds no metric or date for this question')
-    expect(block).toMatch(
-      /\n- [^\n]+: a domain \(id finance\)\.[^\n]* domain_overview, find_context/,
-    )
+    expect(block).toMatch(/\n- [^\n]+: a domain \(id finance\)\.[^\n]* domain_overview, find_facts/)
     expect(block).toContain(`- Norway closure: a context item of the kind event, in the domain`)
     expect(block).toContain(`(id ${closure}). read_item reads it`)
     // What the person cannot read, or what is not there, came from the client: counted, never named.
@@ -1531,9 +1529,9 @@ describe('permissions (FR-706)', () => {
       'domain_overview',
       'estimate_impact',
       'explain_item',
-      'find_context',
+      'find_facts',
       'find_overlaps',
-      'get_context',
+      'get_facts',
       'improve_question',
       'read_gap',
       'read_item',
@@ -1876,7 +1874,7 @@ describe('how Heed works, from its help pages (FR-715)', () => {
   })
 
   it('lets a quotation from a help page through only when search_help returned it', async () => {
-    const quote = 'Think of it as a standard plug: any AI app that has it'
+    const quote = 'Think of it as a standard plug: any agent that has it'
     script = [
       toolCall('search_help', { query: 'What is an MCP?' }),
       text(`The page says "${quote}". Read [What is an MCP](/docs/mcp).`),
@@ -1977,7 +1975,7 @@ describe('the assistant test cases (FR-710)', () => {
       then: [
         {
           say: (s) => `Specifically ${week(s)}.`,
-          expect: { someTool: ['get_context', 'explain_item'], cites: true, unchanged: true },
+          expect: { someTool: ['get_facts', 'explain_item'], cites: true, unchanged: true },
         },
       ],
     },
@@ -1986,7 +1984,7 @@ describe('the assistant test cases (FR-710)', () => {
       id: 'follow-up-on-item',
       needsItem: true,
       say: (s) => `What context applies to ${week(s)}?`,
-      expect: { someTool: ['get_context', 'explain_item'], cites: true, unchanged: true },
+      expect: { someTool: ['get_facts', 'explain_item'], cites: true, unchanged: true },
       then: [
         {
           say: (s) => `Explain item ${s.item.id} to me.`,
@@ -2019,7 +2017,7 @@ describe('the assistant test cases (FR-710)', () => {
     // Two turns of one conversation: the follow-up reads and cites the item the first delivered.
     const follow = report.results.find((r) => r.id === 'follow-up-on-item')!.tries[0]!
     expect(follow.turns.map((t) => t.tools.map((call) => call.name))).toEqual([
-      ['get_context'],
+      ['get_facts'],
       ['read_item'],
     ])
     const read = follow.turns[1]!.tools[0]! as {
@@ -2086,7 +2084,7 @@ describe('the assistant test cases (FR-710)', () => {
       problems: [expect.stringMatching(/^not in the live edition: itm_yakb4kwg, itm_9omvkhl1/)],
     })
     const lastWeek = of('companion-last-week').tries[0]!.turns[0]!
-    expect(lastWeek.tools.filter((t) => t.name === 'get_context').map((t) => t.input)).toEqual([
+    expect(lastWeek.tools.filter((t) => t.name === 'get_facts').map((t) => t.input)).toEqual([
       expect.objectContaining({ window: { from: '2026-09-28', to: '2026-10-04' } }),
     ])
     // Both turns of the conversation, each with its own words, checks and record.
@@ -2169,7 +2167,7 @@ describe('the assistant test cases (FR-710)', () => {
     // A greeting is answered with no tool; the data question after it is asked what it lacks.
     const [hello, data] = turnsOf('meta-then-data')
     expect(hello!.tools).toEqual([])
-    expect(data!.tools.map((t) => t.name)).toEqual(['get_context'])
+    expect(data!.tools.map((t) => t.name)).toEqual(['get_facts'])
     expect(data!.answer).toMatch(/^Which .+ do you mean\?$/)
     // What it can do, in three points and a question to try, and nothing more.
     const abilities = turnsOf('meta-what-can-you-do')[0]!.answer
@@ -2215,7 +2213,7 @@ describe('the assistant test cases (FR-710)', () => {
     for (const result of report.results) {
       const [first, ...after] = result.tries[0]!.turns
       expect(first!.tools.map((t) => t.name)).toContain(
-        result.id === 'companion-follow-up-what-do-you-mean' ? 'improve_question' : 'get_context',
+        result.id === 'companion-follow-up-what-do-you-mean' ? 'improve_question' : 'get_facts',
       )
       // Each turn about the reply before it looks nothing up, and the next question does again.
       for (const turn of after.filter((t) =>
@@ -2229,7 +2227,7 @@ describe('the assistant test cases (FR-710)', () => {
 
   it("answers the golden set's help cases from the pages, each with a link to the page it used", async () => {
     // The captain, 15 October 2026: "What is an MCP?" gets the same answer in Docs, in the
-    // assistant and in an AI app over MCP, with a link to the page. Every help case runs here,
+    // assistant and in an agent over MCP, with a link to the page. Every help case runs here,
     // with the scripted model, as in CI.
     script = []
     const help = loadGoldenSet().assistant.filter((c) => c.type === 'help')

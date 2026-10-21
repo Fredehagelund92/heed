@@ -95,7 +95,7 @@ describe('a version that cannot be served again', () => {
     )
     expect(error.kind).toBe('conflict')
     expect(error.message).toBe(
-      `You can't go back to edition ${preview.target.label}. "${blocked!.title}" (version ${blocked!.version}) can't be shared with AI apps again: a required check has not passed.`,
+      `You can't go back to edition ${preview.target.label}. "${blocked!.title}" (version ${blocked!.version}) can't be shared with agents again: a required check has not passed.`,
     )
     expect(error.blocked).toEqual(preview.blocked)
     // Nothing was published.

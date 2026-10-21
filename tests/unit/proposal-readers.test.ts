@@ -74,9 +74,9 @@ describe('readLevel: a check in plain words (FR-505 to FR-516)', () => {
     )
   })
 
-  it('says whether AI apps get it, and how many test answers got worse', () => {
+  it('says whether agents get it, and how many test answers got worse', () => {
     expect(readLevel(normalGate.levels[2]!).summary).toBe(
-      'AI apps get it. No test answer got worse (31 checked)',
+      'Agents get it. No test answer got worse (31 checked)',
     )
     const failed = readLevel(
       level('delivery', 'failed', {
@@ -86,10 +86,10 @@ describe('readLevel: a check in plain words (FR-505 to FR-516)', () => {
         questions: [{ id: 'gq_001', baseline: true, candidate: false, regression: true }],
       }),
     )
-    expect(failed.summary).toBe("AI apps don't get it. 1 of 1 test answer got worse")
+    expect(failed.summary).toBe("Agents don't get it. 1 of 1 test answer got worse")
     expect(failed.notes).toEqual([
-      "AI apps don't get it, even for a question about exactly where it applies.",
-      'AI apps still get the fact it replaces.',
+      "Agents don't get it, even for a question about exactly where it applies.",
+      'Agents still get the fact it replaces.',
     ])
   })
 
@@ -121,7 +121,7 @@ describe('readLevel: a check in plain words (FR-505 to FR-516)', () => {
     expect(readLevel(level('matching', 'passed', { probes: [] })).summary).toBe(
       'Questions about where it applies find it',
     )
-    expect(readLevel(level('delivery', 'passed', {})).summary).toBe('AI apps get it')
+    expect(readLevel(level('delivery', 'passed', {})).summary).toBe('Agents get it')
     expect(readLevel(level('answer_full', 'error', {})).summary).toBe(
       "The answer tests couldn't finish. Run them again.",
     )

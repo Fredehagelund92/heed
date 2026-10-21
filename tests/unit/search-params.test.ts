@@ -298,7 +298,7 @@ describe('Settings, Administration and their old addresses (navigation decision,
       tab: 'activity',
       days: 30,
     })
-    // Profile and Connect an AI app are the person's own, not Administration's.
+    // Profile and Connect an agent are the person's own, not Administration's.
     expect(validateAdminSearch({ section: 'profile' }).section).toBeUndefined()
     expect(validateAdminSearch({ section: 'areas', days: 3 })).toEqual({
       section: undefined,

@@ -478,7 +478,7 @@ describe('the blocked-reason resolver', () => {
     ).toMatchObject({
       state: 'ready',
       detail:
-        'Once you accept, people and AI apps can use the name. You can decide your own proposal.',
+        'Once you accept, people and agents can use the name. You can decide your own proposal.',
     })
     expect(decisionBar(term, { ...as(jon, 'per_jon'), area: undefined }).state).toBe('no_role')
   })

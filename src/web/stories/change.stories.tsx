@@ -266,7 +266,7 @@ export const CardSaved: Story = {
       title="Payment provider switched in the United Kingdom on 12 June 2026"
       badges={unreviewed}
       meta={<span>New fact · only you can see it</span>}
-      note="Open it, check each part, then send it for review. The owner of its domain checks it before AI apps get it."
+      note="Open it, check each part, then send it for review. The owner of its domain checks it before agents get it."
       status="Saved as your draft #42"
       actions={<Button>Open draft #42</Button>}
     >

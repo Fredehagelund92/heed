@@ -1,9 +1,9 @@
 import { expect, test, type BrowserContext } from '@playwright/test'
 
 /*
-  What an agent would get and Connect an AI app on the real service: the Try it page asks
+  What an agent would get and Connect an agent on the real service: the Try it page asks
   POST /api/v1/try-it for the scope in its address and shows the facts in the order the service
-  ranked them; Connect an AI app shows the address, the clients and the tools GET /api/v1/connect
+  ranked them; Connect an agent shows the address, the clients and the tools GET /api/v1/connect
   gives every signed-in person. Report a gap sends POST /api/v1/gaps/reports, and the
   administrator finds the gap on the Gaps page, marked as from people, with no name on it.
 */
@@ -47,16 +47,16 @@ test('Try it shows the facts the service delivers, in its order', async ({
   await page.goto(
     '/try-it?about=metric:average_order_value,val:market/united_kingdom&from=2026-09-08&to=2026-10-07',
   )
-  const delivered = page.getByRole('list', { name: 'What the AI app gets, in order' })
+  const delivered = page.getByRole('list', { name: 'What the agent gets, in order' })
   await expect(delivered).toBeVisible({ timeout: 15_000 })
   await expect(delivered.getByRole('listitem').getByRole('link')).toHaveText(titles)
   await expect(page.locator('[data-slot="try-it-outcome"]')).toHaveText('Found')
-  await expect(page.getByLabel('what the AI app is told', { exact: true })).toContainText(
+  await expect(page.getByLabel('what the agent is told', { exact: true })).toContainText(
     'State the documented fact',
   )
 })
 
-test('Connect an AI app shows what the service says a person may connect', async ({
+test('Connect an agent shows what the service says a person may connect', async ({
   page,
   context,
   baseURL,
@@ -66,7 +66,7 @@ test('Connect an AI app shows what the service says a person may connect', async
   expect(info.address).toBeTruthy()
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/settings?section=connect')
-  await expect(page.getByLabel('the address for AI apps', { exact: true })).toHaveText(
+  await expect(page.getByLabel('the address for agents', { exact: true })).toHaveText(
     info.address!,
     {
       timeout: 15_000,
@@ -76,7 +76,7 @@ test('Connect an AI app shows what the service says a person may connect', async
   await expect(page.locator('[data-slot="connect-client"]').first()).toContainText('Claude Code')
   // The gateway test switches a tool off and on beside this one, so only the first is certain.
   await expect(
-    page.getByRole('list', { name: 'The tools an AI app gets' }).getByRole('listitem').first(),
+    page.getByRole('list', { name: 'The tools an agent gets' }).getByRole('listitem').first(),
   ).toContainText('Get facts for a question')
 })
 

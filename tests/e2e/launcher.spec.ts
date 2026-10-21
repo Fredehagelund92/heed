@@ -210,7 +210,7 @@ test.describe('the assistant panel', () => {
       'aria-selected',
       'true',
     )
-    await expect(assistant(page)).toContainText('See what an AI app gets')
+    await expect(assistant(page)).toContainText('See what an agent gets')
     await assistant(page).getByRole('tab', { name: 'Ask' }).click()
     await expect(assistant(page)).toContainText('Ask me about your numbers')
     await assistant(page).getByRole('tab', { name: 'Try a question' }).click()

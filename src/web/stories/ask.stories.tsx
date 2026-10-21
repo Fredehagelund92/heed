@@ -616,7 +616,7 @@ const facts: AskMessage = {
   parts: [
     {
       type: 'dynamic-tool',
-      toolName: 'get_context',
+      toolName: 'get_facts',
       toolCallId: 'c2',
       state: 'output-available',
       input: {},

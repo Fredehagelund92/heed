@@ -76,7 +76,7 @@ test.describe('first visit and returning', () => {
     await expect(page.locator('[data-slot="quick-action"]')).toHaveText([
       /Try a question/,
       /Add a fact/,
-      /Connect an AI app/,
+      /Connect an agent/,
     ])
     const tops = await page
       .locator('[data-slot="quick-action"]')
@@ -134,7 +134,7 @@ test.describe('first visit and returning', () => {
     await expect(page.getByRole('tab', { name: /Topics/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test('a row opens its fact, and Connect an AI app goes to its page', async ({ page }) => {
+  test('a row opens its fact, and Connect an agent goes to its page', async ({ page }) => {
     await returning(page)
     await openPage(page, '/', desktop)
     await homeReady(page)
@@ -144,7 +144,7 @@ test.describe('first visit and returning', () => {
     await expect(page).toHaveURL(/\/library\/itm_/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(title)
     await page.goBack()
-    await page.getByRole('link', { name: /Connect an AI app/ }).click()
+    await page.getByRole('link', { name: /Connect an agent/ }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
   })
 })
@@ -375,8 +375,8 @@ test.describe('the pulse strip', () => {
     await expect(inState(page, 'ready')).toHaveCount(4)
     // 109 calls, 105 in shown topic weeks: the exact total would give a topic week of four away,
     // so the tile says how many at least, and the share answered is hidden with it.
-    await expect(tile(page, 'Questions from AI apps')).toContainText('105+')
-    await expect(tile(page, 'Questions from AI apps')).toContainText(
+    await expect(tile(page, 'Questions from agents')).toContainText('105+')
+    await expect(tile(page, 'Questions from agents')).toContainText(
       'At least 105. A few more stay hidden.',
     )
     await expect(tile(page, 'Questions that found a fact')).toContainText('Hidden')
@@ -388,7 +388,7 @@ test.describe('the pulse strip', () => {
     // The change on the week before: none where last week's count is hidden; a muted size for
     // the facts changed, which have no better way; the share current against a week ago.
     const mark = (name: string) => tile(page, name).locator('[data-slot="change-mark"]')
-    await expect(mark('Questions from AI apps')).toHaveCount(0)
+    await expect(mark('Questions from agents')).toHaveCount(0)
     await expect(mark('Questions that found a fact')).toHaveCount(0)
     await expect(mark('Facts added or changed')).toHaveAttribute('data-verdict', 'none')
     await expect(mark('Facts added or changed')).toContainText(/^[+−]\d|Same/)
@@ -456,7 +456,7 @@ test.describe('the pulse strip', () => {
     expect(mark!.y).toBeGreaterThanOrEqual(number!.y + number!.height - 1)
     expect(Math.abs(mark!.x - number!.x)).toBeLessThan(1)
     for (const name of [
-      'Questions from AI apps',
+      'Questions from agents',
       'Questions that found a fact',
       'Facts added or changed',
       'Facts that are current',
@@ -472,9 +472,9 @@ test.describe('the pulse strip', () => {
     await scenario(page, 'empty')
     await openPage(page, '/', desktop)
     await expect(page.getByText('No facts yet')).toBeVisible({ timeout: 15_000 })
-    await expect(tile(page, 'Questions from AI apps')).toContainText('No AI app has asked yet')
+    await expect(tile(page, 'Questions from agents')).toContainText('No agent has asked yet')
     await expect(tile(page, 'Questions that found a fact')).toContainText(
-      'Shows once an AI app asks',
+      'Shows once an agent asks',
     )
     await expect(tile(page, 'Facts added or changed')).toContainText('Nothing written down yet')
     await expect(tile(page, 'Facts that are current')).toContainText('No facts apply yet')
@@ -506,7 +506,7 @@ test.describe('search suggestions', () => {
     const options = list.getByRole('option')
     await expect(options.nth(0)).toHaveAttribute('data-suggestion', 'fact')
     await expect(options.nth(-2)).toHaveText(/Ask the assistant: “orders poland”/)
-    await expect(options.nth(-1)).toHaveText(/Try a question: what do AI apps get for/)
+    await expect(options.nth(-1)).toHaveText(/Try a question: what do agents get for/)
     await expect(options.nth(0)).toHaveAttribute('aria-selected', 'true')
     // The option is named "<title>, <domain>, <day>".
     const title = (await options.nth(0).getAttribute('aria-label'))!

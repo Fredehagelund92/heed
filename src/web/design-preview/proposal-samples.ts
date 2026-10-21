@@ -167,13 +167,13 @@ const norway: NonNullable<PreviewReply['items']>[number] = {
       read_on: '2026-08-05',
     },
   ],
-  // What an AI app receives names the role, never the person (FR-326).
+  // What an agent receives names the role, never the person (FR-326).
   owner: { team: 'Sales', role: 'the owner of Sales' },
   links: [],
   match: 'exact',
 }
 
-/** The get_context reply for the draft of #231: one item matched. */
+/** The get_facts reply for the draft of #231: one item matched. */
 export const matchedReply: PreviewReply = {
   edition: LIVE_EDITION,
   status: 'matched',

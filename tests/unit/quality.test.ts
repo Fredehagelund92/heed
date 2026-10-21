@@ -339,7 +339,7 @@ describe('test questions and transcripts', () => {
         {
           role: 'assistant',
           content: [
-            { type: 'tool-call', toolName: 'get_context', input: { question: 'Why?' } },
+            { type: 'tool-call', toolName: 'get_facts', input: { question: 'Why?' } },
             { type: 'text', text: '  ' },
           ],
         },
@@ -348,7 +348,7 @@ describe('test questions and transcripts', () => {
           content: [
             {
               type: 'tool-result',
-              toolName: 'get_context',
+              toolName: 'get_facts',
               output: { type: 'json', value: { items: [] } },
             },
           ],
@@ -358,8 +358,8 @@ describe('test questions and transcripts', () => {
       ]),
     ).toEqual([
       { kind: 'text', role: 'person', text: 'Why?' },
-      { kind: 'call', tool: 'get_context', input: '{\n  "question": "Why?"\n}' },
-      { kind: 'result', tool: 'get_context', output: '{\n  "items": []\n}' },
+      { kind: 'call', tool: 'get_facts', input: '{\n  "question": "Why?"\n}' },
+      { kind: 'result', tool: 'get_facts', output: '{\n  "items": []\n}' },
       { kind: 'text', role: 'agent', text: 'Because.' },
     ])
     expect(transcriptChecks({ checks: { cited: true, caveat: false, odd: 'x' } })).toEqual([

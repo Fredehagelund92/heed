@@ -86,7 +86,7 @@ describe('what an edition is and what it changed', () => {
     )
   })
 
-  it('sums up what going back changes for AI apps, and what else goes back', () => {
+  it('sums up what going back changes for agents, and what else goes back', () => {
     const counts = (change: Partial<Record<string, number>>) => ({
       facets: {
         change: { added: 0, changed: 0, checked: 0, resaved: 0, retired: 0, removed: 0, ...change },
@@ -97,9 +97,9 @@ describe('what an edition is and what it changed', () => {
       vocabulary: 0,
       withheld: 0,
     })
-    expect(goBackSummary(counts({}))).toBe('Nothing changes for AI apps.')
+    expect(goBackSummary(counts({}))).toBe('Nothing changes for agents.')
     expect(goBackSummary(counts({ removed: 23, changed: 1, resaved: 14 }))).toBe(
-      '38 facts change for AI apps: 23 stop being shared, 1 returns to an earlier version and 14 go back to an earlier save with nothing different.',
+      '38 facts change for agents: 23 stop being shared, 1 returns to an earlier version and 14 go back to an earlier save with nothing different.',
     )
     expect(
       goBackSummary({
@@ -108,7 +108,7 @@ describe('what an edition is and what it changed', () => {
         withheld: 2,
       }),
     ).toBe(
-      "1 fact changes for AI apps: 1 comes back. 12 names of metrics, markets or products go back too. 2 facts only some groups can see change too, and aren't shown here.",
+      "1 fact changes for agents: 1 comes back. 12 names of metrics, markets or products go back too. 2 facts only some groups can see change too, and aren't shown here.",
     )
   })
 
@@ -121,10 +121,10 @@ describe('what an edition is and what it changed', () => {
     )
     expect(blockedProblem('version does not exist')).toBe('Version does not exist.')
     expect(goBackRefusal('2026-08-02.1', 1)).toBe(
-      "You can't go back to edition 2026-08-02.1. One of its fact versions can't be shared with AI apps again. Nothing has changed.",
+      "You can't go back to edition 2026-08-02.1. One of its fact versions can't be shared with agents again. Nothing has changed.",
     )
     expect(goBackBlocked(3, '2026-10-07.2')).toBe(
-      "3 of its fact versions can't be shared with AI apps again. Nothing has changed: AI apps still get edition 2026-10-07.2.",
+      "3 of its fact versions can't be shared with agents again. Nothing has changed: agents still get edition 2026-10-07.2.",
     )
   })
 
@@ -148,34 +148,34 @@ describe('the stop switch in words', () => {
 
   it('says what stopping and starting again do, and what the banner says', () => {
     expect(stopEffect({ scope: 'area', areaName: 'Sales' })).toBe(
-      'Within a minute, AI apps get no facts from Sales. Nothing is lost, and you can start again at any time.',
+      'Within a minute, agents get no facts from Sales. Nothing is lost, and you can start again at any time.',
     )
     expect(stopEffect({ scope: 'item', itemTitle: 'Net revenue' })).toMatch(
-      /^Within a minute, AI apps no longer get the fact "Net revenue"\./,
+      /^Within a minute, agents no longer get the fact "Net revenue"\./,
     )
-    expect(resumeEffect({ scope: 'all' })).toBe('Within a minute, AI apps get every fact again.')
-    expect(stopHeadline({ scope: 'all' })).toBe('AI apps get no facts for now.')
+    expect(resumeEffect({ scope: 'all' })).toBe('Within a minute, agents get every fact again.')
+    expect(stopHeadline({ scope: 'all' })).toBe('Agents get no facts for now.')
     expect(stopHeadline({ scope: 'area', areaName: 'Sales' })).toBe(
-      'AI apps get no facts from Sales for now.',
+      'Agents get no facts from Sales for now.',
     )
-    expect(stopHeadline({ scope: 'item' })).toBe("AI apps don't get one fact for now.")
+    expect(stopHeadline({ scope: 'item' })).toBe("Agents don't get one fact for now.")
   })
 
-  it('says how far a stop reaches, counted from the facts AI apps get', () => {
+  it('says how far a stop reaches, counted from the facts agents get', () => {
     expect(stopReach({ scope: 'area', areaName: 'Sales' }, 328)).toBe(
-      'AI apps stop getting the 328 facts in Sales. Other domains stay as they are.',
+      'Agents stop getting the 328 facts in Sales. Other domains stay as they are.',
     )
     expect(stopReach({ scope: 'area', areaName: 'Sales' }, 1)).toMatch(
-      /^AI apps stop getting the one fact in Sales\./,
+      /^Agents stop getting the one fact in Sales\./,
     )
     expect(stopReach({ scope: 'all' }, 1395)).toBe(
-      'AI apps stop getting the 1,395 facts, in every domain.',
+      'Agents stop getting the 1,395 facts, in every domain.',
     )
     expect(stopReach({ scope: 'area', areaName: 'Sales' }, undefined)).toMatch(
-      /^AI apps stop getting every fact in Sales\./,
+      /^Agents stop getting every fact in Sales\./,
     )
     expect(stopReach({ scope: 'item', itemTitle: 'Net revenue' }, 1395)).toBe(
-      'AI apps stop getting only this fact. They still get every other fact.',
+      'Agents stop getting only this fact. They still get every other fact.',
     )
   })
 
@@ -200,7 +200,7 @@ describe('the stop switch in words', () => {
         { action: 'stop.on', actorName: null, at, subjectId: 'all', details: {} },
         { target: 'everything' },
       ),
-    ).toMatch(/^Someone whose name is unavailable stopped sharing everything with AI apps on .+\.$/)
+    ).toMatch(/^Someone whose name is unavailable stopped sharing everything with agents on .+\.$/)
     expect(
       releaseHistoryLine(
         {
@@ -212,7 +212,7 @@ describe('the stop switch in words', () => {
         },
         { target: 'Sales' },
       ),
-    ).toMatch(/^Ravi Kapoor started sharing Sales with AI apps again on .+\. Why: Fixed\.$/)
+    ).toMatch(/^Ravi Kapoor started sharing Sales with agents again on .+\. Why: Fixed\.$/)
   })
 })
 

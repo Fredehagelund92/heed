@@ -21,6 +21,8 @@ import {
   INSTRUCTIONS_READ_BY_ALL,
   instructionRules,
   serverInstructions,
+  aliasesOf,
+  deprecatedToolAliases,
   toolDefinitions,
   toolNames,
   toolSchemaDigest,
@@ -125,7 +127,7 @@ const call = {
   jsonrpc: '2.0',
   id: 1,
   method: 'tools/call',
-  params: { name: 'get_context', arguments: { question: 'Orders in Norway August 2026' } },
+  params: { name: 'get_facts', arguments: { question: 'Orders in Norway August 2026' } },
 }
 
 describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
@@ -136,21 +138,26 @@ describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
       mode === 'legacy' ? '2025-11-25' : '2026-07-28',
     )
     const list = await client.listTools()
-    // A dev token names no person, so the draft tool (FR-121) is not offered to it.
-    expect(list.tools.map((t) => t.name)).toEqual(toolNames.filter((n) => n !== 'draft_context'))
+    // A dev token names no person, so the draft tool (FR-121) is not offered to it. Each tool is
+    // followed by the old ids it answers to, as deprecated aliases.
+    const offered = toolNames.filter((n) => n !== 'draft_context')
+    expect(list.tools.map((t) => t.name)).toEqual(offered.flatMap((n) => [n, ...aliasesOf(n)]))
+    const aliases = Object.keys(deprecatedToolAliases)
     expect(
-      list.tools.map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({
-        name,
-        title,
-        description,
-        inputSchema,
-        ...(outputSchema ? { outputSchema } : {}),
-        annotations,
-      })),
+      list.tools
+        .filter((tool) => !aliases.includes(tool.name))
+        .map(({ name, title, description, inputSchema, outputSchema, annotations }) => ({
+          name,
+          title,
+          description,
+          inputSchema,
+          ...(outputSchema ? { outputSchema } : {}),
+          annotations,
+        })),
     ).toEqual(toolDefinitions.filter((tool) => tool.name !== 'draft_context'))
-    // What people see when their AI app calls a tool: its title, in plain words.
-    expect(list.tools.find((t) => t.name === 'get_context')?.title).toBe('Get facts for a question')
-    expect(list.tools.find((t) => t.name === 'get_context')?.annotations).toMatchObject({
+    // What people see when their agent calls a tool: its title, in plain words.
+    expect(list.tools.find((t) => t.name === 'get_facts')?.title).toBe('Get facts for a question')
+    expect(list.tools.find((t) => t.name === 'get_facts')?.annotations).toMatchObject({
       readOnlyHint: true,
       idempotentHint: true,
       destructiveHint: false,
@@ -208,7 +215,7 @@ describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
     const s = await server(),
       client = await s.connect(mode)
     expect(
-      (await client.callTool({ name: 'get_context', arguments: { question: 'x'.repeat(2001) } }))
+      (await client.callTool({ name: 'get_facts', arguments: { question: 'x'.repeat(2001) } }))
         .isError,
     ).toBe(true)
     s.policy.client.tools_allowed = ['read_item']
@@ -220,7 +227,7 @@ describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
     const s = await server(),
       client = await s.connect(mode)
     expect(
-      (await client.callTool({ name: 'get_context', arguments: { question: 'What happened?' } }))
+      (await client.callTool({ name: 'get_facts', arguments: { question: 'What happened?' } }))
         .structuredContent,
     ).toMatchObject({ status: 'need_more_detail' })
     s.data.stopped = { all: false, areas: ['finance'], items: [] }
@@ -340,6 +347,70 @@ it('is stateless, rejects nonlocal origins, and reports rate limits with a retry
   expect(Number(limited.headers.get('retry-after'))).toBeGreaterThan(0)
 })
 
+describe.each(['legacy', 'auto'] as const)('the old tool ids, %s', (mode) => {
+  it('answers get_context, search_context and find_context as the tools that replaced them', async () => {
+    // 21 October 2026: the tools say fact in their ids. The old ids stay as deprecated aliases.
+    expect(deprecatedToolAliases).toEqual({
+      get_context: 'get_facts',
+      search_context: 'search_facts',
+      find_context: 'find_facts',
+    })
+    const s = await server(),
+      client = await s.connect(mode)
+    const tools = (await client.listTools()).tools
+    for (const [old, now] of Object.entries(deprecatedToolAliases)) {
+      const alias = tools.find((t) => t.name === old)
+      const tool = tools.find((t) => t.name === now)
+      expect(alias?.description, old).toBe(
+        `Deprecated: use ${now}, which takes the same arguments and gives the same result.`,
+      )
+      expect(alias?.title, old).toBe(tool?.title)
+      expect(alias?.inputSchema, old).toEqual(tool?.inputSchema)
+      expect(alias?.outputSchema, old).toEqual(tool?.outputSchema)
+    }
+    const calls: [string, string, Record<string, unknown>][] = [
+      ['get_context', 'get_facts', call.params.arguments],
+      ['search_context', 'search_facts', { query: 'Norway' }],
+      ['find_context', 'find_facts', { query: 'Orders' }],
+    ]
+    for (const [old, now, args] of calls) {
+      const fromOld = await client.callTool({ name: old, arguments: args })
+      const fromNew = await client.callTool({ name: now, arguments: args })
+      expect(fromOld.isError, old).toBeFalsy()
+      // The same reply, but for the id each delivery gets.
+      const same = (reply: unknown) =>
+        JSON.stringify(reply).replace(
+          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g,
+          'id',
+        )
+      expect(same(fromOld), old).toBe(same(fromNew))
+    }
+    // Checked, limited and recorded as the tool it stands for.
+    await s.gateway.flush()
+    const logged = s.records.flatMap((r) => (r.kind === 'request' ? [r.value.tool] : []))
+    expect(logged.filter((tool) => tool !== 'protocol')).toEqual(
+      calls.flatMap(([, now]) => [now, now]),
+    )
+  })
+
+  it('counts a call by an old id against the new tool, and refuses it where the new tool is off', async () => {
+    const s = await server()
+    s.policy.limits = { get_facts: 1 }
+    const old = { ...call, params: { ...call.params, name: 'get_context' } }
+    const first = await s.post(old)
+    expect(first.status).toBe(200)
+    await first.text()
+    expect((await s.post(call)).status).toBe(429)
+    s.policy.limits = {}
+    s.policy.tools = toolNames.filter((name) => name !== 'get_facts')
+    expect((await s.post(old)).status).toBe(403)
+    const client = await s.connect(mode)
+    const names = (await client.listTools()).tools.map((t) => t.name)
+    expect(names).not.toContain('get_facts')
+    expect(names).not.toContain('get_context')
+  })
+})
+
 it('keeps question canaries, tokens, network addresses and RPC ids out of records', async () => {
   const s = await server()
   const response = await s.post({
@@ -364,10 +435,10 @@ it('records the family of the app that called, never its name, and how a read ca
   const s = await server()
   // Protocol 2026-07-28 names the app on every request; an earlier one only when it connects.
   const current = await s.connect('auto', s.token, 'Claude Code')
-  await current.callTool({ name: 'get_context', arguments: call.params.arguments })
-  await current.callTool({ name: 'search_context', arguments: { query: 'zzqx nothing' } })
+  await current.callTool({ name: 'get_facts', arguments: call.params.arguments })
+  await current.callTool({ name: 'search_facts', arguments: { query: 'zzqx nothing' } })
   const legacy = await s.connect('legacy', s.token, 'Cursor-VSCode')
-  await legacy.callTool({ name: 'get_context', arguments: call.params.arguments })
+  await legacy.callTool({ name: 'get_facts', arguments: call.params.arguments })
   // A self-chosen name is never kept: it is another app, and so is its version.
   const response = await s.post({
     ...call,
@@ -386,10 +457,10 @@ it('records the family of the app that called, never its name, and how a read ca
   const requests = s.records.flatMap((r) => (r.kind === 'request' ? [r.value] : []))
   const calls = requests.filter((r) => r.tool !== 'protocol')
   expect(calls.map((r) => [r.family, r.tool, r.status, r.result])).toEqual([
-    ['claude_code', 'get_context', 'ok', 'matched'],
-    ['claude_code', 'search_context', 'ok', 'no_match'],
-    ['unknown', 'get_context', 'ok', 'matched'],
-    ['other', 'get_context', 'ok', 'matched'],
+    ['claude_code', 'get_facts', 'ok', 'matched'],
+    ['claude_code', 'search_facts', 'ok', 'no_match'],
+    ['unknown', 'get_facts', 'ok', 'matched'],
+    ['other', 'get_facts', 'ok', 'matched'],
   ])
   // Starting a session names the app on either protocol.
   expect(requests.filter((r) => r.tool === 'protocol').map((r) => r.family)).toContain('cursor')
@@ -404,7 +475,7 @@ describe.each(['legacy', 'auto'] as const)('item pages in Heed (FR-347), %s', (m
     const s = await server(undefined, { web: 'http://localhost:5173' }),
       client = await s.connect(mode)
     const tools = (await client.listTools()).tools
-    for (const name of ['get_context', 'find_context', 'search_context'])
+    for (const name of ['get_facts', 'find_facts', 'search_facts'])
       expect(tools.find((t) => t.name === name)?.outputSchema).toMatchObject({
         properties: { items: { items: { required: ['id', 'url'] } } },
       })
@@ -430,7 +501,7 @@ describe.each(['legacy', 'auto'] as const)('the server instructions (FR-343), %s
     expect(instructions).toBe(serverInstructions(['Cube']))
     // The data tool by the label its definition source gives, never a name written in the core.
     expect(instructions).toContain('the data tool (Cube) holds the number')
-    expect(instructions).toContain('Call get_context first')
+    expect(instructions).toContain('Call get_facts first')
     expect(instructions).toContain('member names you queried')
     expect(instructions).toContain('say nothing is written down only for exactly what you asked')
     expect(instructions).toContain(
@@ -462,13 +533,13 @@ describe.each(['legacy', 'auto'] as const)('the server instructions (FR-343), %s
     ]) {
       const read = instructions.slice(0, INSTRUCTIONS_READ_BY_ALL)
       expect(read.startsWith(instructionRules)).toBe(true)
-      expect(read).toContain('Call get_context first')
+      expect(read).toContain('Call get_facts first')
       expect(read).toContain('Each reply starts with say, a sentence for the person, and next')
       expect(read).toContain('no_match does not prove that no caveat exists')
       expect(read).toContain(
         'say nothing is written down only for exactly what you asked, never the whole topic',
       )
-      // How the AI app speaks with people: a fact, the owner of its domain checked it, its
+      // How the agent speaks with people: a fact, the owner of its domain checked it, its
       // source, and the What not to conclude line.
       expect(read).toContain('it is a fact')
       expect(read).toContain('the owner of its domain checked it')
@@ -556,7 +627,7 @@ describe.each(['legacy', 'auto'] as const)('a result read alone (FR-344), %s', (
         expect(tool.outputSchema?.properties).toHaveProperty('next')
       }
     const nothing = await client.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: {
         question: 'Orders in Norway in July 2026',
         metrics: ['Orders'],
@@ -573,12 +644,12 @@ describe.each(['legacy', 'auto'] as const)('a result read alone (FR-344), %s', (
       'Nothing is written down for Orders in Norway in July 2026. Only that was checked.',
     )
     expect(read.next).toMatch(
-      /^That does not prove there is no caveat, and it covers only this question, never the whole topic\. Check the names and dates, or call find_context/,
+      /^That does not prove there is no caveat, and it covers only this question, never the whole topic\. Check the names and dates, or call find_facts/,
     )
     expect((nothing.structuredContent as { say: string }).say).toBe(read.say)
     for (const [name, args] of [
-      ['search_context', { query: 'zebra' }],
-      ['find_context', { query: 'zebra' }],
+      ['search_facts', { query: 'zebra' }],
+      ['find_facts', { query: 'zebra' }],
       ['read_item', { id: 'itm_missing001' }],
     ] as const) {
       const { next } = JSON.parse(text(await client.callTool({ name, arguments: args }))) as {
@@ -593,7 +664,7 @@ describe.each(['legacy', 'auto'] as const)('a result read alone (FR-344), %s', (
       client = await s.connect(mode)
     // A market Heed does not know: what it could not read, the choices, and that it proves nothing.
     const unknown = await client.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: {
         question: 'orders in Atlantis in August 2026',
         metrics: ['orders'],
@@ -614,12 +685,12 @@ describe.each(['legacy', 'auto'] as const)('a result read alone (FR-344), %s', (
       [{ question: 'Orders', metrics: 'orders' }, ['metrics', 'expected array']],
       [{ question: 'Orders', window: { from: 'last week', to: 'now' } }, ['window.from']],
     ] as const) {
-      const wrong = await client.callTool({ name: 'get_context', arguments: args })
+      const wrong = await client.callTool({ name: 'get_facts', arguments: args })
       expect(wrong.isError).toBe(true)
       for (const field of fields) expect(text(wrong)).toContain(field)
       // Heed's own words, not the SDK's: the fields it takes and one call that works.
       expect(text(wrong)).toMatch(
-        /^Nothing was looked up yet\. The request was missing something or had a value that doesn't fit\. get_context could not read its arguments: .+\. Nothing was checked or saved, so this says nothing about what is written down\. It takes question \(required\), metrics, .+\. Call it again with arguments like \{"question":/,
+        /^Nothing was looked up yet\. The request was missing something or had a value that doesn't fit\. get_facts could not read its arguments: .+\. Nothing was checked or saved, so this says nothing about what is written down\. It takes question \(required\), metrics, .+\. Call it again with arguments like \{"question":/,
       )
       expect(text(wrong)).not.toContain('Input validation error')
       expect(wrong.structuredContent).toMatchObject({ status: 'invalid_input' })
@@ -628,7 +699,7 @@ describe.each(['legacy', 'auto'] as const)('a result read alone (FR-344), %s', (
     await s.gateway.flush()
     const requests = s.records.flatMap((r) => (r.kind === 'request' ? [r.value] : []))
     expect(requests.filter((r) => r.status === 'invalid_input')).toHaveLength(3)
-    expect(requests.filter((r) => r.tool === 'get_context' && r.status === 'error')).toEqual([])
+    expect(requests.filter((r) => r.tool === 'get_facts' && r.status === 'error')).toEqual([])
     expect(JSON.stringify(s.records)).not.toContain('last week')
   })
 })
@@ -742,7 +813,7 @@ it("refuses a batch that would pass the client's own rate, and the client keeps 
 
 it('applies a per-tool limit from the settings to that tool only', async () => {
   const s = await server()
-  s.policy.limits = { get_context: 2 }
+  s.policy.limits = { get_facts: 2 }
   for (let n = 0; n < 2; n++) {
     const response = await s.post(call)
     expect(response.status).toBe(200)
@@ -907,18 +978,18 @@ it('keeps get_related out of the tool list while it is switched off, and follows
 it('offers domain_overview and what_changed only with the reads they need (FR-339, FR-340)', async () => {
   const without = await server(undefined, { reads: false })
   const names = (await (await without.connect('auto')).listTools()).tools.map((t) => t.name)
-  expect(names).toContain('find_context')
+  expect(names).toContain('find_facts')
   expect(names).not.toContain('domain_overview')
   expect(names).not.toContain('what_changed')
   const s = await server()
   const all = (await (await s.connect('auto')).listTools()).tools.map((t) => t.name)
-  expect(all).toEqual(expect.arrayContaining(['find_context', 'domain_overview', 'what_changed']))
+  expect(all).toEqual(expect.arrayContaining(['find_facts', 'domain_overview', 'what_changed']))
 })
 
 it('answers the outcome tools over MCP by names, with recovery when a name is unknown', async () => {
   const s = await server(),
     client = await s.connect('auto')
-  const found = await client.callTool({ name: 'find_context', arguments: { query: 'orders' } })
+  const found = await client.callTool({ name: 'find_facts', arguments: { query: 'orders' } })
   expect(found.isError).not.toBe(true)
   expect(found.structuredContent).toMatchObject({
     status: 'matched',
@@ -991,6 +1062,6 @@ it('answers the outcome tools over MCP by names, with recovery when a name is un
   expect(old.isError).toBe(true)
   expect(JSON.stringify(old.structuredContent)).toContain('requires edition scope')
   await s.gateway.flush()
-  // Like search_context, the outcome tools record no delivery: they are not get_context.
+  // Like search_facts, the outcome tools record no delivery: they are not get_facts.
   expect(s.records.filter((r) => r.kind === 'delivery')).toEqual([])
 })

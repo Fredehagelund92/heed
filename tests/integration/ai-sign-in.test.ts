@@ -107,16 +107,16 @@ describe('a person connects their own AI client', () => {
     // A tool call over MCP with the signed-in token: the client label is the shared one.
     const wire = await mcpClient(first.body.access_token!)
     const listed = await wire.listTools()
-    expect(listed.tools.map((t) => t.name)).toContain('get_context')
+    expect(listed.tools.map((t) => t.name)).toContain('get_facts')
     const reply = await wire.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: { question: 'Orders in Norway, August 2026' },
     })
     expect(reply.isError).not.toBe(true)
     expect(reply.structuredContent).toMatchObject({ status: 'matched' })
     // Selecting an edition needs edition scope, which a person's token never carries.
     const edition = await wire.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: { question: 'Orders in Norway, August 2026', edition: '1' },
     })
     expect(edition.isError).toBe(true)
@@ -239,7 +239,7 @@ describe('a person connects their own AI client', () => {
     const tokens = await exchange(clientId, flow.code!, flow.verifier)
     const wire = await mcpClient(tokens.body.access_token!)
     await wire.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: { question: 'Orders in Norway, August 2026' },
     })
     await wire.close()

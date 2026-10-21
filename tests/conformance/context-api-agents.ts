@@ -1,9 +1,9 @@
 /**
- * Connect an AI app and What an agent would get, the same against the mock binding
+ * Connect an agent and What an agent would get, the same against the mock binding
  * (tests/unit/mock-api.test.ts) and the http binding on the real service and PostgreSQL 18 with
  * the same 1,500 generated items (tests/integration/api.test.ts): any signed-in person reads
  * them, it lists every tool in the gateway's registry (src/server/mcp/tools.ts), and Try it
- * answers get_context's reply for a typed scope and refuses a question, and reads a question as
+ * answers get_facts's reply for a typed scope and refuses a question, and reads a question as
  * a scope only when asked to open Try it on it.
  */
 import { describe, expect, it } from 'vitest'
@@ -36,7 +36,7 @@ export function describeContextApiAgents(name: string, getApi: () => ContextApi)
   describe(`ContextApi Connect and Try it conformance: ${name}`, () => {
     it('tells a person without a role every tool and the clients that may connect', async () => {
       const info = await api().getConnectInfo()
-      expect(info.tools).toContainEqual({ tool: 'get_context', enabled: true, personOnly: false })
+      expect(info.tools).toContainEqual({ tool: 'get_facts', enabled: true, personOnly: false })
       expect(info.tools).toContainEqual({ tool: 'get_related', enabled: false, personOnly: false })
       expect(info.tools).toContainEqual({
         tool: 'draft_context',
@@ -53,7 +53,7 @@ export function describeContextApiAgents(name: string, getApi: () => ContextApi)
         expect(tool.personOnly, tool.tool).toBe(personOnly(tool.tool as (typeof toolNames)[number]))
     })
 
-    it("answers get_context's reply on the live edition, without a delivery", async () => {
+    it("answers get_facts's reply on the live edition, without a delivery", async () => {
       const tried = await api().tryIt(scope)
       expect(['matched', 'conflict']).toContain(tried.result.status)
       expect(tried.result.items?.map((item) => item.id)).toContain(served.id)
@@ -63,14 +63,14 @@ export function describeContextApiAgents(name: string, getApi: () => ContextApi)
         filters: { 'dim:market': [`val:market/${market.value}`] },
       })
       expect(tried.bytes).toBeLessThan(tried.limit)
-      // What the AI app may tell the person, first, in the same words in both bindings (FR-344).
+      // What the agent may tell the person, first, in the same words in both bindings (FR-344).
       expect(Object.keys(tried.result)[0]).toBe('say')
       expect(tried.result.say).toMatch(
         /^\d+ facts? appl(y|ies) to \w+ in \w+ .+\. Only that was checked\./,
       )
     })
 
-    it('says nothing is written down for exactly what was asked, and gives the AI app the rule', async () => {
+    it('says nothing is written down for exactly what was asked, and gives the agent the rule', async () => {
       const tried = await api().tryIt({
         ...scope,
         window: { from: '1999-01-01', to: '1999-01-31' },

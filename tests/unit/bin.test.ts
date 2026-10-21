@@ -31,7 +31,7 @@ describe("the Bin's words", () => {
   it('says what a restore brought back, and the proposals it opened', () => {
     expect(restoredWords({ restored: ['a'], edition, proposals: [] })).toEqual({
       title: 'Fact restored',
-      description: 'AI apps get it again.',
+      description: 'Agents get it again.',
     })
     expect(restoredWords({ restored: ['a', 'b'], edition: null, proposals: [] })).toEqual({
       title: '2 facts restored',
@@ -59,7 +59,7 @@ describe("the Bin's words", () => {
         'Pantry',
       ).description,
     ).toBe(
-      'AI apps get it again. 2 facts are back, archived, each with a proposal for the owners of Pantry.',
+      'Agents get it again. 2 facts are back, archived, each with a proposal for the owners of Pantry.',
     )
   })
 })

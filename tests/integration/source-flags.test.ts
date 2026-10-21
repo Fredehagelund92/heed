@@ -84,7 +84,7 @@ type Delivered = {
 }
 async function deliveries(): Promise<Delivered[]> {
   const result = await execute(
-    'get_context',
+    'get_facts',
     {
       question: '',
       metrics: ['metric:order_count', 'metric:revenue', 'metric:growth_revenue'],

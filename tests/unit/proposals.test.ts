@@ -118,7 +118,7 @@ describe('the timeline of a proposal (buildActivity)', () => {
       ['accepted', 'accepted it', 'Fine.'],
       ['commented', 'commented', 'Looking now.'],
     ])
-    expect(rows[2]?.detail).toBe('From then on, AI apps get it.')
+    expect(rows[2]?.detail).toBe('From then on, agents get it.')
   })
 
   it('names an administrator and says plainly when its proposer decided (FR-206)', () => {
@@ -147,11 +147,7 @@ describe('the timeline of a proposal (buildActivity)', () => {
     expect(rows.map((row) => [row.kind, row.action, row.detail])).toEqual([
       ['changes_requested', 'asked for changes', undefined],
       ['rejected', 'rejected it', 'Decided by its proposer.'],
-      [
-        'accepted',
-        'accepted it as admin',
-        'Decided by its proposer. From then on, AI apps get it.',
-      ],
+      ['accepted', 'accepted it as admin', 'Decided by its proposer. From then on, agents get it.'],
       [
         'approved',
         'accepted it as admin',

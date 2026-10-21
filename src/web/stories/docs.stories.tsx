@@ -70,7 +70,7 @@ export const Concept: Story = {
   render: () => <StoryApp path="/docs/mcp" />,
   play: async () => {
     await expect(await screen.findByRole('region', { name: 'In one minute' })).toBeVisible()
-    await expect(screen.getByRole('img', { name: /^The plug: AI apps/ })).toBeVisible()
+    await expect(screen.getByRole('img', { name: /^The plug: agents/ })).toBeVisible()
   },
 }
 

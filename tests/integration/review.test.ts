@@ -64,7 +64,7 @@ const norway = {
 }
 async function ask(input: object = norway) {
   const result = await execute(
-    'get_context',
+    'get_facts',
     input,
     { client: 'claude-code', scopes: ['read'], caller: 'agent', canSelectEdition: false },
     100000,

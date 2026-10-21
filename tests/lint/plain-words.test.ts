@@ -53,13 +53,13 @@ describe('heed/plain-words reports the old voice in text people read', () => {
       write('administrator', 'admin'),
     ])
     expect(said(`export const e = 'Open the edition.'`)).toEqual([
-      write('edition', 'what AI apps get today'),
+      write('edition', 'what agents get today'),
     ])
   })
 
   it('tells a longer phrase once, not each word in it', () => {
     expect(said(`export const a = 'In the live edition today'`)).toEqual([
-      write('live edition', 'what AI apps get today'),
+      write('live edition', 'what agents get today'),
     ])
     expect(said(`export const b = 'Every context item'`)).toEqual([write('context item', 'fact')])
   })
@@ -206,7 +206,7 @@ describe('where a banned word may show', () => {
     // "live edition" stays banned there too.
     expect(
       said(`export const b = 'The live edition'`, 'src/web/components/editions/x.tsx'),
-    ).toEqual([write('live edition', 'what AI apps get today')])
+    ).toEqual([write('live edition', 'what agents get today')])
   })
 
   it('allows "dimension" on the Catalogue and in Administration, and "token" and "model" only in Administration', () => {

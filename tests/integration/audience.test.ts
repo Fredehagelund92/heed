@@ -35,7 +35,7 @@ import {
   The audience rule on every read path (FR-128, NFR-029, F4 of the gateway security check): an
   item for some groups only, and the accepted proposal that made it, reach nobody outside its
   audience. Groups are parked, so nobody is in the item's group: every person, whatever their
-  roles, and every AI app, whatever groups its token claims, is outside it. Only the review
+  roles, and every agent, whatever groups its token claims, is outside it. Only the review
   exception of row security stays: the proposal's author, its domain's owners and approvers and
   administrators read the proposal they decide. A visible item that mentions the hidden one, and
   conflicts with it, shows the mention as its words only.
@@ -281,7 +281,7 @@ function samples(): Record<string, string[]> {
     label: [liveLabel],
     kind: ['metric'],
     key: ['privacy.min_count'],
-    tool: ['get_context'],
+    tool: ['get_facts'],
     job: ['retention.run'],
     question: ['00000000-0000-4000-8000-00000000abcd'],
     batchId: ['00000000-0000-4000-8000-00000000abcd'],
@@ -406,15 +406,15 @@ describe('the audience rule on every read path', () => {
     expect(document.items.map((row) => row.id)).not.toContain(linking.id)
   })
 
-  it('gives AI apps nothing of the hidden item, whatever groups their token claims', async () => {
+  it('gives agents nothing of the hidden item, whatever groups their token claims', async () => {
     const found: string[] = []
     const claims: (readonly string[] | undefined)[] = [undefined, ['finance_team'], ['sales']]
     const calls: [string, Record<string, unknown>][] = [
-      ['get_context', { question: 'Orders on holidays', metrics: ['Orders'] }],
-      ['find_context', { query: 'Vaultsunrise harbour Zephyrledger' }],
-      ['find_context', { query: 'harbour holidays' }],
-      ['search_context', { query: 'Zephyrledger' }],
-      ['search_context', { query: '', mentions: `item:${hidden.id}` }],
+      ['get_facts', { question: 'Orders on holidays', metrics: ['Orders'] }],
+      ['find_facts', { query: 'Vaultsunrise harbour Zephyrledger' }],
+      ['find_facts', { query: 'harbour holidays' }],
+      ['search_facts', { query: 'Zephyrledger' }],
+      ['search_facts', { query: '', mentions: `item:${hidden.id}` }],
       ['read_item', { id: hidden.id }],
       ['read_item', { id: linking.id }],
       ['get_related', { id: linking.id }],
@@ -471,8 +471,8 @@ describe('the audience rule on every read path', () => {
       const found: string[] = []
       const models = createModelPort({ mode: 'mock' })
       const inputs: [AssistantToolName, Record<string, unknown>][] = [
-        ['get_context', { question: 'Orders on holidays', metrics: ['Orders'] }],
-        ['find_context', { query: 'Vaultsunrise harbour Zephyrledger' }],
+        ['get_facts', { question: 'Orders on holidays', metrics: ['Orders'] }],
+        ['find_facts', { query: 'Vaultsunrise harbour Zephyrledger' }],
         ['read_item', { id: hidden.id }],
         ['read_item', { id: linking.id }],
         ['explain_item', { id: hidden.id, question: 'Orders on holidays', metrics: ['Orders'] }],

@@ -57,7 +57,7 @@ test.describe('the editions feed', () => {
       'aria-current',
     )
     await expect(liveCard(page)).toContainText(LIVE)
-    await expect(liveCard(page)).toContainText('Shared with AI apps')
+    await expect(liveCard(page)).toContainText('Shared with agents')
     // The live edition is the first entry, with the sentence that says what changed and who.
     await expect(feed(page).first()).toContainText(LIVE)
     await expect(feed(page).first()).toContainText('Live')
@@ -187,12 +187,12 @@ test.describe('the editions feed', () => {
       .click()
     await page.getByRole('menuitem', { name: 'Go back to this edition…' }).click()
 
-    // Step 1: what changes for AI apps, fact by fact, from the live edition read backwards.
+    // Step 1: what changes for agents, fact by fact, from the live edition read backwards.
     const dialog = page.getByRole('alertdialog', { name: /^Go back to how it was on / })
     await expect(dialog).toContainText('Step 1 of 2 · Check what changes')
-    await expect(dialog).toContainText('2 facts change for AI apps: 2 stop being shared.')
+    await expect(dialog).toContainText('2 facts change for agents: 2 stop being shared.')
     const changes = dialog.getByRole('list', {
-      name: `What changes for AI apps, from edition ${LIVE} back to ${earlier}`,
+      name: `What changes for agents, from edition ${LIVE} back to ${earlier}`,
     })
     await expect(changes.getByRole('listitem')).toHaveCount(2)
     await expect(changes.getByRole('listitem').first()).toContainText('Stops being shared')
@@ -201,7 +201,7 @@ test.describe('the editions feed', () => {
 
     // Step 2: the reason and the number typed to confirm; nothing happens without them.
     await expect(dialog).toContainText('Step 2 of 2 · Confirm')
-    await expect(dialog).toContainText('2 facts change for AI apps: 2 stop being shared.')
+    await expect(dialog).toContainText('2 facts change for agents: 2 stop being shared.')
     await dialog.getByRole('button', { name: 'Go back', exact: true }).click()
     await expect(dialog).toContainText('Give a reason.')
     await dialog
@@ -219,7 +219,7 @@ test.describe('the editions feed', () => {
     // Done: what happened, from the history log, and the way to undo it.
     const done = page.getByRole('alertdialog', { name: /^Went back to / })
     await expect(done).toContainText(
-      `AI apps get the facts of edition ${earlier} again, saved as the new edition ${NEXT}.`,
+      `agents get the facts of edition ${earlier} again, saved as the new edition ${NEXT}.`,
     )
     await expect(done.locator('[data-slot="release-history"]')).toContainText(
       `Ravi Kapoor went back to ${earlier}, as edition ${NEXT}, on`,
@@ -233,15 +233,15 @@ test.describe('the editions feed', () => {
     // Undo is going back again, to the edition that was live, with its own preview.
     await done.getByRole('button', { name: `Go back to ${LIVE}…` }).click()
     const undo = page.getByRole('alertdialog', { name: 'Go back to how it was on 7 October 2026?' })
-    await expect(undo).toContainText(`AI apps get the facts of edition ${LIVE} again.`)
-    await expect(undo).toContainText('2 facts change for AI apps: 2 come back.')
+    await expect(undo).toContainText(`Agents get the facts of edition ${LIVE} again.`)
+    await expect(undo).toContainText('2 facts change for agents: 2 come back.')
     await undo.getByRole('button', { name: 'Continue' }).click()
     await undo.getByRole('textbox', { name: 'Why are you going back?' }).fill('Undo the test.')
     await undo.getByRole('textbox', { name: `Type ${LIVE} to confirm` }).fill(LIVE)
     await undo.getByRole('button', { name: 'Go back', exact: true }).click()
     const undone = page.getByRole('alertdialog', { name: 'Went back to 7 October 2026' })
     await expect(undone).toContainText(
-      `AI apps get the facts of edition ${LIVE} again, saved as the new edition 2026-10-07.4.`,
+      `agents get the facts of edition ${LIVE} again, saved as the new edition 2026-10-07.4.`,
     )
     await undone.getByRole('button', { name: 'Close' }).click()
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
@@ -277,7 +277,7 @@ test.describe('the editions feed', () => {
     })
     await expect(dialog.getByRole('alert')).toContainText("You can't go back to this edition")
     await expect(dialog.getByRole('alert')).toContainText(
-      `One of its fact versions can't be shared with AI apps again. Nothing has changed: AI apps still get edition ${LIVE}.`,
+      `One of its fact versions can't be shared with agents again. Nothing has changed: agents still get edition ${LIVE}.`,
     )
     const blocked = dialog.getByRole('list', { name: "Versions that can't be shared again" })
     await expect(blocked).toContainText('Average order value lags by one day in the source tool')
@@ -301,12 +301,12 @@ test.describe('the editions feed', () => {
     await expect(liveCard(page).getByRole('button', { name: /Stop sharing/ })).toHaveCount(0)
     await liveCard(page).getByRole('button', { name: 'More actions for this edition' }).click()
     await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
     await expect(dialog).toContainText('Step 1 of 2 · Choose what to stop')
     await expect(dialog.getByRole('radio', { name: 'One domain' })).toBeChecked()
-    await expect(dialog).toContainText('Within a minute, AI apps get no facts from Customer value.')
+    await expect(dialog).toContainText('Within a minute, agents get no facts from Customer value.')
     await expect(dialog).toContainText(
-      /AI apps stop getting the \d+ facts in Customer value\. Other domains stay as they are\./,
+      /Agents stop getting the \d+ facts in Customer value\. Other domains stay as they are\./,
     )
     await expect(dialog).toContainText('People still read these facts in the Library.')
     await dialog.getByRole('button', { name: 'Continue' }).click()
@@ -320,7 +320,7 @@ test.describe('the editions feed', () => {
 
     const done = page.getByRole('alertdialog', { name: 'Stopped for Customer value' })
     await expect(done.locator('[data-slot="release-history"]')).toContainText(
-      'Ravi Kapoor stopped sharing Customer value with AI apps on',
+      'Ravi Kapoor stopped sharing Customer value with agents on',
     )
     await expect(done.locator('[data-slot="release-history"]')).toContainText(
       'Why: A wrong caveat is reaching answers.',
@@ -328,7 +328,7 @@ test.describe('the editions feed', () => {
     await done.getByRole('button', { name: 'Close' }).click()
     await expect(done).toBeHidden()
 
-    await expect(banner(page)).toContainText('AI apps get no facts from Customer value for now.')
+    await expect(banner(page)).toContainText('Agents get no facts from Customer value for now.')
     await expect(banner(page)).toContainText('Why: A wrong caveat is reaching answers.')
     await expect(liveCard(page)).toContainText('Sharing is stopped')
     // The banner is part of the shell: it stays on every page.
@@ -342,9 +342,9 @@ test.describe('the editions feed', () => {
     await resume.getByRole('textbox', { name: /Why/ }).fill('The caveat is fixed.')
     await resume.getByRole('button', { name: 'Start again' }).click()
     await expect(banner(page)).toHaveCount(0)
-    await expect(liveCard(page)).toContainText('Shared with AI apps')
+    await expect(liveCard(page)).toContainText('Shared with agents')
     await expect(liveCard(page).locator('[data-slot="release-history"]')).toContainText(
-      'Ravi Kapoor started sharing Customer value with AI apps again on',
+      'Ravi Kapoor started sharing Customer value with agents again on',
     )
   })
 
@@ -355,9 +355,9 @@ test.describe('the editions feed', () => {
       .getByRole('button', { name: `Actions for edition ${LIVE}` })
       .click()
     await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
     await dialog.getByRole('radio', { name: 'Everything' }).check()
-    await expect(dialog).toContainText(/AI apps stop getting the [\d,]+ facts, in every domain\./)
+    await expect(dialog).toContainText(/Agents stop getting the [\d,]+ facts, in every domain\./)
     await dialog.getByRole('button', { name: 'Continue' }).click()
     await dialog
       .getByRole('textbox', { name: 'Why are you stopping it?' })
@@ -371,7 +371,7 @@ test.describe('the editions feed', () => {
     await resume.getByRole('button', { name: 'Start again' }).click()
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
     await expect(banner(page)).toHaveCount(0)
-    await expect(liveCard(page)).toContainText('Shared with AI apps')
+    await expect(liveCard(page)).toContainText('Shared with agents')
   })
 
   test('stopping everything asks for "everything"; one fact needs it chosen first', async ({
@@ -381,9 +381,9 @@ test.describe('the editions feed', () => {
     await openPage(page, '/editions', desktop)
     await liveCard(page).getByRole('button', { name: 'More actions for this edition' }).click()
     await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
     await dialog.getByRole('radio', { name: 'Everything' }).check()
-    await expect(dialog).toContainText('Within a minute, AI apps get no facts at all.')
+    await expect(dialog).toContainText('Within a minute, agents get no facts at all.')
     await dialog.getByRole('button', { name: 'Continue' }).click()
     await expect(dialog.getByRole('textbox', { name: 'Type everything to confirm' })).toBeVisible()
     await dialog.getByRole('button', { name: 'Back' }).click()
@@ -392,8 +392,8 @@ test.describe('the editions feed', () => {
     await dialog.getByRole('radio', { name: 'One domain' }).check()
     await dialog.getByRole('combobox', { name: 'Domain' }).click()
     await page.getByRole('option', { name: 'Marketing' }).click()
-    await expect(dialog).toContainText('Within a minute, AI apps get no facts from Marketing.')
-    await expect(dialog).toContainText(/AI apps stop getting the (one fact|\d+ facts) in Marketing/)
+    await expect(dialog).toContainText('Within a minute, agents get no facts from Marketing.')
+    await expect(dialog).toContainText(/Agents stop getting the (one fact|\d+ facts) in Marketing/)
     await dialog.getByRole('button', { name: 'Continue' }).click()
     await expect(dialog.getByRole('textbox', { name: 'Type Marketing to confirm' })).toBeVisible()
     await dialog.getByRole('button', { name: 'Back' }).click()
@@ -410,7 +410,7 @@ test.describe('the editions feed', () => {
       .getByRole('option', { name: /Comparing Units per order between the Netherlands/ })
       .first()
       .click()
-    await expect(dialog).toContainText('AI apps stop getting only this fact.')
+    await expect(dialog).toContainText('Agents stop getting only this fact.')
     await dialog.getByRole('button', { name: 'Continue' }).click()
     await expect(dialog.getByRole('textbox', { name: /to confirm/ })).toHaveCount(0)
     await dialog.getByRole('textbox', { name: 'Why are you stopping it?' }).fill('One wrong fact.')
@@ -418,7 +418,7 @@ test.describe('the editions feed', () => {
     await page.getByRole('alertdialog').getByRole('button', { name: 'Close' }).click()
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
     await expect(banner(page)).toContainText(
-      `AI apps don't get the fact "Comparing Units per order between the Netherlands and other markets" for now.`,
+      `Agents don't get the fact "Comparing Units per order between the Netherlands and other markets" for now.`,
     )
   })
 
@@ -483,7 +483,7 @@ test.describe('who may open editions', () => {
     await expect(liveCard(page).locator('[data-slot="release-history"]')).toHaveCount(0)
     await openPage(page, `/editions/${LIVE}`, desktop)
     await expect(page.locator('[data-slot="edition-header"]')).toContainText(
-      'What AI apps get today',
+      'What agents get today',
     )
     await expect(page.getByRole('button', { name: /Actions for edition/ })).toHaveCount(0)
   })
@@ -503,7 +503,7 @@ test.describe('who may open editions', () => {
     await openPage(page, `/evals/editions/${LIVE}`, desktop)
     await expect(page).toHaveURL(new RegExp(`/editions/${LIVE.replace('.', '\\.')}$`))
     await expect(page.locator('[data-slot="edition-header"]')).toContainText(
-      'What AI apps get today',
+      'What agents get today',
     )
   })
 })
@@ -513,7 +513,7 @@ test.describe('the edition page', () => {
     await signInAs(page, 'per_ravi')
     await openPage(page, `/editions/${LIVE}`, desktop)
     const header = page.locator('[data-slot="edition-header"]')
-    await expect(header).toContainText('What AI apps get today')
+    await expect(header).toContainText('What agents get today')
     await expect(header).toContainText('Proposal accepted')
     await expect(header.getByRole('button', { name: 'Export JSON' })).toBeVisible()
     await expect(page.getByRole('navigation', { name: 'breadcrumb' })).toContainText(LIVE)
@@ -548,7 +548,7 @@ test.describe('item actions', () => {
     await page.getByRole('menuitem', { name: 'Archive fact' }).click()
     const dialog = page.getByRole('alertdialog', { name: 'Archive this fact?' })
     await expect(dialog).toContainText(
-      'AI apps stop getting it at once. You can still read it and its history.',
+      'Agents stop getting it at once. You can still read it and its history.',
     )
     await dialog.getByRole('textbox', { name: /Why/ }).fill('The source tool fixed it.')
     await dialog.getByRole('button', { name: 'Archive fact' }).click()

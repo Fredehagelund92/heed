@@ -12,7 +12,7 @@ import { readAnswer, stepsSummary, type AskMessage, type DraftProposal } from '@
   present while a step runs and in the past once it is done, and which folds once the work is
   done; the change card about the object, with the line beside what the agent wrote and one
   decision; and the
-  trail of how a draft an AI app wrote came to be, on its review page.
+  trail of how a draft an agent wrote came to be, on its review page.
 */
 
 const step = (overrides: Partial<TrailStep> & Pick<TrailStep, 'id' | 'words'>): TrailStep => ({
@@ -156,7 +156,7 @@ describe('the tense of a step', () => {
   it.each([
     ['check_draft', 'Running the checks', 'Ran the checks'],
     ['find_overlaps', 'Looking for facts that overlap', 'Looked for facts that overlap'],
-    ['estimate_impact', 'Previewing what AI apps would get', 'Previewed what AI apps would get'],
+    ['estimate_impact', 'Previewing what agents would get', 'Previewed what agents would get'],
     ['read_gap', 'Reading a reported gap', 'Read a reported gap'],
     [
       'improve_question',
@@ -180,7 +180,7 @@ describe('the tense of a step', () => {
           url: 'https://consumer.example/eu/right-of-withdrawal',
         }),
         call('read_item', 'output-available', { item: { id: 'itm_1' } }),
-        call('get_context', 'output-available', { items: [{ id: 'itm_1' }, { id: 'itm_2' }] }),
+        call('get_facts', 'output-available', { items: [{ id: 'itm_1' }, { id: 'itm_2' }] }),
       ],
     })
     expect(stepsSummary(answer.steps)).toEqual({ steps: '3 steps', read: '2 facts, 1 page' })

@@ -196,7 +196,7 @@ describe('runs in the mock', () => {
     expect(await as('per_jon').getEvalTranscript(failed.id)).toMatchObject({
       passed: false,
       scores: { checks: { delivered: false, caveat: false }, statuses: ['no_match'] },
-      toolCalls: [{ tool: 'get_context', status: 'no_match', items: [] }],
+      toolCalls: [{ tool: 'get_facts', status: 'no_match', items: [] }],
     })
     // Someone who does not maintain the domain reads neither.
     expect(await as('per_maria').getEvalTranscript(cell.id)).toBeNull()

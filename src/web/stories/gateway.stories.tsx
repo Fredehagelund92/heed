@@ -27,14 +27,14 @@ const phone = { viewport: { value: 'phone', isRotated: false } }
 export const Clients: Story = {
   render: () => <StoryApp path="/admin?section=gateway" person={admin} />,
   play: async () => {
-    const grid = await screen.findByRole('table', { name: 'AI apps' }, { timeout: 10_000 })
+    const grid = await screen.findByRole('table', { name: 'Agents' }, { timeout: 10_000 })
     await expect(
       within(grid).getByRole('button', { name: 'Edit Claude Code with a token' }),
     ).toBeVisible()
     await expect(
-      screen.getByText(/Every app a person connects by signing in to .+, Claude Code included/),
+      screen.getByText(/Every agent a person connects by signing in to .+, Claude Code included/),
     ).toHaveTextContent(
-      'carries the label signed-in, so that one row governs them all; each person disconnects their own apps in Connect an AI app.',
+      'carries the label signed-in, so that one row governs them all; each person disconnects their own agents in Connect an agent.',
     )
   },
 }
@@ -100,10 +100,10 @@ export const AddClientErrors: Story = {
   render: () => <StoryApp path="/admin?section=gateway" person={admin} />,
   play: async () => {
     await userEvent.click(
-      await screen.findByRole('button', { name: 'Add an AI app' }, { timeout: 10_000 }),
+      await screen.findByRole('button', { name: 'Add an agent' }, { timeout: 10_000 }),
     )
-    const dialog = await screen.findByRole('dialog', { name: 'Add an AI app' })
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Add AI app' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add an agent' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add agent' }))
     const summary = await within(dialog).findByRole('alert')
     await expect(summary).toHaveTextContent('Fix these 3 problems first')
     await waitFor(() => expect(summary).toHaveFocus())
@@ -125,7 +125,7 @@ export const SwitchToolOff: Story = {
 }
 
 /**
- * Every person's AI apps (security check F3): the person, the app as it names itself and where it
+ * Every person's agents (security check F3): the person, the app as it names itself and where it
  * came from, what it may do, when it connected and ends, and when it was last used, newest first.
  */
 export const Connections: Story = {
@@ -133,7 +133,7 @@ export const Connections: Story = {
   play: async () => {
     const grid = await screen.findByRole(
       'table',
-      { name: 'AI apps people connected' },
+      { name: 'Agents people connected' },
       { timeout: 10_000 },
     )
     await expect(within(grid).getByRole('columnheader', { name: /Last used/ })).toHaveAttribute(
@@ -169,7 +169,7 @@ export const DisconnectApp: Story = {
   },
 }
 
-/** Nobody has connected an AI app yet. */
+/** Nobody has connected an agent yet. */
 export const ConnectionsEmpty: Story = {
   render: () => (
     <StoryApp path="/admin?section=gateway&tab=connections" person={admin} scenario="empty" />

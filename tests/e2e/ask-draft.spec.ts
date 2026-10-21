@@ -91,7 +91,7 @@ test('the card shows the draft to review, saves nothing until Create draft, then
     /From consumer\.example/,
   )
   await expect(card(page).locator('[data-slot="ask-draft-web"]')).toContainText(
-    'The owner of its domain checks it before AI apps get it.',
+    'The owner of its domain checks it before agents get it.',
   )
   await expect(field(page, 'areaId')).not.toContainText('Not given')
   // Nothing says who wrote a field: no line, no legend, no switch, no badge for the assistant.

@@ -219,7 +219,7 @@ describe('get_related, by example', () => {
     expect(() => related(bundle([], []), { id: 'finance', depth: 3, today })).toThrow(/Depth/)
   })
 
-  it('keeps the links of a delivered item in the order and shape get_context has always used', () => {
+  it('keeps the links of a delivered item in the order and shape get_facts has always used', () => {
     const a = item('itm_aaaaaaaa')
     const data = bundle([a], [link(a.id, 'mentions', 'val:market/norway', 'Norway')])
     expect(outgoing(data, a, today)).toEqual({

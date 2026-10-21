@@ -27,7 +27,7 @@ import {
 } from '@/lib/gateway'
 import { validateMcpSearch } from '@/lib/search-params'
 
-// The clients tab links to Connect an AI app; outside a router a link is a plain anchor.
+// The clients tab links to Connect an agent; outside a router a link is a plain anchor.
 vi.mock('@tanstack/react-router', async (original) => ({
   ...(await original<typeof Router>()),
   Link: ({ to, children, ...props }: ComponentProps<'a'> & { to: string }) => (
@@ -49,16 +49,16 @@ const client = (extra: Partial<ClientPolicy> = {}): ClientPolicy => ({
 
 describe('the tools in words', () => {
   it('names the tools it knows and keeps the name of one it does not', () => {
-    expect(toolName('get_context')).toBe('Get facts for a question')
+    expect(toolName('get_facts')).toBe('Get facts for a question')
     expect(toolName('give_feedback')).toBe('Say if it helped')
     expect(toolName('brand_new_tool')).toBe('brand_new_tool')
   })
 
   it('lists the reading tools first, then feedback, then any it does not know', () => {
-    const tools = ['search_context', 'zzz_new', 'give_feedback', 'aaa_new', 'get_context']
+    const tools = ['search_facts', 'zzz_new', 'give_feedback', 'aaa_new', 'get_facts']
     expect(orderTools(tools.map((tool) => ({ tool }))).map(({ tool }) => tool)).toEqual([
-      'get_context',
-      'search_context',
+      'get_facts',
+      'search_facts',
       'give_feedback',
       'aaa_new',
       'zzz_new',
@@ -68,10 +68,10 @@ describe('the tools in words', () => {
   it('counts the tools that are on', () => {
     const at = '2026-10-07T12:00:00.000Z'
     const tool = (name: string, enabled: boolean) => ({ tool: name, enabled, updatedAt: at })
-    expect(toolsOnWords([tool('get_context', true), tool('get_related', false)])).toBe(
+    expect(toolsOnWords([tool('get_facts', true), tool('get_related', false)])).toBe(
       '1 of 2 tools are on.',
     )
-    expect(toolsOnWords([tool('get_context', true)])).toBe('The tool is on.')
+    expect(toolsOnWords([tool('get_facts', true)])).toBe('The tool is on.')
     expect(toolsOnWords([])).toBe('There are no tools yet.')
   })
 
@@ -82,17 +82,17 @@ describe('the tools in words', () => {
       client({ label: 'eval', displayName: 'Evaluation runner' }),
       client({ label: 'old', displayName: 'Old bot', enabled: false }),
     ]
-    expect(toolSwitchEffect('get_context', false, clients)).toBe(
-      'Claude Code and Evaluation runner stop using it from the next call. It stays off for every AI app until you switch it on again.',
+    expect(toolSwitchEffect('get_facts', false, clients)).toBe(
+      'Claude Code and Evaluation runner stop using it from the next call. It stays off for every agent until you switch it on again.',
     )
     expect(toolSwitchEffect('read_item', true, clients)).toBe(
       'Claude Code, Cursor and Evaluation runner can use it from the next call.',
     )
-    expect(toolSwitchEffect('get_context', true, [client({ enabled: false })])).toBe(
-      'None of the AI apps that are on allow it yet. Allow it for one on the AI apps tab.',
+    expect(toolSwitchEffect('get_facts', true, [client({ enabled: false })])).toBe(
+      'None of the agents that are on allow it yet. Allow it for one on the agents tab.',
     )
-    expect(toolSwitchEffect('get_context', false, undefined)).toBe(
-      'Every AI app stops using it from its next call.',
+    expect(toolSwitchEffect('get_facts', false, undefined)).toBe(
+      'Every agent stops using it from its next call.',
     )
   })
 })
@@ -100,7 +100,7 @@ describe('the tools in words', () => {
 describe('a client in words', () => {
   it('says which tools a client may call', () => {
     expect(clientToolsWords(client())).toBe('Every tool that is on')
-    expect(clientToolsWords(client({ toolsAllowed: ['search_context', 'get_context'] }))).toBe(
+    expect(clientToolsWords(client({ toolsAllowed: ['search_facts', 'get_facts'] }))).toBe(
       'Get facts for a question, Search facts',
     )
     expect(clientToolsWords(client({ toolsAllowed: [] }))).toBe('No tools')
@@ -135,8 +135,8 @@ describe('the client form', () => {
 
   it('asks for what is missing, in plain words', () => {
     expect(problems({})).toEqual({
-      label: 'Give the AI app a label.',
-      displayName: 'Give the AI app a name.',
+      label: 'Give the agent a label.',
+      displayName: 'Give the agent a name.',
       reason: 'Give a reason.',
     })
   })
@@ -147,7 +147,7 @@ describe('the client form', () => {
     })
     expect(problems({ ...filled, label: 'x'.repeat(41) })).toHaveProperty('label')
     expect(problems({ ...filled, label: 'claude-code' })).toEqual({
-      label: 'Another AI app has this label. Edit that one in the list instead.',
+      label: 'Another agent has this label. Edit that one in the list instead.',
     })
     // An existing client keeps its label, so it is not checked again.
     expect(problems({ ...filled, label: 'claude-code' }, false)).toEqual({})
@@ -159,7 +159,7 @@ describe('the client form', () => {
       ...filled,
     })
     expect(result.error?.issues.map((issue) => issue.message)).toEqual([
-      "We couldn't load the AI apps, so we can't check the label is free. Try again.",
+      "We couldn't load the agents, so we can't check the label is free. Try again.",
     ])
     expect(
       clientFormSchema({ isNew: false, takenLabels: null }).safeParse({
@@ -213,7 +213,7 @@ describe('the client form', () => {
     const cursor = client({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['read_item', 'get_context'],
+      toolsAllowed: ['read_item', 'get_facts'],
       ratePerMinute: null,
       maxResponseBytes: 2_500,
       enabled: false,
@@ -223,7 +223,7 @@ describe('the client form', () => {
     expect(toSaveClientInput({ ...values, reason: '  Paused for now  ' })).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_context', 'read_item'],
+      toolsAllowed: ['get_facts', 'read_item'],
       ratePerMinute: null,
       maxResponseBytes: 2_500,
       enabled: false,
@@ -273,13 +273,13 @@ describe('the client editor', { timeout: 15_000 }, () => {
   it('lists every problem of an empty new client and moves focus to the list', async () => {
     const user = userEvent.setup()
     renderEditor()
-    const dialog = await screen.findByRole('dialog', { name: 'Add an AI app' })
-    await user.click(within(dialog).getByRole('button', { name: 'Add AI app' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add an agent' })
+    await user.click(within(dialog).getByRole('button', { name: 'Add agent' }))
     const summary = await within(dialog).findByRole('alert')
     expect(summary).toHaveTextContent('Fix these 3 problems first')
     expect(summary).toHaveFocus()
     expect(within(dialog).getByRole('textbox', { name: 'Label' })).toHaveAccessibleDescription(
-      expect.stringContaining('Give the AI app a label.'),
+      expect.stringContaining('Give the agent a label.'),
     )
   })
 
@@ -302,7 +302,7 @@ describe('the client editor', { timeout: 15_000 }, () => {
     expect((await api.listClients()).find((entry) => entry.label === 'cursor')).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_context', 'improve_question', 'read_item', 'search_context'],
+      toolsAllowed: ['get_facts', 'improve_question', 'read_item', 'search_facts'],
       ratePerMinute: 90,
       maxResponseBytes: null,
       enabled: true,
@@ -322,7 +322,7 @@ describe('the client editor', { timeout: 15_000 }, () => {
         within(dialog).getByRole('checkbox', { name: 'Get facts for a question' }),
       ).toBeChecked()
       expect(within(dialog).getByRole('checkbox', { name: 'Follow links' })).not.toBeChecked()
-      expect(dialog).not.toHaveTextContent('Off for every AI app now.')
+      expect(dialog).not.toHaveTextContent('Off for every agent now.')
     } finally {
       window.localStorage.removeItem(MOCK_SCENARIO_KEY)
     }
@@ -331,14 +331,14 @@ describe('the client editor', { timeout: 15_000 }, () => {
   it('refuses to add a client while the labels in use are not known', async () => {
     const user = userEvent.setup()
     const { onOpenChange } = renderEditor({ takenLabels: null })
-    const dialog = await screen.findByRole('dialog', { name: 'Add an AI app' })
+    const dialog = await screen.findByRole('dialog', { name: 'Add an agent' })
     await user.click(within(dialog).getByRole('textbox', { name: 'Name' }))
     await user.paste('Cursor again')
     await user.click(within(dialog).getByRole('textbox', { name: 'Label' }))
     await user.paste('cursor')
     await user.click(within(dialog).getByRole('textbox', { name: 'Why' }))
     await user.paste('A trial')
-    await user.click(within(dialog).getByRole('button', { name: 'Add AI app' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Add agent' }))
     expect(await within(dialog).findByText(/we can't check the label is free/)).toBeVisible()
     expect(onOpenChange).not.toHaveBeenCalled()
     expect((await api.listClients()).find((entry) => entry.label === 'cursor')?.displayName).toBe(
@@ -349,15 +349,15 @@ describe('the client editor', { timeout: 15_000 }, () => {
   it("keeps the form open with the service's answer when it refuses", async () => {
     const user = userEvent.setup()
     const { onOpenChange } = renderEditor()
-    const dialog = await screen.findByRole('dialog', { name: 'Add an AI app' })
+    const dialog = await screen.findByRole('dialog', { name: 'Add an agent' })
     await user.click(within(dialog).getByRole('textbox', { name: 'Name' }))
     await user.paste('Support bot')
     await user.click(within(dialog).getByRole('textbox', { name: 'Label' }))
     await user.paste('support-bot')
     await user.click(within(dialog).getByRole('textbox', { name: 'Why' }))
     await user.paste('Asked by anna@example.test')
-    await user.click(within(dialog).getByRole('button', { name: 'Add AI app' }))
-    expect(await within(dialog).findByText("The AI app wasn't saved")).toBeVisible()
+    await user.click(within(dialog).getByRole('button', { name: 'Add agent' }))
+    expect(await within(dialog).findByText("The agent wasn't saved")).toBeVisible()
     expect(dialog).toHaveTextContent(
       'Remove the email address, phone number or secret from the reason.',
     )
@@ -395,19 +395,19 @@ describe('adding a client from the clients tab', { timeout: 15_000 }, () => {
   it('is blocked with its reason while the clients load, then opens once they are in', async () => {
     const user = userEvent.setup()
     renderTab()
-    const blocked = screen.getByRole('button', { name: 'Add an AI app' })
+    const blocked = screen.getByRole('button', { name: 'Add an agent' })
     expect(blocked).toHaveAttribute('aria-disabled', 'true')
     expect(blocked).toHaveAccessibleDescription(/still loading/)
     await user.click(blocked)
-    expect(screen.queryByRole('dialog', { name: 'Add an AI app' })).toBeNull()
-    await screen.findByRole('list', { name: 'AI apps' })
+    expect(screen.queryByRole('dialog', { name: 'Add an agent' })).toBeNull()
+    await screen.findByRole('list', { name: 'Agents' })
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Add an AI app' })).not.toHaveAttribute(
+      expect(screen.getByRole('button', { name: 'Add an agent' })).not.toHaveAttribute(
         'aria-disabled',
       ),
     )
-    await user.click(screen.getByRole('button', { name: 'Add an AI app' }))
-    expect(await screen.findByRole('dialog', { name: 'Add an AI app' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Add an agent' }))
+    expect(await screen.findByRole('dialog', { name: 'Add an agent' })).toBeVisible()
   })
 
   it('stays blocked, saying why, when the clients cannot be read', async () => {
@@ -415,12 +415,12 @@ describe('adding a client from the clients tab', { timeout: 15_000 }, () => {
     window.localStorage.setItem(MOCK_SCENARIO_KEY, 'error')
     renderTab()
     expect(
-      await screen.findByText("We couldn't load the AI apps", {}, { timeout: 5000 }),
+      await screen.findByText("We couldn't load the agents", {}, { timeout: 5000 }),
     ).toBeVisible()
-    const blocked = screen.getByRole('button', { name: 'Add an AI app' })
+    const blocked = screen.getByRole('button', { name: 'Add an agent' })
     expect(blocked).toHaveAttribute('aria-disabled', 'true')
-    expect(blocked).toHaveAccessibleDescription(/couldn't load the AI apps/)
+    expect(blocked).toHaveAccessibleDescription(/couldn't load the agents/)
     await user.click(blocked)
-    expect(screen.queryByRole('dialog', { name: 'Add an AI app' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Add an agent' })).toBeNull()
   })
 })
