@@ -284,17 +284,4 @@ describe('the words of the parts', () => {
       'Proposed by you, 7 Oct 2026',
     )
   })
-
-  it('keeps the proposer the author of a draft an AI app wrote, and says with what', () => {
-    expect(personChipText('proposer', 'Priya Nair', false, '2026-10-07', 'agent')).toBe(
-      'Proposed by Priya Nair with an AI app, 7 Oct 2026',
-    )
-    expect(personChipText('proposer', 'Priya Nair', true, null, 'assistant')).toBe(
-      'Proposed by you with the assistant',
-    )
-    // Only the proposer drafted it: a reviewer's chip says nothing of the app.
-    expect(personChipText('reviewer', 'Tomas Eriksen', false, null, 'agent')).toBe(
-      'Tomas Eriksen reviews this',
-    )
-  })
 })

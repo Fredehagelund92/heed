@@ -12,7 +12,6 @@ import {
 } from '@/components/icons'
 import { termKindGlyphs, termKindNames } from '@/components/catalogue/catalogue-marks'
 import { DateBadge, DomainBadge, KindIcon, ProposalStatusBadge } from '@/components/item/item-marks'
-import { DraftedMark } from '@/components/proposal/attribution'
 import { highlight } from '@/components/library/item-list'
 import {
   gridCell,
@@ -76,14 +75,7 @@ function Cell({
       content = <span className="text-muted-foreground">{changeLabel(row)}</span>
       break
     case 'status':
-      content = row.drafted ? (
-        <span className="flex min-w-0 items-center gap-2">
-          <ProposalStatusBadge state={row.state} size="sm" />
-          <DraftedMark by={row.drafted} />
-        </span>
-      ) : (
-        <ProposalStatusBadge state={row.state} size="sm" />
-      )
+      content = <ProposalStatusBadge state={row.state} size="sm" />
       break
     case 'domain':
       content = <DomainBadge name={row.areaName} label={row.areaLabel} size="sm" />
@@ -358,7 +350,6 @@ function NarrowRow({
             size="sm"
             iconOnly={row.state === 'accepted' || row.state === 'withdrawn'}
           />
-          {row.drafted ? <DraftedMark by={row.drafted} /> : null}
         </div>
         <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground tabular-nums">
           <span>{changeLabel(row)}</span>

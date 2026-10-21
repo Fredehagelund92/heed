@@ -5,15 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { proposalStates, type ProposalState } from '@domain/proposal-state'
 import { ProposalStatusBadge, proposalStateLook } from '@/components/item/item-marks'
 import { AgentPreview } from '@/components/proposal/agent-preview'
-import { DraftedAvatar, DraftedMark, ProvenanceSummary } from '@/components/proposal/attribution'
 import { COPIED_FOR_MS, EditionLabel } from '@/components/proposal/edition-label'
 import { CheckOutcomes, GateResult } from '@/components/proposal/gate-result'
 import { OverlapList } from '@/components/proposal/overlap-list'
-import {
-  DraftProvenanceNotice,
-  ExternalSources,
-  ProvenanceMark,
-} from '@/components/proposal/provenance-mark'
+import { DraftProvenanceNotice, ExternalSources } from '@/components/proposal/provenance-notes'
 import { PersonChip } from '@/components/proposal/person-chip'
 import {
   Timeline,
@@ -361,144 +356,24 @@ describe('OverlapList', () => {
   })
 })
 
-describe('ProvenanceMark', () => {
-  const marks = () => document.querySelectorAll<HTMLElement>('[data-slot="provenance-mark"]')
-  it('is a muted glyph named Suggested in the editor and AI app wrote on review, never a badge', () => {
-    const { unmount } = render(<ProvenanceMark mark="prefilled" by="agent" where="editor" />)
-    expect(marks()[0]).toHaveAttribute('data-mark', 'prefilled')
-    expect(
-      screen.getByRole('img', {
-        name: 'Suggested: Suggested by an AI app. Check it before you send it.',
-      }),
-    ).toBeVisible()
-    // No words on the page: the glyph's name and meaning are its tooltip and accessible name.
-    expect(marks()[0]).toHaveTextContent('')
-    // It is reached from the keyboard, so focus shows the full source.
-    expect(marks()[0]).toHaveAttribute('tabindex', '0')
-    unmount()
-    render(<ProvenanceMark mark="prefilled" by="agent" where="review" />)
-    expect(
-      screen.getByRole('img', {
-        name: 'AI app wrote: Written by an AI app for the proposer, who sent it.',
-      }),
-    ).toBeVisible()
-  })
-  it('names an answered field Confirmed in both', () => {
-    const { unmount } = render(<ProvenanceMark mark="confirmed" by="agent" where="editor" />)
-    expect(
-      screen.getByRole('img', {
-        name: 'Confirmed: You answered this in your AI app, when it asked.',
-      }),
-    ).toBeVisible()
-    unmount()
-    render(<ProvenanceMark mark="confirmed" by="agent" where="review" />)
-    expect(
-      screen.getByRole('img', {
-        name: 'Confirmed: Confirmed by the proposer in their AI app, when it asked.',
-      }),
-    ).toBeVisible()
-  })
-  it('is muted everywhere: the line beside the field is what asks for a look', () => {
-    const { unmount } = render(<ProvenanceMark mark="prefilled" by="agent" where="editor" />)
-    expect(marks()[0]).toHaveClass('text-muted-foreground')
-    expect(marks()[0]).not.toHaveClass('text-status-info-fg')
-    unmount()
-    render(<ProvenanceMark mark="prefilled" by="agent" where="review" />)
-    expect(marks()[0]).toHaveClass('text-muted-foreground')
-  })
-})
-
-describe('ProvenanceSummary', () => {
-  const provenance = {
-    by: 'agent' as const,
-    fields: { summary: 'prefilled' as const, validity: 'confirmed' as const },
-    flags: [],
-  }
-  const counts = { wrote: 3, confirmed: 2, filled: 5, left: 0 }
-
-  it('names the proposer as the author and the AI app as how, with the counts per mark', () => {
-    render(
-      <ProvenanceSummary
-        provenance={provenance}
-        person="Priya Nair"
-        you={false}
-        counts={counts}
-        submitted
-      />,
-    )
-    expect(document.querySelector('[data-slot="review-provenance"]')).toHaveTextContent(
-      'Priya Nair drafted this with an AI app and sent it. The AI app wrote 3 fields, Priya confirmed 2 when it asked and 5 were filled in automatically.',
-    )
-    // The app is a mark on the person's avatar, never an avatar of its own.
-    expect(document.querySelector('[data-slot="ai-app-mark"]')).toBeInTheDocument()
-    expect(document.querySelectorAll('[data-slot="avatar"]')).toHaveLength(1)
-    // Without a highlight, no switch.
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-  })
-
-  it('says you to the proposer, and names the page the assistant read', () => {
-    render(
-      <ProvenanceSummary
+describe('DraftProvenanceNotice', () => {
+  it('asks the person to check the fields to check, and names nobody as the writer', () => {
+    const { container } = render(
+      <DraftProvenanceNotice
         provenance={{
-          by: 'assistant',
-          fields: { evidence: 'prefilled' },
+          by: 'agent',
+          fields: { summary: 'prefilled', validity: 'prefilled', scope: 'confirmed' },
           flags: [],
-          external: [
-            { url: 'https://news.example/a', quote: 'A', readOn: '2026-10-06', quoteFound: true },
-          ],
         }}
-        person="Priya Nair"
-        you
-        counts={{ wrote: 1, confirmed: 0, filled: 2, left: 0 }}
-        submitted={false}
       />,
     )
-    expect(document.querySelector('[data-slot="review-provenance"]')).toHaveTextContent(
-      'You drafted this with the assistant, from a page it read on 6 Oct 2026. The assistant wrote 1 field and 2 were filled in automatically.',
-    )
-  })
-
-  it('ends in the legend of the line when a field shown carries it, with no switch', () => {
-    const { unmount } = render(
-      <ProvenanceSummary
-        provenance={provenance}
-        person="Priya Nair"
-        you={false}
-        counts={counts}
-        submitted
-        marked
-      />,
-    )
-    expect(document.querySelector('[data-slot="ai-mark-legend"]')).toHaveTextContent(
-      'A line marks what the app wrote',
-    )
-    expect(screen.queryByRole('switch')).toBeNull()
-    unmount()
-    render(
-      <ProvenanceSummary
-        provenance={provenance}
-        person="Priya Nair"
-        you={false}
-        counts={counts}
-        submitted
-      />,
-    )
-    expect(document.querySelector('[data-slot="ai-mark-legend"]')).toBeNull()
-  })
-
-  it('keeps the AI app mark clear of the two initials', () => {
-    render(<DraftedAvatar name="Priya Nair" by="agent" />)
-    expect(document.querySelector('[data-slot="ai-app-mark"]')).toHaveClass('-right-1', '-bottom-1')
-  })
-})
-
-describe('DraftedMark', () => {
-  it('is a quiet glyph whose words a screen reader and a tooltip give', () => {
-    render(<DraftedMark by="agent" />)
-    const mark = document.querySelector('[data-slot="drafted-mark"]')
-    expect(mark).toHaveAttribute('title', 'Drafted with an AI app')
-    expect(mark).toHaveTextContent('Drafted with an AI app')
-    expect(mark).not.toHaveAttribute('tabindex')
+    const notice = document.querySelector('[data-slot="provenance-notice"]')
+    expect(notice).toHaveTextContent('Check this draft before you send it')
+    expect(notice).toHaveTextContent('Nobody else sees it until you send it.')
+    expect(notice).toHaveTextContent('Check the')
+    expect(notice).not.toHaveTextContent(/AI app|assistant/i)
+    // No mark beside a field and no line beside a value.
+    expect(container.querySelector('[data-slot="provenance-mark"]')).toBeNull()
   })
 })
 
@@ -523,7 +398,7 @@ describe('ExternalSources', () => {
     const source = document.querySelector('[data-slot="external-source"]')
     expect(source).toHaveTextContent('Outside source, not checked yet.')
     expect(source).toHaveTextContent(
-      'The assistant read consumer.example on 15 Oct 2026 and copied the sentence from it. Open the link and check the sentence before you send it.',
+      'We read consumer.example on 15 Oct 2026 and the sentence was copied from it. Open the link and check the sentence before you send it.',
     )
     // The sentence was on the page: no warning.
     expect(document.querySelector('[data-slot="quote-warning"]')).toBeNull()
@@ -532,7 +407,7 @@ describe('ExternalSources', () => {
   it('warns, and only warns, when the sentence was not on the page', () => {
     render(<ExternalSources provenance={provenance(false)} where="review" />)
     expect(document.querySelector('[data-slot="external-source"]')).toHaveTextContent(
-      'The assistant read consumer.example on 15 Oct 2026 for the proposer. Open the link and check the sentence before you accept.',
+      'We read consumer.example on 15 Oct 2026 for the proposer. Open the link and check the sentence before you accept.',
     )
     expect(document.querySelector('[data-slot="quote-warning"]')).toHaveTextContent(
       "Sentence not found on the page. We didn't find the quoted sentence word for word on the page from consumer.example. Check it against the page.",

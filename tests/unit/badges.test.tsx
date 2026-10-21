@@ -207,23 +207,9 @@ describe('owner, kind and count', () => {
     expect(container.querySelector('[data-slot="avatar"]')).toHaveAttribute('data-size', 'xs')
   })
 
-  it('marks the avatar of a proposer who drafted with an AI app, and says so in words', () => {
-    const { container } = render(<Owner name="Priya Nair" drafted="agent" />)
-    const owner = container.querySelector('[data-slot="owner"]')
-    expect(owner).toHaveAttribute('data-drafted', 'agent')
-    expect(owner).toHaveAttribute('title', 'Priya Nair with an AI app')
-    expect(owner).toHaveTextContent('Priya Nair with an AI app')
-    // The app is a mark on the person's avatar, never an avatar of its own.
-    expect(container.querySelectorAll('[data-slot="avatar"]')).toHaveLength(1)
-    expect(container.querySelector('[data-slot="ai-app-mark"]')).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    )
-  })
-
-  it('draws a person without the mark when they wrote it themselves', () => {
+  it('draws a person as one neutral avatar with the name', () => {
     const { container } = render(<Owner name="Noor Haddad" />)
-    expect(container.querySelector('[data-slot="ai-app-mark"]')).toBeNull()
+    expect(container.querySelectorAll('[data-slot="avatar"]')).toHaveLength(1)
     expect(container.querySelector('[data-slot="owner"]')).not.toHaveAttribute('title')
   })
 

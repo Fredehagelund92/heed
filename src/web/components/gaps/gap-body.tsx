@@ -15,6 +15,7 @@ import {
   CircleSlashIcon,
   FilePenIcon,
   FilePlusIcon,
+  FlagIcon,
   HistoryIcon,
   LoaderCircleIcon,
   MessageCircleIcon,
@@ -25,7 +26,6 @@ import {
   SearchXIcon,
   ShapesIcon,
   SigmaIcon,
-  SparklesIcon,
   TableIcon,
   TargetIcon,
   TriangleAlertIcon,
@@ -109,7 +109,7 @@ export function GapDetails({ gap, minimum }: { gap: Gap; minimum: number | null 
         <FieldRow icon={ShapesIcon} label="Type" hint={gapTypeHints[gap.type]}>
           {gapTypeNames[gap.type]}
         </FieldRow>
-        <FieldRow icon={SparklesIcon} label="Opened by">
+        <FieldRow icon={FlagIcon} label="Opened by">
           {gapOriginNames[gap.openedBy]}
         </FieldRow>
         <FieldRow icon={CalendarIcon} label="First seen">

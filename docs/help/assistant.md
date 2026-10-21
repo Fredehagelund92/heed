@@ -23,7 +23,7 @@ The assistant is the helper built into the app. Ask it in your own words which f
 - _What a domain holds._ What a domain covers, which of its facts need checking, and what changed lately.
 - _How it works._ What an MCP is, what the stop switch does, or how to review a proposal.
 - _Its last answer._ Say _what do you mean?_, _say it simpler_, _shorter_ or _why?_. It answers from the chat: it looks nothing up, carries nothing over from your last question and assumes no date.
-- _A draft._ Paste what happened, or a link to where you read it, and it drafts a fact for you to check. The draft comes on a card with every field and where each one came from. A line beside a field marks what it filled in itself. Nothing is saved until you choose **Create draft**.
+- _A draft._ Paste what happened, or a link to where you read it, and it drafts a fact for you to check. The draft comes on a card with every field. A field taken from a page, a fact or a gap says where from, and the card names what it left empty. Nothing is saved until you choose **Create draft**.
 
 ## Where its answers come from
 

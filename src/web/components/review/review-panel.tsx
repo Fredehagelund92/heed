@@ -8,7 +8,6 @@ import { TabsContent } from '@/components/ui/tabs'
 import type { DecisionOutcome } from '@/lib/review'
 import { discussionOf } from '@/lib/proposal-activity'
 import { DecisionFooter } from './decision-bar'
-import { DraftedTrail } from './drafted-trail'
 import { ReviewDialogs, useReviewModel } from './review-model'
 import {
   ClaimControl,
@@ -176,7 +175,6 @@ export function ReviewPanel({
       >
         <PageRail placement="panel">
           <TabsContent value="changes" className="flex flex-col gap-8 text-body">
-            <DraftedTrail model={model} />
             <ReviewNotes model={model} />
             <ReviewDiff
               model={model}

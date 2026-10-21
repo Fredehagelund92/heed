@@ -1,7 +1,5 @@
 import type { Person } from '@domain/item'
-import { BotIcon } from '@/components/icons'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { cn } from '@/lib/utils'
 
 /**
  * A person as a neutral circle with initials. People get no colour: colour belongs to kinds,
@@ -31,26 +29,5 @@ export function PersonAvatar({
         {person.initials}
       </AvatarFallback>
     </Avatar>
-  )
-}
-
-/**
- * The AI app mark (contract 7.2, `Owner` with an AI app): a small ink disc with the bot glyph on
- * the end of a person's avatar, when an AI app or the assistant drafted with them. The person
- * stays the author; the app is never an avatar of its own. The avatar's parent is `relative`.
- */
-export function AiAppMark({ size = 'sm', className }: { size?: 'xs' | 'sm'; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      data-slot="ai-app-mark"
-      className={cn(
-        'absolute -right-0.5 -bottom-0.5 z-raised flex items-center justify-center rounded-full bg-foreground text-background ring-2 ring-background',
-        size === 'xs' ? 'size-3' : 'size-4',
-        className,
-      )}
-    >
-      <BotIcon className={size === 'xs' ? 'size-2' : 'size-3'} />
-    </span>
   )
 }

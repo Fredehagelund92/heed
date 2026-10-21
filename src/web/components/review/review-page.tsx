@@ -19,7 +19,6 @@ import type { ProposalSearch } from '@/lib/search-params'
 import { useReviewQueue } from '@/lib/use-review-queue'
 import { cn } from '@/lib/utils'
 import { DecisionBar } from './decision-bar'
-import { DraftedTrail } from './drafted-trail'
 import { ReviewDialogs, useReviewModel } from './review-model'
 import { ReviewTermBatch } from './term-batch'
 import {
@@ -210,7 +209,6 @@ function ReviewScreen({
             <ReviewBadges model={model} />
             <h1 className="text-display font-bold tracking-display break-words">{title}</h1>
             <ReviewPeople model={model} />
-            <DraftedTrail model={model} />
             <ReviewNotes model={model} />
             {phone && headerActions ? (
               <div className="flex flex-wrap items-center gap-2">

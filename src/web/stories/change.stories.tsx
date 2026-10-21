@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, screen, userEvent, within } from 'storybook/test'
-import { ChangeCard, wroteMark } from '@/components/change/change-card'
+import { expect, screen, userEvent } from 'storybook/test'
+import { ChangeCard } from '@/components/change/change-card'
 import { StepTrail, type TrailStep } from '@/components/change/step-trail'
 import {
   FilePenIcon,
@@ -18,9 +18,8 @@ import { Button } from '@/components/ui/button'
   One grammar for an agent's change (contract 7.2, 9.8, section 10): the step trail and the
   change card on their own. The trail while it works (a step in the present with its spinner),
   done and folded, opened, with a step that did not work, and replayed so the tense flips and the
-  rows arrive; the card asking for a decision, with what the agent wrote highlighted, saving,
-  saved, not saved, and with a long title. The assistant's draft card (Assistant/Ask) and the
-  review page's trail (Pages/Review, DraftedWithAnAiApp) are built from these. Use the viewport
+  rows arrive; the card asking for a decision, saving,
+  saved, not saved, and with a long title. The assistant's draft card (Assistant/Ask) is built from these. Use the viewport
   menu for 1440, 1024 and 390 and the theme menu for dark.
 */
 
@@ -200,11 +199,11 @@ const fields = (
         Orders in the United Kingdom come through a new payment provider.
       </dd>
     </div>
-    <div data-wrote className={`flex flex-col gap-1 ${wroteMark}`}>
+    <div className="flex flex-col gap-1">
       <dt className="text-caption text-muted-foreground">When</dt>
       <dd className="text-dense">From 12 Jun 2026, still going on</dd>
     </div>
-    <div data-wrote className={`flex flex-col gap-1 ${wroteMark}`}>
+    <div className="flex flex-col gap-1">
       <dt className="text-caption text-muted-foreground">Domain</dt>
       <dd className="text-dense">Sales</dd>
     </div>
@@ -222,7 +221,7 @@ const decision = (
   </>
 )
 
-/** Asking for one decision: the object, what changes, the line beside what was written. */
+/** Asking for one decision: the object, what changes and what is left for the person. */
 export const CardAsking: Story = {
   render: () => (
     <ChangeCard
@@ -231,25 +230,12 @@ export const CardAsking: Story = {
       title="Payment provider switched in the United Kingdom on 12 June 2026"
       badges={unreviewed}
       meta={<span>New fact · not saved yet</span>}
-      note="From your words: what happened. The assistant filled in when and domain."
-      marked="assistant"
+      note="Left for you: when it applies."
       actions={decision}
     >
       {fields}
     </ChangeCard>
   ),
-}
-
-/** Each field the assistant wrote carries the line, always, under the legend that names it. */
-export const CardMarked: Story = {
-  ...CardAsking,
-  play: async ({ canvasElement }) => {
-    await expect(canvasElement.querySelectorAll('[data-wrote].ai-mark')).toHaveLength(2)
-    await expect(within(canvasElement).queryByRole('switch')).toBeNull()
-    await expect(
-      within(canvasElement).getByText('A line marks what the assistant wrote'),
-    ).toBeVisible()
-  },
 }
 
 export const CardSaving: Story = {
@@ -260,7 +246,6 @@ export const CardSaving: Story = {
       title="Payment provider switched in the United Kingdom on 12 June 2026"
       badges={unreviewed}
       meta={<span>New fact · not saved yet</span>}
-      marked="assistant"
       status={
         <>
           <LoaderCircleIcon aria-hidden="true" className="size-icon-sm motion-safe:animate-spin" />
@@ -315,7 +300,6 @@ export const CardLongTitle: Story = {
       title="Customers in every Norway store and on every marketplace have 14 days to send back what they buy online, without giving any reason"
       badges={unreviewed}
       meta={<span>A change to a fact · not saved yet</span>}
-      marked="assistant"
       actions={decision}
     >
       {fields}

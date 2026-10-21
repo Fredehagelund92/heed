@@ -32,8 +32,7 @@ import { CheckOutcomes, GateResult } from '@/components/proposal/gate-result'
 import { OverlapList } from '@/components/proposal/overlap-list'
 import { PartCard } from '@/components/proposal/part-card'
 import { PersonChip } from '@/components/proposal/person-chip'
-import { ProvenanceSummary } from '@/components/proposal/attribution'
-import { ExternalSources } from '@/components/proposal/provenance-mark'
+import { ExternalSources } from '@/components/proposal/provenance-notes'
 import { Quote, Said } from '@/components/proposal/said'
 import { Timeline, TimelineEvent, TimelineSkeleton } from '@/components/proposal/timeline'
 import { Alert, AlertContent, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -51,13 +50,12 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { previewInput } from '@/lib/context-form'
 import { formatDay } from '@/lib/library'
-import { countMarks } from '@/lib/provenance'
 import { historyRows, latestDecision, replyAfter } from '@/lib/proposal-activity'
 import { changeTypeLong, underReview } from '@/lib/review'
 import { lastDayFromEnd } from '@/lib/validity-range'
 import { LevelDetails, hasLevelDetails } from './check-details'
 import { Discussion } from '@/components/proposal/discussion'
-import { FieldDiff, shownMarks, TextDiff } from './field-diff'
+import { FieldDiff, TextDiff } from './field-diff'
 import { TermDiff } from './term-diff'
 import { firstName, type ReviewModel } from './review-model'
 import { ApprovalsCard, ImpactDelta, MentionChanges } from './review-parts'
@@ -141,7 +139,6 @@ export function ReviewPeople({ model }: Part) {
         name={model.proposerName}
         you={model.author}
         date={record.submittedAt ?? record.createdAt}
-        drafted={model.review.provenance?.by ?? null}
       />
       {liveVersion !== null && record.itemId ? (
         <Badge
@@ -411,9 +408,6 @@ export function ReviewDiff({
   const Heading = headingLevel === 2 ? 'h2' : 'h3'
   const request = model.diff.askedBy === model.viewerId ? 'your request' : 'the request'
   const change = since || (model.change !== 'create' && model.change !== 'term')
-  const counts = review.provenance
-    ? countMarks(shownMarks(entries, change, review.provenance))
-    : null
   // The text compare is for a change to the text; without one the fields show.
   const hasText = entries.some((entry) =>
     ['summary', 'summaryMarkup', 'body', 'bodyMarkup'].includes(entry.field),
@@ -454,17 +448,11 @@ export function ReviewDiff({
         </div>
       </div>
       {review.provenance && !review.vocabulary ? (
-        <ProvenanceSummary
+        <ExternalSources
           provenance={review.provenance}
-          person={model.proposerName}
-          you={model.author}
-          // The counts per mark are in the step trail under the people (drafted-trail.tsx).
-          submitted
-          // The legend shows only where a line shows: the fields, with a value the app wrote.
-          marked={compare === 'fields' && Boolean(counts?.wrote)}
-        >
-          <ExternalSources provenance={review.provenance} where="review" />
-        </ProvenanceSummary>
+          where="review"
+          className="text-caption text-muted-foreground"
+        />
       ) : null}
       {review.vocabulary ? (
         <TermDiff term={review.vocabulary} areas={model.areas} targets={targets} />

@@ -14,14 +14,9 @@ import {
   DraftProvenanceNotice,
   ExternalSources,
   ProvenanceFlagBadge,
-  ProvenanceMark,
-} from '@/components/proposal/provenance-mark'
-import { fieldMarks, type FieldMark, type Provenance } from '@domain/provenance'
-import { FileTextIcon } from '@/components/icons'
-import { FieldRow, FieldTable } from '@/components/item/field-table'
-import { Owner, ProposalStatusBadge } from '@/components/item/item-marks'
-import { DraftedMark, ProvenanceSummary } from '@/components/proposal/attribution'
-import { countMarks } from '@/lib/provenance'
+} from '@/components/proposal/provenance-notes'
+import type { Provenance } from '@domain/provenance'
+import { ProposalStatusBadge } from '@/components/item/item-marks'
 import { Discussion } from '@/components/proposal/discussion'
 import { Timeline, TimelineEvent, TimelineSkeleton } from '@/components/proposal/timeline'
 import { OtherEvents, StatusTimeline } from '@/design-preview/proposal-parts'
@@ -487,23 +482,13 @@ const webDraft: Provenance = {
 }
 
 /**
- * Where each field of a draft an AI app or the assistant wrote came from (FR-121): every mark
- * as the person's editor shows it (a suggestion keeps the info ink, it asks for a look) and as
- * the review shows it, each a glyph named in its tooltip, the flags of the words, and the notice above the draft with and without flags, with
- * the fields the person answered in their AI app, and with evidence from web pages Heed read.
+ * What a draft written for a person asks of them (FR-121): the flags of the words, and the
+ * notice above the draft with and without flags, and with evidence from web pages Heed read.
+ * Nothing here says who wrote a field.
  */
-export const FieldSources: Story = {
+export const DraftChecks: Story = {
   render: () => (
     <div className="flex max-w-reading flex-col gap-4">
-      {(['editor', 'review'] as const).map((where) =>
-        (['agent', 'assistant'] as const).map((by) => (
-          <div key={`${where}.${by}`} className="flex flex-wrap gap-2">
-            {fieldMarks.map((mark) => (
-              <ProvenanceMark key={mark} mark={mark} by={by} where={where} />
-            ))}
-          </div>
-        )),
-      )}
       <div className="flex flex-wrap gap-2">
         {agentDraft.flags.map((flag) => (
           <ProvenanceFlagBadge key={flag.code} flag={flag} />
@@ -513,105 +498,18 @@ export const FieldSources: Story = {
       <DraftProvenanceNotice
         provenance={{
           ...agentDraft,
-          fields: { ...agentDraft.fields, validity: 'confirmed', evidence: 'confirmed' },
+          fields: { ...agentDraft.fields, validity: 'confirmed' },
           flags: [],
         }}
-      />
-      <DraftProvenanceNotice
-        provenance={{ by: 'assistant', fields: { summary: 'prefilled' }, flags: [] }}
       />
       <DraftProvenanceNotice provenance={webDraft} />
       <ExternalSources provenance={webDraft} where="review" />
     </div>
   ),
-}
-
-/** The review's summary line with its switch, and the rows it highlights. */
-function AttributionTable({ provenance }: { provenance: Provenance }) {
-  const rows: [string, string, FieldMark][] = [
-    ['What happened', 'The regulator paused advertising in Norway on 2 October 2026.', 'prefilled'],
-    ['Where it applies', 'Marketing spend · Market Norway', 'prefilled'],
-    ['When it applies', 'From 2 Oct 2026, no end date', 'confirmed'],
-    ['Domain', 'Marketing', 'derived'],
-    ['Risk level', 'Normal risk', 'default'],
-  ]
-  return (
-    <div className="flex flex-col gap-3">
-      <ProvenanceSummary
-        provenance={provenance}
-        person="Priya Nair"
-        you={false}
-        counts={countMarks(rows.map(([, , mark]) => mark))}
-        submitted
-        marked
-      />
-      <FieldTable label="What the proposal says" wideLabels>
-        {rows.map(([label, value, mark]) => (
-          <FieldRow
-            key={label}
-            icon={FileTextIcon}
-            label={label}
-            mark={<ProvenanceMark mark={mark} by={provenance.by} where="review" />}
-            wrote={mark === 'prefilled'}
-          >
-            {value}
-            {label === 'Risk level' ? (
-              <ProvenanceFlagBadge
-                flag={{ code: 'may_be_high_risk', field: 'riskLevel', words: ['regulator'] }}
-              />
-            ) : null}
-          </FieldRow>
-        ))}
-      </FieldTable>
-    </div>
-  )
-}
-
-/**
- * Quiet attribution (contract 6.13, "Field provenance"; 7.2, `Owner`): the proposer is the author
- * and the AI app a mark on their avatar; one summary line says who wrote what; each field carries
- * a muted glyph whose name is its tooltip; a flag keeps its soft badge; each field the app wrote
- * carries the line, under the summary's legend. Then the same mark in the proposer's chip, the
- * queue's Owner and a list row.
- */
-export const Attribution: Story = {
-  render: () => (
-    <div className="flex max-w-reading flex-col gap-6">
-      <AttributionTable provenance={{ by: 'agent', fields: {}, flags: [] }} />
-      <ProvenanceSummary
-        provenance={webDraft}
-        person="Priya Nair"
-        you
-        counts={{ wrote: 3, confirmed: 0, filled: 2, left: 0 }}
-        submitted={false}
-      >
-        <ExternalSources provenance={webDraft} where="review" />
-      </ProvenanceSummary>
-      <div className="flex flex-wrap items-center gap-4">
-        <PersonChip role="proposer" name="Priya Nair" date="2026-10-07" drafted="agent" />
-        <Owner name="Priya Nair" drafted="agent" />
-        <Owner name="Priya Nair" drafted="assistant" size="md" />
-        <span className="inline-flex items-center gap-2 text-caption text-muted-foreground">
-          Draft <DraftedMark by="agent" />
-        </span>
-      </div>
-    </div>
-  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(
-      canvas.getByText('Priya Nair drafted this with an AI app and sent it.'),
-    ).toBeVisible()
-    // The fields the app wrote carry the line, always: there is no switch.
-    await expect(canvasElement.querySelectorAll('[data-slot="field-row"].ai-mark')).toHaveLength(2)
-    await expect(canvas.queryByRole('switch')).toBeNull()
-    await expect(canvas.getByText('A line marks what the app wrote')).toBeVisible()
-    // Each field the app wrote carries one glyph, named for a screen reader; no badge per field.
-    await expect(
-      canvas.getAllByRole('img', {
-        name: 'AI app wrote: Written by an AI app for the proposer, who sent it.',
-      }),
-    ).toHaveLength(2)
+    await expect(canvas.getAllByText('Check this draft before you send it')).toHaveLength(3)
+    await expect(canvas.queryByText(/drafted this for you/)).toBeNull()
   },
 }
 

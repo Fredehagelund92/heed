@@ -1,4 +1,3 @@
-import type { Provenance } from '@domain/provenance'
 import {
   ShieldCheckIcon,
   UserRoundCheckIcon,
@@ -9,15 +8,13 @@ import {
 import { previewRender } from '@/components/preview/preview-link'
 import { Badge } from '@/components/ui/badge'
 import { formatDay } from '@/lib/library'
-import { writerOf } from '@/lib/provenance'
 import { cn } from '@/lib/utils'
 
 /*
   A person in their part of a proposal, as an outline chip in the proposal's header (contract
   6.13, "Owner": an outline chip in headers): "Proposed by Maria Lindqvist, 7 Oct 2026",
   "Reviewer Jon Abara", "Claimed by you". The glyph says the part, the words say it again, and
-  the viewer is always "you", so a person finds themselves at a glance. A draft an AI app wrote
-  for the proposer stays theirs: "Proposed by Maria Lindqvist with an AI app".
+  the viewer is always "you", so a person finds themselves at a glance.
 */
 
 export const personRoles = ['proposer', 'reviewer', 'claimed', 'approver', 'owner'] as const
@@ -52,19 +49,10 @@ const roleLook: Record<PersonRole, { glyph: Icon; other: (name: string) => strin
     },
   }
 
-/**
- * The words of a person chip, for a test or a menu that lists the same facts. A proposer who
- * drafted it with an AI app or the assistant says so: "Proposed by Priya Nair with an AI app".
- */
-export function personChipText(
-  role: PersonRole,
-  name: string,
-  you: boolean,
-  date?: string | null,
-  drafted?: Provenance['by'] | null,
-) {
+/** The words of a person chip, for a test or a menu that lists the same facts. */
+export function personChipText(role: PersonRole, name: string, you: boolean, date?: string | null) {
   const look = roleLook[role]
-  const words = `${you ? look.you : look.other(name)}${role === 'proposer' && drafted ? ` with ${writerOf(drafted)}` : ''}`
+  const words = you ? look.you : look.other(name)
   return date ? `${words}, ${formatDay(date)}` : words
 }
 
@@ -80,13 +68,10 @@ export function PersonChip({
   form = 'outline',
   size = 'md',
   personId,
-  drafted = null,
   className,
 }: {
   role: PersonRole
   name: string
-  /** The proposer drafted it with an AI app or the assistant (contract 6.13, quiet attribution). */
-  drafted?: Provenance['by'] | null
   /** Who it is, so the chip previews them (their name and the domains they look after). */
   personId?: string | null
   /** True when the person is the viewer: the chip says "you". */
@@ -97,7 +82,7 @@ export function PersonChip({
   size?: 'md' | 'sm'
   className?: string
 }) {
-  const text = personChipText(role, name, you, date, drafted)
+  const text = personChipText(role, name, you, date)
   return (
     <Badge
       form={form}

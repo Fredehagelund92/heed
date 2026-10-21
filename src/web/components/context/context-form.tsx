@@ -88,8 +88,7 @@ import { usePermissions } from '@/lib/use-session'
 import { showToast } from '@/lib/toast'
 import { monthText } from '@/lib/gaps'
 import { AttachedTests } from '@/components/proposal/attached-tests'
-import { DraftProvenanceNotice, ProvenanceMark } from '@/components/proposal/provenance-mark'
-import type { MarkedField } from '@domain/provenance'
+import { DraftProvenanceNotice } from '@/components/proposal/provenance-notes'
 import { CaveatField } from './caveat-field'
 import { AgentView, DraftChecks } from './context-companion'
 import { CHANGE_NOTE_MAX, ChangesRequested } from './changes-requested'
@@ -102,7 +101,6 @@ import {
   ValidityChip,
   WhyWeAsk,
 } from './context-fields'
-import '@/components/proposal/ai-mark.css'
 
 const idFor = (field: string) => `context-${field}`
 const labels = {
@@ -446,21 +444,8 @@ export function ContextForm({
       held={found ? 'Not saved. Fix the text first' : undefined}
     />
   )
-  // Where each field came from, when an AI app or the assistant wrote the draft (FR-121, FR-707).
-  // The marks follow the saved draft: a field the person changed loses its mark once saved.
+  // What to check before sending, when an AI app or the assistant wrote the draft (FR-121, FR-707).
   const provenance = autosave.proposal?.provenance ?? initialProposal?.provenance ?? null
-  // A field the app suggested carries the line (contract 6.13) until the person changes it: then
-  // the draft's provenance drops the mark (keepMarks), and the field is theirs.
-  const lined = (field: MarkedField) =>
-    provenance?.fields[field] === 'prefilled'
-      ? 'ai-mark [--ai-mark-start:-0.75rem] [--ai-mark-inset:0.25rem]'
-      : undefined
-  const markOf = (field: MarkedField) => {
-    const mark = provenance?.fields[field]
-    return provenance && mark ? (
-      <ProvenanceMark mark={mark} by={provenance.by} where="editor" />
-    ) : null
-  }
   const area = areas.find((area) => area.id === values.areaId)
   const owner = area?.ownerIds[0] ? people?.find((person) => person.id === area.ownerIds[0]) : null
   // A contributor never sets the claim level: a draft keeps its own, a change keeps the item's.
@@ -618,11 +603,7 @@ export function ContextForm({
                 <span className="min-w-0">{noDomainHint(domainless, isAdmin)}</span>
               </p>
             ) : null}
-            <Field
-              invalid={Boolean(error('title'))}
-              disabled={submitting}
-              className={lined('title')}
-            >
+            <Field invalid={Boolean(error('title'))} disabled={submitting}>
               <textarea
                 id={idFor('title')}
                 aria-label="Title"
@@ -651,11 +632,7 @@ export function ContextForm({
               <FieldError id={`${idFor('title')}-error`}>{error('title')}</FieldError>
             </Field>
           </div>
-          <Field
-            invalid={Boolean(textError('summaryMarkup'))}
-            disabled={submitting}
-            className={lined('summary')}
-          >
+          <Field invalid={Boolean(textError('summaryMarkup'))} disabled={submitting}>
             <SummaryInput
               id={idFor('summaryMarkup')}
               appearance="zone"
@@ -707,16 +684,10 @@ export function ContextForm({
             <TabsContent value="details" keepMounted className="data-hidden:hidden">
               <div className="flex flex-col gap-6 pt-4">
                 <RailSection
-                  className={lined('scope')}
                   icon={TargetIcon}
                   title="Where it applies"
                   titleId={`${idFor('scope')}-title`}
-                  aside={
-                    <>
-                      {markOf('scope')}
-                      <NeededBadge needed={scopeEmpty} />
-                    </>
-                  }
+                  aside={<NeededBadge needed={scopeEmpty} />}
                 >
                   <Field
                     invalid={Boolean(error('scope'))}
@@ -740,16 +711,10 @@ export function ContextForm({
                   </Field>
                 </RailSection>
                 <RailSection
-                  className={lined('validity')}
                   icon={HeedValidUntilIcon}
                   title="When it applies"
                   titleId={`${idFor('validity')}-title`}
-                  aside={
-                    <>
-                      {markOf('validity')}
-                      <NeededBadge needed={!values.validity.start} />
-                    </>
-                  }
+                  aside={<NeededBadge needed={!values.validity.start} />}
                 >
                   <ValidityRange
                     idPrefix={idFor('validity')}
@@ -773,16 +738,10 @@ export function ContextForm({
                   </p>
                 </RailSection>
                 <RailSection
-                  className={lined('evidence')}
                   icon={LinkIcon}
                   title={sourceWords.title}
                   titleId={`${idFor('evidence')}-title`}
-                  aside={
-                    <>
-                      {markOf('evidence')}
-                      <NeededBadge needed={evidenceEmpty} />
-                    </>
-                  }
+                  aside={<NeededBadge needed={evidenceEmpty} />}
                 >
                   <p className="text-caption text-muted-foreground">
                     {sourceWords.help} <WhyWeAsk topic="source" section={sourceWords.title} />{' '}
@@ -798,17 +757,13 @@ export function ContextForm({
                   />
                 </RailSection>
                 <RailSection
-                  className={lined('notToConclude')}
                   icon={CircleSlashIcon}
                   title={caveatWords.title}
                   titleId={`${idFor('notToConclude')}-title`}
                   aside={
-                    <>
-                      {markOf('notToConclude')}
-                      <span className="text-caption text-muted-foreground">
-                        {caveatWords.optional}
-                      </span>
-                    </>
+                    <span className="text-caption text-muted-foreground">
+                      {caveatWords.optional}
+                    </span>
                   }
                 >
                   <CaveatField
@@ -828,7 +783,6 @@ export function ContextForm({
                   icon={HeedDomainIcon}
                   title="Who reviews it"
                   titleId={`${idFor('reviewer')}-title`}
-                  aside={markOf('ownerId')}
                 >
                   {area ? (
                     <p className="flex items-center gap-2 text-dense">
