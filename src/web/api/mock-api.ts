@@ -460,13 +460,6 @@ export function createMockApi({
     listSettings: () => act((person) => settingsRead(() => person.listSettings())),
     getSettingHistory: (key) => act((person) => person.getSettingHistory(key)),
     setSetting: (input) => act((person) => person.setSetting(input)),
-    draftAboutBusiness: async () =>
-      await act((person) =>
-        person.draftAboutBusiness(
-          async () => (await scenarioCatalogue()).list(),
-          person.listAreas(),
-        ),
-      ),
     searchPeople: (params) =>
       act((person) => settingsRead(() => person.searchPeople(valid(peopleSearchSchema, params)))),
     getPersonSheet: (id) => act((person) => orNull(() => person.getPersonSheet(id))),
@@ -671,7 +664,6 @@ type ReadMethods = Omit<
   | 'listSettings'
   | 'getSettingHistory'
   | 'setSetting'
-  | 'draftAboutBusiness'
   | 'searchPeople'
   | 'getPersonSheet'
   | 'listGrants'

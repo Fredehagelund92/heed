@@ -17,5 +17,4 @@ export {
 } from './cases.ts'
 export { goldenAssistantCases } from './golden.ts'
 export { createDomainCache, type DomainCache } from './turn-context.ts'
-export { writeBusinessDraft, type BusinessDraftDeps } from './about-business-draft.ts'
 export { rateAnswer, ratingsPerMinute } from './ratings.ts'

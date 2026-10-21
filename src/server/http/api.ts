@@ -60,7 +60,6 @@ import { operationsView, type JobRunner } from '../modules/jobs/index.ts'
 import { ITEM_FILE_MAX_LENGTH } from '../../domain/item-file.ts'
 import { TERM_BATCH_BODY_MAX } from '../../contract/review.ts'
 import { itemJsonSchema } from '../../domain/item-version.ts'
-import { businessFacts } from '../../contract/admin.ts'
 import { checkModelSetting, type ModelPort } from '../modules/models/index.ts'
 import { labelOperation } from '../observability/metrics.ts'
 import { createLimiter } from './rate-limit.ts'
@@ -70,7 +69,6 @@ import {
   prepareTurn,
   rateAnswer,
   ratingsPerMinute,
-  writeBusinessDraft,
 } from '../modules/assistant/index.ts'
 import {
   createBinService,
@@ -886,15 +884,6 @@ export function createRouter({
           input,
           () => knownTools(context.tx),
           (key, value) => checkModelSetting(models, key, value),
-        ),
-      ),
-      draftBusiness: authorized.settings.draftBusiness.handler(async ({ context, signal }) =>
-        writeBusinessDraft(
-          { database, models, logger: context.request.log },
-          context.tx,
-          context.session!.person.id,
-          businessFacts(await context.catalogue.list(), await context.areas.list()),
-          signal,
         ),
       ),
     },

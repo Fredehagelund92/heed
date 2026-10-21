@@ -338,7 +338,6 @@ describe('the API over HTTP', () => {
       '/schema/item',
       '/serving/stops',
       '/settings',
-      '/settings/business-about/draft',
       '/settings/{key}',
       '/settings/{key}/history',
       '/sources',

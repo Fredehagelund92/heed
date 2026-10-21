@@ -98,7 +98,6 @@ import type {
   auditExportSchema,
   auditPageSchema,
   auditSearchSchema,
-  BusinessDraft,
   ClientPolicy,
   editionExportSchema,
   ItemImportReport,
@@ -286,7 +285,6 @@ export type {
   ScopeMatchResult,
   ScopeSearchInput,
   ScopeSearchResult,
-  BusinessDraft,
   Setting,
   SettingKey,
   TopicCounts,
@@ -879,11 +877,6 @@ export interface ContextApi {
   /** A new version of a setting, with a reason; a newer version than the one read is a conflict. */
   setSetting: (input: SetSettingInput) => Promise<Setting>
   /**
-   * A first version of About our business, from the domains and the metrics and dimensions Heed
-   * knows. Nothing is saved: the administrator reads it in the box first. Administrators.
-   */
-  draftAboutBusiness: () => Promise<BusinessDraft>
-  /**
    * People by name or email, a page at a time, with the roles they hold and when they last signed
    * in; active people unless a status is asked for, so a picker never offers a leaver.
    * Administrators and auditors.
@@ -1100,7 +1093,6 @@ export const contextApiMethods = [
   'listSettings',
   'getSettingHistory',
   'setSetting',
-  'draftAboutBusiness',
   'searchPeople',
   'getPersonSheet',
   'listGrants',

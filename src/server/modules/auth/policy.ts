@@ -149,7 +149,6 @@ export const policies = {
   'settings.list': 'admin',
   'settings.history': 'admin',
   'settings.set': 'admin',
-  'settings.draftBusiness': 'admin',
   'tools.list': 'admin',
   'tools.set': 'admin',
   'clients.list': 'admin',

@@ -18,7 +18,7 @@ related: [what-is-heed, mcp, glossary]
 - Who: an admin.
 - You need: a few minutes, and the words your colleagues use that an outsider would misread.
 
-The assistant gets the text with every question. An AI app, such as Claude Code, gets it when it connects through MCP, the connection AI apps use to check these facts. You start with a neutral text about an outdoor-gear retailer. You can keep it, change it, empty it, or have {{product}} write a first version from what it already knows.
+The assistant gets the text with every question. An AI app, such as Claude Code, gets it when it connects through MCP, the connection AI apps use to check these facts. You start with a neutral text about an outdoor-gear retailer. You can keep it, change it or empty it.
 
 ## Steps
 
@@ -28,13 +28,11 @@ The assistant gets the text with every question. An AI app, such as Claude Code,
 
 3. Under **The text**, read what the box asks for, then write it. The box says it in two parts, so you never have to leave the screen:
    1. _What the company does._ One or two sentences: what it sells, to whom and where.
-   2. _Words an outsider would misread._ One per line, as the word, a colon and what it means, such as _First-time buyer: a customer whose first paid order falls in the period._
+   2. _Words an outsider would misread._ One per line, as the word, a colon and what it means, such as _First-time buyer: a customer whose first paid order falls in the period._ A word that already has a definition in the Catalogue does not need to be repeated here, because this list is for the words people misread in everyday talk.
 
    It also says what to leave out: numbers, deals, dates and what happened in a market, legal conclusions, and secrets or personal data. Leave the box empty and the assistant and AI apps get no background.
 
    The text shows headings, lists and links as you type. Start a line with `-` for a list, or type `/` to choose a block. Select words to make them bold or a link. The counter under the text shows how many characters you have left. The limit is 1,200.
-
-   To start from a draft, choose **Write a first version for me**. {{product}} writes it from your domains and from the metrics and markets your definition source describes, and puts it in the box. It can't know what your company sells, so check the first lines and change what's wrong. Nothing is saved until you choose **Save new version**. If you don't like the draft, choose **Put back my text**. If an AI writes it, the names and descriptions it works from go to the AI provider, as a question would.
 
 4. Read **What the assistant and AI apps get**. It's exactly what they'll be given, with the lines we put around your text. It follows what you type.
 
@@ -48,7 +46,7 @@ The assistant gets the text with every question. An AI app, such as Claude Code,
 
 ## What makes a good text
 
-- _Short._ What the business is, then the words. The assistant and AI apps read it with every question. Keep room in the 1,200 for the sentences about what the company does: a first version stops at 1,000 characters.
+- _Short._ What the business is, then the words. The assistant and AI apps read it with every question.
 - _Words, not facts._ Explain what first-time buyer, gross margin, marketplace commission or return mean here. Leave out numbers, deals, dates and what happened in a market: those belong in facts, which their owners check.
 - _No legal conclusions._ Explain what a market and a selling country are. Don't say what's allowed where. A fact with its source says that.
 - _No secrets or personal data._ The text goes to the AI provider with every question, like the question itself.
@@ -67,5 +65,4 @@ The text is background. The assistant never cites it, and it never counts as a s
 
 - _It says another admin saved a new version._ Their text shows now. Read it, then make your change again.
 - _The counter is red._ The text is over 1,200 characters. Shorten it, and keep the words that are misread most.
-- _It says it has nothing to write a first version from._ {{product}} writes it from your domains and your definition source, so add a domain or connect a source first, or write the text yourself.
 - _The assistant still gets a word wrong._ Check that the word has its own line, then ask again in a new chat.

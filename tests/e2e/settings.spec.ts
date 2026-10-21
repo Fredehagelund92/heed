@@ -249,7 +249,7 @@ test.describe('about our business', () => {
     const guide = block.locator('[data-slot="business-guide"]')
     await expect(guide.getByRole('listitem')).toHaveText([
       /^What the company does\. One or two sentences: what it sells, to whom and where\.$/,
-      /^Words an outsider would misread\. One per line, as the word, a colon and what it means\. For example, First-time buyer: /,
+      /^Words an outsider would misread\. One per line, as the word, a colon and what it means\. For example, First-time buyer: .*everyday talk\.$/,
     ])
     await expect(guide).toContainText(
       'Leave out: numbers, deals, dates and what happened in a market',
@@ -316,64 +316,6 @@ test.describe('about our business', () => {
     await expect(latest).toContainText('Ravi Kapoor')
   })
 
-  test('a first version is written from what Heed knows, shown in the box, and saved only when the admin saves it', async ({
-    page,
-  }) => {
-    await signInAs(page, 'per_ravi')
-    await openPage(page, '/admin?section=business', desktop)
-    const text = page.getByRole('textbox', { name: 'About our business' })
-    const block = page.locator('[data-slot="business-text"]')
-    const saved = block.locator('[data-slot="business-saved"]')
-    const preview = page.locator('[data-slot="business-preview"] pre')
-    const write = page.getByRole('button', { name: 'Write a first version for me' })
-    await expect(text).toContainText(/^We are an outdoor-gear retailer\./)
-
-    await write.click()
-    // The draft names the domains, then the words the definition source describes.
-    await expect(text).toContainText(/^We keep our facts in these domains: /)
-    await expect(text).toContainText('Words that are easy to misread here:')
-    await expect(text).not.toContainText('outdoor-gear')
-    await expect(text).toBeFocused()
-    expect(await text.innerText()).not.toMatch(/\d/)
-    await expect(block.locator('[data-slot="business-drafted"]')).toContainText(
-      "A first version is in the box. Heed can't know what your company sells",
-    )
-    // The count and the preview follow it, as they follow typing; nothing is saved yet.
-    await expect(block.locator('[data-slot="body-counter"]')).not.toHaveText(
-      '1,102 of 1,200 characters',
-    )
-    await expect(preview).toContainText('We keep our facts in these domains: ')
-    await expect(saved).toContainText('Version 1, saved')
-    await expect(saved).toContainText('when the app was set up')
-
-    // Putting back what was there leaves the box as it was.
-    await page.getByRole('button', { name: 'Put back my text' }).click()
-    await expect(text).toContainText(/^We are an outdoor-gear retailer\./)
-    await expect(block.locator('[data-slot="body-counter"]')).toHaveText(
-      '1,102 of 1,200 characters',
-    )
-    await expect(page.getByRole('button', { name: 'Put back my text' })).toHaveCount(0)
-
-    // The same facts give the same draft, which the admin edits before saving.
-    await write.click()
-    await expect(text).toContainText(/^We keep our facts in these domains: /)
-    const first = await text.innerText()
-    await page.getByRole('button', { name: 'Put back my text' }).click()
-    await expect(text).toContainText(/^We are an outdoor-gear retailer\./)
-    await write.click()
-    await expect(text).toContainText(/^We keep our facts in these domains: /)
-    expect(await text.innerText()).toBe(first)
-    // The box keeps the cursor where the draft ends: the admin adds what the company does there.
-    await page.keyboard.press('Enter')
-    await page.keyboard.type('We run webshops and stores for outdoor gear.')
-    await page.getByRole('textbox', { name: 'Why' }).fill('First version, then edited')
-    await page.getByRole('button', { name: 'Save new version' }).click()
-    await expect(page.getByText('About our business saved')).toBeVisible()
-    await expect(saved).toContainText('Version 2, saved')
-    await expect(text).toContainText(/^We keep our facts in these domains: /)
-    await expect(text).toContainText('We run webshops and stores for outdoor gear.')
-  })
-
   test('an empty text gives nothing, and the page fits a phone', async ({ page }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=business', phone)
@@ -408,18 +350,6 @@ test.describe('about our business', () => {
         expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
         await page.screenshot({
           path: info.outputPath(`business-text-${width.name}-${theme}.png`),
-          fullPage: true,
-        })
-        // With a first version in the box, with its note and the way back, the page still fits.
-        await page.getByRole('button', { name: 'Write a first version for me' }).click()
-        await expect(page.getByRole('button', { name: 'Put back my text' })).toBeVisible()
-        await settle(page)
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
-          width.width,
-        )
-        expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
-        await page.screenshot({
-          path: info.outputPath(`business-first-version-${width.name}-${theme}.png`),
           fullPage: true,
         })
       })
