@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { readAnswer, readQuestion, scopeLine, type AskMessage } from '@/lib/assistant'
 import { draftReading, draftText, emptyDraft, textDraft, type AskDraft } from '@/lib/ask-draft'
-import { draftTagged, readsOf, readsSomething } from '@/lib/ask-reads'
+import { draftTagged, isChatQuestion, readsOf, readsSomething } from '@/lib/ask-reads'
 import { useAskChat, useAskDraft, useAskDropped, useAskPinned } from '@/lib/assistant-chat'
 import { searchOf, hasTerms, type TryItScope } from '@/lib/try-it'
 import { useLibrary } from '@/lib/use-library'
@@ -122,6 +122,13 @@ export function useAskSend() {
       const read = draftReading(draft).trim()
       const tagged = draftTagged(draft)
       const scoped = picked && (hasTerms(picked.scope) || picked.from) ? picked : null
+      // A greeting, thanks or a follow-up on the last reply ("what do you mean?") is about the
+      // chat: it goes with no scope, carried or assumed, and what was picked stays for the next
+      // question.
+      if (isChatQuestion(words, messages, scoped, tagged, null)) {
+        void chat.sendMessage({ text: words, metadata: {} })
+        return true
+      }
       const carried = carriedOf(messages)
       const gone = new Set(dropped)
       const metadataOf = (reading: TryItReading | null): AskMessage['metadata'] => {

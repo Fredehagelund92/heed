@@ -6,6 +6,7 @@ import {
   type QuestionScope,
 } from '../../../contract/assistant.ts'
 import type { Queryable } from '../../db/database.ts'
+import { aboutTheChat } from '../../../domain/assistant-meta.ts'
 import { agentsGetWords, termItems } from '../../mcp/outcomes.ts'
 import { loadLiveBundle } from '../editions/index.ts'
 import { datum } from './turn-context.ts'
@@ -92,6 +93,48 @@ export function questionScope(
     .join('\n')
     .trim()
   return { scope: read.data, question: [...words].slice(0, MAX_QUESTION).join('') }
+}
+
+/**
+ * Whether the scope a question carries is its own: a term, dates, items or domains the person's
+ * words, chips or picker gave, or words they left undecided. What was only carried from the last
+ * question, and today when no dates were given, is not.
+ */
+function ownScope(read: QuestionScope): boolean {
+  const carried = new Set(read.carried)
+  return (
+    read.metrics.some((key) => !carried.has(key)) ||
+    read.dimension_filters.some((filter) =>
+      filter.values.length
+        ? filter.values.some((value) => !carried.has(value))
+        : !carried.has(filter.dimension),
+    ) ||
+    !!read.about?.length ||
+    read.unresolved.length > 0 ||
+    read.window_source === 'typed' ||
+    read.window_source === 'picked' ||
+    read.window_source === 'unreadable'
+  )
+}
+
+/**
+ * Whether the person's latest message is about the conversation, not about numbers: a greeting,
+ * thanks, or, once the assistant has replied, "what do you mean?", "say it simpler", "shorter",
+ * "why?" (domain/assistant-meta.ts). It is answered from the conversation: nothing is looked up,
+ * and no scope is carried to it, whatever the client sent, as the scope it carried is the last
+ * question's. A message that names something of its own (a chip, a pick, a term) is more than
+ * that, and is read as a question.
+ */
+export function chatTurn(messages: readonly unknown[]): boolean {
+  const last = latestQuestion(messages)
+  if (!last) return false
+  const read = questionScope(messages)
+  if (read === 'invalid') return false
+  if (read ? ownScope(read.scope) : textLines(last).some((line) => line.startsWith(SCOPE_LINE)))
+    return false
+  const words = read ? read.question : textLines(last).join('\n').trim()
+  const replied = messages.some((m) => (m as { role?: unknown } | null)?.role === 'assistant')
+  return aboutTheChat(words, replied)
 }
 
 /** A question's scope as keys and days. None when it names nothing, gives no dates and has no unreadable ones to say. */

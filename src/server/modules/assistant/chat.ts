@@ -42,12 +42,13 @@ import {
   attachedScope,
   attachmentKeys,
   attachmentsText,
+  chatTurn,
   loadAttachments,
   loadNamed,
   questionScope,
 } from './attachments.ts'
 import { createCitationFilter, Evidence, type CitationReport } from './citations.ts'
-import { assistantSystemPrompt } from './prompt.ts'
+import { assistantSystemPrompt, chatTurnNote } from './prompt.ts'
 import { checkSeal, evidenceKey, sealResult, type Binding, type SealedResult } from './seals.ts'
 import {
   assistantTools,
@@ -200,11 +201,15 @@ export async function prepareTurn(deps: AssistantDeps, request: TurnRequest) {
       message: 'This chat is too long. Start a new one.',
     })
   // The scope the composer showed for the latest question: the turn's tool calls read it.
-  const read = questionScope(request.messages)
-  if (read === 'invalid')
+  const shown = questionScope(request.messages)
+  if (shown === 'invalid')
     throw new ORPCError('UNPROCESSABLE_CONTENT', {
       message: "We couldn't read what your question is about. Ask it again.",
     })
+  // A message about the conversation ("what do you mean?", "thanks") has no scope of its own: it
+  // is answered from the chat, with no tool and no scope carried from the last question.
+  const chat = chatTurn(request.messages)
+  const read = chat ? null : shown
   const evidence = new Evidence()
   const web: WebContext = {
     read: deps.readPage ?? publicWeb,
@@ -245,7 +250,7 @@ export async function prepareTurn(deps: AssistantDeps, request: TurnRequest) {
           for (const link of linksIn(part.text)) allowLink(web, link)
         }
   const modelMessages = await convertToModelMessages(messages, { tools })
-  const attached = attachedScope(messages)
+  const attached = chat ? null : attachedScope(messages)
   const { choice, limits, facts, attachments, named, searches } = await deps.database.transaction(
     request.personId,
     async (tx) => {
@@ -333,7 +338,8 @@ export async function prepareTurn(deps: AssistantDeps, request: TurnRequest) {
         choice,
         limits,
         turnContext,
-        attachments: attachmentsText(attached, attachments, named),
+        attachments: chat ? chatTurnNote : attachmentsText(attached, attachments, named),
+        chat,
         seal: { key, binding },
       }),
   }
@@ -349,13 +355,15 @@ type Prepared = {
   turnContext: string
   /** The scope of the person's latest question: a third block, when there is any. */
   attachments: string | null
+  /** The latest message is about the conversation: the model gets no tool this turn. */
+  chat: boolean
   seal: { key: Buffer; binding: Binding }
 }
 
 async function* streamTurn(
   deps: AssistantDeps,
   request: TurnRequest,
-  { context, tools, modelMessages, choice, limits, turnContext, attachments, seal }: Prepared,
+  { context, tools, modelMessages, choice, limits, turnContext, attachments, chat, seal }: Prepared,
 ): AsyncGenerator<UIMessageChunk> {
   const { evidence } = context
   const { database, logger } = deps
@@ -424,10 +432,13 @@ async function* streamTurn(
       ],
       messages: modelMessages,
       tools,
-      // search_web only while an administrator has web search on.
-      activeTools: assistantToolNames.filter(
-        (name) => name !== 'search_web' || context.web.searchesPerDay > 0,
-      ),
+      // search_web only while an administrator has web search on, and no tool at all for a
+      // message about the conversation: it is answered from what was said.
+      activeTools: chat
+        ? []
+        : assistantToolNames.filter(
+            (name) => name !== 'search_web' || context.web.searchesPerDay > 0,
+          ),
       toolApproval: { create_draft: 'user-approval' },
       experimental_toolApprovalSecret: deps.approvalSecret,
       // A tool call that failed before its tool ran reads to the model as a plain sentence.

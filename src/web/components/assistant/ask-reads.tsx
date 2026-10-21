@@ -12,8 +12,15 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useDebouncedValue } from '@/hooks/use-debounced-value'
 import { useScrollEdges } from '@/hooks/use-scroll-edges'
-import { readsOf, readsSomething, type Reads, type TaggedScope } from '@/lib/ask-reads'
-import { rangeWords, readQuestion, type AskMessage } from '@/lib/assistant'
+import { aboutTheChat } from '@domain/assistant-meta'
+import {
+  isChatQuestion,
+  readsOf,
+  readsSomething,
+  type Reads,
+  type TaggedScope,
+} from '@/lib/ask-reads'
+import { dayWords, rangeWords, readQuestion, type AskMessage } from '@/lib/assistant'
 import { useAskChat, useAskDropped, useAskPinned } from '@/lib/assistant-chat'
 import { formatDay } from '@/lib/library'
 import { emptyScope, hasTerms, type TryItScope } from '@/lib/try-it'
@@ -41,10 +48,20 @@ export const READ_DEBOUNCE_MS = 300
 /** get_context reads at most this many characters of a question. */
 const MAX_QUESTION = 2000
 
-/** The last question's scope, which the next question carries. */
+/**
+ * The last question's scope, which the next question carries. A greeting, thanks or a follow-up
+ * on a reply has none of its own and is passed over, so "and for Spain?" after "thanks" still
+ * carries what the question before it was about.
+ */
 export function carriedOf(messages: readonly AskMessage[]): TryItScope | null {
-  const last = messages.findLast((message) => message.role === 'user')
-  return last ? readQuestion(last).scope : null
+  for (let at = messages.length - 1; at >= 0; at--) {
+    const message = messages[at]!
+    if (message.role !== 'user') continue
+    const question = readQuestion(message)
+    const replied = messages.slice(0, at).some((earlier) => earlier.role === 'assistant')
+    if (!aboutTheChat(question.text, replied)) return question.scope
+  }
+  return null
 }
 
 /** How the words are read: not yet, being read, read, or not readable now (no edition, offline). */
@@ -94,6 +111,9 @@ export function useAskReads(
           ? 'read'
           : 'reading'
   const carried = useMemo(() => carriedOf(messages), [messages])
+  // A greeting, thanks or a follow-up on the last reply ("what do you mean?") is about the chat:
+  // it reads nothing, so the line shows no scope, carried or assumed, for it.
+  const chat = isChatQuestion(words, messages, picked, tagged, reading)
   const reads = useMemo(
     () =>
       readsOf({
@@ -106,13 +126,28 @@ export function useAskReads(
       }),
     [reading, tagged, picked, carried, dropped, library.today],
   )
+  // Nothing is read for it, nothing is carried to it, and no day is assumed for it.
+  const quiet = useMemo(
+    () =>
+      readsOf({
+        reading: null,
+        tagged: null,
+        picked: null,
+        carried: null,
+        dropped: new Set(),
+        today: library.today,
+      }),
+    [library.today],
+  )
   return {
-    reads,
-    state,
+    reads: chat ? quiet : reads,
+    state: chat ? ('idle' as const) : state,
     about: reading?.about ?? noTerms,
     reading: state === 'read' ? reading : null,
+    chat,
   }
 }
+
 const noTerms: TryItReading['about'] = []
 
 const chipClass =
@@ -167,7 +202,7 @@ export function readsWords(reads: Reads, viewOf: (key: string) => ScopeTermView)
       : days
         ? `${days}${reads.datesNote ? `, ${reads.datesNote}` : ''}`
         : reads.today
-          ? `today, ${formatDay(reads.today)} (no dates given)`
+          ? `${dayWords(reads.today, formatDay)} (no dates given)`
           : null
   const carried = reads.terms
     .filter((term) => term.source === 'carried')
@@ -392,7 +427,7 @@ export function AskReads({
             {reads.windowSource === 'assumed' ? (
               <>
                 <span className="text-foreground">
-                  Today{reads.today ? `, ${formatDay(reads.today)}` : ''}
+                  {reads.today ? upperFirst(dayWords(reads.today, formatDay)) : 'Today'}
                 </span>{' '}
                 · no dates given
               </>
@@ -476,5 +511,7 @@ export function AskReads({
     </div>
   )
 }
+
+const upperFirst = (words: string) => words.charAt(0).toUpperCase() + words.slice(1)
 
 const hasAnything = (scope: TryItScope) => scope.from !== null || hasTerms(scope.scope)

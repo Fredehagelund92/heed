@@ -157,6 +157,129 @@ describe('the scripted assistant answers messages about itself', () => {
   })
 })
 
+/*
+  The captain, 20 October 2026: "what you mean?" after an answer ran a new lookup on the carried
+  scope. A follow-up on the last reply is answered from it, with no tool; a question about a
+  change says first what the facts cannot show; a demo's fixed day is the demo's date.
+*/
+describe('the scripted assistant answers from the conversation', () => {
+  const system = [
+    "Heed's context for this turn (from Heed, not from the person).",
+    "Today is Wednesday 7 October 2026 (2026-10-07, time zone UTC). Count today from these. The clock here is fixed for the demo, so this is the demo's date, not the real one.",
+    "You are talking to Maria Lindqvist, signed in to Heed: they aren't an owner, approver or admin.",
+  ].join('\n')
+  const tools = ['get_context', 'find_context', 'improve_question'].map((name) => ({
+    type: 'function' as const,
+    name,
+    inputSchema: { type: 'object' as const },
+  }))
+  const said = (text: string) => ({
+    role: 'user' as const,
+    content: [{ type: 'text' as const, text }],
+  })
+  const replied = (text: string) => ({
+    role: 'assistant' as const,
+    content: [{ type: 'text' as const, text }],
+  })
+  const last = 'A clearer question names what, where and when. Name the metric and the dates.'
+  const run = async (prompt: LanguageModelV4Prompt) => {
+    const generated = await scriptedAssistantModel().doGenerate({ prompt, tools })
+    return {
+      tool: generated.content.find((part) => part.type === 'tool-call')?.toolName ?? null,
+      words: generated.content.map((part) => (part.type === 'text' ? part.text : '')).join(''),
+    }
+  }
+
+  it.each([
+    [
+      'what you mean?',
+      /^Let me put it another way\. The main point: A clearer question names what, where and when\./,
+    ],
+    ['say it simpler', /^Simply put: A clearer question names what, where and when\./],
+    ['shorter', /^In short: A clearer question names what, where and when\.$/],
+    ['why?', /^I said that because of the facts and steps above\. The main point: /],
+  ])('answers %j from its last reply, with no tool', async (text, start) => {
+    const { tool, words } = await run([
+      { role: 'system', content: system },
+      said('Make this clearer: why did orders drop?'),
+      replied(last),
+      said(text),
+    ])
+    expect(tool).toBeNull()
+    expect(words).toMatch(start)
+    expect(toneProblems(words, [text])).toEqual([])
+  })
+
+  it('looks up what is attached, or picked, even for the words of a follow-up', async () => {
+    const attached = `${system}\nThe scope of the person's latest question, as Heed read it:\n- Orders: a metric.`
+    expect(
+      (
+        await run([
+          { role: 'system', content: attached },
+          said('Make this clearer'),
+          replied(last),
+          said('explain it'),
+        ])
+      ).words,
+    ).toContain('You attached:')
+    const picked = `explain\n${SCOPE_LINE} ${JSON.stringify({ metrics: ['metric:orders'] })}`
+    expect(
+      (await run([{ role: 'system', content: system }, replied(last), said(picked)])).tool,
+    ).toBe('get_context')
+  })
+
+  it('says first what the facts cannot show, and says the demo’s date, on a question about a change', async () => {
+    const result = {
+      status: 'matched',
+      items: [
+        {
+          id: 'itm_aaaaaaaa',
+          title: 'VAT rate changed',
+          summary: 'A new VAT rate started on 15 June 2026.',
+        },
+      ],
+      scope_used: {
+        metrics: ['metric:average_order_value'],
+        filters: { 'dim:market': ['val:market/united_kingdom'] },
+      },
+      assumed_date: {
+        date: '2026-10-07',
+        sentence: 'I assumed today, 7 October 2026. Tell me if you meant a different period.',
+      },
+    }
+    const asked = 'Why did average order value drop in the United Kingdom?'
+    const generated = await scriptedAssistantModel().doGenerate({
+      prompt: [
+        { role: 'system', content: system },
+        said(asked),
+        {
+          role: 'assistant',
+          content: [{ type: 'tool-call', toolCallId: 'c1', toolName: 'get_context', input: {} }],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              type: 'tool-result',
+              toolCallId: 'c1',
+              toolName: 'get_context',
+              output: { type: 'json', value: result as never },
+            },
+          ],
+        },
+      ],
+      tools,
+    })
+    const words = generated.content.map((part) => (part.type === 'text' ? part.text : '')).join('')
+    expect(words.split('\n')[0]).toBe(
+      "The facts can't show whether average order value in the United Kingdom dropped, or why.",
+    )
+    expect(words).toContain('One fact may be related:')
+    expect(words).toContain("I used the demo's date, 7 October 2026, because you gave no dates.")
+    expect(words).not.toMatch(/\btoday\b|caused/i)
+  })
+})
+
 describe('the scripted assistant drafts in the domain the words name', () => {
   const system = [
     "Heed's context for this turn (from Heed, not from the person).",

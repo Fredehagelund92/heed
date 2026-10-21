@@ -265,6 +265,37 @@ export const goldenSetChecks: Record<string, (set: GoldenSet) => void> = {
     // A data question after a greeting is still asked for what it lacks.
     expect(meta.some((c) => c.turns.length > 1 && !c.turns[1]!.expect.asks_no_scope)).toBe(true)
   },
+  'answers a follow-up on its own reply from the conversation, and starts a change with what the facts cannot show':
+    (set) => {
+      // The captain, 20 October 2026: "what you mean?" ran a new lookup on the carried scope,
+      // assumed a date and listed eight facts. Visible cases, so anyone may tune against them.
+      const followUps = set.assistant.filter((c) => c.id.startsWith('companion-follow-up-'))
+      expect(followUps.every((c) => c.type === 'companion' && c.split === 'development')).toBe(true)
+      const said = followUps.flatMap((c) => c.turns.map((t) => t.say))
+      for (const words of ['what you mean?', 'say it simpler', 'shorter', 'why?', 'thanks!'])
+        expect(said).toContain(words)
+      for (const c of followUps) {
+        // The first turn asks something; each turn after it is about the reply before it.
+        const [, ...after] = c.turns
+        const asked = after.filter((t) => t.expect.tools_none)
+        expect(asked.length).toBeGreaterThan(0)
+        for (const turn of asked) {
+          expect(turn.expect.asks_no_scope).toBe(true)
+          expect(turn.expect.tools_none).toEqual(
+            expect.arrayContaining(['get_context', 'find_context', 'explain_item', 'create_draft']),
+          )
+        }
+      }
+      // A question after one is a question again, and a change starts with what the facts cannot show.
+      expect(followUps.some((c) => c.turns.at(-1)!.expect.tools_any?.includes('get_context'))).toBe(
+        true,
+      )
+      const change = set.assistant.find((c) => c.id === 'companion-change-first-sentence')!
+      expect(change.turns[0]!.rubrics.join(' ')).toMatch(
+        /first sentence says plainly that the facts cannot show/,
+      )
+      expect(change.turns[0]!.expect.forbidden_phrases).toContain('caused by')
+    },
   'names only tools the assistant has': (set) => {
     const named = set.assistant.flatMap((c) =>
       c.turns.flatMap((t) => [

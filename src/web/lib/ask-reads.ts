@@ -1,9 +1,11 @@
+import { aboutTheChat } from '@domain/assistant-meta'
 import type { Scope } from '@domain/item'
 import type { QuestionScope } from '../../contract/assistant.ts'
 import type { TryItReading } from '@/api'
+import type { AskMessage } from '@/lib/assistant'
 import { datesOf, type AskDraft } from '@/lib/ask-draft'
 import { addToScope, scopeKeys } from '@/lib/mention-targets'
-import { emptyScope, type TryItScope } from '@/lib/try-it'
+import { emptyScope, hasTerms, type TryItScope } from '@/lib/try-it'
 
 /*
   What Heed reads for the question being typed (Ask composer, the "Heed reads" line): the chips in
@@ -223,3 +225,23 @@ export const readsSomething = (reads: Reads) =>
   reads.windowSource !== 'assumed' ||
   reads.undecided.length > 0 ||
   reads.about.length > 0
+
+/**
+ * Whether a question is only about the conversation: a greeting, thanks, or, once the assistant
+ * has answered, "what do you mean?", "say it simpler", "shorter", "why?". Something the question
+ * names or the person picked for it makes it more (the same rule the service applies).
+ */
+export function isChatQuestion(
+  words: string,
+  messages: readonly AskMessage[],
+  picked: TryItScope | null,
+  tagged: TaggedScope | null,
+  reading: TryItReading | null,
+): boolean {
+  if (tagged || (picked && (hasTerms(picked.scope) || picked.from))) return false
+  if (reading && (reading.about.length || reading.from || reading.ambiguous.length)) return false
+  return aboutTheChat(
+    words,
+    messages.some((message) => message.role === 'assistant'),
+  )
+}

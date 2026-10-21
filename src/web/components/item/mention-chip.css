@@ -35,6 +35,13 @@
       box-decoration-break: clone;
     }
 
+    /* A chip that shows its whole title wraps like the words around it. */
+    &[data-full] {
+      white-space: normal;
+      overflow-wrap: anywhere;
+      box-decoration-break: clone;
+    }
+
     /* The state glyph after the label (source changed) has the gap before it. */
     & svg[data-slot='mention-state'] {
       margin-inline: var(--mention-gap) 0;

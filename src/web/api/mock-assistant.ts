@@ -9,7 +9,12 @@ import {
 import type { TryItInput } from '../../contract/connect.ts'
 import type { Applicability } from '../../domain/applicability.ts'
 import {
+  asksAboutChange,
+  changeLead,
+  changeSubject,
   demoFallback,
+  followUpKind,
+  followUpReply,
   looksLikeDataQuestion,
   metaKind,
   metaReply,
@@ -145,7 +150,6 @@ function inputOf(scope: SentScope | undefined): TryItInput {
 const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine']
 const counted = (n: number, one: string, many: string) =>
   `${words[n] ?? n.toLocaleString('en')} ${n === 1 ? one : many}`
-const lower = (text: string) => text.charAt(0).toLowerCase() + text.slice(1)
 /** The first sentence of a summary. */
 const firstSentence = (text: string) => /^.*?[.!?](?=\s|$)/.exec(text)?.[0] ?? text
 /**
@@ -279,7 +283,8 @@ function lookUp(
     )
     .sort((a, b) => (a.id < b.id ? -1 : 1))
     .slice(0, 2)
-  const explained = nearby.map((item) => {
+  // The facts nearby that do not apply are explained too: the steps keep them for the folded list.
+  for (const item of nearby) {
     const result = reads.explain(item.id, question, input)
     const output = {
       edition: reply.edition,
@@ -293,52 +298,58 @@ function lookUp(
       coverage: coverageStatement,
     }
     calls.push({ tool: 'explain_item', input: { id: item.id, question, ...input }, output })
-    return output
-  })
-  const missing = explained.filter((fact) => !fact.applies)
-  // Asked without dates, the reply is today's, and the answer says so, as it is told to.
-  const assumed = reply.assumed_date ? [reply.assumed_date.sentence] : []
+  }
+  // Asked without dates, the reply is the demo's day, and the answer says so, as it is told to.
+  const assumed = reply.assumed_date
+    ? [
+        `I used the demo's date, ${longDay(reply.assumed_date.date)}, because no dates were given. Tell me if you meant a different period.`,
+      ]
+    : []
   // What the question was about, by name: "Orders, Norway".
-  const scopeWords = [
-    ...used.metrics.map((key) => reads.nameOf(key) ?? key),
-    ...values.map((key) => reads.nameOf(key) ?? key),
-  ].join(', ')
+  const scopeNames = {
+    metrics: used.metrics.map((key) => reads.nameOf(key) ?? key),
+    values: values.map((key) => reads.nameOf(key) ?? key),
+  }
+  const scopeWords = [...scopeNames.metrics, ...scopeNames.values].join(', ')
+  // A question about a change or its cause: the facts are notes, never the numbers, so the
+  // answer says first what they cannot show.
+  const lead = asksAboutChange(question)
+    ? [`**${changeLead(question, changeSubject(scopeNames.metrics, scopeNames.values))}**`]
+    : []
+  // The facts that do not apply stay in the steps' facts, folded under the answer: the words
+  // name only what applies.
   if (!delivered.length) {
+    const nothing = `Nothing is written down for ${scopeWords || 'that'}.`
+    const next =
+      'Nobody has added a fact about it yet. If you know of something, I can help you write it down.'
     return {
       calls,
-      text: [
-        `**Nothing is written down for ${scopeWords || 'that'}.**`,
-        'Nobody has added a fact about it yet. If you know of something, I can help you write it down.',
-        ...(missing.length
-          ? [
-              `${counted(missing.length, "nearby fact doesn't", "nearby facts don't")} apply:`,
-              missing.map((fact) => `- [${fact.id}] ${lower(fact.reason)}`).join('\n'),
-            ]
-          : []),
-        ...assumed,
-      ].join('\n\n'),
+      text: (lead.length
+        ? [...lead, `${nothing} ${next}`, ...assumed]
+        : [`**${nothing}**`, next, ...assumed]
+      ).join('\n\n'),
       finish: 'stop',
     }
   }
-  const head = `**${counted(delivered.length, 'fact applies', 'facts apply')}${scopeWords ? ` to ${scopeWords}` : ''}.${
-    missing.length ? ` ${counted(missing.length, "other doesn't", "others don't")}.` : ''
-  }**`
+  const head = lead.length
+    ? `${counted(delivered.length, 'fact is', 'facts are')} related to ${scopeWords || 'it'}. A fact can't prove a cause.`
+    : `**${counted(delivered.length, 'fact applies', 'facts apply')}${scopeWords ? ` to ${scopeWords}` : ''}.**`
   const lines = delivered.map((item, index) => {
-    const part = item.match === 'partial' ? ' applies only in part' : ' applies'
+    const part = item.match === 'partial' ? 'Applies only in part.' : ''
     const quote =
       index === 0 ? item.evidence.find((entry) => entry.quote.length >= 20)?.quote : undefined
-    return [
-      `[${item.id}]${part}.`,
+    return `- ${[
+      `[${item.id}]`,
+      part,
       afterTitle(item.summary, item.title),
       quote ? `Its source says "${quote}"` : '',
     ]
       .filter(Boolean)
-      .join(' ')
+      .join(' ')}`
   })
-  const others = missing.map((fact) => `[${fact.id}] doesn't apply. ${fact.reason}`)
   return {
     calls,
-    text: [head, ...lines, ...others, ...assumed].join('\n\n'),
+    text: [...lead, head, lines.join('\n'), ...assumed].join('\n\n'),
     finish: 'stop',
   }
 }
@@ -680,9 +691,15 @@ function choose(
   scope: SentScope | undefined,
   input: TryItInput,
   about: readonly string[] = [],
+  reply: string | null = null,
 ): Turn {
   if (/\bdomains\b/i.test(question) && /\b(compare|side by side|table|stand)\b/i.test(question))
     return compareDomains(reads)
+  // "What do you mean?", "say it simpler", "shorter", "why?": about the last reply, so answered
+  // from it, with no lookup. What the question names or attaches is more than that.
+  const followUp = followUpKind(question)
+  if (followUp && !scope && !about.length)
+    return { calls: [], text: followUpReply(followUp, reply, metaFacts(reads)), finish: 'stop' }
   // A greeting, thanks or "what can you do": answered at once, with no tool and no scope question.
   const meta = metaKind(question)
   if (meta) return { calls: [], text: metaReply(meta, metaFacts(reads)), finish: 'stop' }
@@ -741,7 +758,18 @@ function lastQuestion(messages: readonly UIMessage[]) {
           ...(bound.window ? { window: bound.window } : {}),
         }
       : { ...inputOf(scope), window: bound.window }
-  return { question, scope, input, about }
+  // What the assistant said last, before this question: a follow-up on it reads it.
+  const said = messages.slice(
+    0,
+    messages.findLastIndex((m) => m.role === 'user'),
+  )
+  const answered = said.findLast((m) => m.role === 'assistant')
+  const reply =
+    answered?.parts
+      .flatMap((part) => (part.type === 'text' ? [part.text.trim()] : []))
+      .filter(Boolean)
+      .join('\n\n') || null
+  return { question, scope, input, about, reply }
 }
 
 /**
@@ -789,7 +817,7 @@ export async function* mockAssistantTurn(
     mode = 'answer',
   }: { signal?: AbortSignal; pause: () => Promise<void>; mode?: MockAssistantMode },
 ): AsyncGenerator<UIMessageChunk> {
-  const { question, scope, input, about } = lastQuestion(messages)
+  const { question, scope, input, about, reply } = lastQuestion(messages)
   yield { type: 'start' }
   const notice = function* (text: string): Generator<UIMessageChunk> {
     yield { type: 'text-start', id: 'notice' }
@@ -842,7 +870,7 @@ export async function* mockAssistantTurn(
     yield { type: 'finish', finishReason: 'stop' }
     return
   }
-  const turn = choose(reads, question, scope, input, about)
+  const turn = choose(reads, question, scope, input, about, reply)
   let call = 0
   for (const { tool, input, output } of turn.calls) {
     await pause()

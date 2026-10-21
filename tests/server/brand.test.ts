@@ -20,6 +20,7 @@ const old = new RegExp(`\\b${DEFAULT_PRODUCT_NAME}\\b`)
 
 const facts: TurnFacts = {
   today: '2026-10-12',
+  pinned: false,
   timeZone: 'Europe/Copenhagen',
   edition: '2026-10-07.2',
   person: { name: 'Tomas Eriksen', roles: [], areas: [{ name: 'Marketing', role: 'owner' }] },

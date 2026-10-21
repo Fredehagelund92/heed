@@ -7,6 +7,9 @@ import {
   answerAsMarkdown,
   answerMarkup,
   checkedWords,
+  dayWords,
+  factDatesWords,
+  factSentence,
   lastFullMonth,
   limitWords,
   rangeWords,
@@ -561,6 +564,20 @@ describe('the answer as people read it', () => {
     expect(markdown).not.toMatch(/Edition 2026-10-07\.2/)
   })
 
+  it('copies each fact’s whole title, even a long one, so two facts never read the same', async () => {
+    const title = `Payment provider switched in the Netherlands on 19 February 2025 ${'and so on '.repeat(16)}for [every] market | all`
+    const markdown = answerAsMarkdown(readAnswer(await assemble(matched)), {
+      origin: 'https://heed.example',
+      titleOf: () => title,
+      scopeWords: null,
+    })
+    expect(title.length).toBeGreaterThan(160)
+    expect(markdown).toContain(
+      `[${title.replace('[every]', '(every)').replace('|', '\\|')}](https://heed.example/library/itm_00ae5tb0)`,
+    )
+    expect(markdown).not.toContain('…')
+  })
+
   it('tells the model the scope as get_context’s own fields, after a fixed prefix', () => {
     expect(
       scopeLine({
@@ -576,6 +593,46 @@ describe('the answer as people read it', () => {
       'Scope picked for this question, as get_context fields: {"metrics":["metric:orders"],"dimension_filters":[{"dimension":"dim:market","values":["val:market/north"]}],"window":{"from":"2026-06-01","to":"2026-06-30"}}',
     )
     expect(scopeOfUsed(null)).toBeNull()
+  })
+})
+
+describe('the day a question without dates was read at', () => {
+  const long = (day: string) => formatDay(day, 'long')
+
+  it('says plainly that a fixed day is the demo’s date, and a day that is the browser’s today', () => {
+    const now = new Date(2026, 9, 20, 12, 0, 0)
+    expect(dayWords('2026-10-07', long, now)).toBe('the demo’s date, 7 October 2026')
+    expect(dayWords('2026-10-20', long, now)).toBe('today, 20 October 2026')
+    // A time zone away is still today: the service and the browser may differ by a day.
+    expect(dayWords('2026-10-19', long, now)).toBe('today, 19 October 2026')
+    expect(dayWords('2026-10-21', long, now)).toBe('today, 21 October 2026')
+    expect(dayWords('2026-10-22', long, now)).toBe('the demo’s date, 22 October 2026')
+  })
+})
+
+describe('a fact as its block says it', () => {
+  it('tells when it applies: from a day while it goes on, the days once it has ended', () => {
+    expect(factDatesWords({ validity: { start: '2026-06-15' }, until: null })).toBe(
+      'from 15 Jun 2026',
+    )
+    expect(factDatesWords({ validity: { start: '2026-06-01' }, until: '2026-06-30' })).toBe(
+      '1 to 30 Jun 2026',
+    )
+    expect(factDatesWords({ validity: { start: '2026-06-12' }, until: '2026-06-12' })).toBe(
+      '12 Jun 2026',
+    )
+  })
+
+  it('says what it says in one sentence that is not its title again', () => {
+    const title = 'Payment provider switched in the Netherlands on 19 February 2025'
+    expect(
+      factSentence(
+        'Payment provider switched in the Netherlands on 19 February 2025. We switched the Netherlands to a new payment provider. More.',
+        title,
+      ),
+    ).toBe('We switched the Netherlands to a new payment provider.')
+    expect(factSentence(`${title}.`, title)).toBe('')
+    expect(factSentence('', title)).toBe('')
   })
 })
 
@@ -660,6 +717,102 @@ describe('the scripted assistant of the mock binding', () => {
     expect(answer.report!.cited.length).toBeGreaterThan(0)
     for (const id of answer.report!.cited) expect(read.has(id)).toBe(true)
     expect(answer.report!.removed).toEqual([])
+  })
+
+  /*
+    The captain, 20 October 2026: "what you mean?" after an answer carried the last question's
+    scope, assumed a date, looked up eight facts and listed the ones that do not apply.
+  */
+  const converse = async (messages: AskMessage[]) => {
+    const chunks: UIMessageChunk[] = []
+    for await (const chunk of mockAssistantTurn(reads, messages, {
+      pause: () => Promise.resolve(),
+    }))
+      chunks.push(chunk)
+    return readAnswer(await assemble(chunks))
+  }
+  const asked = (
+    text: string,
+    scope?: { about: string; from?: string; to?: string },
+  ): AskMessage => ({
+    id: `q-${text}`,
+    role: 'user',
+    parts: [{ type: 'text', text }],
+    metadata: { scope },
+  })
+  const said = (text: string): AskMessage => ({
+    id: `a-${text}`,
+    role: 'assistant',
+    parts: [{ type: 'text', text }],
+  })
+
+  it.each([
+    ['what you mean?', /^Let me put it another way\. The main point: /],
+    ['say it simpler', /^Simply put: /],
+    ['shorter', /^In short: /],
+    ['why?', /^I said that because /],
+  ])(
+    'answers %j from the last reply: no lookup, no step, no fact, no date',
+    async (text, start) => {
+      const last = 'A clearer question names what, where and when. Name the metric and the dates.'
+      const answer = await converse([
+        asked('Make this clearer: why did it drop?'),
+        said(last),
+        asked(text),
+      ])
+      expect(answer.steps).toEqual([])
+      expect(answer.facts).toEqual([])
+      expect(answer.plain).toMatch(start)
+      expect(answer.plain).toContain('A clearer question names what, where and when.')
+      expect(answer.plain).not.toMatch(/which metric|demo.s date|today|apply/i)
+    },
+  )
+
+  it('treats the same words before any answer as a question, and asks nothing about the scope', async () => {
+    const answer = await converse([asked('what you mean?')])
+    expect(answer.plain).toMatch(/^I haven't said anything to explain yet\./)
+    expect(answer.steps).toEqual([])
+  })
+
+  it('says first what the facts cannot show when asked why a number changed, and lists only what applies', async () => {
+    const answer = await converse([
+      asked('Why did it drop?', {
+        about: `${item.scope.metrics[0]},${market}`,
+        from: item.validity.start,
+        to: item.validity.start,
+      }),
+    ])
+    expect(answer.plain.split('\n')[0]).toMatch(
+      /^\*{0,2}The facts can't show whether .+ dropped, or why\.\*{0,2}$/,
+    )
+    expect(answer.plain).not.toMatch(/caused|because of/i)
+    // A fact that does not apply is read and kept for the folded list, never listed in the words.
+    for (const fact of answer.facts.filter((f) => f.verdict === 'not'))
+      expect(answer.plain).not.toContain(fact.id)
+    expect(answer.plain).not.toMatch(/doesn.t apply/i)
+  })
+
+  it("says the day it read at when no dates were given is the demo's date, never today", async () => {
+    const answer = await converse([
+      asked('Which facts apply?', { about: `${item.scope.metrics[0]},${market}` }),
+    ])
+    expect(answer.plain).toContain(`I used the demo's date, `)
+    expect(answer.plain).toContain('because no dates were given.')
+    expect(answer.plain).not.toMatch(/\btoday\b/i)
+  })
+
+  it('lists each fact it names as an item of its own, so the answer can draw it as a block', async () => {
+    const answer = await converse([
+      asked('Which facts apply?', {
+        about: `${item.scope.metrics[0]},${market}`,
+        from: item.validity.start,
+        to: item.validity.start,
+      }),
+    ])
+    const lines = answer.plain.split('\n').filter((line) => line.startsWith('- '))
+    expect(lines.length).toBeGreaterThan(0)
+    for (const line of lines) expect(line).toMatch(/^- \[itm_[a-z0-9]{8,16}\]/)
+    expect(answer.plain).not.toMatch(/\bapplies\.? /)
   })
 
   it('stops at a spending limit before any tool runs', async () => {

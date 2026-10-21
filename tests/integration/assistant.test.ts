@@ -823,8 +823,8 @@ describe('what the person attached to a question (Ask tab, scope picker)', () =>
   })
 
   it('reads only the latest question’s attachments, and adds no block without any', async () => {
-    script = [text('Hello.'), text('Hello again.')]
-    await chat('author', [userMessage('Hi')])
+    script = [text('What does it cover?'), text('Hello again.')]
+    await chat('author', [userMessage('Orders?')])
     expect(systemOf(seen[0]!)).toHaveLength(2)
     const earlier = attached('What is this', anyProduct)
     await chat('author', [
@@ -832,7 +832,10 @@ describe('what the person attached to a question (Ask tab, scope picker)', () =>
       { id: randomUUID(), role: 'assistant', parts: [{ type: 'text', text: 'A dimension.' }] },
       userMessage('Thanks'),
     ])
-    expect(systemOf(seen[1]!)).toHaveLength(2)
+    // Thanks is about the chat: it gets the note that says so, and none of the last attachments.
+    const [, , note] = systemOf(seen[1]!)
+    expect(systemOf(seen[1]!)).toHaveLength(3)
+    expect(note).toMatch(/^The person's latest message is about the conversation/)
   })
 
   it('looks up facts for "which facts apply to this", and never asks which metric, market and dates', async () => {
@@ -963,6 +966,103 @@ describe('the scope the person saw (Ask composer, "Heed reads")', () => {
     })
     expect(response.statusCode).toBe(422)
     expect(response.body).toContain("We couldn't read what your question is about. Ask it again.")
+  })
+})
+
+/*
+  The captain, 20 October 2026: "Make this clearer: why did average order value drop in
+  Netherlands?" was answered, and "what you mean?" after it ran a brand-new lookup on the metric
+  and market carried from the question before, assumed today's date and listed eight facts. A
+  message about the assistant's own last reply is answered from the conversation.
+*/
+describe('a message about the conversation, not about numbers', () => {
+  const systemOf = (call: LanguageModelV4CallOptions) =>
+    call.prompt.flatMap((m) => (m.role === 'system' ? [m.content] : []))
+  const carriedScope: QuestionScope = {
+    metrics: ['metric:orders'],
+    dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
+    window_source: 'assumed',
+    carried: ['metric:orders', 'val:market/norway'],
+    unresolved: [],
+  }
+  /** A question as the composer sends it, with the scope it shows: words, scope line, scope part. */
+  const withScope = (words: string, scope: QuestionScope): UIMessage => ({
+    ...userMessage(words),
+    parts: [
+      { type: 'text', text: words },
+      { type: 'data-scope', data: scope },
+    ],
+  })
+  const replied = (words: string): UIMessage => ({
+    id: randomUUID(),
+    role: 'assistant',
+    parts: [{ type: 'text', text: words }],
+  })
+  const lastReply = 'A clearer question names what, where and when. Name the metric and the dates.'
+  const conversation = (second: UIMessage) => [
+    withScope('Make this clearer: why did orders drop in Norway?', {
+      ...carriedScope,
+      carried: [],
+      window_source: 'assumed',
+    }),
+    replied(lastReply),
+    second,
+  ]
+
+  it('gives the model no tool, no scope and a note that says why, whatever scope came with it', async () => {
+    script = [text('I meant that a question works better with a metric and dates.')]
+    const chunks = await chat('author', conversation(withScope('what you mean?', carriedScope)))
+    const call = seen[0]!
+    expect(call.tools ?? []).toEqual([])
+    const [, , note] = systemOf(call)
+    expect(systemOf(call)).toHaveLength(3)
+    expect(note).toMatch(/^The person's latest message is about the conversation/)
+    expect(note).toContain('You have no tools this turn')
+    expect(systemOf(call).join('\n')).not.toContain("The scope of the person's latest question")
+    expect(toolOutputs(chunks)).toEqual([])
+    expect(answer(chunks)).toBe('I meant that a question works better with a metric and dates.')
+  })
+
+  it.each(['what you mean?', 'explain', 'say it simpler', 'shorter', 'why?', 'thanks!', 'hi'])(
+    'answers %j with the scripted model from the last reply, with no tool and no question back',
+    async (words) => {
+      script = []
+      const chunks = await chat('author', conversation(withScope(words, carriedScope)))
+      expect(chunks.filter((c) => c.type === 'tool-input-available')).toEqual([])
+      const said = answer(chunks)
+      expect(said).not.toMatch(/\bwhich (?:metrics?|markets?|dates?)\b/i)
+      expect(said).not.toMatch(/\bI used the demo|I assumed today/i)
+      if (!['thanks!', 'hi'].includes(words))
+        expect(said).toContain('A clearer question names what, where and when.')
+      expect(citations(chunks).removed).toEqual([])
+    },
+  )
+
+  it('is still a question when it names something of its own: a chip, dates or a term', async () => {
+    const own: QuestionScope = {
+      ...carriedScope,
+      carried: [],
+      window_source: 'typed',
+      window: { from: '2026-08-01', to: '2026-08-31' },
+    }
+    script = [text('Done.')]
+    await chat('author', conversation(withScope('why?', own)))
+    expect(systemOf(seen[0]!)[2]).toMatch(/^The scope of the person's latest question/)
+    expect((seen[0]!.tools ?? []).length).toBeGreaterThan(0)
+  })
+
+  it('is a question before the assistant has said anything: nothing to explain yet', async () => {
+    script = [text('Done.')]
+    await chat('author', [userMessage('why?')])
+    expect(systemOf(seen[0]!)).toHaveLength(2)
+    expect((seen[0]!.tools ?? []).length).toBeGreaterThan(0)
+  })
+
+  it('leaves a data question after it with its scope, so a lookup still reads it', async () => {
+    script = [text('Done.')]
+    await chat('author', conversation(withScope('and for Spain?', carriedScope)))
+    expect(systemOf(seen[0]!)[2]).toMatch(/^The scope of the person's latest question/)
+    expect((seen[0]!.tools ?? []).length).toBeGreaterThan(0)
   })
 })
 
@@ -1523,7 +1623,7 @@ describe('budgets (FR-409)', () => {
     // Room for the first step's estimate (its prompt, About our business in the turn context
     // included, and a full answer), but after it spends 17,000 micros (1,000 in, 1,500 out) not
     // for the second's.
-    await setting('limits.llm_feature_monthly_micros', { eval: 250_000_000, assistant: 40_000 })
+    await setting('limits.llm_feature_monthly_micros', { eval: 250_000_000, assistant: 44_000 })
     try {
       script = [toolCall('read_item', { id: closure }, 1_500), text('Never reached.')]
       const chunks = await chat('author', [userMessage('Explain the closure')])
@@ -2077,6 +2177,54 @@ describe('the assistant test cases (FR-710)', () => {
       /^I help you find, understand and write down facts about your numbers\./,
     )
     expect(abilities.match(/^- /gm)).toHaveLength(3)
+  })
+
+  it("answers the golden set's follow-up cases from the conversation, with no tool and no date assumed", async () => {
+    // The captain, 20 October 2026: "what you mean?" ran a new lookup on the carried scope.
+    script = []
+    const followUps = loadGoldenSet().assistant.filter((c) =>
+      c.id.startsWith('companion-follow-up-'),
+    )
+    const report = await runAssistantCases(
+      {
+        database,
+        clock,
+        models: mock,
+        logger: createLogger({ level: 'silent' }),
+        approvalSecret: randomBytes(32),
+      },
+      {
+        personId: people.author,
+        // The golden library's metric and market are not in this database: the first question
+        // asks about one that is, and the follow-ups after it are the golden set's own.
+        cases: goldenAssistantCases(followUps).map((c) =>
+          c.id === 'companion-follow-up-what-do-you-mean'
+            ? c
+            : {
+                ...c,
+                say: () => 'Orders in Norway, August 2026',
+                text: 'Orders in Norway, August 2026',
+              },
+        ),
+        tries: 1,
+      },
+    )
+    expect(report.results.map((r) => [r.id, r.verdict, r.problems])).toEqual(
+      followUps.map((c) => [c.id, 'pass', []]),
+    )
+    for (const result of report.results) {
+      const [first, ...after] = result.tries[0]!.turns
+      expect(first!.tools.map((t) => t.name)).toContain(
+        result.id === 'companion-follow-up-what-do-you-mean' ? 'improve_question' : 'get_context',
+      )
+      // Each turn about the reply before it looks nothing up, and the next question does again.
+      for (const turn of after.filter((t) =>
+        /^(?:what you mean\?|say it simpler|shorter|why\?|thanks!)$/.test(t.say),
+      ))
+        expect(turn.tools).toEqual([])
+    }
+    const mean = report.results.find((r) => r.id === 'companion-follow-up-what-do-you-mean')!
+    expect(mean.tries[0]!.turns[1]!.answer).toMatch(/^Let me put it another way\. The main point: /)
   })
 
   it("answers the golden set's help cases from the pages, each with a link to the page it used", async () => {

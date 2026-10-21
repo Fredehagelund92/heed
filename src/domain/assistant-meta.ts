@@ -107,6 +107,89 @@ export function helpQuestion(text: string): boolean {
   return [words, bare(words)].some((form) => helpForm.test(form))
 }
 
+/**
+ * What a person asks of the assistant's own last reply, in a message that is only that: "what do
+ * you mean?", "say it simpler", "shorter", "why?". It reads nothing new from the library, so it is
+ * answered from the conversation (`followUpReply`, assistant/prompt.ts, assistant/chat.ts).
+ */
+export type FollowUpKind = 'explain' | 'simpler' | 'shorter' | 'why'
+
+/** "that", "it" or "this", as a person points back at the last reply. */
+const that = '(?:that|it|this)'
+const followUps: [FollowUpKind, RegExp][] = [
+  [
+    'simpler',
+    new RegExp(
+      [
+        `^${ask}(?:please )?(?:say|put|write|explain|tell me)(?: ${that})?(?: again)? (?:more )?(?:simply|simpler|plainly|in (?:simpler|simple|plain|easier|everyday) (?:words|english|terms|language))$`,
+        `^${ask}(?:please )?(?:make|keep) ${that} (?:a (?:bit|little) )?(?:more )?(?:simple|simpler|easier|plainer)(?: to (?:read|understand))?$`,
+        '^(?:in )?(?:simpler|simple|plain|easier|everyday) (?:words|english|terms|language)$',
+        `^(?:simpler|simply|more simply|simplify(?: ${that})?|dumb ${that} down|eli5)$`,
+        `^explain(?: ${that})? like i(?:'m| am) (?:five|5)$`,
+      ].join('|'),
+    ),
+  ],
+  [
+    'shorter',
+    new RegExp(
+      [
+        `^${ask}(?:please )?(?:make|keep) ${that} (?:a (?:bit|little) )?(?:shorter|briefer|short|brief)$`,
+        `^${ask}(?:please )?(?:say|put|write)(?: ${that})?(?: again)? (?:in )?(?:shorter|fewer words|one sentence|a few words|short|brief|briefly)$`,
+        `^(?:shorter|shorten(?: ${that})?|briefly|be brief|too long|tl dr|tldr|in short|short version|the short version|in one sentence|one sentence|summari[sz]e(?: ${that})?)$`,
+      ].join('|'),
+    ),
+  ],
+  [
+    'why',
+    new RegExp(
+      [
+        '^(?:why|why (?:is that|is it so|so|that)|how come)$',
+        '^why (?:do|did) you (?:say|write|answer|reply) (?:that|so|this)$',
+        '^what makes you (?:say|think) (?:that|so)$',
+        '^how do you know(?: (?:that|this))?$',
+        '^where (?:did|does) (?:that|this) come from$',
+        '^says who$',
+      ].join('|'),
+    ),
+  ],
+  [
+    'explain',
+    new RegExp(
+      [
+        '^(?:what|huh|pardon|come again|eh|sorry what|unclear|not clear)$',
+        '^what (?:do|did|does) (?:you|u) mean(?: by (?:that|this|it))?$',
+        '^what (?:you|u) mean$',
+        `^what (?:does|do) ${that} mean$`,
+        `^what is ${that} (?:supposed )?to mean$`,
+        "^i (?:do not|don't|dont) (?:understand|get it|get that|follow)(?: (?:that|this|it))?$",
+        "^i(?:'m| am) (?:confused|lost)$",
+        `^${that} (?:is not|isn't|isnt|was not|wasn't|wasnt) (?:clear|unclear)$`,
+        `^${ask}(?:please )?explain(?: ${that})?(?: (?:more|further|again|better))?(?: what you (?:said|meant|wrote))?$`,
+        `^${ask}(?:please )?(?:say|tell me) ${that} again$`,
+        `^${ask}(?:please )?elaborate(?: on ${that})?$`,
+      ].join('|'),
+    ),
+  ],
+]
+
+/** The kind of follow-up about the last reply that this message is, or null when it is more. */
+export function followUpKind(text: string): FollowUpKind | null {
+  const words = plain(text)
+  if (!words) return null
+  const forms = [words, bare(words)]
+  return followUps.find(([, pattern]) => forms.some((form) => pattern.test(form)))?.[0] ?? null
+}
+
+/**
+ * Whether a message is about the conversation, not about numbers: a greeting or thanks, or, once
+ * the assistant has replied, a follow-up on that reply. It is answered from the conversation with
+ * no lookup, so no scope is carried to it, shown for it or bound to it.
+ */
+export function aboutTheChat(text: string, replied: boolean): boolean {
+  const kind = metaKind(text)
+  return kind === 'greeting' || kind === 'thanks' || (replied && followUpKind(text) !== null)
+}
+
 /** Words that tie a message to Heed's context: "The weather closed the stores: draft a note". */
 const heedCue = /\b(?:draft|note|caveat|items?|facts?|context|propose|definition|mean|means)\b/
 
@@ -222,6 +305,108 @@ export function metaReply(kind: MetaKind, facts: MetaFacts): string {
     case 'outside':
       return paragraphs(`That's outside what I help with. ${what} ${tryIt(facts)}`, demo)
   }
+}
+
+/** The words of a reply to say again: its first sentence, without ids, quotation marks or bullets. */
+export function mainPoint(reply: string): string | null {
+  const first = reply
+    .replace(/\[\s*itm_[a-z0-9]{8,16}(?:\s*,\s*itm_[a-z0-9]{8,16})*\s*\]/gi, '')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .replace(/[*_`#>]|["“”]/g, '')
+    .split('\n')
+    .map((line) => line.replace(/^\s*(?:[-+]|\d+\.)\s+/, '').trim())
+    .find((line) => line && !line.startsWith('|'))
+  const sentence = first ? /^.*?[.!?](?=\s|$)/.exec(first)?.[0] : null
+  const point = (sentence || first || '').replace(/\s+/g, ' ').trim()
+  return point
+    ? [...point].length > 240
+      ? `${[...point].slice(0, 237).join('')}...`
+      : point
+    : null
+}
+
+/**
+ * The scripted answer to a follow-up on the assistant's last reply (`reply`, its words; null when
+ * it has said nothing yet), from the conversation alone: no tool, no scope. A real model explains,
+ * simplifies, shortens or gives its reason in its own words; a scripted one says the point of its
+ * last reply again and offers to go on.
+ */
+export function followUpReply(kind: FollowUpKind, reply: string | null, facts: MetaFacts): string {
+  const point = reply ? mainPoint(reply) : null
+  if (!point) return paragraphs("I haven't said anything to explain yet.", tryIt(facts))
+  const more = 'Tell me which part you want explained more.'
+  switch (kind) {
+    case 'explain':
+      return paragraphs(`Let me put it another way. The main point: ${point}`, more)
+    case 'simpler':
+      return paragraphs(`Simply put: ${point}`, more)
+    case 'shorter':
+      return `In short: ${point}`
+    case 'why':
+      return paragraphs(
+        `I said that because of the facts and steps above. The main point: ${point}`,
+        more,
+      )
+  }
+}
+
+/** The change a question names, as a past-tense verb: "dropped", "rose", else "changed". */
+function changeVerb(question: string): string {
+  if (/\b(?:fell|fall(?:s|ing|en)?|declin\w*)\b/i.test(question)) return 'fell'
+  if (/\b(?:drop(?:s|ped)?|decreas\w*|went down)\b/i.test(question)) return 'dropped'
+  if (/\b(?:rose|rise|risen|increas\w*|grew|grow\w*|went up|spik\w*)\b/i.test(question))
+    return 'rose'
+  return 'changed'
+}
+
+const aboutWhy = /\bwhy\b|\bwhat (?:caused|made|drove|explains?)\b/i
+
+/**
+ * Whether a question asks if a number changed, or what made it change. The facts are written
+ * notes, never the numbers, so they cannot show either, and the answer says so first.
+ */
+export function asksAboutChange(question: string): boolean {
+  return (
+    aboutWhy.test(question) ||
+    /\b(?:what happened|drop(?:s|ped)?|fell|fall(?:s|ing|en)?|declin\w*|decreas\w*|rose|rise|risen|increas\w*|grew|grow\w*|spik\w*|dip(?:ped)?|went (?:up|down))\b/i.test(
+      question,
+    )
+  )
+}
+
+/** The names of places people say with "the": "the Netherlands", "the United Kingdom". */
+const withThe = new Set([
+  'Bahamas',
+  'Czech Republic',
+  'Gambia',
+  'Maldives',
+  'Netherlands',
+  'Philippines',
+  'Seychelles',
+  'United Arab Emirates',
+  'United Kingdom',
+  'United States',
+])
+
+/** What a question about a change is about, by name: "Average order value in the Netherlands". */
+export function changeSubject(
+  metrics: readonly string[],
+  values: readonly string[],
+): string | null {
+  const what = list([...metrics])
+  const where = list(values.map((value) => (withThe.has(value) ? `the ${value}` : value)))
+  return what ? (where ? `${what} in ${where}` : what) : where || null
+}
+
+/**
+ * The first sentence of an answer to a question about a change or its cause: what the facts
+ * cannot show, plainly. It claims no cause (assistant/prompt.ts, the truth rules).
+ */
+export function changeLead(question: string, subject: string | null): string {
+  const what = subject || 'it'
+  return aboutWhy.test(question)
+    ? `The facts can't show whether ${what} ${changeVerb(question)}, or why.`
+    : `The facts can't show whether ${what} ${changeVerb(question)}.`
 }
 
 /**

@@ -1929,6 +1929,159 @@ assistant:
           - 'States an absence only after a call scoped to it found no match'
     source: 'Companion review C6, prompt example 4: a confidently false absence'
 
+  # ---- A follow-up on the assistant's own reply (captain, 20 October 2026). -------------------------
+  # "Make this clearer: why did average order value drop in Netherlands?" was answered, and "what
+  # you mean?" after it ran a brand-new lookup on the metric and market carried from the last
+  # question, assumed today's date and listed eight facts, six that apply and two that do not, with
+  # nothing about what the last reply meant. A message about the assistant's last reply (what do
+  # you mean, explain, simpler, shorter, why, thanks) is answered from the conversation: no tool,
+  # no scope carried, no date assumed. A question about a change starts with what the facts cannot
+  # show, and lists only the facts that apply.
+  - id: companion-follow-up-what-do-you-mean
+    origin: new
+    type: companion
+    as_of: '2026-10-07'
+    turns:
+      - say: 'Make this clearer: why did average order value drop in Netherlands?'
+        expect:
+          asks_no_scope: true
+          forbidden_phrases: [caused by]
+      - say: what you mean?
+        expect:
+          tools_none:
+            [
+              get_context,
+              find_context,
+              explain_item,
+              read_item,
+              domain_overview,
+              what_changed,
+              improve_question,
+              create_draft,
+            ]
+          asks_no_scope: true
+          forbidden_phrases: [I assumed today, demo's date, caused by]
+        rubrics:
+          - 'Says in other words what its last reply meant, in a few short sentences'
+          - 'Looks up nothing new: it reads, names and lists no fact its last reply did not name'
+          - 'Does not repeat its last reply word for word, and does not say a date was assumed'
+    source: 'Captain, 20 Oct 2026: "what you mean?" ran a new lookup on the carried scope'
+
+  - id: companion-follow-up-simpler-then-shorter
+    origin: new
+    type: companion
+    as_of: '2026-10-07'
+    turns:
+      - say: Which facts apply to Average order value in Netherlands in September 2026?
+        expect:
+          tools_any: [get_context]
+      - say: say it simpler
+        expect:
+          tools_none:
+            [
+              get_context,
+              find_context,
+              explain_item,
+              read_item,
+              domain_overview,
+              what_changed,
+              improve_question,
+              create_draft,
+            ]
+          asks_no_scope: true
+          forbidden_phrases: [I assumed today, demo's date]
+        rubrics:
+          - 'Says the same thing in plainer, shorter words, from its last reply, with no new fact'
+      - say: shorter
+        expect:
+          tools_none:
+            [
+              get_context,
+              find_context,
+              explain_item,
+              read_item,
+              domain_overview,
+              what_changed,
+              improve_question,
+              create_draft,
+            ]
+          asks_no_scope: true
+        rubrics:
+          - 'Is shorter than its last reply and keeps its main point'
+    source: 'Captain, 20 Oct 2026: asking for a reply simpler or shorter is about the reply, not a new question'
+
+  - id: companion-follow-up-why
+    origin: new
+    type: companion
+    as_of: '2026-10-07'
+    turns:
+      - say: Which facts apply to Average order value in Netherlands in September 2026?
+        expect:
+          tools_any: [get_context]
+      - say: why?
+        expect:
+          tools_none:
+            [
+              get_context,
+              find_context,
+              explain_item,
+              read_item,
+              domain_overview,
+              what_changed,
+              improve_question,
+              create_draft,
+            ]
+          asks_no_scope: true
+        rubrics:
+          - 'Gives the reason for its last reply from the facts it already read, and reads nothing new'
+    source: 'Captain, 20 Oct 2026: "why?" asks about the last reply'
+
+  - id: companion-follow-up-thanks-then-data
+    origin: new
+    type: companion
+    as_of: '2026-10-07'
+    turns:
+      - say: Which facts apply to Average order value in Netherlands in September 2026?
+        expect:
+          tools_any: [get_context]
+      - say: thanks!
+        expect:
+          tools_none:
+            [
+              get_context,
+              find_context,
+              explain_item,
+              read_item,
+              domain_overview,
+              what_changed,
+              improve_question,
+              create_draft,
+            ]
+          asks_no_scope: true
+          forbidden_phrases: [I assumed today, demo's date]
+        rubrics:
+          - 'Acknowledges the thanks in one short line, with no list of facts'
+      - say: and for Spain?
+        expect:
+          tools_any: [get_context, find_context]
+    source: 'Captain, 20 Oct 2026: thanks is about the chat, and a question after it is a question again'
+
+  - id: companion-change-first-sentence
+    origin: new
+    type: companion
+    as_of: '2026-10-07'
+    turns:
+      - say: Why did average order value drop in Netherlands in September 2026?
+        expect:
+          tools_any: [get_context]
+          forbidden_phrases: [caused by, because of the, the cause was]
+        rubrics:
+          - 'Its first sentence says plainly that the facts cannot show whether average order value dropped in the Netherlands, or why'
+          - 'Says that none of the facts it names proves a cause'
+          - 'Lists only facts that may be related, and no fact it says does not apply or does not matter'
+          - 'Does not leave the person to work out that no drop or cause is visible'
+    source: 'Captain, 20 Oct 2026: the answer never said that no drop or cause is visible in the facts'
+
   # ---- Meta: about the assistant itself, or outside Heed (captain, 14 October 2026). -------------
   # "what can you do" was answered with "Which metric, market and dates do you mean?". A message
   # about the assistant is answered at once from what it can do, and never with a scope question.

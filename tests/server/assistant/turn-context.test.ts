@@ -12,6 +12,7 @@ import { assistantSystemPrompt } from '../../../src/server/modules/assistant/pro
 import { backgroundOf, turnContextOf } from '../../../src/server/modules/models/assistant-mock.ts'
 import {
   datum,
+  dayIsPinned,
   localDay,
   turnContextText,
   validTimeZone,
@@ -27,6 +28,7 @@ import {
 
 const facts: TurnFacts = {
   today: '2026-10-12',
+  pinned: false,
   timeZone: 'Europe/Copenhagen',
   edition: '2026-10-07.2',
   person: {
@@ -91,6 +93,13 @@ describe('the periods people name', () => {
 })
 
 describe('today', () => {
+  it('knows a pinned day from a real one', () => {
+    expect(dayIsPinned(systemClock('2026-10-08'))).toBe(true)
+    expect(
+      dayIsPinned({ now: () => new Date('2026-10-12T10:00:00Z'), today: () => '2026-10-12' }),
+    ).toBe(false)
+  })
+
   it('is the day in the person’s time zone, and a pinned day wins', () => {
     const at = (instant: string) => ({
       now: () => new Date(instant),
@@ -112,6 +121,16 @@ describe('today', () => {
 
 describe('the turn context', () => {
   const text = turnContextText(facts)
+
+  it('says a fixed day is the demo’s date, and a real day is not marked', () => {
+    // The captain, 20 October 2026: the demo's clock said "today, 7 October 2026".
+    expect(text).not.toContain("demo's date")
+    const demo = turnContextText({ ...facts, pinned: true })
+    expect(demo).toContain('The clock here is fixed for the demo')
+    expect(demo).toContain(
+      'call it the demo\'s date, such as "the demo\'s date, 12 October 2026", never today',
+    )
+  })
 
   it('says what day it is and what last week is, counted from today, not the edition', () => {
     expect(text).toContain(
