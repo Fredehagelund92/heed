@@ -142,7 +142,12 @@ const loopSteps = [
   {
     step: 'Write',
     line: "Anyone writes down what the numbers don't show.",
-    pages: ['add-your-first-context', 'assistant', 'tell-heed-about-your-business'],
+    pages: [
+      'add-your-first-context',
+      'assistant',
+      'tell-heed-about-your-business',
+      'add-a-connector',
+    ],
   },
   {
     step: 'Review',

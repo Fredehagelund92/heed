@@ -141,7 +141,7 @@ test('a person reports a gap from Try it, and the administrator finds it from pe
   await expect(page).toHaveURL(/\/health\?view=gaps/)
   const record = page.locator('[data-slot="record-pane"]')
   await expect(
-    record.getByRole('heading', { name: 'Average order value in the United Kingdom' }),
+    record.getByRole('heading', { name: 'Average order value in United Kingdom' }),
   ).toBeVisible({
     timeout: 15_000,
   })

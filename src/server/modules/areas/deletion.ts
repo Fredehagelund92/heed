@@ -24,7 +24,7 @@ import type { ItemKind } from '../../../domain/item.ts'
 import { termDigestContent, type Term } from '../../../domain/vocabulary.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
-import { changeGrants } from '../auth/index.ts'
+import { changeGrants, lockRoles } from '../auth/index.ts'
 import { lockReleases, publishEdition } from '../editions/index.ts'
 import { proposalEvents } from '../proposals/index.ts'
 import { getArea } from './settings.ts'
@@ -260,6 +260,8 @@ export async function removeArea(
   await adminOnly(tx)
   if (input.reason !== undefined) plainReason(input.reason)
   await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
+  // Before the first history entry, as a role change takes it: areas, then roles, then the log.
+  await lockRoles(tx)
   const area = await getArea(tx, input.id)
   if (area.revision !== input.revision)
     throw new ORPCError('CONFLICT', {
@@ -482,6 +484,8 @@ export async function restoreArea(
   await adminOnly(tx)
   if (input.reason !== undefined) plainReason(input.reason)
   await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
+  // Before the first history entry, as a role change takes it: areas, then roles, then the log.
+  await lockRoles(tx)
   const [archived] = await tx.query<{ name: string }>(
     `select a.name from areas a where a.id = $1 and a.archived_at is not null for update`,
     [input.id],

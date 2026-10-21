@@ -992,21 +992,29 @@ test.describe('Ask on a phone', () => {
   test('the About line scrolls sideways under a finger, and the page does not', async ({
     page,
   }) => {
-    await openAsk(page, phone)
+    // The narrowest phone: the three chips of the market in the page (a short name) must not fit.
+    await openAsk(page, { ...phone, width: 320 })
     await carryThree(page)
     const line = (await reads(page).boundingBox())!
     const cdp = await page.context().newCDPSession(page)
-    await cdp.send('Input.synthesizeScrollGesture', {
-      x: Math.round(line.x + line.width - 40),
-      y: Math.round(line.y + line.height / 2),
-      xDistance: -400,
-      yDistance: 0,
-      gestureSourceType: 'touch',
+    // One finger dragged left along the line, as touch events: the synthesized scroll gesture
+    // does not move a scroller in headless Chromium on Linux.
+    const y = Math.round(line.y + line.height / 2)
+    const from = Math.round(line.x + line.width - 40)
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchStart',
+      touchPoints: [{ x: from, y }],
     })
+    for (let step = 1; step <= 10; step++)
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchMove',
+        touchPoints: [{ x: from - step * 20, y }],
+      })
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
     await cdp.detach()
     await expect.poll(async () => (await measure(page)).scroll).toBeGreaterThan(0)
     await expect(reads(page)).toHaveAttribute('data-clip-start', 'true')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
   })
 
   test('a wide table scrolls sideways inside the answer, never the screen', async ({ page }) => {

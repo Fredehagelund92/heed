@@ -70,7 +70,7 @@ test('one editor for every kind: Markdown as you type, the / menu and the toolba
   await expect(menu.getByRole('option').first()).toHaveText(/Steps for this guide/)
   await page.keyboard.press('Enter')
   await expect(bodyField(page).getByRole('heading', { name: 'Before you start' })).toBeVisible()
-  await page.keyboard.type('Confirm the **period** in @North')
+  await page.keyboard.type('Confirm the **period** in @Norw')
   await expect(
     page.getByRole('listbox', { name: 'Mention a metric, value, fact or domain' }),
   ).toBeVisible()

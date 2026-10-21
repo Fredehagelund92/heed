@@ -14,7 +14,7 @@ export const ASK_NO_MATCH =
  * The scripted assistant offers the draft to confirm, with its dates flagged uncertain.
  */
 export const ASK_DRAFT =
-  'Draft this: A new rule gives Netherlands customers 14 days to send back online orders, so average order value in the Netherlands may fall. I am not sure of the date. Source: https://consumer.example/eu/right-of-withdrawal, which says "Consumers have 14 days to withdraw from an online purchase without giving any reason." Do not conclude that every online order is sent back.'
+  'Draft this: A new rule gives Netherlands customers 14 days to send back online orders, so average order value may fall. I am not sure of the date. Source: https://consumer.example/eu/right-of-withdrawal, which says "Consumers have 14 days to withdraw from an online purchase without giving any reason." Do not conclude that every online order is sent back.'
 
 /**
  * A question the scripted assistant answers in three short lines, which fit under the fold: a

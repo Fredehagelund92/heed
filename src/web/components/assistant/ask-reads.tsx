@@ -259,7 +259,7 @@ export function AskReads({
     const view = viewOf(term.key)
     const named = scopeTermWords(view)
     items.push(
-      <li key={`${term.source}:${term.key}`} className="flex max-w-full shrink-0">
+      <li key={`${term.source}:${term.key}`} className="relative flex max-w-full shrink-0">
         <span
           data-slot="reads-chip"
           data-source={term.source}
@@ -374,7 +374,7 @@ export function AskReads({
         </button>
       </li>
     ) : (
-      <li key="dates" className="flex max-w-full shrink-0">
+      <li key="dates" className="relative flex max-w-full shrink-0">
         <span
           data-slot="reads-chip"
           data-source={reads.windowSource}

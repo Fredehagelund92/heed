@@ -54,7 +54,7 @@ test('the card shows the draft to review, saves nothing until Create draft, then
   await expect(card(page)).toHaveAttribute('data-state', 'asking')
   // A card about the item the draft would be: its kind, its title and where it stands.
   await expect(card(page)).toHaveAccessibleName(
-    'New draft: A new rule gives Netherlands customers 14 days to send back online orders, so average order value in the Netherlands may fall',
+    'New draft: A new rule gives Netherlands customers 14 days to send back online orders, so average order value may fall',
   )
   const meta = card(page).locator('[data-slot="change-card-meta"]')
   await expect(meta.getByText('Draft', { exact: true })).toBeVisible()
@@ -65,7 +65,7 @@ test('the card shows the draft to review, saves nothing until Create draft, then
   )
   // What happened, in the person's words, with its length against the limit.
   await expect(field(page, 'summary')).toContainText(
-    'A new rule gives Netherlands customers 14 days to send back online orders, so average order value in the Netherlands may fall.',
+    'A new rule gives Netherlands customers 14 days to send back online orders, so average order value may fall.',
   )
   await expect(field(page, 'summary')).toContainText('of 280 characters')
   await expect(field(page, 'summary').locator('[data-source="person"]')).toHaveText(/Your words/)

@@ -278,7 +278,7 @@ test.describe('about our business', () => {
     await expect(page.getByRole('listbox')).toHaveCount(0)
     await page.keyboard.press('Backspace')
     await page.keyboard.press('Backspace')
-    await expect(counter).toHaveText('71 of 1,200 characters')
+    await expect(counter).toHaveText('68 of 1,200 characters')
     await expect(preview).toContainText(
       'We run a webshop in Norway.\n\n- First-time buyer: a first paid order.',
     )
@@ -292,7 +292,7 @@ test.describe('about our business', () => {
     await expect(block.locator('[data-slot="business-saved"]')).toContainText('by Ravi Kapoor')
     const history = page.locator('[data-slot="setting-history"] li')
     await expect(history).toHaveCount(2)
-    await expect(history.first()).toContainText('We run a webshop in Norway. (71 characters) · now')
+    await expect(history.first()).toContainText('We run a webshop in Norway. (68 characters) · now')
     await expect(history.first()).toContainText('Ravi Kapoor')
     await expect(history.first()).toContainText('We only sell in Norway now')
 

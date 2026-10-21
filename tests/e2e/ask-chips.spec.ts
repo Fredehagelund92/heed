@@ -130,7 +130,7 @@ for (const size of [widths[0], widths[2]]) {
 
       // @ by keyboard: the list moves with the arrows, Enter picks, Escape closes it.
       await toEnd(page)
-      await page.keyboard.type(' and @lowl')
+      await page.keyboard.type(' and @Neth')
       await expect(
         list(page)
           .getByRole('option', { name: /^Netherlands/ })
@@ -140,12 +140,12 @@ for (const size of [widths[0], widths[2]]) {
       await page.keyboard.press('Escape')
       await expect(list(page)).toBeHidden()
       // The words stay; a new @ opens the list again.
-      for (let step = 0; step < '@lowl'.length; step++) await page.keyboard.press('Backspace')
-      await page.keyboard.type('@lowl')
+      for (let step = 0; step < '@Neth'.length; step++) await page.keyboard.press('Backspace')
+      await page.keyboard.type('@Neth')
       await expect(list(page)).toBeVisible()
       await page.keyboard.press('Enter')
       await expect(chips(page)).toHaveCount(4)
-      expect(await questionWords(page)).toBe(`${captain} and the Netherlands `)
+      expect(await questionWords(page)).toBe(`${captain} and Netherlands `)
 
       // Enter sends the words and the chips' scope; the box empties and keeps the focus.
       await page.keyboard.press('Enter')
@@ -197,7 +197,7 @@ test('a screen reader hears each chip as what it is, its words and how to take i
   expect(await accessible(page, box(page))).toEqual({
     name: 'Your question',
     value:
-      'what was metric net revenue, remove in value United Kingdom, remove in dates 2026 · 1 Jan to 31 Dec 2026, remove?',
+      'what was metric net revenue, remove in the value United Kingdom, remove in dates 2026 · 1 Jan to 31 Dec 2026, remove?',
   })
   await expect(box(page).getByRole('button', { name: 'Remove metric Net revenue' })).toBeVisible()
   // A click on a chip's remove button takes it off.

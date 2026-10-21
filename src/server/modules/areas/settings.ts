@@ -10,7 +10,7 @@ import type { GrantChange } from '../../../contract/auth.ts'
 import { textFindings } from '../../../domain/draft.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
-import { changeGrants } from '../auth/index.ts'
+import { changeGrants, lockRoles } from '../auth/index.ts'
 
 /**
  * Creating and editing an area from settings (FR-801), for administrators. The id never changes,
@@ -105,6 +105,8 @@ export async function createArea(
   plainAbout(input)
   // One creation at a time, so two at once cannot both find the id or the name free.
   await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
+  // Before the first history entry, as a role change takes it: areas, then roles, then the log.
+  await lockRoles(tx)
   // A deleted domain that history keeps holds its id and name (FR-814).
   const [archived] = await tx.query(
     'select 1 from areas where archived_at is not null and (id = $1 or lower(name) = lower($2))',
