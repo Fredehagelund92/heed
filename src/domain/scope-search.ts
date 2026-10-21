@@ -4,8 +4,8 @@ import { normalizeName, type Term } from './vocabulary.ts'
   The search behind "Where it applies" (FR-107): a dimension can have thousands of values, so the
   picker never lists them all. It asks for a page: metrics, and per dimension a few values and how
   many match, with recent and often-used terms first. Inside one dimension it pages through the
-  values. A pasted list is matched name by name, and what is not found is named. Pure: the caller
-  passes the live vocabulary, the person's recent terms and how many live items use each term.
+  values. Pure: the caller passes the live vocabulary, the person's recent terms and how many live
+  items use each term.
 */
 
 export type ScopeTermKind = 'metric' | 'dimension' | 'dimension_value'
@@ -41,14 +41,6 @@ export type ScopeSearch = {
   groups: ScopeGroup[]
   /** Inside one dimension, where the next page of values starts. */
   nextCursor: string | null
-}
-
-export type ScopeMatch = {
-  found: ScopeHit[]
-  /** Words that name more than one term, with the terms they name. */
-  ambiguous: { entry: string; options: ScopeHit[] }[]
-  /** Words that name nothing. */
-  missing: string[]
 }
 
 export type ScopeSearchInput = {
@@ -225,61 +217,6 @@ export function searchScope(
     groups: groups.map(({ group }) => ({ ...group, values: group.values.slice(0, perGroup) })),
     nextCursor: null,
   }
-}
-
-/** Splits a pasted list into entries: one per line, comma, semicolon or tab, each once. */
-export function scopeEntries(text: string): string[] {
-  const seen = new Set<string>()
-  return text
-    .split(/[\n\r,;\t]+/)
-    .map((entry) => entry.trim())
-    .filter((entry) => {
-      const key = normalizeName(entry)
-      if (!key || seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-}
-
-/**
- * Matches a pasted list name by name: by the name, another name or the id, with no guessing.
- * Inside one dimension only its values count; otherwise metrics and values of any dimension.
- */
-export function matchScope(
-  terms: readonly Term[],
-  usage: ScopeUsage,
-  entries: readonly string[],
-  dimension?: string,
-): ScopeMatch {
-  const names = new Map(terms.map((term) => [term.key, term]))
-  const byName = new Map<string, Term[]>()
-  for (const term of terms) {
-    if (dimension !== undefined) {
-      if (term.kind !== 'dimension_value' || term.parentKey !== dimension) continue
-    } else if (term.kind !== 'metric' && term.kind !== 'dimension_value') continue
-    for (const name of new Set(
-      [term.name, idOf(term.key), idOf(term.key).replace(/_/g, ' '), ...term.aliases].map(
-        normalizeName,
-      ),
-    ))
-      byName.set(name, [...(byName.get(name) ?? []), term])
-  }
-  const result: ScopeMatch = { found: [], ambiguous: [], missing: [] }
-  const found = new Set<string>()
-  for (const entry of entries) {
-    const matches = byName.get(normalizeName(entry)) ?? []
-    const hits = matches.map((term) => {
-      const hit = rank(term, names, usage, [], '')!.hit
-      const alias = term.aliases.find((name) => normalizeName(name) === normalizeName(entry))
-      return { ...hit, alias: alias ?? null }
-    })
-    if (hits.length === 1) {
-      if (!found.has(hits[0]!.key)) result.found.push(hits[0]!)
-      found.add(hits[0]!.key)
-    } else if (hits.length > 1) result.ambiguous.push({ entry, options: hits })
-    else result.missing.push(entry)
-  }
-  return result
 }
 
 /** The chips of a scope: each key the vocabulary still holds, in the order given. */

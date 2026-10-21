@@ -181,10 +181,8 @@ export function createHttpApi({
     listPeople: () => read(() => client.people.list()),
     getVocabulary: () => read(() => client.vocabulary.get()),
     searchScope: (input) => read(() => client.vocabulary.search(input)),
-    // Reads sent as POST (a pasted list or many keys would not fit an address), so they carry
-    // the change token, as the preview does.
-    matchScope: (input) =>
-      write('vocabulary.match', input, (options) => client.vocabulary.match(input, options)),
+    // A read sent as POST (many keys would not fit an address), so it carries the change token,
+    // as the preview does.
     describeScope: (keys) =>
       write('vocabulary.describe', { keys }, (options) =>
         client.vocabulary.describe({ keys }, options),

@@ -93,7 +93,7 @@ function ScopeDemo({ id, title, initial }: { id: string; title: string; initial:
         id={id}
         icon={TargetIcon}
         label="Where it applies"
-        hint="Agents use this to decide when to show it. Pick Any value to cover every value of a dimension, or paste a list to add many."
+        hint="Agents use this to decide when to show it. Pick Any value to cover every value of a dimension."
       >
         <ScopeInput
           value={scope}

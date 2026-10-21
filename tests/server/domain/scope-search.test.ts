@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  describeScope,
-  matchScope,
-  scopeEntries,
-  searchScope,
-  type ScopeUsage,
-} from '../../../src/domain/scope-search.ts'
+import { describeScope, searchScope, type ScopeUsage } from '../../../src/domain/scope-search.ts'
 import type { Term } from '../../../src/domain/vocabulary.ts'
 import { terms as base } from './fixtures.ts'
 
@@ -122,44 +116,6 @@ describe('the scope picker search (FR-107)', () => {
     const rows =
       page.metrics.length + page.groups.reduce((sum, group) => sum + 1 + group.values.length, 0)
     expect(rows).toBeLessThanOrEqual(25)
-  })
-})
-
-describe('a pasted list', () => {
-  it('splits on lines, commas, semicolons and tabs, once per name', () => {
-    expect(scopeEntries('Norway\nSpain, orders;Revenue\tnorway\n\n')).toEqual([
-      'Norway',
-      'Spain',
-      'orders',
-      'Revenue',
-    ])
-  })
-
-  it('matches name by name and names what it could not find', () => {
-    const result = matchScope(terms, none, ['Norge', 'Orders', 'Xland', 'spain'])
-    expect(result.found.map((hit) => [hit.key, hit.alias])).toEqual([
-      ['val:market/norway', 'Norge'],
-      ['metric:orders', null],
-      ['val:market/spain', null],
-    ])
-    expect(result.missing).toEqual(['Xland'])
-    expect(result.ambiguous).toEqual([])
-  })
-
-  it('keeps to one dimension when asked, and asks when a name means two things', () => {
-    expect(matchScope(terms, none, ['Orders', 'Spring push 0001'], 'dim:campaign')).toMatchObject({
-      found: [{ key: 'val:campaign/c0001' }],
-      missing: ['Orders'],
-    })
-    const twice = [
-      ...terms,
-      term('dim:region', 'dimension', 'Region'),
-      term('val:region/norway', 'dimension_value', 'Norway', 'dim:region'),
-    ]
-    expect(matchScope(twice, none, ['Norway'])).toMatchObject({
-      found: [],
-      ambiguous: [{ entry: 'Norway', options: [{ key: 'val:market/norway' }, {}] }],
-    })
   })
 })
 

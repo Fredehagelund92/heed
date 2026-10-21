@@ -227,7 +227,7 @@ a dimension with its values. Both read as the library does.
 
 The "where it applies" picker reads `GET /api/v1/vocabulary/search` (a page of metrics and
 dimensions, with per dimension "any value", a count and a few values; a page at a time inside one
-dimension) and `GET /api/v1/vocabulary/match` (a pasted list, matched name by name). A scope can
+dimension). A scope can
 name a dimension with any value (FR-126); see `docs/api/openapi.json` for the shapes.
 
 `GET /api/v1/sources/flags` lists flagged items with the definitions behind each flag, oldest

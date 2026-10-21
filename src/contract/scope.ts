@@ -1,6 +1,6 @@
 /**
- * The search behind the "Where it applies" picker (FR-107): a page of terms, a pasted list matched
- * name by name, and the names of the chips a scope already holds. See `src/domain/scope-search.ts`.
+ * The search behind the "Where it applies" picker (FR-107): a page of terms and the names of the
+ * chips a scope already holds. See `src/domain/scope-search.ts`.
  */
 import * as z from 'zod/mini'
 
@@ -48,25 +48,10 @@ export const scopeSearchSchema = z.object({
   nextCursor: z.nullable(z.string()),
 })
 
-export const scopeMatchInputSchema = z.object({
-  /** One entry per pasted line or comma. */
-  entries: z.array(z.string().check(z.maxLength(200))).check(z.maxLength(1000)),
-  /** Match the values of this dimension only. */
-  dimension: z.optional(dimensionKey),
-})
-
-export const scopeMatchSchema = z.object({
-  found: z.array(scopeHitSchema),
-  ambiguous: z.array(z.object({ entry: z.string(), options: z.array(scopeHitSchema) })),
-  missing: z.array(z.string()),
-})
-
 export const scopeDescribeInputSchema = z.object({
   keys: z.array(scopeKey).check(z.maxLength(1000)),
 })
 
 export type ScopeSearchInput = z.input<typeof scopeSearchInputSchema>
 export type ScopeSearchResult = z.infer<typeof scopeSearchSchema>
-export type ScopeMatchInput = z.infer<typeof scopeMatchInputSchema>
-export type ScopeMatchResult = z.infer<typeof scopeMatchSchema>
 export type ScopeHit = z.infer<typeof scopeHitSchema>

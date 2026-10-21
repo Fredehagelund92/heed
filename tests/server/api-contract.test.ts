@@ -357,7 +357,6 @@ describe('the API over HTTP', () => {
       '/vocabulary/batches',
       '/vocabulary/batches/{batchId}/decisions',
       '/vocabulary/candidates',
-      '/vocabulary/match',
       '/vocabulary/proposals',
       '/vocabulary/search',
       '/vocabulary/terms',

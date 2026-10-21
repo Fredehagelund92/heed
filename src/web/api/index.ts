@@ -149,8 +149,6 @@ export type {
   SaveClientInput,
   SaveDraftInput,
   ScopeHit,
-  ScopeMatchInput,
-  ScopeMatchResult,
   ScopeSearchInput,
   ScopeSearchResult,
   Session,

@@ -159,7 +159,6 @@ const readOperations = [
   'sources.staleLinks',
   'vocabulary.get',
   'vocabulary.search',
-  'vocabulary.match',
   'vocabulary.describe',
   'library.index',
   'library.freshness',

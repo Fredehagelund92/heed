@@ -325,7 +325,6 @@ const posts = () =>
     ['library.reviews', '/api/v1/library/reviews', { ids: [hidden.id, linking.id] }],
     ['bin.preview', '/api/v1/bin/preview', { ids: [hidden.id] }],
     ['bin.rescuePreview', '/api/v1/bin/rescue-preview', { ids: [hidden.id], areaId: 'finance' }],
-    ['vocabulary.match', '/api/v1/vocabulary/match', { names: ['Vaultsunrise harbour'] }],
   ] as const
 
 /** An answer without the review exception's operations' own proposal, and the export's digests. */

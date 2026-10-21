@@ -734,7 +734,7 @@ export function ContextForm({
                     />
                     <FieldDescription id={`${idFor('scope')}-hint`}>
                       AI apps get this fact when a question is about these. Choose Any to cover
-                      every value, or paste a list to add many.
+                      every value.
                     </FieldDescription>
                     <FieldError id={`${idFor('scope')}-error`}>{error('scope')}</FieldError>
                   </Field>

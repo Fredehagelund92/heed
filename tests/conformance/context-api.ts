@@ -409,22 +409,6 @@ export function describeContextApi(
         expect(narrow.nextCursor).toBeNull()
       })
 
-      it('matches a pasted list name by name and names the rest', async () => {
-        const result = await api().matchScope({
-          entries: ['Norge', 'Orders', 'Xland', 'Germany Festival Season 2024 Video'],
-        })
-        expect(result.found.map((hit) => hit.key)).toEqual([
-          'val:market/norway',
-          'metric:orders',
-          'val:campaign/germany_festival_season_2024_video',
-        ])
-        expect(result.missing).toEqual(['Xland'])
-        expect(
-          (await api().matchScope({ entries: ['Orders', 'Clothing'], dimension: 'dim:product' }))
-            .missing,
-        ).toEqual(['Orders'])
-      })
-
       it('names the chips of a scope and leaves out a key no longer in use', async () => {
         const hits = await api().describeScope([
           'dim:market',
