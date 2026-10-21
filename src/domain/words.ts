@@ -10,6 +10,14 @@
   them to the name on screen (requirements 2.1, "Name on screen"). Renames decided by the product
   owner carry the date in `decided`, so a later change does not reopen them.
 
+  The program that connects over MCP is the agent (decided 21 October 2026). It is always software
+  outside this app, never a person and never the assistant, which is the helper inside it. Write
+  "AI agent" where a reader meets the word first (the README, the first mention on a help page,
+  the consent screen, what an agent says to a person, the assistant's replies) and "agent" after
+  that, on buttons, tabs, headers, toasts and table cells. "AI app" is the retired name: it stays
+  findable in search (the command palette, the help search and the assistant's question reader)
+  and is not written on a screen. A person who works as an agent is named by the role.
+
   tests/unit/words.test.ts keeps the list consistent: one concept per name, every banned word with
   something to write instead, and no name, definition or replacement that uses a banned word.
   `wordsToChange` reads a text against it, with the negatives people say short: the lint rule
@@ -34,6 +42,7 @@ export type Concept = {
 }
 
 const decided18Oct = '18 October 2026'
+const decided21Oct = '21 October 2026'
 
 /** The glossary: every concept people read about, by a stable key. */
 export const concepts = {
@@ -56,17 +65,18 @@ export const concepts = {
     internal: ['context library'],
     phrases: ['Library'],
   },
-  aiApp: {
-    name: 'AI app',
+  agent: {
+    name: 'agent',
     definition:
-      'A program such as Claude or ChatGPT that answers questions. It can check these facts before it answers.',
-    internal: ['agent', 'client', 'analytics agent', 'AI client'],
+      'An AI agent is a program outside this app, such as Claude, ChatGPT or Claude Code, that answers questions and uses tools. It can check these facts before it answers.',
+    internal: ['client', 'AI client', 'AI app'],
+    decided: decided21Oct,
   },
-  whatAiAppsGet: {
-    name: 'what AI apps get',
-    definition: 'The facts an AI app gets when it asks about a metric, a market or a period.',
+  whatAgentsGet: {
+    name: 'what agents get',
+    definition: 'The facts an agent gets when it asks about a metric, a market or a period.',
     internal: ['delivery', 'served', 'delivered', 'published'],
-    phrases: ['AI apps get it', 'AI apps get this fact from today', 'shared with AI apps'],
+    phrases: ['Agents get it', 'Agents get this fact from today', 'shared with agents'],
   },
   domain: {
     name: 'domain',
@@ -83,19 +93,19 @@ export const concepts = {
   },
   approver: {
     name: 'approver',
-    definition: 'The person who gives a second yes before AI apps get a high-risk fact.',
+    definition: 'The person who gives a second yes before agents get a high-risk fact.',
     internal: ['approver'],
   },
   admin: {
     name: 'admin',
-    definition: 'The person who sets up domains, people and which AI apps can connect.',
+    definition: 'The person who sets up domains, people and which agents can connect.',
     internal: ['administrator'],
     decided: decided18Oct,
   },
   proposal: {
     name: 'proposal',
     definition:
-      'A new fact, or a change to one, that waits for the owner of its domain. AI apps get it only once it is accepted.',
+      'A new fact, or a change to one, that waits for the owner of its domain. Agents get it only once it is accepted.',
     internal: ['proposal'],
   },
   draft: {
@@ -108,7 +118,7 @@ export const concepts = {
     name: 'where it applies',
     definition: 'The metrics and markets a fact is about.',
     internal: ['scope', 'applicability'],
-    phrases: ['Where it applies', 'AI apps get this fact when a question is about these.'],
+    phrases: ['Where it applies', 'Agents get this fact when a question is about these.'],
   },
   whenItApplies: {
     name: 'when it applies',
@@ -126,40 +136,40 @@ export const concepts = {
     name: 'needs checking',
     definition: 'The check date has passed, or the source the fact is based on changed.',
     internal: ['stale', 'needs_check', 'source_missing', 'unverified'],
-    phrases: ['Needs checking', 'Check due', 'AI apps are told this fact may be out of date.'],
+    phrases: ['Needs checking', 'Check due', 'Agents are told this fact may be out of date.'],
   },
   whatNotToConclude: {
     name: 'What not to conclude',
     definition:
-      'A line on what someone might wrongly conclude from a fact, or who to ask first. AI apps get it with the fact.',
+      'A line on what someone might wrongly conclude from a fact, or who to ask first. Agents get it with the fact.',
     internal: ['notToConclude'],
     decided: decided18Oct,
   },
   archive: {
     name: 'archive',
-    definition: 'AI apps stop getting the fact. You can still read it and its history.',
+    definition: 'Agents stop getting the fact. You can still read it and its history.',
     internal: ['retire', 'retired'],
-    phrases: ['Archive fact', 'Archived', 'Fact archived. AI apps no longer get it.'],
+    phrases: ['Archive fact', 'Archived', 'Fact archived. Agents no longer get it.'],
     decided: decided18Oct,
   },
   edition: {
     name: 'edition',
     definition: 'A saved set of all accepted facts, with its date.',
     internal: ['edition', 'live edition', 'candidate edition'],
-    only: 'the Editions page, and the review stamp next to the edition id; everywhere else, write "what AI apps get today"',
-    phrases: ['what AI apps get today', 'what AI apps will get'],
+    only: 'the Editions page, and the review stamp next to the edition id; everywhere else, write "what agents get today"',
+    phrases: ['what agents get today', 'what agents will get'],
     decided: decided18Oct,
   },
   gap: {
     name: 'gap',
-    definition: 'A question AI apps asked that no fact could answer.',
+    definition: 'A question agents asked that no fact could answer.',
     internal: ['gap', 'no_match'],
   },
   checks: {
     name: 'checks',
     definition: 'The tests we run on a proposal before the owner accepts it.',
     internal: ['gate', 'levels'],
-    phrases: ['Complete', 'Finds the right questions', 'Reaches AI apps', 'Answers stay right'],
+    phrases: ['Complete', 'Finds the right questions', 'Reaches agents', 'Answers stay right'],
   },
   testQuestion: {
     name: 'test question',
@@ -207,23 +217,23 @@ export const concepts = {
   },
   mcp: {
     name: 'MCP',
-    definition: 'The connection AI apps use to check these facts. MCP is a standard for it.',
+    definition: 'The connection AI agents use to check these facts. MCP is a standard for it.',
     internal: ['MCP', 'MCP gateway'],
-    only: 'Connect and the help pages, always with "the connection AI apps use"',
+    only: 'Connect and the help pages, always with "the connection AI agents use"',
   },
   accessKey: {
     name: 'access key',
-    definition: "What an AI app uses to connect when it can't sign in.",
+    definition: "What an agent uses to connect when it can't sign in.",
     internal: ['token'],
   },
   tryAQuestion: {
     name: 'Try a question',
-    definition: 'See what an AI app gets for a question, before anyone asks it.',
+    definition: 'See what an agent gets for a question, before anyone asks it.',
     internal: ['Try it', 'agent view', 'What an agent would get'],
   },
-  connectAnAiApp: {
-    name: 'Connect an AI app',
-    definition: 'Let Claude or another AI app check these facts before it answers.',
+  connectAnAgent: {
+    name: 'Connect an agent',
+    definition: 'Let Claude or another AI agent check these facts before it answers.',
     internal: ['Connect your AI'],
   },
   assistant: {
@@ -267,20 +277,25 @@ export const bannedWords: readonly BannedWord[] = [
   { word: 'piece of context', write: 'fact', concept: 'fact' },
   { word: 'caveat', write: 'fact', concept: 'fact' },
   { word: 'context library', write: 'library', concept: 'library' },
-  { word: 'agent', write: 'AI app', concept: 'aiApp' },
-  { word: 'client', write: 'AI app', concept: 'aiApp' },
+  // An AI agent is software; a person who works as an agent is named by the role (src/domain/words.ts, `agent`).
+  { word: 'AI app', write: 'agent', concept: 'agent' },
+  { word: 'client', write: 'agent', concept: 'agent' },
+  { word: 'human agent', write: 'the role itself, such as the support team', concept: 'agent' },
+  { word: 'support agent', write: 'the role itself, such as the support team', concept: 'agent' },
+  { word: 'sales agent', write: 'the role itself, such as the sales team', concept: 'agent' },
+  { word: 'service agent', write: 'the role itself, such as the service team', concept: 'agent' },
   // Administration picks the AI model each feature uses, by the name its provider lists.
   {
     word: 'model',
-    write: 'AI app; the assistant says "I"',
-    concept: 'aiApp',
+    write: 'agent; the assistant says "I"',
+    concept: 'agent',
     allowedOn: 'Administration',
   },
-  { word: 'served', write: 'AI apps get it', concept: 'whatAiAppsGet' },
-  { word: 'delivered', write: 'AI apps get it', concept: 'whatAiAppsGet' },
-  { word: 'delivery', write: 'what AI apps get', concept: 'whatAiAppsGet' },
-  { word: 'published', write: 'shared with AI apps', concept: 'whatAiAppsGet' },
-  { word: 'goes live', write: 'AI apps get it', concept: 'whatAiAppsGet' },
+  { word: 'served', write: 'agents get it', concept: 'whatAgentsGet' },
+  { word: 'delivered', write: 'agents get it', concept: 'whatAgentsGet' },
+  { word: 'delivery', write: 'what agents get', concept: 'whatAgentsGet' },
+  { word: 'published', write: 'shared with agents', concept: 'whatAgentsGet' },
+  { word: 'goes live', write: 'agents get it', concept: 'whatAgentsGet' },
   { word: 'area', write: 'domain', concept: 'domain' },
   { word: 'steward', write: 'owner', concept: 'owner' },
   { word: 'deputy', write: 'owner', concept: 'owner' },
@@ -306,12 +321,12 @@ export const bannedWords: readonly BannedWord[] = [
   { word: 'take out of service', write: 'archive', concept: 'archive' },
   {
     word: 'edition',
-    write: 'what AI apps get today',
+    write: 'what agents get today',
     concept: 'edition',
     // The review stamp names the edition that served a fact: its id is the provenance link (FR-326).
     allowedOn: 'the Editions page and the review stamp',
   },
-  { word: 'live edition', write: 'what AI apps get today', concept: 'edition' },
+  { word: 'live edition', write: 'what agents get today', concept: 'edition' },
   { word: 'missing context', write: 'gap; "nothing is written down"', concept: 'gap' },
   { word: 'no_match', write: 'nothing is written down for this', concept: 'gap' },
   { word: 'need_more_detail', write: 'I need the metric, the market or the dates', concept: null },
@@ -339,7 +354,7 @@ export const bannedWords: readonly BannedWord[] = [
   { word: 'MCP gateway', write: 'MCP', concept: 'mcp', allowedOn: 'Administration' },
   { word: 'token', write: 'access key', concept: 'accessKey', allowedOn: 'Administration' },
   { word: 'Try it', write: 'Try a question', concept: 'tryAQuestion' },
-  { word: 'Connect your AI', write: 'Connect an AI app', concept: 'connectAnAiApp' },
+  { word: 'Connect your AI', write: 'Connect an agent', concept: 'connectAnAgent' },
   { word: 'data platform team', write: 'data team', concept: 'dataTeam' },
   { word: 'deterministic', write: 'the same every time', concept: null },
   { word: 'language model', write: 'AI', concept: null },
@@ -382,6 +397,17 @@ function wordPattern(word: string, plural = true): RegExp {
 /** Whether `text` holds `word` as a whole word or phrase, in any case, alone or plus "s". */
 export function usesWord(text: string, word: string): boolean {
   return wordPattern(word).test(text)
+}
+
+/**
+ * A search query with the retired names read as the words that replaced them: "AI app" is
+ * "agent". The command palette, the help search and the assistant's question reader (src/domain/
+ * assistant-meta.ts) keep the old name findable, since people still type it; no screen writes it.
+ */
+export function currentWords(query: string): string {
+  return query.replace(/(?<![\p{L}\p{N}_-])AI apps?(?![\p{L}\p{N}_-])/giu, (name) =>
+    /s$/i.test(name) ? 'agents' : 'agent',
+  )
 }
 
 /** A negative written in full, and how people say it. */
@@ -473,7 +499,7 @@ const unclearContractions: readonly { pattern: RegExp; write: (stem: string) => 
 
 /** A replacement for a plural: "facts" for "items". A phrase or an instruction stays as written. */
 const plural = (write: string) =>
-  (/^\p{L}+$/u.test(write) || write === 'AI app') && !write.endsWith('s') ? `${write}s` : write
+  /^\p{L}+$/u.test(write) && !write.endsWith('s') ? `${write}s` : write
 
 /** `short` with the first capital of `full`, so "Do not" becomes "Don't". */
 const sameCase = (full: string, short: string) =>

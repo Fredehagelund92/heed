@@ -1,6 +1,6 @@
 # How the product speaks: the voice guide
 
-This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an AI app passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
+This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
 
@@ -15,8 +15,8 @@ People in finance, marketing, operations and management. Many read English as a 
 3. **One idea per sentence.** About 15 words, never over 25. Keep the small words (the, a, that, then) that make a sentence easy to read and to translate.
 4. **Say it positively.** Say what is true and what to do. Use one negative sentence at most, and only where it carries weight.
 5. **Everyday contractions,** as Notion writes them: "you'll", "it's", "don't", "can't", "isn't" (decided 18 October 2026). Write "not" in full where it carries the weight of the sentence, so nobody misreads it: "This cannot be undone." Avoid unclear contractions ("'d", "'s" for "has") and stacked ones ("wouldn't've").
-6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words.ts`. Never a synonym for variety.
-7. **Outcome before mechanism.** "AI apps get this fact when a question is about Orders in Norway." Not how matching, editions or delivery work: that belongs in help.
+6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words.ts`. Never a synonym for variety. The program that connects over MCP is the **agent**: always software outside the app, never a person and never the assistant, which is the helper inside it. Write **AI agent** where a reader meets the word cold (the README, the first mention on a help page, the consent screen, what an agent says to a person, the assistant's replies, the tool titles) and **agent** after that, on buttons, tabs, headers, toasts and table cells. A person who works as an agent is named by the role: the support team, never "support agent".
+7. **Outcome before mechanism.** "Agents get this fact when a question is about Orders in Norway." Not how matching, editions or delivery work: that belongs in help.
 8. **Human values.** "15 June 2026", "1 to 30 September 2026", "3 facts", a person's name, a domain's name. No ISO dates, ids, edition labels, field keys or zero counts on a contributor's screen.
 9. **Calm and honest, never cute.** No jokes, no exclamation marks, no "Oops", no praise. No "Sorry", except for an outage we caused.
 10. **AI proposes, people decide. Say it in those words.** "The assistant drafts it. You check it and send it. The owner of Sales accepts it."
@@ -25,7 +25,7 @@ People in finance, marketing, operations and management. Many read English as a 
 
 | Do                                                                                          | Don't                                                                             |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| "AI apps get this fact from today."                                                         | "It is served in the live edition 2026-10-07.3."                                  |
+| "Agents get this fact from today."                                                          | "It is served in the live edition 2026-10-07.3."                                  |
 | "Nothing is written down for orders in France in September."                                | "no_match: no governed item applies to that exact scope."                         |
 | "Jon Abara, who owns Sales, will look at it."                                               | "Your proposal was submitted to the domain for review."                           |
 | "Leave the end date empty while it is still going on."                                      | "The last day is included. Leave it open if you do not know when it ends."        |
@@ -41,19 +41,19 @@ People in finance, marketing, operations and management. Many read English as a 
 
 The names that change most often today:
 
-| Write                                              | Not                                                   |
-| -------------------------------------------------- | ----------------------------------------------------- |
-| fact                                               | item, context item, caveat, piece of context          |
-| AI app                                             | agent, AI agent, client, AI client, model             |
-| what AI apps get; "AI apps get it"                 | served, delivered, delivery, published, goes live     |
-| owner (of a domain)                                | steward, deputy, reviewer                             |
-| admin                                              | administrator                                         |
-| archive                                            | retire                                                |
-| edition, on the Editions page and the review stamp | edition anywhere else: write "what AI apps get today" |
-| where it applies; when it applies                  | scope, validity                                       |
-| check date; "Check again by 31 January 2027"       | review date, re-check, next check, valid until        |
-| test question; hidden test question                | probe, impact set, golden question, held-out, sealed  |
-| access key                                         | token                                                 |
+| Write                                              | Not                                                  |
+| -------------------------------------------------- | ---------------------------------------------------- |
+| fact                                               | item, context item, caveat, piece of context         |
+| agent                                              | AI app, client, AI client, model                     |
+| what agents get; "Agents get it"                   | served, delivered, delivery, published, goes live    |
+| owner (of a domain)                                | steward, deputy, reviewer                            |
+| admin                                              | administrator                                        |
+| archive                                            | retire                                               |
+| edition, on the Editions page and the review stamp | edition anywhere else: write "what agents get today" |
+| where it applies; when it applies                  | scope, validity                                      |
+| check date; "Check again by 31 January 2027"       | review date, re-check, next check, valid until       |
+| test question; hidden test question                | probe, impact set, golden question, held-out, sealed |
+| access key                                         | token                                                |
 
 Two names were already decided and stay: **Domain** and **What not to conclude**. So do the five kinds (Event, Note, Guide, Example, Issue), the plain statuses (Accepted, Draft, In review, Changes requested), "Checked before you saw it", "Suggest a change" and "Cause: not proven".
 
@@ -61,14 +61,14 @@ The rename covers only what people read. Code, API fields, the database, address
 
 ## Patterns
 
-- **Buttons and menu items:** a verb and the thing, 2 to 3 words, sentence case, no full stop. "Add a fact", "Send for review", "Archive fact", "Connect an AI app". A confirm button repeats the verb of its title ("Archive", not "OK").
+- **Buttons and menu items:** a verb and the thing, 2 to 3 words, sentence case, no full stop. "Add a fact", "Send for review", "Archive fact", "Connect an agent". A confirm button repeats the verb of its title ("Archive", not "OK").
 - **Empty states:** a title that says what is empty, in the reader's words. Then one sentence with the next event or action, and at most one button. "No facts yet. A fact shows here once the owner of its domain accepts it."
 - **Errors:** what happened, whether anything was lost, and what to do. Name a person or team when only they can fix it. No apology, no blame, and no "server", "log" or codes. "We couldn't load the library. Your facts are safe. Check your connection, then try again."
-- **Confirmations:** the title is a question with the verb ("Archive this fact?"). Then one sentence on what changes for AI apps and people, then how to undo it. The reason field's label asks for the reason ("Why are you archiving it?").
-- **Toasts:** the result in two to four words, in the past tense, plus at most one short sentence. "Sent for review. Jon Abara will look at it." "Fact archived. AI apps no longer get it."
-- **Help under a field:** what the field does for the reader, in one sentence. Rules and edge cases go to help. "AI apps get this fact when a question is about these."
+- **Confirmations:** the title is a question with the verb ("Archive this fact?"). Then one sentence on what changes for agents and people, then how to undo it. The reason field's label asks for the reason ("Why are you archiving it?").
+- **Toasts:** the result in two to four words, in the past tense, plus at most one short sentence. "Sent for review. Jon Abara will look at it." "Fact archived. Agents no longer get it."
+- **Help under a field:** what the field does for the reader, in one sentence. Rules and edge cases go to help. "Agents get this fact when a question is about these."
 - **Status lines:** the words people say and whole month names. "Accepted · From 15 June 2026, still going on · Check again by 31 January 2027".
-- **Release notes:** a short headline, then one paragraph that starts with what you can now do, then a link. "You can now archive a fact from its page. AI apps stop getting it at once, and its history stays."
+- **Release notes:** a short headline, then one paragraph that starts with what you can now do, then a link. "You can now archive a fact from its page. Agents stop getting it at once, and its history stays."
 
 ## The guard rail
 
@@ -85,7 +85,7 @@ Each reports three things, with what to write instead:
 
 Code is never reported. That covers imports, keys, types, comparisons, class names, test ids, addresses, ids and search keywords. It also covers code samples, words made of code's marks (`item_id`, `/library`, `getItem`) and a single lowercase word such as `'item'`, which is a key.
 
-A word the glossary allows somewhere (`allowedOn`) is allowed there: "edition" on the Editions page, "dimension" in the Catalogue and in Administration, "token" and "model" (the AI model a feature uses) in Administration. The one exception outside a page is the review stamp under a served fact: it says "Edition" next to the edition id, because that id is the only link from the fact to what AI apps got (FR-326). `surfaces` in `eslint.plain-words.js` lists the files of each place. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
+A word the glossary allows somewhere (`allowedOn`) is allowed there: "edition" on the Editions page, "dimension" in the Catalogue and in Administration, "token" and "model" (the AI model a feature uses) in Administration. The one exception outside a page is the review stamp under a served fact: it says "Edition" next to the edition id, because that id is the only link from the fact to what agents got (FR-326). `surfaces` in `eslint.plain-words.js` lists the files of each place. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
 
 ### The baseline
 
