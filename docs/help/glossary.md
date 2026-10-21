@@ -206,6 +206,10 @@ The tool that defines the metrics and the ways to split them, and returns the nu
 
 The list of Cube's metrics and the ways to split them, with a copy of each description and the facts about it.
 
+### Definition changed
+
+The definition of a metric or a way to split it changed where it comes from. Facts written before the change wait for a check. Point at the status to read where and when it changed, such as "Changed in Cube, 7 Oct 2026".
+
 ### Names
 
 The metrics, markets and products we know by name, with their other names. Net sales, for example, is another name for Net revenue.

@@ -36,12 +36,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import type { Area } from '@domain/item'
 import type { CatalogueEntry, CatalogueGroupHeader } from '@/lib/catalogue'
 import type { CatalogueSearch } from '@/lib/search-params'
-import { groupCountText } from '@/lib/catalogue'
+import { catalogueChangeDetail, groupCountText } from '@/lib/catalogue'
 import { panelRowHistory } from '@/lib/history'
 import { formatDay } from '@/lib/library'
 import { cn } from '@/lib/utils'
 import { CatalogueStatusBadge, TermDomain, TermDomainBadge, TermTile } from './catalogue-marks'
-import { catalogueColumnSpecs, catalogueColumnTitle, type CatalogueColumnId } from './columns'
+import { catalogueColumnSpecs, type CatalogueColumnId } from './columns'
 
 /** The catalogue's two densities: a name with its description (64), or the name alone (40). */
 export const catalogueDensities = ['description', 'compact'] as const
@@ -128,12 +128,9 @@ function description(term: CatalogueTerm, tool: string) {
  */
 export function CatalogueHeader({
   columns,
-  tool,
   decorative = false,
 }: {
   columns: CatalogueColumnId[]
-  /** The tool the definitions come from, for the Changed column. */
-  tool: string
   decorative?: boolean
 }) {
   const role = (name: string) => (decorative ? undefined : name)
@@ -162,7 +159,7 @@ export function CatalogueHeader({
       >
         {cell('name', 'Name', 'min-w-0 flex-1')}
         {columns.map((id) =>
-          cell(id, catalogueColumnTitle(id, tool), catalogueColumnSpecs[id].widthClass),
+          cell(id, catalogueColumnSpecs[id].title, catalogueColumnSpecs[id].widthClass),
         )}
       </div>
     </div>
@@ -230,13 +227,16 @@ function Cell({
           status={term.status}
           activeIssues={term.shelf.activeIssues}
           tool={term.definition?.tool}
+          changedAt={term.definition?.changedAt}
           size="sm"
         />
       )
       break
     case 'changed':
       content = term.definition?.changedAt ? (
-        formatDay(term.definition.changedAt)
+        <span title={catalogueChangeDetail(term.definition.tool, term.definition.changedAt)}>
+          {formatDay(term.definition.changedAt)}
+        </span>
       ) : (
         <span className="text-muted-foreground">None</span>
       )
@@ -465,6 +465,7 @@ export const CatalogueRows = forwardRef<CatalogueRowsHandle, CatalogueRowsProps>
                       status={term.status}
                       activeIssues={term.shelf.activeIssues}
                       tool={term.definition?.tool}
+                      changedAt={term.definition?.changedAt}
                       size="sm"
                     />
                     {showDomain ? <TermDomain term={term} areas={areas} size="sm" /> : null}

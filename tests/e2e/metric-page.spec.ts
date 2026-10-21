@@ -165,7 +165,7 @@ test.describe('the tabs', () => {
       'Model file',
       'Domain',
       'Owner',
-      'Changed in Cube',
+      'Definition changed',
     ])
     // The address is built from the model folder setting and the file the read named.
     await expect(source.getByRole('link', { name: /Open the model file/ })).toHaveAttribute(
@@ -319,7 +319,9 @@ test.describe('states', () => {
     await expect(source.getByRole('button', { name: 'Copy the Cube names' })).toBeVisible()
   })
 
-  test('Changed in Cube: the note says items written before wait for a check', async ({ page }) => {
+  test('Definition changed: the note says items written before wait for a check', async ({
+    page,
+  }) => {
     await openPage(page, '/catalogue/metric/repeat_purchase_rate', desktop)
     await metricReady(page, 'Repeat purchase rate')
     await expect(note(page)).toContainText(

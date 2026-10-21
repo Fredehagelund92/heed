@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   ANY_SOURCE_TOOL,
   catalogueStatusAsks,
+  catalogueChangeDetail,
   catalogueStatusName,
   termDomainInfo,
 } from '@/lib/catalogue'
@@ -89,12 +90,14 @@ export const catalogueStatusGlyphs: Record<CatalogueStatus, Icon> = {
  * A term's status as one badge, most urgent first (contract 5): soft in the warning tone when it
  * asks for a look (gone from the source, changed there, issues that still apply), bare and muted
  * otherwise. Each status has its own glyph, so the state never relies on colour. `tool` names the
- * tool the definition comes from ("Changed in Cube").
+ * tool the definition comes from ("Gone from Cube"); a changed definition says where and when in
+ * the badge's tooltip ("Changed in Cube, 7 Oct 2026"), so the badge itself names no tool.
  */
 export function CatalogueStatusBadge({
   status,
   activeIssues = 0,
   tool = ANY_SOURCE_TOOL,
+  changedAt,
   size = 'md',
   iconOnly = false,
   className,
@@ -104,6 +107,8 @@ export function CatalogueStatusBadge({
   activeIssues?: number
   /** The tool the term's definition comes from, as people say it. */
   tool?: string
+  /** The day the definition changed, for the tooltip of a changed definition. */
+  changedAt?: string | null
   size?: 'md' | 'sm'
   iconOnly?: boolean
   className?: string
@@ -120,6 +125,7 @@ export function CatalogueStatusBadge({
       icon={catalogueStatusGlyphs[status]}
       data-slot="catalogue-status"
       data-status={status}
+      title={status === 'changed' ? catalogueChangeDetail(tool, changedAt) : undefined}
       className={className}
     >
       {catalogueStatusName(status, { activeIssues, tool })}

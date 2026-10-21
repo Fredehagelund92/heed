@@ -148,12 +148,17 @@ test.describe('the grid', () => {
     const shown = (await listed(page)).groups
     expect(shown).toHaveLength(expected.length)
     shown.forEach((text, index) => expect(text).toMatch(expected[index]!))
-    await expect(columnHeaders(page)).toHaveText(['Name', 'Context', 'Status', 'Changed in Cube'])
+    await expect(columnHeaders(page)).toHaveText([
+      'Name',
+      'Context',
+      'Status',
+      'Definition changed',
+    ])
     const orders = termRow(page, 'metric:orders')
     await expect(orders).toContainText('The value of orders customers completed and paid for')
     await expect(orders).toContainText('93 facts')
     await expect(orders.locator('[data-slot="catalogue-status"]')).toHaveText('1 active issue')
-    await expect(termRow(page, 'metric:repeat_purchase_rate')).toContainText('Changed in Cube')
+    await expect(termRow(page, 'metric:repeat_purchase_rate')).toContainText('Definition changed')
     await expect(termRow(page, 'metric:repeat_purchase_rate')).toContainText('7 Oct 2026')
     // Only what asks for a look is tinted.
     await expect(
@@ -191,7 +196,7 @@ test.describe('the grid', () => {
     await expect(termRow(page, 'metric:orders')).toBeVisible()
   })
 
-  test('Changed in Cube leaves on a rail page (1024)', async ({ page }) => {
+  test('Definition changed leaves on a rail page (1024)', async ({ page }) => {
     await openPage(page, '/catalogue', rail)
     await catalogueReady(page)
     await expect(columnHeaders(page)).toHaveText(['Name', 'Context', 'Status'])
@@ -279,7 +284,7 @@ test.describe('toolbar', () => {
     await display.getByRole('button', { name: 'A to Z' }).click()
     await expect(page).toHaveURL(/order=az/)
     await expect(groups(page)).toHaveCount(0)
-    // At 1440 the 192 Domain column leaves Changed in Cube no room: it leaves first.
+    // At 1440 the 192 Domain column leaves Definition changed no room: it leaves first.
     await expect(columnHeaders(page)).toHaveText(['Name', 'Domain', 'Context', 'Status'])
     await expect(rows(page).first()).toHaveAttribute('data-term-key', 'metric:active_customers')
     await expect(termRow(page, 'dim:market')).toContainText('All domains')

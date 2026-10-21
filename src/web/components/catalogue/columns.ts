@@ -1,8 +1,8 @@
 /**
  * The catalogue grid's columns and their budget (design contract 5, "The catalogue"). Name always
  * shows and never gets narrower than its minimum. Domain shows only A to Z: grouped by domain,
- * the group row already names it. Status is wider than the library's, to fit "Changed in Cube"
- * (the words name the source's tool). Changed is the first to leave: it needs a roomier Name, so
+ * the group row already names it. Status is wider than the library's, to fit "Definition changed"
+ * (the words name no tool; the detail line does). Changed is the first to leave: it needs a roomier Name, so
  * it drops on a rail page
  * (1,024 wide) and stays from 1,280. Below 768 pixels, or when even the smallest table does not
  * fit, the list becomes the narrow row. The widths equal the `--column-*` tokens in tokens.css;
@@ -38,17 +38,11 @@ export const catalogueColumnSpecs: Record<CatalogueColumnId, CatalogueColumnSpec
     widthClass: 'w-column-term-status',
   },
   changed: {
-    title: 'Changed in',
+    title: 'Definition changed',
     width: 160,
     widthClass: 'w-column-changed',
     numeric: true,
   },
-}
-
-/** A column's title: Changed names the tool the definitions come from ("Changed in Cube"). */
-export function catalogueColumnTitle(id: CatalogueColumnId, tool: string): string {
-  const { title } = catalogueColumnSpecs[id]
-  return id === 'changed' ? `${title} ${tool}` : title
 }
 
 /** The narrowest Name column (the library's title minimum). */

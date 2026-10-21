@@ -677,7 +677,7 @@ export function CataloguePage({ search }: { search: CatalogueSearch }) {
           className="flex flex-col"
         >
           {showHeader && !narrow ? (
-            <CatalogueHeader columns={fit.columns} tool={tool} decorative={!showTable} />
+            <CatalogueHeader columns={fit.columns} decorative={!showTable} />
           ) : null}
           {body}
         </div>

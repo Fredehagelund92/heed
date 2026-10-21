@@ -2,7 +2,7 @@ import type { CatalogueStatus, CatalogueTermKind } from '@domain/catalogue'
 import { catalogueStatuses, scopeNames, shelfOf } from '@domain/catalogue'
 import type { Area } from '@domain/item'
 import type { Catalogue, CatalogueSource, CatalogueTerm } from '@/api'
-import { parseList, queryTerms, type LibraryRow } from '@/lib/library'
+import { formatDay, parseList, queryTerms, type LibraryRow } from '@/lib/library'
 import type { CatalogueSearch } from '@/lib/search-params'
 
 /**
@@ -39,7 +39,7 @@ export function catalogueSources(
 
 /**
  * The tool the catalogue's definitions come from, as people say it, for the words on screen
- * ("Changed in Cube"): the one tool its sources read, or "the source" (CON-101: no vendor is
+ * ("Gone from Cube"): the one tool its sources read, or "the source" (CON-101: no vendor is
  * named in the code).
  */
 export function catalogueTool(catalogue: Pick<Catalogue, 'sources' | 'terms'> | undefined): string {
@@ -49,7 +49,8 @@ export function catalogueTool(catalogue: Pick<Catalogue, 'sources' | 'terms'> | 
 
 /**
  * The status words of a row (contract 5): one badge, most urgent first. `tool` is the tool the
- * term's definition comes from.
+ * term's definition comes from. "Definition changed" names no tool, so a new kind of source needs
+ * no new words; the detail line (`catalogueChangeDetail`) says where.
  */
 export function catalogueStatusName(
   status: CatalogueStatus,
@@ -59,7 +60,7 @@ export function catalogueStatusName(
     case 'gone':
       return `Gone from ${tool}`
     case 'changed':
-      return `Changed in ${tool}`
+      return 'Definition changed'
     case 'active_issues':
       return activeIssues === 1
         ? '1 active issue'
@@ -71,6 +72,18 @@ export function catalogueStatusName(
     case 'in_sync':
       return 'In sync'
   }
+}
+
+/**
+ * Where and when a definition changed, for the detail line under "Definition changed" (a tooltip,
+ * the term page): "Changed in Cube, 7 Oct 2026", or "Changed in the source" without a day.
+ */
+export function catalogueChangeDetail(
+  tool: string | undefined,
+  changedAt: string | null | undefined,
+): string {
+  const where = `Changed in ${tool ?? ANY_SOURCE_TOOL}`
+  return changedAt ? `${where}, ${formatDay(changedAt)}` : where
 }
 
 /** The name the Filter menu shows, where a count does not fit the word. */
