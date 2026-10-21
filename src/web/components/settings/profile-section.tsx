@@ -29,7 +29,7 @@ const appearanceIcons = { light: SunIcon, dark: MoonIcon, system: MonitorIcon }
 /**
  * A person's profile and appearance, for everyone: who they are to Heed and what they may do, and
  * how the app looks on this device. Names and roles come from the company directory and
- * administrators, so they are read here, not changed. The AI apps connected as them are in
+ * administrators, so they are read here, not changed. The agents connected as them are in
  * Connect your AI, the other section of their Settings.
  */
 export function ProfileSection() {

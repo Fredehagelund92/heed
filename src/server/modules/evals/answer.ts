@@ -32,7 +32,7 @@ import { ToolCallRefused, type Arm } from './arm.ts'
 
 export const answerSystemPrompt = [
   'You answer questions about company analytics data for an analyst.',
-  'Before answering, call get_context with the metrics, markets and dates the question is about.',
+  'Before answering, call get_facts with the metrics, markets and dates the question is about.',
   'Base the answer only on the governed context the tools return, and cite every item you rely on by its id in square brackets, like [itm_abc12345].',
   'State the caveats the items give. Never claim a cause the items do not state: say what happened and what the items document.',
   'If the question lacks a metric, market or date range you need, ask one short clarifying question instead of guessing.',
@@ -70,8 +70,8 @@ export type ToolCallRecord = {
   status: string | null
   items: string[]
   /**
-   * The items the reply gives as applying to the scope asked: all of get_context's, and the
-   * scope matches of find_context, not its word matches, which are search hits with their own
+   * The items the reply gives as applying to the scope asked: all of get_facts's, and the
+   * scope matches of find_facts, not its word matches, which are search hits with their own
    * validity shown.
    */
   applied: string[]
@@ -105,9 +105,9 @@ export function recordOf(tool: string, input: unknown, output: unknown): ToolCal
       : []),
   ].filter((id): id is string => typeof id === 'string')
   const applied = (Array.isArray(reply.items) ? reply.items : [])
-    // get_context's items all apply (their match is exact or partial); find_context's apply only as
+    // get_facts's items all apply (their match is exact or partial); find_facts's apply only as
     // scope matches, its word matches ('all', 'some') are search hits.
-    .filter((i) => tool !== 'find_context' || i.match === undefined || i.match === 'scope')
+    .filter((i) => tool !== 'find_facts' || i.match === undefined || i.match === 'scope')
     .map((i) => i.id)
     .filter((id): id is string => typeof id === 'string')
   return {
@@ -212,11 +212,11 @@ export async function answerQuestion(
 }
 
 /**
- * The tools an agent finds context with: get_context for a scope, find_context for words (a
+ * The tools an agent finds context with: get_facts for a scope, find_facts for words (a
  * definition question, FR-338). Both reply in the same shape, a status and the items delivered,
  * so the status and delivery checks read whichever the agent used (try-it-2, round 4).
  */
-export const contextTools: readonly string[] = ['get_context', 'find_context']
+export const contextTools: readonly string[] = ['get_facts', 'find_facts']
 
 /**
  * What the tool calls of one answer gave the agent: the items and statuses of its context calls,

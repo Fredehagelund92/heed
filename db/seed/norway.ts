@@ -4,7 +4,7 @@ import { demoTestQuestions } from './test-questions.ts'
 
 /*
   The Norway show (docs/demo.md): the demo library with a clean slate where the show's story
-  happens. On the demo seed an AI app asking about orders in Norway or Spain in October
+  happens. On the demo seed an agent asking about orders in Norway or Spain in October
   2026 already gets general notes on orders, so neither question starts from nothing, and a
   search by words finds the demo's invented stops on online sales to those two markets on other
   days, which contradict the one Maria writes. The show library leaves out the items that would

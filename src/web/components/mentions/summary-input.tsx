@@ -114,7 +114,7 @@ export function SummaryInput({
             <span id={`${listId}-label`} className="font-bold text-foreground">
               {props.label ?? 'Summary'}
             </span>
-            <span className="min-w-0 flex-1 truncate">AI apps read this first</span>
+            <span className="min-w-0 flex-1 truncate">Agents read this first</span>
             <span
               id={counterId}
               data-over={over > 0 || undefined}

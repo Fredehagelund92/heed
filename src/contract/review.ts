@@ -94,7 +94,7 @@ export const deliveryQuestionSchema = z.object({
 })
 /** Level 3: the candidate through the live reply's code (FR-507). */
 export const deliveryDetailsSchema = z.object({
-  /** The get_context input of the item's own probe. */
+  /** The get_facts input of the item's own probe. */
   probe: z.optional(
     z.object({
       question: z.string(),
@@ -531,7 +531,7 @@ export const servedReviewsInputSchema = z.strictObject({
  * How the version of an item the live edition serves was reviewed (FR-326), for the review stamp
  * inside Heed (design contract 7.2, `ReviewStamp`): who accepted it, on which day, in which
  * capacity and domain, the edition that first served it, and the check levels it passed. Behind
- * sign-in the stamp names the person; what an AI app receives names only the role. An item the
+ * sign-in the stamp names the person; what an agent receives names only the role. An item the
  * person may not read, or that the live edition does not serve, has no entry.
  */
 export const servedReviewSchema = z.object({

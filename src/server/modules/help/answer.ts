@@ -3,7 +3,7 @@ import { productName } from '../../brand.ts'
 
 /**
  * search_help (FR-348, FR-715): the sections of Heed's help pages that best match a question's
- * words, for the assistant and for AI apps over MCP, so "what is an MCP?" gets the same page, and
+ * words, for the assistant and for agents over MCP, so "what is an MCP?" gets the same page, and
  * the same link, as in the Docs area. Each result names its page, its heading, its words and
  * where it opens, and the day the page was last checked against the app. The words are Heed's
  * own help, which the reader answers from and links; like every tool result, they are data, never
@@ -27,7 +27,7 @@ const list = (names: readonly string[]) =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 
 /**
- * What search_help returns for a question's words. `web` is the web app's address, for an AI app
+ * What search_help returns for a question's words. `web` is the web app's address, for an agent
  * outside it: each link is then the whole address. Without it, links are the app's paths.
  */
 export function helpAnswer(
@@ -41,7 +41,7 @@ export function helpAnswer(
   const hits = help.index.search(query, { limit: HELP_RESULTS, perPage: PER_PAGE })
   if (!hits.length)
     return {
-      say: `No help page matched these words. ${productName}'s help pages say how ${productName} works, not what is in company data: for that, call get_context.`,
+      say: `No help page matched these words. ${productName}'s help pages say how ${productName} works, not what is in company data: for that, call get_facts.`,
       status: 'no_match',
       pages: help.pages.map((page) => ({
         page: page.title,

@@ -392,7 +392,7 @@ const proposal = read.meta({ scope: 'propose' }).errors({
 const review = read.meta({ scope: 'propose' }).errors({
   CONFLICT: {
     message:
-      'The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again.',
+      'The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again.',
   },
   UNPROCESSABLE_CONTENT: {
     status: 422,
@@ -417,7 +417,7 @@ const settings = admin.errors({
   },
 })
 const auditor = read.meta({ scope: 'audit' })
-/** An administrator ends a person's AI app connection: the reason must hold no sensitive text. */
+/** An administrator ends a person's agent connection: the reason must hold no sensitive text. */
 const aiDisconnect = admin.errors({
   UNPROCESSABLE_CONTENT: {
     status: 422,
@@ -460,7 +460,7 @@ const evals = read.meta({ scope: 'propose' }).errors({
     data: z.optional(z.object({ findings: z.optional(z.array(findingSchema)) })),
   },
   PRECONDITION_FAILED: {
-    message: "AI apps don't get any facts yet. Ask an admin to finish the setup.",
+    message: "Agents don't get any facts yet. Ask an admin to finish the setup.",
   },
 })
 /** For owners of any area, and administrators. */
@@ -745,7 +745,7 @@ export const contract = {
       .errors({
         CONFLICT: {
           message:
-            "AI apps already get this edition, or some of its facts can't be shared with AI apps again.",
+            "Agents already get this edition, or some of its facts can't be shared with agents again.",
           data: z.optional(z.object({ blocked: z.array(blockedVersionSchema) })),
         },
       })
@@ -803,7 +803,7 @@ export const contract = {
         path: '/connections/request',
         tags: ['session'],
         summary:
-          'The AI app sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query',
+          'The agent sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query',
       })
       .input(connectRequestIdSchema)
       .output(connectRequestSchema),
@@ -823,7 +823,7 @@ export const contract = {
         path: '/connections',
         tags: ['session'],
         // eslint-disable-next-line brand/no-product-name -- API documentation for developers (docs/rename-checklist.md)
-        summary: 'The AI apps connected to Heed as the signed-in person',
+        summary: 'The agents connected to Heed as the signed-in person',
       })
       .output(z.array(connectionSchema)),
     disconnect: read
@@ -832,12 +832,12 @@ export const contract = {
         path: '/connections/{id}/disconnect',
         tags: ['session'],
         summary:
-          'Disconnect an AI app: its refresh tokens end and the MCP server refuses its access tokens at once',
+          'Disconnect an agent: its refresh tokens end and the MCP server refuses its access tokens at once',
       })
       .input(connectionIdSchema)
       .output(z.object({ disconnected: z.boolean() })),
   },
-  // Every person's AI apps, for administrators (FR-403, FR-807): see them and disconnect them.
+  // Every person's agents, for administrators (FR-403, FR-807): see them and disconnect them.
   aiConnections: {
     list: admin
       .route({
@@ -845,7 +845,7 @@ export const contract = {
         path: '/ai-connections',
         tags: ['admin'],
         summary:
-          "Every person's AI app connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
+          "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
       })
       .output(z.array(personConnectionSchema)),
     disconnect: aiDisconnect
@@ -854,7 +854,7 @@ export const contract = {
         path: '/ai-connections/{id}/disconnect',
         tags: ['admin'],
         summary:
-          "Disconnect one person's AI app with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
+          "Disconnect one person's agent with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
       })
       .input(adminDisconnectSchema)
       .output(adminDisconnectedSchema),
@@ -864,7 +864,7 @@ export const contract = {
         path: '/ai-connections/people/{personId}/disconnect',
         tags: ['admin'],
         summary:
-          'Disconnect every AI app of one person with one reason, in one step: each connection is its own history entry, with the batch id they share',
+          'Disconnect every agent of one person with one reason, in one step: each connection is its own history entry, with the batch id they share',
       })
       .input(adminDisconnectPersonSchema)
       .output(adminDisconnectedSchema),
@@ -1023,7 +1023,7 @@ export const contract = {
         NOT_FOUND: { message: "We couldn't find this fact in the library." },
         CONFLICT: {
           message:
-            'A fact is already in the Bin, or what AI apps get changed. Look at the latest version, then try again.',
+            'A fact is already in the Bin, or what agents get changed. Look at the latest version, then try again.',
         },
       })
       .input(binMoveSchema)
@@ -1060,7 +1060,7 @@ export const contract = {
         },
         CONFLICT: {
           message:
-            "A fact can't be shared with AI apps again, or what AI apps get changed. Look at the latest version, then try again.",
+            "A fact can't be shared with agents again, or what agents get changed. Look at the latest version, then try again.",
         },
         UNPROCESSABLE_CONTENT: { message: "A fact can't go to the domain you chose." },
       })
@@ -1256,7 +1256,7 @@ export const contract = {
           data: z.optional(z.object({ findings: z.array(findingSchema) })),
         },
         PRECONDITION_FAILED: {
-          message: "AI apps don't get any facts yet. Ask an admin to finish the setup.",
+          message: "Agents don't get any facts yet. Ask an admin to finish the setup.",
         },
         TOO_MANY_REQUESTS: {
           status: 429,
@@ -1741,7 +1741,7 @@ export const contract = {
         path: '/quality/apps',
         tags: ['quality'],
         summary:
-          'How the AI apps that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)',
+          'How the agents that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)',
       })
       .input(appFamilyCountsInputSchema)
       .output(appFamilyCountsSchema),
@@ -2004,7 +2004,7 @@ export const contract = {
     run: read
       .errors({
         PRECONDITION_FAILED: {
-          message: "AI apps don't get any facts yet. Ask an admin to finish the setup.",
+          message: "Agents don't get any facts yet. Ask an admin to finish the setup.",
         },
       })
       .route({
@@ -2012,14 +2012,14 @@ export const contract = {
         path: '/try-it',
         tags: ['assistant'],
         summary:
-          "What an agent would get: get_context's reply for a scope on the live edition, without a model, recording nothing (FR-602)",
+          "What an agent would get: get_facts's reply for a scope on the live edition, without a model, recording nothing (FR-602)",
       })
       .input(tryItInputSchema)
       .output(tryItSchema),
     read: read
       .errors({
         PRECONDITION_FAILED: {
-          message: "AI apps don't get any facts yet. Ask an admin to finish the setup.",
+          message: "Agents don't get any facts yet. Ask an admin to finish the setup.",
         },
       })
       .route({

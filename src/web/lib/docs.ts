@@ -23,6 +23,7 @@ import {
   type LinkTarget,
 } from './answer-markdown'
 import { REPOSITORY_URL, withProductName, withProductNameIn } from '@domain/brand'
+import { currentWords } from '@domain/words'
 import { productName } from './brand'
 
 /*
@@ -428,7 +429,7 @@ export function docsLibrary(): DocsLibrary {
       index ??= buildSearch(pages)
       const hits: DocHit[] = []
       const seen = new Set<string>()
-      for (const result of index.search(query)) {
+      for (const result of index.search(currentWords(query))) {
         const page = bySlug.get(String(result.slug))
         if (!page) continue
         const headingId = String(result.headingId)

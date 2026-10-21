@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 /*
   The details of one check level on the review screen (frame C2, 5; FR-505 to FR-516): the
   matching probes and what each did, the delivery probe and the test questions it asked, and the
-  answer run's state, with the day of what AI apps got rather than an edition's number. A level recorded without details says so in one sentence (gate.ts).
+  answer run's state, with the day of what agents got rather than an edition's number. A level recorded without details says so in one sentence (gate.ts).
 */
 
 type Details<Level extends LevelResult['level']> = Extract<LevelResult, { level: Level }>['details']
@@ -112,7 +112,7 @@ function DeliveryDetails({
   const probe = details.probe
   return (
     <div className="flex flex-col gap-2">
-      <Facts label="Reaches AI apps">
+      <Facts label="Reaches agents">
         {probe ? (
           <Fact term="Asked for">
             {[
@@ -128,16 +128,16 @@ function DeliveryDetails({
         ) : null}
         <Fact term="The reply">
           {details.delivered
-            ? 'AI apps get it.'
+            ? 'Agents get it.'
             : details.cut
               ? "It's cut to fit the size limit."
-              : "AI apps don't get it."}
+              : "Agents don't get it."}
         </Fact>
         {details.replacedShown?.length ? (
           <Fact term="Facts it replaces">
             {details.replacedShown.length === 1
-              ? 'AI apps still get it'
-              : `AI apps still get all ${details.replacedShown.length}`}
+              ? 'Agents still get it'
+              : `Agents still get all ${details.replacedShown.length}`}
           </Fact>
         ) : null}
         <Fact term="Test questions">
@@ -178,10 +178,10 @@ const runStateNames: Record<NonNullable<Details<'answer_full'>['runState']>, str
   incomplete: 'Stopped before it finished',
 }
 
-/** "what AI apps got on 7 October 2026": what a run compared with, by its day. */
+/** "what agents got on 7 October 2026": what a run compared with, by its day. */
 function gotOn(edition: string): string {
   const day = parseEditionLabel(edition)?.day
-  return day ? `what AI apps got on ${formatDay(day, 'long')}` : 'what AI apps got then'
+  return day ? `what agents got on ${formatDay(day, 'long')}` : 'what agents got then'
 }
 
 function AnswerDetails({ details }: { details: Details<'answer_impact'> }) {

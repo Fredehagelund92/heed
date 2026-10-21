@@ -176,10 +176,10 @@ export const appFamilyCountsInputSchema = z.strictObject({
 })
 
 /**
- * How the AI apps that called Heed's MCP server fared (FR-410), per app family and week, from the
+ * How the agents that called Heed's MCP server fared (FR-410), per app family and week, from the
  * request log: tool calls, and of them the reads that needed more detail or matched nothing, the
  * calls with arguments the tool could not read, and Heed's errors. A family is one of a fixed list
- * (src/domain/app-family.ts), never the app's own name or a person. Each week is a cell of its
+ * (src/domain/app-family.ts), never the agent's own name or a person. Each week is a cell of its
  * own and each count below the minimum is hidden (FR-614), so no small count can be found by
  * subtracting one period from another. Only families with calls in the weeks asked for are listed.
  */
@@ -302,7 +302,7 @@ const questionTrySchema = z.object({
   reused: z.boolean(),
   error: z.nullable(z.string()),
   checks: z.record(z.string(), z.boolean()),
-  /** Items get_context delivered, and items read by following a link. */
+  /** Items get_facts delivered, and items read by following a link. */
   delivered: z.array(z.string()),
   reached: z.array(z.string()),
   statuses: z.array(z.string()),

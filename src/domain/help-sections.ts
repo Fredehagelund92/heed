@@ -6,14 +6,14 @@
 
 /**
  * A section is named like nothing else in the sidebar, the palette or a trail: Connect your AI is
- * the person's own page where they connect, Connecting AI apps the docs about it, and Common
+ * the person's own page where they connect, Connecting agents the docs about it, and Common
  * questions the page in Questions.
  */
 export const helpSections = [
   { id: 'start', title: 'Start here' },
   { id: 'concepts', title: 'Concepts' },
   { id: 'guides', title: 'Guides' },
-  { id: 'connect', title: 'Connecting AI apps' },
+  { id: 'connect', title: 'Connecting agents' },
   { id: 'reference', title: 'Reference' },
   { id: 'questions', title: 'Questions' },
 ] as const

@@ -90,7 +90,7 @@ const countWords: Record<EditionChangeKind, string> = {
   checked: 'checked and still correct',
   resaved: 'saved again with nothing different',
   retired: 'archived',
-  removed: 'no longer shared with AI apps',
+  removed: 'no longer shared with agents',
 }
 
 function onlyItem(kind: EditionChangeKind, title: string, area: string): string {
@@ -107,7 +107,7 @@ function onlyItem(kind: EditionChangeKind, title: string, area: string): string 
     case 'retired':
       return `"${title}"${where('in')} was archived`
     case 'removed':
-      return `AI apps no longer get "${title}"${where('in')}`
+      return `Agents no longer get "${title}"${where('in')}`
   }
 }
 
@@ -134,7 +134,7 @@ function whatChanged(input: SentenceInput): string {
   // An edition from before every domain was served may have only moved a domain's state.
   if (parts.length === 0)
     return input.reason === 'area_state_changed'
-      ? 'A domain was switched on or off, before AI apps got every domain'
+      ? 'A domain was switched on or off, before agents got every domain'
       : 'Nothing different'
   const sentence = parts.join('; ')
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)

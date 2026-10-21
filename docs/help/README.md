@@ -18,7 +18,7 @@ Start with [What is {{product}}](what-is-heed.md).
 | [Read Health](read-health.md)                                            | guide    | Guides            |
 | [Tell {{product}} about your business](tell-heed-about-your-business.md) | guide    | Guides            |
 | [Add a connector](add-a-connector.md)                                    | guide    | Guides            |
-| [Connect an agent](connect-an-agent.md)                                  | guide    | Connecting agents |
+| [Set up an agent](connect-an-agent.md)                                   | guide    | Connecting agents |
 | [Glossary](glossary.md)                                                  | glossary | Reference         |
 | [Common questions](common-questions.md)                                  | faq      | Questions         |
 

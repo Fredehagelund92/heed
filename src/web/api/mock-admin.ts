@@ -285,7 +285,7 @@ const startingSettings: { key: SettingKey; value: unknown; reason: string }[] = 
   { key: 'limits.llm_monthly_cap_micros', value: 500_000_000, reason: 'default (FR-409)' },
   {
     key: 'limits.mcp_rate_per_minute',
-    value: { get_context: 120, give_feedback: 20, report_gap: 20 },
+    value: { get_facts: 120, give_feedback: 20, report_gap: 20 },
     reason: 'default (FR-408)',
   },
   {
@@ -512,7 +512,7 @@ export function createMockAdmin(world: MockAdminWorld) {
   }
   seedAudit()
 
-  // People's AI apps (FR-403): each person's own, which an administrator sees and disconnects.
+  // People's agents (FR-403): each person's own, which an administrator sees and disconnects.
   let connections: MockConnection[] = mockConnectionSeed(world.today)
   const withoutPerson = ({ personId: _, ...connection }: MockConnection): Connection => connection
   /** Ends a connection as the service's revokeGrant does, with its history entry. */
@@ -2060,7 +2060,7 @@ export function createMockAdmin(world: MockAdminWorld) {
         return chain()
       },
 
-      /** The AI apps connected as this person, the newest first (FR-403). */
+      /** The agents connected as this person, the newest first (FR-403). */
       listConnections(): Connection[] {
         return connections
           .filter((connection) => connection.personId === personId)
@@ -2094,7 +2094,7 @@ export function createMockAdmin(world: MockAdminWorld) {
         })
       },
 
-      /** Every person's AI apps, the last used first (FR-403, FR-807). Administrators only. */
+      /** Every person's agents, the last used first (FR-403, FR-807). Administrators only. */
       listAiConnections(): PersonConnection[] {
         adminOnly()
         return [...connections]
@@ -2171,7 +2171,7 @@ export function createMockAdmin(world: MockAdminWorld) {
         const rows = [
           row(
             'claude-code',
-            'get_context',
+            'get_facts',
             scale(1_842),
             scale(3),
             scale(11),
@@ -2185,7 +2185,7 @@ export function createMockAdmin(world: MockAdminWorld) {
           ),
           row(
             'claude-code',
-            'search_context',
+            'search_facts',
             scale(604),
             scale(1),
             0,
@@ -2199,7 +2199,7 @@ export function createMockAdmin(world: MockAdminWorld) {
           row('claude-code', 'protocol', scale(388), 0, 0, 0, 0, 9, 31, scale(190_000), 0),
           row(
             'eval',
-            'get_context',
+            'get_facts',
             scale(1_260),
             scale(6),
             0,
@@ -2212,7 +2212,7 @@ export function createMockAdmin(world: MockAdminWorld) {
           ),
           row('claude-code', 'read_item', scale(231), 0, 0, 0, 0, 74, 210, scale(1_480_000), 2),
           row('claude-code', 'give_feedback', scale(57), 0, 0, 0, 0, 41, 96, scale(11_000), 5),
-          row('cursor', 'get_context', scale(43), 0, 0, scale(43), 0, null, null, 0, 52),
+          row('cursor', 'get_facts', scale(43), 0, 0, scale(43), 0, null, null, 0, 52),
           row('claude-code', 'report_gap', scale(19), 0, scale(2), 0, 0, 63, 140, scale(4_100), 3),
           row('unknown', 'protocol', scale(12), 0, 0, 0, scale(12), 3, 8, scale(2_000), 7),
         ].filter((r) => r.calls > 0)

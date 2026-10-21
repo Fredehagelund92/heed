@@ -93,7 +93,7 @@ export default defineConfig({
           ? { DATABASE_URL_SERVE: process.env.E2E_DATABASE_SERVE_URL }
           : {}),
         CL_WEB_ORIGINS: `http://localhost:${webPort}`,
-        // The login server for AI apps lives at the MCP address's origin, this service.
+        // The login server for agents lives at the MCP address's origin, this service.
         MCP_RESOURCE_URL: `http://localhost:${apiPort}/mcp`,
         CL_OAUTH_DYNAMIC_REGISTRATION: 'on',
         CL_FIXED_TODAY: '2026-10-07',

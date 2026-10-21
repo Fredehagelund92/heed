@@ -16,7 +16,7 @@ import { emptyScope, hasTerms, type TryItScope } from '@/lib/try-it'
   come from a dates chip, then the words, then the picker, then the last question, else today is
   assumed. The line shows exactly this, and the question is sent with it
   (`wire`), so the assistant's tool calls read what the person saw. Chips of accepted items and
-  domains go with the question too (`about`): get_context has no field for them, so they are not
+  domains go with the question too (`about`): get_facts has no field for them, so they are not
   on the line, and the assistant is told what each one is. They belong to that question alone and
   are never carried. Pure, so the line, the send, the stories and the tests read a question the
   same way.
@@ -50,7 +50,7 @@ export type Reads = {
   scope: TryItScope
   /** The accepted items and domains the question's chips name, by key, in order. */
   about: string[]
-  /** The question's scope as get_context's fields, sent with it and binding its tool calls. */
+  /** The question's scope as get_facts's fields, sent with it and binding its tool calls. */
   wire: QuestionScope
 }
 
@@ -62,14 +62,14 @@ export function dimensionOf(key: string): string | null {
 }
 const isMetric = (key: string) => key.startsWith('metric:') || key.startsWith('group:')
 
-/** A term added to a scope: a metric group stands with the metrics, as get_context reads it. */
+/** A term added to a scope: a metric group stands with the metrics, as get_facts reads it. */
 function add(scope: Scope, key: string): Scope {
   if (key.startsWith('group:'))
     return scope.metrics.includes(key) ? scope : { ...scope, metrics: [...scope.metrics, key] }
   return addToScope(scope, key)
 }
 
-/** get_context's fields for a scope's terms: metrics, and each dimension with its values. */
+/** get_facts's fields for a scope's terms: metrics, and each dimension with its values. */
 function fieldsOf(scope: Scope): Pick<QuestionScope, 'metrics' | 'dimension_filters'> {
   const values = new Map<string, string[]>()
   for (const dimension of scope.dimensions) values.set(dimension, [])
@@ -83,10 +83,10 @@ function fieldsOf(scope: Scope): Pick<QuestionScope, 'metrics' | 'dimension_filt
   }
 }
 
-/** What the chips of a question name: get_context's scope, and the items and domains beside it. */
+/** What the chips of a question name: get_facts's scope, and the items and domains beside it. */
 export type TaggedScope = TryItScope & { about: string[] }
 
-/** Whether a chip names an accepted item or a domain, which get_context has no field for. */
+/** Whether a chip names an accepted item or a domain, which get_facts has no field for. */
 const isAbout = (key: string) => key.startsWith('item:') || key.startsWith('area:')
 
 /**
@@ -106,7 +106,7 @@ export function draftTagged(draft: AskDraft): TaggedScope | null {
     else if (isAbout(part.target)) {
       if (!about.includes(part.target)) about.push(part.target)
     }
-    // A metric group stands with the metrics, as get_context reads it.
+    // A metric group stands with the metrics, as get_facts reads it.
     else if (part.target.startsWith('group:'))
       scope = scope.metrics.includes(part.target)
         ? scope

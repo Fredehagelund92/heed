@@ -326,7 +326,7 @@ export function StatusWord({ status }: Part) {
           </AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
             {rejected.reason ? <Quote>{rejected.reason}</Quote> : null}
-            <p>AI apps never get it. The reason stays with the proposal.</p>
+            <p>Agents never get it. The reason stays with the proposal.</p>
           </AlertDescription>
         </AlertContent>
       </Alert>
@@ -345,7 +345,7 @@ export function StatusWord({ status }: Part) {
           </AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
             {withdrawn?.reason ? <Quote>{withdrawn.reason}</Quote> : null}
-            <p>It left the review, and AI apps never get it.</p>
+            <p>It left the review, and agents never get it.</p>
           </AlertDescription>
         </AlertContent>
       </Alert>
@@ -362,7 +362,7 @@ export function StatusWord({ status }: Part) {
           </AlertTitle>
           <AlertDescription className="flex flex-col gap-2">
             {accepted.reason ? <Quote>{accepted.reason}</Quote> : null}
-            <p>AI apps get it.</p>
+            <p>Agents get it.</p>
             {inLibrary && proposal.itemId ? (
               <div>
                 <Button
@@ -715,8 +715,7 @@ export function ProposalPreview({
       ) : null}
       <p className="flex gap-2 text-caption text-muted-foreground">
         <ShieldCheckIcon aria-hidden="true" className="size-icon-sm shrink-0 translate-y-px" />
-        AI apps would get this reply for a question about exactly where it applies, on its first
-        day.
+        Agents would get this reply for a question about exactly where it applies, on its first day.
       </p>
     </div>
   )
@@ -741,7 +740,7 @@ export function StatusDialogs({
         open={dialogs.withdrawing}
         onOpenChange={dialogs.setWithdrawing}
         title="Withdraw this proposal?"
-        effect="It leaves the review, and AI apps never get it. To send it again later, start a new proposal."
+        effect="It leaves the review, and agents never get it. To send it again later, start a new proposal."
         action="Withdraw"
         actionIcon={Undo2Icon}
         tone="destructive"
@@ -758,7 +757,7 @@ export function StatusDialogs({
           } catch (error) {
             throw new Error(withdrawFailure(error), { cause: error })
           }
-          showToast('Proposal withdrawn', 'AI apps never got it.')
+          showToast('Proposal withdrawn', 'Agents never got it.')
         }}
       />
       <ConfirmDialog

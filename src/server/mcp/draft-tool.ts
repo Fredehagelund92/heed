@@ -29,7 +29,7 @@ import { productName } from '../brand.ts'
   It is the first MCP write that names a person, as the proposer, on the proposal only. The
   request record keeps the shared client label and no person (FR-410); nothing here logs.
 
-  When the person's AI app can show forms (MCP 2026-07-28 multi round-trip elicitation), the
+  When the person's AI agent can show forms (MCP 2026-07-28 multi round-trip elicitation), the
   open questions are asked there first and nothing is saved until the app retries the call with
   the answers and the sealed request state (`DraftRound`). The answers go through the same
   derivation and the same write path, marked `confirmed`; the person still submits in Heed. An
@@ -66,7 +66,7 @@ export type DraftRound = {
   /** Seals a round into the request state the client echoes back, bound to the person and app. */
   seal: (round: QuestionRound) => Promise<string>
 }
-/** The questions to ask in the person's AI app, and the state to echo back with the answers. */
+/** The questions to ask in the person's AI agent, and the state to echo back with the answers. */
 export type DraftQuestions = {
   ask: { message: string; requestedSchema: Record<string, unknown> }
   requestState: string
@@ -172,7 +172,7 @@ export function createDraftTool(options: {
     // A dev or service token names no person, so there is nobody to own or submit the draft.
     if (!principal.subject)
       return refusal(
-        `draft_context needs a person signed in to ${productName} through an AI app. A dev or service token names no person.`,
+        `draft_context needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
       )
     if (!uuid.test(principal.subject))
       return refusal("This sign-in doesn't name a person, so no draft was saved.")
@@ -191,7 +191,7 @@ export function createDraftTool(options: {
       const payload = round.state === 'refused' ? null : roundSchema.safeParse(round.state.payload)
       if (!payload?.success || payload.data.args !== digest)
         return refusal(
-          'These answers do not belong to this call: they were for another call, person or app, or were changed on the way. Nothing was saved. Call draft_context again without them.',
+          'These answers do not belong to this call: they were for another call, person or agent, or were changed on the way. Nothing was saved. Call draft_context again without them.',
           { reason: 'request_state_invalid' },
         )
       const now = Math.floor(clock.now().getTime() / 1000)

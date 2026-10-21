@@ -414,7 +414,7 @@ function CompareGrid({
           </ul>
         ) : (
           <p className="text-muted-foreground">
-            The question names no fact, and the AI app got none.
+            The question names no fact, and the agent got none.
           </p>
         )),
     },
@@ -430,7 +430,7 @@ function CompareGrid({
           ) : (
             <p className="text-muted-foreground">
               {attempt?.refused
-                ? 'The AI app declined to answer.'
+                ? 'The agent declined to answer.'
                 : attempt?.error
                   ? 'The try failed to run.'
                   : 'No answer was kept for this try.'}

@@ -339,7 +339,7 @@ export function createQualityService(tx: Queryable, clock: Clock) {
     },
 
     /**
-     * How the AI apps that called the MCP server fared (FR-410), per app family and week, from
+     * How the agents that called the MCP server fared (FR-410), per app family and week, from
      * the request log: tool calls, and of them the reads that needed more detail or matched
      * nothing, the calls with arguments the tool could not read, and Heed's errors. Not per area:
      * a request names no domain. Each week is a cell of its own and each count below the minimum

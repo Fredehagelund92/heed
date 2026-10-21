@@ -39,28 +39,28 @@ export const captureWords = {
   linkLabel: 'the link format',
 }
 
-/** "What not to conclude" (FR-104): optional, and said in plain sight how AI apps use it. */
+/** "What not to conclude" (FR-104): optional, and said in plain sight how agents use it. */
 export const caveatWords = {
   title: 'What not to conclude',
   optional: 'Optional',
   help: 'Say what someone might wrongly conclude from this.',
   /** What happens to the line, always visible: never behind a popover. */
-  how: 'AI apps get this line with the fact and are told not to draw that conclusion.',
+  how: 'Agents get this line with the fact and are told not to draw that conclusion.',
   starters: 'Start a sentence',
   example: 'Example',
   useExample: 'Use this',
-  /** The live card under the field: the fact as an AI app gets it. */
-  card: 'What AI apps get',
+  /** The live card under the field: the fact as an agent gets it. */
+  card: 'What agents get',
   untitled: 'Your fact',
   /** The card, with the box empty and the claim level saying the cause is not proven. */
-  empty: "Nothing added. AI apps already know this fact doesn't prove a cause.",
+  empty: "Nothing added. Agents already know this fact doesn't prove a cause.",
   /** The card, with the box empty on a fact whose source states the effect. */
-  emptyStated: 'Nothing added. AI apps get the fact without this line.',
-  showRaw: 'Show exactly what AI apps get',
-  hideRaw: 'Hide exactly what AI apps get',
-  rawEmpty: 'Nothing for this field. AI apps get the fact without it.',
+  emptyStated: 'Nothing added. Agents get the fact without this line.',
+  showRaw: 'Show exactly what agents get',
+  hideRaw: 'Hide exactly what agents get',
+  rawEmpty: 'Nothing for this field. Agents get the fact without it.',
   /** The fact page, under the line. */
-  readers: 'AI apps get this line with the fact.',
+  readers: 'Agents get this line with the fact.',
 }
 
 /**
@@ -76,7 +76,7 @@ export const caveatStarters = [
 /** Why the form asks, for the "Why we ask" popover of a section. */
 export const whyWeAsk = {
   source:
-    'The owner opens the link to check the fact, and AI apps name it as the source when they ' +
+    'The owner opens the link to check the fact, and agents name it as the source when they ' +
     'use this fact. We keep the link and the sentence you copied, never the whole document.',
 }
 

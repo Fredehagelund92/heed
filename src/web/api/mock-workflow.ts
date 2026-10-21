@@ -305,7 +305,7 @@ export type MockWorld = {
   testQuestions?: readonly TestQuestion[]
   /** The assistant's ratings the world starts with (FR-712); none without it. */
   ratings?: readonly MockRating[]
-  /** The AI apps' tool calls per family and day in the request log (FR-410); none without it. */
+  /** The agents' tool calls per family and day in the request log (FR-410); none without it. */
   appDays?: readonly MockAppDay[]
   /**
    * The definitions each vocabulary term names: a metric's member, and every view's member of a
@@ -526,14 +526,14 @@ function startingGateway(today: string) {
   const tools: ToolSwitch[] = [
     'domain_overview',
     'draft_context',
-    'find_context',
-    'get_context',
+    'find_facts',
+    'get_facts',
     'get_related',
     'give_feedback',
     'improve_question',
     'read_item',
     'report_gap',
-    'search_context',
+    'search_facts',
     'search_help',
     'what_changed',
   ].map((tool) => ({
@@ -553,7 +553,7 @@ function startingGateway(today: string) {
     {
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_context', 'read_item', 'search_context'],
+      toolsAllowed: ['get_facts', 'read_item', 'search_facts'],
       ratePerMinute: 60,
       maxResponseBytes: null,
       enabled: false,
@@ -678,7 +678,7 @@ export function createMockWorkflow(start: MockWorld) {
     ]),
   ]
 
-  /** The governed terms with the dimensions, as get_context resolves a scope against them. */
+  /** The governed terms with the dimensions, as get_facts resolves a scope against them. */
   const scopeTerms: Term[] = [
     ...terms,
     ...world.vocabulary.dimensions.map((dimension): Term => ({
@@ -754,7 +754,7 @@ export function createMockWorkflow(start: MockWorld) {
     return { edition, items, serving }
   }
 
-  /** A question and a typed scope, resolved as get_context resolves them. */
+  /** A question and a typed scope, resolved as get_facts resolves them. */
   function agentScope(question: string, input: TryItInput) {
     const filters: Record<string, string[]> = {}
     for (const { dimension, values } of input.dimension_filters ?? [])
@@ -768,7 +768,7 @@ export function createMockWorkflow(start: MockWorld) {
     })
   }
 
-  /** get_context's reply on the live edition for a question and a typed scope. */
+  /** get_facts's reply on the live edition for a question and a typed scope. */
   function agentReply(question: string, input: TryItInput): PreviewReply {
     const { edition, items, serving } = servedToAgents()
     return mockReply(world, items, agentScope(question, input), edition.label, serving, scopeTerms)
@@ -1279,7 +1279,7 @@ export function createMockWorkflow(start: MockWorld) {
         findings.push({
           code: 'broad_scope',
           field: 'scope',
-          message: `Broad: it applies to all of ${name}, so AI apps get it for any question about ${name}.`,
+          message: `Broad: it applies to all of ${name}, so agents get it for any question about ${name}.`,
           severity: 'warning',
         })
     }
@@ -1380,7 +1380,7 @@ export function createMockWorkflow(start: MockWorld) {
     return levels
   }
 
-  /** A typed scope (Try it's, or a report's) resolved as get_context resolves it. */
+  /** A typed scope (Try it's, or a report's) resolved as get_facts resolves it. */
   function scopeOfTry(input: TryItInput) {
     const filters: Record<string, string[]> = {}
     for (const { dimension, values } of input.dimension_filters ?? [])
@@ -2403,7 +2403,7 @@ export function createMockWorkflow(start: MockWorld) {
           judgeVendor: 'mock',
           judgeSameVendor: true,
           trigger: null,
-          toolSchemaDigest: digestOf('get_context'),
+          toolSchemaDigest: digestOf('get_facts'),
           testSetDigest: digestOf(questions.map((question) => question.id).join(',')),
           tries: 3,
           flipRepeats: 2,
@@ -2969,7 +2969,7 @@ export function createMockWorkflow(start: MockWorld) {
         const p = find(input.id)
         const checked = previewVersion(p.draft, p.proposerId, p.channel)
         if (!checked.version)
-          return refuse('invalid', 'Complete the draft to see what AI apps will get.', {
+          return refuse('invalid', 'Complete the draft to see what agents will get.', {
             findings: checked.findings,
           })
         return {
@@ -3167,7 +3167,7 @@ export function createMockWorkflow(start: MockWorld) {
           if (!underReview.includes(record.state))
             refuse(
               'conflict',
-              'The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again.',
+              'The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again.',
             )
           rejectSensitive(reason)
           rejectMentions(reason)
@@ -3184,7 +3184,7 @@ export function createMockWorkflow(start: MockWorld) {
         if (!['submitted', 'in_review', 'changes_requested'].includes(stored.state))
           refuse(
             'conflict',
-            'The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again.',
+            'The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again.',
           )
         rejectSensitive(reason)
         rejectMentions(reason)
@@ -3223,7 +3223,7 @@ export function createMockWorkflow(start: MockWorld) {
         if (!open.includes(target.state))
           refuse(
             'conflict',
-            'The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again.',
+            'The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again.',
           )
         rejectSensitive(text)
         rejectMentions(text)
@@ -3811,7 +3811,7 @@ export function createMockWorkflow(start: MockWorld) {
         if (rescue && stored.itemId && liveItem(stored.itemId))
           refuse(
             'conflict',
-            'AI apps get this fact again since it was restored, so this proposal is out of date. Reject it.',
+            'Agents get this fact again since it was restored, so this proposal is out of date. Reject it.',
           )
         if (stored.itemId && bin.has(stored.itemId))
           refuse(
@@ -4001,7 +4001,7 @@ export function createMockWorkflow(start: MockWorld) {
         if (!target) return refuse('not-found', "We couldn't find this edition.")
         if (target.seq === liveEdition().seq)
           // eslint-disable-next-line heed/plain-words -- shown only on the Editions page
-          refuse('conflict', 'AI apps already get this edition.')
+          refuse('conflict', 'Agents already get this edition.')
         // Every version served again passes the serving rules once more (FR-205), as on the
         // service: the refusal names the versions that would not.
         const blocked = blockedIn(target)
@@ -4014,7 +4014,7 @@ export function createMockWorkflow(start: MockWorld) {
           refuse(
             'conflict',
             // eslint-disable-next-line heed/plain-words -- shown only on the Editions page
-            `You can't go back to edition ${label}. ${first!.title === null ? 'A fact' : `"${first!.title}"`} (version ${first!.version}) can't be shared with AI apps again: ${first!.problem}.${others}`,
+            `You can't go back to edition ${label}. ${first!.title === null ? 'A fact' : `"${first!.title}"`} (version ${first!.version}) can't be shared with agents again: ${first!.problem}.${others}`,
             { blocked },
           )
         }
@@ -4267,12 +4267,12 @@ export function createMockWorkflow(start: MockWorld) {
 
       /**
        * What an agent would get: the delivery resolver over the live edition's items, its live
-       * areas and its stops, for a scope resolved as get_context resolves it. Nothing is kept.
+       * areas and its stops, for a scope resolved as get_facts resolves it. Nothing is kept.
        */
       tryIt(input: TryItInput): TryIt {
         const result = {
           ...agentReply('', input),
-          tool_schema_digest: digestOf('get_context tools'),
+          tool_schema_digest: digestOf('get_facts tools'),
         }
         const text = JSON.stringify(result)
         // The gateway's measure: the MCP result with its text copy, plus room for the envelope.
@@ -4552,7 +4552,7 @@ export function createMockWorkflow(start: MockWorld) {
         if (blocked.length)
           refuse(
             'conflict',
-            `${blocked.length === 1 ? `"${blocked[0]!.title}"` : `${blocked.length} facts`} can't be shared with AI apps again: ${blocked[0]!.problem}. Nothing was restored.`,
+            `${blocked.length === 1 ? `"${blocked[0]!.title}"` : `${blocked.length} facts`} can't be shared with agents again: ${blocked[0]!.problem}. Nothing was restored.`,
           )
         const back = returning.filter((record) => record.served)
         const edition = back.length
@@ -4984,7 +4984,7 @@ export function createMockWorkflow(start: MockWorld) {
         return proposal
       },
       /**
-       * FR-606 case 5: a person reports a gap about a scope. The scope resolves as get_context
+       * FR-606 case 5: a person reports a gap about a scope. The scope resolves as get_facts
        * resolves it; the topic comes from it alone, its area by the domain rule.
        */
       reportGap({ type, note, ...scopeInput }: GapReportInput): GapReport {

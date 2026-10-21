@@ -55,7 +55,7 @@ const verbs: Record<Outcome, { title: string; action: string; done: string; why:
 }
 
 const effectWords: Record<BulkPlan['decided'][number]['effect'], string> = {
-  publish: 'AI apps get it',
+  publish: 'Agents get it',
   wait: 'Waits for an approver',
   decide: 'Decided',
 }
@@ -66,7 +66,7 @@ function effectOf(outcome: Outcome, plan: BulkPlan | undefined, rows: readonly Q
   const decided = plan.decided.length
   if (!decided) return 'None of the selected proposals can be decided this way. Each says why.'
   if (outcome === 'reject')
-    return `Each of the ${count(decided, 'proposal')} gets your decision with this reason and closes. AI apps never get them.`
+    return `Each of the ${count(decided, 'proposal')} gets your decision with this reason and closes. Agents never get them.`
   if (outcome === 'request_changes')
     return `Each of the ${count(decided, 'proposal')} goes back to its proposer with this reason.`
   const published = plan.decided.filter((entry) => entry.effect === 'publish').length
@@ -83,7 +83,7 @@ function effectOf(outcome: Outcome, plan: BulkPlan | undefined, rows: readonly Q
       ? 'Each gets your decision with this reason. We run the checks again on each fact first.'
       : 'Each gets your decision with this reason.',
     published
-      ? `AI apps get ${published === decided ? (decided === 1 ? 'it' : 'them') : `${published.toLocaleString('en')} of them`} within a minute.`
+      ? `Agents get ${published === decided ? (decided === 1 ? 'it' : 'them') : `${published.toLocaleString('en')} of them`} within a minute.`
       : '',
     waiting
       ? `${count(waiting, 'high-risk proposal')} ${waiting === 1 ? 'waits' : 'wait'} for an approver.`

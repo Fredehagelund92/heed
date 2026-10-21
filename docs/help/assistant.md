@@ -29,13 +29,13 @@ The assistant is the helper built into the app. Ask it in your own words which f
 
 Above each answer, the assistant lists the steps it took, such as _Read the overview of Sales_ or _Looked up facts · 4 checked, 2 apply_. Once the answer is done, the steps fold into one line. Open it to see each one.
 
-- _Facts_ come from what AI apps get today, through the same tools your AI app uses. The assistant names each fact it uses, and you can open it. Each one shows its whole title, what kind of fact it is, its domain and its date, then what it says. The facts that don't apply are folded under _Facts that don't apply_, apart from the ones that do.
+- _Facts_ come from what AI agents get today, through the same tools your agent uses. The assistant names each fact it uses, and you can open it. Each one shows its whole title, what kind of fact it is, its domain and its date, then what it says. The facts that don't apply are folded under _Facts that don't apply_, apart from the ones that do.
 - _A change or its cause._ The facts are written notes, not the numbers. Asked whether a number dropped, or why, the assistant starts by saying what the facts can't show, then names only the facts that could be related. It never says one of them caused it unless a fact says so. When you give no dates, it says which day it read at. In the demo, the date is fixed, so it calls it the demo's date.
-- _How it works_ comes from these help pages. The assistant searches them, answers from the page it found and links that page. So a question such as _What is an MCP?_ gets the same answer here, in the Docs and in your AI app. MCP (Model Context Protocol) is the connection AI apps use to check these facts.
+- _How it works_ comes from these help pages. The assistant searches them, answers from the page it found and links that page. So a question such as _What is an MCP?_ gets the same answer here, in the Docs and in your agent. MCP (Model Context Protocol) is the connection AI agents use to check these facts.
 - _A sentence it can't back up_ with what it read is removed before you see it. A quote must be copied exactly from what it read, or from your own message.
 - _About our business_, the background an admin writes, helps it understand your words. It's never a source: the assistant doesn't cite it or quote it. See [Tell {{product}} about your business](tell-heed-about-your-business.md).
 
-![One help page in three places: the page is written once, in the Docs; the assistant answers from it with a link; your AI app answers from it over MCP with a link. Each place gives the same answer.](images/one-page-three-places.svg 'A page is written once. The assistant and your AI app answer from it and link it.')
+![One help page in three places: the page is written once, in the Docs; the assistant answers from it with a link; your agent answers from it over MCP with a link. Each place gives the same answer.](images/one-page-three-places.svg 'A page is written once. The assistant and your agent answer from it and link it.')
 
 ## An example
 
@@ -49,10 +49,10 @@ In the demo data, Jon Abara has just become an owner of Sales. He asks the assis
 
 ## What it is not
 
-The assistant isn't your AI app, and it only answers questions about your facts and this app. It's not your data tool either: it holds no numbers, and the figure comes from your data tool, such as Cube.
+The assistant isn't your agent, and it only answers questions about your facts and this app. It's not your data tool either: it holds no numbers, and the figure comes from your data tool, such as Cube.
 
 ## Go deeper
 
-- [What is an MCP](mcp.md): how your own AI app asks the same questions
+- [What is an MCP](mcp.md): how your own agent asks the same questions
 - [Add your first fact](add-your-first-context.md): write a fact by hand or with the assistant
 - [Glossary](glossary.md#assistant): the assistant and the other words on these pages

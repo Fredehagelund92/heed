@@ -17,7 +17,7 @@ export type CheckState = 'passed' | 'failed' | 'error' | 'running' | 'not_run'
 export const checkLevelNames: Record<CheckLevel, string> = {
   format: 'Complete',
   matching: 'Finds the right questions',
-  delivery: 'Reaches AI apps',
+  delivery: 'Reaches agents',
   answer_impact: 'Answers stay right, questions it could change',
   answer_full: 'Answers stay right, whole domain',
 }
@@ -26,7 +26,7 @@ export const checkLevelNames: Record<CheckLevel, string> = {
 export const checkLevelShortNames: Record<CheckLevel, string> = {
   format: 'Complete',
   matching: 'Finds the right questions',
-  delivery: 'Reaches AI apps',
+  delivery: 'Reaches agents',
   answer_impact: 'Answers stay right',
   answer_full: 'Whole domain',
 }
@@ -107,18 +107,18 @@ function deliveryReading(
   const questions = details.questions
   const reaches = details.delivered === true || details.cut === true
   if (details.delivered === undefined || !questions)
-    return { summary: state === 'passed' ? 'AI apps get it' : unreadableDetails, notes: [] }
+    return { summary: state === 'passed' ? 'Agents get it' : unreadableDetails, notes: [] }
   const worse = questions.filter((question) => question.regression).length
   const replaced = details.replacedShown?.length ?? 0
   const notes = [
-    reaches ? null : "AI apps don't get it, even for a question about exactly where it applies.",
+    reaches ? null : "Agents don't get it, even for a question about exactly where it applies.",
     details.cut === true ? "It's cut from the reply to fit the size limit." : null,
     replaced
-      ? `AI apps still get ${replaced === 1 ? 'the fact' : `the ${replaced} facts`} it replaces.`
+      ? `Agents still get ${replaced === 1 ? 'the fact' : `the ${replaced} facts`} it replaces.`
       : null,
   ].filter((note): note is string => note !== null)
   return {
-    summary: `${reaches ? 'AI apps get it.' : "AI apps don't get it."} ${
+    summary: `${reaches ? 'Agents get it.' : "Agents don't get it."} ${
       !questions.length
         ? 'The domain has no test questions yet'
         : worse

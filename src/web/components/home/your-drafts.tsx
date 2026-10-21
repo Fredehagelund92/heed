@@ -19,7 +19,7 @@ import './your-drafts.css'
 
 /*
   Your drafts (Home): the drafts the person started and has not submitted, by hand, with the
-  assistant or through an AI app, so they can find one and finish it. Only the writer sees a
+  assistant or through an agent, so they can find one and finish it. Only the writer sees a
   draft, so this is the one part of Home that is the person's own; it is not drawn at all while
   they have none. Each row is one target that opens the draft in its form, to check every field
   and submit it: the kind's glyph, the title (wrapping, never cut), then the domain badge, a

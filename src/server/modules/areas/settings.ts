@@ -55,7 +55,7 @@ const fieldsOf = ({
 type Described = Pick<Fields, 'summary' | 'description'>
 
 /**
- * Everyone, the assistant and AI apps read what a domain is, so it holds no email address, phone
+ * Everyone, the assistant and agents read what a domain is, so it holds no email address, phone
  * number or secret (the checks of FR-117): it describes the domain, never a person.
  */
 function plainAbout({ summary, description }: Described) {

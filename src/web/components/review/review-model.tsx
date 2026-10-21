@@ -237,7 +237,7 @@ export function useReviewModel(
   const doRunChecks = async () => {
     try {
       await runChecks.mutateAsync(id)
-      showToast('Checks ran again', 'Against what AI apps get today.')
+      showToast('Checks ran again', 'Against what agents get today.')
     } catch (error) {
       showToast("Couldn't run the checks", toApiError(error).message)
     }
@@ -277,8 +277,8 @@ export function useReviewModel(
           showToast(
             'Accepted',
             result.edition
-              ? 'AI apps get it within a minute.'
-              : 'It needs one more yes before AI apps get it.',
+              ? 'Agents get it within a minute.'
+              : 'It needs one more yes before agents get it.',
           )
         else if (outcome === 'request_changes')
           showToast(
@@ -287,7 +287,7 @@ export function useReviewModel(
               ? `We've told ${firstName(proposerName)}. Your comment is in the discussion.`
               : `We've told ${firstName(proposerName)}, who can change it and send it again.`,
           )
-        else showToast('Rejected', `We've told ${firstName(proposerName)}. AI apps won't get it.`)
+        else showToast('Rejected', `We've told ${firstName(proposerName)}. Agents won't get it.`)
       },
       (error: unknown) => {
         release()
@@ -316,25 +316,25 @@ export function useReviewModel(
         cause: error,
       })
     }
-    showToast('Proposal withdrawn', 'AI apps never got it.')
+    showToast('Proposal withdrawn', 'Agents never got it.')
   }
 
   const acceptEffect: ReactNode =
     change === 'retire' ? (
-      'AI apps stop getting it at once. You can still read the fact and its history.'
+      'Agents stop getting it at once. You can still read the fact and its history.'
     ) : bar.capacity === 'approver' ? (
       review.gate?.approvals.owner ? (
-        'Yours is the second yes. AI apps get it within a minute.'
+        'Yours is the second yes. Agents get it within a minute.'
       ) : (
-        'We save your yes now. AI apps get it once an owner accepts too.'
+        'We save your yes now. Agents get it once an owner accepts too.'
       )
     ) : record.riskLevel === 'high' && review.gate?.approvals.approver === false ? (
       <>
-        This is a <b className="font-bold">high-risk</b> change. We save your yes now. AI apps get
-        it once the approver accepts too.
+        This is a <b className="font-bold">high-risk</b> change. We save your yes now. Agents get it
+        once the approver accepts too.
       </>
     ) : (
-      'AI apps get it within a minute.'
+      'Agents get it within a minute.'
     )
   const copy: DecisionDialogCopy = {
     proposerName,
@@ -513,7 +513,7 @@ export function ReviewDialogs({ model }: { model: ReviewModel }) {
           open={dialogs.withdrawing}
           onOpenChange={dialogs.setWithdrawing}
           title="Withdraw this proposal?"
-          effect="It leaves review, and AI apps never get it."
+          effect="It leaves review, and agents never get it."
           action="Withdraw"
           actionIcon={Undo2Icon}
           tone="destructive"

@@ -57,7 +57,7 @@ export const gapTypeHints: Record<GapType, string> = {
   incorrect: 'A fact is wrong',
   duplicate: 'Two facts say the same thing',
   contradictory: 'Two facts disagree',
-  wrong_item_chosen: 'An AI app got the wrong fact',
+  wrong_item_chosen: 'An agent got the wrong fact',
   scope_too_narrow: 'A fact applies too narrowly',
   scope_too_wide: 'A fact applies too widely',
   unclear_question: 'The question was unclear',
@@ -81,8 +81,8 @@ export const gapTypeGroups: readonly { label: string; types: readonly GapType[] 
 
 /** FR-606: how a gap was opened. */
 export const gapOriginNames: Record<GapOrigin, string> = {
-  no_item_calls: 'AI apps asked and found nothing',
-  report_gap: 'An AI app reported it',
+  no_item_calls: 'Agents asked and found nothing',
+  report_gap: 'An agent reported it',
   feedback: 'Negative feedback on an answer',
   source_change: 'A source definition changed',
   person: 'A person reported it',
@@ -90,8 +90,8 @@ export const gapOriginNames: Record<GapOrigin, string> = {
 
 /** The Origin filter's words: people's reports count wherever they landed, not only first. */
 export const gapOriginFilterNames: Record<GapOrigin, string> = {
-  no_item_calls: 'AI apps found nothing',
-  report_gap: 'Reported by an AI app',
+  no_item_calls: 'Agents found nothing',
+  report_gap: 'Reported by an agent',
   feedback: 'Negative feedback',
   source_change: 'A source changed',
   person: 'Reported by people',

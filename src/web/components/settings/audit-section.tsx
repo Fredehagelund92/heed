@@ -105,7 +105,7 @@ type Subject = {
 /**
  * What an entry is about, in words a person reads: a proposal by its number and title and an
  * item by its title (each a link, while the reader may see it), a setting by its title, an area,
- * a person or a tool by name, a client by its label, an AI app by its name and its person. Other
+ * a person or a tool by name, a client by its label, an agent by its name and its person. Other
  * ids stay in the panel.
  */
 function useSubjects() {
@@ -285,7 +285,7 @@ export function AuditSection({ search }: { search: AdminSearch }) {
       >
         {filtered
           ? 'Try another kind of change, person, domain or days.'
-          : 'Every change to settings, roles, domains, proposals and what AI apps get shows here.'}
+          : 'Every change to settings, roles, domains, proposals and what agents get shows here.'}
       </GridMessage>
     )
   else

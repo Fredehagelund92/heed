@@ -156,7 +156,7 @@ export const linkStatement =
   'A link shows what a text refers to. It does not mean the item applies to your question.'
 /** What a search that found nothing can try next. */
 export const searchHint =
-  'No fact matches these words. Try a metric, market or domain name, fewer words, or get_context for a question with a scope.'
+  'No fact matches these words. Try a metric, market or domain name, fewer words, or get_facts for a question with a scope.'
 /** Added to the instructions when a reply gives the definitions a question asks for. */
 export const definitionInstruction = `For what a metric means, quote definitions: the source's own words, and where they come from. Keep the facts apart as what is added to the definition, and never make up a definition.`
 const relatedInstructions =
@@ -308,11 +308,11 @@ const pageKey = (bundle: ServingBundle, filter: unknown) =>
 
 type Definition = { term: string }
 /**
- * The sentences of an outcome tool's reply (FR-344): a name nobody knows, what find_context found
+ * The sentences of an outcome tool's reply (FR-344): a name nobody knows, what find_facts found
  * and how, a domain in a line, or what changed. A refusal and what_changed bring their own.
  */
 function outcomeSaid(
-  name: 'find_context' | 'domain_overview' | 'what_changed',
+  name: 'find_facts' | 'domain_overview' | 'what_changed',
   body: Record<string, unknown>,
   args: unknown,
   bundle: ServingBundle,
@@ -346,7 +346,7 @@ function outcomeSaid(
   })
 }
 
-/** Whether find_context's words or its domain name a domain, as findContext reads them. */
+/** Whether find_facts's words or its domain name a domain, as findContext reads them. */
 function namesDomain(bundle: ServingBundle, args: FindArgs) {
   return (
     args.domain !== undefined ||
@@ -367,11 +367,11 @@ export function createToolService(
 ) {
   const urlOf = (id: string) => itemUrl(web, id)
   /**
-   * The outcome tools (FR-338 to FR-340) on the live edition, or for find_context an edition the
+   * The outcome tools (FR-338 to FR-340) on the live edition, or for find_facts an edition the
    * caller may select. A result that cannot fit the size limit loses its longest lists first.
    */
   async function outcome(
-    name: 'find_context' | 'domain_overview' | 'what_changed',
+    name: 'find_facts' | 'domain_overview' | 'what_changed',
     input: unknown,
     principal: Principal,
     maxBytes: number,
@@ -379,13 +379,13 @@ export function createToolService(
     today: string,
   ): Promise<ToolResult> {
     const args =
-      name === 'find_context'
+      name === 'find_facts'
         ? findInput.parse(input)
         : name === 'domain_overview'
           ? overviewInput.parse(input)
           : changesInput.parse(input)
-    const edition = name === 'find_context' ? (args as FindArgs).edition : undefined
-    // Naming an edition, to read or to compare, needs edition scope, as for get_context.
+    const edition = name === 'find_facts' ? (args as FindArgs).edition : undefined
+    // Naming an edition, to read or to compare, needs edition scope, as for get_facts.
     const named =
       name === 'what_changed'
         ? ((args as ChangesArgs).edition ?? (args as ChangesArgs).since)
@@ -403,9 +403,9 @@ export function createToolService(
       overlay: bundle.overlay,
       tool_schema_digest: toolSchemaDigest,
     }
-    if (name !== 'find_context' && !reads) return failure('This tool is not available here.')
+    if (name !== 'find_facts' && !reads) return failure('This tool is not available here.')
     const body: Record<string, unknown> =
-      name === 'find_context'
+      name === 'find_facts'
         ? cite(
             findContext(
               bundle,
@@ -418,9 +418,9 @@ export function createToolService(
         : name === 'domain_overview'
           ? await domainOverview(bundle, args, today, reads!)
           : await whatChanged(bundle, args as ChangesArgs, today, reads!)
-    // FR-342: a concise find_context leaves out the source details its definitions already say
+    // FR-342: a concise find_facts leaves out the source details its definitions already say
     // in words.
-    const concise = name === 'find_context' && (args as FindArgs).response_format === 'concise'
+    const concise = name === 'find_facts' && (args as FindArgs).response_format === 'concise'
     const out: Record<string, unknown> = {
       ...saidFields(outcomeSaid(name, body, args, bundle)),
       ...common,
@@ -460,7 +460,7 @@ export function createToolService(
       : failure('The result cannot fit this size limit. Increase max_bytes.')
   }
 
-  /** find_context's items with their pages in Heed (FR-347). */
+  /** find_facts's items with their pages in Heed (FR-347). */
   function cite(body: ReturnType<typeof findContext>): Record<string, unknown> {
     return 'items' in body
       ? { ...body, items: body.items.map((item) => ({ ...item, url: urlOf(item.id) })) }
@@ -484,19 +484,19 @@ export function createToolService(
         await store.feedback(args.delivery_id, args.verdict, principal.client, safeNote(args.note))
         return resultFor({ recorded: true, check_report: report('matched') })
       }
-      if (name === 'find_context' || name === 'domain_overview' || name === 'what_changed')
+      if (name === 'find_facts' || name === 'domain_overview' || name === 'what_changed')
         return await outcome(name, input, principal, maxBytes, onEdition, today)
       // Heed's own help reads no edition: the same pages whatever is live.
       if (name === 'search_help')
         return resultFor(helpAnswer(help ?? repositoryHelp(), helpInput.parse(input).query, web))
       const args =
-        name === 'get_context'
+        name === 'get_facts'
           ? contextInput.parse(input)
           : name === 'read_item'
             ? readInput.parse(input)
             : name === 'get_related'
               ? relatedInput.parse(input)
-              : name === 'search_context'
+              : name === 'search_facts'
                 ? searchInput.parse(input)
                 : name === 'improve_question'
                   ? improveInput.parse(input)
@@ -512,7 +512,7 @@ export function createToolService(
         tool_schema_digest: toolSchemaDigest,
       }
       const limit = Math.min(maxBytes, 'max_bytes' in args ? args.max_bytes : 100000)
-      if (name === 'get_context' || name === 'improve_question' || name === 'report_gap') {
+      if (name === 'get_facts' || name === 'improve_question' || name === 'report_gap') {
         const scoped = args as ContextInput
         // improve_question coaches a question, so it says the dates are missing (FR-307); the
         // others read a question without dates at today, and say so.
@@ -645,7 +645,7 @@ export function createToolService(
           }
         })
         // A definition question gets the definitions first: the source's words, where they come
-        // from and what Heed adds, as find_context gives them (FR-338). A cut never takes them.
+        // from and what Heed adds, as find_facts gives them (FR-338). A cut never takes them.
         const defined =
           resolution.scope && asksDefinition(scoped.question)
             ? [...asked]

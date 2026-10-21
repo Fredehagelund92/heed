@@ -136,7 +136,7 @@ export const gapIdInputSchema = z.strictObject({ id: gapId })
 /**
  * FR-606 case 5: a signed-in person reports a gap about the scope they were looking at (Try it's
  * scope, or the assistant's). The topic comes from that scope only (FR-604), resolved as
- * get_context resolves it, so an unknown term is refused. The note is optional and short
+ * get_facts resolves it, so an unknown term is refused. The note is optional and short
  * (FR-611); nothing names the person (FR-608).
  */
 export const gapReportInputSchema = z.strictObject({

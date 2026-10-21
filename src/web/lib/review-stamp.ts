@@ -8,7 +8,7 @@ type CheckLevel = ItemReview['checks'][number]
 /*
   Reviewed before served (FR-326, contract 7.2 `ReviewStamp`): one line under a served fact that
   says who accepted it, on which day, and that its checks passed. Inside Heed,
-  behind sign-in, it names the person and their role; what an AI app receives names only the
+  behind sign-in, it names the person and their role; what an agent receives names only the
   role, and a stamp falls back to those words until Heed has read who it was.
 */
 
@@ -56,7 +56,7 @@ export function reviewStampView(
   return {
     acceptedOn: served.acceptedOn,
     person: null,
-    // What an AI app reads says "an administrator"; the screen says admin.
+    // What an agent reads says "an administrator"; the screen says admin.
     role: served.by.replace(/^(the|an) /, '').replace(/^administrator$/, 'admin'),
     edition: served.edition,
     checks: null,
@@ -69,7 +69,7 @@ export function acceptedByWords(view: Pick<ReviewStampView, 'person' | 'role'>):
   return view.role === 'admin' ? 'an admin' : `the ${view.role}`
 }
 
-/** The check levels in words: "Complete, Finds the right questions and Reaches AI apps". */
+/** The check levels in words: "Complete, Finds the right questions and Reaches agents". */
 export function checkWords(checks: readonly CheckLevel[]): string {
   const words = checks.map((level) => checkLevelWords[level])
   return words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words.at(-1)}` : words.join('')

@@ -183,7 +183,7 @@ export function DomainsSection() {
         slot="domains-block"
         description={
           <>
-            Each domain has its own owners, review time and a description of what it holds. AI apps
+            Each domain has its own owners, review time and a description of what it holds. Agents
             get its facts as soon as they&apos;re accepted. Name its team now or later.{' '}
             <HelpLink to="glossary#domain">What is a domain?</HelpLink>
           </>

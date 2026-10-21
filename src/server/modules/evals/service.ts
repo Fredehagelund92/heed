@@ -328,7 +328,7 @@ export function createEvalsService(
         const run = await queueAreaRun(tx, deps, area, kind, true)
         if (!run)
           throw new ORPCError('PRECONDITION_FAILED', {
-            message: "Nothing is shared with AI apps yet, so test runs can't start.",
+            message: "Nothing is shared with agents yet, so test runs can't start.",
           })
         return publicRun(await loadRun(run.id))
       },

@@ -38,7 +38,7 @@ declare module '@tanstack/react-router' {
 
 /**
  * Opens the signed-out page, remembering where the person was, unless it is already open. The
- * AI app consent page asks a signed-out person to sign in on the page itself. The query client
+ * agent consent page asks a signed-out person to sign in on the page itself. The query client
  * calls it for any 401 (query-client.ts).
  */
 export function showSignedOut(router: ReturnType<typeof createAppRouter>) {

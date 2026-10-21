@@ -130,7 +130,7 @@ export function LimitsSection({ search }: { search: AdminSearch }) {
       <SettingsBlock
         title="Limits and settings"
         slot="limits-block"
-        description="What people and AI apps can do, what we keep, and which AI models we use. Each change is a new version with a reason, and earlier versions stay in its history."
+        description="What people and agents can do, what we keep, and which AI models we use. Each change is a new version with a reason, and earlier versions stay in its history."
       >
         {body}
       </SettingsBlock>

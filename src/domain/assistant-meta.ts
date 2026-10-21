@@ -81,7 +81,7 @@ const kinds: [MetaKind, RegExp][] = [
 
 /** The words of Heed's own screens and pages: what a question about how Heed works names. */
 const heedNames =
-  'heed|mcps?|editions?|live edition|stop switch|gaps?|owners?|deput(?:y|ies)|approvers?|proposals?|context items?|items?|domains?|health|try it|catalogue|assistant|ai apps?|tools?|glossary|vocabulary|re ?check due|about our business|docs|help pages?'
+  'heed|mcps?|editions?|live edition|stop switch|gaps?|owners?|deput(?:y|ies)|approvers?|proposals?|context items?|items?|domains?|health|try it|catalogue|assistant|ai agents?|agents?|ai apps?|tools?|glossary|vocabulary|re ?check due|about our business|docs|help pages?'
 const heedWords = `(?:${heedNames})`
 const helpForms = [
   // "what is an MCP", "what are proposals", "who is an owner"
@@ -90,8 +90,9 @@ const helpForms = [
   `^what does (?:an? |the )?${heedWords} (?:do|mean)$`,
   // "how do I connect Claude Code to Heed", "how does the stop switch work"
   `^how (?:do|can|should|does) (?:i|we|you|heed|an? |the |my )[\\p{L} '-]*\\b(?:${heedNames}|connect|disconnect|review|accept|approve|submit|sign in)\\b`,
-  // "does Heed keep my questions", "can my AI app change items"
-  `^(?:does|do|will|can|is) (?:heed|my ai app|an ai app|the assistant|my app) `,
+  // "does Heed keep my questions", "can my agent change items" ("AI app" is the retired name,
+  // and people still type it)
+  `^(?:does|do|will|can|is) (?:heed|my ai agent|an ai agent|my agent|an agent|my ai app|an ai app|the assistant|my app) `,
   // "who can see what I write", "who reviews a proposal"
   '^who (?:can|reviews|decides|accepts|approves|sees) ',
 ].join('|')
@@ -287,7 +288,7 @@ export function metaReply(kind: MetaKind, facts: MetaFacts): string {
       return paragraphs(`${what} For example:`, abilities, tryIt(facts))
     case 'how':
       return paragraphs(
-        `${facts.product} keeps short facts about your numbers that the data doesn't show: a change, a data problem, a definition. People write them, the owner of each domain checks them, and AI apps get the ones that fit their question.`,
+        `${facts.product} keeps short facts about your numbers that the data doesn't show: a change, a data problem, a definition. People write them, the owner of each domain checks them, and AI agents get the ones that fit their question.`,
         `In this chat, ${what}`,
         tryIt(facts),
       )
@@ -298,7 +299,7 @@ export function metaReply(kind: MetaKind, facts: MetaFacts): string {
           '- Open **Add context** and fill it in yourself.',
           "- Or tell me what happened, where it applies, from when, and how you know (a link and a short quote). I'll draft it for you to check and send.",
         ].join('\n'),
-        'Either way, the owner of its domain checks it before AI apps get it.',
+        'Either way, the owner of its domain checks it before AI agents get it.',
       )
     case 'holdings':
       return paragraphs(domainList(facts), tryIt(facts))

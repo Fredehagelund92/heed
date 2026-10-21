@@ -36,11 +36,11 @@ The example on this page is the stop on online sales to Norway from the demo dat
 
 4. Write the **Title**: _Online sales to Norway stopped on 4 August 2026_.
 
-5. Write the **Summary** in one or two sentences. AI apps read it first, so say what happened and when.
+5. Write the **Summary** in one or two sentences. AI agents read it first, so say what happened and when.
 
 6. Under **Where it applies**, find and add Orders and Norway.
 
-   AI apps get the fact when a question is about these. To cover every market or every product, pick **Any value**.
+   Agents get the fact when a question is about these. To cover every market or every product, pick **Any value**.
 
 7. Under **When it applies**, set **From** to 4 Aug 2026. Leave **Until** empty while it's still going on.
 
@@ -52,9 +52,9 @@ The example on this page is the stop on online sales to Norway from the demo dat
 
 9. Under **What not to conclude**, say what someone might wrongly conclude from the fact. You can leave it empty.
 
-   Tap a sentence starter, such as _It doesn't tell you ..._, or **Use this** on the example. The card under the box shows what an AI app gets. AI apps get this line with the fact and are told not to draw that conclusion.
+   Tap a sentence starter, such as _It doesn't tell you ..._, or **Use this** on the example. The card under the box shows what an agent gets. Agents get this line with the fact and are told not to draw that conclusion.
 
-10. Open the **What AI apps get** tab to see what an AI app will get once the fact is accepted.
+10. Open the **What agents get** tab to see what an agent will get once the fact is accepted.
 
 11. Choose **Send for review**.
 
@@ -64,7 +64,7 @@ Tip: the assistant can draft a fact for you from a paragraph you paste. Check ev
 
 - Your proposal shows under **Proposals**, in **Mine**, as **Waiting for review**.
 - The owner of the domain reviews it. They accept it, ask for changes or reject it, and you're told which.
-- Once it's accepted, AI apps get your fact at once.
+- Once it's accepted, agents get your fact at once.
 
 ## If something goes wrong
 

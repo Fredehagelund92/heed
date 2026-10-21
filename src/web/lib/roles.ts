@@ -25,7 +25,7 @@ export const globalRoleWords: Record<GlobalRole, { name: string; about: string }
   administrator: {
     name: 'Admin',
     about:
-      'Sets up domains, people and settings, and decides which AI apps connect and what they get.',
+      'Sets up domains, people and settings, and decides which agents connect and what they get.',
   },
   auditor: { name: 'Auditor', about: 'Reads and exports the history log. Changes nothing.' },
 }

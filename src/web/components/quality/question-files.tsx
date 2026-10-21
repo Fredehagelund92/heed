@@ -275,7 +275,7 @@ export function StartRunDialog({
         <DialogHeader>
           <DialogTitle>Run {area.name} now?</DialogTitle>
           <DialogDescription>
-            Every active test question of {area.name}, asked on what AI apps get today and checked
+            Every active test question of {area.name}, asked on what agents get today and checked
             like a weekly run.
           </DialogDescription>
         </DialogHeader>

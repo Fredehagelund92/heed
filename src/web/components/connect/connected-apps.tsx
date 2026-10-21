@@ -28,19 +28,19 @@ import { formatDay, formatMoment } from '@/lib/library'
 import { cn } from '@/lib/utils'
 
 /*
-  The AI apps connected to Heed as the signed-in person (FR-403), in the app's bordered grid:
-  which app, what it may do, when it connected and when it last asked for a token. Disconnect
+  The agents connected to Heed as the signed-in person (FR-403), in the app's bordered grid:
+  which agent, what it may do, when it connected and when it last asked for a token. Disconnect
   ends the connection at once: its refresh tokens end and the MCP server refuses its access
-  tokens. Below the table's 4xl width the columns after the app leave, and the app's second line
+  tokens. Below the table's 4xl width the columns after the agent leave, and the agent's second line
   says what it can do and when it was last used: the fixed columns take 38 rem, so a narrower
-  table would leave the app's name no room.
+  table would leave the agent's name no room.
 */
 
 const SLOT = 'connected-apps'
 const optional = '@max-4xl:hidden'
 
 const columns: GridColumn[] = [
-  { icon: BotIcon, title: 'App', className: 'flex-1' },
+  { icon: BotIcon, title: 'Agent', className: 'flex-1' },
   { icon: ListChecksIcon, title: 'Can', className: cn('w-column-about', optional) },
   { icon: CalendarIcon, title: 'Connected', className: cn('w-column-until', optional) },
   { icon: ClockIcon, title: 'Last used', className: cn('w-column-changed', optional) },
@@ -48,22 +48,26 @@ const columns: GridColumn[] = [
 
 export function ConnectedApps() {
   const connections = useQuery(connectionsQuery())
-  if (connections.isPending) return <GridLoading slot={SLOT} label="Loading connected apps" />
+  if (connections.isPending) return <GridLoading slot={SLOT} label="Loading connected agents" />
   if (connections.isError)
     return (
-      <GridFailed slot={SLOT} what="your connected apps" retry={() => void connections.refetch()} />
+      <GridFailed
+        slot={SLOT}
+        what="your connected agents"
+        retry={() => void connections.refetch()}
+      />
     )
   if (connections.data.length === 0)
     return (
-      <GridMessage slot={SLOT} icon={PlugIcon} title="No AI apps are connected">
-        Paste the prompt above into your AI app. It asks you to sign in and allow it, and then it
-        shows here. <HelpLink to="connect-your-ai-app">How connecting works</HelpLink>
+      <GridMessage slot={SLOT} icon={PlugIcon} title="No agents are connected">
+        Paste the prompt above into your agent. It asks you to sign in and allow it, and then it
+        shows here. <HelpLink to="connect-an-agent">How connecting works</HelpLink>
       </GridMessage>
     )
   return (
     <GridTable
       slot={SLOT}
-      label="Connected AI apps"
+      label="Connected agents"
       header={
         <>
           <GridHeaderCells columns={columns} />
@@ -122,7 +126,7 @@ function ConnectionRow({ connection }: { connection: Connection }) {
             </Button>
           }
           title={`Disconnect ${connection.clientName}?`}
-          effect="It stops working at once. To use it again, connect it again from the AI app."
+          effect="It stops working at once. To use it again, connect it again from the agent."
           action="Disconnect"
           actionIcon={UnlinkIcon}
           tone="destructive"

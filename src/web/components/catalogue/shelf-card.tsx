@@ -83,7 +83,7 @@ export function ShelfCard({
       ) : null}
       <p className="text-dense text-muted-foreground">
         {sentence ??
-          `Nothing on the shelf yet. AI apps have nothing to add when someone asks about ${term.name}.`}
+          `Nothing on the shelf yet. Agents have nothing to add when someone asks about ${term.name}.`}
       </p>
     </RailSection>
   )

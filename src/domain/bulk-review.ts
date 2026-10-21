@@ -10,7 +10,7 @@ type CheckLevel = 'format' | 'matching' | 'delivery' | 'answer_impact' | 'answer
 export const checkLevelWords: Record<CheckLevel, string> = {
   format: 'Complete',
   matching: 'Finds the right questions',
-  delivery: 'Reaches AI apps',
+  delivery: 'Reaches agents',
   answer_impact: 'Answers stay right',
   answer_full: 'Whole domain',
 }

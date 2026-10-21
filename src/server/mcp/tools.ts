@@ -48,7 +48,7 @@ const write = {
   destructiveHint: false,
   openWorldHint: false,
 }
-const prefix = 'Call get_context before answering a question about company data. '
+const prefix = 'Call get_facts before answering a question about company data. '
 /** The rules every client reads first (FR-343), with the product's name the setting gives. */
 export const instructionRules = rulesFor(productName)
 export { INSTRUCTIONS_READ_BY_ALL }
@@ -59,22 +59,22 @@ export const serverInstructions = (dataTools: readonly string[], about = ''): st
 const describe = (tool: keyof typeof toolWords, text: string, first = prefix) =>
   `${toolWords[tool].line} ${first}${text}`
 export const tools = {
-  get_context: {
+  get_facts: {
     scope: 'read',
-    title: toolWords.get_context.title,
+    title: toolWords.get_facts.title,
     description: describe(
-      'get_context',
+      'get_facts',
       `Pass structured metrics, dimension_filters and inclusive UTC dates when known. Without window, the dates in the question are read (such as 2026, last quarter or 1 Jan to 30 Sep) and dates_read says how; without any dates, the question is read at today and assumed_date says so. The member names you just queried in the data tool work as names, and a name that isn't known comes back with the closest that is. A dimension filter with no values names the dimension for every value, as in a breakdown by market. Returns the checked facts (items) that apply, with their sources, coverage and links, and the domain of each asked metric; with response_format concise, a short reply without bodies, evidence and links. A link neither widens where a fact applies nor proves a cause. Read a linked fact with read_item only when it helps answer the question.`,
     ),
     inputSchema: contextInput,
     outputSchema: deliveryOutput,
     annotations: read,
   },
-  search_context: {
+  search_facts: {
     scope: 'read',
-    title: toolWords.search_context.title,
+    title: toolWords.search_facts.title,
     description: describe(
-      'search_context',
+      'search_facts',
       'Find facts (items) by a few words, not a whole question, such as "net revenue Spain". Matches the names of domains, metrics and dimension values (such as a market) against what a fact is about, and other words against its title, summary and text. Facts that match every word come first; query_used says how the words were read. Filter by kind, by domain (area: a domain id or name, such as Sales) or by mentions to find the facts that refer to one. Returns titles and summaries, without bodies. Follow next_cursor for another page.',
     ),
     inputSchema: searchInput,
@@ -103,11 +103,11 @@ export const tools = {
     outputSchema: readOutput,
     annotations: read,
   },
-  find_context: {
+  find_facts: {
     scope: 'read',
-    title: toolWords.find_context.title,
+    title: toolWords.find_facts.title,
     description: describe(
-      'find_context',
+      'find_facts',
       `Find what is written down about a few words or a question, by the names people use: metrics and their other names (such as GMV), markets, domains, member names from the data tool (such as payments.orders), and words in a fact. Use it for "what do we know about", "what is" or "how is it defined", and when you don't know the exact names. Returns the matching facts (items) with titles and summaries, and for each metric or dimension the words name: the definition its source gives, where that definition comes from, and what these facts add. When no words match, it returns the facts that apply to what the words name, on the dates the window or the words give (dates_read says how it read the words) or else today, as assumed_date says; when nothing is found, why says what to try. Read a fact in full with read_item.`,
     ),
     inputSchema: findInput,
@@ -133,7 +133,7 @@ export const tools = {
     reads: true,
     description: describe(
       'what_changed',
-      'Say what changed for AI apps between two editions: by default the live edition and the one before. Filter by domain. Use it for "what changed", "what is new" or "what was archived" (retired). Facts AI apps don\'t get are counted, not named.',
+      'Say what changed for agents between two editions: by default the live edition and the one before. Filter by domain. Use it for "what changed", "what is new" or "what was archived" (retired). Facts agents don\'t get are counted, not named.',
     ),
     inputSchema: changesInput,
     outputSchema: readOutput,
@@ -144,7 +144,7 @@ export const tools = {
     title: toolWords.search_help.title,
     description: describe(
       'search_help',
-      `Answer a question about how ${productName} itself works, such as what an MCP or an edition is, from its help pages: the same pages as its Docs. Pass the question's words. Returns the best matching sections, each with its page and link: answer from them and link the page. For company data, use get_context.`,
+      `Answer a question about how ${productName} itself works, such as what an MCP or an edition is, from its help pages: the same pages as its Docs. Pass the question's words. Returns the best matching sections, each with its page and link: answer from them and link the page. For company data, use get_facts.`,
       '',
     ),
     inputSchema: helpInput,
@@ -194,7 +194,7 @@ export const tools = {
       'draft_context',
       `Save a draft of a fact (a context item) for the signed-in person, when they ask to record something from this work. Only what can be worked out is filled in, and every field is marked; it never sends the draft for review. ` +
         agentTreatmentSentence() +
-        ` Pass the words and names: they're matched to the vocabulary, so never invent a metric key or a link, and give a date the person is unsure of only with window.uncertain. Don't include names of customers or staff, personal data, secrets, question text or a transcript. If your app can show forms, the person may be asked its open questions there before it saves; their answers are marked as confirmed. If it lists possible duplicates, ask the person, then call again with item_id or new_item. For a law or a regulation, draft an event: the window from the day it takes effect as its text says, evidence from the official text, and not_to_conclude saying that it is not legal advice and whether the measure is provisional. Show the person the questions and the link, and let them check the draft and send it for review in ${productName}. ${draftingGuide}`,
+        ` Pass the words and names: they're matched to the vocabulary, so never invent a metric key or a link, and give a date the person is unsure of only with window.uncertain. Don't include names of customers or staff, personal data, secrets, question text or a transcript. If your agent can show forms, the person may be asked its open questions there before it saves; their answers are marked as confirmed. If it lists possible duplicates, ask the person, then call again with item_id or new_item. For a law or a regulation, draft an event: the window from the day it takes effect as its text says, evidence from the official text, and not_to_conclude saying that it is not legal advice and whether the measure is provisional. Show the person the questions and the link, and let them check the draft and send it for review in ${productName}. ${draftingGuide}`,
       '',
     ),
     inputSchema: draftInput,
@@ -233,6 +233,34 @@ export function personOnly(name: ToolName): boolean {
 export function isToolName(value: unknown): value is ToolName {
   return typeof value === 'string' && Object.hasOwn(tools, value)
 }
+
+/**
+ * The ids three tools had before the word fact (decided 21 October 2026), each answered as the
+ * tool that replaced it: the same arguments and the same result. A client that learned an old id
+ * from an earlier connection, a skill file or a saved instruction keeps working. The server
+ * lists them as deprecated; the instructions, the titles and the page that connects an agent
+ * name the new ids only. A call by an old id is checked, limited and logged as the new tool.
+ */
+export const deprecatedToolAliases = {
+  get_context: 'get_facts',
+  search_context: 'search_facts',
+  find_context: 'find_facts',
+} as const satisfies Record<string, ToolName>
+export type DeprecatedToolAlias = keyof typeof deprecatedToolAliases
+
+/** The tool a name calls: the tool itself, or the tool an old id stands for. Null for no tool. */
+export function toolCalledBy(value: unknown): ToolName | null {
+  if (isToolName(value)) return value
+  return typeof value === 'string' && Object.hasOwn(deprecatedToolAliases, value)
+    ? deprecatedToolAliases[value as DeprecatedToolAlias]
+    : null
+}
+
+/** The old ids of a tool, listed beside it as deprecated. */
+export const aliasesOf = (name: ToolName): DeprecatedToolAlias[] =>
+  (Object.keys(deprecatedToolAliases) as DeprecatedToolAlias[]).filter(
+    (alias) => deprecatedToolAliases[alias] === name,
+  )
 
 /** A tool's output schema for the MCP server, when it declares one. */
 export function toolOutputSchema(name: ToolName) {

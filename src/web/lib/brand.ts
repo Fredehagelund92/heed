@@ -3,7 +3,7 @@ import { productNameFrom } from '../../domain/brand.ts'
 /**
  * The product's name in the app (src/domain/brand.ts): from `CL_PRODUCT_NAME` when the app was
  * built, the same variable the service reads. Say it only where a sentence names the product, as
- * in "Sign in to Heed" or "What is Heed"; a label such as Back or Add to your AI app goes without
+ * in "Sign in to Heed" or "What is Heed"; a label such as Back or Add to your agent goes without
  * it.
  *
  * The mocks are also loaded outside a Vite build (Playwright, scripts), where there is no

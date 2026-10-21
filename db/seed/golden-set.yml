@@ -16,7 +16,12 @@
 # L1 (tests/integration/golden-set.test.ts) runs every case here in CI with no model, and the
 # held-out cases too, as counts only, where they are sealed and the key is given.
 
-version: 15
+# Version 16 (21 October 2026): the program that reads the facts is the agent, not the AI app, and
+# three tools say fact in their ids: get_context is get_facts, find_context is find_facts and
+# search_context is search_facts. The cases change only in those words: the tool names they expect,
+# the three rubrics and the help case's page address (connect-an-agent). Their expectations are
+# otherwise the same. The `source` lines keep the captain's words as he said them on 15 October.
+version: 16
 library:
   seed: 20261007
   items: 1500
@@ -438,7 +443,7 @@ cases:
     rubrics:
       - 'Asks whether gross sales, net revenue or units sold is meant, or answers each one separately and says so'
     source: 'Library: the metric group Revenue, which holds three metrics'
-    notes: 'Version 3: get_context reads a metric group (group:revenue) as its three metrics, so it delivers the items of gross sales, net revenue and units sold (one of each named here) instead of no_match. Version 10: Haiku gave revenue as one figure in round 6 (0 of 6), so say names the three metrics of the group and each item names the ones it is about (about).'
+    notes: 'Version 3: get_facts reads a metric group (group:revenue) as its three metrics, so it delivers the items of gross sales, net revenue and units sold (one of each named here) instead of no_match. Version 10: Haiku gave revenue as one figure in round 6 (0 of 6), so say names the three metrics of the group and each item names the ones it is about (about).'
 
   - id: gs-ambiguous-net-revenue-canada-quarter
     area: area_marketing
@@ -490,7 +495,7 @@ cases:
     rubrics:
       - 'Says it assumed today, 7 October 2026, and offers to look at another period'
     source: 'Library: a metric and market asked with no dates'
-    notes: "Version 7: get_context reads a question without dates at today and says so (the captain's decision after round 4), so the case expects what applies today and the sentence that says it, instead of need_more_detail. Version 14: the sentence names the whole month (voice guide). Version 15: the demo world's words (a retailer), with the same expectations."
+    notes: "Version 7: get_facts reads a question without dates at today and says so (the captain's decision after round 4), so the case expects what applies today and the sentence that says it, instead of need_more_detail. Version 14: the sentence names the whole month (voice guide). Version 15: the demo world's words (a retailer), with the same expectations."
 
   - id: gs-ambiguous-repeat-purchase-spain-no-dates
     area: area_customer_value
@@ -516,7 +521,7 @@ cases:
       - 'Says it assumed today, 7 October 2026, and offers to look at another period'
       - 'Names a currency only as the items given state it, and invents none'
     source: 'Library: a metric and market asked with no dates'
-    notes: "Version 7: get_context reads a question without dates at today and says so (the captain's decision after round 4), so the case expects what applies today and the sentence that says it, instead of need_more_detail. The note on the currency is Customer value's, 8th of 10 (L1.4, rank_max 8). Version 9: every domain is served (the captain's decision, 14 Oct 2026). Version 14: the sentence names the whole month (voice guide)."
+    notes: "Version 7: get_facts reads a question without dates at today and says so (the captain's decision after round 4), so the case expects what applies today and the sentence that says it, instead of need_more_detail. The note on the currency is Customer value's, 8th of 10 (L1.4, rank_max 8). Version 9: every domain is served (the captain's decision, 14 Oct 2026). Version 14: the sentence names the whole month (voice guide)."
 
   # ---- 6. Missing context: say nothing is documented, invent nothing, offer a next step. ------
   - id: gs-missing-net-revenue-united-states-january
@@ -1065,7 +1070,7 @@ cases:
       - 'Says the definition lives in the Cube model (revenue.net_revenue) and does not make one up'
       - "Keeps the definition apart from Heed's notes and says what the notes add"
     source: 'Vocabulary: a metric with a Cube description and Heed items'
-    notes: 'Version 2: find_context returns the Cube description and its origin, checked in L1 as definition/find_*. Version 3: get_context cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first (definition/context_*).'
+    notes: 'Version 2: find_facts returns the Cube description and its origin, checked in L1 as definition/find_*. Version 3: get_facts cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first (definition/context_*).'
 
   - id: gs-definition-marketing-spend-origin
     area: area_marketing
@@ -1095,7 +1100,7 @@ cases:
     rubrics:
       - 'Names the Cube model member marketing.marketing_spend as the origin'
     source: 'Vocabulary: origin named'
-    notes: 'Version 3: get_context cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first.'
+    notes: 'Version 3: get_facts cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first.'
 
   - id: gs-definition-active-customers
     area: area_sandbox
@@ -1127,7 +1132,7 @@ cases:
       - 'Separates the general definition from the market notes'
       - 'Says the Mexico notes disagree and apply to Mexico only'
     source: 'Vocabulary: a metric with a Cube description and a conflict pair in one market'
-    notes: "Version 3: get_context cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first. Version 15: the demo world's words (a retailer), with the same expectations."
+    notes: "Version 3: get_facts cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first. Version 15: the demo world's words (a retailer), with the same expectations."
 
   - id: gs-definition-on-time-shipping-undescribed
     area: area_sales
@@ -1246,7 +1251,7 @@ cases:
       - 'Does not claim the definition changed or stayed the same unless a delivered item or link says so'
       - 'Names where the definition lives'
     source: 'Vocabulary: a Cube member whose definition changed at the newest read (cube-model.ts changedDefinitions)'
-    notes: 'Known gap: the change of a Cube definition is shown to owners (needs a check) but no agent reply says it. Version 3: get_context keeps the link that names the Cube source when it cuts, and gives a definition question the definition first.'
+    notes: 'Known gap: the change of a Cube definition is shown to owners (needs a check) but no agent reply says it. Version 3: get_facts keeps the link that names the Cube source when it cuts, and gives a definition question the definition first.'
 
   - id: gs-definition-roas-what-heed-adds
     area: area_paid_media
@@ -1309,7 +1314,7 @@ cases:
     rubrics:
       - 'Says GMV is gross sales'
     source: 'Fixture alias GMV; vocabulary and Cube definition'
-    notes: "Version 3: get_context cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first. Version 15: the demo world's words (a retailer), with the same expectations."
+    notes: "Version 3: get_facts cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first. Version 15: the demo world's words (a retailer), with the same expectations."
 
   # ---- 14. Conversations: follow-ups, a correction, "and for Spain?". ---------------------
   - id: gs-conversation-orders-and-spain
@@ -1355,7 +1360,7 @@ cases:
           must_cite: [itm_9omvkhl1]
           must_not_cite: [itm_yakb4kwg]
         rubrics:
-          - 'Keeps the metric and the week from the first question and asks get_context again for Spain'
+          - 'Keeps the metric and the week from the first question and asks get_facts again for Spain'
     source: 'Library: the same metric in two markets, each with its own note'
 
   - id: gs-conversation-discount-cost-correction
@@ -1447,7 +1452,7 @@ cases:
           must_cite: [itm_ug150h5h]
           caveat: Churn rate lags by one day in the source tool.
     source: 'Vocabulary, then library: from a definition to a data question'
-    notes: 'Version 3: get_context cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first.'
+    notes: 'Version 3: get_facts cuts the items past max_items before it shortens links, keeps the link that names the Cube source, and gives a definition question the definition first.'
 
   - id: gs-conversation-units-sold-clarify
     area: area_sales
@@ -1488,7 +1493,7 @@ cases:
         rubrics:
           - 'Says units sold for 3 to 14 August is not reliable'
     source: 'Library: a clarifying question, then the demo issue on France units sold'
-    notes: "Version 7: get_context reads a question without dates at today and says so (the captain's decision after round 4), so the first call gives what applies to units sold today, cut to the item limit, with the sentence that says it; asking which market and period is still the good answer. Version 14: the sentence names the whole month (voice guide)."
+    notes: "Version 7: get_facts reads a question without dates at today and says so (the captain's decision after round 4), so the first call gives what applies to units sold today, cut to the item limit, with the sentence that says it; asking which market and period is still the good answer. Version 14: the sentence names the whole month (voice guide)."
 
   - id: gs-conversation-margin-date-correction
     area: area_sandbox
@@ -1530,7 +1535,7 @@ cases:
         answer:
           must_cite: [itm_sq1l7j9x]
         rubrics:
-          - "Asks get_context again for September instead of reusing the week's answer"
+          - "Asks get_facts again for September instead of reusing the week's answer"
     source: 'Library: a correction of the dates'
 
   # ---- 15. Handoff: an agent names what it just queried in the data tool (CON-517). ------------
@@ -1637,7 +1642,7 @@ assistant:
     turns:
       - say: What context applies to orders in the United Kingdom from 1 to 7 October 2026?
         expect:
-          tools_any: [get_context, explain_item]
+          tools_any: [get_facts, explain_item]
           cites_any: true
     source: 'cases.ts explain-delivery, with a fixed subject'
 
@@ -1659,7 +1664,7 @@ assistant:
     turns:
       - say: Why does itm_q2upr28v not apply to net revenue in Spain from 1 to 7 October 2026?
         expect:
-          tools_any: [explain_item, get_context, read_item]
+          tools_any: [explain_item, get_facts, read_item]
           cites: [itm_q2upr28v]
         rubrics:
           - 'Says the item ended on 30 September 2026'
@@ -1719,9 +1724,9 @@ assistant:
     turns:
       - say: Which facts apply to orders in Poland last week?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
         rubrics:
-          - 'Asks get_context for 28 September to 4 October 2026, counted from today'
+          - 'Asks get_facts for 28 September to 4 October 2026, counted from today'
     source: 'cases.ts last-week, with a fixed subject'
 
   - id: own-identity
@@ -1739,7 +1744,7 @@ assistant:
     type: assistant_task
     as_of: '2026-10-07'
     turns:
-      - say: "What is this?\nScope picked in Heed for this question, as get_context fields: {\"dimension_filters\":[{\"dimension\":\"dim:market\",\"values\":[]}]}"
+      - say: "What is this?\nScope picked in Heed for this question, as get_facts fields: {\"dimension_filters\":[{\"dimension\":\"dim:market\",\"values\":[]}]}"
         expect:
           tools_none: [create_draft]
         rubrics:
@@ -1765,7 +1770,7 @@ assistant:
     turns:
       - say: What does Orders mean, and where does that definition come from?
         expect:
-          tools_any: [find_context]
+          tools_any: [find_facts]
         rubrics:
           - "Gives the definition in the source's words and names where it comes from"
           - 'Says what Heed adds: the governed items about it'
@@ -1790,7 +1795,7 @@ assistant:
     turns:
       - say: I was just made a deputy owner. What should I look at first?
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_identity: true
         rubrics:
           - "Starts from the person's own domains, what needs a look and the open gaps"
@@ -1844,12 +1849,12 @@ assistant:
     turns:
       - say: What does gross margin mean?
         expect:
-          tools_any: [find_context]
+          tools_any: [find_facts]
         rubrics:
           - "Gives Cube's description of basket.gross_margin in its words and says it comes from Cube"
           - 'Does not make up a formula it was not given'
     source: 'Captain: plain definition questions'
-    notes: 'Version 2: find_context (W5) returns the Cube description and its origin, so the case expects it.'
+    notes: 'Version 2: find_facts (W5) returns the Cube description and its origin, so the case expects it.'
 
   - id: conversation-and-spain
     origin: new
@@ -1858,11 +1863,11 @@ assistant:
     turns:
       - say: What should I know about the United Kingdom orders this week?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           cites: [itm_yakb4kwg]
       - say: And for Spain?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           cites: [itm_9omvkhl1]
         rubrics:
           - 'Keeps orders and the week from the first question'
@@ -1875,11 +1880,11 @@ assistant:
     turns:
       - say: Is the Netherlands discount cost complete for yesterday?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           cites: [itm_1y8znds2]
       - say: Sorry, Poland, not the Netherlands.
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           cites: [itm_gssupbon1]
         rubrics:
           - 'Does not carry the Netherlands caveat over to Poland'
@@ -1892,7 +1897,7 @@ assistant:
     turns:
       - say: What applies to first-time buyers in the Netherlands this week?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           cites: [itm_gstwoevt1, itm_gstwolag1]
       - say: So did the new provider cause the drop?
         expect: {}
@@ -1909,7 +1914,7 @@ assistant:
     turns:
       - say: anything i should know about united_kingdom orders last week?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           asks_no_identity: true
         rubrics:
           - "Takes last week as 28 September to 4 October 2026, counted from today and not from the edition's date"
@@ -1922,7 +1927,7 @@ assistant:
     turns:
       - say: who owns the revenue numbers, who do i call
         expect:
-          tools_any: [find_context, domain_overview, get_context]
+          tools_any: [find_facts, domain_overview, get_facts]
           forbidden_phrases: [Heed has no items about revenue]
         rubrics:
           - "Names the owner of the domain of net revenue from Heed's context for the turn; Heed's tools give the role, never a name"
@@ -1950,8 +1955,8 @@ assistant:
         expect:
           tools_none:
             [
-              get_context,
-              find_context,
+              get_facts,
+              find_facts,
               explain_item,
               read_item,
               domain_overview,
@@ -1974,13 +1979,13 @@ assistant:
     turns:
       - say: Which facts apply to Average order value in Netherlands in September 2026?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
       - say: say it simpler
         expect:
           tools_none:
             [
-              get_context,
-              find_context,
+              get_facts,
+              find_facts,
               explain_item,
               read_item,
               domain_overview,
@@ -1996,8 +2001,8 @@ assistant:
         expect:
           tools_none:
             [
-              get_context,
-              find_context,
+              get_facts,
+              find_facts,
               explain_item,
               read_item,
               domain_overview,
@@ -2017,13 +2022,13 @@ assistant:
     turns:
       - say: Which facts apply to Average order value in Netherlands in September 2026?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
       - say: why?
         expect:
           tools_none:
             [
-              get_context,
-              find_context,
+              get_facts,
+              find_facts,
               explain_item,
               read_item,
               domain_overview,
@@ -2043,13 +2048,13 @@ assistant:
     turns:
       - say: Which facts apply to Average order value in Netherlands in September 2026?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
       - say: thanks!
         expect:
           tools_none:
             [
-              get_context,
-              find_context,
+              get_facts,
+              find_facts,
               explain_item,
               read_item,
               domain_overview,
@@ -2063,7 +2068,7 @@ assistant:
           - 'Acknowledges the thanks in one short line, with no list of facts'
       - say: and for Spain?
         expect:
-          tools_any: [get_context, find_context]
+          tools_any: [get_facts, find_facts]
     source: 'Captain, 20 Oct 2026: thanks is about the chat, and a question after it is a question again'
 
   - id: companion-change-first-sentence
@@ -2073,7 +2078,7 @@ assistant:
     turns:
       - say: Why did average order value drop in Netherlands in September 2026?
         expect:
-          tools_any: [get_context]
+          tools_any: [get_facts]
           forbidden_phrases: [caused by, because of the, the cause was]
         rubrics:
           - 'Its first sentence says plainly that the facts cannot show whether average order value dropped in the Netherlands, or why'
@@ -2092,7 +2097,7 @@ assistant:
     turns:
       - say: what can you do
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Says what it can do and what it will not do'
@@ -2106,7 +2111,7 @@ assistant:
     turns:
       - say: hi
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Greets the person and says briefly what it can help with'
@@ -2119,7 +2124,7 @@ assistant:
     turns:
       - say: help
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Says what it can help with and gives an example question the person could ask'
@@ -2132,7 +2137,7 @@ assistant:
     turns:
       - say: how does this work?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Explains in plain words what Heed holds and how the assistant helps with it'
@@ -2145,7 +2150,7 @@ assistant:
     turns:
       - say: who are you?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - "Says it is Heed's assistant and what it is for"
@@ -2158,7 +2163,7 @@ assistant:
     turns:
       - say: what domains exist?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
           forbidden_phrases: ['is live', 'not live', 'not started', 'go live', 'starting']
         rubrics:
@@ -2173,7 +2178,7 @@ assistant:
     turns:
       - say: thanks!
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Acknowledges the thanks briefly'
@@ -2186,7 +2191,7 @@ assistant:
     turns:
       - say: tell me a joke
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Brings the conversation back to what it helps with in Heed'
@@ -2199,7 +2204,7 @@ assistant:
     turns:
       - say: what can I ask you?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Gives at least one example question the person could ask'
@@ -2212,7 +2217,7 @@ assistant:
     turns:
       - say: what do you know about?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Names the domains Heed holds, or what kinds of facts it holds'
@@ -2225,7 +2230,7 @@ assistant:
     turns:
       - say: how do I add something?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Says how to add a fact in Heed, by hand or by asking the assistant to draft it'
@@ -2239,7 +2244,7 @@ assistant:
     turns:
       - say: Good morning! What can you help me with?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Says what it can help with, without asking which metric, market or dates are meant'
@@ -2252,7 +2257,7 @@ assistant:
     turns:
       - say: what's the weather like today?
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
         rubrics:
           - 'Says the weather is outside what it helps with, and offers what it can do'
@@ -2265,7 +2270,7 @@ assistant:
     turns:
       - say: hello
         expect:
-          tools_none: [get_context, improve_question, create_draft]
+          tools_none: [get_facts, improve_question, create_draft]
           asks_no_scope: true
       - say: Why did revenue go down?
         expect:
@@ -2339,7 +2344,7 @@ assistant:
     turns:
       - say: show me Stores & Suplliers metrics and dimensions
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_scope: true
           forbidden_phrases: [invented, I did understand, nothing changes]
         rubrics:
@@ -2357,7 +2362,7 @@ assistant:
     turns:
       - say: show me Stores & Suppliers metrics and dimensions
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_scope: true
           forbidden_phrases: [invented, I did understand, nothing changes]
         rubrics:
@@ -2374,7 +2379,7 @@ assistant:
     turns:
       - say: show me stores and suppliers metrics and dimensions
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_scope: true
           forbidden_phrases: [invented, I did understand, nothing changes]
         rubrics:
@@ -2390,7 +2395,7 @@ assistant:
     turns:
       - say: show me Stors & Suppliers metrics and dimensions
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_scope: true
           forbidden_phrases: [invented, I did understand, nothing changes]
         rubrics:
@@ -2406,7 +2411,7 @@ assistant:
     turns:
       - say: show me Stores & Suppliers metrics and dimensions
         expect:
-          tools_any: [domain_overview, find_context]
+          tools_any: [domain_overview, find_facts]
           asks_no_scope: true
           forbidden_phrases: [invented, I did understand, nothing changes]
         rubrics:
@@ -2465,7 +2470,7 @@ assistant:
           links_any: [/docs/mcp, /docs/glossary]
           forbidden_phrases: [About our business]
         rubrics:
-          - 'Says MCP stands for "Model Context Protocol", the way an AI app uses tools in other systems such as Heed'
+          - 'Says MCP stands for "Model Context Protocol", the way an agent uses tools in other systems such as Heed'
     source: 'Captain, 15 Oct 2026: the assistant and AI apps answer how Heed works from the Docs pages, with a link (stage 3)'
 
   - id: help-what-is-heed
@@ -2481,7 +2486,7 @@ assistant:
           links_any: [/docs/what-is-heed]
           forbidden_phrases: [About our business]
         rubrics:
-          - 'Says Heed holds the facts the numbers do not show, which the "owner" of that part of the business checks before AI apps read them'
+          - 'Says Heed holds the facts the numbers do not show, which the "owner" of that part of the business checks before agents read them'
     source: 'Captain, 15 Oct 2026: the assistant and AI apps answer how Heed works from the Docs pages, with a link (stage 3)'
 
   - id: help-what-is-an-edition
@@ -2509,7 +2514,7 @@ assistant:
           tools_any: [search_help]
           tools_none: [create_draft]
           asks_no_scope: true
-          links_any: [/docs/connect-your-ai-app, /docs/mcp]
+          links_any: [/docs/connect-an-agent, /docs/mcp]
         rubrics:
           - 'Says the person needs Heed''s "address" and links the guide that has the steps'
     source: 'Captain, 15 Oct 2026: the assistant and AI apps answer how Heed works from the Docs pages, with a link (stage 3)'
@@ -2556,7 +2561,7 @@ assistant:
           asks_no_scope: true
           links_any: [/docs/editions, /docs/glossary]
         rubrics:
-          - 'Says an "admin" can stop AI apps getting one fact, one domain or everything'
+          - 'Says an "admin" can stop agents getting one fact, one domain or everything'
     source: 'Captain, 15 Oct 2026: the assistant and AI apps answer how Heed works from the Docs pages, with a link (stage 3)'
 
   - id: help-keeps-questions

@@ -591,10 +591,10 @@ function NothingChanged({ comparison }: { comparison: EditionComparison }) {
       {same
         ? 'Since and Until name one edition, so nothing can differ. Pick an earlier edition under Since.'
         : other
-          ? 'AI apps get the same facts in both. The sentence above says what else changed.'
+          ? 'Agents get the same facts in both. The sentence above says what else changed.'
           : comparison.withheld > 0
             ? "Only facts that some groups can see changed, and those aren't shown here."
-            : 'AI apps get exactly the same facts in both editions.'}
+            : 'Agents get exactly the same facts in both editions.'}
     </ListMessage>
   )
 }

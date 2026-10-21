@@ -46,7 +46,7 @@ export function RetireItemDialog({ item, open, onOpenChange }: Controlled & { it
       title="Archive this fact?"
       effect={
         <>
-          AI apps stop getting it at once. You can still read it and its history.
+          Agents stop getting it at once. You can still read it and its history.
           {mentions > 0 ? (
             <>
               {' '}
@@ -66,7 +66,7 @@ export function RetireItemDialog({ item, open, onOpenChange }: Controlled & { it
       }}
       onConfirm={async ({ reason }) => {
         await retire.mutateAsync({ id: item.id, reason })
-        showToast('Fact archived', 'AI apps no longer get it.')
+        showToast('Fact archived', 'Agents no longer get it.')
       }}
     >
       <Subject item={item} />
@@ -89,7 +89,7 @@ export function ProposeRetirementDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Suggest archiving this fact?"
-      effect={`${decider} decides. AI apps keep getting the fact until then.`}
+      effect={`${decider} decides. Agents keep getting the fact until then.`}
       action="Suggest archiving"
       actionIcon={SendIcon}
       reason={{
@@ -140,8 +140,8 @@ export function RecheckItemDialog({
       title={stillGoingOn ? 'Is this still going on?' : 'Checked, still correct?'}
       effect={
         stillGoingOn
-          ? `The fact stays as written, and AI apps get it as current again.${high ? " Because it's high risk, an approver confirms it first." : ''}`
-          : `You checked the fact against its source. It stays as written, and AI apps are no longer told it may be out of date.${high ? " Because it's high risk, an approver confirms it first." : ''}`
+          ? `The fact stays as written, and agents get it as current again.${high ? " Because it's high risk, an approver confirms it first." : ''}`
+          : `You checked the fact against its source. It stays as written, and agents are no longer told it may be out of date.${high ? " Because it's high risk, an approver confirms it first." : ''}`
       }
       action={stillGoingOn ? 'Yes, still going on' : 'Checked, still correct'}
       actionIcon={CheckIcon}
@@ -154,11 +154,11 @@ export function RecheckItemDialog({
       onConfirm={async ({ reason }) => {
         const result = await recheck.mutateAsync({ id: item.id, reason })
         rememberCheckReason(personId, kind, reason)
-        if (result.edition) showToast('Check recorded', 'AI apps get the checked fact now.')
+        if (result.edition) showToast('Check recorded', 'Agents get the checked fact now.')
         else
           showToast(
             'Check recorded',
-            'AI apps get it once its answer tests pass and an approver accepts it.',
+            'Agents get it once its answer tests pass and an approver accepts it.',
           )
         onChecked?.()
       }}

@@ -61,7 +61,7 @@ export async function liveEdition(tx: Queryable): Promise<Edition> {
   const [row] = await tx.query<Edition>(
     `select ${editionFields} from editions e join live_edition l on l.seq=e.seq`,
   )
-  if (!row) throw new ORPCError('NOT_FOUND', { message: 'Nothing is shared with AI apps yet.' })
+  if (!row) throw new ORPCError('NOT_FOUND', { message: 'Nothing is shared with agents yet.' })
   return row
 }
 
@@ -167,7 +167,7 @@ export async function rollbackTo(tx: Queryable, label: string, note: string): Pr
   const target = await editionByLabel(tx, label)
   if (target.live)
     // eslint-disable-next-line heed/plain-words -- shown only on the Editions page
-    throw new ORPCError('CONFLICT', { message: 'AI apps already get this edition.' })
+    throw new ORPCError('CONFLICT', { message: 'Agents already get this edition.' })
   // Every version served again passes the serving rules once more (FR-205). Name the ones that
   // would not, instead of letting the database guard fail the whole transaction.
   const blocked = await blockedVersions(tx, target.seq)
@@ -179,7 +179,7 @@ export async function rollbackTo(tx: Queryable, label: string, note: string): Pr
         : ''
     throw new ORPCError('CONFLICT', {
       // eslint-disable-next-line heed/plain-words -- shown only on the Editions page
-      message: `You can't go back to edition ${label}. ${first!.title === null ? 'A fact' : `"${first!.title}"`} (version ${first!.version}) can't be shared with AI apps again: ${first!.problem}.${others}`,
+      message: `You can't go back to edition ${label}. ${first!.title === null ? 'A fact' : `"${first!.title}"`} (version ${first!.version}) can't be shared with agents again: ${first!.problem}.${others}`,
       data: { blocked },
     })
   }

@@ -79,7 +79,7 @@ export function HomeSearch({
 
   const facts = useMemo(() => factSuggestions(rows, trimmed, viewer), [rows, trimmed, viewer])
   const words = factQuery(trimmed)
-  // What the words name, read by the service as get_context reads a question, so Try it opens on
+  // What the words name, read by the service as get_facts reads a question, so Try it opens on
   // it. Asked once typing rests; the question is never stored or put in an address (FR-602).
   const settled = useDebouncedValue(trimmed, READ_DEBOUNCE_MS)
   const reading = useQuery({
@@ -274,7 +274,7 @@ export function HomeSearch({
               {facts.total === 0 ? (
                 <p aria-hidden="true" className="px-3 py-2 text-dense text-muted-foreground">
                   {read
-                    ? `No facts match “${trimmed}”. Ask the assistant, or try the question to see what AI apps get.`
+                    ? `No facts match “${trimmed}”. Ask the assistant, or try the question to see what agents get.`
                     : `No facts match “${trimmed}”. Ask the assistant, or try fewer words.`}
                 </p>
               ) : null}
@@ -340,7 +340,7 @@ export function HomeSearch({
                   />
                   <span className="flex min-w-0 flex-1 flex-col gap-1 @lg:flex-row @lg:items-center @lg:gap-3">
                     <span className="min-w-0 flex-1 truncate">
-                      {`Try a question: what do AI apps get for “${trimmed}”?`}
+                      {`Try a question: what do agents get for “${trimmed}”?`}
                     </span>
                     {read ? (
                       <span
@@ -353,7 +353,7 @@ export function HomeSearch({
                   </span>
                   {enterHint(index === current)}
                 </>,
-                `Try a question: what do AI apps get for “${trimmed}”?${read ? ` Read as ${read.words}.` : ''}`,
+                `Try a question: what do agents get for “${trimmed}”?${read ? ` Read as ${read.words}.` : ''}`,
               )}
             </div>
           </div>

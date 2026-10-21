@@ -334,7 +334,7 @@ function RestoreDomainDialog({
   const gives = [
     area.team ? `its team gets ${area.team === 1 ? 'its role' : 'their roles'} back` : null,
     area.terms
-      ? `AI apps get ${area.terms === 1 ? 'its name' : `its ${area.terms.toLocaleString('en')} names`} again`
+      ? `Agents get ${area.terms === 1 ? 'its name' : `its ${area.terms.toLocaleString('en')} names`} again`
       : null,
   ].filter(Boolean)
   const items = restored?.binnedItems ?? []
@@ -376,7 +376,7 @@ function RestoreDomainDialog({
                     {restored.team
                       ? `, and ${restored.team === 1 ? 'one person has their role' : `${restored.team} people have their roles`} back`
                       : ''}
-                    {restored.edition ? '. AI apps get its names again' : ''}.
+                    {restored.edition ? '. Agents get its names again' : ''}.
                   </p>
                   {items.length ? (
                     itemsBack ? (

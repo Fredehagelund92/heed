@@ -248,8 +248,8 @@ function ItemChange({
               {data.from
                 ? editions
                   ? 'Between the two runs the strip above compares.'
-                  : 'Between what AI apps got before and what they get today.'
-                : 'New: the first time AI apps got it.'}
+                  : 'Between what agents got before and what they get today.'
+                : 'New: the first time agents got it.'}
             </span>
           </p>
           <EditionChangeCard comparison={data} lookups={lookups} header={false} />

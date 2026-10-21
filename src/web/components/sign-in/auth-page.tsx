@@ -4,7 +4,7 @@ import { Page, PageContent } from '@/components/page/page'
 
 /**
  * The frame of the pages that stand outside the shell because nothing on them needs a session:
- * the sign-in page and the AI app consent screen. One card on the quiet sidebar surface, centred
+ * the sign-in page and the agent consent screen. One card on the quiet sidebar surface, centred
  * across at every width and at the top of the page, so the sign-in's list of people opens below
  * its field with room for about ten people. The 32 pixel lockup sits 24 above the heading
  * (docs/design/logo.md).

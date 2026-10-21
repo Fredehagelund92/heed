@@ -12,9 +12,9 @@ export const helpTargets = [
   // Connect your AI, and Administration › MCP and gateway
   'mcp',
   'glossary#tool',
-  'connect-your-ai-app',
-  'connect-your-ai-app#steps',
-  'connect-your-ai-app#ask-first',
+  'connect-an-agent',
+  'connect-an-agent#steps',
+  'connect-an-agent#ask-first',
   // Add context and Proposals › Mine
   'add-your-first-context',
   // The review page and Proposals › To review

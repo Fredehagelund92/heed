@@ -17,10 +17,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 /*
-  The AI apps that called Heed this week (FR-410), in Health and on the gateway's Activity tab:
+  The agents that called Heed this week (FR-410), in Health and on the gateway's Activity tab:
   per app family, its tool calls and how many of them needed more detail, matched nothing, were
   malformed (arguments the tool could not read, the clearest sign of a weaker model) or failed
-  on Heed's side. A family is the kind of app from a fixed list, never the app's own name, its
+  on Heed's side. A family is the kind of agent from a fixed list, never the agent's own name, its
   version or who used it. Each week is counted on its own and a count below the minimum shows as
   "Fewer than" it (FR-614), so no hidden count can be worked out from two periods.
 */
@@ -35,7 +35,7 @@ const measures: (GridColumn & { key: Measure })[] = [
   { key: 'errors', icon: CircleAlertIcon, title: 'Errors', className: 'flex-1' },
 ]
 const columns: GridColumn[] = [
-  { icon: BotIcon, title: 'AI app', className: 'w-column-domain' },
+  { icon: BotIcon, title: 'Agent', className: 'w-column-domain' },
   { icon: HashIcon, title: 'Calls', className: 'flex-1' },
   ...measures,
 ]
@@ -46,7 +46,7 @@ function Count({ count, minimum }: { count: number | null; minimum: number }) {
   return (
     <span
       data-slot="hidden-count"
-      title={`Counts below ${minimum} are hidden, so no one can tell who used an app.`}
+      title={`Counts below ${minimum} are hidden, so no one can tell who used an agent.`}
       className="text-muted-foreground"
     >
       Fewer than {minimum}
@@ -89,17 +89,17 @@ const ordered = (rows: readonly Row[]) =>
   )
 
 /**
- * This week's calls per AI app, with the states of its read: loading, failed, none yet. The
+ * This week's calls per agent, with the states of its read: loading, failed, none yet. The
  * caller gives the heading.
  */
 export function AppFamiliesThisWeek() {
   const counts = useQuery(appFamilyCountsQuery({ weeks: 1 }))
   if (counts.isPending)
-    return <Skeleton role="status" aria-label="Loading the AI apps" className="h-16 w-full" />
+    return <Skeleton role="status" aria-label="Loading the agents" className="h-16 w-full" />
   if (!counts.data)
     return (
       <p className="text-body text-muted-foreground">
-        We couldn't load the AI apps.{' '}
+        We couldn't load the agents.{' '}
         <button type="button" className="underline" onClick={() => void counts.refetch()}>
           Try again
         </button>
@@ -110,14 +110,14 @@ export function AppFamiliesThisWeek() {
   if (!rows.length)
     return (
       <p className="text-body text-muted-foreground">
-        No AI app has called the tools this week. Calls are counted here once an app such as Claude
+        No agent has called the tools this week. Calls are counted here once an agent such as Claude
         Code or ChatGPT uses them.
       </p>
     )
   return (
     <>
       <GridTable
-        label="Tool calls this week per AI app"
+        label="Tool calls this week per agent"
         slot="app-families"
         header={<GridHeaderCells columns={columns} />}
       >
@@ -149,18 +149,18 @@ export function AppFamiliesThisWeek() {
         ))}
       </GridTable>
       <p className="text-caption text-muted-foreground">
-        We count each app by its kind, from a fixed list, never by its own name or who used it.
-        Unreadable calls had arguments the tool couldn&apos;t read. Less capable AI apps send more
-        of them. We hide counts below {minimum}, so nobody can tell who used an app.
+        We count each agent by its kind, from a fixed list, never by its own name or who used it.
+        Unreadable calls had arguments the tool couldn&apos;t read. Less capable agents send more of
+        them. We hide counts below {minimum}, so nobody can tell who used an agent.
       </p>
     </>
   )
 }
 
-/** Health's overview of every domain: this week's AI apps, under the assistant's ratings. */
+/** Health's overview of every domain: this week's agents, under the assistant's ratings. */
 export function AppFamiliesOverview() {
   return (
-    <RecordSection title="AI apps this week" icon={BotIcon}>
+    <RecordSection title="Agents this week" icon={BotIcon}>
       <AppFamiliesThisWeek />
     </RecordSection>
   )

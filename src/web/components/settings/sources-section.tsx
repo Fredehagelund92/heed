@@ -101,7 +101,7 @@ const inlineLink = 'text-brand-ink underline underline-offset-4 hover:decoration
 
 /**
  * Sources (integrations decision, 12 October 2026): the tools Heed reads from, beside MCP and
- * gateway, which is how AI apps read from Heed. The list shows each source with its status, its
+ * gateway, which is how agents read from Heed. The list shows each source with its status, its
  * last read, what it holds and what needs a look; a source's page (`source=` in the address)
  * shows its status, its issues, what it holds by view, its settings and its recent reads, and
  * reads it again. Everything comes from the operations view (FR-810), so the service's rules for
@@ -203,7 +203,7 @@ function SourceList() {
       </SettingsBlock>
       <ComingSoonBlock />
       <p className="max-w-reading text-dense text-muted-foreground" data-slot="sources-elsewhere">
-        AI apps that read these facts are in{' '}
+        Agents that read these facts are in{' '}
         <Link to="/admin" search={{ section: 'gateway' }} className={inlineLink}>
           MCP and gateway
         </Link>
@@ -594,7 +594,7 @@ function IssuesBlock({ issues, read }: { issues: readonly SourceIssue[]; read: b
     <SettingsBlock
       title="Issues"
       slot="source-issues"
-      description="What the last read couldn't settle. AI apps still get every accepted fact."
+      description="What the last read couldn't settle. Agents still get every accepted fact."
     >
       {!read ? (
         <p className="flex items-center gap-2 text-dense text-muted-foreground">

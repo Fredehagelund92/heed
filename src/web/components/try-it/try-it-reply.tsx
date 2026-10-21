@@ -36,10 +36,10 @@ import type { FactPanelState } from './fact-panel'
 
 /*
   The reply of What an agent would get (Assistant board, direction A, with the Try it frames): the
-  outcome and the live edition, the counts in one line, the sentence the AI app may say to the
+  outcome and the live edition, the counts in one line, the sentence the agent may say to the
   person (`say`), the facts delivered in their rank order, and the next step and instructions the
   agent is told word for word. Each part folds, so a long list does not
-  push the instructions out of reach. Nothing here is a model's: it is get_context's reply.
+  push the instructions out of reach. Nothing here is a model's: it is get_facts's reply.
 */
 
 function Note({
@@ -173,14 +173,14 @@ function Fact({
         <ReviewStamp view={stamp} domain={domain?.name} />
         {fact.verified ? null : (
           <Note icon={TriangleAlertIcon} tone="warning">
-            AI apps are told this fact may be out of date: its source changed or its check date
+            Agents are told this fact may be out of date: its source changed or its check date
             passed.
           </Note>
         )}
         {conflicts.length ? (
           <Note icon={TriangleAlertIcon} tone="warning">
-            It says something different from {conflicts.map((rank) => `#${rank}`).join(' and ')}. AI
-            apps are told they conflict.
+            It says something different from {conflicts.map((rank) => `#${rank}`).join(' and ')}.
+            Agents are told they conflict.
           </Note>
         ) : null}
       </div>
@@ -192,7 +192,7 @@ const inlineLink = 'text-brand-ink underline underline-offset-4 hover:no-underli
 
 /**
  * Where the facts end: a person who knows one that is missing writes it down, and anyone can
- * tell the owners that AI apps fall short here (Report a gap, FR-606 case 5).
+ * tell the owners that agents fall short here (Report a gap, FR-606 case 5).
  */
 function NextSteps({
   tried,
@@ -223,7 +223,7 @@ function NextSteps({
       <Link to="/library/new" search={draftSearch(tried)} onClick={onLeave} className={inlineLink}>
         Start a draft
       </Link>{' '}
-      about this. Is something wrong with what AI apps get?{' '}
+      about this. Is something wrong with what agents get?{' '}
       <button type="button" onClick={onReport} className={cn(inlineLink, 'rounded-sm')}>
         Report a gap
       </button>
@@ -289,7 +289,7 @@ export function TryItReply({
       {reply.say ? (
         <figure data-slot="try-it-say" className="flex flex-col gap-1">
           <figcaption className="text-caption text-muted-foreground">
-            What the AI app tells you
+            What the agent tells you
           </figcaption>
           <blockquote className="border-l-2 border-border pl-3 text-reading break-words">
             {reply.say}
@@ -299,8 +299,8 @@ export function TryItReply({
       {reply.assumedDay ? (
         <Note icon={InfoIcon}>
           You didn&apos;t choose dates, so this is what applies today,{' '}
-          {formatDay(reply.assumedDay, 'long')}. AI apps are told to say so. Add a first and last
-          day to see another period.
+          {formatDay(reply.assumedDay, 'long')}. Agents are told to say so. Add a first and last day
+          to see another period.
         </Note>
       ) : null}
       {reply.needs.length ? (
@@ -318,15 +318,15 @@ export function TryItReply({
           title="Nothing is written down for this"
           action={<NextSteps tried={tried} onLeave={onLeave} onReport={report} prominent />}
         >
-          No checked fact applies to {about || 'this question'}. AI apps are told so, which doesn’t
+          No checked fact applies to {about || 'this question'}. Agents are told so, which doesn’t
           mean nothing happened. If you know something that changes these numbers, write it down:
-          the owner of its domain checks it before AI apps get it. If not, report a gap so the
-          owners know AI apps find nothing here.
+          the owner of its domain checks it before agents get it. If not, report a gap so the owners
+          know agents find nothing here.
         </AbsenceLine>
       ) : null}
       {found && reply.delivered.length ? (
-        <Part title="What the AI app gets" count={reply.delivered.length} slot="try-it-delivered">
-          <ol aria-label="What the AI app gets, in order" className="flex flex-col divide-y">
+        <Part title="What the agent gets" count={reply.delivered.length} slot="try-it-delivered">
+          <ol aria-label="What the agent gets, in order" className="flex flex-col divide-y">
             {reply.delivered.map((fact) => (
               <Fact
                 key={fact.id}
@@ -340,8 +340,8 @@ export function TryItReply({
             ))}
           </ol>
           <p className="border-t px-4 py-3 text-caption text-muted-foreground">
-            An owner accepted each fact before AI apps got it. AI apps read who as a role, such as
-            the owner of a domain, never a person&apos;s name.
+            An owner accepted each fact before agents got it. Agents read who as a role, such as the
+            owner of a domain, never a person&apos;s name.
           </p>
         </Part>
       ) : null}
@@ -351,14 +351,14 @@ export function TryItReply({
             ? 'Held back: facts for other people, stopped facts, and high-risk facts not checked yet. '
             : ''}
           {reply.cut ? "Left out: facts that apply but didn't fit in one reply. " : ''}
-          The AI app gets only how many there are.
+          The agent gets only how many there are.
         </Note>
       ) : null}
       {found ? (
         <NextSteps tried={tried} onLeave={onLeave} onReport={report} prominent={false} />
       ) : null}
       {reply.instructions || reply.next ? (
-        <Part title="What the AI app is told" slot="try-it-instructions">
+        <Part title="What the agent is told" slot="try-it-instructions">
           <div className="flex flex-col gap-2 p-4">
             {reply.next ? (
               <p data-slot="try-it-next" className="text-dense break-words">
@@ -366,7 +366,7 @@ export function TryItReply({
               </p>
             ) : null}
             {reply.instructions ? (
-              <CopyBlock text={reply.instructions} label="what the AI app is told" />
+              <CopyBlock text={reply.instructions} label="what the agent is told" />
             ) : null}
             <p className="text-caption text-muted-foreground">
               {reply.statements.join(' ')}

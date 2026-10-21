@@ -5,11 +5,11 @@
   <img alt="Heed" src="docs/images/heed-lockup-light.svg" height="56">
 </picture>
 
-### The facts behind your numbers, checked before AI apps read them.
+### The facts behind your numbers, checked before AI agents read them.
 
-Heed is a library of facts that AI apps read before they answer questions about your data.<br>
+Heed is a library of facts that AI agents read before they answer questions about your data.<br>
 People write down what the numbers don't show, the owner of each domain checks it,<br>
-and AI apps get only what was accepted, each fact with its source.
+and agents get only what was accepted, each fact with its source.
 
 <!-- Live demo: when the hosted mock site is up, put this at the start of the link row below:
 [**Live demo**](https://LIVE-DEMO-ADDRESS) &nbsp;·&nbsp; -->
@@ -32,12 +32,12 @@ and AI apps get only what was accepted, each fact with its source.
 ## Why Heed
 
 Company data shows what happened to a number. It rarely shows why. A market closed, a tool changed how it
-counts, a partner's data came in late. People know this. An AI app can't see it, so it guesses, and a guess can
+counts, a partner's data came in late. People know this. An agent can't see it, so it guesses, and a guess can
 sound sure of itself.
 
 > Orders in Norway fell to almost nothing after 4 August.
 >
-> **Without Heed**, an AI app may blame weaker marketing and suggest you check the campaign budget.<br>
+> **Without Heed**, an agent may blame weaker marketing and suggest you check the campaign budget.<br>
 > **With Heed**, it reads a fact: _a new customs rule stopped all online sales to Norway from 4 August 2026_,
 > with a link to the notice, the owner who accepted it, and a line on what not to conclude.
 
@@ -47,13 +47,13 @@ retailer that sells in twelve real countries.
 ## How it works
 
 <p align="center">
-  <img alt="The loop: anyone writes a fact, the owner checks it, AI apps get it at once, AI apps read it before answering, and a question that found nothing counts as a gap that people fill." src="docs/help/images/heed-loop.svg" width="640">
+  <img alt="The loop: anyone writes a fact, the owner checks it, agents get it at once, agents read it before answering, and a question that found nothing counts as a gap that people fill." src="docs/help/images/heed-loop.svg" width="640">
 </p>
 
 1. **Write.** Anyone writes a short fact: what happened, where it applies, from when, and how we know.
 2. **Review.** The owner of the domain checks it. Four checks run first, so a change doesn't make answers worse.
-3. **Share.** Once accepted, AI apps get it at once, in a new edition. Every change is dated and kept.
-4. **Use.** Your AI app asks Heed over [MCP](docs/help/mcp.md) and gets the facts that apply, with sources.
+3. **Share.** Once accepted, agents get it at once, in a new edition. Every change is dated and kept.
+4. **Use.** Your agent asks Heed over [MCP](docs/help/mcp.md) and gets the facts that apply, with sources.
 5. **Learn.** When no fact applies, the question counts as a gap, without recording who asked.
 
 Heed holds facts, not numbers. [Cube](https://cube.dev) defines your metrics and returns the figures; a fact
@@ -91,7 +91,7 @@ choose a demo person and **Allow**. Ask _"How did orders in Norway change in Oct
   </picture>
 </p>
 
-[Add to your AI app](docs/help/connect-your-ai-app.md) has the details, the [five-minute tour](docs/help/tour.md)
+[Set up an agent](docs/help/connect-an-agent.md) has the details, the [five-minute tour](docs/help/tour.md)
 walks through the product, and [docs/demo.md](docs/demo.md) is the Norway story as a script.
 
 ### Use your own data
@@ -110,7 +110,7 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 <table>
   <tr>
     <td width="33%"><img alt="A proposal waiting for review by the owner of Sales, with all four checks passed" src="docs/images/review.png"></td>
-    <td width="33%"><img alt="Editions: what AI apps get today, and each edition with what changed" src="docs/images/editions.png"></td>
+    <td width="33%"><img alt="Editions: what agents get today, and each edition with what changed" src="docs/images/editions.png"></td>
     <td width="33%"><img alt="Health: what needs an owner first, domain by domain" src="docs/images/health.png"></td>
   </tr>
   <tr>
@@ -123,13 +123,13 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 - **Five kinds of fact.** Event, note, guide, example and issue. Each says where it applies (metric, market,
   dates), links its source with one copied sentence, and says what not to conclude.
 - **Owners, not a free-for-all.** Every fact belongs to one domain, and that domain's owner accepts it. A
-  high-risk fact needs a second yes from an approver. Nothing reaches an AI app on its own.
+  high-risk fact needs a second yes from an approver. Nothing reaches an agent on its own.
 - **Checked before it ships.** Four checks run on every proposal, including test questions that must still
   find the right fact. [Review a proposal](docs/help/review-a-proposal.md).
-- **Editions.** AI apps read a fixed, dated set of accepted facts. Compare two editions, go back to an earlier
+- **Editions.** Agents read a fixed, dated set of accepted facts. Compare two editions, go back to an earlier
   one, or stop one fact, one domain or everything at once. [Editions](docs/help/editions.md).
 - **An MCP server.** Ten tools are on by default, such as _Get facts for a question_, _Search facts_ and
-  _Report something missing_; an admin can turn on two more. AI apps sign in as the person and see only what
+  _Report something missing_; an admin can turn on two more. Agents sign in as the person and see only what
   that person can read. [MCP](docs/help/mcp.md).
 - **No AI picks the facts.** Rules choose what applies from the question's metrics, markets and dates, so the
   same question gets the same facts until someone accepts a change. **Try a question** shows exactly that.
@@ -143,15 +143,15 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 ## How it fits together
 
 <p align="center">
-  <img alt="AI apps such as Claude Code ask Heed over MCP, read only. Heed keeps domains and owners, checks and editions, stores facts and history in PostgreSQL, reads Cube model files, and uses a language model an admin chooses for the assistant and test runs." src="docs/images/architecture.svg" width="640">
+  <img alt="Agents such as Claude Code ask Heed over MCP, read only. Heed keeps domains and owners, checks and editions, stores facts and history in PostgreSQL, reads Cube model files, and uses a language model an admin chooses for the assistant and test runs." src="docs/images/architecture.svg" width="640">
 </p>
 
-| Instead of                       | What breaks                                                       | What Heed does                                                             |
-| -------------------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| A wiki or shared document        | AI apps can't see it, or read a page nobody has checked in a year | Short, dated facts with a source and an owner, delivered over MCP          |
-| Notes in `CLAUDE.md` or a prompt | One copy per tool, no review, no history                          | One library for every AI app, with review, checks and a history            |
-| Search over your documents       | Returns text that looks like the question, with no owner or date  | Returns the facts that apply to the metric, market and dates, or says none |
-| Your semantic layer              | Defines the number, not why it moved                              | Sits beside it: Cube gives the figure, Heed gives the context              |
+| Instead of                       | What breaks                                                      | What Heed does                                                             |
+| -------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| A wiki or shared document        | Agents can't see it, or read a page nobody has checked in a year | Short, dated facts with a source and an owner, delivered over MCP          |
+| Notes in `CLAUDE.md` or a prompt | One copy per tool, no review, no history                         | One library for every agent, with review, checks and a history             |
+| Search over your documents       | Returns text that looks like the question, with no owner or date | Returns the facts that apply to the metric, market and dates, or says none |
+| Your semantic layer              | Defines the number, not why it moved                             | Sits beside it: Cube gives the figure, Heed gives the context              |
 
 Heed is not a data tool: it holds no numbers and runs no queries. It is not a wiki: every fact is short, has a
 source, and its owner checks it. It doesn't watch people: it counts questions by topic, not by person.
@@ -163,7 +163,7 @@ source, and its owner checks it. It doesn't watch people: it counts questions by
 | [What is Heed](docs/help/what-is-heed.md)                  | [Run and operate the service](docs/operations.md): setup and settings |
 | [A five-minute tour](docs/help/tour.md)                    | [MCP and API reference](docs/reference.md)                            |
 | [Add your first fact](docs/help/add-your-first-context.md) | [How AI sign-in works](docs/ai-sign-in.md)                            |
-| [Add to your AI app](docs/help/connect-your-ai-app.md)     | [Evaluations and the golden set](docs/evaluations.md)                 |
+| [Set up an agent](docs/help/connect-an-agent.md)           | [Evaluations and the golden set](docs/evaluations.md)                 |
 | [Common questions](docs/help/common-questions.md)          | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)  |
 | [All help pages](docs/help/README.md)                      | [Security, scanning and the restore drill](docs/security.md)          |
 
@@ -176,8 +176,8 @@ Heed is **pre-1.0**. Expect rough edges and breaking changes.
 
 - It runs on one computer, or on one container host. Sign-in is the demo sign-in: anyone can be an admin, so
   keep it off the internet. Company sign-in is not built yet.
-- Claude Code is the AI app that connects today. Other MCP apps need Heed at an address on the internet; see
-  [Add to your AI app](docs/help/connect-your-ai-app.md).
+- Claude Code is the agent that connects today. Other agents that use MCP need Heed at an address on the internet; see
+  [Set up an agent](docs/help/connect-an-agent.md).
 - The demo runs on scripted mock models and spends nothing. The assistant and test runs can use Anthropic,
   directly or through Vercel's AI Gateway, chosen by an admin.
 - Built with TypeScript on Node 26, Fastify, PostgreSQL 18, React 19 and the official MCP SDK.

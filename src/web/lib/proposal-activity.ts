@@ -283,7 +283,7 @@ export function buildActivity(
             actor: who(event.actorId),
             action: `accepted it${asCapacity(data)}`,
             at: event.at,
-            detail: decidedNote(data, edition ? 'From then on, AI apps get it.' : null),
+            detail: decidedNote(data, edition ? 'From then on, agents get it.' : null),
             body: reason,
           })
         break

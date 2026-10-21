@@ -80,9 +80,9 @@ const riskMeaning: Record<RiskLevel, string> = {
 }
 
 const claimMeaning = {
-  effect_stated: 'A named authority states the effect, so AI apps can say what caused it.',
+  effect_stated: 'A named authority states the effect, so agents can say what caused it.',
   fact_only:
-    "This fact doesn't prove a cause. AI apps may say the two could be related, never that one caused the other.",
+    "This fact doesn't prove a cause. Agents may say the two could be related, never that one caused the other.",
 } as const
 
 const tabNames: Record<ItemTab, string> = {
@@ -372,7 +372,7 @@ export function ItemTabPanels({
                 <FieldRow
                   icon={HeedRetiredIcon}
                   label="Archived"
-                  hint={`${retiredRow ? `On ${formatDay(retiredRow.date)}. ` : ''}It stays in the history, and AI apps don't get it.`}
+                  hint={`${retiredRow ? `On ${formatDay(retiredRow.date)}. ` : ''}It stays in the history, and agents don't get it.`}
                 >
                   {retiredRow?.by ?? 'Not recorded'}
                 </FieldRow>

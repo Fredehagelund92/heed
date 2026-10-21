@@ -46,7 +46,7 @@ export function QuickActions() {
         <li className="flex">
           <Link to="/try-it" className={tile} data-slot="quick-action">
             <TileBody icon={MessageSquareIcon} title="Try a question">
-              See what an AI app gets for it.
+              See what an agent gets for it.
             </TileBody>
           </Link>
         </li>
@@ -64,8 +64,8 @@ export function QuickActions() {
             className={tile}
             data-slot="quick-action"
           >
-            <TileBody icon={PlugIcon} title="Connect an AI app">
-              Let Claude or another AI app use these facts.
+            <TileBody icon={PlugIcon} title="Connect an agent">
+              Let Claude or another agent use these facts.
             </TileBody>
           </Link>
         </li>

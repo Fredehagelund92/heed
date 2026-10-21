@@ -44,7 +44,7 @@ export function evidenceKey(secret: Uint8Array): Buffer {
 /** The result as the client holds it: what JSON keeps of it. */
 const asSent = (output: unknown): unknown => JSON.parse(JSON.stringify(output ?? null)) as unknown
 
-/** The edition a result was read in: get_context, read_item and the others name it at the top. */
+/** The edition a result was read in: get_facts, read_item and the others name it at the top. */
 export function editionOf(output: unknown): string | null {
   const edition = (output as { edition?: unknown } | null)?.edition
   return typeof edition === 'string' ? edition : null

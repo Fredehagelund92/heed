@@ -404,7 +404,7 @@ export function createBinService(tx: Queryable, clock: Clock, proposals: Proposa
       const blocked = back.filter((row) => row.problem)
       if (blocked.length)
         throw new ORPCError('CONFLICT', {
-          message: `${named(blocked.map((row) => row.title))} can't be shared with AI apps again: ${blocked[0]!.problem}. Nothing was restored.`,
+          message: `${named(blocked.map((row) => row.title))} can't be shared with agents again: ${blocked[0]!.problem}. Nothing was restored.`,
         })
       const served = back.filter((row) => row.wasLive)
       const edition = served.length

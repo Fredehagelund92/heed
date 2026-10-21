@@ -46,7 +46,7 @@ import { usePermissions } from '@/lib/use-session'
   and a description in light Markdown, written in the editor item text uses (contract 9.6) with
   mentions off, at the size the record reads it, so what is typed looks as it will show. Its owner, its deputy or an administrator writes them,
   here on the domain's record in Health and in Administration > Domains. People read them on the
-  record; the assistant and AI apps read them with the domain.
+  record; the assistant and agents read them with the domain.
 */
 
 /** The summary and description fields, as the domain's record and Administration edit them. */
@@ -101,9 +101,9 @@ export function DomainAboutFields({
           </FieldLabel>
           <FieldDescription id="area-description-hint">
             What the domain is, what it holds and what it doesn&apos;t, and the words people use for
-            its data: its main metrics and where they come from. People, the assistant and AI apps
+            its data: its main metrics and where they come from. People, the assistant and agents
             read it. Write an event, a note or a rule as a fact instead, so its owners check it, it
-            has dates, and AI apps get it only where it applies. Bold, lists and links work. Never
+            has dates, and agents get it only where it applies. Bold, lists and links work. Never
             name a customer or a colleague.
           </FieldDescription>
         </FieldHeader>
@@ -155,7 +155,7 @@ export function DomainAbout({ area }: { area: Area }) {
         {empty ? (
           <p className="text-body text-muted-foreground">
             {allowed
-              ? 'Nobody has said what this domain is yet. Describe what it covers and what kind of data it holds, so people, the assistant and AI apps know what to find here.'
+              ? 'Nobody has said what this domain is yet. Describe what it covers and what kind of data it holds, so people, the assistant and agents know what to find here.'
               : `Nobody has said what ${area.name} is yet. Its owners write it.`}
           </p>
         ) : (
@@ -242,7 +242,7 @@ export function DescribeDomainDialog({ area, onClose }: { area: Area; onClose: (
               <DialogTitle>Describe {area.name}</DialogTitle>
               <DialogDescription>
                 Say what the domain is, what it holds and what it doesn&apos;t. It shows at once
-                here, in domain pickers, to the assistant and to AI apps. The history log keeps it.
+                here, in domain pickers, to the assistant and to agents. The history log keeps it.
               </DialogDescription>
             </DialogHeader>
             {failure ? (

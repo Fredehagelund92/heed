@@ -149,8 +149,8 @@ export function ValidityRange({
       <Note>
         {ended
           ? lastDay && value.start
-            ? `An ended issue leaves the library's main list. AI apps still get it for questions about ${formatDay(value.start, 'long')} to ${formatDay(lastDay, 'long')}.`
-            : "An ended issue leaves the library's main list. AI apps still get it for questions about its own period."
+            ? `An ended issue leaves the library's main list. Agents still get it for questions about ${formatDay(value.start, 'long')} to ${formatDay(lastDay, 'long')}.`
+            : "An ended issue leaves the library's main list. Agents still get it for questions about its own period."
           : `Without an end date we ask again in ${reviewAfterDays} days: "Is this still going on?" You can set the end date at any time.`}
       </Note>
     </div>

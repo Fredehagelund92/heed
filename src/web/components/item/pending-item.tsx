@@ -22,8 +22,8 @@ export function PendingItem({ proposal }: { proposal: Pick<ProposalRecord, 'id' 
             </EmptyMedia>
             <EmptyTitle>This fact is waiting for review</EmptyTitle>
             <EmptyDescription>
-              It is in proposal #{proposal.number}. It shows in the library, and AI apps get it,
-              once an owner of its domain accepts it.
+              It is in proposal #{proposal.number}. It shows in the library, and agents get it, once
+              an owner of its domain accepts it.
             </EmptyDescription>
           </EmptyHeader>
           <Button

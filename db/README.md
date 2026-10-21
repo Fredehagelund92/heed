@@ -13,7 +13,7 @@ loopback authentication, and the compose file's database trusts its own network;
 
 `db/migrations` holds forward-only SQL. `0001_baseline.sql` is the whole schema: the job queue's,
 then the types, functions, tables and views, the rows a new installation starts with (the proposal
-workflow, the AI app tools and clients, one version of each setting), then the indexes,
+workflow, the agent tools and clients, one version of each setting), then the indexes,
 constraints, triggers and row security. It replaced the migrations that built the schema step by
 step, and a schema-only `pg_dump` of a database it makes equals one of a database they made. A
 database those earlier migrations made cannot be upgraded: the runner refuses it, naming the
@@ -116,7 +116,7 @@ a gap to others only through topic weeks that reach it (full detail only to the 
 
 The anonymity suite is `tests/integration/privacy.test.ts` (column contracts, forbidden column
 names, foreign keys across every schema, hour and UUIDv4 constraints, serving read-back) and the
-runtime canary `tests/integration/canary.test.ts`: one signed-in person makes 1,000 `get_context`
+runtime canary `tests/integration/canary.test.ts`: one signed-in person makes 1,000 `get_facts`
 calls through HTTP and MCP with a marker sentence, a cookie, a user agent and a forwarded address,
 and no new row in any schema, no log line and no export may contain any of them.
 
@@ -170,7 +170,7 @@ own `mcp` proposals, so no counter names anyone, and the person is named only wh
 names its proposer.
 
 `proposals.answers_round` is unique: when the person answers the
-tool's open questions in their AI app (MCP elicitation), the draft is saved once with the id of
+tool's open questions in their agent (MCP elicitation), the draft is saved once with the id of
 that question round, so a replayed request state cannot save a second draft. It sits on the
 proposal, so no other row names the person.
 
@@ -416,9 +416,9 @@ API's requests per minute.
 each person (one token) and for each client label whose `client_policies.rate_per_minute` is
 null, so one person cannot spend everyone's budget.
 
-## AI app families
+## Agent families
 
-`mcp_requests` records the family of the AI app that called
+`mcp_requests` records the family of the agent that called
 (`app_family`), a read tool's outcome (`result_status`: `matched`, `need_more_detail` or
 `no_match`, else null) and the status `invalid_input`, for a tool call whose arguments do not fit
 its schema (FR-410, FR-345). The service maps the name an app sends about itself (MCP

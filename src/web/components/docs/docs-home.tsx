@@ -42,8 +42,8 @@ export function DocsHome({ section }: { section?: DocSectionId }) {
         ) : (
           <>
             <p className="text-reading text-muted-foreground">
-              What {productName} is, how it fits with your AI app, and how to do your part. Read the
-              first three pages in order; the others answer one question each.
+              What {productName} is, how it fits with your AI agent, and how to do your part. Read
+              the first three pages in order; the others answer one question each.
             </p>
             <StartPath docs={docs.data} />
             <HowHeedWorks docs={docs.data} />
@@ -156,13 +156,13 @@ const loopSteps = [
   },
   {
     step: 'Publish',
-    line: 'Accepted facts reach AI apps at once.',
+    line: 'Accepted facts reach agents at once.',
     pages: ['editions'],
   },
   {
     step: 'Use',
-    line: 'Your AI app reads them before it answers.',
-    pages: ['connect-your-ai-app'],
+    line: 'Your agent reads them before it answers.',
+    pages: ['connect-an-agent'],
   },
   {
     step: 'Learn',
@@ -183,13 +183,13 @@ function HowHeedWorks({ docs }: { docs: DocsLibrary }) {
   return (
     <HomeSection title="How it works">
       <p className="text-reading text-muted-foreground">
-        People write down what the numbers don't show, an owner checks it, and AI apps read it
-        before they answer. Each step has a page.
+        People write down what the numbers don't show, an owner checks it, and agents read it before
+        they answer. Each step has a page.
       </p>
       {loop ? (
         <div
           role="img"
-          aria-label="The loop: people write facts, owners review them, accepted facts reach AI apps at once, AI apps read them before they answer, and questions with no answer become gaps that people fill."
+          aria-label="The loop: people write facts, owners review them, accepted facts reach agents at once, agents read them before they answer, and questions with no answer become gaps that people fill."
           data-slot="docs-loop"
           className="hidden rounded-lg border p-4 @2xl:block [&>svg]:h-auto [&>svg]:max-w-full"
           // A file of the repository, checked by the docs test: no script, link or handler.
@@ -267,7 +267,7 @@ const sectionLines: Record<DocSectionId, string> = {
   start: `What ${productName} is and how the parts fit. Read these in order.`,
   concepts: 'The ideas behind the screens.',
   guides: 'One task each, step by step.',
-  connect: `Use ${productName} from Claude Code and other AI apps.`,
+  connect: `Use ${productName} from Claude Code and other agents.`,
   reference: 'Every word the app uses, in one sentence each.',
   questions: 'Short answers to what people ask most.',
 }

@@ -60,7 +60,7 @@ export function shelfSentence(shelf: CatalogueTermDetail['shelf']): string | nul
   if (shelf.lastUpdated) parts.push(`Newest change ${formatDay(shelf.lastUpdated)}.`)
   if (shelf.ended > 0)
     parts.push(
-      `${shelf.ended.toLocaleString('en')} ${shelf.ended === 1 ? 'has' : 'have'} ended, and AI apps still get ${
+      `${shelf.ended.toLocaleString('en')} ${shelf.ended === 1 ? 'has' : 'have'} ended, and agents still get ${
         shelf.ended === 1 ? 'it' : 'them'
       } for ${shelf.ended === 1 ? 'its' : 'their'} period.`,
     )
@@ -248,7 +248,7 @@ export function termNote(
     const renamed = definition.renamedTo ? ` ${tool} names ${definition.renamedTo} instead.` : ''
     const agents =
       shelf.items > 0
-        ? ` AI apps are told the ${facts} about ${name} may be out of date until ${who} checks them.`
+        ? ` Agents are told the ${facts} about ${name} may be out of date until ${who} checks them.`
         : ` ${who.charAt(0).toUpperCase()}${who.slice(1)} decides what replaces it.`
     return {
       kind: 'gone',
@@ -259,7 +259,7 @@ export function termNote(
     const when = definition.changedAt ? ` on ${formatDay(definition.changedAt)}` : ''
     return {
       kind: 'changed',
-      text: `${tool} changed ${definition.name}${when}. AI apps are told the facts written before the change may be out of date until ${who} checks them.`,
+      text: `${tool} changed ${definition.name}${when}. Agents are told the facts written before the change may be out of date until ${who} checks them.`,
     }
   }
   const issues = context.issues
@@ -270,7 +270,7 @@ export function termNote(
       kind: 'issue',
       issue: one ? { id: only.id, title: only.title } : null,
       count: issues.length,
-      lead: one ? 'AI apps warn about ' : `AI apps warn about ${issues.length} active issues `,
+      lead: one ? 'Agents warn about ' : `Agents warn about ${issues.length} active issues `,
       tail: `in answers that touch ${name}${
         one && only.until ? `, until ${formatDay(only.until)}` : ''
       }.`,

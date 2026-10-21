@@ -332,7 +332,7 @@ function Overview({
             label="Context"
             hint={
               shelf.items === 0
-                ? `Nothing yet. AI apps have nothing to add when someone asks about ${name}.`
+                ? `Nothing yet. Agents have nothing to add when someone asks about ${name}.`
                 : shelf.ended > 0
                   ? `${shelf.ended.toLocaleString('en')} ${shelf.ended === 1 ? 'has' : 'have'} ended and ${shelf.ended === 1 ? 'stays' : 'stay'} in service for ${shelf.ended === 1 ? 'its' : 'their'} period.`
                   : `Accepted facts that apply to ${name}.`
@@ -377,7 +377,7 @@ function Overview({
             label="Active issues"
             hint={
               shelf.activeIssues > 0
-                ? `AI apps warn about ${shelf.activeIssues === 1 ? 'it' : 'them'} in answers that touch ${name}.`
+                ? `Agents warn about ${shelf.activeIssues === 1 ? 'it' : 'them'} in answers that touch ${name}.`
                 : undefined
             }
           >
@@ -581,8 +581,8 @@ function AlsoMentioned({ term, level }: { term: CatalogueTermDetail; level: 2 | 
       </Heading>
       <CollapsibleContent className="flex flex-col gap-3">
         <p className="text-dense text-muted-foreground">
-          These facts name {term.name} in their text. A mention isn't what a fact is about, so AI
-          apps don't get a fact for its mention alone.
+          These facts name {term.name} in their text. A mention isn't what a fact is about, so
+          agents don't get a fact for its mention alone.
         </p>
         <MentionedIn term={term} />
       </CollapsibleContent>
@@ -683,7 +683,7 @@ function ContextList({
           </EmptyMedia>
           <EmptyTitle>Nothing on the shelf yet</EmptyTitle>
           <EmptyDescription>
-            No accepted fact is about {term.name}, so AI apps have nothing to add when someone asks
+            No accepted fact is about {term.name}, so agents have nothing to add when someone asks
             about it.
           </EmptyDescription>
         </EmptyHeader>

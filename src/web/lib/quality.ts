@@ -336,7 +336,7 @@ export const fixKindWords: Record<
 > = {
   regression: { label: 'Got worse', tone: 'danger' },
   failing_question: { label: 'Test fails', tone: 'danger' },
-  gap: { label: 'AI apps found nothing', tone: 'warning' },
+  gap: { label: 'Agents found nothing', tone: 'warning' },
   past_review: { label: 'Check date passed', tone: 'warning' },
   untested: { label: 'No test yet', tone: 'info' },
 }
@@ -463,7 +463,7 @@ export const runStateWords: Record<EvalRun['state'], string> = {
 /** Why a run started without a person (G17). */
 export const runTriggerWords: Record<NonNullable<EvalRun['trigger']>, string> = {
   source_sync: 'a source was updated',
-  tool_descriptions: 'the tools AI apps use changed',
+  tool_descriptions: 'the tools agents use changed',
   date_expiry: 'a fact reached its last day',
 }
 

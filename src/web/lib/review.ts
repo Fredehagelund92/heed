@@ -461,7 +461,7 @@ export function decisionBar(
     return {
       state: 'ready',
       heading: `Your decision, as ${capacityNames[capacity]}${capacity === 'administrator' ? '' : ` of ${areaName}`}`,
-      detail: `Once you accept, people and AI apps can use the name.${ownNote}`,
+      detail: `Once you accept, people and agents can use the name.${ownNote}`,
       capacity,
       outcomes: { accept: allowed('Accept'), request_changes: null, reject: allowed('Reject') },
     }
@@ -524,7 +524,7 @@ export function decisionBar(
             : 'The approver has accepted',
         detail: gate.approvals.owner
           ? 'The owner and the approver both accepted.'
-          : 'AI apps get it once an owner or an admin accepts too.',
+          : 'Agents get it once an owner or an admin accepts too.',
         capacity: 'approver',
         outcomes: onlyAccept(
           blocked(
@@ -551,7 +551,7 @@ export function decisionBar(
       detail:
         gate?.approvals.owner && owner
           ? `${nameOf(owner.decidedBy) ?? 'The owner'} accepted at ${timeOfDay(owner.decidedAt)}. As approver, you can only accept.`
-          : 'No owner or admin has accepted yet. We save your yes now, and AI apps get it once one of them accepts too.',
+          : 'No owner or admin has accepted yet. We save your yes now, and agents get it once one of them accepts too.',
       capacity: 'approver',
       outcomes: onlyAccept(allowed('Accept as approver')),
     }
@@ -585,7 +585,7 @@ export function decisionBar(
     return {
       state: 'approver_next',
       heading: `${who}. Waiting for the approver`,
-      detail: "We've told the high-risk approver. AI apps get it once they accept too.",
+      detail: "We've told the high-risk approver. Agents get it once they accept too.",
       capacity,
       outcomes: {
         accept: blocked(mine ? 'Accepted by you' : 'Accepted', 'Already accepted', reason),
@@ -616,7 +616,7 @@ export function decisionBar(
     heading: `Your decision, as ${capacityNames[capacity]}${capacity === 'administrator' ? '' : ` of ${areaName}`}`,
     detail:
       change === 'retire'
-        ? `Archiving takes effect at once, and AI apps stop getting the fact.${ownNote}`
+        ? `Archiving takes effect at once, and agents stop getting the fact.${ownNote}`
         : approverWaits
           ? `All required checks passed. High risk: the approver accepts after you.${ownNote}`
           : `All required checks passed.${ownNote}`,

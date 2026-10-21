@@ -21,10 +21,10 @@ import { productName } from '../../brand.ts'
  * definition its source gives, the values of a dimension and how many items are about it, and
  * the model reads them as a system block after the turn context: a question such as "What is
  * this?" is answered about its scope, never with a question back about which metric, market and
- * dates. The turn's get_context and explain_item calls are bound to a `data-scope` scope
+ * dates. The turn's get_facts and explain_item calls are bound to a `data-scope` scope
  * (`boundFields`), and the block says so.
  *
- * The accepted items and domains its chips name (`about`) go in the same block: get_context has
+ * The accepted items and domains its chips name (`about`) go in the same block: get_facts has
  * no field for them, so nothing is bound to them, and the model is told what each one is and
  * which tools read it.
  *
@@ -70,7 +70,7 @@ const textLines = (message: UserMessage) =>
       : []
   })
 
-/** get_context reads at most this many characters of a question. */
+/** get_facts reads at most this many characters of a question. */
 const MAX_QUESTION = 2000
 
 /**
@@ -182,7 +182,7 @@ const NAMED_VALUES = 8
 const day = /^\d{4}-\d{2}-\d{2}$/
 const asString = (value: unknown) => (typeof value === 'string' ? value : null)
 
-/** A key as get_context takes it, with or without its prefix: `market` is `dim:market`. */
+/** A key as get_facts takes it, with or without its prefix: `market` is `dim:market`. */
 const keyOf = (value: string, prefix: 'metric:' | 'dim:') =>
   value.includes(':') ? value : `${prefix}${value}`
 const valueKeyOf = (dimension: string, value: string) =>
@@ -365,10 +365,10 @@ function namedLine(named: Named): string {
   const name = datum(named.name)
   if (named.kind === 'domain') {
     const summary = named.summary ? ` What it covers: "${datum(named.summary, 300)}"` : ''
-    return `- ${name}: a domain (id ${named.id}).${summary} domain_overview, find_context and what_changed take it as their domain.`
+    return `- ${name}: a domain (id ${named.id}).${summary} domain_overview, find_facts and what_changed take it as their domain.`
   }
   const where = named.domain ? `, in the domain ${datum(named.domain)}` : ''
-  const state = named.retired ? ' It is retired, so agents no longer get it.' : ''
+  const state = named.retired ? ' It is retired, so AI agents no longer get it.' : ''
   return `- ${name}: a context item of the kind ${datum(named.itemKind)}${where} (id ${named.id}).${state} read_item reads it, and explain_item says whether it applies to a scope.`
 }
 
@@ -435,8 +435,8 @@ function readLines(read: QuestionScope, nameOf: (key: string) => string | null):
     window
       ? `- Dates: ${window.from} to ${window.to}, ${sourceWords[read.window_source]}.`
       : read.window_source === 'unreadable'
-        ? `- Dates: their words name dates ${productName} cannot read, so get_context asks for them. Ask the person for the first and last day.`
-        : '- Dates: none given, so get_context reads the question at today and says so.',
+        ? `- Dates: their words name dates ${productName} cannot read, so get_facts asks for them. Ask the person for the first and last day.`
+        : '- Dates: none given, so get_facts reads the question at today and says so.',
     ...(carried.length ? [`- Carried from their last question: ${list(carried)}.`] : []),
     ...read.unresolved.map((undecided) => {
       const options = undecided.options.flatMap((key) => nameOf(key) ?? [])
@@ -451,10 +451,10 @@ function bindingWords(read: QuestionScope): string {
   const about =
     ' When the person says this, it, these or that, they mean this scope. Answer about it from these lines. Never ask which metric, market or dates they mean when the question is about this scope.'
   if (!bound)
-    return `${productName} binds no metric or date for this question: use what the person wrote in get_context and explain_item calls, and ask when unsure.${about}`
+    return `${productName} binds no metric or date for this question: use what the person wrote in get_facts and explain_item calls, and ask when unsure.${about}`
   if (!('metrics' in bound))
-    return `${productName} binds the dates of this question to every get_context and explain_item call in this turn, whatever dates a call gives. The metrics and dimension values are not fixed: use what the person wrote, and ask when unsure.${about}`
-  return `${productName} binds every get_context and explain_item call in this turn to this scope: a call reads exactly these metrics and dimension values, ${bound.window ? 'and exactly these dates' : 'but the dates are not fixed, and follow the question as get_context reads it, with its note when today is assumed'}, whatever scope it gives.${about}`
+    return `${productName} binds the dates of this question to every get_facts and explain_item call in this turn, whatever dates a call gives. The metrics and dimension values are not fixed: use what the person wrote, and ask when unsure.${about}`
+  return `${productName} binds every get_facts and explain_item call in this turn to this scope: a call reads exactly these metrics and dimension values, ${bound.window ? 'and exactly these dates' : 'but the dates are not fixed, and follow the question as get_facts reads it, with its note when today is assumed'}, whatever scope it gives.${about}`
 }
 
 /**

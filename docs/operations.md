@@ -53,11 +53,11 @@ retry, `job_overdue` and `connector_stale` from the watchdog.
 `GET /metrics` serves the service's numbers in the Prometheus text format to a scraper that
 presents `Authorization: Bearer <CL_METRICS_TOKEN>`; without the variable the endpoint is off
 (404), and a session never opens it. It counts HTTP requests and their time by route template or
-API operation, and MCP requests by tool, status and AI app family (FR-410), and reads at scrape time what the operations
+API operation, and MCP requests by tool, status and agent family (FR-410), and reads at scrape time what the operations
 view shows: each job's last success, overdue jobs, runs and queue, connector age, model spending
 for today and the month against its cap, the live edition's age, open live streams and the
 database pool. Labels come from closed sets (routes, operations, tools, jobs, connectors, app
-families), never a path, a question, a person or an app's own name. The MCP counter's `app_family`
+families), never a path, a question, a person or an agent's own name. The MCP counter's `app_family`
 label counts exactly, for operators holding the metrics token, unlike Health and the quality read, which hide counts below `privacy.min_count` (FR-614).
 
 Configuration comes from the environment, read once at start-up by

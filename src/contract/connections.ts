@@ -1,7 +1,7 @@
 import * as z from 'zod/mini'
 
 /**
- * A person's own AI apps (FR-403, docs/ai-sign-in.md): the consent screen for a sign-in in
+ * A person's own agents (FR-403, docs/ai-sign-in.md): the consent screen for a sign-in in
  * progress, and the apps that hold a connection, which the person can disconnect.
  */
 export const connectionScopes = ['read', 'feedback', 'propose'] as const
@@ -40,7 +40,7 @@ export const connectionSchema = z.object({
 export const connectionIdSchema = z.object({ id: z.uuid() })
 
 /**
- * Every person's AI apps, for an administrator (FR-403, FR-807): each connection with the person
+ * Every person's agents, for an administrator (FR-403, FR-807): each connection with the person
  * it acts as. The app's name is the one it gave itself; the host says where it came from.
  */
 export const personConnectionSchema = z.extend(connectionSchema, {

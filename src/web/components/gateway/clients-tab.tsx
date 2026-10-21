@@ -115,7 +115,7 @@ function ClientsGrid({
   return (
     <div
       role="table"
-      aria-label="AI apps"
+      aria-label="Agents"
       data-slot="clients-grid"
       className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card text-dense"
     >
@@ -124,7 +124,7 @@ function ClientsGrid({
           role="row"
           className="flex h-table-header items-stretch border-b border-border-subtle bg-background text-caption text-muted-foreground"
         >
-          <HeaderCell icon={BotIcon} title="AI app" className="min-w-0 flex-1" />
+          <HeaderCell icon={BotIcon} title="Agent" className="min-w-0 flex-1" />
           <HeaderCell icon={ListChecksIcon} title="Tools" className="w-column-about" />
           <HeaderCell icon={TimerIcon} title="Per minute" className="w-column-optional" />
           <HeaderCell icon={FileTextIcon} title="Answer size" className="w-column-owner" />
@@ -181,7 +181,7 @@ function ClientsList({
 }) {
   return (
     <ul
-      aria-label="AI apps"
+      aria-label="Agents"
       data-slot="clients-list"
       className="flex flex-col divide-y rounded-lg border bg-card"
     >
@@ -207,7 +207,7 @@ function ClientsList({
 
 function ClientsSkeleton() {
   return (
-    <div role="status" aria-label="Loading the AI apps" className="flex flex-col gap-2">
+    <div role="status" aria-label="Loading the agents" className="flex flex-col gap-2">
       {Array.from({ length: 3 }, (_, index) => (
         <Skeleton key={index} className="h-row-comfortable w-full" />
       ))}
@@ -230,12 +230,12 @@ function ServerAddress() {
   if (connect.isError) return null
   return connect.data.address ? (
     <div className="flex min-w-0 flex-col gap-2" data-slot="server-address">
-      <p className="text-dense text-muted-foreground">AI apps connect to this address:</p>
-      <CopyBlock text={connect.data.address} label="the address for AI apps" />
+      <p className="text-dense text-muted-foreground">Agents connect to this address:</p>
+      <CopyBlock text={connect.data.address} label="the address for agents" />
     </div>
   ) : (
     <p className="text-dense text-muted-foreground" data-slot="server-address">
-      AI apps can&apos;t connect yet, because there&apos;s no public address. The data team sets it
+      Agents can&apos;t connect yet, because there&apos;s no public address. The data team sets it
       where the app is installed.
     </p>
   )
@@ -266,34 +266,34 @@ export function ClientsTab() {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-1">
             <h2 id="clients-title" className="text-large font-bold">
-              AI apps that can connect
+              Agents that can connect
             </h2>
             <p className="max-w-reading text-dense text-muted-foreground">
-              Only the AI apps listed and allowed here can connect. Each one gets the tools and
-              limits you set, and is known by the label on its access key. Every app a person
+              Only the agents listed and allowed here can connect. Each one gets the tools and
+              limits you set, and is known by the label on its access key. Every agent a person
               connects by signing in, Claude Code included, has the label{' '}
               <code className="font-mono text-dense" translate="no">
                 signed-in
               </code>
-              , so that one row covers them all. Each person disconnects their own apps in Connect
-              an AI app, and you can disconnect anyone&apos;s on the Connections tab.
+              , so that one row covers them all. Each person disconnects their own agents in Connect
+              an agent, and you can disconnect anyone&apos;s on the Connections tab.
             </p>
           </div>
           {takenLabels ? (
             <Button variant="outline" onClick={() => edit(null)}>
               <PlusIcon aria-hidden />
-              Add an AI app
+              Add an agent
             </Button>
           ) : (
             <BlockedButton
               reason={
                 clients.isError
-                  ? "We couldn't load the AI apps, so we can't check the label is free. Try again below."
-                  : 'The AI apps are still loading. You can add one once they have.'
+                  ? "We couldn't load the agents, so we can't check the label is free. Try again below."
+                  : 'The agents are still loading. You can add one once they have.'
               }
             >
               <PlusIcon aria-hidden />
-              Add an AI app
+              Add an agent
             </BlockedButton>
           )}
         </div>
@@ -301,7 +301,7 @@ export function ClientsTab() {
           <ClientsSkeleton />
         ) : clients.isError ? (
           <LoadError
-            what="the AI apps"
+            what="the agents"
             onRetry={() => void clients.refetch()}
             detail={clients.error.message}
           />
@@ -311,9 +311,9 @@ export function ClientsTab() {
               <EmptyMedia variant="icon">
                 <BotIcon />
               </EmptyMedia>
-              <EmptyTitle>No AI apps can connect yet</EmptyTitle>
+              <EmptyTitle>No agents can connect yet</EmptyTitle>
               <EmptyDescription>
-                An AI app gets answers once you add it here, with the label on its access key.
+                An agent gets answers once you add it here, with the label on its access key.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -326,12 +326,12 @@ export function ClientsTab() {
 
       <section aria-labelledby="connect-title" className="flex min-w-0 flex-col gap-3">
         <h2 id="connect-title" className="text-large font-bold">
-          How AI apps connect
+          How agents connect
         </h2>
         <ServerAddress />
         <p className="text-dense text-muted-foreground">
-          Each person sets up their own AI app in Connect an AI app, in their Settings. It has the
-          address, a setup to paste for each AI app that&apos;s on, and the tools it gets. Open it
+          Each person sets up their own agent in Connect an agent, in their Settings. It has the
+          address, a setup to paste for each agent that&apos;s on, and the tools it gets. Open it
           from Home or the user menu.
         </p>
         <Button
@@ -340,7 +340,7 @@ export function ClientsTab() {
           render={<Link to="/settings" search={{ section: 'connect' }} />}
         >
           <PlugIcon />
-          Go to Connect an AI app
+          Go to Connect an agent
         </Button>
       </section>
 

@@ -157,7 +157,7 @@ export function BinPage() {
       <PageContent width="list" className={cn('gap-6', selected.size > 0 && 'pb-16')}>
         {entries.length ? (
           <p className="max-w-reading text-body text-muted-foreground">
-            Facts moved out of the library. AI apps don't get them, and no list, search or count
+            Facts moved out of the library. Agents don't get them, and no list, search or count
             shows them. Restore brings a fact back as it was. If its domain was deleted, it goes to
             another domain for review.
           </p>

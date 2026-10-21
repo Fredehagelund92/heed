@@ -298,9 +298,9 @@ export type Session = { person: Principal; csrfToken: string }
 /** Someone the local sign-in can sign in as (the dev identity connector's list). */
 export type { SignInPerson }
 
-// A person's own AI apps (FR-403): the consent screen and the apps connected as the person.
+// A person's own agents (FR-403): the consent screen and the apps connected as the person.
 export type { Connection, ConnectionScope, ConnectRequest }
-// Every person's AI apps, for administrators (FR-403, FR-807).
+// Every person's agents, for administrators (FR-403, FR-807).
 export type { AdminDisconnect, AdminDisconnectPerson, PersonConnection }
 export type ConnectDecisionInput = z.infer<typeof connectDecisionSchema>
 /** The app's own redirect address, with the code or the refusal: the page goes there next. */
@@ -309,7 +309,7 @@ export type ConnectDecisionResult = z.infer<typeof connectDecisionResultSchema>
 export type CreateProposalInput = z.infer<typeof createProposalSchema>
 export type PreviewInput = z.infer<typeof previewSchema>
 export type ProposalOverlap = z.infer<typeof overlapSchema>
-/** The get_context reply an agent would get if the draft were accepted (FR-108, FR-214). */
+/** The get_facts reply an agent would get if the draft were accepted (FR-108, FR-214). */
 export type ProposalPreview = z.infer<typeof proposalPreviewSchema>
 export type SaveDraftInput = z.infer<typeof saveDraftSchema>
 /** A proposal id and the revision the person read: a change to a newer revision is a conflict. */
@@ -589,12 +589,12 @@ export interface ContextApi {
   /** Signs in as one of them, ending any session this browser had. */
   signIn: (email: string) => Promise<Session>
 
-  // A person's own AI apps (FR-403)
-  /** The AI app sign-in this browser started; null when it ended or another browser started it. */
+  // A person's own agents (FR-403)
+  /** The agent sign-in this browser started; null when it ended or another browser started it. */
   getConnectRequest: (id: string) => Promise<ConnectRequest | null>
   /** Allow or deny it. The answer is where the browser goes next: back to the app. */
   decideConnectRequest: (input: ConnectDecisionInput) => Promise<ConnectDecisionResult>
-  /** The AI apps connected as the signed-in person, newest first. */
+  /** The agents connected as the signed-in person, newest first. */
   listConnections: () => Promise<Connection[]>
   /** Disconnects an app at once: it can no longer read anything as the person. */
   disconnectApp: (input: { id: string }) => Promise<{ disconnected: boolean }>
@@ -831,7 +831,7 @@ export interface ContextApi {
   getFeedbackCounts: (params?: QualityWeeksParams) => Promise<FeedbackCounts>
   /** The assistant's ratings per verdict, week and area; small counts hidden (FR-712). */
   getRatingCounts: (params?: QualityWeeksParams) => Promise<RatingCounts>
-  /** How the AI apps that called the MCP server fared, per family and week; small counts hidden (FR-410). */
+  /** How the agents that called the MCP server fared, per family and week; small counts hidden (FR-410). */
   getAppFamilyCounts: (params?: AppFamilyCountsParams) => Promise<AppFamilyCounts>
   /** Items past review and proposals accepted, per week and area. */
   getUpkeep: (params?: QualityWeeksParams) => Promise<Upkeep>
@@ -854,14 +854,14 @@ export interface ContextApi {
   saveClient: (input: SaveClientInput) => Promise<ClientPolicy>
   /** MCP calls by client and tool over the last days, from the request log; no person. */
   getTraffic: (params?: TrafficParams) => Promise<TrafficSummary>
-  /** Every person's open AI app connections, the last used first. */
+  /** Every person's open agent connections, the last used first. */
   listAiConnections: () => Promise<PersonConnection[]>
   /**
-   * Disconnect one person's AI app with a reason the history log keeps: it is refused from its
+   * Disconnect one person's agent with a reason the history log keeps: it is refused from its
    * next request. One that ended already is not found.
    */
   disconnectAiConnection: (input: AdminDisconnect) => Promise<{ disconnected: number }>
-  /** Disconnect every AI app of one person in one step, with one reason; how many ended. */
+  /** Disconnect every agent of one person in one step, with one reason; how many ended. */
   disconnectPersonAiConnections: (input: AdminDisconnectPerson) => Promise<{ disconnected: number }>
   // Settings (FR-801 to FR-810). Administrators, except the history log, which auditors read too.
   /** The current version of every setting. */
@@ -931,7 +931,7 @@ export interface ContextApi {
   // Connect your AI and What an agent would get: every signed-in person.
   /** The MCP server's address, the tools switched on and the clients that may connect. */
   getConnectInfo: () => Promise<ConnectInfo>
-  /** get_context's reply for a scope on the live edition, without a model, recording nothing. */
+  /** get_facts's reply for a scope on the live edition, without a model, recording nothing. */
   tryIt: (input: TryItInput) => Promise<TryIt>
   /** A question read as a scope on the live edition, so Try it opens on it; nothing is kept. */
   readTryItQuestion: (input: TryItReadInput) => Promise<TryItReading>

@@ -24,7 +24,7 @@ function HealthRoute() {
       refusal={{
         title: 'Health is for owners and admins',
         description:
-          "It's where the owners of each domain see how well AI apps answer with its facts, and what to fix. Ask the owner of your domain or the data team.",
+          "It's where the owners of each domain see how well agents answer with its facts, and what to fix. Ask the owner of your domain or the data team.",
       }}
     >
       <WorkbenchPage search={search} />

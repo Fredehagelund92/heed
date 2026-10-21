@@ -75,7 +75,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // user menu's popup and the phone's sidebar sheet are chunks of their own, so Base UI's menu and
 // dialog (focus trap, scroll lock, dismissal) are not in the first load; and the app's stylesheet
 // leaves out the classes only the stories write.
-// Raised from 217.5 to 217.64 (JS only) with the AI app sign-in (217.636 KB and 21.499 KB; main
+// Raised from 217.5 to 217.64 (JS only) with the agent sign-in (217.636 KB and 21.499 KB; main
 // measured 216.652 and 21.472): the six sign-in and connection methods' names in the API
 // client's list, their query keys, options and invalidations and the sign-in hook, the consent
 // route's search schema and its route stub, and the shell's rule that leaves the consent page
@@ -203,14 +203,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // rules and `container` with a rule per breakpoint (styles/index.css).
 // CSS kept at 23.48 by a second trim pass (23.2 KB; main measured 24.9 on the same install):
 // the custom utilities only lazy chunks use (the answer's motion, the docked panel's motion, the
-// sideways fade, the mention chip, the phone grid, Your drafts' columns and the AI app's line)
+// sideways fade, the mention chip, the phone grid, Your drafts' columns and the agent's line)
 // are in stylesheets of their own that load with those chunks, in the utilities layer as before;
 // and the shadcn parts nothing used (the sidebar's rail, trigger, input and menu actions, the
 // dropdown's submenus and checkbox item, three input group parts and five more) are gone, with
 // their utilities. The first load's script is over its budget on main (217.0 KB after this pass,
 // from 218.3), which is for its own change.
 // JS kept at 207.06 by a third trim pass (206.342 KB; main measured 216.9 on the same install, over
-// since the item page's marks grew the AI app's mark, the writer's words and the proposal's fields).
+// since the item page's marks grew the agent's mark, the writer's words and the proposal's fields).
 // A module the first load imports ships every export a lazy chunk uses from it, so the shell now
 // imports small modules: the Item route's stub reads the proposal states' names from
 // lib/proposals.ts, not the item marks, which keep the badges, the avatar and the provenance

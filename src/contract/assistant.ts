@@ -52,10 +52,10 @@ export type Rating = z.infer<typeof ratingSchema>
 
 /**
  * How the Ask tab tells the model the scope of a question: a line after the question, this
- * prefix and then get_context's own fields as JSON (`metrics`, `dimension_filters`, `window`),
+ * prefix and then get_facts's own fields as JSON (`metrics`, `dimension_filters`, `window`),
  * so a model passes them on as given instead of reading dates and names from words.
  */
-export const SCOPE_LINE = 'Scope picked for this question, as get_context fields:'
+export const SCOPE_LINE = 'Scope picked for this question, as get_facts fields:'
 
 const termKey = z
   .string()
@@ -73,18 +73,18 @@ const aboutKey = z
 export const QUESTION_SCOPE_PART = 'data-scope'
 /**
  * The scope of one question, as the composer's "Heed reads" line showed it before it was sent:
- * get_context's own fields, by key (`metrics`, `dimension_filters`, `window`, both days
+ * get_facts's own fields, by key (`metrics`, `dimension_filters`, `window`, both days
  * included), where the dates came from (the words, the scope picker, the last question, or none,
  * so today is assumed and `window` is left out; or words that name dates Heed cannot read, so a
  * call asks for dates), what was carried from the last question (keys,
  * and `window` for its dates), and words that name more than one term the person did not choose
- * between, and the accepted items and domains its chips name (`about`), which get_context has no
- * field for. The service binds the turn's get_context and explain_item calls to it
+ * between, and the accepted items and domains its chips name (`about`), which get_facts has no
+ * field for. The service binds the turn's get_facts and explain_item calls to it
  * (`boundFields`), so a call reads exactly what the person saw, and tells the model what each
  * item and domain is, so "this" is never a question back.
  */
 export const questionScopeSchema = z.strictObject({
-  // get_context's own limits, so a bound call is always one it takes.
+  // get_facts's own limits, so a bound call is always one it takes.
   metrics: z.array(termKey).check(z.maxLength(toolInputLimits.names)),
   dimension_filters: z
     .array(

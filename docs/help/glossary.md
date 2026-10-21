@@ -50,7 +50,7 @@ All the facts you can read.
 
 ### Where it applies
 
-The metrics and markets a fact is about. AI apps get the fact when a question is about these.
+The metrics and markets a fact is about. AI agents get the fact when a question is about these.
 
 ### When it applies
 
@@ -62,11 +62,11 @@ A link and one sentence copied from it, with the day it was read, so the owner c
 
 ### What not to conclude
 
-A line on what someone might wrongly conclude from a fact, or who to ask first. AI apps get it with the fact and are told not to draw that conclusion. It's optional.
+A line on what someone might wrongly conclude from a fact, or who to ask first. Agents get it with the fact and are told not to draw that conclusion. It's optional.
 
 ### Cause not proven
 
-A fact says what happened, not why a number changed, unless its source says so. AI apps read every fact this way, even without a line on what not to conclude.
+A fact says what happened, not why a number changed, unless its source says so. Agents read every fact this way, even without a line on what not to conclude.
 
 ### Risk level
 
@@ -84,7 +84,7 @@ A fact you haven't sent for review yet. Only you work on it. Find your drafts on
 
 ### Proposal
 
-A new fact, or a change to one, that waits for the owner of its domain. AI apps get it only once it's accepted.
+A new fact, or a change to one, that waits for the owner of its domain. Agents get it only once it's accepted.
 
 ### Check
 
@@ -96,7 +96,7 @@ The day by which the owner checks a fact again. On a fact, it reads "Check again
 
 ### Needs checking
 
-The check date has passed, or the source a fact is based on changed. AI apps still get the fact, and they're told it may be out of date until the owner checks it.
+The check date has passed, or the source a fact is based on changed. Agents still get the fact, and they're told it may be out of date until the owner checks it.
 
 ### Source changed
 
@@ -108,17 +108,17 @@ A Cube definition that a fact points to has disappeared, so the fact needs check
 
 ### Archive
 
-AI apps stop getting the fact. You can still read it and its history.
+Agents stop getting the fact. You can still read it and its history.
 
 ### Bin
 
-Where an admin moves facts out of the library, with a reason. AI apps stop getting them at once, and no list, search or count shows them. An admin can open a fact in the Bin to read it, then restore it as it was. A fact whose domain was deleted comes back in another domain instead: archived, with a proposal for that domain's owners.
+Where an admin moves facts out of the library, with a reason. Agents stop getting them at once, and no list, search or count shows them. An admin can open a fact in the Bin to read it, then restore it as it was. A fact whose domain was deleted comes back in another domain instead: archived, with a proposal for that domain's owners.
 
 ## People and roles
 
 ### Domain
 
-A part of the business with its own data and people, such as Sales. Every fact belongs to one, and each domain has a short description of what it covers that people, the assistant and AI apps read. Not to be confused with a way to split a number, such as market.
+A part of the business with its own data and people, such as Sales. Every fact belongs to one, and each domain has a short description of what it covers that people, the assistant and agents read. Not to be confused with a way to split a number, such as market.
 
 ### Owner
 
@@ -126,21 +126,21 @@ The person who looks after a domain and accepts its facts. Every domain has an o
 
 ### Approver
 
-The person who gives a second yes before AI apps get a high-risk fact.
+The person who gives a second yes before agents get a high-risk fact.
 
 ### Admin
 
-The person who sets up domains, people and which AI apps can connect. An admin can also stop what AI apps get.
+The person who sets up domains, people and which agents can connect. An admin can also stop what agents get.
 
 ### Data team
 
 The team that runs the company's data tools and answers data questions.
 
-## What AI apps get
+## What agents get
 
-### What AI apps get
+### What agents get
 
-The facts an AI app gets when it asks about a metric, a market or a period: every accepted fact that applies, and nothing archived or stopped.
+The facts an agent gets when it asks about a metric, a market or a period: every accepted fact that applies, and nothing archived or stopped.
 
 ### Edition
 
@@ -148,37 +148,37 @@ A saved set of every accepted fact at one moment, numbered by its date. It never
 
 ### Stop switch
 
-An admin's control that stops AI apps getting one fact, one domain or everything at once.
+An admin's control that stops agents getting one fact, one domain or everything at once.
 
 ### Gap
 
-A question that AI apps or people asked and no fact could answer. We count it without recording who asked.
+A question that agents or people asked and no fact could answer. We count it without recording who asked.
 
-## AI apps and MCP
+## Agents and MCP
 
-### AI app
+### Agent
 
-A program such as Claude or ChatGPT that answers questions. It can check these facts before it answers.
+An AI agent is a program outside the app, such as Claude, ChatGPT or Claude Code, that answers questions and uses tools. It can check these facts before it answers. It isn't the [assistant](#assistant), the helper inside the app.
 
 ### MCP
 
-The connection AI apps use to check these facts. MCP is a standard for it, like a plug that fits many devices. See [What is an MCP](mcp.md).
+The connection AI agents use to check these facts. MCP is a standard for it, like a plug that fits many devices. See [What is an MCP](mcp.md).
 
 ### Tool
 
-One thing an AI app can ask over MCP, such as Get facts for a question.
+One thing an agent can ask over MCP, such as Get facts for a question.
 
 ### Access key
 
-What an AI app uses to connect when it can't sign in.
+What an agent uses to connect when it can't sign in.
 
-### Connect an AI app
+### Connect an agent
 
-Let Claude or another AI app check these facts before it answers.
+Let Claude or another AI agent check these facts before it answers.
 
 ### Try a question
 
-See what an AI app gets for a question, before anyone asks it. It shows the facts for a metric, a market and dates, without asking any AI.
+See what an agent gets for a question, before anyone asks it. It shows the facts for a metric, a market and dates, without asking any AI.
 
 ### Assistant
 
@@ -186,15 +186,15 @@ The helper built into the app. It finds and explains facts, and drafts new ones 
 
 ### Review stamp
 
-The line under every fact that AI apps get: who accepted it, on which day, and that its checks passed. An AI app reads the role, such as the owner of Sales, never a person's name. In the app, the line names the person too.
+The line under every fact that agents get: who accepted it, on which day, and that its checks passed. An agent reads the role, such as the owner of Sales, never a person's name. In the app, the line names the person too.
 
 ### Gateway (MCP)
 
-The place in Administration where admins choose which AI apps may connect and which tools they get. Not to be confused with the gateway for the assistant.
+The place in Administration where admins choose which agents may connect and which tools they get. Not to be confused with the gateway for the assistant.
 
 ### Gateway (AI)
 
-The service the assistant and test runs use to reach the AI behind them. Not to be confused with the gateway for AI apps.
+The service the assistant and test runs use to reach the AI behind them. Not to be confused with the gateway for agents.
 
 ## Data and quality
 
@@ -228,7 +228,7 @@ A test question that the people who write facts, and the assistant, never see. I
 
 ### Health
 
-The page where owners and admins see how well AI apps answer with each domain's facts. See [Read Health](read-health.md).
+The page where owners and admins see how well agents answer with each domain's facts. See [Read Health](read-health.md).
 
 ## Words you may have seen
 
@@ -256,7 +256,7 @@ The fact is past its [check date](#check-date). We now say it [needs checking](#
 
 ### Live edition
 
-What we now call [what AI apps get](#what-ai-apps-get) today.
+What we now call [what agents get](#what-agents-get) today.
 
 ### Vocabulary
 
@@ -266,13 +266,13 @@ What we now call the [names](#names) we know: the metrics, markets and products 
 
 What we now call [who can see it](#who-can-see-it).
 
-### Agent
+### AI app
 
-An AI app that uses tools to answer. We say [AI app](#ai-app).
+What we now call an [agent](#agent).
 
 ### Model
 
-A language model: the AI behind an AI app or the assistant. We say [AI app](#ai-app), and the assistant says "I".
+A language model: the AI behind an agent or the assistant. We say [agent](#agent), and the assistant says "I".
 
 ### Try it
 

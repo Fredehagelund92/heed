@@ -3,9 +3,9 @@ import type { Queryable } from '../../db/database.ts'
 
 /**
  * MCP traffic by client and tool (FR-410), for the MCP and gateway page. It reads the request
- * log, which holds the hour, the client label, the kind of AI app, the tool, the status, a read's
+ * log, which holds the hour, the client label, the kind of agent, the tool, the status, a read's
  * outcome, the duration and the size, and never a person, a question, a token, an address or an
- * app's own name; nothing here adds one. The kind of AI app is counted by the week elsewhere
+ * app's own name; nothing here adds one. The kind of agent is counted by the week elsewhere
  * (`quality` service, `apps`), so its small counts can be hidden.
  */
 export async function trafficSummary(tx: Queryable, days: number): Promise<TrafficSummary> {

@@ -208,7 +208,7 @@ export function AreaEditor({
         isNew ? `${saved.name} created` : `${saved.name} saved`,
         isNew
           ? team.owners.length
-            ? `${ownerNames(team.owners)} ${team.owners.length === 1 ? 'is its owner' : 'are its owners'}. AI apps get its facts as soon as they're accepted.`
+            ? `${ownerNames(team.owners)} ${team.owners.length === 1 ? 'is its owner' : 'are its owners'}. Agents get its facts as soon as they're accepted.`
             : 'Give it an owner on its Team tab in Health.'
           : 'The history log keeps what changed and why.',
       )
@@ -320,7 +320,7 @@ export function AreaEditor({
         'ownerTeam',
         'Business team',
         UsersIcon,
-        'The team responsible for the domain’s numbers. AI apps get its name with the domain.',
+        'The team responsible for the domain’s numbers. Agents get its name with the domain.',
         {
           optional: true,
         },

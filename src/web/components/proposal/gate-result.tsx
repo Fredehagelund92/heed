@@ -150,7 +150,7 @@ function CheckedAgainst({ edition, action }: { edition: string | null; action?: 
     <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-caption text-muted-foreground">
       {edition ? (
         <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
-          Checked against what AI apps got on {editionDayWords(edition)}
+          Checked against what agents got on {editionDayWords(edition)}
         </span>
       ) : (
         <span />

@@ -45,13 +45,13 @@ export function changeCountParts(counts: ChangeCounts) {
 export function itemChangeSentence(change: ItemChange): string {
   switch (change.change) {
     case 'added':
-      return 'Added. AI apps get this fact from this edition on.'
+      return 'Added. Agents get this fact from this edition on.'
     case 'retired':
-      return 'Archived. AI apps no longer get this fact. Its history stays.'
+      return 'Archived. Agents no longer get this fact. Its history stays.'
     case 'removed':
-      return 'AI apps no longer get this fact in this edition. Its history stays.'
+      return 'Agents no longer get this fact in this edition. Its history stays.'
     case 'resaved':
-      return 'Saved again, nothing different. What AI apps read is the same.'
+      return 'Saved again, nothing different. What agents read is the same.'
     case 'checked':
       return 'Checked, still correct. The content stays the same.'
     case 'changed':
@@ -71,7 +71,7 @@ const channelWords: Record<CreationChannel, string> = {
   form: 'the form',
   assistant: 'the assistant',
   chat: 'chat',
-  mcp: 'an AI app',
+  mcp: 'an agent',
   import: 'an import',
   command_line: 'the command line',
 }

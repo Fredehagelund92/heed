@@ -47,8 +47,7 @@ const KEY = 'business.about'
 const REASON_MAX = 500
 
 /**
- * About our business (captain, 15 October 2026): a short text that tells the assistant and the AI
- * apps that connect what the company does and what its words mean, so they do not start from
+ * About our business (captain, 15 October 2026): a short text that tells the assistant and the agents that connect what the company does and what its words mean, so they do not start from
  * nothing. An administrator writes it here, sees exactly what the models are given as they type,
  * can put the starter text back, and saves a new version with a reason; the history shows who
  * changed it and when. It is background, never evidence, and the page says so.
@@ -83,9 +82,9 @@ export function BusinessSection() {
         <AlertContent>
           <AlertTitle>Background, not a source</AlertTitle>
           <AlertDescription>
-            The assistant gets this text with every question, and AI apps get it when they connect,
+            The assistant gets this text with every question, and agents get it when they connect,
             so they know what the business is and what its words mean. It&apos;s never quoted or
-            counted as a source, and AI apps never get it as a fact. Facts about a metric, a market
+            counted as a source, and agents never get it as a fact. Facts about a metric, a market
             or a date belong in the library, where the owners of each domain check them.
           </AlertDescription>
         </AlertContent>
@@ -159,8 +158,8 @@ function BusinessForm({ setting }: { setting: Setting }) {
       showToast(
         'About our business saved',
         parsed.data
-          ? 'The assistant and AI apps get the new text from their next question.'
-          : 'The text is empty, so the assistant and AI apps get no background.',
+          ? 'The assistant and agents get the new text from their next question.'
+          : 'The text is empty, so the assistant and agents get no background.',
       )
     } catch (error) {
       const refused = toApiError(error)
@@ -322,7 +321,7 @@ function BusinessForm({ setting }: { setting: Setting }) {
         </form>
       </SettingsBlock>
       <SettingsBlock
-        title="What the assistant and AI apps get"
+        title="What the assistant and agents get"
         slot="business-preview"
         description="Exactly the text they get, with the lines around it. It follows what you type, and they get it once you save."
       >
@@ -330,12 +329,12 @@ function BusinessForm({ setting }: { setting: Setting }) {
           // In full: the preview is what they read, so none of it scrolls out of sight.
           <CopyBlock
             text={block}
-            label="what the assistant and AI apps get"
+            label="what the assistant and agents get"
             className="[&_pre]:max-h-none"
           />
         ) : (
           <p className="rounded-md border p-4 text-body text-muted-foreground">
-            Nothing. With the text empty, the assistant and AI apps get no background about the
+            Nothing. With the text empty, the assistant and agents get no background about the
             business.
           </p>
         )}

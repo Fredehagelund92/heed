@@ -268,7 +268,7 @@ export function SignInIntro() {
       <h1 className="text-title font-bold tracking-title text-balance">Sign in to {productName}</h1>
       <p className="text-body text-pretty text-muted-foreground">
         Facts about your numbers, written by your team, checked by the owner of each domain, and
-        read by your AI apps.
+        read by your AI agents.
       </p>
     </div>
   )

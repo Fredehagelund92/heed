@@ -224,7 +224,7 @@ function split(text: string): { summary: string; body?: string; cut?: true } {
 
 /**
  * Works out a draft from an agent's input. Pure: the same input gives the same draft. `answers`
- * are what the person answered in their AI app (agent-questions.ts): each one replaces what the
+ * are what the person answered in their agent (agent-questions.ts): each one replaces what the
  * agent suggested, is marked `confirmed`, and closes its question.
  */
 export function deriveAgentDraft(
@@ -595,5 +595,5 @@ export function resolveDraftNames(
   return { draft: resolved, problems }
 }
 
-const confirmed = 'Answered by the person in their AI app.'
+const confirmed = 'Answered by the person in their agent.'
 const article = (kind: ItemKind) => `${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind}`

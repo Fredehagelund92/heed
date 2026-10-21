@@ -40,8 +40,8 @@ const product = escapeHtml(productName)
 const page = (message: string) =>
   `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${product} sign-in</title></head>` +
   `<body style="font-family: system-ui, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5">` +
-  `<h1 style="font-size: 1.25rem">The app can’t sign in to ${product}</h1><p>${escapeHtml(message)}</p>` +
-  `<p>Close this window and try again from the app. If it keeps happening, tell an admin.</p></body></html>`
+  `<h1 style="font-size: 1.25rem">The AI agent can’t sign in to ${product}</h1><p>${escapeHtml(message)}</p>` +
+  `<p>Close this window and try again from the agent. If it keeps happening, tell an admin.</p></body></html>`
 
 /** Single-valued parameters only: a repeated parameter makes the request invalid (RFC 6749 3.1). */
 function single(values: Record<string, unknown>): Form {
@@ -142,7 +142,7 @@ export function registerLoginRoutes(
         return reply
           .code(400)
           .type('text/html; charset=utf-8')
-          .send(page('The app sent a parameter twice.'))
+          .send(page('The agent sent a parameter twice.'))
       }
       const result = await login.authorize(
         database,

@@ -14,16 +14,16 @@ import { tools, toolInputSchema, type ToolName } from './tools.ts'
 
 /** One valid call of each tool, as the error shows it. Each is checked against its schema. */
 export const exampleCalls: Record<ToolName, Record<string, unknown>> = {
-  get_context: {
+  get_facts: {
     question: 'How did orders do in Norway in August 2026?',
     metrics: ['orders'],
     dimension_filters: [{ dimension: 'market', values: ['Norway'] }],
     window: { from: '2026-08-01', to: '2026-08-31' },
   },
-  search_context: { query: 'orders Norway' },
+  search_facts: { query: 'orders Norway' },
   read_item: { id: 'itm_0a1b2c3d' },
   get_related: { id: 'itm_0a1b2c3d' },
-  find_context: { query: 'GMV Spain' },
+  find_facts: { query: 'GMV Spain' },
   domain_overview: { domain: 'Sales' },
   what_changed: { domain: 'Sales' },
   search_help: { query: 'What is an MCP?' },
@@ -139,7 +139,7 @@ export function invalidInputResult(name: ToolName, all: readonly Issue[]) {
   const more = issues.length - problems.length
   const takes = fieldsOf(name)
   const example = exampleCalls[name]
-  // The person hears that nothing was looked up; the AI app reads what to fix and one valid call.
+  // The person hears that nothing was looked up; the agent reads what to fix and one valid call.
   const say = `${notLookedUp} The request was missing something or had a value that doesn't fit.`
   const next = [
     `${name} could not read its arguments: ${problems.map((p) => p.problem).join('; ')}${more > 0 ? `; and ${more} more` : ''}.`,

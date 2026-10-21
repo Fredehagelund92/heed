@@ -401,7 +401,7 @@ export const reasonSuggestions: Record<
   reject: {
     create: ['Another fact already covers it', "The source doesn't support it"],
     change: ['Another fact already covers it', "The source doesn't support it"],
-    retire: ['It still applies', 'AI apps still need it'],
+    retire: ['It still applies', 'Agents still need it'],
     recheck: ["The source doesn't support it"],
     term: ['We already know this name', "It isn't in Cube"],
   },
@@ -507,8 +507,8 @@ export function DecisionDialogs({
         title={copy.subject === 'retire' ? 'Keep this fact?' : 'Reject this proposal?'}
         effect={
           copy.subject === 'retire'
-            ? `The fact stays, and AI apps keep getting it. ${first} sees your reason.`
-            : `Rejecting closes it, and AI apps never get it. ${first} can start a new draft from it.`
+            ? `The fact stays, and agents keep getting it. ${first} sees your reason.`
+            : `Rejecting closes it, and agents never get it. ${first} can start a new draft from it.`
         }
         action="Reject"
         actionIcon={CircleXIcon}

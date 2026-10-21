@@ -45,7 +45,7 @@ extension layer we keep the same document model, undo history and input handling
   are never offered in the question. Words the service reads as a name or a period (the question
   reading's `spans`) are underlined and offered as a chip, which Tab or a click takes, never made
   one by themselves; a dates chip opens the dates panel. A chip keeps the words it stands for, so the question is sent and copied as a
-  sentence, and the chips' scope goes with it as get_context's fields (`ask-doc.ts`,
+  sentence, and the chips' scope goes with it as get_facts's fields (`ask-doc.ts`,
   `lib/ask-draft.ts`); its items and domains go with it as `about`, which the assistant is told
   about but no tool call is bound to. A screen reader hears a chip as "metric Net revenue, remove".
 

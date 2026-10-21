@@ -13,7 +13,7 @@ import { isCalendarDate, shiftDate } from './validity.ts'
 
 /*
   The questions only the person can answer about an agent's draft (FR-121), and how each is asked
-  in the person's AI app when it supports MCP elicitation (protocol 2026-07-28, form mode: a flat
+  in the person's agent when it supports MCP elicitation (protocol 2026-07-28, form mode: a flat
   object of strings, dates, booleans and closed choices). Every answer arrives from the client,
   so it is read as untrusted data: a value outside the choices offered, a malformed date or link,
   or text past its limit counts as no answer, and the question stays open for Heed's own form.
@@ -28,7 +28,7 @@ export type AgentQuestion = {
   options?: string[]
 }
 
-/** What the person answered in their AI app, ready for the derivation. */
+/** What the person answered in their agent, ready for the derivation. */
 export type AgentAnswers = {
   area?: string
   kind?: ItemKind
@@ -268,7 +268,7 @@ export const questionDefinitions: Record<QuestionId, Definition> = {
 export const MAX_ASKED = 4
 
 /**
- * The form that asks the open questions in the person's AI app, or null when none can be asked
+ * The form that asks the open questions in the person's agent, or null when none can be asked
  * there. Only questions with a form are asked; the rest stay in the tool's result.
  */
 export function questionForm(questions: readonly AgentQuestion[], context: QuestionContext) {

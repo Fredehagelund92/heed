@@ -165,11 +165,11 @@ export function ClientEditor({
           noValidate
           onSubmit={(event) => void submit(event)}
           className="@container/editor flex min-h-0 flex-1 flex-col"
-          aria-label={isNew ? 'Add an AI app' : `Edit ${client.displayName}`}
+          aria-label={isNew ? 'Add an agent' : `Edit ${client.displayName}`}
         >
           <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto p-6 pointer-coarse:p-4">
             <DialogHeader>
-              <DialogTitle>{isNew ? 'Add an AI app' : `Edit ${client.displayName}`}</DialogTitle>
+              <DialogTitle>{isNew ? 'Add an agent' : `Edit ${client.displayName}`}</DialogTitle>
               <DialogDescription>
                 {isNew
                   ? 'It gets answers once its access key carries this label.'
@@ -180,7 +180,7 @@ export function ClientEditor({
               <Alert variant="danger" role="alert">
                 <CircleAlertIcon aria-hidden />
                 <AlertContent>
-                  <AlertTitle>The AI app wasn&apos;t saved</AlertTitle>
+                  <AlertTitle>The agent wasn&apos;t saved</AlertTitle>
                   <AlertDescription>{failure}</AlertDescription>
                 </AlertContent>
               </Alert>
@@ -236,7 +236,7 @@ export function ClientEditor({
                         <FieldLabel icon={TagIcon}>Label</FieldLabel>
                         <FieldDescription>
                           The name on its access key: lowercase letters, digits, dots, dashes or
-                          underscores. You can&apos;t change it once the AI app is added.
+                          underscores. You can&apos;t change it once the agent is added.
                         </FieldDescription>
                       </FieldHeader>
                       <FieldControl
@@ -270,7 +270,7 @@ export function ClientEditor({
                     <span className="font-mono" translate="no">
                       {client.label}
                     </span>
-                    <span className="text-muted-foreground"> · fixed once an AI app is added</span>
+                    <span className="text-muted-foreground"> · fixed once an agent is added</span>
                   </p>
                 </div>
               )}
@@ -374,7 +374,7 @@ export function ClientEditor({
                                     {'gone' in tool
                                       ? 'This tool is no longer listed.'
                                       : (toolInfo[tool.tool]?.about ?? tool.tool)}
-                                    {tool.enabled === false ? ' Off for every AI app now.' : ''}
+                                    {tool.enabled === false ? ' Off for every agent now.' : ''}
                                   </FieldDescription>
                                 </FieldItemContent>
                               </FieldItem>
@@ -527,7 +527,7 @@ export function ClientEditor({
                   showSpinner ? 'flex items-center gap-2 opacity-0' : 'flex items-center gap-2'
                 }
               >
-                {isNew ? 'Add AI app' : 'Save changes'}
+                {isNew ? 'Add agent' : 'Save changes'}
               </span>
               {showSpinner ? (
                 <LoaderCircleIcon

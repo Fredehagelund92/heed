@@ -72,10 +72,10 @@ export const statusHints: Record<ItemDisplayStatus, string> = {
   source_missing: 'Something this fact is about is gone from its source.',
   needs_check: 'Its source changed. The owner checks that the fact is still right.',
   stale: 'The check date has passed.',
-  active_issue: 'An issue that still applies. AI apps get it as a warning.',
+  active_issue: 'An issue that still applies. Agents get it as a warning.',
   accepted: 'Nothing to check.',
   expired: 'Its last day has passed.',
-  retired: "Archived. AI apps don't get it.",
+  retired: "Archived. Agents don't get it.",
 }
 
 /** A comma separated URL list, kept only where every value is known. */
@@ -397,7 +397,7 @@ export const channelText: Record<CreationChannel, string> = {
   assistant: 'With the assistant',
   chat: 'From a chat message',
   command_line: 'With the command-line tool',
-  mcp: 'Through an AI app',
+  mcp: 'Through an agent',
   import: 'In an import',
 }
 

@@ -13,7 +13,7 @@ export type SettingsSection = (typeof settingsSections)[number]
 /** A person's own settings, everyone's. The breadcrumb names the section with these too. */
 export const settingsSectionTitles: Record<SettingsSection, string> = {
   profile: 'Profile and appearance',
-  connect: 'Connect an AI app',
+  connect: 'Connect an agent',
 }
 
 export const adminSections = [

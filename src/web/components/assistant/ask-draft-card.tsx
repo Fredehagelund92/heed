@@ -77,7 +77,7 @@ function sourceLook(source: FieldSource): {
     case 'gap':
       return {
         label: 'From a gap',
-        meaning: 'Taken from a question AI apps asked that nothing answered.',
+        meaning: 'Taken from a question agents asked that nothing answered.',
         icon: DatabaseIcon,
         form: 'bare',
       }
@@ -350,7 +350,7 @@ function WebNote({ sites }: { sites: string[] }) {
       <GlobeIcon aria-hidden="true" className="size-icon-sm shrink-0 translate-y-px" />
       <span>
         It comes from {sites.join(' and ')}, which the assistant read just now. The owner of its
-        domain checks it before AI apps get it.
+        domain checks it before agents get it.
       </span>
     </p>
   )
@@ -459,7 +459,7 @@ export function DraftConfirm({
       meta={<span>{meta}</span>}
       note={
         state === 'saved' ? (
-          'Open it, check each part, then send it for review. The owner of its domain checks it before AI apps get it.'
+          'Open it, check each part, then send it for review. The owner of its domain checks it before agents get it.'
         ) : state === 'failed' ? (
           'Nothing is saved. The answer says why. Ask again, or write it yourself in Add context.'
         ) : (

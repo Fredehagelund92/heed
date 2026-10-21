@@ -4,10 +4,10 @@ import { refusals } from '../../contract/refusals.ts'
 import { FIXTURE_TODAY } from '../mocks/reference-data.ts'
 
 /**
- * People's AI apps, in the mock. The sign-in in progress that the consent screen can answer
+ * People's agents, in the mock. The sign-in in progress that the consent screen can answer
  * (`/connect/approve?request=` and this id) is answered once: it connects the app for the
  * signed-in person, or not, and the address then answers like one that ended. The mock sends the
- * browser to Connect your AI, where the connected apps are listed, instead of to a real app.
+ * browser to Connect your AI, where the connected agents are listed, instead of to a real app.
  *
  * The apps already connected are the world's (mock-admin.ts keeps them): each person lists and
  * disconnects their own, and an administrator sees and disconnects everyone's.

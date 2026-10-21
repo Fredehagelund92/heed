@@ -19,7 +19,7 @@ import type {
 } from './types.ts'
 
 /**
- * The model port (plan section 3.1): one explicit model object per role. `get_context` never
+ * The model port (plan section 3.1): one explicit model object per role. `get_facts` never
  * calls a model; only the evaluation runner, its judges and the assistant do. A plain string
  * model would route through an AI gateway the service did not choose, so every model here is an
  * object made by the adapter of a provider in the registry (`providers.ts`), for a model that

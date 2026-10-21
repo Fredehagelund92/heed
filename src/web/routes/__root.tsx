@@ -22,7 +22,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
-  // The signed-out page and the AI app consent page stand alone: the shell would ask for a
+  // The signed-out page and the agent consent page stand alone: the shell would ask for a
   // session, and the consent page signs a person in itself.
   const standalone = useRouterState({
     select: (state) => standalonePaths.has(state.location.pathname),

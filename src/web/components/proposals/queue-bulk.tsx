@@ -48,7 +48,7 @@ function resultWords(outcome: Outcome, result: BulkDecision) {
     : 'Nothing was decided'
   const parts = [
     outcome === 'accept' && result.editions.length
-      ? `AI apps get ${decided - waiting === 1 ? 'it' : 'them'} within a minute.`
+      ? `Agents get ${decided - waiting === 1 ? 'it' : 'them'} within a minute.`
       : '',
     outcome === 'accept' && waiting
       ? `${count(waiting, 'proposal')} ${waiting === 1 ? 'waits' : 'wait'} for an approver.`

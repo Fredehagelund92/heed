@@ -6,7 +6,7 @@ import type { Term } from './vocabulary.ts'
   A question read for a person, as the composer's "Heed reads" line and Home's Try it show it:
   the terms its words name, with their names, the dates and how Heed read them, the words that
   name more than one term, and words that name dates Heed cannot read. It is the reader
-  get_context uses (`readQuestion`), so what the line shows is what a call reads. Pure, so the
+  get_facts uses (`readQuestion`), so what the line shows is what a call reads. Pure, so the
   service and the mock read a question the same way.
 */
 

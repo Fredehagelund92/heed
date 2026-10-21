@@ -75,8 +75,8 @@ export type ToolContext = {
   /** The calls this request's tools ran, by call id, with the tool's name: their results get seals. */
   produced: Map<string, AssistantToolName>
   /**
-   * The scope the person saw under their question before they sent it, as get_context's fields:
-   * the turn's get_context and explain_item calls read it, whatever scope the model gives. Null
+   * The scope the person saw under their question before they sent it, as get_facts's fields:
+   * the turn's get_facts and explain_item calls read it, whatever scope the model gives. Null
    * when the question carries none.
    */
   bound?: ReturnType<typeof boundFields>
@@ -97,7 +97,7 @@ type WebRun = (
 export type AssistantTool = {
   description: string
   /**
-   * The API operation (`proposals.create`), MCP tool (`mcp.get_context`) or web operation
+   * The API operation (`proposals.create`), MCP tool (`mcp.get_facts`) or web operation
    * (`web.read_source`) this tool performs. The permission tests enumerate these.
    */
   operation: string
@@ -115,10 +115,10 @@ const noDemand = (): Promise<never> =>
  */
 function mcpTool(
   name:
-    | 'get_context'
+    | 'get_facts'
     | 'read_item'
     | 'improve_question'
-    | 'find_context'
+    | 'find_facts'
     | 'domain_overview'
     | 'what_changed',
 ): Run {
@@ -143,7 +143,7 @@ function mcpTool(
       readsIn(tx, clock, personId),
     )
     // Concise unless the model asked for full, whether or not its input went through the schema.
-    const concise = name === 'get_context' || name === 'find_context'
+    const concise = name === 'get_facts' || name === 'find_facts'
     const result = await execute(
       name,
       concise ? { response_format: 'concise', ...(input as object) } : input,
@@ -185,14 +185,14 @@ async function draftIdOf(tx: Queryable, draft: DraftNumber): Promise<string> {
 }
 /** Why a fact does or doesn't apply, as people read it in the facts an answer read. */
 const reasons: Record<string, string> = {
-  not_in_edition: "AI apps don't get it today.",
-  not_accepted: "It's a proposal, so AI apps don't get it yet.",
+  not_in_edition: "AI agents don't get it today.",
+  not_accepted: "It's a proposal, so AI agents don't get it yet.",
   need_more_detail: 'I need a metric, a market or dates first.',
   check_failed: "The checks couldn't run.",
   audience: "It's only for some groups of people.",
   source_visibility: "Its metrics aren't open to you.",
-  stopped: "It's switched off, so AI apps don't get it for now.",
-  high_risk_unverified: "It's high risk and needs checking first, so AI apps don't get it yet.",
+  stopped: "It's switched off, so AI agents don't get it for now.",
+  high_risk_unverified: "It's high risk and needs checking first, so AI agents don't get it yet.",
   cut: 'It applies, but the answer was full, so it was left out.',
   retired: "It's archived.",
 }
@@ -274,26 +274,26 @@ const createDraftInput = mini.strictObject({
 })
 
 export const assistantTools = {
-  get_context: {
+  get_facts: {
     description:
-      mcpTools.get_context.description +
-      ' The reply names the edition. Use it first for a question about a metric, a market or dates, and to explain which items apply to a scope and why. Use the names find_context or domain_overview gives. It is concise unless you ask for full: call read_item for an item you will quote evidence from.',
-    operation: 'mcp.get_context',
+      mcpTools.get_facts.description +
+      ' The reply names the edition. Use it first for a question about a metric, a market or dates, and to explain which items apply to a scope and why. Use the names find_facts or domain_overview gives. It is concise unless you ask for full: call read_item for an item you will quote evidence from.',
+    operation: 'mcp.get_facts',
     // Concise by default (FR-342): every later step and turn sends the result again.
     inputSchema: contextInput
       .omit({ edition: true, max_bytes: true, response_format: true })
       .extend({ response_format: responseFormat.default('concise') }),
-    run: mcpTool('get_context'),
+    run: mcpTool('get_facts'),
   },
-  find_context: {
+  find_facts: {
     description:
-      mcpTools.find_context.description +
-      ` Use it before get_context when the person names something in their own words, asks what ${productName} knows about a topic, or asks what a metric means. When it says why nothing was found, tell the person that and what you tried.`,
-    operation: 'mcp.find_context',
+      mcpTools.find_facts.description +
+      ` Use it before get_facts when the person names something in their own words, asks what ${productName} knows about a topic, or asks what a metric means. When it says why nothing was found, tell the person that and what you tried.`,
+    operation: 'mcp.find_facts',
     inputSchema: findInput
       .omit({ edition: true, max_bytes: true, response_format: true })
       .extend({ response_format: responseFormat.default('concise') }),
-    run: mcpTool('find_context'),
+    run: mcpTool('find_facts'),
   },
   read_item: {
     description:
@@ -313,8 +313,8 @@ export const assistantTools = {
   },
   explain_item: {
     description:
-      'Explain whether one accepted item applies to a scope (a question, metrics, dimension filters and inclusive dates), and why or why not, in the live edition. The answer comes from the same matching as get_context.',
-    operation: 'mcp.get_context',
+      'Explain whether one accepted item applies to a scope (a question, metrics, dimension filters and inclusive dates), and why or why not, in the live edition. The answer comes from the same matching as get_facts.',
+    operation: 'mcp.get_facts',
     inputSchema: scopeInput.extend({ id: z.string().regex(/^itm_[a-z0-9]{8,16}$/) }),
     run: async (input: z.infer<typeof scopeInput> & { id: string }, { tx, clock }) => {
       const bundle = await loadLiveBundle(tx)
@@ -349,7 +349,7 @@ export const assistantTools = {
         reason: reasonText(result),
         ...(result.applies ? {} : { code: result.reason }),
         ...(request.scope.status === 'need_more_detail' ? { options: request.scope.issues } : {}),
-        // Read at today, as get_context reads a question without dates, and said; dates read in
+        // Read at today, as get_facts reads a question without dates, and said; dates read in
         // the words are said as Heed read them.
         ...(request.scope.status === 'resolved' && request.scope.assumed
           ? { assumed_date: assumedDate(request.scope.assumed).note }
@@ -435,7 +435,7 @@ export const assistantTools = {
   },
   estimate_impact: {
     description:
-      'Preview what an agent would be served for a question if a saved draft were accepted, and what its answer tests would cost. Answer test results depend on the language model.',
+      'Preview what an AI agent would be served for a question if a saved draft were accepted, and what its answer tests would cost. Answer test results depend on the language model.',
     operation: 'proposals.preview',
     inputSchema: scopeInput.extend({ draft_number: draftNumber }),
     run: async (
@@ -515,7 +515,7 @@ export const assistantTools = {
   },
   read_gap: {
     description:
-      'Read a reported gap: the topic (metrics, dimension values, week) that agents asked about and found no context for, its status and counts. Use it to start a draft for that gap.',
+      'Read a reported gap: the topic (metrics, dimension values, week) that AI agents asked about and found no context for, its status and counts. Use it to start a draft for that gap.',
     operation: 'gaps.get',
     inputSchema: z.strictObject({ id: z.string().min(1).max(80) }),
     run: async (input: { id: string }, { tx, clock, personId }) => {
@@ -616,8 +616,8 @@ export function proposeOnly(session: Session): Session['person'] {
  * are not here, so no tool can reach them, whatever the API's own policy would allow the person.
  */
 export const assistantOperations: ReadonlySet<string> = new Set([
-  'mcp.get_context',
-  'mcp.find_context',
+  'mcp.get_facts',
+  'mcp.find_facts',
   'mcp.domain_overview',
   'mcp.what_changed',
   'mcp.read_item',
@@ -728,7 +728,7 @@ function failure(error: unknown) {
 }
 
 /** The tools that read a question's scope, and so read the scope the person saw. */
-const scopedTools: ReadonlySet<AssistantToolName> = new Set(['get_context', 'explain_item'])
+const scopedTools: ReadonlySet<AssistantToolName> = new Set(['get_facts', 'explain_item'])
 
 /**
  * A call's input bound to the scope the person saw: the bound fields replace the model's, and a

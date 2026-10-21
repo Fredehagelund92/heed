@@ -202,17 +202,26 @@ export const navItems: readonly NavItem[] = [
     ],
   },
   // A person's own Settings have no sidebar row: the user menu, the palette and their
-  // shortcuts open them. Connect an AI app is their second section, and Home's quick action too.
+  // shortcuts open them. Connect an agent is their second section, and Home's quick action too.
   {
     id: 'connect',
-    title: 'Connect an AI app',
+    title: 'Connect an agent',
     to: '/settings',
     search: { section: 'connect' },
     icon: PlugIcon,
     group: null,
     hotkey: 'g>y',
     audience: 'everyone',
-    keywords: ['mcp', 'claude', 'access key', 'connect your ai', 'client', 'token'],
+    keywords: [
+      'mcp',
+      'claude',
+      'access key',
+      'connect your ai',
+      'ai app',
+      'ai agent',
+      'client',
+      'token',
+    ],
   },
   // Heed's help pages, for everyone (docs/help). They open in docs mode, with a sidebar of their own.
   {
