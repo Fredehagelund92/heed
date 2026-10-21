@@ -351,8 +351,8 @@
 
   /*
     The catalogue grid's columns (contract 5, "The catalogue"): the count of accepted items, the
-    status (wider than an item's, to fit "Changed in Cube") and the day Cube last changed a
-    definition. Name and Domain reuse the library's widths.
+    status (wider than an item's, to fit "Definition changed") and the day a definition last
+    changed at its source. Name and Domain reuse the library's widths.
     src/web/components/catalogue/columns.ts holds the same numbers for its column budget.
   */
   --column-context: 7rem;

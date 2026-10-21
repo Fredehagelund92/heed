@@ -38,7 +38,7 @@ type MenuProps = {
 const clearedFilters: Partial<CatalogueSearch> = { status: undefined, area: undefined }
 
 type DomainChoices = { areas: readonly Area[]; noDomain: boolean }
-/** The tool the catalogue's definitions come from, for the status names ("Changed in Cube"). */
+/** The tool the catalogue's definitions come from, for the status names ("Gone from Cube"). */
 type ToolProps = { tool: string }
 
 function FilterFields({

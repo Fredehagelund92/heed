@@ -9,6 +9,7 @@ import {
 import {
   catalogueEntries,
   catalogueFilterCount,
+  catalogueChangeDetail,
   catalogueStatusName,
   catalogueTool,
   catalogueTotals,
@@ -251,12 +252,22 @@ describe('catalogue words', () => {
 
   it('names each status, the issue count with it', () => {
     expect(catalogueStatusName('gone', { tool: 'Cube' })).toBe('Gone from Cube')
-    expect(catalogueStatusName('changed', { tool: 'Cube' })).toBe('Changed in Cube')
-    expect(catalogueStatusName('changed')).toBe('Changed in the source')
+    expect(catalogueStatusName('changed', { tool: 'Cube' })).toBe('Definition changed')
+    expect(catalogueStatusName('changed')).toBe('Definition changed')
     expect(catalogueStatusName('active_issues', { activeIssues: 1 })).toBe('1 active issue')
     expect(catalogueStatusName('active_issues', { activeIssues: 3 })).toBe('3 active issues')
     expect(catalogueStatusName('no_context')).toBe('No context yet')
     expect(catalogueStatusName('in_sync')).toBe('In sync')
+  })
+
+  it('says where and when a definition changed in the detail line, not in the status', () => {
+    expect(catalogueChangeDetail('Cube', '2026-10-07T05:00:00Z')).toBe(
+      'Changed in Cube, 7 Oct 2026',
+    )
+    expect(catalogueChangeDetail('Cube', null)).toBe('Changed in Cube')
+    expect(catalogueChangeDetail(undefined, '2026-10-07T05:00:00Z')).toBe(
+      'Changed in the source, 7 Oct 2026',
+    )
   })
 
   it('totals the terms and the domains they name', () => {
@@ -303,7 +314,7 @@ describe('catalogue column budget', () => {
     )
   }
 
-  it('shows Context, Status and Changed in Cube grouped at 1440 and 1280', () => {
+  it('shows Context, Status and Definition changed grouped at 1440 and 1280', () => {
     expect(fitCatalogueColumns(1184, 24, { grouped: true }).columns).toEqual([
       'context',
       'status',
@@ -330,7 +341,7 @@ describe('catalogue column budget', () => {
     ])
   })
 
-  it('drops Changed in Cube on a rail page (1024 wide)', () => {
+  it('drops Definition changed on a rail page (1024 wide)', () => {
     expect(fitCatalogueColumns(976, 24, { grouped: true }).columns).toEqual(['context', 'status'])
     expect(fitCatalogueColumns(976, 24, { grouped: false }).columns).toEqual([
       'domain',

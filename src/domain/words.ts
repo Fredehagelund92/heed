@@ -186,6 +186,13 @@ export const concepts = {
     internal: ['dimension'],
     only: 'the Catalogue and Administration',
   },
+  definitionChanged: {
+    name: 'definition changed',
+    definition:
+      'What a metric or a market means changed at its source. Facts written before the change wait for a check.',
+    internal: [],
+    phrases: ['Definition changed', 'Changed in Cube, 7 Oct 2026'],
+  },
   source: {
     name: 'where this comes from',
     definition: 'A link and one sentence copied from it, so the owner can check the fact.',

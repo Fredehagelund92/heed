@@ -48,7 +48,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Skeleton } from '@/components/ui/skeleton'
 import { TabsContent } from '@/components/ui/tabs'
 import { PersonPreview } from '@/components/preview/preview-link'
-import { termDomainInfo } from '@/lib/catalogue'
+import { catalogueChangeDetail, termDomainInfo } from '@/lib/catalogue'
 import { formatCount, formatDay, kindNames, type LibraryRow } from '@/lib/library'
 import type { LibrarySearch } from '@/lib/search-params'
 import {
@@ -751,7 +751,7 @@ function SourceFields({
             Read failed
           </Badge>
         ) : definition.state === 'changed' ? (
-          <CatalogueStatusBadge status="changed" tool={tool} />
+          <CatalogueStatusBadge status="changed" tool={tool} changedAt={definition.changedAt} />
         ) : (
           <Quiet>In sync</Quiet>
         )}
@@ -907,10 +907,10 @@ function SourceFields({
       {definition ? (
         <FieldRow
           icon={CalendarSyncIcon}
-          label={`Changed in ${tool}`}
+          label="Definition changed"
           hint={
             definition.changedAt
-              ? 'Facts written before the change wait for a check.'
+              ? `${catalogueChangeDetail(tool, definition.changedAt)}. Facts written before the change wait for a check.`
               : `${tool} hasn't changed it since it was first read.`
           }
         >
