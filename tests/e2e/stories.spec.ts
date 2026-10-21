@@ -275,7 +275,7 @@ for (const theme of themes) {
   test(`Bin and empty library stories play and pass axe, ${theme}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const stories = await binStories(page)
-    expect(stories.length).toBe(11)
+    expect(stories.length).toBe(12)
     await checkStories(page, stories, theme)
   })
 

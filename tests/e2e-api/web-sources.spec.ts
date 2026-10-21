@@ -99,7 +99,7 @@ test('a pasted link becomes an unreviewed draft from an external source, with no
   await page.goto(`/library/new?draft=${saved[0]!.id}`)
   const source = page.locator('[data-slot="external-source"]')
   await expect(source).toHaveText(
-    'Outside source, not checked yet. The assistant read 127.0.0.1 on 7 Oct 2026 and copied the sentence from it. Open the link and check the sentence before you send it.',
+    'Outside source, not checked yet. We read 127.0.0.1 on 7 Oct 2026 and the sentence was copied from it. Open the link and check the sentence before you send it.',
     { timeout: 15_000 },
   )
   // The sentence is on the page: no warning.
