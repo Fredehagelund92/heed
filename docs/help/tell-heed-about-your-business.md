@@ -28,7 +28,7 @@ The assistant gets the text with every question. An AI app, such as Claude Code,
 
 3. Under **The text**, read what the box asks for, then write it. The box says it in two parts, so you never have to leave the screen:
    1. _What the company does._ One or two sentences: what it sells, to whom and where.
-   2. _Words an outsider would misread._ One per line, as the word, a colon and what it means, such as _First-time buyer: a customer whose first paid order falls in the period._ A word that already has a definition in the Catalogue does not need to be repeated here, because this list is for the words people misread in everyday talk.
+   2. _Words an outsider would misread._ One per line, as the word, a colon and what it means, such as _First-time buyer: a customer whose first paid order falls in the period._ A word that already has a definition in the Catalogue doesn't need to be repeated here, because this list is for the words people misread in everyday talk.
 
    It also says what to leave out: numbers, deals, dates and what happened in a market, legal conclusions, and secrets or personal data. Leave the box empty and the assistant and AI apps get no background.
 

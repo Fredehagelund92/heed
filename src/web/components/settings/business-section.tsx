@@ -261,23 +261,23 @@ function BusinessForm({ setting }: { setting: Setting }) {
               />
               <FieldError id="business-text-error">{errors.text || undefined}</FieldError>
             </Field>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy || text === ABOUT_BUSINESS_STARTER}
-              onClick={() => {
-                setText(ABOUT_BUSINESS_STARTER)
-                recheck(ABOUT_BUSINESS_STARTER, reason)
-              }}
-            >
-              <RotateCcwIcon aria-hidden />
-              Reset to the starter text
-            </Button>
-            <p className="text-dense text-muted-foreground">
-              Puts back the starter text. Nothing changes until you save.
-            </p>
-          </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy || text === ABOUT_BUSINESS_STARTER}
+                onClick={() => {
+                  setText(ABOUT_BUSINESS_STARTER)
+                  recheck(ABOUT_BUSINESS_STARTER, reason)
+                }}
+              >
+                <RotateCcwIcon aria-hidden />
+                Reset to the starter text
+              </Button>
+              <p className="text-dense text-muted-foreground">
+                Puts back the starter text. Nothing changes until you save.
+              </p>
+            </div>
             <Field name="reason" invalid={Boolean(errors.reason)} disabled={busy}>
               <FieldHeader>
                 <FieldLabel icon={MessageSquareIcon}>Why</FieldLabel>
