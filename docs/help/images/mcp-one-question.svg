@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="hf" width="640" height="328" viewBox="0 0 640 328" role="img">
-  <title>One question: you, your AI app, Cube and {{product}}</title>
+  <title>One question: you, your agent, Cube and {{product}}</title>
   <style>
     .hf { --hf-ink: #13161d; --hf-muted: #60636a; --hf-paper: #ffffff; --hf-soft: #f2f3f6; --hf-line: #d9dbe0; --hf-accent: #2c5dbd; --hf-on-accent: #ffffff; --hf-tint: #e1ecff; }
     @media (prefers-color-scheme: dark) {
@@ -23,7 +23,7 @@
   <text class="hf-title" x="80" y="39" text-anchor="middle">You</text>
   <path class="hf-line hf-dash" d="M80 52 L80 324"/>
   <rect class="hf-box" x="176" y="16" width="128" height="36" rx="8"/>
-  <text class="hf-title" x="240" y="39" text-anchor="middle">Your AI app</text>
+  <text class="hf-title" x="240" y="39" text-anchor="middle">Your agent</text>
   <path class="hf-line hf-dash" d="M240 52 L240 324"/>
   <rect class="hf-box" x="336" y="16" width="128" height="36" rx="8"/>
   <text class="hf-title" x="400" y="39" text-anchor="middle">Cube</text>

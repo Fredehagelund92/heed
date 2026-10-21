@@ -35,13 +35,13 @@
   <circle class="hf-accent" cx="358" cy="46" r="10"/>
   <text class="hf-on-accent" x="358" y="50.5" text-anchor="middle">3</text>
   <text class="hf-title" x="376" y="51">Share</text>
-  <text class="hf-muted" x="352" y="78">AI apps get it</text>
+  <text class="hf-muted" x="352" y="78">Agents get it</text>
   <text class="hf-muted" x="352" y="96">at once</text>
   <rect class="hf-box" x="496" y="24" width="128" height="84" rx="8"/>
   <circle class="hf-accent" cx="518" cy="46" r="10"/>
   <text class="hf-on-accent" x="518" y="50.5" text-anchor="middle">4</text>
   <text class="hf-title" x="536" y="51">Use</text>
-  <text class="hf-muted" x="512" y="78">AI apps read it</text>
+  <text class="hf-muted" x="512" y="78">Agents read it</text>
   <text class="hf-muted" x="512" y="96">before answering</text>
   <path class="hf-line" d="M144 66 L169.0 66.0"/>
   <path class="hf-head" d="M176.0 66.0 L168.0 70.5 L168.0 61.5 Z"/>
