@@ -84,6 +84,7 @@ import {
 } from '@/lib/sources'
 import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
+import { ComingSoonBlock } from './coming-soon-sources'
 import { SettingPanel } from './setting-panel'
 import { AddConnectorPage, EditSourcePage, fieldIcon } from './source-form'
 import { ProposeTermsPage, TermsBlock } from './propose-terms'
@@ -200,6 +201,7 @@ function SourceList() {
           </GridTable>
         )}
       </SettingsBlock>
+      <ComingSoonBlock />
       <p className="max-w-reading text-dense text-muted-foreground" data-slot="sources-elsewhere">
         AI apps that read these facts are in{' '}
         <Link to="/admin" search={{ section: 'gateway' }} className={inlineLink}>

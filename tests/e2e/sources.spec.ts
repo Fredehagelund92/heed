@@ -515,3 +515,40 @@ test('propose terms puts the metrics without a domain first, says what they need
   const results = await new AxeBuilder({ page }).include('[data-slot="propose-terms"]').analyze()
   expect(results.violations).toEqual([])
 })
+
+for (const size of sizes)
+  for (const theme of themes)
+    test(`Coming soon lists the planned content sources at ${size.name}px, ${theme}`, async ({
+      page,
+    }) => {
+      await signInAs(page, 'per_ravi')
+      await openPage(page, '/admin?section=sources', { ...size, theme })
+      const block = page.locator('[data-slot="sources-coming-soon"]')
+      await expect(block.getByRole('heading', { level: 2, name: 'Coming soon' })).toBeVisible()
+      const items = block.getByRole('list', { name: 'Sources coming soon' }).getByRole('listitem')
+      await expect(items).toHaveCount(2)
+      await expect(items.nth(0)).toContainText('Markdown in a Git repository')
+      await expect(items.nth(1)).toContainText('Google Docs')
+      await expect(block.locator('[data-slot="coming-soon-kind"]')).toHaveText([
+        'Content source',
+        'Content source',
+      ])
+      // Honest: nothing to press, nothing to add, no date.
+      await expect(items.getByRole('link')).toHaveCount(0)
+      await expect(items.getByRole('button')).toHaveCount(0)
+      const request = block.getByRole('link', { name: /Tell us which one you need/ })
+      await expect(request).toHaveAttribute(
+        'href',
+        /^https:\/\/github\.com\/Fredehagelund92\/heed\/issues\/new\?title=/,
+      )
+      await fits(page, size.width)
+      await expect(sourceRow(page, 'cube')).toBeVisible()
+    })
+
+test('Add a connector ends with the same planned sources and the way to ask', async ({ page }) => {
+  await signInAs(page, 'per_ravi')
+  await openPage(page, '/admin?section=sources&add=true', desktop)
+  const note = page.locator('[data-slot="connectors-coming-soon"]')
+  await expect(note).toContainText('Markdown in a Git repository, Google Docs')
+  await expect(note.getByRole('link', { name: /Tell us which one you need/ })).toBeVisible()
+})
