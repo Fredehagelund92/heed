@@ -162,22 +162,17 @@ export const Ready: Story = {
 }
 export const ReadyAsText: Story = { render: () => reviewOf('ready', '?compare=text') }
 /**
- * A proposal an AI app drafted for Priya, as Tomas reviews it: under the people, the folded trail
- * of how it came to be opens to each step in the past tense (contract 9.8).
+ * A proposal an AI app drafted for Priya, as Tomas reviews it: the same page as any other
+ * proposal, with nothing that says who wrote a field.
  */
 export const DraftedWithAnAiApp: Story = {
   render: () => <StoryApp path={`/proposals/${demoAgentIds.review}`} person="per_tomas" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const trail = await canvas.findByRole(
-      'button',
-      { name: /^How it was drafted: Drafted with an AI app/ },
-      { timeout: 10_000 },
-    )
-    await userEvent.click(trail)
-    await expect(canvas.getByRole('list', { name: 'How it was drafted' })).toHaveTextContent(
-      /Priya submitted it/,
-    )
+    await expect(
+      await canvas.findByRole('heading', { name: 'What changed' }, { timeout: 10_000 }),
+    ).toBeVisible()
+    await expect(canvas.queryByRole('button', { name: /^How it was drafted/ })).toBeNull()
   },
 }
 export const WaitingForTheApprover: Story = { render: () => reviewOf('approverNext') }

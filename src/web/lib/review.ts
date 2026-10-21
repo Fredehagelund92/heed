@@ -1,6 +1,5 @@
 import type { Area, ClaimLevel, ItemKind, RiskLevel } from '@domain/item'
 import type { ProposalState } from '@domain/proposal-state'
-import type { Provenance } from '@domain/provenance'
 import type {
   Gate,
   LibraryItem,
@@ -80,8 +79,6 @@ export type QueueRow = {
   claimedByName: string | null
   proposerId: string
   proposerName: string
-  /** An AI app or the assistant drafted it with the proposer: a mark on their avatar (6.13). */
-  drafted: Provenance['by'] | null
   /** The day a decision is due. */
   dueOn: string | null
   submittedAt: string | null
@@ -126,7 +123,6 @@ export function toQueueRow(
     claimedByName: nameOf(proposal.claimedBy),
     proposerId: proposal.proposerId,
     proposerName: nameOf(proposal.proposerId) ?? 'Someone',
-    drafted: record?.provenance?.by ?? null,
     dueOn: proposal.dueAt ? proposal.dueAt.slice(0, 10) : null,
     submittedAt: proposal.submittedAt,
     revision: proposal.revision,

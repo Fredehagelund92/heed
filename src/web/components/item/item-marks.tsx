@@ -1,6 +1,5 @@
 import type { Area, ItemKind } from '@domain/item'
 import type { ProposalState } from '@domain/proposal-state'
-import type { Provenance } from '@domain/provenance'
 import { asksForALook, type ItemDisplayStatus } from '@domain/status'
 import {
   CheckIcon,
@@ -22,12 +21,10 @@ import {
   Undo2Icon,
   type Icon,
 } from '@/components/icons'
-import { AiAppMark } from '@/components/person-avatar'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { daysFrom, formatDay, kindNames, statusNames } from '@/lib/library'
 import { proposalStateNames } from '@/lib/proposals'
-import { writerOf } from '@/lib/provenance'
 import { cn } from '@/lib/utils'
 import { KindIcon, kindGlyphs } from './kind-icon'
 
@@ -381,9 +378,7 @@ const avatarSize = { sm: 'xs', md: 'sm', lg: 'default' } as const
  * "Owner"). Avatars stay neutral so colour never competes with a domain. Bare in cells (20 in
  * compact rows, 24 in comfortable ones); `chip` is the outline chip for headers and filters.
  * `role` is a muted line under the name ("Owner of Paid media"): the name and the role stack
- * beside the avatar, which centres on the two, so both lines start at the name. `drafted` is the
- * variant with an AI app: the AI app mark on the avatar, its words in the tooltip and to a screen
- * reader, when an AI app or the assistant drafted the proposal with the person (6.13).
+ * beside the avatar, which centres on the two, so both lines start at the name.
  */
 export function Owner({
   name,
@@ -393,7 +388,6 @@ export function Owner({
   chip = false,
   role,
   empty = 'No owner',
-  drafted = null,
   className,
 }: {
   name: string | null
@@ -404,16 +398,10 @@ export function Owner({
   showName?: boolean
   chip?: boolean
   role?: string
-  /** An AI app or the assistant drafted it with the person: the AI app mark on the avatar. */
-  drafted?: Provenance['by'] | null
   className?: string
 }) {
-  const withApp = drafted ? ` with ${writerOf(drafted)}` : ''
   const nameText = (
-    <span className={cn('truncate', name ? '' : 'text-muted-foreground')}>
-      {name ?? empty}
-      {withApp ? <span className="sr-only">{withApp}</span> : null}
-    </span>
+    <span className={cn('truncate', name ? '' : 'text-muted-foreground')}>{name ?? empty}</span>
   )
   const avatar = (
     <Avatar size={chip ? 'xs' : avatarSize[size]} aria-hidden="true">
@@ -428,17 +416,9 @@ export function Owner({
         chip && 'h-6 rounded-full border bg-background pr-2 text-dense',
         className,
       )}
-      data-drafted={drafted ?? undefined}
-      title={showName && !withApp ? undefined : `${name ?? empty}${withApp}`}
+      title={showName ? undefined : (name ?? empty)}
     >
-      {drafted ? (
-        <span className="relative inline-flex shrink-0">
-          {avatar}
-          <AiAppMark size={chip || size === 'sm' ? 'xs' : 'sm'} />
-        </span>
-      ) : (
-        avatar
-      )}
+      {avatar}
       {showName && role ? (
         <span className="flex min-w-0 flex-col gap-1">
           {nameText}
@@ -447,7 +427,7 @@ export function Owner({
       ) : showName ? (
         nameText
       ) : (
-        <span className="sr-only">{`${name ?? empty}${withApp}`}</span>
+        <span className="sr-only">{name ?? empty}</span>
       )}
     </span>
   )

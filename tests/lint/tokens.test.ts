@@ -310,14 +310,6 @@ describe('contrast pairs of section 6.3 meet their minimum in both themes', () =
       { what: 'status text', fg: `status-${status}-fg`, bg: `status-${status}-bg`, min: 4.5 },
       { what: 'status text', fg: `status-${status}-fg`, bg: 'background', min: 4.5 },
     ]),
-    // The line beside a field an AI app wrote (contract 6.13): a graphic that carries meaning, on
-    // every surface a field sits on, the table's name cell (the sidebar fill) included.
-    ...['background', 'card', 'popover', 'sidebar'].map((bg): Pair => ({
-      what: 'line of what an AI app wrote',
-      fg: 'ai-mark',
-      bg,
-      min: 3,
-    })),
     // A trend mark on a Home tile (contract 6.1, "Status"): the success and danger ink as text on
     // the card.
     ...['success', 'danger'].map((status): Pair => ({

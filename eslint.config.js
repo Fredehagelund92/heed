@@ -130,12 +130,11 @@ export default tseslint.config(
       'better-tailwindcss/no-duplicate-classes': 'error',
       // Classes a lazy chunk's own stylesheet defines, so the first load does not carry them
       // (components/assistant/answer-motion.css, home/your-drafts.css, item/mention-chip.css,
-      // page/dock-panel.css, page/grid-table.css, proposal/ai-mark.css and ui/scroll-fade.css).
+      // page/dock-panel.css, page/grid-table.css and ui/scroll-fade.css).
       'better-tailwindcss/no-unknown-classes': [
         'error',
         {
           ignore: [
-            '^ai-mark(-swatch)?$',
             '^animate-(arrive|settle)(-fast|-instant)?$',
             '^collapsible-height$',
             '^dock-motion$',

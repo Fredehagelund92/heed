@@ -1,6 +1,5 @@
 import type { Area, ItemKind, RiskLevel } from '@domain/item'
 import type { ProposalState } from '@domain/proposal-state'
-import type { Provenance } from '@domain/provenance'
 import type { ProposalRecord } from '@/api'
 import { queryTerms } from '@/lib/library'
 import { isUnsubmittedDraft } from '@/lib/my-drafts'
@@ -98,8 +97,6 @@ export type ProposalRow = {
   /** The day a decision is due, while the proposal waits for one. */
   dueOn: string | null
   updatedAt: string
-  /** An AI app or the assistant drafted it with the person: a quiet mark on the row (6.13). */
-  drafted: Provenance['by'] | null
 }
 
 /** The words of a proposal's title when the writer has not said what happened yet. */
@@ -138,7 +135,6 @@ export function toProposalRow(proposal: ProposalRecord, areas: readonly Area[]):
     riskLevel: proposal.draft.riskLevel ?? null,
     dueOn: waiting && proposal.dueAt ? proposal.dueAt.slice(0, 10) : null,
     updatedAt: proposal.updatedAt,
-    drafted: proposal.provenance?.by ?? null,
   }
 }
 

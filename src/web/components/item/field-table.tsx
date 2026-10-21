@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import type { Icon } from '@/components/icons'
 import { useInRail } from '@/components/page/page-rail'
 import { cn } from '@/lib/utils'
-import '@/components/proposal/ai-mark.css'
 
 /*
   The property table of a document page (contract 7.2, "FieldRow"): a bordered grid with a line
@@ -47,26 +46,16 @@ export function FieldRow({
   label,
   children,
   hint,
-  mark,
-  wrote = false,
 }: {
   icon: Icon
   label: string
   children: ReactNode
   /** A plain sentence under the value: what it means. */
   hint?: ReactNode
-  /** Where the value came from: the provenance glyph at the end of the label (contract 6.13). */
-  mark?: ReactNode
-  /** An AI app or the assistant wrote the value: the row carries the line (`ai-mark`, 6.13). */
-  wrote?: boolean
 }) {
   const inRail = useInRail()
   return (
-    <div
-      data-slot="field-row"
-      data-wrote={wrote || undefined}
-      className={cn('flex', !inRail && 'min-h-control-touch', wrote && 'ai-mark')}
-    >
+    <div data-slot="field-row" className={cn('flex', !inRail && 'min-h-control-touch')}>
       <dt
         className={cn(
           'flex w-field-label shrink-0 items-center gap-2 text-muted-foreground heed-ink @md:in-data-[labels=wide]:w-field-label-wide',
@@ -75,7 +64,6 @@ export function FieldRow({
       >
         <Glyph aria-hidden="true" className="size-icon-sm shrink-0" />
         <span className="min-w-0">{label}</span>
-        {mark ? <span className="ml-auto flex shrink-0">{mark}</span> : null}
       </dt>
       <dd
         className={cn(

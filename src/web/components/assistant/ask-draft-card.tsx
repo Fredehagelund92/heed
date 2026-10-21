@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { limits } from '@domain/proposal-rules'
 import {
-  BotIcon,
   ChevronRightIcon,
   CircleCheckIcon,
   CircleHelpIcon,
@@ -14,10 +13,9 @@ import {
   LoaderCircleIcon,
   SlidersHorizontalIcon,
   TriangleAlertIcon,
-  UserRoundIcon,
   type Icon,
 } from '@/components/icons'
-import { ChangeCard, wroteMark } from '@/components/change/change-card'
+import { ChangeCard } from '@/components/change/change-card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import type { CardField, DraftCard, DraftProposal, FieldSource } from '@/lib/assistant'
@@ -27,9 +25,9 @@ import { cn } from '@/lib/utils'
 import './answer-motion.css'
 
 /*
-  A draft the assistant wrote, as the person confirms it (FR-706, FR-707): every field it filled,
-  read only, each with where it came from (the person's words, a page it read, its own
-  suggestion), then Not now or Create draft. Nothing is opened or saved before the person says
+  A draft the assistant made, as the person confirms it (FR-706, FR-707): every field it filled,
+  read only, each taken from a page, a fact, a gap or a default where that is where it came from,
+  then Not now or Create draft. Nothing is opened or saved before the person says
   so, and what they see is the call the service signed, so what is saved is what is shown. Once
   saved, the card says so and opens the draft in the form, to check every field and submit it.
 */
@@ -48,35 +46,26 @@ const fieldNames: Record<CardField, string> = {
   reviewDate: 'Check again by',
 }
 
-/** Each source's mark: its words, what they mean, its glyph and its form (contract 6.13). */
+/**
+ * Each source's mark: its words, what they mean, its glyph and its form. A field from the
+ * person's words or the assistant's own suggestion has none: the card does not say who wrote it.
+ */
 function sourceLook(source: FieldSource): {
   label: string
   meaning: string
   icon: Icon
   form: 'outline' | 'bare'
-} {
+} | null {
   switch (source.kind) {
     case 'person':
-      return {
-        label: 'Your words',
-        meaning: 'From what you wrote.',
-        icon: UserRoundIcon,
-        form: 'bare',
-      }
+    case 'suggested':
+      return null
     case 'page':
       return {
         label: `From ${source.site}`,
         meaning: `Taken from ${source.site}, which the assistant read just now.`,
         icon: GlobeIcon,
         form: 'outline',
-      }
-    case 'suggested':
-      // Quiet like Your words: the line beside the field is what asks for the look (6.13).
-      return {
-        label: 'Assistant wrote',
-        meaning: 'Written by the assistant. Check it.',
-        icon: BotIcon,
-        form: 'bare',
       }
     case 'item':
       return {
@@ -102,13 +91,10 @@ function sourceLook(source: FieldSource): {
   }
 }
 
-/** The assistant wrote the value: anything but the person's own words. */
-const wroteBy = (source: FieldSource | undefined) =>
-  source !== undefined && source.kind !== 'person'
-
 /** Where one field came from, beside its name. */
 export function SourceMark({ source }: { source: FieldSource }) {
   const look = sourceLook(source)
+  if (!look) return null
   return (
     <Badge
       size="sm"
@@ -138,14 +124,8 @@ function Field({
   children: ReactNode
 }) {
   const source = card.sources[field]
-  const wrote = Boolean(children) && wroteBy(source)
   return (
-    <div
-      data-slot="ask-draft-field"
-      data-field={field}
-      data-wrote={wrote || undefined}
-      className={cn('flex min-w-0 flex-col gap-1', wrote && wroteMark)}
-    >
+    <div data-slot="ask-draft-field" data-field={field} className="flex min-w-0 flex-col gap-1">
       <dt className="flex min-w-0 items-center justify-between gap-2 text-caption text-muted-foreground">
         {fieldNames[field]}
         {source && children ? <SourceMark source={source} /> : null}
@@ -376,7 +356,7 @@ function WebNote({ sites }: { sites: string[] }) {
   )
 }
 
-/** The fields the card shows at once, in its order, for what was written and what was left. */
+/** The fields the card shows at once, in its order, for what was left empty. */
 const shownFields = ['summary', 'scope', 'validity', 'evidence', 'areaId'] as const
 
 /** A field's value on the card, or null when the draft leaves it empty. */
@@ -403,21 +383,10 @@ const listed = (fields: readonly CardField[]) => {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]!
 }
 
-/**
- * What the draft took from the person, what the assistant filled in and what it left for them,
- * from each field's source (FR-707): the same facts the marks beside the fields give.
- */
-function WrittenNote({ card }: { card: DraftCard }) {
-  // A field the call gave no source for is neither: the card never guesses who wrote it.
-  const yours = shownFields.filter((f) => filled(card, f) && card.sources[f]?.kind === 'person')
-  const wrote = shownFields.filter((f) => filled(card, f) && wroteBy(card.sources[f]))
+/** What the draft left empty for the person to fill in (FR-707). */
+function LeftNote({ card }: { card: DraftCard }) {
   const left = shownFields.filter((f) => !filled(card, f))
-  const parts = [
-    yours.length ? `From your words: ${listed(yours)}.` : null,
-    wrote.length ? `The assistant filled in ${listed(wrote)}.` : null,
-    left.length ? `Left for you: ${listed(left)}.` : null,
-  ].filter(Boolean)
-  return parts.length ? <p data-slot="ask-draft-written">{parts.join(' ')}</p> : null
+  return left.length ? <p data-slot="ask-draft-written">Left for you: {listed(left)}.</p> : null
 }
 
 /** Where the draft stands, beside the decision. */
@@ -457,7 +426,7 @@ function DraftStatus({ draft }: { draft: DraftProposal }) {
 
 /**
  * The draft card, a change card about the item the draft would be (contract 9.8): asking (the
- * fields, what the assistant wrote and what it left, then Not now or Create draft), saving, saved
+ * fields and what it left, then Not now or Create draft), saving, saved
  * (folded, with the way to the draft) or not saved.
  */
 export function DraftConfirm({
@@ -488,11 +457,6 @@ export function DraftConfirm({
         </Badge>
       }
       meta={<span>{meta}</span>}
-      marked={
-        state !== 'saved' && shownFields.some((f) => filled(card, f) && wroteBy(card.sources[f]))
-          ? 'assistant'
-          : undefined
-      }
       note={
         state === 'saved' ? (
           'Open it, check each part, then send it for review. The owner of its domain checks it before AI apps get it.'
@@ -500,7 +464,7 @@ export function DraftConfirm({
           'Nothing is saved. The answer says why. Ask again, or write it yourself in Add context.'
         ) : (
           <div className="flex flex-col gap-1">
-            <WrittenNote card={card} />
+            <LeftNote card={card} />
             <p>Create it to save it as your draft. Then check each part and send it for review.</p>
           </div>
         )

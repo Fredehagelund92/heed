@@ -22,11 +22,11 @@ import {
   FlaskConicalIcon,
   LayersIcon,
   ListChecksIcon,
+  MessageCircleIcon,
   MessageSquareIcon,
   RotateCcwIcon,
   ScaleIcon,
   SigmaIcon,
-  SparklesIcon,
   TriangleAlertIcon,
   UserRoundIcon,
 } from '@/components/icons'
@@ -602,7 +602,7 @@ export function Transcript({
                   {turn.role === 'person' ? (
                     <MessageSquareIcon aria-hidden="true" className="size-icon-sm" />
                   ) : (
-                    <SparklesIcon aria-hidden="true" className="size-icon-sm" />
+                    <MessageCircleIcon aria-hidden="true" className="size-icon-sm" />
                   )}
                   {turn.role === 'person' ? 'Question' : 'AI app'}
                 </span>

@@ -26,11 +26,9 @@ import { DomainBadge, KindBadge } from '@/components/item/item-marks'
 import { MentionText } from '@/components/mentions/mention-text'
 import { ScopeTermLabel, scopeTermKind } from '@/components/mentions/scope-term'
 import { previewRender } from '@/components/preview/preview-link'
-import { ProvenanceSummary } from '@/components/proposal/attribution'
-import { ProvenanceFlagBadge, ProvenanceMark } from '@/components/proposal/provenance-mark'
+import { ProvenanceFlagBadge } from '@/components/proposal/provenance-notes'
 import { Badge } from '@/components/ui/badge'
 import { formatDay } from '@/lib/library'
-import { countMarks } from '@/lib/provenance'
 import { targetsByKey, type MentionOption } from '@/lib/mention-targets'
 import { previewTargetOf } from '@/lib/preview'
 import { cn } from '@/lib/utils'
@@ -273,7 +271,6 @@ export function ProposalFields({
   change,
   areas,
   provenance = null,
-  proposer,
 }: {
   draft: Draft
   /** The review's field diff; for a change, the rows it names are marked as changed. */
@@ -281,10 +278,8 @@ export function ProposalFields({
   /** A change to an accepted item (not a new item). */
   change: boolean
   areas: readonly Area[]
-  /** Where each field came from, when an AI app or the assistant wrote the draft (FR-121). */
+  /** The flags of a drafted proposal's words, under the value they are about (FR-121). */
   provenance?: Provenance | null
-  /** Who proposed it, for the summary line of a drafted proposal. */
-  proposer?: { name: string; you: boolean; submitted: boolean }
 }) {
   const { targets } = useMentionTargets()
   const lookups: Lookups = { targets: targetsByKey(targets), areas }
@@ -294,26 +289,15 @@ export function ProposalFields({
     const value = spec.render(draft, lookups)
     const isChanged = spec.fields.some((field) => changed.has(field))
     if (value === null && !isChanged) return []
-    const mark = provenance && spec.marked ? (provenance.fields[spec.marked] ?? null) : null
-    return [{ spec, value, isChanged, mark }]
+    return [{ spec, value, isChanged }]
   })
-  const table = (
-    <FieldTable label="What the proposal says" wideLabels={Boolean(provenance)}>
-      {rows.map(({ spec, value, isChanged, mark }) => {
+  return (
+    <FieldTable label="What the proposal says">
+      {rows.map(({ spec, value, isChanged }) => {
         const previous = isChanged ? spec.render(before, lookups) : null
         const flags = provenance?.flags.filter((flag) => flag.field === spec.marked) ?? []
         return (
-          <FieldRow
-            key={spec.id}
-            icon={spec.icon}
-            label={spec.label}
-            mark={
-              provenance && mark ? (
-                <ProvenanceMark mark={mark} by={provenance.by} where="review" />
-              ) : null
-            }
-            wrote={mark === 'prefilled'}
-          >
+          <FieldRow key={spec.id} icon={spec.icon} label={spec.label}>
             {isChanged ? (
               <Badge form="soft" tone="info" size="sm" icon={PencilIcon}>
                 Changed
@@ -337,20 +321,5 @@ export function ProposalFields({
         )
       })}
     </FieldTable>
-  )
-  if (!provenance || !proposer) return table
-  const counts = countMarks(rows.flatMap(({ mark }) => (mark ? [mark] : [])))
-  return (
-    <div className="flex flex-col gap-3">
-      <ProvenanceSummary
-        provenance={provenance}
-        person={proposer.name}
-        you={proposer.you}
-        counts={counts}
-        submitted={proposer.submitted}
-        marked={counts.wrote > 0}
-      />
-      {table}
-    </div>
   )
 }

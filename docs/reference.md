@@ -101,8 +101,8 @@ with a stated effect, an audience, an owner, replacements, conflicts or mentions
 suggest a legal or regulatory matter only raise a "may be high risk" flag for the owner, and
 words that read like orders to a model are kept as text and flagged. Every field carries a mark
 (`derived`, `default`, `prefilled`, `not_inferred`), stored on the proposal (`provenance`) and
-shown in the draft editor and in the review screen's What changed table; a field the person
-changes loses its mark. Text that looks like personal data or a secret (FR-117) is refused and
+sent by the API; the screens do not draw them yet. The draft editor uses them to list the fields
+to check, and a field the person changes loses its mark. Text that looks like personal data or a secret (FR-117) is refused and
 nothing is saved. Before saving, accepted items whose scope and dates overlap and whose words read
 alike are returned as `possible_duplicate`, so the agent asks the person and calls again with
 `item_id` or `new_item: true`; without one domain it answers `needs_area`. A saved draft returns

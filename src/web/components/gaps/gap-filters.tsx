@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import type { Area } from '@domain/item'
-import { CircleDashedIcon, HeedDomainIcon, ShapesIcon, SparklesIcon } from '@/components/icons'
+import { CircleDashedIcon, HeedDomainIcon, FlagIcon, ShapesIcon } from '@/components/icons'
 import { DomainBadge } from '@/components/item/item-marks'
 import { FilterMenu, type FilterMenuField } from '@/components/page/filter-menu'
 import {
@@ -88,7 +88,7 @@ export function GapFilters({
     {
       id: 'origin',
       title: 'Origin',
-      icon: SparklesIcon,
+      icon: FlagIcon,
       on: search.origin ? 1 : 0,
       options: gapOrigins.map((origin) =>
         option(

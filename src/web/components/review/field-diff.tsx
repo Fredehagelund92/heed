@@ -1,7 +1,7 @@
 import { createContext, Fragment, useContext, type ReactNode } from 'react'
 import type { Area, ClaimLevel, ItemKind, RiskLevel } from '@domain/item'
 import { audienceSchema, claimLevels, itemKinds, riskLevels } from '@domain/item'
-import type { FieldMark, MarkedField, Provenance } from '@domain/provenance'
+import type { MarkedField, Provenance } from '@domain/provenance'
 import { ownCaveat } from '@domain/proposal-rules'
 import {
   ChevronRightIcon,
@@ -33,7 +33,7 @@ import { LinkedMentionChip } from '@/components/mentions/mention-text'
 import { previewRender } from '@/components/preview/preview-link'
 import { webLink } from '@/components/proposal/proposal-fields'
 import { EditionLabel } from '@/components/proposal/edition-label'
-import { ProvenanceFlagBadge, ProvenanceMark } from '@/components/proposal/provenance-mark'
+import { ProvenanceFlagBadge } from '@/components/proposal/provenance-notes'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
@@ -64,7 +64,6 @@ import { formatDay } from '@/lib/library'
 import type { MentionOption } from '@/lib/mention-targets'
 import { previewTargetOf } from '@/lib/preview'
 import { cn } from '@/lib/utils'
-import '@/components/proposal/ai-mark.css'
 
 /*
   FieldDiff (frame C2, 2; FR-209): one row per changed field, the live version on the left and
@@ -127,27 +126,6 @@ const rowFields: Record<DiffRowId, MarkedField | null> = {
   references: 'references',
   marks: 'changeMarks',
   status: null,
-}
-
-/** The mark of a row's field (FR-121), for the glyph beside its name and the line. */
-export const rowMark = (id: DiffRowId, provenance: Provenance | null) => {
-  const field = rowFields[id]
-  return field && provenance ? (provenance.fields[field] ?? null) : null
-}
-
-/**
- * The marks of the rows a diff shows, for the summary line's counts: the same rows FieldDiff
- * draws, so the line counts the glyphs the owner sees.
- */
-export function shownMarks(
-  diff: readonly { field: string; before: unknown; after: unknown }[],
-  change: boolean,
-  provenance: Provenance,
-): FieldMark[] {
-  const rows = diffRows(diff).rows.filter((row) => !technicalRowIds.includes(row.id))
-  return (change ? rows : rows.filter((row) => !emptySide(row, 'after')))
-    .map((row) => rowMark(row.id, provenance))
-    .filter((mark): mark is FieldMark => mark !== null)
 }
 
 /** The flags of a row's words, under its value: they ask for a look, so they keep their badge. */
@@ -692,7 +670,6 @@ export function DiffTable({
   before,
   after,
   slot = 'field-diff',
-  marked = false,
   children,
 }: {
   /** The table's accessible name. */
@@ -701,11 +678,8 @@ export function DiffTable({
   before: string | null
   after: string
   slot?: string
-  /** The rows carry provenance glyphs: the name column takes the wide label width for them. */
-  marked?: boolean
   children: ReactNode
 }) {
-  const labelWidth = marked ? 'w-field-label-wide' : 'w-field-label'
   return (
     <div
       role="table"
@@ -719,7 +693,7 @@ export function DiffTable({
           role="row"
           className="flex border-b bg-sidebar text-caption font-bold text-muted-foreground @max-xl:hidden"
         >
-          <span role="columnheader" className={cn(cellBase, labelWidth, 'shrink-0')}>
+          <span role="columnheader" className={cn(cellBase, 'w-field-label shrink-0')}>
             Field
           </span>
           {before !== null ? (
@@ -732,7 +706,7 @@ export function DiffTable({
           </span>
         </div>
       </div>
-      <DiffColumns.Provider value={{ before, after, label: labelWidth }}>
+      <DiffColumns.Provider value={{ before, after }}>
         <div role="rowgroup" className="flex flex-col [&>div+div]:border-t">
           {children}
         </div>
@@ -741,10 +715,9 @@ export function DiffTable({
   )
 }
 
-const DiffColumns = createContext<{ before: string | null; after: string; label: string }>({
+const DiffColumns = createContext<{ before: string | null; after: string }>({
   before: null,
   after: 'Proposed',
-  label: 'w-field-label',
 })
 
 /** One field of a `DiffTable`: its name with an icon, then the live value and the proposed one. */
@@ -753,8 +726,6 @@ export function DiffTableRow({
   name,
   icon: Glyph,
   summary,
-  mark,
-  wrote = false,
   before,
   after,
 }: {
@@ -764,37 +735,24 @@ export function DiffTableRow({
   icon: Icon
   /** What changed in words, for a screen reader: "9 words added, 0 removed". */
   summary?: string | null
-  /** Where the field came from: the provenance glyph at the end of the name cell (6.13). */
-  mark?: ReactNode
-  /** An AI app or the assistant wrote the value: the row carries the line (`ai-mark`, 6.13). */
-  wrote?: boolean
   /** The live value; leave it out in a one-column table. */
   before?: ReactNode
   after: ReactNode
 }) {
   const columns = useContext(DiffColumns)
   return (
-    <div
-      role="row"
-      data-slot="diff-row"
-      data-row={row}
-      data-wrote={wrote || undefined}
-      className={cn('flex @max-xl:flex-col', wrote && 'ai-mark')}
-    >
+    <div role="row" data-slot="diff-row" data-row={row} className="flex @max-xl:flex-col">
       <span
         role="rowheader"
         className={cn(
           cellBase,
-          columns.label,
+          'w-field-label',
           'shrink-0 flex-row items-center gap-2 bg-sidebar text-muted-foreground @max-xl:w-full @max-xl:bg-transparent @max-xl:pb-0 @xl:items-start',
         )}
       >
         <Glyph aria-hidden="true" className="size-icon-sm shrink-0 @xl:translate-y-0.5" />
         <span className="font-bold @xl:font-normal">{name}</span>
         {summary ? <span className="sr-only">{`: ${summary}`}</span> : null}
-        {mark ? (
-          <span className="flex shrink-0 @xl:ml-auto @xl:-translate-y-0.5">{mark}</span>
-        ) : null}
       </span>
       {columns.before !== null ? (
         <div role="cell" className={cn(cellBase, 'flex-1 @xl:border-l')}>
@@ -968,10 +926,8 @@ export function FieldDiff({
           label="What changed, field by field"
           before={change ? live : null}
           after={proposed}
-          marked={Boolean(provenance)}
         >
           {rows.map((row) => {
-            const mark = rowMark(row.id, provenance)
             return (
               <DiffTableRow
                 key={row.id}
@@ -979,12 +935,6 @@ export function FieldDiff({
                 name={diffRowNames[row.id]}
                 icon={rowIcons[row.id]}
                 summary={rowSummary(row)}
-                mark={
-                  provenance && mark ? (
-                    <ProvenanceMark mark={mark} by={provenance.by} where="review" />
-                  ) : null
-                }
-                wrote={mark === 'prefilled'}
                 before={
                   change ? (
                     <RowSide row={row} which="before" lookups={lookups} issue={issue} />

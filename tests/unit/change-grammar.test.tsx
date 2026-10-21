@@ -1,14 +1,11 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { Provenance } from '@domain/provenance'
 import { DraftConfirm } from '@/components/assistant/ask-draft-card'
-import { ChangeCard, wroteMark } from '@/components/change/change-card'
+import { ChangeCard } from '@/components/change/change-card'
 import { StepTrail, type TrailStep } from '@/components/change/step-trail'
 import { FileTextIcon, GlobeIcon, SearchIcon } from '@/components/icons'
-import { mixedGate, normalGate } from '@/design-preview/proposal-samples'
 import { readAnswer, stepsSummary, type AskMessage, type DraftProposal } from '@/lib/assistant'
-import { draftedSteps, draftedSummary } from '@/lib/drafted-trail'
 
 /*
   One grammar for an agent's change (contract 7.2, 9.8): the step trail, whose verbs are in the
@@ -116,14 +113,11 @@ describe('the change card', () => {
         label="New draft"
         kind="event"
         title="Payment provider switched in the United Kingdom"
-        marked="assistant"
         status="Saving the draft"
         actions={<button type="button">Create draft</button>}
         {...props}
       >
-        <p data-wrote className={wroteMark}>
-          From 12 June 2026
-        </p>
+        <p>From 12 June 2026</p>
       </ChangeCard>,
     )
 
@@ -136,20 +130,6 @@ describe('the change card', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Saving the draft')
     expect(screen.getByRole('button', { name: 'Create draft' })).toBeInTheDocument()
-  })
-
-  it('marks what the agent wrote with the line, always, and says what the line means', () => {
-    const { container } = card()
-    expect(container.querySelector('[data-wrote]')).toHaveClass('ai-mark')
-    expect(screen.queryByRole('switch')).toBeNull()
-    expect(container.querySelector('[data-slot="ai-mark-legend"]')).toHaveTextContent(
-      'A line marks what the assistant wrote',
-    )
-  })
-
-  it('has no legend when nothing carries the line', () => {
-    const { container } = card({ marked: undefined })
-    expect(container.querySelector('[data-slot="ai-mark-legend"]')).toBeNull()
   })
 
   it('has no footer when there is nothing to decide', () => {
@@ -208,57 +188,6 @@ describe('the tense of a step', () => {
   })
 })
 
-describe('how an agent draft came to be', () => {
-  const provenance: Provenance = {
-    by: 'agent',
-    fields: {
-      kind: 'prefilled',
-      title: 'prefilled',
-      validity: 'confirmed',
-      areaId: 'derived',
-      riskLevel: 'default',
-      replaces: 'not_inferred',
-    },
-    flags: [{ code: 'may_be_high_risk', field: 'riskLevel', words: ['regulator'] }],
-    external: [
-      { url: 'https://news.example/a', quote: 'Q', readOn: '2026-10-06', quoteFound: true },
-    ],
-  }
-
-  it('lists only what happened, in order, from the provenance, the proposal and the checks', () => {
-    const steps = draftedSteps(provenance, {
-      proposer: 'Priya',
-      submittedAt: '2026-10-07T09:00:00Z',
-      gate: normalGate,
-    })
-    const line = (s: (typeof steps)[number]) =>
-      [s.words, s.object, s.after].filter(Boolean).join(' ') +
-      (s.counts ? ` · ${s.counts}` : '') +
-      (s.note ? ` · ${s.note}` : '')
-    expect(steps.map(line)).toEqual([
-      'An AI app read news.example · 6 Oct 2026',
-      'It wrote 2 fields · kind and title',
-      'Priya confirmed 1 field when the AI app asked · when it applies',
-      'We filled in 1 field · domain',
-      'We kept the default for 1 field · risk level',
-      'We left 1 field for people · replaces',
-      'We flagged 1 field to check · risk level',
-      'Priya sent it · 7 Oct 2026',
-      'We ran the checks · 4 of 4 passed',
-    ])
-    expect(draftedSummary(provenance, steps)).toBe('Drafted with an AI app · 9 steps')
-  })
-
-  it('names the assistant, says how failed checks came out and leaves out what did not happen', () => {
-    const steps = draftedSteps(
-      { by: 'assistant', fields: { title: 'prefilled' }, flags: [] },
-      { proposer: 'You', submittedAt: null, gate: mixedGate },
-    )
-    expect(steps.map((s) => s.words)).toEqual(['The assistant wrote', 'We ran the checks'])
-    expect(steps[1]!.counts).toMatch(/failed/)
-  })
-})
-
 describe('the draft card', () => {
   const draft = (url: string): DraftProposal => ({
     toolCallId: 'c1',
@@ -296,16 +225,16 @@ describe('the draft card', () => {
     expect(screen.getByText('javascript:alert(1)')).toBeInTheDocument()
   })
 
-  it('marks only what the assistant wrote, and says what came from the person', () => {
+  it('does not say who wrote a field, and names only what was left for the person', () => {
+    const base = draft('https://news.example/a')
     const { container } = render(
-      <DraftConfirm draft={draft('https://news.example/a')} onApprove={() => {}} />,
+      <DraftConfirm draft={{ ...base, card: { ...base.card, where: [] } }} onApprove={() => {}} />,
     )
-    const wrote = [...container.querySelectorAll('[data-wrote]')].map((node) =>
-      node.closest('[data-field]')?.getAttribute('data-field'),
-    )
-    expect(wrote).toEqual(['validity'])
+    expect(container.querySelector('[data-wrote]')).toBeNull()
+    expect(container.querySelector('[data-slot="ask-draft-source"]')).toBeNull()
     expect(container.querySelector('[data-slot="ask-draft-written"]')).toHaveTextContent(
-      'From your words: what happened. The assistant filled in when.',
+      'Left for you: where it applies.',
     )
+    expect(container).not.toHaveTextContent(/Assistant wrote|filled in/)
   })
 })

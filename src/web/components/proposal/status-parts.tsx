@@ -228,13 +228,9 @@ export function StatusBadges({ status }: Part) {
   )
 }
 
-/**
- * Who wrote it, who reviews it, and where it was written. A draft an AI app or the assistant
- * wrote says so in the proposer's chip, so the channel's chip would only repeat it.
- */
+/** Who wrote it, who reviews it, and where it was written. */
 export function StatusPeople({ status }: Part) {
   const { proposal, reviewerId, nameOf, viewerId } = status
-  const drafted = proposal.provenance?.by ?? null
   return (
     <div className="flex flex-wrap items-center gap-2">
       <PersonChip
@@ -243,7 +239,6 @@ export function StatusPeople({ status }: Part) {
         name={nameOf(proposal.proposerId) ?? 'Someone'}
         you={status.author}
         date={proposal.createdAt}
-        drafted={drafted}
       />
       {reviewerId ? (
         <PersonChip
@@ -253,7 +248,7 @@ export function StatusPeople({ status }: Part) {
           you={reviewerId === viewerId}
         />
       ) : null}
-      {drafted ? null : (
+      {proposal.provenance ? null : (
         <Badge form="outline" icon={PencilLineIcon}>
           {channelNames[proposal.channel]}
         </Badge>
@@ -678,11 +673,6 @@ export function StatusFields({ status }: Part) {
       change={status.proposal.action === 'change'}
       areas={status.areas}
       provenance={status.proposal.provenance}
-      proposer={{
-        name: status.nameOf(status.proposal.proposerId) ?? 'Someone',
-        you: status.author,
-        submitted: status.proposal.state !== 'draft',
-      }}
     />
   )
 }

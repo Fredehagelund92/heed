@@ -59,16 +59,14 @@ test('the card shows the draft to review, saves nothing until Create draft, then
   const meta = card(page).locator('[data-slot="change-card-meta"]')
   await expect(meta.getByText('Draft', { exact: true })).toBeVisible()
   await expect(meta).toContainText('New fact · not saved yet')
-  // What came from the person, what the assistant filled in, what it left: from the marks.
-  await expect(card(page).locator('[data-slot="ask-draft-written"]')).toHaveText(
-    'From your words: what happened and where it applies. The assistant filled in when, where it comes from and domain.',
-  )
+  // Everything on the card is filled in, so nothing is left for the person.
+  await expect(card(page).locator('[data-slot="ask-draft-written"]')).toHaveCount(0)
   // What happened, in the person's words, with its length against the limit.
   await expect(field(page, 'summary')).toContainText(
     'A new rule gives Netherlands customers 14 days to send back online orders, so average order value may fall.',
   )
   await expect(field(page, 'summary')).toContainText('of 280 characters')
-  await expect(field(page, 'summary').locator('[data-source="person"]')).toHaveText(/Your words/)
+  await expect(field(page, 'summary').locator('[data-source]')).toHaveCount(0)
   // Where it applies, by name, never a key.
   await expect(field(page, 'scope')).toContainText('Average order value')
   await expect(field(page, 'scope')).toContainText('Market: Netherlands')
@@ -77,7 +75,7 @@ test('the card shows the draft to review, saves nothing until Create draft, then
   await expect(field(page, 'validity').locator('[data-slot="ask-draft-uncertain"]')).toHaveText(
     'Uncertain',
   )
-  await expect(field(page, 'validity').locator('[data-source="suggested"]')).toBeVisible()
+  await expect(field(page, 'validity').locator('[data-source]')).toHaveCount(0)
   await expect(page.getByRole('article', { name: 'Answer' })).toContainText(
     'marked the dates as uncertain',
   )
@@ -96,17 +94,11 @@ test('the card shows the draft to review, saves nothing until Create draft, then
     'The owner of its domain checks it before AI apps get it.',
   )
   await expect(field(page, 'areaId')).not.toContainText('Not given')
-  // A line marks what the assistant wrote, never the person's own words: always, with no switch.
+  // Nothing says who wrote a field: no line, no legend, no switch, no badge for the assistant.
   await expect(card(page).getByRole('switch')).toHaveCount(0)
-  await expect(card(page).locator('[data-slot="ai-mark-legend"]')).toHaveText(
-    'A line marks what the assistant wrote',
-  )
-  await expect(field(page, 'validity')).toHaveAttribute('data-wrote')
-  await expect(field(page, 'validity')).toHaveClass(/\bai-mark\b/)
-  await expect(field(page, 'validity').locator('[data-source="suggested"]')).toHaveText(
-    /Assistant wrote/,
-  )
-  await expect(field(page, 'summary')).not.toHaveAttribute('data-wrote')
+  await expect(card(page).locator('[data-slot="ai-mark-legend"]')).toHaveCount(0)
+  await expect(card(page).locator('[data-wrote], .ai-mark')).toHaveCount(0)
+  await expect(card(page)).not.toContainText(/Assistant wrote|Your words/)
   // What it does not mean folds under More.
   await card(page)
     .getByText(/^More:/)
@@ -122,8 +114,6 @@ test('the card shows the draft to review, saves nothing until Create draft, then
   await expect(card(page).locator('[data-slot="change-card-meta"]')).toContainText(
     'only you can see it',
   )
-  // Nothing left to highlight once the fields fold away.
-  await expect(card(page).getByRole('switch')).toHaveCount(0)
   await expect(card(page).getByRole('button', { name: 'Create draft' })).toHaveCount(0)
   // A short answer stays whole: the saved sentence does not fold it.
   await expect(page.getByRole('button', { name: 'Show the rest of the answer' })).toHaveCount(0)

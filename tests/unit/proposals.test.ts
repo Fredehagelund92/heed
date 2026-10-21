@@ -398,15 +398,6 @@ describe('the rows of the Proposals page', () => {
     expect(rows[0]?.term).toBeNull()
   })
 
-  it('carries who drafted it with the person, for the quiet mark on the row', () => {
-    expect(rows[0]?.drafted).toBeNull()
-    const drafted = proposal(6, 'draft', '2026-10-07T10:00:00Z', {
-      channel: 'mcp',
-      provenance: { by: 'agent', fields: { title: 'prefilled' }, flags: [] },
-    })
-    expect(toProposalRow(drafted, areas).drafted).toBe('agent')
-  })
-
   it('groups by where each stands, unsubmitted drafts first and apart, the newest change first in a group', () => {
     const entries = groupProposalRows(visibleProposalRows(rows, {}))
     expect(

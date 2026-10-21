@@ -6,7 +6,6 @@ import type { ProposalRecord } from '@/api'
 import { areasQuery } from '@/api/queries'
 import { ArrowRightIcon } from '@/components/icons'
 import { DomainBadge, KindIcon, proposalStateLook } from '@/components/item/item-marks'
-import { DraftedMark } from '@/components/proposal/attribution'
 import { DraftRowMenu, isDiscardKey, useDiscardDrafts } from '@/components/proposals/discard-drafts'
 import { gridRowControl } from '@/components/page/grid'
 import { Badge } from '@/components/ui/badge'
@@ -24,8 +23,7 @@ import './your-drafts.css'
   draft, so this is the one part of Home that is the person's own; it is not drawn at all while
   they have none. Each row is one target that opens the draft in its form, to check every field
   and submit it: the kind's glyph, the title (wrapping, never cut), then the domain badge, a
-  quiet Draft mark, the bot glyph when an AI app or the assistant drafted it (contract 6.13),
-  and how long ago it was last edited. Each of these parts has one column for every row, so it
+  quiet Draft mark and how long ago it was last edited. Each of these parts has one column for every row, so it
   lines up from row to row: beside the title when the list is wide, under it when it is narrow,
   and wrapping after it on a phone (`draft-columns` in your-drafts.css). The
   newest five show; All drafts opens Proposals > Mine on the drafts. Each row also has its menu
@@ -111,7 +109,6 @@ function DraftRow({
               <Badge form="bare" size="sm" quiet icon={look.glyph} data-slot="home-draft-mark">
                 {proposalStateNames.draft}
               </Badge>
-              {row.drafted ? <DraftedMark by={row.drafted} /> : null}
             </span>
             <time
               dateTime={record.updatedAt}

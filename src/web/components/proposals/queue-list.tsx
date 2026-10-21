@@ -31,7 +31,6 @@ import {
   gridRowControl,
   gridRowTitle,
 } from '@/components/page/grid'
-import { DraftedMark } from '@/components/proposal/attribution'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RowSelectCell } from './row-select'
@@ -156,10 +155,7 @@ function Cell({
   row,
   today,
   viewerId,
-  proposerShown,
 }: {
-  /** The Proposed by column shows: the AI app mark is on the proposer's avatar there. */
-  proposerShown: boolean
   column: QueueColumnId
   row: QueueRow
   today: string | null
@@ -178,7 +174,6 @@ function Cell({
       content = (
         <span className="flex min-w-0 items-center gap-2">
           <ProposalStatusBadge state={row.state} size="sm" />
-          {row.drafted && !proposerShown ? <DraftedMark by={row.drafted} /> : null}
           <Holder row={row} viewerId={viewerId} />
         </span>
       )
@@ -194,7 +189,7 @@ function Cell({
       content = row.dueOn ? <DateBadge date={row.dueOn} today={today} deadline size="sm" /> : null
       break
     case 'proposer':
-      content = <Owner name={row.proposerName} size="sm" drafted={row.drafted} />
+      content = <Owner name={row.proposerName} size="sm" />
       break
   }
   return (
@@ -360,14 +355,7 @@ function GridRow({
         </Link>
       </div>
       {columns.map((column) => (
-        <Cell
-          key={column}
-          column={column}
-          row={row}
-          today={today}
-          viewerId={viewerId}
-          proposerShown={columns.includes('proposer')}
-        />
+        <Cell key={column} column={column} row={row} today={today} viewerId={viewerId} />
       ))}
     </div>
   )
@@ -435,7 +423,6 @@ function NarrowRow({
             </>
           ) : null}
           <span className="ml-auto inline-flex items-center gap-1">
-            {row.drafted ? <DraftedMark by={row.drafted} /> : null}
             {first}
             {rest.length ? ` ${rest.at(-1)?.[0] ?? ''}.` : ''}
           </span>

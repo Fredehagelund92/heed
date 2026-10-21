@@ -1,26 +1,14 @@
 import { useId, type ComponentProps, type ReactNode } from 'react'
 import type { ItemKind } from '@domain/item'
-import type { Provenance } from '@domain/provenance'
 import { KindIcon } from '@/components/item/kind-icon'
-import { AiMarkLegend } from '@/components/proposal/attribution'
 import { cn } from '@/lib/utils'
-import '@/components/proposal/ai-mark.css'
 
 /*
   One card about the object an AI app or the assistant changes (contract 7.2, 9.8): the object's
-  kind glyph and title, its state, what changes, what was written for the person and what is left
-  for them, a line beside each field it wrote, and one decision. The same card serves the
-  assistant's draft before it is created and an agent's proposal on its review page, so a change
-  an agent made reads the same wherever a person meets it.
-
-  What the agent wrote: the review's own line (`ai-mark`, contract 6.13), always shown, with its
-  legend above the fields. A field here has no padding of its own, so `wroteMark` moves the line
-  12 out into the card's padding and lets it span the field's name and value. The words of each
-  field's source say the same to a screen reader.
+  kind glyph and title, its state, what changes, what is left for the person, and one decision.
+  The same card serves the assistant's draft before it is created and an agent's proposal on its
+  review page, so a change an agent made reads the same wherever a person meets it.
 */
-
-/** The classes of a field an agent wrote: the line, in the card's padding beside the field. */
-export const wroteMark = 'ai-mark [--ai-mark-inset:0.125rem] [--ai-mark-start:-0.75rem]'
 
 export function ChangeCard({
   label,
@@ -30,7 +18,6 @@ export function ChangeCard({
   meta,
   children,
   note,
-  marked,
   status,
   actions,
   className,
@@ -46,10 +33,8 @@ export function ChangeCard({
   meta?: ReactNode
   /** What changes: the fields, or the diff. */
   children: ReactNode
-  /** What was written for the person and what is left for them. */
+  /** What is left for the person. */
   note?: ReactNode
-  /** Who wrote the fields that carry the line: the legend above them names it. */
-  marked?: Provenance['by'] | undefined
   /** Where the decision stands, in a status region: "Saving the draft". */
   status?: ReactNode
   /** The one decision: a primary, and at most one quiet way out. */
@@ -97,7 +82,6 @@ export function ChangeCard({
         data-slot="change-card-body"
         className="flex min-w-0 flex-col gap-3 border-t border-border-subtle px-4 py-3"
       >
-        {marked ? <AiMarkLegend by={marked} /> : null}
         {children}
         {note ? (
           <div data-slot="change-card-note" className="text-caption text-muted-foreground">

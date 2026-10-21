@@ -595,7 +595,7 @@ const reviewShots = [
   { name: 'review-proposer', path: '/proposals/00000000-0000-4000-8000-000000000064' },
   { name: 'review-check-failed', path: '/proposals/00000000-0000-4000-8000-00000000002f' },
   { name: 'review-retire', path: '/proposals/00000000-0000-4000-8000-000000000026' },
-  // A proposal an AI app drafted for Priya, as Tomas, its owner: the folded step trail.
+  // A proposal an AI app drafted for Priya, as Tomas, its owner: no mark of who wrote it.
   {
     name: 'review-agent-drafted',
     path: '/proposals/00000000-0000-4000-8000-00000000007e',

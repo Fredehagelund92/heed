@@ -149,14 +149,9 @@ const fitStories = (page: Page) =>
       (entry.title === 'Catalogue/Metric page' && entry.name === 'Context Tab Also Mentioned'),
   )
 
-/** Quiet attribution: the summary line, the glyph per field and the highlight (contract 6.13). */
-const attributionStories = (page: Page) =>
-  storiesWhere(
-    page,
-    (entry) =>
-      entry.title === 'Proposal parts' &&
-      (entry.name === 'Attribution' || entry.name === 'Field Sources'),
-  )
+/** The checks a draft written for a person asks of them: the notice, the flags, the sources. */
+const draftChecksStories = (page: Page) =>
+  storiesWhere(page, (entry) => entry.title === 'Proposal parts' && entry.name === 'Draft Checks')
 
 const settled = new Set(['finished', 'errored', 'aborted'])
 
@@ -320,9 +315,9 @@ for (const theme of themes) {
     await checkStories(page, stories, theme)
   })
 
-  test(`attribution stories play and pass axe, ${theme}`, async ({ page }) => {
-    const stories = await attributionStories(page)
-    expect(stories).toHaveLength(2)
+  test(`draft checks stories play and pass axe, ${theme}`, async ({ page }) => {
+    const stories = await draftChecksStories(page)
+    expect(stories).toHaveLength(1)
     await checkStories(page, stories, theme)
   })
 
@@ -436,7 +431,7 @@ for (const theme of themes) {
   test(`agent change stories play and pass axe, ${theme}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const stories = await agentChangeStories(page)
-    expect(stories.length).toBe(12)
+    expect(stories.length).toBe(11)
     await checkStories(page, stories, theme)
   })
 
