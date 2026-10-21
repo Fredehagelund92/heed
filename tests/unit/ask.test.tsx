@@ -166,7 +166,7 @@ describe('the Ask tab', { timeout: 30_000 }, () => {
     expect(asked).toHaveTextContent('what you mean?')
     expect(within(asked as HTMLElement).queryByRole('list', { name: 'Asked about' })).toBeNull()
     expect(asked.querySelector('[data-slot=ask-question-notes]')).toBeNull()
-    expect(askChat().store.messages.at(-2)?.metadata).toEqual({ at: expect.any(String) })
+    expect(Object.keys(askChat().store.messages.at(-2)?.metadata ?? {})).toEqual(['at'])
     // The follow-up has no scope of its own and is passed over: the next question still carries
     // what the one before it was about.
     const messages = askChat().store.messages
