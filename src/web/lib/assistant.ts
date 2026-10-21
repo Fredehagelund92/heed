@@ -44,6 +44,10 @@ export type AskMetadata = {
   assumedDay?: string
   /** How the answer ended: `length` when it stopped at its length limit. */
   finishReason?: string
+  /** When the message was sent or started, as a time (ISO 8601): for the chat's export. */
+  at?: string
+  /** The model that wrote the answer, as the service named it, and whether it is the scripted one. */
+  model?: { name: string; mock: boolean }
 }
 export type AskData = {
   citations: CitationReport

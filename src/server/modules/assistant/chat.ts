@@ -473,6 +473,11 @@ async function* streamTurn(
     })
     const chunks = result.toUIMessageStream({
       sendReasoning: false,
+      // Which model wrote the answer, for the chat's export; never what was asked.
+      messageMetadata: ({ part }) =>
+        part.type === 'start'
+          ? { model: { name: choice.name, mock: choice.provider === 'mock' } }
+          : undefined,
       onError: (error) => {
         // A tool call the model got wrong goes back to the model, which may try again: the turn
         // goes on. Its message holds the model's input, so only the tool and the kind are logged.

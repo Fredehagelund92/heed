@@ -764,7 +764,7 @@ const measure = (page: Page) =>
   })
 const composer = (page: Page) =>
   page.locator('[data-slot="ask-composer"]').filter({ visible: true })
-const note = (page: Page) => composer(page).locator(':scope > p')
+const note = (page: Page) => composer(page).locator('p[id$="-note"]')
 
 test.describe('The About line', () => {
   const surfaces = [

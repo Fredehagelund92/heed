@@ -166,7 +166,7 @@ describe('the Ask tab', { timeout: 30_000 }, () => {
     expect(asked).toHaveTextContent('what you mean?')
     expect(within(asked as HTMLElement).queryByRole('list', { name: 'Asked about' })).toBeNull()
     expect(asked.querySelector('[data-slot=ask-question-notes]')).toBeNull()
-    expect(askChat().store.messages.at(-2)?.metadata).toEqual({})
+    expect(Object.keys(askChat().store.messages.at(-2)?.metadata ?? {})).toEqual(['at'])
     // The follow-up has no scope of its own and is passed over: the next question still carries
     // what the one before it was about.
     const messages = askChat().store.messages
@@ -319,7 +319,8 @@ describe('the Ask tab', { timeout: 30_000 }, () => {
     await waitFor(() => expect(chat).toHaveBeenCalledTimes(1), slow)
     const answer = await screen.findByRole('article', { name: 'Answer' }, slow)
     await waitFor(() => expect(answer).toHaveAttribute('data-state', 'done'), slow)
-    expect(askChat().store.messages[0]?.metadata).toEqual({})
+    // Only the time it was sent: the scope is not read yet.
+    expect(Object.keys(askChat().store.messages[0]?.metadata ?? {})).toEqual(['at'])
     read.mockRestore()
     chat.mockRestore()
   })

@@ -255,6 +255,7 @@ export {
   EllipsisIcon,
   ExternalLinkIcon,
   EyeIcon,
+  FileJsonIcon,
   FilePenIcon,
   FilePlusIcon,
   FileTextIcon,

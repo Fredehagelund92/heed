@@ -227,11 +227,14 @@ class EditorBoundary extends Component<
 export function AskComposer({
   scope,
   onScopeChange,
+  noteAction,
   className,
 }: {
   /** The scope Ask and What an agent would get share. */
   scope: TryItScope | null
   onScopeChange: (scope: TryItScope | null) => void
+  /** An action at the end of the note under the box, where the header has no room (a phone). */
+  noteAction?: ReactNode
   className?: string
 }) {
   const id = useId()
@@ -445,9 +448,12 @@ export function AskComposer({
           )}
         </div>
       </form>
-      <p id={`${id}-note`} className="text-caption text-muted-foreground">
-        This chat isn’t saved.
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p id={`${id}-note`} className="text-caption text-muted-foreground">
+          This chat isn’t saved.
+        </p>
+        {noteAction}
+      </div>
     </div>
   )
 }
