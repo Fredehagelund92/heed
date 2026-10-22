@@ -61,19 +61,30 @@ export function createAnonymousQueue(
   let pending: AnonymousRecord[] = []
   let timer: ReturnType<typeof setTimeout> | undefined
   let running: Promise<void> | undefined
+  /** Writes batches until nothing is left, so a record queued during a write is in the next one. */
+  const drain = async (): Promise<void> => {
+    try {
+      while (pending.length) {
+        const batch = pending
+        pending = []
+        // Via then(), so a store that throws at once is a failed batch and the loop always yields.
+        await Promise.resolve()
+          .then(() => store.write(batch))
+          .catch(() => onFailure(batch.length))
+      }
+    } finally {
+      running = undefined
+    }
+  }
+  /** Resolves once every record queued before the call is written (or counted as failed). */
   const flush = async (): Promise<void> => {
     if (timer) {
       clearTimeout(timer)
       timer = undefined
     }
-    if (running) await running
-    if (!pending.length) return
-    const batch = pending
-    pending = []
-    running = store.write(batch).catch(() => onFailure(batch.length))
+    if (!running && !pending.length) return
+    running ??= drain()
     await running
-    running = undefined
-    if (pending.length) await flush()
   }
   return {
     enqueue(record: AnonymousRecord) {
