@@ -1,7 +1,7 @@
 # The Norway show
 
 A five-minute story, told side by side: Heed in the browser on the left, Claude Code on the right.
-An AI app finds nothing about orders in Norway. Maria writes the fact down, the checks run,
+An agent finds nothing about orders in Norway. Maria writes the fact down, the checks run,
 Jon accepts it, and Claude answers with the fact, its source and who reviewed it. An administrator
 stops its delivery and Claude stops getting it within a minute. Asked about Spain, Claude says
 plainly that Heed has nothing written down.
@@ -56,7 +56,7 @@ same MCP connection, and checks what Claude reads.
 
 ## The show
 
-### 1. What an AI app gets today (Maria, Claude)
+### 1. What an agent gets today (Maria, Claude)
 
 In Claude Code, ask:
 
@@ -69,7 +69,7 @@ markets); the line to point at is "nothing written down".
 
 In the browser, on **Home**, choose **Try a question**. In **What it is about**, type `Orders`
 and choose it, then type `Norway` and choose it. Set **From** to `1 Oct 2026` and **To** to
-`31 Oct 2026`, then choose **Show what AI apps get**.
+`31 Oct 2026`, then choose **Show what agents get**.
 
 **Expect:** **No match**, _0 delivered_, and **No fact applies to this scope**: the same nothing
 Claude got, shown without running a model.
@@ -91,7 +91,7 @@ Orders and Norway already under **Where it applies**. Type:
 | **Date you read it**                  | choose **Today**                                                                                                  |
 | **What not to conclude**              | Fewer orders in Norway after 4 August do not mean fewer customers. (or choose **Use this**)                       |
 
-Optionally open the **What AI apps get** tab to show what an AI app will get once it is accepted.
+Optionally open the **What agents get** tab to show what an agent will get once it is accepted.
 
 ![The Add a fact form, filled in: an event in Sales about Orders in Norway](demo/02-maria-writes.png)
 
@@ -100,7 +100,7 @@ Optionally open the **What AI apps get** tab to show what an AI app will get onc
 Choose **Send for review**.
 
 **Expect:** the proposal's page, **Waiting for review**, with **Checks passed** on its progress line
-and, under **Checks**, **Complete**, **Finds the right questions**, **Reaches AI apps** and
+and, under **Checks**, **Complete**, **Finds the right questions**, **Reaches agents** and
 **Answers stay right** all passed. Point at **Finds the right questions**: Heed tried the questions
 this fact should and should not answer before anyone relies on it.
 
@@ -114,10 +114,10 @@ _Your decision, as owner of Sales_. Choose **Accept**, type the reason
 `Matches the customs notice.` and choose **Accept**. (From anywhere else: **Proposals**, then
 the proposal under **To review**.)
 
-**Expect:** _From then on, AI apps get it._, with the new edition (the day's date and a
+**Expect:** _From then on, agents get it._, with the new edition (the day's date and a
 number), and the progress line ends with _Reviewed by you_ and **Accepted**.
 
-![Jon has accepted it: AI apps get it from the new edition](demo/04-jon-accepts.png)
+![Jon has accepted it: agents get it from the new edition](demo/04-jon-accepts.png)
 
 ### 5. Claude answers with the fact (Claude, Maria)
 
@@ -129,8 +129,8 @@ In Claude Code, ask the same question again:
 orders do not mean fewer customers, and says who reviewed it: accepted by the owner of Sales,
 with the edition, never the person's name.
 
-Optionally, switch back to Maria and choose **Show what AI apps get** on Try it again: the fact
-is now **Found**, as #1 under **What the AI app gets**.
+Optionally, switch back to Maria and choose **Show what agents get** on Try it again: the fact
+is now **Found**, as #1 under **What the agent gets**.
 
 ![Try it now gives the stop, with its domain and dates](demo/05-try-it-fact.png)
 

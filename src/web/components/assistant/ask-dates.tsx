@@ -12,7 +12,7 @@ import { DEFAULT_DAYS } from '@/lib/try-it'
 /*
   The dates of a question (Heed composer, stage 2): what a dates chip in the question opens, and
   what the Dates button and the @ list's "Pick dates" open to put one in. Quick periods counted
-  from today as get_context counts them (a "this" period runs to today, a "last" one is the last
+  from today as get_facts counts them (a "this" period runs to today, a "last" one is the last
   complete one), each used at once, or the first and last day, and the days they read,
   with today said. A new one starts at today, as a question without dates is read, and opens on
   Today, so Enter at once puts today in. It opens above the composer, on a
@@ -30,7 +30,7 @@ function monthFrom(day: string, months: number): string {
 
 /**
  * The quick periods, with the words a chip for each says in the question. They are counted as
- * get_context counts the periods people name (`periods` in src/domain/dates.ts, which a unit test
+ * get_facts counts the periods people name (`periods` in src/domain/dates.ts, which a unit test
  * holds these to): a "this" period runs to today and a "last" one is the last complete one. They
  * are worked out here so the date reader stays out of this chunk and of the first load.
  */

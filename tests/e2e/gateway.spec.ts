@@ -16,7 +16,7 @@ async function signInAs(page: Page, personId: string) {
   await page.addInitScript((id) => window.localStorage.setItem('cl.mock-person', id), personId)
 }
 
-const clientsGrid = (page: Page) => page.getByRole('table', { name: 'AI apps' })
+const clientsGrid = (page: Page) => page.getByRole('table', { name: 'Agents' })
 const clientRow = (page: Page, label: string) => page.locator(`[data-client="${label}"]`)
 const toolRow = (page: Page, tool: string) => page.locator(`[data-tool="${tool}"]`)
 
@@ -26,7 +26,7 @@ test.describe('the clients', () => {
   }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway', desktop)
-    await expect(page.getByRole('tab', { name: 'AI apps', selected: true })).toBeVisible()
+    await expect(page.getByRole('tab', { name: 'Agents', selected: true })).toBeVisible()
     const rows = clientsGrid(page).getByRole('row')
     await expect(rows).toHaveCount(4)
     // The row governs the tokens that carry its label; Claude Code signed in carries signed-in.
@@ -41,36 +41,36 @@ test.describe('the clients', () => {
     )
     await expect(clientRow(page, 'cursor')).toContainText('Default (100 KB)')
     await expect(clientRow(page, 'cursor')).toContainText('Switched off')
-    // The steps to connect are on Connect an AI app, for everyone.
-    await page.getByRole('link', { name: 'Go to Connect an AI app' }).click()
+    // The steps to connect are on Connect an agent, for everyone.
+    await page.getByRole('link', { name: 'Go to Connect an agent' }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
   })
 
   test('an administrator adds a client, and its label must be new', async ({ page }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway', desktop)
-    await page.getByRole('button', { name: 'Add an AI app' }).click()
-    const dialog = page.getByRole('dialog', { name: 'Add an AI app' })
+    await page.getByRole('button', { name: 'Add an agent' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Add an agent' })
     await dialog.getByRole('textbox', { name: 'Name' }).fill('Support bot')
     await dialog.getByRole('textbox', { name: 'Label' }).fill('claude-code')
     await dialog.getByRole('textbox', { name: 'Why' }).fill('The support team trials an agent')
-    await dialog.getByRole('button', { name: 'Add AI app' }).click()
+    await dialog.getByRole('button', { name: 'Add agent' }).click()
     await expect(dialog.getByRole('textbox', { name: 'Label' })).toBeFocused()
-    await expect(dialog).toContainText('Another AI app has this label.')
+    await expect(dialog).toContainText('Another agent has this label.')
 
     await dialog.getByRole('textbox', { name: 'Label' }).fill('support-bot')
     await dialog.getByRole('radio', { name: 'Only the tools chosen below' }).check()
     await dialog.getByRole('checkbox', { name: 'Get facts for a question' }).check()
     await dialog.getByRole('checkbox', { name: 'Report something missing' }).check()
     await dialog.getByRole('textbox', { name: /Requests a minute/ }).fill('30')
-    await dialog.getByRole('button', { name: 'Add AI app' }).click()
+    await dialog.getByRole('button', { name: 'Add agent' }).click()
     await expect(dialog).toBeHidden()
     await expect(page.getByText('Support bot added')).toBeVisible()
     await expect(clientRow(page, 'support-bot')).toContainText(
       'Get facts for a question, Report something missing',
     )
     await expect(clientRow(page, 'support-bot')).toContainText('30')
-    await expect(page.getByRole('button', { name: 'Add an AI app' })).toBeFocused()
+    await expect(page.getByRole('button', { name: 'Add an agent' })).toBeFocused()
   })
 
   test('an administrator switches a client off and changes its answer size', async ({ page }) => {
@@ -78,7 +78,7 @@ test.describe('the clients', () => {
     await openPage(page, '/admin?section=gateway', desktop)
     await page.getByRole('button', { name: 'Edit Evaluation runner' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Evaluation runner' })
-    await expect(dialog).toContainText('eval · fixed once an AI app is added')
+    await expect(dialog).toContainText('eval · fixed once an agent is added')
     await dialog.getByRole('checkbox', { name: 'Allowed to connect' }).uncheck()
     await dialog.getByRole('textbox', { name: /Largest answer/ }).fill('500')
     await dialog.getByRole('textbox', { name: 'Why' }).fill('Paused while the runner moves')
@@ -97,7 +97,7 @@ test.describe('the clients', () => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway', phone)
     await expect(clientsGrid(page)).toHaveCount(0)
-    const list = page.getByRole('list', { name: 'AI apps' })
+    const list = page.getByRole('list', { name: 'Agents' })
     await expect(list.getByRole('listitem')).toHaveCount(3)
     await expect(clientRow(page, 'cursor')).toContainText(
       '60 a minute, answers up to 100 KB (default)',
@@ -136,7 +136,7 @@ test.describe('the tools', () => {
       'Claude Code with a token and Evaluation runner stop using it from the next call.',
     )
     // Nothing changes until it is confirmed with a reason (the page behind is inert meanwhile).
-    await expect(toolRow(page, 'get_context').locator('[data-slot="switch"]')).toHaveAttribute(
+    await expect(toolRow(page, 'get_facts').locator('[data-slot="switch"]')).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -175,8 +175,8 @@ test.describe('the page', () => {
     await openPage(page, '/admin?section=gateway', desktop)
     await page.getByRole('tab', { name: 'Activity' }).click()
     await expect(page).toHaveURL(/tab=activity/)
-    await expect(page.getByRole('table', { name: 'Calls by AI app and tool' })).toBeVisible()
-    await page.getByRole('tab', { name: 'AI apps' }).click()
+    await expect(page.getByRole('table', { name: 'Calls by agent and tool' })).toBeVisible()
+    await page.getByRole('tab', { name: 'Agents' }).click()
     await expect(page).not.toHaveURL(/tab=/)
     await expect(page).toHaveURL(/section=gateway/)
   })
@@ -198,17 +198,16 @@ test.describe('the page', () => {
 })
 
 /*
-  The AI apps people connected (security check F3): every person's connection, found and sorted,
+  The agents people connected (security check F3): every person's connection, found and sorted,
   and disconnected one at a time or all of a person's at once, always with a reason that the
   history log shows. The mock world lives in the page, so the log is read in the same load.
 */
-const connectionsGrid = (page: Page) =>
-  page.getByRole('table', { name: 'AI apps people connected' })
+const connectionsGrid = (page: Page) => page.getByRole('table', { name: 'Agents people connected' })
 const connectionRow = (page: Page, personId: string, app: string) =>
   page.locator(`[data-person="${personId}"]`).filter({ hasText: app })
 const connectionsCount = (page: Page) => page.locator('[data-slot="ai-connections-count"]')
 
-test.describe('the AI apps people connected', () => {
+test.describe('the agents people connected', () => {
   test('an administrator finds and sorts every person’s apps', async ({ page }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway', desktop)
@@ -216,7 +215,7 @@ test.describe('the AI apps people connected', () => {
     await expect(page).toHaveURL(/tab=connections/)
     const rows = connectionsGrid(page).getByRole('rowgroup').nth(1).getByRole('row')
     await expect(rows).toHaveCount(9)
-    await expect(connectionsCount(page)).toHaveText('9 AI apps for 8 people')
+    await expect(connectionsCount(page)).toHaveText('9 agents for 8 people')
     // Last used comes first, the newest at the top.
     const used = page.getByRole('columnheader', { name: /Last used/ })
     await expect(used).toHaveAttribute('aria-sort', 'descending')
@@ -236,17 +235,17 @@ test.describe('the AI apps people connected', () => {
     await expect(page).toHaveURL(/dir=desc/)
     await expect(rows.first()).toContainText('Tomas Eriksen')
 
-    await page.getByRole('searchbox', { name: 'Find a person or an app' }).fill('claude')
+    await page.getByRole('searchbox', { name: 'Find a person or an agent' }).fill('claude')
     await expect(page).toHaveURL(/q=claude/)
     await expect(rows).toHaveCount(4)
-    await expect(connectionsCount(page)).toHaveText('4 of 9 AI apps')
-    await page.getByRole('searchbox', { name: 'Find a person or an app' }).fill('nobody here')
+    await expect(connectionsCount(page)).toHaveText('4 of 9 agents')
+    await page.getByRole('searchbox', { name: 'Find a person or an agent' }).fill('nobody here')
     await expect(page.locator('[data-slot="ai-connections-message"]')).toContainText(
-      'No AI app matches',
+      'No agent matches',
     )
     await page.getByRole('button', { name: 'Clear the search' }).click()
     await expect(rows).toHaveCount(9)
-    await expect(page.getByRole('searchbox', { name: 'Find a person or an app' })).toBeFocused()
+    await expect(page.getByRole('searchbox', { name: 'Find a person or an agent' })).toBeFocused()
   })
 
   test('an administrator disconnects one app with a reason, and the history log keeps it', async ({
@@ -272,14 +271,14 @@ test.describe('the AI apps people connected', () => {
     await expect(dialog).toBeHidden()
     await expect(page.getByText('Cursor disconnected')).toBeVisible()
     await expect(connectionRow(page, 'per_maria', 'Cursor')).toHaveCount(0)
-    await expect(connectionsCount(page)).toHaveText('8 AI apps for 7 people')
+    await expect(connectionsCount(page)).toHaveText('8 agents for 7 people')
     // Its row went with it, so the focus goes to the search, ready for the next one.
-    await expect(page.getByRole('searchbox', { name: 'Find a person or an app' })).toBeFocused()
+    await expect(page.getByRole('searchbox', { name: 'Find a person or an agent' })).toBeFocused()
 
     await page.getByRole('link', { name: 'See the history' }).click()
     await expect(page).toHaveURL(/section=audit/)
     await expect(page).toHaveURL(/action=ai_client/)
-    const entry = page.getByRole('row').filter({ hasText: 'AI app disconnected' }).first()
+    const entry = page.getByRole('row').filter({ hasText: 'Agent disconnected' }).first()
     await expect(entry).toContainText('Ravi Kapoor')
     await entry.getByRole('link').first().click()
     await expect(page.locator('[data-slot="audit-entry"]')).toContainText('Lost or stolen device')
@@ -291,19 +290,19 @@ test.describe('the AI apps people connected', () => {
     await openPage(page, '/admin?section=gateway&tab=connections', desktop)
     await page.getByRole('button', { name: 'Disconnect Claude Code for Jon Abara' }).click()
     const dialog = page.getByRole('alertdialog')
-    await dialog.getByRole('radio', { name: /All 2 of Jon Abara’s AI apps/ }).check()
-    await expect(dialog.getByRole('heading')).toHaveText('Disconnect all of Jon Abara’s AI apps?')
+    await dialog.getByRole('radio', { name: /All 2 of Jon Abara’s agents/ }).check()
+    await expect(dialog.getByRole('heading')).toHaveText('Disconnect all of Jon Abara’s agents?')
     await expect(dialog).toContainText(
       'Claude Desktop and Claude Code stop working for Jon Abara from their next call.',
     )
     await dialog
       .getByRole('textbox', { name: 'Why are you disconnecting them?' })
       .fill('Jon moved to the platform team')
-    await dialog.getByRole('button', { name: 'Disconnect 2 apps' }).click()
+    await dialog.getByRole('button', { name: 'Disconnect 2 agents' }).click()
     await expect(dialog).toBeHidden()
-    await expect(page.getByText('2 AI apps disconnected')).toBeVisible()
+    await expect(page.getByText('2 agents disconnected')).toBeVisible()
     await expect(page.locator('[data-person="per_jon"]')).toHaveCount(0)
-    await expect(connectionsCount(page)).toHaveText('7 AI apps for 7 people')
+    await expect(connectionsCount(page)).toHaveText('7 agents for 7 people')
   })
 
   test('cancelling leaves the app connected', async ({ page }) => {
@@ -321,10 +320,10 @@ test.describe('the AI apps people connected', () => {
   test('on a phone the apps are a list, sorted from a select', async ({ page }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway&tab=connections', phone)
-    const list = page.getByRole('list', { name: 'AI apps people connected' })
+    const list = page.getByRole('list', { name: 'Agents people connected' })
     await expect(list.getByRole('listitem')).toHaveCount(9)
     await expect(connectionsGrid(page)).toHaveCount(0)
-    await page.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'App, A to Z' })
+    await page.getByRole('combobox', { name: 'Sort by' }).selectOption({ label: 'Agent, A to Z' })
     await expect(page).toHaveURL(/sort=app/)
     await expect(list.getByRole('listitem').first()).toContainText('ChatGPT')
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(phone.width)

@@ -30,7 +30,7 @@ import { openProposal, proposalTitles } from './proposals-support'
   one of Maria's in the docked panel, a metric and a dimension in the catalogue's panel, the
   Gaps page with its topic counts and a gap in the docked panel for a reader, Health (Quality's,
   the owners' Gaps' and Areas' successor) in its views and records, What an agent would get
-  (with Report a gap open) in its states, as a page and in the assistant's panel, Connect an AI app,
+  (with Report a gap open) in its states, as a page and in the assistant's panel, Connect an agent,
   the assistant's Ask tab in its states (a draft to confirm among them) and as a page, MCP and
   gateway's tabs with the traffic by client and tool, Settings and Administration in every
   section for the people who open it, and one target per page template (the tokens preview
@@ -464,7 +464,7 @@ for (const size of widths) {
               ).toBeVisible()
               await chips.press('Enter')
             }
-            await panel.getByRole('button', { name: 'Show what AI apps get' }).click()
+            await panel.getByRole('button', { name: 'Show what agents get' }).click()
             await expect(panel.locator('[data-slot="try-it-delivered"]')).toBeVisible()
           } else if (target.assistant.question) {
             await askAndWait(page, target.assistant.question)
@@ -539,8 +539,7 @@ for (const size of [...widths, { name: '360', width: 360, height: 780 }]) {
           await bodyField(page).click()
           await page.keyboard.type('Send the detail to anna.berg@example.com.')
         }
-        if (state === 'agent-view')
-          await page.getByRole('tab', { name: 'What AI apps get' }).click()
+        if (state === 'agent-view') await page.getByRole('tab', { name: 'What agents get' }).click()
         if (state !== 'saving') await settle(page)
         await expect(page).toHaveScreenshot(`add-context-${state}-${size.name}-${theme}.png`, {
           fullPage: true,
@@ -585,7 +584,7 @@ for (const size of widths) {
 
 /**
  * The review queue and the review screen as Jon (slice W5): every state of his decision bar; and
- * a proposal an AI app drafted, as its owner.
+ * a proposal an agent drafted, as its owner.
  */
 const reviewShots = [
   { name: 'review-queue', path: '/proposals' },
@@ -595,7 +594,7 @@ const reviewShots = [
   { name: 'review-proposer', path: '/proposals/00000000-0000-4000-8000-000000000064' },
   { name: 'review-check-failed', path: '/proposals/00000000-0000-4000-8000-00000000002f' },
   { name: 'review-retire', path: '/proposals/00000000-0000-4000-8000-000000000026' },
-  // A proposal an AI app drafted for Priya, as Tomas, its owner: no mark of who wrote it.
+  // A proposal an agent drafted for Priya, as Tomas, its owner: no mark of who wrote it.
   {
     name: 'review-agent-drafted',
     path: '/proposals/00000000-0000-4000-8000-00000000007e',
@@ -621,7 +620,7 @@ for (const size of widths) {
 
 /**
  * MCP and gateway's dialogs (slice W11a): the client editor, the tool switch, and disconnecting
- * one of a person's AI apps.
+ * one of a person's agents.
  */
 const gatewayDialogs = [
   {
@@ -632,7 +631,7 @@ const gatewayDialogs = [
   {
     name: 'add-client-errors',
     path: '/admin?section=gateway',
-    open: { role: 'button', name: 'Add an AI app' },
+    open: { role: 'button', name: 'Add an agent' },
   },
   {
     name: 'tool-switch-off',
@@ -656,7 +655,7 @@ for (const size of widths) {
         const dialog = page.locator('[role="dialog"], [role="alertdialog"]')
         await expect(dialog).toBeVisible()
         if (shot.name === 'add-client-errors')
-          await dialog.getByRole('button', { name: 'Add AI app' }).click()
+          await dialog.getByRole('button', { name: 'Add agent' }).click()
         await settle(page)
         await expect(page).toHaveScreenshot(`gateway-${shot.name}-${size.name}-${theme}.png`, {
           fullPage: false,

@@ -232,7 +232,7 @@ export function ReviewNotes({ model }: Part) {
                 restored it on {formatDay(rescue.restoredAt.slice(0, 10))}, because its domain,{' '}
                 {rescue.deletedDomain}, was deleted. This proposal brings back its last text, fitted
                 to this domain. The changes are below. The fact stays archived until it's accepted,
-                and then AI apps get it again.
+                and then agents get it again.
               </p>
             </AlertDescription>
           </AlertContent>
@@ -269,7 +269,7 @@ export function ReviewChecks({
       <PartCard title="Checks" headingLevel={headingLevel}>
         <p className="text-dense text-muted-foreground">
           {change === 'retire'
-            ? 'Archiving a fact runs no checks. AI apps stop getting it at once.'
+            ? 'Archiving a fact runs no checks. Agents stop getting it at once.'
             : change === 'term'
               ? 'We check the name against the names we know when you decide.'
               : 'No check results yet.'}
@@ -721,7 +721,7 @@ export function BeforeAndAfter({
     >
       <CollapsibleTrigger className="group/preview flex min-h-control-touch items-center gap-3 rounded-lg px-4 text-left">
         <EyeIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-        <span className="flex-1 text-body font-bold">What AI apps get, before and after</span>
+        <span className="flex-1 text-body font-bold">What agents get, before and after</span>
         <ChevronDownIcon
           aria-hidden="true"
           className="size-4 shrink-0 text-muted-foreground transition-transform group-data-panel-open/preview:rotate-180"
@@ -730,7 +730,7 @@ export function BeforeAndAfter({
       <CollapsibleContent className="flex flex-col gap-4 px-4 pb-4">
         <section aria-label="Before" className="flex flex-col gap-2">
           <h3 className="text-caption font-bold text-muted-foreground">
-            Before: what AI apps get today
+            Before: what agents get today
           </h3>
           <p className="text-dense">
             {live ??

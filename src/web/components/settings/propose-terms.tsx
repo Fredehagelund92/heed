@@ -68,9 +68,9 @@ export function TermsBlock({ source }: { source: Source }) {
       slot="source-terms"
       description={
         open === null
-          ? `People, the Catalogue and AI apps find a metric or dimension of ${source.tool} once it's one of the names we know.`
+          ? `People, the Catalogue and agents find a metric or dimension of ${source.tool} once it's one of the names we know.`
           : members
-            ? `People, the Catalogue and AI apps find a metric or dimension of ${source.tool} once it's one of the names we know. ${count(members, 'metric or dimension', 'metrics and dimensions')} ${members === 1 ? "isn't one" : "aren't"} yet.`
+            ? `People, the Catalogue and agents find a metric or dimension of ${source.tool} once it's one of the names we know. ${count(members, 'metric or dimension', 'metrics and dimensions')} ${members === 1 ? "isn't one" : "aren't"} yet.`
             : `Every metric and dimension we read from ${source.tool} is a name we know, or waits for a decision.`
       }
       action={
@@ -312,7 +312,7 @@ function ProposeTermsForm({
         </h1>
         <p className="max-w-reading text-dense text-muted-foreground">
           Each {valuesOnly ? 'value' : 'metric or dimension you keep'} becomes a proposal for a
-          name, so people can say a fact applies to it and AI apps can ask about it. AI apps get it
+          name, so people can say a fact applies to it and agents can ask about it. Agents get it
           once it&apos;s accepted. An owner of its domain, or any admin, decides. Accept all on any
           of them accepts every name proposed here at once.
         </p>
@@ -642,7 +642,7 @@ function Proposed({ source, result }: { source: Source; result: TermBatchResult 
           <AlertTitle>{count(result.proposals.length, 'name')} proposed</AlertTitle>
           <AlertDescription>
             <p>
-              They wait for a decision, and AI apps get them once they&apos;re accepted. An owner of
+              They wait for a decision, and agents get them once they&apos;re accepted. An owner of
               each name&apos;s domain or any admin decides, you included
               {withoutDomain
                 ? `. ${withoutDomain === 1 ? 'The one' : `The ${withoutDomain}`} without a domain ${withoutDomain === 1 ? 'needs' : 'need'} an admin`

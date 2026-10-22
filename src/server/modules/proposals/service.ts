@@ -567,7 +567,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
         if (rescue && base)
           throw new ORPCError('CONFLICT', {
             message:
-              'AI apps get this fact again since it was restored, so this proposal is out of date.',
+              'Agents get this fact again since it was restored, so this proposal is out of date.',
           })
         const [identity] = await tx.query<{ kind: string }>('select kind from items where id=$1', [
           item,

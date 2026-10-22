@@ -82,7 +82,7 @@ test('a pasted link becomes an unreviewed draft from an external source, with no
   if ((await trail.getAttribute('aria-expanded')) !== 'true') await trail.click()
   await expect(answer.getByText('Read 127.0.0.1', { exact: true })).toBeVisible()
   await expect(answer.locator('[data-slot="ask-draft-web"]')).toHaveText(
-    'It comes from 127.0.0.1, which the assistant read just now. The owner of its domain checks it before AI apps get it.',
+    'It comes from 127.0.0.1, which the assistant read just now. The owner of its domain checks it before agents get it.',
   )
   await answer.getByRole('button', { name: 'Create draft' }).click()
   await expect(answer).toHaveAttribute('data-state', 'done', { timeout: 30_000 })

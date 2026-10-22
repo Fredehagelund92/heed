@@ -32,19 +32,19 @@ import {
 import { formatMoment } from '@/lib/library'
 
 /*
-  Connect your AI in one step (D9, show slice S2): one card at the top of Connect your AI. A
-  prompt to paste into the AI app, with the Ask first line built in, so the app adds Heed, writes
+  Connect an agent in one step (D9, show slice S2): one card at the top of Connect an agent. A
+  prompt to paste into the agent, with the Ask first line built in, so the agent adds Heed, writes
   the line into its instructions file and says how to sign in, as Notion's setup prompt does. The
-  card says live whether an app of the person's is connected: a sign-in connection is the one
-  thing Heed knows about a person's app (MCP requests keep no person, FR-410), so the card reads
-  the connected apps, every few seconds while it waits for a sign-in after a copy. Beside it, the
+  card says live whether an agent of the person's is connected: a sign-in connection is the one
+  thing Heed knows about a person's agent (MCP requests keep no person, FR-410), so the card reads
+  the connected agents, every few seconds while it waits for a sign-in after a copy. Beside it, the
   Heed skill (SKILL.md) for Claude Code, Codex and Cursor. The setup by hand stays below the card
   for anyone who needs a step on its own.
 */
 
-/** How often the card reads the connected apps while it waits for a sign-in after a copy. */
+/** How often the card reads the connected agents while it waits for a sign-in after a copy. */
 export const WAITING_REFRESH_MS = 3_000
-/** And otherwise, so an app connected from elsewhere shows without a reload. */
+/** And otherwise, so an agent connected from elsewhere shows without a reload. */
 export const CONNECT_REFRESH_MS = 30_000
 
 /** The app the card opens on: Claude Code in the local pilot, else the first switched on. */
@@ -172,7 +172,7 @@ function ConnectCardFor({
 
         {clients.length > 1 ? (
           <ToggleGroup
-            aria-label="Your AI app"
+            aria-label="Your agent"
             value={[client.label]}
             onValueChange={(value: string[]) => {
               if (value[0]) onPick(value[0])
@@ -299,7 +299,7 @@ function LiveLine({
     if (stranger)
       return {
         icon: <InfoIcon className="text-muted-foreground" />,
-        text: `An AI app just signed in: ${stranger.clientName}. If that wasn't ${name}, check the list below.`,
+        text: `An agent just signed in: ${stranger.clientName}. If that wasn't ${name}, check the list below.`,
       }
     switch (status) {
       case 'connected':
@@ -321,7 +321,7 @@ function LiveLine({
     }
     return {
       icon: <InfoIcon className="text-muted-foreground" />,
-      text: "An AI app that connects with an access key doesn't show here, because we don't record who asks. To see what it's told, use Try a question.",
+      text: "An agent that connects with an access key doesn't show here, because we don't record who asks. To see what it's told, use Try a question.",
     }
   })()
   return (
@@ -357,7 +357,7 @@ function SkillRow({ address, auth }: { address: string; auth: ConnectAuth }) {
           {skillPlaces.map((place) => (
             <li key={place.path} className="min-w-0 text-muted-foreground">
               <code className="font-mono break-words text-foreground">{place.path}</code> for{' '}
-              {place.apps}
+              {place.agents}
             </li>
           ))}
         </ul>

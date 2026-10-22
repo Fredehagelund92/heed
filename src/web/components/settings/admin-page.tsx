@@ -48,13 +48,13 @@ const refusals: Record<AdminSection, string> = {
   domains:
     'Admins create domains and change their details. Owners describe their own domains in Health.',
   business:
-    'Admins write what the business does and the words it uses. The assistant and AI apps get it as background.',
+    'Admins write what the business does and the words it uses. The assistant and agents get it as background.',
   people: 'Admins find people, and give and remove their roles.',
   sources:
     'Admins look after the tools we read definitions from. Owners see what changes there in Health and in their review queue.',
   limits: 'Admins change the limits, how long we keep records, and the AI models.',
   gateway:
-    'Admins decide which AI apps can connect and which tools they can use. You connect your own AI app from your Settings.',
+    'Admins decide which agents can connect and which tools they can use. You connect your own agent from your Settings.',
   import: 'Admins import files of facts as proposals.',
   audit: 'Admins and auditors read the history log.',
   operations: 'Admins watch the scheduled jobs and the definition sources.',
@@ -76,7 +76,7 @@ export function AdminPage({ search }: { search: AdminSearch }) {
       refusal={{
         title: 'Administration is for admins and auditors',
         description:
-          'The data team runs domains, roles, limits and AI app access here, and auditors read the history log. Your own profile and AI apps are in Settings, in the menu under your name.',
+          'The data team runs domains, roles, limits and agent access here, and auditors read the history log. Your own profile and agents are in Settings, in the menu under your name.',
       }}
     >
       <AdminSections search={search} />

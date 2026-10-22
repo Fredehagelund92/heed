@@ -24,7 +24,7 @@ export const connectInfoSchema = z.object({
   /**
    * Whether a person's own client can sign in as them (FR-403): the login server is on. Such a
    * client needs no token from the data platform team, and the person sees it among their
-   * connected AI apps.
+   * connected agents.
    */
   signIn: z.boolean(),
 })
@@ -35,7 +35,7 @@ const term = z.string().check(z.minLength(1), z.maxLength(160))
 /**
  * What an agent would get (Try it): a typed scope and nothing else. There is no question, so no
  * question text can be stored (FR-602), and no audience, so the reply is always the caller's own.
- * The dates are inclusive, as in get_context.
+ * The dates are inclusive, as in get_facts.
  */
 export const tryItInputSchema = z.strictObject({
   metrics: z.optional(z.array(term).check(z.maxLength(10))),
@@ -59,7 +59,7 @@ export const tryItInputSchema = z.strictObject({
 export type TryItInput = z.infer<typeof tryItInputSchema>
 
 /**
- * get_context's reply on the live edition, exactly as an agent with the default limits would get
+ * get_facts's reply on the live edition, exactly as an agent with the default limits would get
  * it, and how much of the size limit it uses. It has no delivery id: nothing was delivered.
  */
 export const tryItSchema = z.object({
@@ -90,7 +90,7 @@ const readTermSchema = z.object({
 })
 
 /**
- * The scope the question names, as far as it resolves, read as get_context reads it (Home's Try
+ * The scope the question names, as far as it resolves, read as get_facts reads it (Home's Try
  * it, and the Ask composer's "Heed reads" line): its terms by key and name, metrics first, and both
  * days included, or null when it names no dates; how Heed read the dates; the words that name
  * more than one term, with the terms they could be; words that name dates Heed cannot read; the

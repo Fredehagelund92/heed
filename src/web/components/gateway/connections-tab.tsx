@@ -64,19 +64,19 @@ import { showToast } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 /*
-  Every person's AI apps (FR-403, FR-807; security check F3), for an administrator. Each app a
+  Every person's agents (FR-403, FR-807; security check F3), for an administrator. Each agent a
   person connects by signing in carries the one client label `signed-in`, so the Clients tab can
-  only stop them all at once: here each connection is one app for one person, with what it may
+  only stop them all at once: here each connection is one agent for one person, with what it may
   do, when it connected and ends, and when it last got a token. Disconnect ends one, or every
-  app of that person, with a reason the history log keeps; the app is refused from its next
+  agent of that person, with a reason the history log keeps; the agent is refused from its next
   request, through the same path as the person's own Disconnect in Connect your AI.
 
   The search and the order are in the address (`q`, `sort`, `dir`), so a list is linkable. Rows
-  are two lines: the person over their email address, the app over where it came from, the day
+  are two lines: the person over their email address, the agent over where it came from, the day
   it connected over the day it ends. The grid's width budget, on the content box: the person and
-  the app take at least 160 each, the days 120, last used 120 and the button 128. Narrower, each
-  connection is a row of a list, as on a phone. Below the table's 5xl width what an app may do
-  leaves its column for the line under the app.
+  the agent take at least 160 each, the days 120, last used 120 and the button 128. Narrower, each
+  connection is a row of a list, as on a phone. Below the table's 5xl width what an agent may do
+  leaves its column for the line under the agent.
 */
 
 const SLOT = 'ai-connections'
@@ -157,15 +157,15 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
     )
 
   let body
-  if (connections.isPending) body = <GridLoading slot={SLOT} label="Loading the AI apps" />
+  if (connections.isPending) body = <GridLoading slot={SLOT} label="Loading the agents" />
   else if (connections.isError)
-    body = <GridFailed slot={SLOT} what="the AI apps" retry={() => void connections.refetch()} />
+    body = <GridFailed slot={SLOT} what="the agents" retry={() => void connections.refetch()} />
   else if (all.length === 0)
     body = (
-      <GridMessage slot={SLOT} icon={PlugIcon} title="No AI apps are connected">
+      <GridMessage slot={SLOT} icon={PlugIcon} title="No agents are connected">
         {connect.data && !connect.data.signIn
-          ? "AI apps can't sign in here yet, so nobody can connect one by signing in."
-          : 'An AI app shows here once someone connects it by signing in.'}
+          ? "Agents can't sign in here yet, so nobody can connect one by signing in."
+          : 'An agent shows here once someone connects it by signing in.'}
       </GridMessage>
     )
   else if (shown.length === 0)
@@ -173,7 +173,7 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
       <GridMessage
         slot={SLOT}
         icon={ListFilterIcon}
-        title="No AI app matches"
+        title="No agent matches"
         action={
           <Button variant="outline" onClick={clear}>
             <XIcon aria-hidden />
@@ -181,7 +181,7 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
           </Button>
         }
       >
-        Try part of a name or an email address, or an app&apos;s name or address.
+        Try part of a name or an email address, or an agent&apos;s name or address.
       </GridMessage>
     )
   else
@@ -208,12 +208,12 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <h2 id="connections-title" className="text-large font-bold">
-            AI apps people connected
+            Agents people connected
           </h2>
           <p className="max-w-reading text-dense text-muted-foreground">
-            Every AI app someone connected by signing in. An app picks its own name, so check the
-            address under it. A disconnected app stops working from its next call.{' '}
-            <HelpLink to="connect-your-ai-app">How connecting works</HelpLink>
+            Every agent someone connected by signing in. An agent picks its own name, so check the
+            address under it. A disconnected agent stops working from its next call.{' '}
+            <HelpLink to="connect-an-agent">How connecting works</HelpLink>
           </p>
         </div>
         <Button
@@ -228,7 +228,7 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
       {/* The search and, where the column headers are hidden, the order. Each is 40 high. */}
       <div className="flex flex-wrap items-end gap-3" data-slot="ai-connections-filters">
         <Field name="q" className="min-w-0 flex-1 basis-column-about @3xl:max-w-column-title-min">
-          <FieldLabel>Find a person or an app</FieldLabel>
+          <FieldLabel>Find a person or an agent</FieldLabel>
           <Input
             ref={searchRef}
             type="search"
@@ -241,7 +241,7 @@ export function ConnectionsTab({ search }: { search: AdminSearch }) {
                 setText('')
               }
             }}
-            placeholder="Name, email or app"
+            placeholder="Name, email or agent"
             autoComplete="off"
             spellCheck={false}
           />
@@ -369,7 +369,7 @@ function ConnectionsGrid({
   return (
     <GridTable
       slot={SLOT}
-      label="AI apps people connected"
+      label="Agents people connected"
       header={
         <>
           <SortHeader column={person} sort={sort} dir={dir} onSort={onSort} />
@@ -451,7 +451,7 @@ function ConnectionsGrid({
   )
 }
 
-/** One row per connection on a narrow page: the person, the app, then what it may do and when. */
+/** One row per connection on a narrow page: the person, the agent, then what it may do and when. */
 function ConnectionsList({
   connections,
   onDisconnect,
@@ -461,7 +461,7 @@ function ConnectionsList({
 }) {
   return (
     <ul
-      aria-label="AI apps people connected"
+      aria-label="Agents people connected"
       data-slot={`${SLOT}-list`}
       className="flex flex-col divide-y rounded-lg border bg-card"
     >
@@ -472,7 +472,7 @@ function ConnectionsList({
           data-person={connection.person.id}
           className="flex min-h-row-phone flex-col gap-1 py-3 pr-2 pl-4"
         >
-          {/* The facts run under the app and its button, in line with the app's name. */}
+          {/* The facts run under the agent and its button, in line with the agent's name. */}
           <div className="flex min-w-0 items-start gap-2">
             <PersonAvatar person={connection.person} size="sm" decorative />
             <p className="flex min-w-0 flex-1 flex-col">
@@ -517,7 +517,7 @@ function DisconnectButton({
 }
 
 /**
- * Disconnect one app, or every app of its person when they have more than one, with a reason
+ * Disconnect one agent, or every agent of its person when they have more than one, with a reason
  * the history log keeps. The common reasons are chips; the words stay the administrator's.
  */
 function DisconnectDialog({
@@ -527,7 +527,7 @@ function DisconnectDialog({
   onEnded,
 }: {
   connection: PersonConnection
-  /** Every app of the person, in the order they connected them. */
+  /** Every agent of the person, in the order they connected them. */
   theirs: PersonConnection[]
   onClose: () => void
   /** Where the focus goes once the row is gone. */
@@ -548,13 +548,13 @@ function DisconnectDialog({
       onOpenChange={(open) => {
         if (!open) onClose()
       }}
-      title={all ? `Disconnect all of ${person}’s AI apps?` : `Disconnect ${app} for ${person}?`}
+      title={all ? `Disconnect all of ${person}’s agents?` : `Disconnect ${app} for ${person}?`}
       effect={
         all
           ? `${appListWords(theirs)} stop working for ${person} from their next call. ${person} can connect each again from the app.`
           : `${app} stops working for ${person} from its next call. ${person} can connect it again from the app.`
       }
-      action={all ? `Disconnect ${theirs.length} apps` : 'Disconnect'}
+      action={all ? `Disconnect ${theirs.length} agents` : 'Disconnect'}
       actionIcon={UnlinkIcon}
       tone="destructive"
       reason={{
@@ -572,8 +572,8 @@ function DisconnectDialog({
               reason,
             })
             showToast(
-              `${disconnected.toLocaleString('en')} ${disconnected === 1 ? 'AI app' : 'AI apps'} disconnected`,
-              `${person}’s apps stop working from their next call.`,
+              `${disconnected.toLocaleString('en')} ${disconnected === 1 ? 'Agent' : 'Agents'} disconnected`,
+              `${person}’s agents stop working from their next call.`,
             )
           } else {
             await one.mutateAsync({ id: connection.id, reason })
@@ -606,7 +606,7 @@ function DisconnectDialog({
               <RadioGroupItem value="all" />
               <FieldItemContent>
                 <FieldLabel>
-                  All {theirs.length} of {person}’s AI apps
+                  All {theirs.length} of {person}’s agents
                 </FieldLabel>
                 <FieldDescription>{appListWords(theirs)}</FieldDescription>
               </FieldItemContent>

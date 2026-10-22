@@ -4,22 +4,22 @@ import type { ResolvedScope, ScopeIssue } from './scope.ts'
 
 /*
   What a read result means, in two parts (FR-344). `say` is for the person: one or two plain
-  sentences an AI app may repeat as they stand, in the voice of docs/design/voice.md and with the
+  sentences an AI agent may repeat as they stand, in the voice of docs/design/voice.md and with the
   names of src/domain/words.ts, so an app that passes them on speaks as a colleague would. `next`
-  is for the AI app: the step to take with this result, in the tool and field names it calls.
+  is for the AI agent: the step to take with this result, in the tool and field names it calls.
 
   Both come first in every result, so an app that drops the server instructions (FR-343) still
   gets what keeps an answer honest: an empty, unreadable, cut or held-back result never reads as
   an absence. They are the system's own text (FR-322), so they never hold a contributor's words
   (FR-329): a fact is named by its kind, never by its title. They never name the product either:
-  the AI app says where it looked, and the product's name may change. Nothing here calls a
+  the AI agent says where it looked, and the product's name may change. Nothing here calls a
   language model, and the mock's replies use the same sentences as the service's.
 */
 
-/** A result's two sentences: what the person hears, and what the AI app does next. */
+/** A result's two sentences: what the person hears, and what the AI agent does next. */
 export type Said = { say: string; next?: string }
 
-/** The absence rule every result that finds nothing gives the AI app (FR-318). */
+/** The absence rule every result that finds nothing gives the AI agent (FR-318). */
 export const notProof = 'That does not prove there is no caveat'
 /** How far a result went: only what the question asked was checked. */
 const onlyThat = 'Only that was checked.'
@@ -124,7 +124,7 @@ const some = (names: readonly string[]) =>
   names.length > 5 ? `${names.slice(0, 5).join(', ')} and ${names.length - 5} more` : list(names)
 
 /**
- * What could not be read, for the AI app: each issue's own message with the closest names and
+ * What could not be read, for the AI agent: each issue's own message with the closest names and
  * their keys, and the choices when no name is close enough.
  */
 export function issueWords(bundle: Names, issues: readonly ScopeIssue[], question?: string) {
@@ -195,7 +195,7 @@ export const unreadSaid = (
 
 /**
  * A reply that names a domain or an edition nobody knows, or another refusal before anything was
- * read: what the person hears, and the AI app's message with its choices.
+ * read: what the person hears, and the AI agent's message with its choices.
  */
 export const refusedSaid = (person: string, message: string): Said => ({
   say: `${notLookedUp} ${person}`,
@@ -206,14 +206,14 @@ export const refusedSaid = (person: string, message: string): Said => ({
 export const unknownDomainWords = (input: string, near: string | null) =>
   `There's no domain called "${input}".${near ? ` Did you mean ${near}?` : ''}`
 
-/** A reply whose checks could not run (`check_failed`): the AI app's next step is the reason. */
+/** A reply whose checks could not run (`check_failed`): the AI agent's next step is the reason. */
 export const failedSaid = (message: string): Said => ({
   say: "Nothing could be looked up this time, so this says nothing about what's written down.",
   next: message,
 })
 
 /**
- * Why a matching fact isn't given to AI apps, by the resolver's reason (FR-314): what one fact
+ * Why a matching fact isn't given to AI agents, by the resolver's reason (FR-314): what one fact
  * and what several do. A reason nobody knows reads as `other`.
  */
 export const heldBackWords: Readonly<Record<string, readonly [string, string]>> = {
@@ -228,12 +228,12 @@ export const heldBackWords: Readonly<Record<string, readonly [string, string]>> 
 }
 
 /**
- * Facts that match but aren't given to AI apps, counted by why: "2 more facts match but aren't
- * shared with AI apps: 1 is for another group and 1 waits for a check."
+ * Facts that match but aren't given to AI agents, counted by why: "2 more facts match but aren't
+ * shared with AI agents: 1 is for another group and 1 waits for a check."
  */
 export function heldBackSay(reasons: readonly string[], more: boolean): string {
   const n = reasons.length
-  return `${count(n, more ? 'more fact matches' : 'fact matches', more ? 'more facts match' : 'facts match')} but ${n === 1 ? "isn't" : "aren't"} shared with AI apps: ${heldBackWhy(reasons)}.`
+  return `${count(n, more ? 'more fact matches' : 'fact matches', more ? 'more facts match' : 'facts match')} but ${n === 1 ? "isn't" : "aren't"} shared with AI agents: ${heldBackWhy(reasons)}.`
 }
 
 /** Why facts aren't given, in a clause: "it's high risk and waits for a check". */
@@ -279,9 +279,9 @@ export type ContextSay = {
 }
 
 /**
- * get_context's two sentences, for each status: what it read (the metrics, markets and dates) and
+ * get_facts's two sentences, for each status: what it read (the metrics, markets and dates) and
  * that it read only that; a match keeps what was cut, held back, needs checking or applies only
- * in part; an absence is never said without the rule and the next step for the AI app.
+ * in part; an absence is never said without the rule and the next step for the AI agent.
  */
 export function contextSaid(bundle: Names, c: ContextSay): Said {
   if (c.status === 'need_more_detail' || !c.scope) return unreadSaid(bundle, c.issues, c.question)
@@ -289,18 +289,18 @@ export function contextSaid(bundle: Names, c: ContextSay): Said {
   const say: string[] = []
   const next: string[] = []
   if (c.status === 'no_match' && c.withheld.length) {
-    // Facts exist that AI apps don't get: never an absence, and no gap to report.
+    // Facts exist that AI agents don't get: never an absence, and no gap to report.
     const n = c.withheld.length
     say.push(
-      `${sentence(count(n, 'fact applies', 'facts apply'))} to ${scope}, but ${n === 1 ? "it isn't" : "they aren't"} shared with AI apps yet: ${heldBackWhy(c.withheld)}.`,
+      `${sentence(count(n, 'fact applies', 'facts apply'))} to ${scope}, but ${n === 1 ? "it isn't" : "they aren't"} shared with AI agents yet: ${heldBackWhy(c.withheld)}.`,
     )
     next.push(
-      `${notProof}: never say nothing is written down. Say that ${n === 1 ? 'a fact exists' : 'facts exist'} that AI apps don't get yet, which a person can read in the library.`,
+      `${notProof}: never say nothing is written down. Say that ${n === 1 ? 'a fact exists' : 'facts exist'} that AI agents don't get yet, which a person can read in the library.`,
     )
   } else if (c.status === 'no_match') {
     say.push(`Nothing is written down for ${scope}.`, onlyThat)
     next.push(
-      `${notProof}, and it covers only this question, never the whole topic. Check the names and dates, or call find_context with the question's words. If nothing applies there either, say nothing is written down for exactly this question, and call report_gap.`,
+      `${notProof}, and it covers only this question, never the whole topic. Check the names and dates, or call find_facts with the question's words. If nothing applies there either, say nothing is written down for exactly this question, and call report_gap.`,
     )
   } else if (c.delivered === 0) {
     say.push(
@@ -351,7 +351,7 @@ export function contextSaid(bundle: Names, c: ContextSay): Said {
   return { say: say.join(' '), ...(next.length ? { next: next.join(' ') } : {}) }
 }
 
-/** search_context's two sentences: a search matches words, so finding nothing proves nothing. */
+/** search_facts's two sentences: a search matches words, so finding nothing proves nothing. */
 export function searchSaid(c: {
   status: string
   query: string
@@ -365,15 +365,15 @@ export function searchSaid(c: {
   if (c.status === 'matched')
     return {
       say: `${sentence(count(c.total, 'fact', 'facts'))}${where} ${c.total === 1 ? 'matches' : 'match'} ${words}.${c.shown < c.total ? ` ${c.shown} are on this page.` : ''}`,
-      next: `A search matches words: it doesn't say what applies to a metric, market or dates. Call get_context for that.${c.shown < c.total ? ' next_cursor gives the next page.' : ''}`,
+      next: `A search matches words: it doesn't say what applies to a metric, market or dates. Call get_facts for that.${c.shown < c.total ? ' next_cursor gives the next page.' : ''}`,
     }
   return {
     say: `No fact${where} matches ${words}.`,
-    next: `${notProof}: a search that finds nothing may only have missed the words. Try a metric, market or domain name, fewer words, or get_context with the metrics, markets and dates.`,
+    next: `${notProof}: a search that finds nothing may only have missed the words. Try a metric, market or domain name, fewer words, or get_facts with the metrics, markets and dates.`,
   }
 }
 
-/** find_context's two sentences: found by words, by what the words name, or nothing, and why. */
+/** find_facts's two sentences: found by words, by what the words name, or nothing, and why. */
 export function findSaid(
   bundle: Names,
   c: {
@@ -406,25 +406,25 @@ export function findSaid(
       `${sentence(count(c.total, 'fact', 'facts'))}${where} ${c.total === 1 ? 'matches' : 'match'} these words.${shown}`,
       ...(defined ? [defined] : []),
     )
-    next = `These match words, not dates: for what applies to a metric, market and dates, call get_context.${more}`
+    next = `These match words, not dates: for what applies to a metric, market and dates, call get_facts.${more}`
   } else if (c.status === 'matched') {
     say.push(
       `${sentence(count(c.total, 'fact applies', 'facts apply'))}${where} to ${scope}.${shown}`,
       onlyThat,
       ...(defined ? [defined] : []),
     )
-    next = `No fact's words matched, so these are the facts that apply to what the words name. Call get_context for other metrics, markets or dates.${more}`
+    next = `No fact's words matched, so these are the facts that apply to what the words name. Call get_facts for other metrics, markets or dates.${more}`
   } else {
     say.push(
       `Nothing written down${where} matches these words${scope ? `, or applies to ${scope}` : ''}.`,
       ...(c.withheld
         ? [
-            `${count(c.withheld, 'fact matches', 'facts match')} but ${c.withheld === 1 ? "isn't" : "aren't"} shared with AI apps yet.`,
+            `${count(c.withheld, 'fact matches', 'facts match')} but ${c.withheld === 1 ? "isn't" : "aren't"} shared with AI agents yet.`,
           ]
         : []),
       ...(defined ? [defined] : []),
     )
-    next = `${notProof}: a search may only have missed the words, and why says what to try. Call get_context with the metrics, markets and dates. If nothing applies there either, say nothing is written down for exactly that question, and call report_gap.`
+    next = `${notProof}: a search may only have missed the words, and why says what to try. Call get_facts with the metrics, markets and dates. If nothing applies there either, say nothing is written down for exactly that question, and call report_gap.`
   }
   if (c.assumed) say.push(c.assumed)
   return { say: say.join(' '), next }
@@ -432,7 +432,7 @@ export function findSaid(
 
 /**
  * domain_overview's two sentences: every domain, or one domain, what its owner says it is (its
- * summary, FR-813), and how many of its facts AI apps get.
+ * summary, FR-813), and how many of its facts AI agents get.
  */
 export function overviewSaid(c: {
   domain: { name: string; summary?: string } | undefined
@@ -449,8 +449,8 @@ export function overviewSaid(c: {
     return {
       say:
         c.domains === 1
-          ? "Here's the one domain, with what it covers and how many facts AI apps get from it."
-          : `Here are all ${c.domains} domains, with what each one covers and how many facts AI apps get from it.`,
+          ? "Here's the one domain, with what it covers and how many facts AI agents get from it."
+          : `Here are all ${c.domains} domains, with what each one covers and how many facts AI agents get from it.`,
       next: 'Call domain_overview with a domain for its facts that need checking, its open gaps and its recent changes.',
     }
   const read = c.readAs ? `"${c.readAs.wrote}" is taken to mean ${c.readAs.domain}.` : null
@@ -459,9 +459,9 @@ export function overviewSaid(c: {
     : `${c.domain.name} has no description yet.`
   const { items, withheld = 0 } = c.coverage
   const notShared = (n: number) =>
-    `${count(n, 'fact', 'facts')} ${n === 1 ? "isn't" : "aren't"} shared with AI apps yet`
+    `${count(n, 'fact', 'facts')} ${n === 1 ? "isn't" : "aren't"} shared with AI agents yet`
   const gets = items
-    ? `AI apps get ${count(items, 'fact', 'facts')} from it${withheld ? `, and ${withheld} more ${withheld === 1 ? "isn't" : "aren't"} shared yet` : ''}.`
+    ? `AI agents get ${count(items, 'fact', 'facts')} from it${withheld ? `, and ${withheld} more ${withheld === 1 ? "isn't" : "aren't"} shared yet` : ''}.`
     : withheld
       ? `${sentence(notShared(withheld))}.`
       : null
@@ -490,7 +490,7 @@ export function overviewSaid(c: {
 export type ChangeCounts = Readonly<Record<string, number>>
 
 /**
- * what_changed's sentence: what changed for AI apps since a day, counted in the words people use:
+ * what_changed's sentence: what changed for AI agents since a day, counted in the words people use:
  * "Since 7 October 2026, in Sales: 3 facts added, 2 changed and 1 archived."
  */
 export function changesSaid(c: {
@@ -498,7 +498,7 @@ export function changesSaid(c: {
   since: string | null
   domain: string | null
   counts: ChangeCounts
-  /** Changes that aren't shown: in a domain AI apps don't get yet, paused, or for one group. */
+  /** Changes that aren't shown: in a domain AI agents don't get yet, paused, or for one group. */
   hidden: number
 }): Said {
   const words: [string, string][] = [
@@ -516,10 +516,10 @@ export function changesSaid(c: {
   const facts = (n: number) => `${count(n, 'fact', 'facts')}${c.domain ? ` in ${c.domain}` : ''}`
   const first =
     total === 0
-      ? `Nothing${c.domain ? ` in ${c.domain}` : ''} changed for AI apps${since}.`
+      ? `Nothing${c.domain ? ` in ${c.domain}` : ''} changed for AI agents${since}.`
       : parts.length === 1
         ? `${sentence(facts(total))} ${total === 1 ? 'was' : 'were'} ${parts[0]![1]}${since}.`
-        : `${sentence(facts(total))} changed for AI apps${since}: ${list(parts.map(([n, word]) => `${n} ${word}`))}.`
+        : `${sentence(facts(total))} changed for AI agents${since}: ${list(parts.map(([n, word]) => `${n} ${word}`))}.`
   const hidden = c.hidden
     ? ` ${count(c.hidden, 'other change', 'other changes')} ${c.hidden === 1 ? "isn't" : "aren't"} shown.`
     : ''
@@ -541,7 +541,7 @@ export const readSaid = (item: { kind: string; version: number } | null): Said =
       }
     : {
         say: "There's no fact by that id that you can read.",
-        next: 'That says nothing about what else is written down: find facts with find_context or get_context.',
+        next: 'That says nothing about what else is written down: find facts with find_facts or get_facts.',
       }
 
 /** get_related's two sentences: what links to the start, or that it may not be read (FR-334). */
@@ -564,5 +564,5 @@ export const gapSaid = (scope: string, assumed: string | null): Said => ({
 /** improve_question's two sentences: how the question reads, and where its suggestions are. */
 export const improveSaid = (scope: string): Said => ({
   say: `The question reads as ${scope}.`,
-  next: 'suggestions, events and guides say what would make it sharper. For what applies, call get_context.',
+  next: 'suggestions, events and guides say what would make it sharper. For what applies, call get_facts.',
 })

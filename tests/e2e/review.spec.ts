@@ -121,7 +121,7 @@ test('reads the diff and the checks, then accepts a high-risk change and waits f
     .fill('The campaign end matches the marketing calendar.')
   await dialog.getByRole('button', { name: 'Accept' }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByText('It needs one more yes before AI apps get it.')).toBeVisible()
+  await expect(page.getByText('It needs one more yes before agents get it.')).toBeVisible()
   await expect(bar(page)).toContainText(/You accepted at \d\d:\d\d\. Waiting for the approver/)
   await expect(bar(page).getByRole('button', { name: /Accepted by you/ })).toHaveAttribute(
     'aria-disabled',
@@ -205,7 +205,7 @@ test('accepts a low-risk proposal and publishes an edition', async ({ page }) =>
     .getByRole('textbox', { name: 'Why are you accepting it?' })
     .fill('The feed date matches the Sweden wiki.')
   await dialog.getByRole('button', { name: 'Accept' }).click()
-  await expect(page.getByText(/^(From then on, )?AI apps get it\.$/).first()).toBeVisible()
+  await expect(page.getByText(/^(From then on, )?agents get it\.$/).first()).toBeVisible()
   // Decided, it reads as a status page.
   await expect(page.getByRole('region', { name: 'Your decision' })).toHaveCount(0)
   await expect(page.locator('[data-slot="decision-alert"]')).toContainText('You accepted it')
@@ -234,7 +234,7 @@ test('asks for changes, and rejects with the source-tool reason', async ({ page 
   )
   await expect(reject).toContainText('Filled in from “Reject with this reason”')
   await reject.getByRole('button', { name: 'Reject' }).click()
-  await expect(page.getByText("We've told Kofi. AI apps won't get it.")).toBeVisible()
+  await expect(page.getByText("We've told Kofi. Agents won't get it.")).toBeVisible()
 })
 
 test('keeps blocked decisions visible and says why', async ({ page }) => {
@@ -285,7 +285,7 @@ test('the approver adds the second accept to a high-risk proposal', async ({ pag
     .getByRole('textbox', { name: 'Why are you accepting it?' })
     .fill('Regulator notice read.')
   await dialog.getByRole('button', { name: 'Accept as approver' }).click()
-  await expect(page.getByText(/^(From then on, )?AI apps get it\.$/).first()).toBeVisible()
+  await expect(page.getByText(/^(From then on, )?agents get it\.$/).first()).toBeVisible()
 })
 
 test('the owner raises the risk and every check runs again', async ({ page }) => {

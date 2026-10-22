@@ -179,29 +179,29 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   'serving.max_overlay_age_seconds': {
     title: 'Stop switch delay',
     description:
-      'How long AI apps may still get something after a stop switch stops it. It can be 60 seconds at most.',
+      'How long agents may still get something after a stop switch stops it. It can be 60 seconds at most.',
     group: 'review',
     shape: 'value',
     fields: [{ name: 'value', label: 'Seconds', kind: 'int', unit: 'seconds' }],
     words: (value) => plural(num(value), 'second'),
   },
   'limits.mcp_requests_per_minute': {
-    title: 'AI app requests',
+    title: 'Agent requests',
     description:
-      "How many requests AI apps can make in a minute, for each person's access key and for each AI app. An AI app with a limit of its own uses that instead.",
+      "How many requests agents can make in a minute, for each person's access key and for each agent. An agent with a limit of its own uses that instead.",
     group: 'limits',
     shape: 'object',
     fields: [
       { name: 'person', label: 'Per person', kind: 'int', unit: 'a minute' },
-      { name: 'client', label: 'Per AI app', kind: 'int', unit: 'a minute' },
+      { name: 'client', label: 'Per agent', kind: 'int', unit: 'a minute' },
     ],
     words: (value) =>
-      `${perMinute(obj(value).person)} per person, ${count.format(num(obj(value).client))} per AI app`,
+      `${perMinute(obj(value).person)} per person, ${count.format(num(obj(value).client))} per agent`,
   },
   'limits.mcp_rate_per_minute': {
     title: 'Tool calls',
     description:
-      'How often AI apps together can call one tool in a minute. A tool left empty has no limit of its own.',
+      'How often agents together can call one tool in a minute. A tool left empty has no limit of its own.',
     group: 'limits',
     shape: 'record',
     fields: [],
@@ -247,9 +247,9 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
     words: (value) => `${perMinute(obj(value).person)} per person`,
   },
   'limits.agent_drafts': {
-    title: 'Drafts from AI apps',
+    title: 'Drafts from agents',
     description:
-      "How many drafts one person's AI apps can save with the draft tool in a day, and how many can wait unsent at once.",
+      "How many drafts one person's agents can save with the draft tool in a day, and how many can wait unsent at once.",
     group: 'limits',
     shape: 'object',
     fields: [
@@ -316,7 +316,7 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   },
   'privacy.min_count': {
     title: 'Smallest count shown',
-    description: 'We hide every count of AI app calls below this, so nobody can tell who asked.',
+    description: 'We hide every count of agent calls below this, so nobody can tell who asked.',
     group: 'privacy',
     shape: 'value',
     fields: [{ name: 'value', label: 'Calls', kind: 'int', unit: 'calls' }],
@@ -325,7 +325,7 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   'gaps.no_item_threshold': {
     title: 'When a topic becomes a gap',
     description:
-      'When AI apps ask about a topic this many times within these days and find nothing, it becomes a gap.',
+      'When agents ask about a topic this many times within these days and find nothing, it becomes a gap.',
     group: 'privacy',
     shape: 'object',
     fields: [
@@ -335,8 +335,8 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
     words: (value) => `${plural(num(obj(value).calls), 'call')} in ${days(obj(value).days)}`,
   },
   'retention.delivery_days': {
-    title: 'Record of what AI apps got',
-    description: 'How long we keep the record of what each AI app got.',
+    title: 'Record of what agents got',
+    description: 'How long we keep the record of what each agent got.',
     group: 'privacy',
     shape: 'value',
     fields: dayField(),
@@ -345,7 +345,7 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   'retention.request_log_days': {
     title: 'Request log kept',
     description:
-      'How long we keep the record of each request AI apps make. Older traffic is deleted.',
+      'How long we keep the record of each request agents make. Older traffic is deleted.',
     group: 'privacy',
     shape: 'value',
     fields: dayField(),
@@ -353,7 +353,7 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   },
   'retention.note_days': {
     title: 'Notes kept',
-    description: 'How long we keep notes on gaps and the notes AI apps add to their feedback.',
+    description: 'How long we keep notes on gaps and the notes agents add to their feedback.',
     group: 'privacy',
     shape: 'value',
     fields: dayField(),
@@ -470,7 +470,7 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
   'business.about': {
     title: 'About our business',
     description:
-      'What the company does and the words people use. The assistant and connected AI apps get it as background, never as the source of a fact.',
+      'What the company does and the words people use. The assistant and connected agents get it as background, never as the source of a fact.',
     group: 'business',
     shape: 'value',
     fields: [{ name: 'value', label: 'About our business', kind: 'text', optional: true }],
@@ -685,11 +685,11 @@ const actionNames: Record<string, string> = {
   'import.applied': 'Facts imported',
   'tool.switched_on': 'Tool switched on',
   'tool.switched_off': 'Tool switched off',
-  'client_policy.added': 'AI app added',
-  'client_policy.changed': 'AI app changed',
-  'stop.on': 'Sharing with AI apps stopped',
-  'stop.off': 'Sharing with AI apps started again',
-  'edition.published': 'Shared with AI apps',
+  'client_policy.added': 'Agent added',
+  'client_policy.changed': 'Agent changed',
+  'stop.on': 'Sharing with agents stopped',
+  'stop.off': 'Sharing with agents started again',
+  'edition.published': 'Shared with agents',
   'edition.rollback': 'Went back to an earlier version',
   'item.flagged': 'Fact flagged',
   'item.unflagged': 'Flag removed from a fact',
@@ -716,10 +716,10 @@ const actionNames: Record<string, string> = {
   'decision.reject': 'Rejected',
   'decision.retire': 'Archived',
   'gap.draft_started': 'Draft started from a gap',
-  'ai_client.connected': 'AI app connected',
-  'ai_client.disconnected': 'AI app disconnected',
+  'ai_client.connected': 'Agent connected',
+  'ai_client.disconnected': 'Agent disconnected',
   // Heed ended it on its own: a copied code or refresh token, the app's own revoke, a person gone.
-  'ai_client.revoked': 'AI app connection ended',
+  'ai_client.revoked': 'Agent connection ended',
   'gap.note_added': 'Note added to a gap',
   'gap.status_changed': 'Gap status changed',
   'gap.test_linked': 'Test question linked to a gap',
@@ -797,10 +797,10 @@ export const auditActionFamilies = [
   { value: 'role', label: 'Roles' },
   { value: 'assignment', label: 'Domain roles' },
   { value: 'tool', label: 'Tools' },
-  { value: 'client_policy', label: 'AI apps' },
-  { value: 'ai_client', label: 'AI app connections' },
+  { value: 'client_policy', label: 'Agents' },
+  { value: 'ai_client', label: 'Agent connections' },
   { value: 'stop', label: 'Stop switches' },
-  { value: 'edition', label: 'Sharing with AI apps' },
+  { value: 'edition', label: 'Sharing with agents' },
   { value: 'proposal', label: 'Proposals' },
   { value: 'decision', label: 'Decisions' },
   { value: 'import', label: 'Imports' },
@@ -937,7 +937,7 @@ export function areaFormProblems(
 /** The scheduled jobs in plain words; a job the screen does not know reads as its name. */
 export const jobNames: Record<string, string> = {
   'connectors.sync': 'Read the definition sources',
-  'evals.retrieval': 'Check what AI apps find',
+  'evals.retrieval': 'Check what agents find',
   'evals.weekly': 'Weekly answer tests',
   'evals.work': 'Run answer tests',
   'gaps.detect': 'Find gaps',

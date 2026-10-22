@@ -75,7 +75,7 @@ test('an administrator moves a range of rows to the Bin in one step and takes it
 
   const toast = page.locator('[data-slot="toast"]')
   await expect(toast).toContainText('3 facts moved to the Bin')
-  await expect(toast).toContainText('AI apps no longer get them.')
+  await expect(toast).toContainText('Agents no longer get them.')
   for (const id of ids) await expect(page.locator(`[data-row-id="${id}"]`)).toHaveCount(0)
   await expect(bar).toBeHidden()
   await expect(itemCount(page)).not.toHaveText(before!)
@@ -199,7 +199,7 @@ test('an item in the Bin opens to read before restoring it, and Restore brings i
   await expect(page).toHaveURL(new RegExp(`/library/bin/${id}$`))
 
   const banner = page.locator('[data-slot="bin-item-banner"]')
-  await expect(banner).toContainText("In the Bin. AI apps don't get it.")
+  await expect(banner).toContainText("In the Bin. Agents don't get it.")
   await expect(banner).toContainText('Moved by Ravi Kapoor')
   await expect(banner).toContainText('Duplicates of the pilot import, kept the newer ones')
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()

@@ -3,8 +3,8 @@ import { shiftDate } from '../../domain/validity.ts'
 import type { MockAppDay } from '../api/mock-quality.ts'
 
 /*
-  The AI apps' tool calls the demo starts with (FR-410), as the request log counts them: per app
-  family from the fixed list and day, never the app's own name or a person. Health counts them per
+  The agents' tool calls the demo starts with (FR-410), as the request log counts them: per app
+  family from the fixed list and day, never the agent's own name or a person. Health counts them per
   week and hides a count below the minimum, so this week Claude Code shows a few malformed calls
   among many, Cursor a high share of them, ChatGPT hides its few, and Claude's desktop and web
   apps hide every count.

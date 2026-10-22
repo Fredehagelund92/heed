@@ -25,7 +25,7 @@
   <text class="hf-title" x="408" y="102">The assistant</text>
   <text class="hf-muted" x="408" y="121">answers from it, with a link</text>
   <rect class="hf-box" x="392" y="140" width="232" height="52" rx="8"/>
-  <text class="hf-title" x="408" y="162">Your AI app, over MCP</text>
+  <text class="hf-title" x="408" y="162">Your agent, over MCP</text>
   <text class="hf-muted" x="408" y="181">answers from it, with a link</text>
   <text class="hf-muted" x="120" y="222" text-anchor="middle">written once</text>
   <text class="hf-muted" x="508" y="222" text-anchor="middle">the same answer in each place</text>

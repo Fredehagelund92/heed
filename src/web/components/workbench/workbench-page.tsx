@@ -386,7 +386,7 @@ export function WorkbenchPage({ search }: { search: WorkbenchSearch }) {
  * With nothing open: the domain overview, Quality's first screen folded into the scope. The
  * verdict says whether answers are better than last time, and the grid gives each domain's health;
  * a domain opens as a record; under it, the assistant's ratings this week and, over every
- * domain, how the AI apps that called Heed fared this week. Above them, for
+ * domain, how the agents that called Heed fared this week. Above them, for
  * whoever maintains a domain in scope, what Quality's toolbar offered: write a test question,
  * import and export them, and run the domain in scope.
  */
@@ -486,7 +486,7 @@ function DomainOverview({
           {health.state === 'ready' && health.rows.length ? (
             <RatingsOverview areas={health.rows.map((row) => row.area)} everyDomain={!area} />
           ) : null}
-          {/* A request names no domain, so the AI apps show where every domain the person looks after is in scope. */}
+          {/* A request names no domain, so the agents show where every domain the person looks after is in scope. */}
           {!area || onlyDomain ? <AppFamiliesOverview /> : null}
         </div>
       </RecordBody>

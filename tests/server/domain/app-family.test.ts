@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { appFamilies, appFamilyNames, appFamilyOf } from '../../../src/domain/app-family.ts'
 
-it('maps the names AI apps send to a family from the fixed list (FR-410)', () => {
+it('maps the names agents send to a family from the fixed list (FR-410)', () => {
   const cases: [unknown, string][] = [
     ['claude-code', 'claude_code'],
     ['Claude Code', 'claude_code'],

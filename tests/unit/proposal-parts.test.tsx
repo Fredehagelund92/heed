@@ -75,9 +75,9 @@ describe('GateResult', () => {
       'answer_impact',
     ])
     expect(screen.getAllByRole('img', { name: 'Passed' })).toHaveLength(4)
-    // A review names the day of what AI apps got, never an edition's number.
+    // A review names the day of what agents got, never an edition's number.
     expect(
-      screen.getByText('Checked against what AI apps got on 7 October 2026'),
+      screen.getByText('Checked against what agents got on 7 October 2026'),
     ).toBeInTheDocument()
     expect(screen.queryByText(/2026-10-07\.2/)).toBeNull()
   })
@@ -110,7 +110,7 @@ describe('GateResult', () => {
     expect(items.map((item) => item.textContent)).toEqual([
       'Complete',
       'Finds the right questions',
-      'Reaches AI apps',
+      'Reaches agents',
       'Answers stay right',
       'Whole domain',
     ])
@@ -225,7 +225,7 @@ describe('AgentPreview', () => {
   // A served fact's review stamp reads who accepted it through the data layer.
   const renderPreview = (ui: ReactElement) => render(ui, { wrapper: QueryFrame })
 
-  it('shows what was found, the dates, the source and what an AI app may say about cause', () => {
+  it('shows what was found, the dates, the source and what an agent may say about cause', () => {
     renderPreview(
       <AgentPreview
         state="ready"
@@ -250,7 +250,7 @@ describe('AgentPreview', () => {
     expect(screen.getByText('could explain')).toBeInTheDocument()
     // The draft is not reviewed yet: an agent gets it only once an owner accepts it.
     expect(
-      screen.getByText(/Not reviewed yet. AI apps get it once the owner of Sales/),
+      screen.getByText(/Not reviewed yet. Agents get it once the owner of Sales/),
     ).toBeInTheDocument()
   })
 
@@ -288,9 +288,9 @@ describe('AgentPreview', () => {
 
   it('says plainly when it is waiting or loading, and marks only an unpublished reply', () => {
     const { rerender } = renderPreview(<AgentPreview state="waiting" />)
-    expect(screen.getByText(/you'll see what AI apps would get/)).toBeInTheDocument()
+    expect(screen.getByText(/you'll see what agents would get/)).toBeInTheDocument()
     rerender(<AgentPreview state="loading" />)
-    expect(screen.getByText('Asking as an AI app would')).toBeInTheDocument()
+    expect(screen.getByText('Asking as an agent would')).toBeInTheDocument()
     rerender(<AgentPreview state="ready" result={noMatchReply} />)
     expect(screen.getByText('Not shared yet')).toBeInTheDocument()
     rerender(<AgentPreview state="ready" result={noMatchReply} published />)
@@ -371,7 +371,7 @@ describe('DraftProvenanceNotice', () => {
     expect(notice).toHaveTextContent('Check this draft before you send it')
     expect(notice).toHaveTextContent('Nobody else sees it until you send it.')
     expect(notice).toHaveTextContent('Check the')
-    expect(notice).not.toHaveTextContent(/AI app|assistant/i)
+    expect(notice).not.toHaveTextContent(/agent|assistant/i)
     // No mark beside a field and no line beside a value.
     expect(container.querySelector('[data-slot="provenance-mark"]')).toBeNull()
   })

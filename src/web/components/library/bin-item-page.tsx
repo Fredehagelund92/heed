@@ -36,7 +36,7 @@ export function BinItemPage({ entry, item }: BinItem) {
           <Alert variant="warning" data-slot="bin-item-banner">
             <Trash2Icon aria-hidden />
             <AlertContent>
-              <AlertTitle>In the Bin. AI apps don't get it.</AlertTitle>
+              <AlertTitle>In the Bin. Agents don't get it.</AlertTitle>
               <AlertDescription>
                 <p>
                   Moved by {movedBy} on {formatDay(entry.binnedAt, 'long')}: {entry.reason}
@@ -45,7 +45,7 @@ export function BinItemPage({ entry, item }: BinItem) {
                   {entry.deletedDomain
                     ? `Its domain, ${entry.deletedDomain}, is deleted. Restore brings it back archived into a domain you choose, with a proposal there for its owners to review.`
                     : entry.wasLive
-                      ? 'Restore brings it back to the library, and AI apps get it again.'
+                      ? 'Restore brings it back to the library, and agents get it again.'
                       : 'Restore brings it back to the library, archived, as it was.'}
                 </p>
               </AlertDescription>

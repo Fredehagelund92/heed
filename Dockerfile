@@ -22,8 +22,8 @@ FROM node:26-bookworm-slim AS service
 WORKDIR /app
 COPY --from=service-deps /app/node_modules node_modules
 COPY . .
-# The keys the service makes on its first start (MCP, sign-in for AI apps), kept in a volume so a
-# connected AI app stays connected when the container is made again.
+# The keys the service makes on its first start (MCP, sign-in for agents), kept in a volume so a
+# connected agent stays connected when the container is made again.
 RUN mkdir -p /var/lib/heed && chown node:node /var/lib/heed
 USER node
 ENV HOST=0.0.0.0 \

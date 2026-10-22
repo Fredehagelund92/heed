@@ -10,7 +10,7 @@
   },
   "docs/help/glossary.md": {
     "administrator": 1,
-    "agent": 1,
+    "ai app": 1,
     "audience": 1,
     "dimension": 2,
     "edition": 3,
@@ -51,7 +51,6 @@
   },
   "src/web/api/mock-admin.ts": {
     "administrator": 2,
-    "agent": 1,
     "edition": 1,
     "item": 1,
     "live edition": 1,
@@ -71,7 +70,6 @@
   },
   "src/web/api/mock-workflow.ts": {
     "administrator": 1,
-    "agent": 1,
     "delivered": 1,
     "has not": 2,
     "retired": 1,
@@ -129,7 +127,6 @@
     "model": 2
   },
   "src/web/mocks/answers.ts": {
-    "agent": 1,
     "caveat": 2,
     "connect your ai": 1,
     "does not": 2,

@@ -149,7 +149,7 @@ const flagged = async () =>
   ).rows.map((row) => row.item_id)
 async function countryLink(item: string, metric: string) {
   const result = await execute(
-    'get_context',
+    'get_facts',
     { question: '', metrics: [metric], window: { from: '2026-08-10', to: '2026-08-20' } },
     { client: 'claude-code', scopes: ['read'], caller: 'agent', canSelectEdition: false },
     200000,

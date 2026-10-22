@@ -59,14 +59,14 @@ describe("the golden set's assistant cases, as the runner makes them", () => {
   it('checks each turn on its own: tools, the items it must cite, and a correction', () => {
     const [first, second] = turnsOf(byId('conversation-correction'))
     const asked = outcome({
-      tools: ['get_context'],
+      tools: ['get_facts'],
       citations: { cited: ['itm_1y8znds2'], removed: [], quoted: 0, earlier: 0 },
     })
     expect(judge(first!, asked, null, true)).toEqual([])
     // The follow-up must cite the Poland item, not carry the Netherlands one over.
     expect(judge(second!, asked, null, true)).toEqual(['did not cite itm_gssupbon1'])
     expect(judge(second!, outcome(), null, true)).toEqual([
-      'called none of get_context',
+      'called none of get_facts',
       'did not cite itm_gssupbon1',
     ])
   })
@@ -76,7 +76,7 @@ describe("the golden set's assistant cases, as the runner makes them", () => {
     expect(
       judge(
         owner!,
-        outcome({ tools: ['find_context'], answer: 'heed has no items about revenue.' }),
+        outcome({ tools: ['find_facts'], answer: 'heed has no items about revenue.' }),
         null,
         true,
       ),
@@ -108,14 +108,14 @@ describe("the golden set's assistant cases, as the runner makes them", () => {
       judge(
         abilities!,
         outcome({
-          tools: ['get_context'],
+          tools: ['get_facts'],
           answer: 'Which metric, market and dates do you mean?',
         }),
         null,
         true,
       ),
     ).toEqual([
-      'called get_context',
+      'called get_facts',
       'asked which metric, market or dates, for a question about none',
     ])
     expect(

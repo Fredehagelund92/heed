@@ -10,7 +10,7 @@ import {
 } from './vocabulary.ts'
 
 /**
- * The search behind `search_context`: a pure, deterministic reading of a few words against the
+ * The search behind `search_facts`: a pure, deterministic reading of a few words against the
  * items of an edition. A question's words rarely appear in a title as one phrase, so the query is
  * read the way a person means it: names of domains, metrics, metric groups, dimensions and their
  * values (with their other names) are recognised as whole, longest phrases and matched against

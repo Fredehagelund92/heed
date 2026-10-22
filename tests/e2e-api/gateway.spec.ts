@@ -67,7 +67,7 @@ test('an administrator switches a tool off and on again, each with a reason', as
     await toggle.click()
     const off = page.getByRole('alertdialog', { name: 'Switch off Improve a question?' })
     await expect(off).toContainText(
-      'Claude Code with a token, Evaluation runner and AI apps people sign in with',
+      'Claude Code with a token, Evaluation runner and Agents people sign in with',
     )
     await off.getByRole('textbox', { name: 'Why' }).fill('End to end: off for a moment')
     await off.getByRole('button', { name: 'Switch off' }).click()

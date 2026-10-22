@@ -6,7 +6,7 @@ import { openPage, settle, themes, widths } from './support'
 /*
   Settings and Administration (slice W11b of the front end plan; navigation decision, 12 October
   2026) on the mock: a person's own Settings, who sees which section of Administration, the old
-  Settings, MCP and gateway and Connect an AI app addresses landing where their sections went, an
+  Settings, MCP and gateway and Connect an agent addresses landing where their sections went, an
   administrator changing a limit with a reason and reading it back in its history and in the
   history log, creating, editing and deleting a domain, giving and removing roles, searching, exporting and
   checking the history log, running a job, importing a file of items, the MCP traffic by client
@@ -33,7 +33,7 @@ const section = async (page: Page, name: string) => {
 }
 
 test.describe("a person's own Settings", () => {
-  test('everyone has their profile and Connect an AI app, from the user menu', async ({ page }) => {
+  test('everyone has their profile and Connect an agent, from the user menu', async ({ page }) => {
     await openPage(page, '/', desktop)
     await expect(sidebar(page).getByRole('link', { name: 'Settings' })).toHaveCount(0)
     await sidebar(page)
@@ -43,24 +43,24 @@ test.describe("a person's own Settings", () => {
     await expect(page).toHaveURL(/\/settings\?section=profile$/)
     await expect(settingsSections(page).getByRole('link')).toHaveText([
       'Profile and appearance',
-      'Connect an AI app',
+      'Connect an agent',
     ])
     await expect(page.getByRole('heading', { name: 'You', exact: true })).toBeVisible()
     await expect(page.getByRole('list', { name: 'Your roles' })).toHaveText('Contributor')
     await expect(page.getByRole('heading', { name: 'Appearance', exact: true })).toBeVisible()
-    await expect(page.getByRole('table', { name: 'Connected AI apps' })).toHaveCount(0)
+    await expect(page.getByRole('table', { name: 'Connected agents' })).toHaveCount(0)
 
     await sidebar(page)
       .getByRole('button', { name: /Maria Lindqvist/ })
       .click()
-    await page.getByRole('menuitem', { name: /Connect an AI app/ }).click()
+    await page.getByRole('menuitem', { name: /Connect an agent/ }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
-    await expect(page).toHaveTitle('Connect an AI app - Settings - Heed')
+    await expect(page).toHaveTitle('Connect an agent - Settings - Heed')
     await expect(page.getByRole('heading', { name: 'The address' })).toBeVisible()
-    await expect(page.getByRole('table', { name: 'Connected AI apps' })).toBeVisible()
+    await expect(page.getByRole('table', { name: 'Connected agents' })).toBeVisible()
   })
 
-  test('the old Connect an AI app addresses land on its section', async ({ page }) => {
+  test('the old Connect an agent addresses land on its section', async ({ page }) => {
     for (const from of ['/connect', '/try-it?tab=connect']) {
       await openPage(page, from, desktop)
       await expect(page).toHaveURL(/\/settings\?section=connect$/)
@@ -256,7 +256,7 @@ test.describe('about our business', () => {
     )
     await expect(guide).toContainText('legal conclusions, and secrets or personal data')
     await expect(guide).toContainText(
-      'Leave it empty to give the assistant and AI apps no background.',
+      'Leave it empty to give the assistant and agents no background.',
     )
     await expect(block.locator('[data-slot="business-saved"]')).toContainText('Version 1, saved')
     await expect(block.locator('[data-slot="business-saved"]')).toContainText(
@@ -321,7 +321,7 @@ test.describe('about our business', () => {
     await openPage(page, '/admin?section=business', phone)
     await page.getByRole('textbox', { name: 'About our business' }).fill('')
     await expect(page.locator('[data-slot="business-preview"]')).toContainText(
-      'Nothing. With the text empty, the assistant and AI apps get no background',
+      'Nothing. With the text empty, the assistant and agents get no background',
     )
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(phone.width)
   })
@@ -336,7 +336,7 @@ test.describe('about our business', () => {
         const text = page.getByRole('textbox', { name: 'About our business' })
         await expect(text.getByRole('listitem').first()).toBeVisible()
         await expect(text).toHaveAccessibleDescription(
-          /What the company does\. .*Words an outsider would misread\. .*Leave out: .*Leave it empty to give the assistant and AI apps no background\. 1,102 of 1,200 characters/,
+          /What the company does\. .*Words an outsider would misread\. .*Leave out: .*Leave it empty to give the assistant and agents no background\. 1,102 of 1,200 characters/,
         )
         // Words selected show the formatting toolbar, which has no mention.
         await text.getByRole('listitem').first().selectText()
@@ -461,7 +461,7 @@ test.describe('domains and roles', () => {
     const lines = dialog.getByRole('list', { name: 'What deleting Sales does' })
     const items = lines.locator('[data-kind="items"]')
     await expect(items).toContainText(/\d+ accepted facts/)
-    await expect(items).toContainText('They move to the Bin, and AI apps stop getting them at once')
+    await expect(items).toContainText('They move to the Bin, and agents stop getting them at once')
     await items.getByRole('button', { name: 'See the facts' }).click()
     await expect(items.getByRole('listitem').first()).toBeVisible()
     await expect(lines.locator('[data-kind="terms"]')).toContainText(/\d+ names/)
@@ -805,17 +805,17 @@ test.describe('MCP traffic and the server address', () => {
   }) => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway&tab=activity', desktop)
-    const grid = page.getByRole('table', { name: 'Calls by AI app and tool' })
-    await expect(grid.locator('[data-traffic="claude-code.get_context"]')).toContainText('1,842')
-    await expect(grid.locator('[data-traffic="unknown.protocol"]')).toContainText('No AI app named')
+    const grid = page.getByRole('table', { name: 'Calls by agent and tool' })
+    await expect(grid.locator('[data-traffic="claude-code.get_facts"]')).toContainText('1,842')
+    await expect(grid.locator('[data-traffic="unknown.protocol"]')).toContainText('No agent named')
     await expect(page.locator('[data-slot="traffic-calls"]')).toContainText('4,456')
-    // Malformed calls are the AI app's mistake, counted apart from Heed's errors.
+    // Malformed calls are the agent's mistake, counted apart from Heed's errors.
     await expect(page.getByText('Malformed', { exact: true }).first()).toBeVisible()
-    const apps = page.getByRole('table', { name: 'Tool calls this week per AI app' })
+    const apps = page.getByRole('table', { name: 'Tool calls this week per agent' })
     await expect(apps.locator('[data-app-family="claude_code"]')).toContainText('142')
     await page.getByRole('link', { name: '30 days' }).click()
     await expect(page).toHaveURL(/days=30/)
-    await expect(grid.locator('[data-traffic="claude-code.get_context"]')).toContainText('7,894')
+    await expect(grid.locator('[data-traffic="claude-code.get_facts"]')).toContainText('7,894')
   })
 
   test('the Clients tab shows the address AI clients connect to', async ({ page }) => {

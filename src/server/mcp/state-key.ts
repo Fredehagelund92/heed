@@ -4,8 +4,8 @@ import { readFile, stat, writeFile } from 'node:fs/promises'
 /*
   The key that seals `draft_context`'s question rounds (CL_MCP_STATE_KEY_FILE): an HMAC key of at
   least 32 bytes, written as hex, readable by its owner only. Every instance must hold the same
-  key, because the person's AI app may send the answers to another one. Outside production a
-  missing file is created; in production a missing file turns the questions in the AI app off,
+  key, because the person's agent may send the answers to another one. Outside production a
+  missing file is created; in production a missing file turns the questions in the agent off,
   so the tool lists them with the draft link instead, until the key is provided. Key material
   never appears in an error or a log line.
 */

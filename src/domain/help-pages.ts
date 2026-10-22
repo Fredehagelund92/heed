@@ -3,6 +3,7 @@ import { REPOSITORY_URL } from './brand.ts'
 import { stem } from './context-search.ts'
 import { headingIds } from './heading-anchors.ts'
 import { helpSectionIds } from './help-sections.ts'
+import { currentWords } from './words.ts'
 
 export { headingIds, headingSlug } from './heading-anchors.ts'
 export { helpSectionIds, helpSections, type HelpSectionId } from './help-sections.ts'
@@ -12,7 +13,7 @@ export { helpSectionIds, helpSections, type HelpSectionId } from './help-section
   the anchor each heading gets, a page's answer and its sections, where its links go, and the
   search that ranks its sections by a question's words. The Docs area draws the pages from it
   (web/lib/docs.ts) and the service answers "how does Heed work" from it (search_help, for the
-  assistant and for AI apps over MCP), so a question gets the same page everywhere, with the same
+  assistant and for agents over MCP), so a question gets the same page everywhere, with the same
   link. The files are read by each side as it can (the build, the disk); this module only reads
   text it is given. Pure: no input or output, no clock.
 */
@@ -254,7 +255,7 @@ export function helpPageLines(source: string): HelpLine[] {
 /**
  * Reads one page: its front matter checked, then its body cut at every heading. `screen` turns a
  * path of the app (`/docs/mcp`, `/settings?section=connect`) into the address the reader opens:
- * the path itself in the app, the web app's address and the path for an AI app.
+ * the path itself in the app, the web app's address and the path for an agent.
  */
 export function readHelpPage(
   slug: string,
@@ -409,7 +410,7 @@ export function helpIndex(pages: readonly HelpPage[], product = ''): HelpIndex {
   return {
     pages,
     search(query, { limit = 3, perPage = 2 } = {}) {
-      const asked = [...new Set(helpTerms(query))]
+      const asked = [...new Set(helpTerms(currentWords(query)))]
       const rest = asked.filter((term) => !productTerms.has(term))
       const terms = rest.length ? rest : asked
       if (!terms.length) return []

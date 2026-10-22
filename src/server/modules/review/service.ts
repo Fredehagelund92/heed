@@ -313,7 +313,7 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       if (live)
         throw new ORPCError('CONFLICT', {
           message:
-            'AI apps get this fact again since it was restored, so this proposal is out of date. Reject it.',
+            'Agents get this fact again since it was restored, so this proposal is out of date. Reject it.',
         })
       if (state.binned)
         throw new ORPCError('CONFLICT', {
@@ -393,7 +393,7 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
     if ((await liveVersionId(tx, p.itemId!)) !== p.itemVersionId)
       throw new ORPCError('CONFLICT', {
         message:
-          'This fact changed, or AI apps stopped getting it, after someone proposed to archive it.',
+          'This fact changed, or agents stopped getting it, after someone proposed to archive it.',
       })
     const outcome = input.outcome === 'accept' ? 'retire' : 'reject'
     const id = await insertDecision(tx, {

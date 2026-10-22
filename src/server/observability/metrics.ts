@@ -4,7 +4,7 @@ import type { AppFamily } from '../../domain/app-family.ts'
 /**
  * The service's metrics in the Prometheus text format (version 0.0.4), served at `/metrics`.
  * Every label value comes from a closed set: a route template or API operation name, a tool,
- * a job, a connector, a status, an AI app family (never the app's own name). No path, query, header, person or question ever becomes a label,
+ * a job, a connector, a status, an agent family (never the agent's own name). No path, query, header, person or question ever becomes a label,
  * so the output holds nothing that identifies who asked or what (NFR-032).
  */
 
@@ -17,7 +17,7 @@ export interface Sample {
   values: { labels?: Labels; value: number }[]
 }
 
-/** Seconds. The 0.3 bucket is the `get_context` p95 budget (NFR-051). */
+/** Seconds. The 0.3 bucket is the `get_facts` p95 budget (NFR-051). */
 const buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.3, 0.5, 1, 2.5, 5, 10]
 
 function escape(value: string): string {
@@ -117,7 +117,7 @@ export function createMetrics(): Metrics {
   )
   const mcp = counter(
     'heed_mcp_requests_total',
-    'MCP requests, by tool (protocol for anything that is not a tool call), status and AI app family.',
+    'MCP requests, by tool (protocol for anything that is not a tool call), status and agent family.',
   )
   const mcpDurations = histogram(
     'heed_mcp_request_duration_seconds',

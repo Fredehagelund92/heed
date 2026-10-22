@@ -50,10 +50,10 @@ export function ReviewTermBatch({
         showToast(
           `${count(result.proposals.length, 'name')} ${outcome === 'accept' ? 'accepted' : 'rejected'}`,
           outcome === 'reject'
-            ? "AI apps won't get them."
+            ? "Agents won't get them."
             : result.edition
-              ? 'AI apps get them within a minute.'
-              : "AI apps don't get them yet.",
+              ? 'Agents get them within a minute.'
+              : "Agents don't get them yet.",
         )
       } catch (error) {
         throw new Error(batchFailure(error), { cause: error })
@@ -97,7 +97,7 @@ export function ReviewTermBatch({
         open={open === 'accept'}
         onOpenChange={(next) => setOpen(next ? 'accept' : null)}
         title={`Accept ${count(batch.open, 'name')}?`}
-        effect={`Each gets your decision with this reason. People and AI apps can use all ${batch.open} within a minute.`}
+        effect={`Each gets your decision with this reason. People and agents can use all ${batch.open} within a minute.`}
         action={`Accept all ${batch.open}`}
         actionIcon={CheckCheckIcon}
         reason={{
@@ -112,7 +112,7 @@ export function ReviewTermBatch({
         open={open === 'reject'}
         onOpenChange={(next) => setOpen(next ? 'reject' : null)}
         title={`Reject ${count(batch.open, 'name')}?`}
-        effect={`Rejecting closes all ${batch.open}, and AI apps never get them. ${model.proposerName ?? 'The person who proposed them'} can propose them again.`}
+        effect={`Rejecting closes all ${batch.open}, and agents never get them. ${model.proposerName ?? 'The person who proposed them'} can propose them again.`}
         action={`Reject all ${batch.open}`}
         actionIcon={CircleXIcon}
         tone="destructive"

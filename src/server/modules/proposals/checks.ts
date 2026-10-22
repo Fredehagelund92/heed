@@ -124,7 +124,7 @@ export async function checkDraft(
       add(
         'broad_scope',
         'scope',
-        `Broad: it applies to all of ${term.name}, so AI apps get it for any question about ${term.name}.`,
+        `Broad: it applies to all of ${term.name}, so agents get it for any question about ${term.name}.`,
         'warning',
       )
   }

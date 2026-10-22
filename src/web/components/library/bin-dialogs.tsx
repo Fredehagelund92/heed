@@ -116,8 +116,8 @@ export function MoveToBinDialog({
       title={one ? 'Move this fact to the Bin?' : `Move ${facts(subjects.length)} to the Bin?`}
       effect={
         one
-          ? 'It leaves the library, and AI apps stop getting it at once. An admin can restore it from the Bin.'
-          : 'They leave the library, and AI apps stop getting them at once. An admin can restore them from the Bin.'
+          ? 'It leaves the library, and agents stop getting it at once. An admin can restore it from the Bin.'
+          : 'They leave the library, and agents stop getting them at once. An admin can restore them from the Bin.'
       }
       action="Move to Bin"
       actionIcon={Trash2Icon}
@@ -132,7 +132,7 @@ export function MoveToBinDialog({
         showToast(
           one ? 'Moved to the Bin' : `${facts(subjects.length)} moved to the Bin`,
           result.edition
-            ? `AI apps no longer get ${one ? 'it' : 'them'}.`
+            ? `Agents no longer get ${one ? 'it' : 'them'}.`
             : `${one ? 'It was' : 'They were'} already archived.`,
           { action: { label: 'Undo', onClick: () => void restore(ids) } },
         )
@@ -276,8 +276,8 @@ export function RestoreFromBinDialog({
 function restoreEffect(count: number, orphans: number, deleted: readonly string[]) {
   const served =
     count === 1
-      ? 'It comes back to the library. If AI apps got it before, they get it again.'
-      : 'They come back to the library. AI apps get the ones they got before again.'
+      ? 'It comes back to the library. If agents got it before, they get it again.'
+      : 'They come back to the library. Agents get the ones they got before again.'
   if (!orphans) return served
   const whose =
     deleted.length === 1
@@ -285,8 +285,8 @@ function restoreEffect(count: number, orphans: number, deleted: readonly string[
       : 'Their domains are deleted.'
   const rescued =
     orphans === 1
-      ? 'It comes back archived, with a proposal in the domain you choose for its owners to review. AI apps get it again only once they accept it.'
-      : 'They come back archived, each with a proposal in the domain you choose for its owners to review. AI apps get them again only once they accept them.'
+      ? 'It comes back archived, with a proposal in the domain you choose for its owners to review. Agents get it again only once they accept it.'
+      : 'They come back archived, each with a proposal in the domain you choose for its owners to review. Agents get them again only once they accept them.'
   if (orphans === count) return `${whose} ${rescued}`
   return `${served} ${facts(orphans)} of a deleted domain come back archived instead, each with a proposal in the domain you choose for its owners to review.`
 }

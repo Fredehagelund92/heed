@@ -15,7 +15,7 @@ import { attachedOf } from '../../../src/server/modules/models/assistant-mock.ts
 /*
   The scope of a question as the Ask composer's "Heed reads" line showed it (Heed composer, stage
   1): sent as the question's `data-scope` part, read by the service for the latest question only,
-  described to the model, and binding the turn's get_context and explain_item calls.
+  described to the model, and binding the turn's get_facts and explain_item calls.
 */
 
 const norway: QuestionScope = {
@@ -92,7 +92,7 @@ describe('the scope of a question', () => {
     ])
     const block = attachmentsText(scope, [orders, revenue, grossSales])!
     expect(block).toMatch(/^The scope of the person's latest question, as Heed read it and showed/)
-    expect(block).toContain('Heed binds every get_context and explain_item call in this turn')
+    expect(block).toContain('Heed binds every get_facts and explain_item call in this turn')
     expect(block).toContain('- Orders: a metric.')
     // The terms undecided words could be are named there, not listed as the scope.
     expect(block).not.toContain('- Net revenue: a metric.')
@@ -110,12 +110,12 @@ describe('the scope of a question', () => {
   it('says when no dates were given, or when the words name dates Heed cannot read', () => {
     const today = { ...norway, window: undefined, window_source: 'assumed' as const }
     expect(attachmentsText(attachedScope([asked('orders', today)]), [orders])).toContain(
-      '- Dates: none given, so get_context reads the question at today and says so.',
+      '- Dates: none given, so get_facts reads the question at today and says so.',
     )
     const unread = { ...today, window_source: 'unreadable' as const }
     expect(
       attachmentsText(attachedScope([asked('orders since launch', unread)]), [orders]),
-    ).toContain('- Dates: their words name dates Heed cannot read, so get_context asks for them.')
+    ).toContain('- Dates: their words name dates Heed cannot read, so get_facts asks for them.')
     // A question that names nothing, with no dates, has no block.
     const nothing = { ...today, metrics: [], dimension_filters: [] }
     expect(attachedScope([asked('thanks', nothing)])).toBeNull()
@@ -133,7 +133,7 @@ describe('the scope of a question', () => {
     const scope = attachedScope([asked('what does this say?', read)])
     expect(scope).not.toBeNull()
     expect(aboutKeys(scope)).toEqual(read.about)
-    // get_context has no field for them: nothing is bound.
+    // get_facts has no field for them: nothing is bound.
     expect(boundFields(read, 'what does this say?')).toBeNull()
     const named: Named[] = [
       {
@@ -243,7 +243,7 @@ describe('a call bound to the scope the person saw', () => {
 
   it('reads exactly the terms and dates shown, with the person’s words, whatever the model gives', () => {
     const bound = boundFields(norway, 'what were orders in Norway in 2026')
-    expect(bindInput('get_context', model, bound)).toEqual({
+    expect(bindInput('get_facts', model, bound)).toEqual({
       question: 'what were orders in Norway in 2026',
       metrics: ['metric:orders'],
       dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
@@ -255,14 +255,14 @@ describe('a call bound to the scope the person saw', () => {
       metrics: ['metric:orders'],
     })
     // Other tools are not about a question's scope.
-    expect(bindInput('find_context', { query: 'Spain' }, bound)).toEqual({ query: 'Spain' })
+    expect(bindInput('find_facts', { query: 'Spain' }, bound)).toEqual({ query: 'Spain' })
   })
 
   it('leaves the dates out when today is assumed, and binds dates alone when no term is shown', () => {
     const today = boundFields({ ...norway, window: undefined, window_source: 'assumed' }, 'q')
-    expect(bindInput('get_context', model, today)).not.toHaveProperty('window')
+    expect(bindInput('get_facts', model, today)).not.toHaveProperty('window')
     const datesOnly = boundFields({ ...norway, metrics: [], dimension_filters: [] }, 'q')
-    expect(bindInput('get_context', model, datesOnly)).toEqual({
+    expect(bindInput('get_facts', model, datesOnly)).toEqual({
       ...model,
       window: { from: '2026-01-01', to: '2026-12-31' },
     })
@@ -271,6 +271,6 @@ describe('a call bound to the scope the person saw', () => {
       'q',
     )
     expect(nothing).toBeNull()
-    expect(bindInput('get_context', model, nothing)).toBe(model)
+    expect(bindInput('get_facts', model, nothing)).toBe(model)
   })
 })

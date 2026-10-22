@@ -7,7 +7,7 @@ import { regression } from '../../src/web/mocks/items.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
 /*
-  What search_context finds in the demo library (the 1,500 fixture items, bulk seeded), for the
+  What search_facts finds in the demo library (the 1,500 fixture items, bulk seeded), for the
   words people and models actually use: the questions of the first real-model test, which found
   nothing for "net revenue", "Sales" and the Sales domain although the library holds
   them. Deterministic: no model, and nothing recorded.
@@ -52,7 +52,7 @@ async function search(input: Record<string, unknown>): Promise<Found> {
     () => new Date('2026-10-12T12:00:00Z'),
   )
   const reply = await execute(
-    'search_context',
+    'search_facts',
     input,
     { client: 'assistant', scopes: ['read'], caller: 'eval', canSelectEdition: false },
     100_000,
@@ -63,7 +63,7 @@ async function search(input: Record<string, unknown>): Promise<Found> {
 }
 const areaOf = (id: string) => bundle.items.find((i) => i.id === id)?.areaId
 
-describe('search_context on the demo library', () => {
+describe('search_facts on the demo library', () => {
   it('finds the net revenue items by the metric name', async () => {
     const found = await search({ query: 'net revenue' })
     expect(found.status).toBe('matched')
@@ -94,7 +94,7 @@ describe('search_context on the demo library', () => {
   })
 
   it('finds the regression note from the first question: net revenue in Spain, October 2026', async () => {
-    // get_context rightly delivers nothing (the note ended on 30 September); search finds it.
+    // get_facts rightly delivers nothing (the note ended on 30 September); search finds it.
     const found = await search({ query: 'How is net revenue in Spain doing in October 2026?' })
     expect(found.query_used.terms).toEqual(['metric:net_revenue', 'val:market/spain'])
     expect(found.query_used.ignored).toEqual(expect.arrayContaining(['how', 'in', 'is', 'doing']))

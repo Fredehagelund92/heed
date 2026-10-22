@@ -38,7 +38,7 @@ body:
       label: Where
       options:
         - The web app
-        - An AI app over MCP
+        - An agent over MCP
         - The service API
         - The command line
         - The help pages

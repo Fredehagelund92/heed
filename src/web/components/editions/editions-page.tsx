@@ -93,14 +93,14 @@ function LiveCard({
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-3">
             <h2 id="live-edition-title" className="text-dense font-bold text-muted-foreground">
-              What AI apps get today
+              What agents get today
             </h2>
             <span className="text-caption">
               <HelpLink to="editions#what-live-means">What live means</HelpLink>
             </span>
             {stops.length === 0 ? (
               <Badge form="bare" tone="success" icon={CircleCheckIcon}>
-                Shared with AI apps
+                Shared with agents
               </Badge>
             ) : (
               <Badge form="soft" tone="warning" icon={CircleStopIcon}>

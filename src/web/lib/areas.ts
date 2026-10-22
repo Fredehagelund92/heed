@@ -9,7 +9,7 @@ export type DomainAboutValues = { summary: string; description: string }
 
 /** Everyone reads what a domain is, so it names no person and holds no secret (FR-117). */
 const sensitive =
-  'Remove the email address, phone number or secret. Everyone can read this, and so can the assistant and AI apps.'
+  'Remove the email address, phone number or secret. Everyone can read this, and so can the assistant and agents.'
 
 /**
  * Why a summary or description cannot be saved, by field, in the words the form shows; empty
@@ -99,7 +99,7 @@ export function deletionLines(
       kind: 'items',
       title: count(held.items, 'accepted fact'),
       detail:
-        'They move to the Bin, and AI apps stop getting them at once. You can restore each one from the Bin.',
+        'They move to the Bin, and agents stop getting them at once. You can restore each one from the Bin.',
       entries: removal.items.map((item) => ({
         key: item.id,
         label: item.title,
@@ -110,7 +110,7 @@ export function deletionLines(
     held.terms > 0 && {
       kind: 'terms',
       title: count(held.terms, 'name'),
-      detail: `The metrics, markets and other names the domain knows. They're archived in the same step, so AI apps stop getting them and their metrics lose this domain.${
+      detail: `The metrics, markets and other names the domain knows. They're archived in the same step, so agents stop getting them and their metrics lose this domain.${
         kept
           ? ` ${kept === held.terms ? (kept === 1 ? 'It stays' : 'They all stay') : `${count(kept, 'name')} ${kept === 1 ? 'stays' : 'stay'}`}, without a domain, as marked.`
           : ''
@@ -201,7 +201,7 @@ export function deletedSummary(
     held.terms ? `${count(held.terms, 'name')} left this domain` : null,
   ].filter(Boolean)
   return [
-    served.length ? `${served.join(' and ')}. AI apps no longer get them.` : null,
+    served.length ? `${served.join(' and ')}. Agents no longer get them.` : null,
     held.openProposals ? `${count(held.openProposals, 'proposal')} withdrawn.` : null,
     held.drafts
       ? `${count(held.drafts, 'draft')} kept for ${held.drafts === 1 ? 'its author' : 'their authors'}.`

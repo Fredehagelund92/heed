@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" class="hf" width="640" height="300" viewBox="0 0 640 300" role="img">
-  <title>How Heed fits: AI apps ask over MCP, Heed reads Cube model files and keeps its facts in PostgreSQL</title>
+  <title>How Heed fits: AI agents ask over MCP, Heed reads Cube model files and keeps its facts in PostgreSQL</title>
   <style>
     .hf { --hf-ink: #13161d; --hf-muted: #60636a; --hf-paper: #ffffff; --hf-soft: #f2f3f6; --hf-line: #d9dbe0; --hf-accent: #2c5dbd; --hf-on-accent: #ffffff; --hf-tint: #e1ecff; }
     @media (prefers-color-scheme: dark) {
@@ -17,7 +17,7 @@
   </style>
   <rect class="hf-page" x="0" y="0" width="640" height="300" rx="8"/>
   <rect class="hf-box" x="16" y="110" width="124" height="80" rx="8"/>
-  <text class="hf-title" x="30" y="135">AI apps</text>
+  <text class="hf-title" x="30" y="135">Agents</text>
   <text class="hf-muted" x="30" y="160">Claude Code,</text>
   <text class="hf-muted" x="30" y="178">ChatGPT, agents</text>
   <rect class="hf-key" x="184" y="24" width="214" height="252" rx="8"/>
@@ -30,7 +30,7 @@
   <text class="hf-muted" x="214" y="174">before an owner accepts</text>
   <rect class="hf-box" x="200" y="200" width="182" height="56" rx="6"/>
   <text class="hf-title" x="214" y="222">Editions</text>
-  <text class="hf-muted" x="214" y="242">what AI apps get</text>
+  <text class="hf-muted" x="214" y="242">what agents get</text>
   <rect class="hf-box" x="476" y="24" width="148" height="60" rx="8"/>
   <text class="hf-title" x="490" y="49">Cube model files</text>
   <text class="hf-muted" x="490" y="70">metrics, dimensions</text>

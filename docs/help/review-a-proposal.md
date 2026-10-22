@@ -14,11 +14,11 @@ related: [add-your-first-context, editions, read-health]
 
 ## Before you start
 
-- You'll: decide on one proposal, so AI apps get only facts that are true and apply where they say.
+- You'll: decide on one proposal, so AI agents get only facts that are true and apply where they say.
 - Who: an owner of the proposal's domain or an admin, and an approver for a high-risk fact.
 - You need: a few minutes, and the source the proposal links to.
 
-![The life of a fact: you write a draft and send it, it waits for review, the owner reviews it, and once accepted AI apps get it at once. A high-risk fact also needs an approver. A proposal can come back with changes requested, or be rejected or withdrawn. A fact that needs checking still reaches AI apps.](images/item-life.svg 'From draft to AI apps. High risk adds a second yes from an approver.')
+![The life of a fact: you write a draft and send it, it waits for review, the owner reviews it, and once accepted agents get it at once. A high-risk fact also needs an approver. A proposal can come back with changes requested, or be rejected or withdrawn. A fact that needs checking still reaches agents.](images/item-life.svg 'From draft to agents. High risk adds a second yes from an approver.')
 
 ## Steps
 
@@ -28,13 +28,13 @@ related: [add-your-first-context, editions, read-health]
 
 2. Open a proposal and choose **Claim**, so the other owners see that you have it.
 
-3. Read what an AI app will get once you accept. Until you do, the proposal says _Not reviewed yet_. Then AI apps read that the owner of its domain accepted it, and on which day. They never read your name.
+3. Read what an agent will get once you accept. Until you do, the proposal says _Not reviewed yet_. Then agents read that the owner of its domain accepted it, and on which day. They never read your name.
 
 4. Read **What changed**. **Fields** shows the proposal field by field. **Text** shows the words added and removed.
 
 5. Open the source. Check that the copied sentence is really there and says what the fact says.
 
-6. Read the **Checks**. They test that the fact is complete, finds the right questions, reaches AI apps and keeps answers right. Open **Details** under a check to see what it tried.
+6. Read the **Checks**. They test that the fact is complete, finds the right questions, reaches agents and keeps answers right. Open **Details** under a check to see what it tried.
 
 7. Read which test questions the change affects, and any overlaps or conflicts. Look closer when a test question fails, or when it repeats a fact you already have.
 
@@ -56,7 +56,7 @@ A row's box shows when you point at the row, as in the library. A proposal you c
 
 An admin can decide any proposal, their own too. An owner can decide their own proposals in their domain: those show in **To review** like any other, and the timeline says that the person who proposed it decided. Nobody else ever decides a proposal they made. So when everything waiting is yours, **To review** says so and names who decides. On a local install, **Switch person** signs you in as someone who can.
 
-The dialog first says what happens to each proposal: AI apps get it, it waits for the approver, or it's decided. It also names each one it leaves out, and why: one you proposed and may not decide, one with a failed check, one another owner has claimed, or one that changes a fact another selected proposal already changes. Then it asks for one reason for all. Each proposal still gets its own decision and its own checks.
+The dialog first says what happens to each proposal: agents get it, it waits for the approver, or it's decided. It also names each one it leaves out, and why: one you proposed and may not decide, one with a failed check, one another owner has claimed, or one that changes a fact another selected proposal already changes. Then it asks for one reason for all. Each proposal still gets its own decision and its own checks.
 
 After you confirm, the proposals leave the list and **Undo** shows for 8 seconds. Command or Control Z does the same. Nothing is sent until then.
 
@@ -65,7 +65,7 @@ After you confirm, the proposals leave the list and **Undo** shows for 8 seconds
 - _Is it true?_ The source supports it, word for word.
 - _Does it apply where it says?_ The metrics, markets and other names are the ones it's about, no more.
 - _Are the dates right?_ **When it applies** starts and ends on the right days.
-- _Does it stop a wrong claim?_ **What not to conclude**, when filled in, says what an AI app must not conclude.
+- _Does it stop a wrong claim?_ **What not to conclude**, when filled in, says what an agent must not conclude.
 - _Is the risk right?_ Facts about law, regulation and financial reporting are high risk.
 
 ## Keys
@@ -74,8 +74,8 @@ In **To review** and on a proposal, J and K go to the next and previous proposal
 
 ## What happens next
 
-- When you accept, AI apps get the fact at once. The person who proposed it is told.
-- A high-risk fact waits for the approver after you accept. **Approvals needed** shows who still has to say yes. AI apps get nothing until they accept too.
+- When you accept, agents get the fact at once. The person who proposed it is told.
+- A high-risk fact waits for the approver after you accept. **Approvals needed** shows who still has to say yes. Agents get nothing until they accept too.
 - When you ask for changes, the proposal goes back to the person who wrote it. They change it and send it again.
 
 ## If something goes wrong

@@ -662,7 +662,7 @@
           "tags": [
             "session"
           ],
-          "summary": "The AI app sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query"
+          "summary": "The agent sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query"
         }
       }
     },
@@ -694,7 +694,7 @@
           "tags": [
             "session"
           ],
-          "summary": "The AI apps connected to Heed as the signed-in person"
+          "summary": "The agents connected to Heed as the signed-in person"
         }
       }
     },
@@ -710,7 +710,7 @@
           "tags": [
             "session"
           ],
-          "summary": "Disconnect an AI app: its refresh tokens end and the MCP server refuses its access tokens at once"
+          "summary": "Disconnect an agent: its refresh tokens end and the MCP server refuses its access tokens at once"
         }
       }
     }
@@ -728,7 +728,7 @@
           "tags": [
             "admin"
           ],
-          "summary": "Every person's AI app connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends"
+          "summary": "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends"
         }
       }
     },
@@ -744,7 +744,7 @@
           "tags": [
             "admin"
           ],
-          "summary": "Disconnect one person's AI app with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason"
+          "summary": "Disconnect one person's agent with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason"
         }
       }
     },
@@ -760,7 +760,7 @@
           "tags": [
             "admin"
           ],
-          "summary": "Disconnect every AI app of one person with one reason, in one step: each connection is its own history entry, with the batch id they share"
+          "summary": "Disconnect every agent of one person with one reason, in one step: each connection is its own history entry, with the batch id they share"
         }
       }
     }
@@ -2199,7 +2199,7 @@
           "tags": [
             "quality"
           ],
-          "summary": "How the AI apps that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)"
+          "summary": "How the agents that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)"
         }
       }
     },
@@ -2606,7 +2606,7 @@
           "tags": [
             "assistant"
           ],
-          "summary": "What an agent would get: get_context's reply for a scope on the live edition, without a model, recording nothing (FR-602)"
+          "summary": "What an agent would get: get_facts's reply for a scope on the live edition, without a model, recording nothing (FR-602)"
         }
       }
     },

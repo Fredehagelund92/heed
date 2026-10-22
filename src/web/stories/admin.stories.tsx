@@ -153,7 +153,7 @@ export const DeletedDomains: Story = {
 /** The limits by group, each with its value in words and when it last changed. */
 /**
  * About our business: the text in the editor item text uses, its lists showing as typed, with
- * mentions off; under it what the assistant and AI apps get, and the history.
+ * mentions off; under it what the assistant and agents get, and the history.
  */
 export const AboutOurBusiness: Story = {
   render: () => <StoryApp path="/admin?section=business" person={admin} />,

@@ -110,7 +110,7 @@ describe('what a domain is (FR-813)', () => {
       )
       const problems = domainAboutProblems(bad)
       expect(Object.values(problems)).toEqual([
-        'Remove the email address, phone number or secret. Everyone can read this, and so can the assistant and AI apps.',
+        'Remove the email address, phone number or secret. Everyone can read this, and so can the assistant and agents.',
       ])
     }
   })

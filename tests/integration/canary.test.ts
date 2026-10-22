@@ -17,8 +17,8 @@ import { apiDatabase, servingPool, testDatabase, transaction } from './support.t
 
 /**
  * The runtime canary (requirements section 12, FR-602, FR-613): one signed-in test person makes
- * 1,000 get_context calls carrying a marker sentence, through the real HTTP and MCP path, with a
- * browser cookie, a user agent and a forwarded address attached, from an AI app whose self-chosen
+ * 1,000 get_facts calls carrying a marker sentence, through the real HTTP and MCP path, with a
+ * browser cookie, a user agent and a forwarded address attached, from an agent whose self-chosen
  * name and version carry markers too. Afterwards no new database row, no log line and no export
  * may hold the person, their session, their token, their address, the sentence or the app's own
  * name (FR-410 keeps only its family, here `other`). The database side is read twice: as a logical dump (every row of every table in every
@@ -41,7 +41,7 @@ const person = {
 const address = `203.0.113.${1 + (randomBytes(1)[0]! % 250)}`
 const userAgent = `CanaryAgent/${marker}`
 const appMarker = randomBytes(8).toString('hex')
-const aiApp = { name: `Canary app ${appMarker}`, version: `1.0.${appMarker}` }
+const connectedAgent = { name: `Canary app ${appMarker}`, version: `1.0.${appMarker}` }
 const logs: string[] = []
 const metricsToken = randomBytes(24).toString('hex')
 const app = buildApp({
@@ -125,7 +125,7 @@ beforeAll(async () => {
   )
   await client.query(
     `insert into settings_versions (key,version,value,reason)
-     select key,version+1,'{"get_context":10000}','canary load' from settings_current
+     select key,version+1,'{"get_facts":10000}','canary load' from settings_current
      where key='limits.mcp_rate_per_minute'`,
   )
   await client.query(
@@ -172,7 +172,7 @@ it(
 
     const listening = app.server.address() as { port: number }
     const wire = new Client(
-      { name: aiApp.name, version: aiApp.version },
+      { name: connectedAgent.name, version: connectedAgent.version },
       { versionNegotiation: { mode: 'auto' } },
     )
     await wire.connect(
@@ -203,7 +203,7 @@ it(
       for (let batch = 0; batch < 100; batch++) {
         const replies = await Promise.all(
           Array.from({ length: 10 }, (_, i) =>
-            wire.callTool({ name: 'get_context', arguments: shapes[(batch * 10 + i) % 3]! }),
+            wire.callTool({ name: 'get_facts', arguments: shapes[(batch * 10 + i) % 3]! }),
           ),
         )
         for (const reply of replies) {
@@ -246,7 +246,7 @@ it(
     expect(
       (
         await client.query(
-          "select distinct app_family from mcp_requests where tool = 'get_context' and status = 'ok'",
+          "select distinct app_family from mcp_requests where tool = 'get_facts' and status = 'ok'",
         )
       ).rows,
     ).toEqual([{ app_family: 'other' }])
@@ -296,7 +296,7 @@ it(
     })
     expect(metrics.statusCode).toBe(200)
     expect(metrics.body).toContain(
-      'heed_mcp_requests_total{app_family="other",status="ok",tool="get_context"} 1000',
+      'heed_mcp_requests_total{app_family="other",status="ok",tool="get_facts"} 1000',
     )
     exported.push(metrics.body)
     for (const gap of gaps)

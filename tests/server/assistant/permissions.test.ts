@@ -78,9 +78,9 @@ describe('what the assistant can reach (FR-706)', () => {
       'domain_overview',
       'estimate_impact',
       'explain_item',
-      'find_context',
+      'find_facts',
       'find_overlaps',
-      'get_context',
+      'get_facts',
       'improve_question',
       'read_gap',
       'read_item',
@@ -136,7 +136,7 @@ describe('what the assistant can reach (FR-706)', () => {
     for (const operation of [...forbidden, 'settings.list', 'audit.export', 'roles.list'])
       expect(allowed(operation, administrator), operation).toBe(false)
     expect(allowed('proposals.create', administrator)).toBe(true)
-    expect(allowed('mcp.get_context', administrator)).toBe(true)
+    expect(allowed('mcp.get_facts', administrator)).toBe(true)
     expect(allowed('web.read_source', administrator)).toBe(true)
     // A web operation the assistant does not have fails closed like any other.
     expect(allowed('web.post_form', administrator)).toBe(false)

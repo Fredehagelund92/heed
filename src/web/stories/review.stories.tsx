@@ -162,10 +162,10 @@ export const Ready: Story = {
 }
 export const ReadyAsText: Story = { render: () => reviewOf('ready', '?compare=text') }
 /**
- * A proposal an AI app drafted for Priya, as Tomas reviews it: the same page as any other
+ * A proposal an agent drafted for Priya, as Tomas reviews it: the same page as any other
  * proposal, with nothing that says who wrote a field.
  */
-export const DraftedWithAnAiApp: Story = {
+export const DraftedWithAnAgent: Story = {
   render: () => <StoryApp path={`/proposals/${demoAgentIds.review}`} person="per_tomas" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)

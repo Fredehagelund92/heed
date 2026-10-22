@@ -57,9 +57,9 @@ export type ChangesArgs = z.output<typeof changesInput>
 export const withheldWords: Record<string, string> = {
   audience: 'it is for another group',
   source_visibility: 'its metrics are hidden from this reader',
-  stopped: 'sharing it with AI apps is paused for now',
+  stopped: 'sharing it with AI agents is paused for now',
   high_risk_unverified: 'it is high risk and waits for a check',
-  other: 'it is not shared with AI apps yet',
+  other: 'it is not shared with AI agents yet',
 }
 
 const plural = (count: number, one: string, many: string) =>
@@ -82,7 +82,7 @@ export function domainAbout(area: Area, full: boolean) {
 }
 
 /**
- * The domains a get_context question is about: the domain of each asked metric, by name, with
+ * The domains a get_facts question is about: the domain of each asked metric, by name, with
  * what it is. A concise reply names them only: what a domain is does not answer the question,
  * and domain_overview gives it. None when the question names no metric with a domain.
  */
@@ -294,7 +294,7 @@ const heldWords: Record<string, [string, string]> = {
     'is high risk and waits for a check',
     'are high risk and wait for a check',
   ],
-  other: ['is not shared with AI apps', 'are not shared with AI apps'],
+  other: ['is not shared with AI agents', 'are not shared with AI agents'],
 }
 
 /**
@@ -325,7 +325,7 @@ export function termItems(bundle: ServingBundle, term: ServingTerm, today: strin
  */
 export function agentsGetWords({ about, given, held }: ReturnType<typeof termItems>) {
   const back = about - given.length
-  if (!back) return about === 1 ? 'AI apps get it' : 'AI apps get all of them'
+  if (!back) return about === 1 ? 'AI agents get it' : 'AI agents get all of them'
   const reasons = [...held]
   const words = (reason: string, n: number) =>
     (heldWords[reason] ?? heldWords.other!)[n === 1 ? 0 : 1]
@@ -334,8 +334,8 @@ export function agentsGetWords({ about, given, held }: ReturnType<typeof termIte
       ? `${back === 1 ? 'it' : 'they'} ${words(reasons[0]![0], back)}`
       : list(reasons.map(([reason, n]) => `${n.toLocaleString('en')} ${words(reason, n)}`))
   return given.length
-    ? `AI apps get ${given.length.toLocaleString('en')} of them, not the other ${back.toLocaleString('en')} yet: ${why}`
-    : `AI apps get none of ${about === 1 ? 'it' : 'them'} yet: ${why}`
+    ? `AI agents get ${given.length.toLocaleString('en')} of them, not the other ${back.toLocaleString('en')} yet: ${why}`
+    : `AI agents get none of ${about === 1 ? 'it' : 'them'} yet: ${why}`
 }
 
 const unverified = (item: ServingItem, today: string) =>
@@ -473,8 +473,8 @@ export function definitionOf(
         : `Neither a definition source nor the library describes ${term.name}.${domain ? ` Ask ${ownerRole(domain)}: they can say what it means.` : ''}`
   const issues = activeIssues(about, today)
   const adds = about.length
-    ? `AI apps get ${plural(about.length, 'checked fact', 'checked facts')} about ${term.name} with their data: ${kindWords(about)}.${issues ? ` ${plural(issues, 'issue still applies', 'issues still apply')} today.` : ''}`
-    : `AI apps get no facts about ${term.name} yet.`
+    ? `AI agents get ${plural(about.length, 'checked fact', 'checked facts')} about ${term.name} with their data: ${kindWords(about)}.${issues ? ` ${plural(issues, 'issue still applies', 'issues still apply')} today.` : ''}`
+    : `AI agents get no facts about ${term.name} yet.`
   // The catalogue's count goes beside it whenever the two differ, with what each one counts.
   const counted =
     items.about > about.length
@@ -623,11 +623,11 @@ function nothingFound(
         `${withheld.filter((w) => w.reason === reason).length} because ${withheldWords[reason] ?? reason}`,
     )
     why.push(
-      `${plural(withheld.length, 'fact matches', 'facts match')}, but AI apps don't get ${withheld.length === 1 ? 'it' : 'them'}: ${list(reasons)}.`,
+      `${plural(withheld.length, 'fact matches', 'facts match')}, but AI agents don't get ${withheld.length === 1 ? 'it' : 'them'}: ${list(reasons)}.`,
     )
   } else if (read.concepts.length)
     why.push(
-      'No fact that AI apps get has these words in its title, summary or text, or is about the names in them.',
+      'No fact that AI agents get has these words in its title, summary or text, or is about the names in them.',
     )
   const tries: string[] = []
   for (const member of members)
@@ -659,7 +659,7 @@ function nothingFound(
   if (examples.length)
     tries.push(`Name a metric or a domain known here, such as ${list(examples)}.`)
   tries.push(
-    'For what applies to a question with dates, call get_context with the metrics, the markets and the dates.',
+    'For what applies to a question with dates, call get_facts with the metrics, the markets and the dates.',
   )
   tries.push(
     'If nothing is written down about it, say so plainly and report it as a gap, so the owners see it was asked.',
@@ -668,8 +668,8 @@ function nothingFound(
 }
 
 /**
- * find_context (FR-338): the items whose words or names match, best first; when no words match,
- * the items that apply to the scope the words name (as get_context matches them), on the dates
+ * find_facts (FR-338): the items whose words or names match, best first; when no words match,
+ * the items that apply to the scope the words name (as get_facts matches them), on the dates
  * given or today. It also says what the definition source gives for each metric or dimension the
  * words name, where that definition comes from, and what Heed adds. When nothing is found it says
  * why and what to try.
@@ -719,7 +719,7 @@ export function findContext(
         ...(assumed ? { assumed_date: assumed.note } : {}),
         ...(scope.dates ? { dates_read: scope.dates } : {}),
         note: found.length
-          ? `No fact's words matched, so these are the facts that apply to what the words name${assumed ? `, today (${today})` : ''}, as get_context finds them.`
+          ? `No fact's words matched, so these are the facts that apply to what the words name${assumed ? `, today (${today})` : ''}, as get_facts finds them.`
           : `No fact's words matched, and no fact applies to what the words name${assumed ? ` today (${today})` : ''}.`,
       }
     }
@@ -769,7 +769,7 @@ export function findContext(
   }))
   const status = found.length ? 'matched' : 'no_match'
   // What agents do not get is counted by the names the words hold (domains, metrics, markets),
-  // as get_context counts by scope: never by the text of an item an agent cannot read, which
+  // as get_facts counts by scope: never by the text of an item an agent cannot read, which
   // would let words probe it. An item for a narrower audience counts as absent (groups are parked).
   // Nor by the item's title: the query's own words never rank an item an agent does not get.
   const named = { ...read, title: '', concepts: read.concepts.filter((c) => c.kind === 'named') }
@@ -886,7 +886,7 @@ export function editionDomains(bundle: ServingBundle, today: string) {
           value_count: values.length,
           ...(values.length <= LISTED_VALUES
             ? { values: values.map((v) => v.name).sort() }
-            : { note: 'Too many values to list: name one in find_context or get_context.' }),
+            : { note: 'Too many values to list: name one in find_facts or get_facts.' }),
         }
       })
       .sort(byName),
@@ -1014,7 +1014,7 @@ export async function domainOverview(
       ...(all.length > items.length
         ? {
             withheld: all.length - items.length,
-            withheld_note: `${plural(all.length - items.length, 'fact is', 'facts are')} not shared with AI apps: paused, or high risk and waiting for a check. People can read them in the library.`,
+            withheld_note: `${plural(all.length - items.length, 'fact is', 'facts are')} not shared with AI agents: paused, or high risk and waiting for a check. People can read them in the library.`,
           }
         : {}),
     },
@@ -1108,7 +1108,7 @@ function changeLines(bundle: ServingBundle, changes: Changes, area: Area | null,
         change: change.change,
         kind: change.kind,
         domain,
-        words: `${changeVerbs[change.change]} ${/^[aeiou]/.test(change.kind) ? 'an' : 'a'} ${change.kind} in ${domain ?? 'a domain'}. AI apps no longer get it, so its text isn't shown.`,
+        words: `${changeVerbs[change.change]} ${/^[aeiou]/.test(change.kind) ? 'an' : 'a'} ${change.kind} in ${domain ?? 'a domain'}. AI agents no longer get it, so its text isn't shown.`,
       })
       only = null
     } else {
@@ -1132,7 +1132,7 @@ function changeLines(bundle: ServingBundle, changes: Changes, area: Area | null,
     }),
     ...(hidden
       ? [
-          `${plural(hidden, 'other change is', 'other changes are')} not shown: in a domain AI apps don't get yet, paused, or for one group only.`,
+          `${plural(hidden, 'other change is', 'other changes are')} not shown: in a domain AI agents don't get yet, paused, or for one group only.`,
         ]
       : []),
   ].join(' ')

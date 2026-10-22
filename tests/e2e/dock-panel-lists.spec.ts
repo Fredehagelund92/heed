@@ -213,7 +213,7 @@ test.describe('the review queue', () => {
       .getByRole('textbox', { name: 'Why are you accepting it?' })
       .fill('The feed date matches the wiki.')
     await dialog.getByRole('button', { name: 'Accept' }).click()
-    await expect(page.getByText(/^(From then on, )?AI apps get it\.$/).first()).toBeVisible()
+    await expect(page.getByText(/^(From then on, )?agents get it\.$/).first()).toBeVisible()
     // Nothing after it: the panel stays on it, now in status mode.
     await expect(heading(page)).toHaveText(titles.low)
     await expect(panel(page).locator('[data-slot="decision-alert"]')).toContainText(
@@ -328,7 +328,7 @@ test.describe('my proposals', () => {
     await expect(panel(page).getByRole('tab')).toHaveText([
       'Activity',
       'Fields',
-      'What AI apps get',
+      'What agents get',
       'Checks',
     ])
     await expect(panel(page).getByRole('list', { name: 'History' })).toBeVisible()
@@ -352,7 +352,7 @@ test.describe('my proposals', () => {
     const dialog = page.getByRole('alertdialog', { name: 'Withdraw this proposal?' })
     await dialog.getByRole('textbox', { name: 'Why' }).fill('The provider fixed it today.')
     await dialog.getByRole('button', { name: 'Withdraw' }).click()
-    await expect(page.getByText('AI apps never got it.')).toBeVisible()
+    await expect(page.getByText('Agents never got it.')).toBeVisible()
     await expect(panel(page).locator('[data-slot="proposal-badges"]')).toContainText('Withdrawn')
   })
 

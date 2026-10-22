@@ -118,7 +118,7 @@ export function UserMenuPopup({
           </DropdownMenuItem>
           <DropdownMenuItem render={<Link to="/settings" search={{ section: 'connect' }} />}>
             <PlugIcon />
-            Connect an AI app
+            Connect an agent
             <DropdownMenuShortcut>{formatHotkey('g>y').join(' ')}</DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuGroup>

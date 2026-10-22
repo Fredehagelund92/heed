@@ -33,7 +33,7 @@ import { TryItReply } from './try-it-reply'
 
 /*
   What an agent would get (Try it; Assistant board, direction A with C's shared scope bar): a
-  scope in, get_context's reply on the live edition out, with no model and nothing recorded. The
+  scope in, get_facts's reply on the live edition out, with no model and nothing recorded. The
   bar holds the chips (metrics, markets, products, from the vocabulary) and the first and last
   day, which start as the last 30 days. "Show what an agent gets", Enter in the chips or Command
   or Control Enter anywhere in the bar asks; the reply below is always for the scope last asked,
@@ -73,7 +73,7 @@ function Loading() {
 
 /**
  * Before anything is asked: what this shows, and how to ask; and where a person uses the same
- * facts in their own AI app (Settings, Connect an AI app).
+ * facts in their own agent (Settings, Connect an agent).
  */
 function Intro({ onLeave }: { onLeave: (() => void) | undefined }) {
   return (
@@ -82,16 +82,16 @@ function Intro({ onLeave }: { onLeave: (() => void) | undefined }) {
         <EmptyMedia variant="icon">
           <MessageSquareIcon />
         </EmptyMedia>
-        <EmptyTitle>See what an AI app gets</EmptyTitle>
+        <EmptyTitle>See what an agent gets</EmptyTitle>
         <EmptyDescription>
-          Pick a metric, a market or a product, and the dates. You&apos;ll see the facts an AI app
+          Pick a metric, a market or a product, and the dates. You&apos;ll see the facts an agent
           gets, in order, and what it&apos;s told.
         </EmptyDescription>
         <EmptyDescription>Nothing is saved, so try as often as you like.</EmptyDescription>
         <EmptyDescription>
-          Want these facts in Claude or another AI app?{' '}
+          Want these facts in Claude or another agent?{' '}
           <Link to="/settings" search={{ section: 'connect' }} onClick={onLeave}>
-            Connect an AI app
+            Connect an agent
           </Link>
         </EmptyDescription>
       </EmptyHeader>
@@ -193,11 +193,11 @@ export function TryItView({
   const announcement = !asked
     ? ''
     : query.isPending
-      ? 'Asking as an AI app would.'
+      ? 'Asking as an agent would.'
       : reply
         ? `Ready. ${countWords(reply)}.`
         : failure
-          ? "We couldn't get what AI apps get."
+          ? "We couldn't get what agents get."
           : ''
 
   return (
@@ -269,14 +269,14 @@ export function TryItView({
             className="w-fit"
           >
             <SearchIcon />
-            Show what AI apps get
+            Show what agents get
           </Button>
         </form>
         <span role="status" className="sr-only">
           {announcement}
         </span>
         <section
-          aria-label="What AI apps get"
+          aria-label="What agents get"
           aria-busy={query.isFetching || undefined}
           className={cn('flex flex-col gap-4', query.isFetching && reply && 'opacity-60')}
         >
@@ -288,7 +288,7 @@ export function TryItView({
                 <EmptyMedia variant="icon">
                   <CircleAlertIcon />
                 </EmptyMedia>
-                <EmptyTitle>AI apps don&apos;t get any facts yet</EmptyTitle>
+                <EmptyTitle>Agents don&apos;t get any facts yet</EmptyTitle>
                 <EmptyDescription>
                   They start once an admin shares the facts for the first time. Facts accepted now
                   are part of it.
@@ -299,7 +299,7 @@ export function TryItView({
             <Alert variant="danger" data-slot="try-it-error">
               <CircleAlertIcon />
               <AlertContent>
-                <AlertTitle>We couldn&apos;t get what AI apps get</AlertTitle>
+                <AlertTitle>We couldn&apos;t get what agents get</AlertTitle>
                 <AlertDescription>{describeApiError(failure).description}</AlertDescription>
                 <Button variant="outline" className="w-fit" onClick={() => void query.refetch()}>
                   Try again

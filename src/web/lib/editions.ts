@@ -103,8 +103,8 @@ export const goBackOrder: readonly EditionChangeKind[] = [
 type GoBackCounts = Pick<EditionComparison, 'facets' | 'vocabulary' | 'withheld'>
 
 /**
- * What going back changes for AI apps, in one or two sentences from the comparison's counts:
- * "38 facts change for AI apps: 23 stop being shared, 1 returns to an earlier version and 14 go
+ * What going back changes for agents, in one or two sentences from the comparison's counts:
+ * "38 facts change for agents: 23 stop being shared, 1 returns to an earlier version and 14 go
  * back to an earlier save with nothing different."
  */
 export function goBackSummary(comparison: GoBackCounts): string {
@@ -130,8 +130,8 @@ export function goBackSummary(comparison: GoBackCounts): string {
   ].filter(Boolean)
   const total = Object.values(counts).reduce((sum, count) => sum + count, 0)
   const items = total
-    ? `${plural(total, 'fact changes', 'facts change')} for AI apps: ${listWords(parts)}.`
-    : 'Nothing changes for AI apps.'
+    ? `${plural(total, 'fact changes', 'facts change')} for agents: ${listWords(parts)}.`
+    : 'Nothing changes for agents.'
   const also = comparison.vocabulary
     ? ` ${plural(comparison.vocabulary, 'name of a metric, market or product goes', 'names of metrics, markets or products go')} back too.`
     : ''
@@ -166,8 +166,8 @@ export function blockedProblem(problem: string): string {
 /** How many versions stop going back: "One of its fact versions can't be shared again." */
 function blockedCount(blocked: number): string {
   return blocked === 1
-    ? "One of its fact versions can't be shared with AI apps again."
-    : `${blocked.toLocaleString('en')} of its fact versions can't be shared with AI apps again.`
+    ? "One of its fact versions can't be shared with agents again."
+    : `${blocked.toLocaleString('en')} of its fact versions can't be shared with agents again.`
 }
 
 /** The refusal when going back can't go ahead, as the error the service's refusal becomes. */
@@ -175,9 +175,9 @@ export function goBackRefusal(target: string, blocked: number): string {
   return `You can't go back to edition ${target}. ${blockedCount(blocked)} Nothing has changed.`
 }
 
-/** Under "You can't go back to this edition": why, and that AI apps keep what they get today. */
+/** Under "You can't go back to this edition": why, and that agents keep what they get today. */
 export function goBackBlocked(blocked: number, live: string): string {
-  return `${blockedCount(blocked)} Nothing has changed: AI apps still get edition ${live}.`
+  return `${blockedCount(blocked)} Nothing has changed: agents still get edition ${live}.`
 }
 
 /** What a stop applies to, as the person sees it. */
@@ -197,13 +197,13 @@ export function stopConfirmText(target: StopTarget): string | undefined {
   return undefined
 }
 
-/** When a stop reaches AI apps: "Within a minute, AI apps get no facts from Commercial." */
+/** When a stop reaches agents: "Within a minute, agents get no facts from Commercial." */
 export function stopNow(target: StopTarget): string {
   return target.scope === 'all'
-    ? 'Within a minute, AI apps get no facts at all.'
+    ? 'Within a minute, agents get no facts at all.'
     : target.scope === 'area'
-      ? `Within a minute, AI apps get no facts from ${target.areaName ?? 'this domain'}.`
-      : `Within a minute, AI apps no longer get ${stopTargetWords(target)}.`
+      ? `Within a minute, agents get no facts from ${target.areaName ?? 'this domain'}.`
+      : `Within a minute, agents no longer get ${stopTargetWords(target)}.`
 }
 
 /** What stopping does, and how to undo it, in two sentences (contract 9.4). */
@@ -214,48 +214,48 @@ export function stopEffect(target: StopTarget): string {
 /** What starting again does. */
 export function resumeEffect(target: StopTarget): string {
   return target.scope === 'all'
-    ? 'Within a minute, AI apps get every fact again.'
+    ? 'Within a minute, agents get every fact again.'
     : target.scope === 'area'
-      ? `Within a minute, AI apps get the facts from ${target.areaName ?? 'this domain'} again.`
-      : `Within a minute, AI apps get ${stopTargetWords(target)} again.`
+      ? `Within a minute, agents get the facts from ${target.areaName ?? 'this domain'} again.`
+      : `Within a minute, agents get ${stopTargetWords(target)} again.`
 }
 
 /**
  * The banner's sentence for one stop, which everyone signed in reads on every page, so it never
- * names an edition: "AI apps get no facts from Commercial for now."
+ * names an edition: "Agents get no facts from Commercial for now."
  */
 export function stopHeadline(target: StopTarget): string {
   return target.scope === 'all'
-    ? 'AI apps get no facts for now.'
+    ? 'Agents get no facts for now.'
     : target.scope === 'area'
-      ? `AI apps get no facts from ${target.areaName ?? 'one domain'} for now.`
-      : `AI apps don't get ${stopTargetWords(target)} for now.`
+      ? `Agents get no facts from ${target.areaName ?? 'one domain'} for now.`
+      : `Agents don't get ${stopTargetWords(target)} for now.`
 }
 
 /**
- * How far a stop reaches, from the facts AI apps get today: "AI apps stop getting the 328 facts
+ * How far a stop reaches, from the facts agents get today: "Agents stop getting the 328 facts
  * in Commercial. Other domains stay as they are."
  */
 export function stopReach(target: StopTarget, served: number | undefined): string {
   if (target.scope === 'item')
-    return 'AI apps stop getting only this fact. They still get every other fact.'
+    return 'Agents stop getting only this fact. They still get every other fact.'
   const area = target.areaName ?? 'this domain'
   if (served === undefined)
     return target.scope === 'all'
-      ? 'AI apps stop getting every fact, in every domain.'
-      : `AI apps stop getting every fact in ${area}. Other domains stay as they are.`
+      ? 'Agents stop getting every fact, in every domain.'
+      : `Agents stop getting every fact in ${area}. Other domains stay as they are.`
   const facts = served === 1 ? 'the one fact' : `the ${plural(served, 'fact', 'facts')}`
-  if (target.scope === 'all') return `AI apps stop getting ${facts}, in every domain.`
-  return `AI apps stop getting ${facts} in ${area}. Other domains stay as they are.`
+  if (target.scope === 'all') return `Agents stop getting ${facts}, in every domain.`
+  return `Agents stop getting ${facts} in ${area}. Other domains stay as they are.`
 }
 
-/** What people see while a stop is on: the stop is for AI apps only. */
+/** What people see while a stop is on: the stop is for agents only. */
 export const stopReaders =
   'People still read these facts in the Library. Everyone signed in sees a banner about the stop.'
 
-/** What people see after going back: what AI apps get, as the target had it. */
+/** What people see after going back: what agents get, as the target had it. */
 export const goBackReaders =
-  "AI apps and everyone reading the Library get these facts as that edition had them. Today's edition stays in the history."
+  "Agents and everyone reading the Library get these facts as that edition had them. Today's edition stays in the history."
 
 /** The history log's actions that the Editions page reports: going back and the stop switch. */
 export type ReleaseAction = 'edition.rollback' | 'stop.on' | 'stop.off'
@@ -274,8 +274,8 @@ export function releaseHistoryLine(
     entry.action === 'edition.rollback'
       ? `went back to ${names.restores ?? 'an earlier edition'}${entry.subjectId ? `, as edition ${entry.subjectId},` : ''}`
       : entry.action === 'stop.on'
-        ? `stopped sharing ${target} with AI apps`
-        : `started sharing ${target} with AI apps again`
+        ? `stopped sharing ${target} with agents`
+        : `started sharing ${target} with agents again`
   const why = entry.action === 'edition.rollback' ? entry.details.note : entry.details.reason
   const said = typeof why === 'string' ? why.trim() : ''
   const reason = said ? ` Why: ${said}${/[.!?]$/.test(said) ? '' : '.'}` : ''
@@ -294,5 +294,5 @@ export function shortDigest(digest: string): string {
 export const editionsRefusal = {
   title: 'Editions are for owners and admins',
   description:
-    'An edition is a saved set of all accepted facts, made each time one changes. Owners read what each edition changed. Admins can stop sharing with AI apps, or go back to an earlier edition. Ask an admin if something looks wrong.',
+    'An edition is a saved set of all accepted facts, made each time one changes. Owners read what each edition changed. Admins can stop sharing with agents, or go back to an earlier edition. Ask an admin if something looks wrong.',
 }

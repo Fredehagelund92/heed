@@ -41,7 +41,7 @@ export {
 export const agentTreatments = ['derived', 'defaulted', 'prefilled', 'never_inferred'] as const
 export type AgentTreatment = (typeof agentTreatments)[number]
 
-/** The questions the agent tool may ask the person, in its result or in their AI app. */
+/** The questions the agent tool may ask the person, in its result or in their agent. */
 export const questionIds = ['area', 'kind', 'scope', 'start', 'end', 'evidence'] as const
 export type QuestionId = (typeof questionIds)[number]
 
@@ -106,7 +106,7 @@ type AttributeSpec = {
     why: string
     /** The marks an agent's draft may carry for it. Empty when it carries none. */
     marks: readonly FieldMark[]
-    /** The questions that may ask the person for it, in the tool's result or their AI app. */
+    /** The questions that may ask the person for it, in the tool's result or their agent. */
     asks?: readonly QuestionId[]
     /** The tool inputs that may suggest it. */
     inputs?: readonly ToolInput[]

@@ -280,7 +280,7 @@ function SourceLine({ catalogue }: { catalogue: Catalogue }) {
     >
       <InfoIcon aria-hidden="true" className="size-icon-sm h-lh shrink-0" />
       <span className="min-w-0">
-        Every metric and dimension AI apps can be told about. {tool} defines them; the library adds
+        Every metric and dimension agents can be told about. {tool} defines them; the library adds
         what we know about each.
         {readAt ? ` Descriptions are copies from ${tool}, read ${formatDay(readAt)}.` : null}{' '}
         <span className="text-brand-ink">

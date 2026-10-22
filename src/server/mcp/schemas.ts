@@ -46,7 +46,7 @@ export const scopeFields = {
     .optional(),
 }
 /**
- * FR-342: how much a reply of get_context or find_context says. `concise` keeps what an answer
+ * FR-342: how much a reply of get_facts or find_facts says. `concise` keeps what an answer
  * needs (each item's title, summary, dates, claim level, freshness and what not to conclude) and
  * leaves out bodies, evidence, owners and links, which read_item gives for one item; `full`
  * carries every source detail of FR-326 and FR-331.
@@ -188,7 +188,7 @@ export const draftInput = z.strictObject({
     )
     .optional()
     .describe(
-      `One or two sentences an AI app reads first, at most ${limits.summary} characters. Do not claim a cause.`,
+      `One or two sentences an agent reads first, at most ${limits.summary} characters. Do not claim a cause.`,
     ),
   kind: z
     .enum(itemKinds)
@@ -198,13 +198,13 @@ export const draftInput = z.strictObject({
     ),
   scope: z
     .strictObject({
-      metrics: scopeFields.metrics.describe('Metric names, as you used them with get_context.'),
+      metrics: scopeFields.metrics.describe('Metric names, as you used them with get_facts.'),
       dimension_filters: scopeFields.dimension_filters.describe(
         'Dimensions and the values it applies to, such as market Norway. No values means every value.',
       ),
     })
     .optional()
-    .describe("Names, as in your last get_context call. They're matched to the vocabulary."),
+    .describe("Names, as in your last get_facts call. They're matched to the vocabulary."),
   window: z
     .strictObject({
       from: date,
@@ -297,7 +297,7 @@ export const draftOutput = z
       )
       .optional(),
     questions: z.array(question).optional(),
-    /** The questions the person answered in their AI app, when it could ask them. */
+    /** The questions the person answered in their agent, when it could ask them. */
     answered: z.array(z.enum(questionIds)).optional(),
     not_in_vocabulary: z
       .array(z.strictObject({ name: z.string(), suggestions: z.array(z.string()) }))
@@ -332,7 +332,7 @@ const citedItem = z
       .object({ accepted_on: z.string(), accepted_by: z.string(), in_edition: z.string() })
       .optional()
       .describe(
-        'How a person reviewed the fact before AI apps got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.',
+        'How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.',
       ),
   })
   .loose()

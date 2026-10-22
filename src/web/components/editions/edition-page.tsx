@@ -106,7 +106,7 @@ function EditionView({ label }: { label: string }) {
                 <div className="flex min-w-0 flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <h2 id="edition-title" className="text-dense font-bold text-muted-foreground">
-                      {data.live ? 'What AI apps get today' : 'Earlier edition'}
+                      {data.live ? 'What agents get today' : 'Earlier edition'}
                     </h2>
                     {data.live ? (
                       <Badge form="bare" tone="success" icon={CircleCheckIcon}>

@@ -48,7 +48,7 @@ export type MockServedItem = Pick<
 export type MockServing = Pick<EditionBundle, 'stopped' | 'metricArea'>
 
 /**
- * get_context's reply over the mock's items, from the delivery resolver itself: it does not turn
+ * get_facts's reply over the mock's items, from the delivery resolver itself: it does not turn
  * every scope into a match. The mock follows no links, so an item names none.
  */
 export function mockReply(
@@ -63,12 +63,12 @@ export function mockReply(
   const byId = new Map(items.map((item) => [item.id, item]))
   const bundle = mockBundle(items, edition, serving)
   const result = resolve(bundle, agentRequest(world, scope))
-  // What an AI app receives names roles, never people (FR-326).
+  // What an agent receives names roles, never people (FR-326).
   const domain = (id: string) => world.areas.find((area) => area.id === id)?.name ?? id
-  // A question without dates is read at today, and the reply says so, as get_context does.
+  // A question without dates is read at today, and the reply says so, as get_facts does.
   const assumed = scope.status === 'resolved' && scope.assumed ? assumedDate(scope.assumed) : null
   const read = (scope.status === 'resolved' && scope.dates) || null
-  // What the person hears and what the AI app does next, in the service's own sentences (FR-344).
+  // What the person hears and what the agent does next, in the service's own sentences (FR-344).
   const said = contextSaid(
     { terms },
     {
@@ -216,7 +216,7 @@ export function mockPreview(
           scope: {
             metrics: input.metrics ?? [],
             filters,
-            // The window's last day is inclusive, as in get_context.
+            // The window's last day is inclusive, as in get_facts.
             window: { start: input.window.from, end: shiftDate(input.window.to, 1) },
           },
         }

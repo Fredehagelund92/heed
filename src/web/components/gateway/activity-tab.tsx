@@ -38,7 +38,7 @@ const optional = '@max-3xl:hidden'
 const wide = '@max-5xl:hidden'
 
 const columns: GridColumn[] = [
-  { icon: BotIcon, title: 'AI app', className: 'min-w-0 flex-1' },
+  { icon: BotIcon, title: 'Agent', className: 'min-w-0 flex-1' },
   { icon: ListChecksIcon, title: 'Tool', className: 'w-column-owner' },
   { icon: HashIcon, title: 'Calls', className: 'w-column-version justify-end' },
   {
@@ -69,7 +69,7 @@ const refusedOf = (
  * often the gateway answered or refused and how fast, read from the request log. The log names
  * a client by its label, which every person's app of that kind shares, and never a person or a
  * question. The days are in the address (`days=`); a week by default. Under it, this week's calls
- * per kind of AI app, whose small counts are hidden, so they are counted by the week alone.
+ * per kind of agent, whose small counts are hidden, so they are counted by the week alone.
  */
 export function ActivityTab({ days = 7 }: { days?: number }) {
   return (
@@ -78,10 +78,10 @@ export function ActivityTab({ days = 7 }: { days?: number }) {
       <section aria-labelledby="apps-title" className="flex min-w-0 flex-col gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <h2 id="apps-title" className="text-large font-bold">
-            AI apps this week
+            Agents this week
           </h2>
           <p className="max-w-reading text-dense text-muted-foreground">
-            The tool calls of each kind of AI app since Monday, and how many needed more detail,
+            The tool calls of each kind of agent since Monday, and how many needed more detail,
             found nothing, were malformed or failed.
           </p>
         </div>
@@ -98,11 +98,11 @@ function TrafficSection({ days }: { days: number }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1">
           <h2 id="activity-title" className="text-large font-bold">
-            Calls by AI app and tool
+            Calls by agent and tool
           </h2>
           <p className="max-w-reading text-dense text-muted-foreground">
-            What AI apps asked for, and how it went. We record the AI app and the tool, never a
-            person or a question
+            What agents asked for, and how it went. We record the agent and the tool, never a person
+            or a question
             {traffic.data ? `, and keep ${count(traffic.data.retentionDays)} days` : ''}.
           </p>
         </div>
@@ -135,7 +135,7 @@ function TrafficSection({ days }: { days: number }) {
           icon={ActivityIcon}
           title={`No calls in the ${daysWords(days).toLowerCase()}`}
         >
-          Once an AI app connects and calls a tool, its calls are counted here by AI app and tool.
+          Once an agent connects and calls a tool, its calls are counted here by agent and tool.
         </GridMessage>
       ) : (
         <TrafficView summary={traffic.data} days={days} />
@@ -158,7 +158,7 @@ function TrafficView({ summary, days }: { summary: TrafficSummary; days: number 
         <FieldRow
           icon={CircleSlashIcon}
           label="Refused"
-          hint="Over a limit, without a valid sign-in or access key, or an AI app or tool that isn't allowed."
+          hint="Over a limit, without a valid sign-in or access key, or an agent or tool that isn't allowed."
         >
           <span className="tabular-nums">
             {count(refusedOf(total))} ({count(total.rateLimited)} over a limit,{' '}
@@ -172,7 +172,7 @@ function TrafficView({ summary, days }: { summary: TrafficSummary; days: number 
         <FieldRow
           icon={TriangleAlertIcon}
           label="Malformed"
-          hint="Calls the tool couldn't read, because the AI app sent them wrong. Nothing here needs fixing."
+          hint="Calls the tool couldn't read, because the agent sent them wrong. Nothing here needs fixing."
         >
           <span className="tabular-nums">{count(total.invalidInput)}</span>
         </FieldRow>
@@ -187,7 +187,7 @@ function TrafficView({ summary, days }: { summary: TrafficSummary; days: number 
       </FieldTable>
       <GridTable
         slot={SLOT}
-        label="Calls by AI app and tool"
+        label="Calls by agent and tool"
         header={<GridHeaderCells columns={columns} />}
       >
         {summary.rows.map((row) => (
@@ -199,7 +199,7 @@ function TrafficView({ summary, days }: { summary: TrafficSummary; days: number 
           >
             <div role="cell" className={cn(gridCell, 'min-w-0 flex-1 gap-2')}>
               <span className="truncate text-body">
-                {row.client === 'unknown' ? 'No AI app named' : (row.clientName ?? row.client)}
+                {row.client === 'unknown' ? 'No agent named' : (row.clientName ?? row.client)}
               </span>
               {row.client === 'unknown' ? null : (
                 <span

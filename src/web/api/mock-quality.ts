@@ -45,7 +45,7 @@ import { MOCK_TRIES, scriptedResult } from './mock-runs.ts'
   passes until an edition stops delivering what it expects: the demo's regression
   (`regression` in mocks/items.ts) is the one that does. The retrieval pass checks the same deliveries without
   a model. It keeps no agent feedback, so the feedback counts are zero; the assistant's ratings are
-  the world's seeded ones and those given since, counted as the service counts them, as are the AI apps'
+  the world's seeded ones and those given since, counted as the service counts them, as are the agents'
   seeded calls. Upkeep, untested items and
   Fix next come from the mock's own library, proposals, gaps and runs, by the service's rules
   (src/server/modules/quality/service.ts).
@@ -76,7 +76,7 @@ export type MockRating = { area: string | null; verdict: 'helpful' | 'wrong'; da
 
 /**
  * One app family's tool calls on one day, as the request log counts them: the family from the
- * fixed list, never the app's own name, and no person (FR-410).
+ * fixed list, never the agent's own name, and no person (FR-410).
  */
 export type MockAppDay = {
   family: AppFamily
@@ -420,7 +420,7 @@ export function createMockQuality(world: MockQualityWorld) {
       }
     },
 
-    /** The AI apps per family and week, small counts hidden (FR-410, FR-614). */
+    /** The agents per family and week, small counts hidden (FR-410, FR-614). */
     apps(weeks = 1): AppFamilyCounts {
       const shown = (count: number) => visibleCount(count, world.minimum)
       return {

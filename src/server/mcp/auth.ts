@@ -70,7 +70,7 @@ function failureOf(error: unknown): TokenFailure {
 /** The scopes a person's token can carry (FR-414). Anything else in a token is ignored. */
 export const personScopes = ['read', 'feedback', 'propose'] as const
 /**
- * The one client label for every AI app a person signs in with (`client_policies`): records
+ * The one client label for every agent a person signs in with (`client_policies`): records
  * and logs name it, never the person or the app's self-chosen name (FR-410).
  */
 export const signedInClient = 'signed-in'

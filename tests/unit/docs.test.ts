@@ -268,13 +268,29 @@ describe('the docs check', () => {
     expect(headings).toEqual([])
   })
 
+  it('writes AI agent where a page first mentions the word, and agent after that', () => {
+    // docs/design/voice.md ("The agent"): a reader who meets the word cold may take it for a
+    // person, so the first mention in a page's text says what it is. Headings and pictures are
+    // not text read in turn; the lint cannot check a first mention, so this does.
+    const first = pages.flatMap((page) => {
+      const line = prose(page.body)
+        .split('\n')
+        .filter((text) => !/^\s*(#|!\[)/.test(text))
+        .find((text) => /\bagents?\b/i.test(text))
+      if (!line) return []
+      const at = /\bagents?\b/i.exec(line)!.index
+      return /\bAI $/.test(line.slice(0, at)) ? [] : [`${page.file}: ${line.trim().slice(0, 90)}`]
+    })
+    expect(first).toEqual([])
+  })
+
   it('gives each heading the anchor GitHub gives it', () => {
     expect(headingSlug('What is an MCP, and how it all connects')).toBe(
       'what-is-an-mcp-and-how-it-all-connects',
     )
     expect(headingSlug('Gateway (MCP)')).toBe('gateway-mcp')
     expect(headingSlug('Re-check due')).toBe('re-check-due')
-    expect(headingSlug('Why did my AI app not use Heed?')).toBe('why-did-my-ai-app-not-use-heed')
+    expect(headingSlug('Why did my agent not use Heed?')).toBe('why-did-my-agent-not-use-heed')
   })
 })
 
@@ -313,7 +329,7 @@ describe('the glossary in the help', () => {
         '## What it is not',
         'Ask the **steward**, see [the scope](glossary.md#scope) and `item_id`.',
         '```',
-        'get_context(item)',
+        'get_facts(item)',
         '```',
         '<!-- an item a reader never sees -->',
       ].join('\n'),
@@ -344,7 +360,7 @@ const helpPages = new Map(
 )
 
 describe('the answers search_help gives', () => {
-  // search_help (the assistant's and AI apps' tool) returns a page's answer when a question names
+  // search_help (the assistant's and agents' tool) returns a page's answer when a question names
   // the page: without one, a question about it has nothing to come back with.
   it.each(files)('%s keeps an answer at its top, of one minute at most', (file) => {
     const slug = file.replace(/\.md$/, '')
@@ -448,7 +464,7 @@ describe('the docs library', () => {
     expect(figures).toHaveLength(2)
     expect(figures[0]).toMatchObject({
       src: 'docs/help/images/mcp-plug.svg',
-      caption: 'One plug shape. Any AI app that has it can use any system that offers it.',
+      caption: 'One plug shape. Any agent that has it can use any system that offers it.',
     })
   })
 
@@ -464,7 +480,7 @@ describe('the docs library', () => {
     const gap = docExcerpt(library.page('glossary')!, 'gap')!
     expect(gap.title).toBe('Gap')
     expect(gap.href).toBe('/docs/glossary#gap')
-    expect(blocksText(gap.blocks)).toMatch(/^A question that AI apps or people asked/)
+    expect(blocksText(gap.blocks)).toMatch(/^A question that agents or people asked/)
     expect(docExcerpt(library.page('glossary')!, 'no-such-heading')).toBeNull()
   })
 
@@ -481,5 +497,10 @@ describe('the docs library', () => {
     const term = library.search('re-check due').find((hit) => hit.slug === 'glossary')
     expect(term?.href).toBe('/docs/glossary#re-check-due')
     expect(library.search('zzzz')).toEqual([])
+  })
+
+  it('finds the page on connecting an agent by the retired name, AI app', () => {
+    expect(library.search('connect an AI app')[0]?.slug).toBe('connect-an-agent')
+    expect(library.search('AI apps')[0]?.slug).toBe(library.search('agents')[0]?.slug)
   })
 })

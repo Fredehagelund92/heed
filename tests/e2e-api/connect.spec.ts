@@ -2,19 +2,18 @@ import { createHash, randomBytes } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 
 /*
-  An AI app signs in as a person on the real service (FR-403): it registers, sends the person
+  An agent signs in as a person on the real service (FR-403): it registers, sends the person
   to the login server, the person signs in on the consent page and allows it, the app trades
-  the code for tokens and calls the MCP server, and the person disconnects it on Connected AI
-  apps, after which the MCP server refuses its token.
+  the code for tokens and calls the MCP server, and the person disconnects it on Connected agents, after which the MCP server refuses its token.
 */
 
 const apiPort = Number(process.env.PW_API_PORT ?? 3100)
 const issuer = `http://localhost:${apiPort}`
 const callback = 'http://127.0.0.1:43177/callback'
 
-test('a person connects an AI app, it calls a tool, and they disconnect it', async ({ page }) => {
+test('a person connects an agent, it calls a tool, and they disconnect it', async ({ page }) => {
   const registered = await page.request.post(`${issuer}/oauth/register`, {
-    data: { client_name: 'Playwright AI app', redirect_uris: [callback] },
+    data: { client_name: 'Playwright agent', redirect_uris: [callback] },
   })
   expect(registered.status()).toBe(201)
   const { client_id: clientId } = (await registered.json()) as { client_id: string }
@@ -43,7 +42,7 @@ test('a person connects an AI app, it calls a tool, and they disconnect it', asy
   await page.getByRole('option', { name: /Maria Lindqvist/ }).click()
   await page.getByRole('button', { name: 'Continue as Maria Lindqvist' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Allow Playwright AI app to use Heed as you?' }),
+    page.getByRole('heading', { name: 'Allow Playwright agent to use Heed as you?' }),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Allow' }).click()
   await page.waitForURL((url) => url.href.startsWith(callback))
@@ -73,8 +72,8 @@ test('a person connects an AI app, it calls a tool, and they disconnect it', asy
   expect((await listTools()).status()).toBe(200)
 
   await page.goto('/settings?section=connect')
-  await expect(page.getByText('Sign in from your AI app')).toBeVisible({ timeout: 15_000 })
-  const row = page.getByRole('row').filter({ hasText: 'Playwright AI app' })
+  await expect(page.getByText('Sign in from your agent')).toBeVisible({ timeout: 15_000 })
+  const row = page.getByRole('row').filter({ hasText: 'Playwright agent' })
   await expect(row).toBeVisible({ timeout: 15_000 })
   await row.getByRole('button', { name: 'Disconnect' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Disconnect' }).click()

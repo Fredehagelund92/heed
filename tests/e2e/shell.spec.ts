@@ -669,13 +669,11 @@ test.describe('menus by role', () => {
     page,
   }) => {
     await openPage(page, '/try-it', { ...widths[0], theme: 'light' })
-    await expect(page.getByText('See what an AI app gets')).toBeVisible()
+    await expect(page.getByText('See what an agent gets')).toBeVisible()
     await expect(page.getByRole('tab')).toHaveCount(0)
     await page.goto('/try-it?tab=connect')
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
-    await expect(
-      page.getByRole('heading', { name: 'AI apps that can connect today' }),
-    ).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Agents that can connect today' })).toBeVisible()
     // A contributor is not sent to the gateway; an administrator is.
     await expect(page.getByRole('link', { name: 'MCP and gateway' })).toHaveCount(0)
     await page.evaluate(() => window.localStorage.setItem('cl.mock-person', 'per_ravi'))

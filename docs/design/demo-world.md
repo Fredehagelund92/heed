@@ -493,10 +493,10 @@ story.
 ### 12.1 The story
 
 On 4 August 2026 a new customs rule stopped all online sales to Norway. Larchwood has no
-stores there, so orders from Norway fell to almost nothing. In October, an AI app asked about
+stores there, so orders from Norway fell to almost nothing. In October, an agent asked about
 orders in Norway finds nothing written down. Maria writes the fact. The checks run, Jon
-accepts it, and the AI app answers with the fact, its source and who reviewed it. Ravi stops it,
-and the AI app stops getting it. Asked about Spain, it says plainly that nothing is written
+accepts it, and the agent answers with the fact, its source and who reviewed it. Ravi stops it,
+and the agent stops getting it. Asked about Spain, it says plainly that nothing is written
 down.
 
 ### 12.2 The exact sentences
@@ -545,7 +545,7 @@ before each picture.
 | `01-try-it-nothing.png` | Try a question for Orders in Norway, October 2026: nothing written down, and Start a draft             | Try it: No match for Orders in Norway, October 2026, with Start a draft  |
 | `02-maria-writes.png`   | The form filled in with the title, summary, source and what not to conclude above, Sales and its owner | The Add a fact form, filled in: an event in Sales about Orders in Norway |
 | `03-checks.png`         | The fact waiting for review, every check passed                                                        | The proposal waiting for review, every check passed                      |
-| `04-jon-accepts.png`    | Jon's decision made: accepted, and when AI apps get it                                                 | Jon has accepted it: AI apps get it from the new edition                 |
+| `04-jon-accepts.png`    | Jon's decision made: accepted, and when agents get it                                                  | Jon has accepted it: agents get it from the new edition                  |
 | `05-try-it-fact.png`    | Try a question now finds "Online sales to Norway stopped on 4 August 2026", with Sales and its dates   | Try it now gives the stop, with its domain and dates                     |
 | `06-stop-delivery.png`  | Stopping one fact, with the reason everyone sees                                                       | Stop sharing one fact, with the reason everyone sees                     |
 | `07-spain-nothing.png`  | Try a question for Orders in Spain: nothing written down                                               | Try it: No match for Orders in Spain                                     |

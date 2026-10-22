@@ -91,7 +91,7 @@ export type AnswerBlock =
 /**
  * The first part of the paths of Heed's pages an answer may link to: the pages the assistant's
  * turn context names (turn-context.ts) and the rest of the signed-in app. Never the sign-in, the
- * AI app consent or the design previews.
+ * agent consent or the design previews.
  */
 const answerPages = new Set([
   'admin',

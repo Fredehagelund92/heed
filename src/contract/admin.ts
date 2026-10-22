@@ -102,7 +102,7 @@ export const settingSchemas = {
     ),
   ),
   // About our business (domain/about-business.ts): what the company does and the words models
-  // misread, as background the assistant and connected AI apps get, never as evidence. Kept as
+  // misread, as background the assistant and connected agents get, never as evidence. Kept as
   // plain text in Heed's form of it; empty gives them none.
   'business.about': z.string().check(
     z.overwrite(normalizeAboutBusiness),
@@ -143,7 +143,7 @@ export const toolSwitchSchema = z.object({
 })
 export const setToolSchema = z.strictObject({ tool: toolName, enabled: z.boolean(), reason })
 
-/** Why tool names that a setting or an AI app's tools name are refused: we have no such tools. */
+/** Why tool names that a setting or an agent's tools name are refused: we have no such tools. */
 export const unknownToolsMessage = (tools: readonly string[]) =>
   `There's no tool called ${new Intl.ListFormat('en-GB', { type: 'disjunction' }).format(tools)}. Check the name, then try again.`
 
@@ -193,7 +193,7 @@ const trafficCountsSchema = z.object({
 /**
  * MCP traffic by client and tool, from the request log (FR-410). The log holds no person, so
  * neither does this: a client is its label, which every person's app of that kind shares. The
- * kind of AI app is counted apart, by the week, small counts hidden (the quality read `apps`).
+ * kind of agent is counted apart, by the week, small counts hidden (the quality read `apps`).
  */
 export const trafficSummarySchema = z.object({
   /** The first hour counted, inclusive, and the hour after the last; ISO 8601 in UTC. */

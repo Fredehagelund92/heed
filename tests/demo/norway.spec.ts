@@ -67,7 +67,7 @@ async function claudeAsks(question: string): Promise<Served> {
     }),
   )
   try {
-    const reply = await wire.callTool({ name: 'get_context', arguments: { question } })
+    const reply = await wire.callTool({ name: 'get_facts', arguments: { question } })
     expect(reply.isError, JSON.stringify(reply.content)).not.toBe(true)
     return reply.structuredContent as Served
   } finally {
@@ -145,8 +145,8 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
       await box.fill(day)
       await box.press('Tab')
     }
-    await page.getByRole('button', { name: 'Show what AI apps get' }).click()
-    const reply = page.getByRole('region', { name: 'What AI apps get' })
+    await page.getByRole('button', { name: 'Show what agents get' }).click()
+    const reply = page.getByRole('region', { name: 'What agents get' })
     await expect(reply.locator('[data-slot="try-it-no-match"]')).toBeVisible({ timeout: 30_000 })
     await expect(reply).toContainText('Nothing is written down for this')
     await expect(page).toHaveURL(/about=metric(%3A|:)orders/)
@@ -162,7 +162,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
   let proposal = ''
   await test.step('3. Maria writes the stop from Try it and submits it; the checks run', async () => {
     await page
-      .getByRole('region', { name: 'What AI apps get' })
+      .getByRole('region', { name: 'What agents get' })
       .getByRole('link', { name: 'Start a draft' })
       .click()
     await expect(page.getByRole('heading', { level: 1, name: 'Add a fact' })).toBeVisible({
@@ -210,7 +210,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
     const dialog = page.getByRole('alertdialog', { name: 'Accept this proposal?' })
     await dialog.getByRole('textbox', { name: 'Why are you accepting it?' }).fill(fact.reason)
     await dialog.getByRole('button', { name: 'Accept' }).click()
-    await expect(page.getByText('From then on, AI apps get it.').first()).toBeVisible({
+    await expect(page.getByText('From then on, agents get it.').first()).toBeVisible({
       timeout: 30_000,
     })
     await shoot(page, '04-jon-accepts')
@@ -220,7 +220,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
   await test.step('5. Try it and Claude get the fact, its source and the reviewed line', async () => {
     await switchTo(page, 'Jon Abara', 'Maria Lindqvist')
     await page.goto(tryIt('norway'))
-    const delivered = page.getByRole('list', { name: 'What the AI app gets, in order' })
+    const delivered = page.getByRole('list', { name: 'What the agent gets, in order' })
     await expect(delivered).toContainText(fact.title, { timeout: 30_000 })
     await shoot(page, '05-try-it-fact')
 
@@ -237,7 +237,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
     const text = JSON.stringify(stop)
     expect(text).toMatch(/owner of Sales/)
     expect(text).toContain(edition)
-    // What an AI app receives names the role, never the person (FR-326 as amended).
+    // What an agent receives names the role, never the person (FR-326 as amended).
     expect(text).not.toContain('Jon Abara')
   })
 
@@ -252,7 +252,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
       timeout: 15_000,
     })
     await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
     await dialog.getByRole('radio', { name: 'One fact' }).click()
     await dialog
       .getByRole('combobox', { name: /fact/i })
@@ -284,7 +284,7 @@ test('the Norway show runs from nothing to an answer, a stop and an honest nothi
     await page.goto(tryIt('spain'))
     await expect(
       page
-        .getByRole('region', { name: 'What AI apps get' })
+        .getByRole('region', { name: 'What agents get' })
         .locator('[data-slot="try-it-no-match"]'),
     ).toBeVisible({ timeout: 30_000 })
     await shoot(page, '07-spain-nothing')

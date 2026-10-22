@@ -39,7 +39,7 @@ function answer(page: Page, method: string, path: string) {
   )
 }
 
-/** The items get_context gives the local Claude Code client for a question. */
+/** The items get_facts gives the local Claude Code client for a question. */
 async function agentGets(
   question: string,
 ): Promise<{ id: string; title: string; summary: string }[]> {
@@ -59,7 +59,7 @@ async function agentGets(
     }),
   )
   try {
-    const reply = await wire.callTool({ name: 'get_context', arguments: { question } })
+    const reply = await wire.callTool({ name: 'get_facts', arguments: { question } })
     expect(reply.isError, JSON.stringify(reply.content)).not.toBe(true)
     return (
       (reply.structuredContent as { items?: { id: string; title: string; summary: string }[] })
@@ -103,7 +103,7 @@ test('an owner fixes a regression from Health, and the next edition and a run ve
     ((await gap.json()) as { status: string }).status,
     'The story runs once per demo seed; seed it again to run it again.',
   ).toBe('open')
-  // What AI apps get today: the note ended, so it is not given for October.
+  // What agents get today: the note ended, so it is not given for October.
   expect((await agentGets(TITLE)).map((item) => item.id)).not.toContain(NOTE)
 
   // Health: Sales got worse on one question, which the work list opens.
@@ -212,7 +212,7 @@ test('an owner fixes a regression from Health, and the next edition and a run ve
   // The screen names no edition; the decision's answer says which one it made.
   const edition = ((await response.json()) as { edition: { label: string } }).edition.label
   await expect(accepting).toBeHidden({ timeout: 0 })
-  await expect(page.getByText(/^(From then on, )?AI apps get it\.$/).first()).toBeVisible({
+  await expect(page.getByText(/^(From then on, agents|Agents) get it\.$/).first()).toBeVisible({
     timeout: 15_000,
   })
   expect(edition).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/)
@@ -224,7 +224,7 @@ test('an owner fixes a regression from Health, and the next edition and a run ve
 
   // The gap on the same scope: resolved with the new edition live, not yet verified by test.
   await page.goto(`/health?area=area_sales&open=gap:${GAP}`)
-  await expect(strip(page)).toContainText('AI apps get the facts as of', { timeout: 15_000 })
+  await expect(strip(page)).toContainText('Agents get the facts as of', { timeout: 15_000 })
   await expect(record(page).getByRole('heading', { name: 'Net revenue in Spain' })).toBeVisible()
   await expect(record(page).getByRole('list', { name: 'Linked tests' })).toContainText(TITLE)
   await actions(page).getByRole('button', { name: 'Mark resolved' }).click()
@@ -238,7 +238,7 @@ test('an owner fixes a regression from Health, and the next edition and a run ve
   await expect(resolving).toHaveCount(0, { timeout: 0 })
   await expect(fact(page, 'Resolved')).toHaveText(/^Marked resolved .+\.$/)
   await expect(fact(page, 'Checked by a test')).toHaveText(
-    'Not yet. It waits for a weekly or full run to pass on what AI apps get since it was resolved. 0 of 1 linked test has passed.',
+    'Not yet. It waits for a weekly or full run to pass on what agents get since it was resolved. 0 of 1 linked test has passed.',
   )
 
   // Run Sales now: the worker asks every question of Sales on the new edition.

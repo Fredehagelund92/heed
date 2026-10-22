@@ -27,7 +27,7 @@ export async function previewProposal(
   const checked = previewVersion(p.draft, p.proposerId, p.channel)
   if (!checked.version)
     throw new ORPCError('UNPROCESSABLE_CONTENT', {
-      message: 'Complete the draft to see what AI apps will get.',
+      message: 'Complete the draft to see what agents will get.',
       data: { findings: checked.findings },
     })
   const [head] = await tx.query<{ seq: string; label: string; overlay: string }>(
@@ -35,7 +35,7 @@ export async function previewProposal(
   )
   if (!head)
     throw new ORPCError('PRECONDITION_FAILED', {
-      message: "Nothing is shared with AI apps yet, so there's nothing to compare it with.",
+      message: "Nothing is shared with agents yet, so there's nothing to compare it with.",
     })
   const bundle = await loadServingBundle(tx, head)
   const v = checked.version
@@ -57,7 +57,7 @@ export async function previewProposal(
   })
   const { id: _id, ...scope } = input
   const result = await previewDelivery(privateBundle, clock, scope)
-  // get_context's reply; the contract's output schema checks it before it leaves the service.
+  // get_facts's reply; the contract's output schema checks it before it leaves the service.
   const reply = result.structuredContent as PreviewReply
   return { proposalId: p.id, revision: p.revision, result: reply }
 }
@@ -160,7 +160,7 @@ export function candidateBundle(
 }
 
 /**
- * Runs get_context on a private bundle with the live reply's code, recording nothing (FR-108).
+ * Runs get_facts on a private bundle with the live reply's code, recording nothing (FR-108).
  * `web` is the web app's address for the items' pages (FR-347); without it they are paths.
  */
 export function previewDelivery(
@@ -189,7 +189,7 @@ export function previewDelivery(
     web,
   )
   return execute(
-    'get_context',
+    'get_facts',
     input,
     { client: 'proposal-preview', scopes: ['read'], caller: 'eval', canSelectEdition: false },
     100000,

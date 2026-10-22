@@ -233,7 +233,7 @@ export function QuestionDialog({
             <DialogHeader>
               <DialogTitle>{title}</DialogTitle>
               <DialogDescription>
-                A question AI apps should answer well. Weekly runs ask it in both wordings, then
+                A question agents should answer well. Weekly runs ask it in both wordings, then
                 check the facts and the answer.
               </DialogDescription>
             </DialogHeader>
@@ -425,7 +425,7 @@ export function QuestionDialog({
                 name="mustDeliver"
                 area={area}
                 label="Facts it must get"
-                hint="The facts an AI app must get to answer well."
+                hint="The facts an agent must get to answer well."
                 icon={ListChecksIcon}
                 disabled={submitting}
               />
@@ -500,7 +500,7 @@ export function QuestionDialog({
                         onCheckedChange={(checked) => field.onChange(checked)}
                       />
                       <FieldItemContent>
-                        <FieldLabel>The AI app asks a clarifying question</FieldLabel>
+                        <FieldLabel>The agent asks a clarifying question</FieldLabel>
                         <FieldDescription>
                           For a question too vague to answer as it stands.
                         </FieldDescription>

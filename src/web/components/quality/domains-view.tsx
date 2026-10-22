@@ -260,7 +260,7 @@ export function HealthGrid({
       </GridTable>
       <p className="text-caption text-muted-foreground">
         Right facts: the share of test questions that get the facts they should, checked each time
-        what AI apps get changes. Right answers: the share that pass the newest weekly answer test.
+        what agents get changes. Right answers: the share that pass the newest weekly answer test.
         Changes: questions that got better or worse since the run before.{' '}
         <HelpLink to="read-health#what-the-numbers-mean">About these numbers</HelpLink>
         {health.rows.every((row) => row.state.kind === 'not_started') && canWrite ? (

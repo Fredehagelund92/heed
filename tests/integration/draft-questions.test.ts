@@ -11,7 +11,7 @@ import { people } from './fixtures.ts'
 import { signInHarness } from './sign-in-harness.ts'
 
 /*
-  draft_context's second slice (FR-121) end to end on PostgreSQL: when the person's AI app can
+  draft_context's second slice (FR-121) end to end on PostgreSQL: when the person's agent can
   show forms (MCP 2026-07-28, multi round-trip elicitation), the open questions are asked there
   before anything is saved, and the draft is saved once with the answers marked confirmed; the
   person still submits it in Heed. An app that cannot show forms, whatever its family, gets the
@@ -36,7 +36,7 @@ const answers = {
   source_quote: 'Every order is converted to euros at the rate of the day.',
 }
 
-// One AI app, registered once: each test signs a person in to it again.
+// One agent, registered once: each test signs a person in to it again.
 let app: Promise<string> | undefined
 async function personToken(person = 'author') {
   const clientId = await (app ??= registered())
@@ -138,7 +138,7 @@ async function resultOf(response: Response) {
   return (JSON.parse(data) as { result: { isError?: boolean; structuredContent: Output } }).result
 }
 
-describe('the open questions, asked in the AI app of a person who can answer them there', () => {
+describe('the open questions, asked in the agent of a person who can answer them there', () => {
   it('asks once, saves once with the answers confirmed, and the person still submits in Heed', async () => {
     await admin.query("update tool_config set enabled=true where tool='draft_context'")
     const asked: ElicitRequestFormParams[] = []
@@ -251,7 +251,7 @@ describe('the open questions, asked in the AI app of a person who can answer the
   })
 })
 
-describe('an AI app that cannot show forms gets the draft link and the questions, as before', () => {
+describe('an agent that cannot show forms gets the draft link and the questions, as before', () => {
   const families: [string, Family][] = [
     ['a 2026-07-28 app without elicitation (Claude.ai, ChatGPT)', { era: 'modern' }],
     [

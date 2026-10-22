@@ -1,7 +1,7 @@
 /**
  * The pure link resolver (FR-331 to FR-335): the links of a delivered item, and the neighbours of
  * an item, a vocabulary term or a domain for `get_related`. A link only says what a text refers
- * to. It never decides what get_context delivers, and a link is shown only when its target passes
+ * to. It never decides what get_facts delivers, and a link is shown only when its target passes
  * the same visibility rule as an item (FR-314). A pure function of its inputs: no clock, no I/O.
  */
 import { noGroups, type ItemKind, type RiskLevel } from './item.ts'
@@ -440,7 +440,7 @@ export type RelatedRequest = {
   relations?: readonly Relation[] | undefined
   depth: number
   today: string
-  /** Neighbour items must overlap these dates (end exclusive), as links in get_context do. */
+  /** Neighbour items must overlap these dates (end exclusive), as links in get_facts do. */
   window?: DateWindow | undefined
 }
 export type Related =

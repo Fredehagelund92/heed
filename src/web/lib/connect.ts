@@ -63,7 +63,7 @@ export function snippetFor(label: string, address: string, auth: ConnectAuth = '
       }
     default:
       return {
-        where: "Add this to the AI app's MCP server settings.",
+        where: "Add this to the agent's MCP server settings.",
         language: 'json',
         code: json({ mcpServers: { [SERVER_NAME]: { url: address, ...headers } } }),
       }
@@ -104,22 +104,22 @@ export function isReportedAs(client: { label: string; name: string }, reported: 
 }
 
 /**
- * The lines a person adds to their AI app's standing instructions so it asks Heed before it answers
+ * The lines a person adds to their agent's standing instructions so it asks Heed before it answers
  * (Ask first). An app still decides by itself when to call a tool: a line makes the call more
  * likely and never sure, so nothing that shows these lines may promise it. The help guide
- * (docs/help/connect-your-ai-app.md) shows the same lines, word for word.
+ * (docs/help/connect-an-agent.md) shows the same lines, word for word.
  */
 export const askHeedFirst = [
   {
     where:
       'Add it to CLAUDE.md or AGENTS.md in your project. Claude Code and other coding tools read that file when they start.',
     label: 'the line for CLAUDE.md or AGENTS.md',
-    text: `Before you answer a question about company data, ask ${productName} first: call its get_context tool, and use the definitions, caveats and events it returns.`,
+    text: `Before you answer a question about company data, ask ${productName} first: call its get_facts tool, and use the definitions, caveats and events it returns.`,
   },
   {
     where: `Add it to a data tool's own instructions for its AI, when that AI is connected to ${productName}.`,
     label: "the line for a data tool's instructions",
-    text: `When someone asks why a number moved, or before you trust a number, ask ${productName} with get_context for the events, caveats and definitions that apply.`,
+    text: `When someone asks why a number moved, or before you trust a number, ask ${productName} with get_facts for the events, caveats and definitions that apply.`,
   },
 ] as const
 
@@ -139,7 +139,7 @@ const signInStep = (label: string, name: string) =>
 export type PromptPart = { kind: 'words' | 'code'; text: string }
 
 /**
- * The setup prompt (Connect your AI's card, D9): one text a person pastes into their AI app, which
+ * The setup prompt (Connect your AI's card, D9): one text a person pastes into their agent, which
  * adds Heed, writes the Ask first line into its instructions file and then says how to sign in, as
  * Notion's setup prompt does. A client that signs in gets the address alone and the app does the
  * setup; with a token, the person runs or edits the setup themselves, so the token never goes
@@ -152,7 +152,7 @@ export function setupPromptFor(
 ): PromptPart[] {
   const name = appNameFor(client)
   const snippet = snippetFor(client.label, address, auth)
-  const settings = settingsFile(snippet) ?? "the app's MCP server settings"
+  const settings = settingsFile(snippet) ?? "the agent's MCP server settings"
   const token = auth === 'token'
   const add =
     snippet.language === 'shell'
@@ -182,14 +182,14 @@ export function setupPromptFor(
 export const promptText = (parts: readonly PromptPart[]) =>
   parts.map((part) => part.text).join('\n\n')
 
-/** Where a downloaded skill goes, by the apps that read it (each reads a folder named after the skill). */
+/** Where a downloaded skill goes, by the agents that read it (each reads a folder named after the skill). */
 export const skillPlaces = [
-  { apps: 'Claude Code', path: `.claude/skills/${SERVER_NAME}/SKILL.md` },
-  { apps: 'Codex and Cursor', path: `.agents/skills/${SERVER_NAME}/SKILL.md` },
+  { agents: 'Claude Code', path: `.claude/skills/${SERVER_NAME}/SKILL.md` },
+  { agents: 'Codex and Cursor', path: `.agents/skills/${SERVER_NAME}/SKILL.md` },
 ] as const
 
 /**
- * How a coding agent reads get_context's status, word for word as the MCP server's instructions
+ * How a coding agent reads get_facts's status, word for word as the MCP server's instructions
  * say it (src/domain/mcp-text.ts, FR-343), so the skill and the server never disagree.
  */
 export { statusRules }
@@ -218,7 +218,7 @@ export function skillFor(address: string, auth: ConnectAuth): string {
     '',
     askHeedFirst[0].text,
     '',
-    `- Pass the metrics, markets and dates you query. The member names you queried in the data tool work as names; when you do not know them, call find_context with the words of the question.`,
+    `- Pass the metrics, markets and dates you query. The member names you queried in the data tool work as names; when you do not know them, call find_facts with the words of the question.`,
     '- Each reply starts with say, a sentence for the person, and next, your step.',
     `- ${factRule}`,
     `- ${plainWordsRule}`,
@@ -239,8 +239,8 @@ export function skillFor(address: string, auth: ConnectAuth): string {
     '',
     `${productName}'s address is ${address}.`,
     token
-      ? `Each app sends a token the data platform team gives out, in place of ${TOKEN_PLACEHOLDER}.`
-      : `Each app signs in to ${productName} in the browser the first time, and then reads only what that person can read.`,
+      ? `Each agent sends a token the data platform team gives out, in place of ${TOKEN_PLACEHOLDER}.`
+      : `Each agent signs in to ${productName} in the browser the first time, and then reads only what that person can read.`,
     '',
     'Claude Code:',
     '',
@@ -276,7 +276,7 @@ export function skillFor(address: string, auth: ConnectAuth): string {
     '',
     'Save this file as:',
     '',
-    ...skillPlaces.map((place) => `- ${place.path} for ${place.apps}`),
+    ...skillPlaces.map((place) => `- ${place.path} for ${place.agents}`),
     '',
   ].join('\n')
 }

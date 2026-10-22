@@ -97,7 +97,7 @@ export const AdministratorMenu: Story = {
   },
 }
 
-/** The user menu holds the person's own Settings: Profile and appearance, and Connect an AI app. */
+/** The user menu holds the person's own Settings: Profile and appearance, and Connect an agent. */
 export const UserMenu: Story = {
   render: () => <StoryApp path="/library" person="per_maria" />,
   play: async () => {
@@ -106,7 +106,7 @@ export const UserMenu: Story = {
     await expect(
       await screen.findByRole('menuitem', { name: /Profile and appearance/ }),
     ).toBeVisible()
-    await expect(screen.getByRole('menuitem', { name: /Connect an AI app/ })).toBeVisible()
+    await expect(screen.getByRole('menuitem', { name: /Connect an agent/ })).toBeVisible()
   },
 }
 
@@ -201,7 +201,7 @@ export const AssistantAgentTab: Story = {
     await userEvent.click(await screen.findByRole('button', { name: 'Assistant' }))
     const panel = await screen.findByRole('region', { name: 'Assistant' })
     await userEvent.click(within(panel).getByRole('tab', { name: 'What an agent would get' }))
-    await waitFor(() => expect(within(panel).getByText('See what an AI app gets')).toBeVisible())
+    await waitFor(() => expect(within(panel).getByText('See what an agent gets')).toBeVisible())
   },
 }
 

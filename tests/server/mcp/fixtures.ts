@@ -254,7 +254,7 @@ export function fakeReads(
       asked.push({ changes: input })
       if (input.from === '2026-01-01.9' || input.to === '2026-01-01.9')
         return Promise.reject(
-          new ORPCError('NOT_FOUND', { message: 'Nothing is shared with AI apps yet.' }),
+          new ORPCError('NOT_FOUND', { message: 'Nothing is shared with agents yet.' }),
         )
       return Promise.resolve(structuredClone(changes))
     },

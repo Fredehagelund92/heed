@@ -108,19 +108,19 @@ describe('the lifecycle in plain words, the detail under the validity chip', () 
     expect(itemState(base, context).lifecycle).toEqual({
       key: 'accepted',
       title: 'Accepted',
-      line: 'It applies from 14 May 2026 and is still going on. AI apps get it when a question is about it. The owner checks it again by 13 January 2027, in 98 days.',
+      line: 'It applies from 14 May 2026 and is still going on. Agents get it when a question is about it. The owner checks it again by 13 January 2027, in 98 days.',
     })
   })
 
-  it('drops "AI apps get it" when a warning is also true', () => {
+  it('drops "Agents get it" when a warning is also true', () => {
     const state = itemState({ ...base, checkFlag: 'needs_check' }, context)
-    expect(state.lifecycle.line).not.toContain('AI apps get it when')
+    expect(state.lifecycle.line).not.toContain('Agents get it when')
   })
 
   it('says an active issue applies until its last day, or is still happening', () => {
     const ending = itemState(issue({ start: '2026-09-29', end: '2026-10-11' }, null), context)
     expect(ending.lifecycle.line).toBe(
-      'It started on 29 September 2026 and applies until 10 October 2026, in 3 days. AI apps warn about it in answers about that time.',
+      'It started on 29 September 2026 and applies until 10 October 2026, in 3 days. Agents warn about it in answers about that time.',
     )
     const open = itemState(issue({ start: '2026-10-02', end: null }, '2026-10-16'), context)
     expect(open.lifecycle.line).toContain('is still going on')
@@ -140,14 +140,14 @@ describe('the lifecycle in plain words, the detail under the validity chip', () 
     expect(state.lifecycle).toEqual({
       key: 'resolved_issue',
       title: 'Resolved',
-      line: 'Resolved on 14 August 2026. It applied 3 to 14 August 2026, so AI apps get it only for questions about that period.',
+      line: 'Resolved on 14 August 2026. It applied 3 to 14 August 2026, so agents get it only for questions about that period.',
     })
   })
 
   it('shows the last valid day, never the exclusive stored end, on a resolved issue', () => {
     const resolved = itemState(issue({ start: '2026-09-06', end: '2026-09-23' }, null), context)
     expect(resolved.lifecycle.line).toBe(
-      'Resolved on 22 September 2026. It applied 6 to 22 September 2026, so AI apps get it only for questions about that period.',
+      'Resolved on 22 September 2026. It applied 6 to 22 September 2026, so agents get it only for questions about that period.',
     )
     const ended = itemState(
       { ...base, validity: { start: '2026-09-06', end: '2026-09-23' } },
@@ -159,7 +159,7 @@ describe('the lifecycle in plain words, the detail under the validity chip', () 
   it('names the one day of a one-day resolved issue once', () => {
     const state = itemState(issue({ start: '2026-09-10', end: '2026-09-11' }, null), context)
     expect(state.lifecycle.line).toBe(
-      'Resolved on 10 September 2026. It applied on 10 September 2026, so AI apps get it only for questions about that period.',
+      'Resolved on 10 September 2026. It applied on 10 September 2026, so agents get it only for questions about that period.',
     )
   })
 
@@ -169,14 +169,14 @@ describe('the lifecycle in plain words, the detail under the validity chip', () 
       context,
     )
     expect(ended.lifecycle.line).toBe(
-      'It ended 150 days ago, on 10 May 2026. AI apps get it only for questions about that period.',
+      'It ended 150 days ago, on 10 May 2026. Agents get it only for questions about that period.',
     )
     const retired = itemState(
       { ...base, status: 'retired' },
       { ...context, retired: { by: 'Jon Abara', date: '2026-09-01' } },
     )
     expect(retired.lifecycle.line).toBe(
-      "Jon Abara archived it on 1 September 2026. It stays in the history, and AI apps don't get it.",
+      "Jon Abara archived it on 1 September 2026. It stays in the history, and agents don't get it.",
     )
   })
 
@@ -185,14 +185,14 @@ describe('the lifecycle in plain words, the detail under the validity chip', () 
     expect(future.lifecycle).toEqual({
       key: 'future',
       title: 'Not started yet',
-      line: 'It applies from 1 November 2026, in 25 days. AI apps get it only for questions about dates from then on. The owner checks it by 13 January 2027.',
+      line: 'It applies from 1 November 2026, in 25 days. Agents get it only for questions about dates from then on. The owner checks it by 13 January 2027.',
     })
     const bounded = itemState(
       { ...base, validity: { start: '2026-11-01', end: '2026-12-01' }, reviewDate: null },
       context,
     )
     expect(bounded.lifecycle.line).toBe(
-      'It applies from 1 November 2026, in 25 days, until 30 November 2026. AI apps get it only for questions about dates from then on.',
+      'It applies from 1 November 2026, in 25 days, until 30 November 2026. Agents get it only for questions about dates from then on.',
     )
     const laterIssue = itemState(issue({ start: '2026-10-20', end: null }, '2026-11-03'), context)
     expect(laterIssue.lifecycle.key).toBe('future')
@@ -316,7 +316,7 @@ describe('the check date, quiet text beside the chip', () => {
   })
 })
 
-describe('the note line: what AI apps do and who acts', () => {
+describe('the note line: what agents do and who acts', () => {
   const note = (item: ContextItem, extra: Partial<StateContext> = {}) =>
     itemState(item, { ...context, ...extra }).note
 
@@ -326,28 +326,28 @@ describe('the note line: what AI apps do and who acts', () => {
     expect(note({ ...base, status: 'retired', checkFlag: 'source_missing' })).toBeNull()
   })
 
-  it('says AI apps are told a flagged fact may be out of date until the owner checks it', () => {
+  it('says agents are told a flagged fact may be out of date until the owner checks it', () => {
     expect(note({ ...base, checkFlag: 'source_missing' })).toBe(
-      'AI apps are told it may be out of date until Jon Abara checks it.',
+      'Agents are told it may be out of date until Jon Abara checks it.',
     )
     expect(note({ ...base, checkFlag: 'needs_check', reviewDate: '2026-10-01' })).toBe(
-      'AI apps are told it may be out of date until Jon Abara checks it.',
+      'Agents are told it may be out of date until Jon Abara checks it.',
     )
   })
 
-  it('warns that AI apps may not get a high-risk fact', () => {
+  it('warns that agents may not get a high-risk fact', () => {
     expect(note({ ...base, checkFlag: 'source_missing', riskLevel: 'high' })).toBe(
-      'AI apps may not get it until Jon Abara checks it.',
+      'Agents may not get it until Jon Abara checks it.',
     )
   })
 
   it('asks for a re-check of an overdue item, and an open issue whether it is still going on', () => {
     expect(note({ ...base, reviewDate: '2026-09-04' })).toBe(
-      'AI apps are told it may be out of date until Jon Abara checks it again.',
+      'Agents are told it may be out of date until Jon Abara checks it again.',
     )
     const stillGoing = itemState(issue({ start: '2026-09-15', end: null }, '2026-09-29'), context)
     expect(stillGoing.note).toBe(
-      "AI apps are told it may be out of date until Jon Abara confirms it's still going on.",
+      "Agents are told it may be out of date until Jon Abara confirms it's still going on.",
     )
     expect(stillGoing.stillGoingOn).toBe(true)
     expect(itemState({ ...base, reviewDate: '2026-09-04' }, context).stillGoingOn).toBe(false)
@@ -355,21 +355,21 @@ describe('the note line: what AI apps do and who acts', () => {
 
   it('names the owner of the domain when the owner is not known', () => {
     expect(note({ ...base, checkFlag: 'source_missing' }, { ownerName: null })).toBe(
-      'AI apps are told it may be out of date until the owner of Commercial checks it.',
+      'Agents are told it may be out of date until the owner of Commercial checks it.',
     )
     expect(
       note({ ...base, checkFlag: 'source_missing' }, { ownerName: null, areaName: null }),
-    ).toBe('AI apps are told it may be out of date until the owner checks it.')
+    ).toBe('Agents are told it may be out of date until the owner checks it.')
   })
 
-  it('keeps an ended fact’s source flag, which AI apps still see for its period', () => {
+  it('keeps an ended fact’s source flag, which agents still see for its period', () => {
     expect(
       note({
         ...base,
         validity: { start: '2026-04-06', end: '2026-05-11' },
         checkFlag: 'needs_check',
       }),
-    ).toBe('AI apps are told it may be out of date until Jon Abara checks it.')
+    ).toBe('Agents are told it may be out of date until Jon Abara checks it.')
   })
 
   it('tells the Source tab what a source flag means', () => {

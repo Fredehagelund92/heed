@@ -20,7 +20,7 @@ import { StoryPaper } from './form-story-parts'
   The two Details sections of Add a fact that explain themselves (slice heed-ui-wording-icons):
   "Where this comes from" (the stored evidence) and "What not to conclude" (the stored
   notToConclude): the help, the kind's examples, the Needed and Optional states and "Why we ask";
-  for what not to conclude, the starters, "Use this" and the live "What AI apps get" card.
+  for what not to conclude, the starters, "Use this" and the live "What agents get" card.
 */
 
 const meta = {

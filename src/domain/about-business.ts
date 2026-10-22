@@ -1,8 +1,8 @@
 /**
  * About our business: a short text an administrator keeps in Administration, so the assistant and
- * the AI apps that connect over MCP know what the company does and what its words mean, instead of
+ * the agents that connect over MCP know what the company does and what its words mean, instead of
  * starting from nothing. It is background, never evidence: it reaches the assistant in its turn
- * context and an AI app at the end of the server instructions, after the rules, and never as an
+ * context and an agent at the end of the server instructions, after the rules, and never as an
  * item, a source or a tool result, so it is never cited and never shows in a check report.
  */
 
@@ -52,7 +52,7 @@ export function normalizeAboutBusiness(text: string): string {
 export const aboutBusinessLength = (text: string) => [...text].length
 
 /**
- * Exactly what the assistant and AI apps are given: a line that marks the text as background and
+ * Exactly what the assistant and agents are given: a line that marks the text as background and
  * not evidence, the administrator's text, and the line that ends it. Null when the text is empty
  * or not text: then they are given nothing.
  */
@@ -88,5 +88,5 @@ export const ABOUT_BUSINESS_GUIDE = {
     hint: 'numbers, deals, dates and what happened in a market (those are facts, and belong in the library), legal conclusions, and secrets or personal data.',
   },
   /** What leaving the box empty does. */
-  empty: 'Leave it empty to give the assistant and AI apps no background.',
+  empty: 'Leave it empty to give the assistant and agents no background.',
 } as const

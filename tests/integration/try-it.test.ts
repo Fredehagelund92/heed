@@ -17,7 +17,7 @@ import { apiDatabase, servingPool, tableContents, testDatabase, transaction } fr
 /*
   Connect your AI and What an agent would get (Try it), over HTTP on a service that also serves
   MCP. Connect tells every signed-in person the address, the tools on and the clients that may
-  connect, and nothing an administrator alone may read. Try it answers exactly what get_context
+  connect, and nothing an administrator alone may read. Try it answers exactly what get_facts
   answers an agent for the same scope, records nothing, takes no question and no audience.
 */
 
@@ -157,7 +157,7 @@ describe('connect', () => {
   })
 
   it('follows the administrators: a tool switched off is marked off, a client is not offered', async () => {
-    const off = await call('POST', '/tools/search_context', 'admin', {
+    const off = await call('POST', '/tools/search_facts', 'admin', {
       enabled: false,
       reason: 'Trying it without search',
     })
@@ -168,7 +168,7 @@ describe('connect', () => {
     ] as const) {
       const saved = await call('PUT', `/clients/${label}`, 'admin', {
         displayName,
-        toolsAllowed: ['get_context'],
+        toolsAllowed: ['get_facts'],
         ratePerMinute: 10,
         maxResponseBytes: 50_000,
         enabled,
@@ -177,13 +177,13 @@ describe('connect', () => {
       expect(saved.statusCode, saved.body).toBe(200)
     }
     const info = (await call('GET', '/connect', 'stranger')).json<ConnectInfo>()
-    expect(info.tools).toContainEqual({ tool: 'search_context', enabled: false, personOnly: false })
+    expect(info.tools).toContainEqual({ tool: 'search_facts', enabled: false, personOnly: false })
     // Only a label and a name: never a client's tools, limits or switch.
     expect(info.clients).toEqual([
       { label: 'claude-code', name: 'Claude Code with a token' },
       { label: 'cursor', name: 'Cursor' },
     ])
-    const on = await call('POST', '/tools/search_context', 'admin', {
+    const on = await call('POST', '/tools/search_facts', 'admin', {
       enabled: true,
       reason: 'Search back on',
     })
@@ -203,16 +203,16 @@ describe('try it', () => {
     expect(beforeLive).toEqual({
       statusCode: 412,
       message:
-        'Nothing is shared with AI apps yet. They get facts once an owner accepts the first one.',
+        'Nothing is shared with agents yet. They get facts once an owner accepts the first one.',
     })
   })
 
-  it("answers exactly what get_context answers an agent for the same scope, and the agent's size", async () => {
+  it("answers exactly what get_facts answers an agent for the same scope, and the agent's size", async () => {
     const response = await call('POST', '/try-it', 'author', august)
     expect(response.statusCode, response.body).toBe(200)
     const tried = response.json<TryIt>()
     const agent = await wire.callTool({
-      name: 'get_context',
+      name: 'get_facts',
       arguments: { question: '', ...august },
     })
     const { delivery_id: deliveryId, ...delivered } = agent.structuredContent as Record<
@@ -304,7 +304,7 @@ describe('try it', () => {
 
 describe('reviewed before served (FR-326)', () => {
   it('tells an agent by role how each fact was reviewed, and never a name', async () => {
-    // An owner with a real name: what an AI app receives must not carry it.
+    // An owner with a real name: what an agent receives must not carry it.
     await client.query("update people set display_name='Jon Abara' where id=$1", [people.owner])
     const edition = (
       await client.query<{ label: string }>(
@@ -320,7 +320,7 @@ describe('reviewed before served (FR-326)', () => {
     }
     for (const response_format of ['full', 'concise'] as const) {
       const agent = await wire.callTool({
-        name: 'get_context',
+        name: 'get_facts',
         arguments: { question: '', ...august, response_format },
       })
       const item = (agent.structuredContent as { items: Record<string, unknown>[] }).items[0]!

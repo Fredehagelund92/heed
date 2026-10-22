@@ -451,7 +451,7 @@ describe('answer tests on the review gate', () => {
       delivered: true,
     })
     expect(body.toolCalls).toEqual([
-      expect.objectContaining({ tool: 'get_context', items: [closure] }),
+      expect.objectContaining({ tool: 'get_facts', items: [closure] }),
     ])
     expect(JSON.stringify(body.messages)).toContain('because online sales stopped')
     expect((await call('GET', `/evals/cells/${failed.id}/transcript`, 'author')).statusCode).toBe(
@@ -968,14 +968,14 @@ describe('runs that stop before every answer is made (R4, R6)', () => {
     expect(d.run.failure).toMatch(/was planned for another-model/)
   }, 300_000)
 
-  /** Sets get_context's limit per client and minute; returns what puts the setting back. */
+  /** Sets get_facts's limit per client and minute; returns what puts the setting back. */
   async function getContextLimit(perMinute: number) {
     const [current] = (
       await client.query<{ value: Record<string, number> }>(
         "select value from settings_current where key='limits.mcp_rate_per_minute'",
       )
     ).rows
-    await setting('limits.mcp_rate_per_minute', { ...current!.value, get_context: perMinute })
+    await setting('limits.mcp_rate_per_minute', { ...current!.value, get_facts: perMinute })
     return () => setting('limits.mcp_rate_per_minute', current!.value)
   }
 

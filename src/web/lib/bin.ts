@@ -47,7 +47,7 @@ export function rescueChangeLine(change: RescueChange): { label: string; words: 
   }
 }
 
-/** The toast after a restore: what came back, what AI apps get again, and the proposals opened. */
+/** The toast after a restore: what came back, what agents get again, and the proposals opened. */
 export function restoredWords(
   result: BinRestoreResult,
   /** The domain the items of a deleted domain went to, by name. */
@@ -56,9 +56,7 @@ export function restoredWords(
   const count = result.restored.length
   const opened = result.proposals.length
   const title = count === 1 ? 'Fact restored' : `${countOf(count)} restored`
-  const served = result.edition
-    ? `AI apps get ${count - opened === 1 ? 'it' : 'them'} again.`
-    : null
+  const served = result.edition ? `Agents get ${count - opened === 1 ? 'it' : 'them'} again.` : null
   if (!opened)
     return {
       title,

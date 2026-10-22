@@ -27,7 +27,7 @@ export type RequestRecord = {
   id: string
   hour: string
   client: string
-  /** The kind of AI app, from its self-reported name; the name itself is never kept (FR-410). */
+  /** The kind of agent, from its self-reported name; the name itself is never kept (FR-410). */
   family: AppFamily
   tool: string
   /** `invalid_input`: a tool call whose arguments do not fit the tool's input schema. */

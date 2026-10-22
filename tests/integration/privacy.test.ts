@@ -59,7 +59,7 @@ const columns = {
   gap_weekly_counts: ['gap_id', 'week', 'reports', 'no_item_calls', 'human_reports'],
   // A person's report (FR-606 case 5) keeps digests of its retry key and request, never who sent it.
   gap_report_keys: ['retry_digest', 'request_digest', 'gap_id', 'expires_hour'],
-  // FR-410: the AI app is kept as its family from a fixed list, never its own name or version.
+  // FR-410: the agent is kept as its family from a fixed list, never its own name or version.
   mcp_requests: [
     'id',
     'hour',
@@ -111,7 +111,7 @@ it('rejects precise delivery and request timestamps', async () => {
   ).rejects.toMatchObject({ code: '23514' })
   await expect(
     client.query(
-      "insert into mcp_requests (hour,client_label,tool,status) values (date_trunc('hour',now())+interval '1 second','test','get_context','ok')",
+      "insert into mcp_requests (hour,client_label,tool,status) values (date_trunc('hour',now())+interval '1 second','test','get_facts','ok')",
     ),
   ).rejects.toMatchObject({ code: '23514' })
 })
@@ -119,7 +119,7 @@ it('keeps only an app family from the fixed list on a request, never the name an
   const insert = (family: string, status = 'ok', result: string | null = null) =>
     client.query(
       'insert into mcp_requests (client_label,app_family,tool,status,result_status) values ($1,$2,$3,$4,$5)',
-      ['test', family, 'get_context', status, result],
+      ['test', family, 'get_facts', status, result],
     )
   await insert('claude_code', 'invalid_input')
   await insert('other', 'ok', 'need_more_detail')
@@ -132,7 +132,7 @@ it('keeps only an app family from the fixed list on a request, never the name an
   await expect(insert('cursor', 'Orders in Norway')).rejects.toMatchObject({ code: '23514' })
   // A request written before the app was recorded, or that names none, is unknown.
   const defaulted = await client.query<{ family: string }>(
-    "insert into mcp_requests (client_label,tool,status) values ('test','get_context','ok') returning app_family as family",
+    "insert into mcp_requests (client_label,tool,status) values ('test','get_facts','ok') returning app_family as family",
   )
   expect(defaulted.rows).toEqual([{ family: 'unknown' }])
 })

@@ -46,7 +46,7 @@ export type CaseType = (typeof caseTypes)[number]
 export const behaviours = ['answer', 'clarify', 'no_context', 'decline'] as const
 
 /**
- * get_context's statuses a case can expect (the resolver's, without check_failed).
+ * get_facts's statuses a case can expect (the resolver's, without check_failed).
  * `area_not_live` is no reply any more (every domain is served since 14 Oct 2026); it stays only
  * so a sealed case that still expects it reads, and fails until its holder edits it.
  */
@@ -64,7 +64,7 @@ const text = z.string().check(z.minLength(3), z.maxLength(500))
 const ids = z.array(itemId).check(z.maxLength(20))
 
 /**
- * What get_context must give for the case's scope at its as-of date (L1). `rank_max` is the
+ * What get_facts must give for the case's scope at its as-of date (L1). `rank_max` is the
  * lowest place a must-deliver item may take (default 5, L1.4); `versions` the version each named
  * item must be served at (L1.5); `unverified` the items that must come flagged as not verified
  * (L1.6); `text` phrases that must be in what is delivered (L1.7: a caveat the answer needs, or a
@@ -126,7 +126,7 @@ const rubrics = z._default(
 /** A follow-up the person sends after the first answer, with what it must get on its own. */
 export const turnSchema = z.object({
   text: z.string().check(z.minLength(2), z.maxLength(2000)),
-  /** The scope a good agent asks get_context for at this turn; none when it needs no call. */
+  /** The scope a good agent asks get_facts for at this turn; none when it needs no call. */
   scope: z.optional(questionScopeSchema),
   behaviour: z.enum(behaviours),
   delivery: z.optional(deliverySchema),
@@ -147,14 +147,14 @@ export const goldenCaseSchema = z
     // Strict: a wording with a comma and no quotes reads in YAML as a cut text and a stray key.
     wordings: z.array(z.strictObject(wordingSchema.shape)).check(z.minLength(2), z.maxLength(6)),
     /**
-     * The scope a good agent asks get_context for; none when no call is right (out of remit).
+     * The scope a good agent asks get_facts for; none when no call is right (out of remit).
      * Metric and dimension names may be the data tool's member names, as an agent that just
      * queried it passes them (CON-517).
      */
     scope: z.optional(questionScopeSchema),
-    /** How much get_context says (FR-342): full when left out, as for an MCP client. */
+    /** How much get_facts says (FR-342): full when left out, as for an MCP client. */
     response_format: z.optional(z.enum(['concise', 'full'])),
-    /** L1: what get_context gives for the case's scope. */
+    /** L1: what get_facts gives for the case's scope. */
     delivery: z._default(deliverySchema, { must_deliver: [], must_not_deliver: [] }),
     answer: z._default(answerSchema, {
       must_cite: [],
@@ -255,7 +255,7 @@ export const assistantCaseSchema = z.object({
    * `pilot`: a conversation the captain's pilot saw go wrong, kept visible so anyone may tune
    * against it, such as a domain named by another spelling that holds nothing yet.
    * `help`: a question about how Heed itself works, answered from Heed's help pages (docs/help)
-   * with a link to the page, as the Docs area and AI apps over MCP answer it.
+   * with a link to the page, as the Docs area and agents over MCP answer it.
    */
   type: z.enum([...caseTypes, 'assistant_task', 'companion', 'meta', 'industry', 'pilot', 'help']),
   split: z._default(z.enum(['development', 'held_out']), 'development'),
@@ -314,7 +314,7 @@ export function toQuestion(c: GoldenCase): GoldenQuestionInput {
   }
 }
 
-/** One delivered item as get_context's reply has it, with what L1 reads. */
+/** One delivered item as get_facts's reply has it, with what L1 reads. */
 export type DeliveredItem = {
   id: string
   version?: number

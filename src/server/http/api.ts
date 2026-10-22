@@ -121,7 +121,7 @@ export interface ApiServices {
   models: ModelPort
   /** The MCP server's public address (`MCP_RESOURCE_URL`); null when this app serves no MCP. */
   mcpAddress?: string | null
-  /** The built-in login server for AI apps; without it there is nothing to approve or list. */
+  /** The built-in login server for agents; without it there is nothing to approve or list. */
   login?: LoginServer
   /** The scheduled jobs, for the operations view and manual runs (FR-810). */
   jobs: Pick<JobRunner, 'overview' | 'runNow'>

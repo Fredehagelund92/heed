@@ -165,7 +165,7 @@ export const overlapSchema = z.object({
 })
 
 /*
-  The reply of get_context for a draft, as proposals.preview returns it (FR-108, FR-214): the
+  The reply of get_facts for a draft, as proposals.preview returns it (FR-108, FR-214): the
   same reply an agent would get if the draft were accepted. The field names are the MCP tool's.
 */
 const replyStatuses = [
@@ -229,7 +229,7 @@ export const replyItemSchema = z.object({
 })
 /**
  * What a metric means, for a definition question (FR-338): the source's own words (at most 500
- * characters), where they come from, and what Heed adds. The same as find_context gives.
+ * characters), where they come from, and what Heed adds. The same as find_facts gives.
  */
 export const replyDefinitionSchema = z.object({
   term: z.string(),
@@ -271,9 +271,9 @@ export const replyCheckReportSchema = z.object({
   statements: z.array(z.string()),
 })
 export const previewReplySchema = z.object({
-  /** The sentences for the status that an AI app may repeat to the person as they stand (FR-344). */
+  /** The sentences for the status that an agent may repeat to the person as they stand (FR-344). */
   say: z.optional(z.string()),
-  /** The step the AI app takes next with this reply: for it, not the person (FR-344). */
+  /** The step the agent takes next with this reply: for it, not the person (FR-344). */
   next: z.optional(z.string()),
   status: z.enum(replyStatuses),
   /** Absent only when the checks could not run (`check_failed`). */

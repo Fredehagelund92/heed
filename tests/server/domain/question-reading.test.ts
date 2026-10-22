@@ -5,7 +5,7 @@ import { terms } from './fixtures.ts'
 
 /*
   A question read for a person (the Ask composer's "Heed reads" line and Home's Try it): the
-  reader get_context uses, with names, how the dates were read, undecided words and dates Heed
+  reader get_facts uses, with names, how the dates were read, undecided words and dates Heed
   cannot read.
 */
 

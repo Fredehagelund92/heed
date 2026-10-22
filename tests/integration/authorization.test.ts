@@ -104,7 +104,7 @@ const samples: Record<string, string> = {
   areaId: 'finance',
   label: '2026-10-08.1',
   key: 'privacy.min_count',
-  tool: 'get_context',
+  tool: 'get_facts',
   job: 'retention.run',
 }
 const pathOf = (op: Operation) => op.path.replace(/\{(\w+)\}/g, (_, name: string) => samples[name]!)

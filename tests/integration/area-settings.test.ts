@@ -401,17 +401,17 @@ describe('MCP traffic', () => {
         `insert into mcp_requests (hour, client_label, tool, status, duration_ms, edition_seq, response_bytes)
          select date_trunc('hour', now(), 'UTC') - make_interval(hours => r.ago), r.client, r.tool, r.status, r.ms, 1, r.bytes
            from (values
-             (0, 'signed-in', 'get_context', 'ok', 10, 100),
-             (1, 'signed-in', 'get_context', 'ok', 20, 100),
-             (2, 'signed-in', 'get_context', 'ok', 30, 100),
-             (30, 'signed-in', 'get_context', 'ok', 40, 100),
-             (3, 'signed-in', 'get_context', 'rate_limited', 1, 0),
+             (0, 'signed-in', 'get_facts', 'ok', 10, 100),
+             (1, 'signed-in', 'get_facts', 'ok', 20, 100),
+             (2, 'signed-in', 'get_facts', 'ok', 30, 100),
+             (30, 'signed-in', 'get_facts', 'ok', 40, 100),
+             (3, 'signed-in', 'get_facts', 'rate_limited', 1, 0),
              (2, 'unknown', 'protocol', 'unauthorized', 2, 0),
              (5, 'unknown', 'protocol', 'unauthorized', 4, 0),
              (4, 'signed-in', 'report_gap', 'forbidden', 3, 0),
              (6, 'signed-in', 'report_gap', 'error', 5, 0),
              (7, 'signed-in', 'report_gap', 'invalid_input', 2, 0),
-             (240, 'signed-in', 'get_context', 'ok', 9, 9999)
+             (240, 'signed-in', 'get_facts', 'ok', 9, 9999)
            ) as r(ago, client, tool, status, ms, bytes)`,
       )
     })
@@ -424,8 +424,8 @@ describe('MCP traffic', () => {
     expect(week.rows).toEqual([
       {
         client: 'signed-in',
-        clientName: 'AI apps people sign in with',
-        tool: 'get_context',
+        clientName: 'Agents people sign in with',
+        tool: 'get_facts',
         calls: 5,
         ok: 4,
         errors: 0,
@@ -440,7 +440,7 @@ describe('MCP traffic', () => {
       },
       {
         client: 'signed-in',
-        clientName: 'AI apps people sign in with',
+        clientName: 'Agents people sign in with',
         tool: 'report_gap',
         calls: 3,
         ok: 0,
@@ -483,7 +483,7 @@ describe('MCP traffic', () => {
     // Ten days back is outside the week and inside a month.
     const month = await ok<TrafficSummary>('GET', '/traffic?days=30', 'admin')
     expect(month.total).toMatchObject({ calls: 11, ok: 5, bytes: 10_399 })
-    expect(month.rows[0]).toMatchObject({ tool: 'get_context', calls: 6, lastHour: hour(0) })
+    expect(month.rows[0]).toMatchObject({ tool: 'get_facts', calls: 6, lastHour: hour(0) })
 
     const body = JSON.stringify(month)
     for (const id of Object.values(people)) expect(body).not.toContain(id)

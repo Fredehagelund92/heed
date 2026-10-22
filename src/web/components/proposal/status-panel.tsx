@@ -37,7 +37,7 @@ export type StatusPanelTab = (typeof statusPanelTabs)[number]
 const tabs: DockTab<StatusPanelTab>[] = [
   { value: 'activity', label: 'Activity' },
   { value: 'fields', label: 'Fields' },
-  { value: 'preview', label: 'What AI apps get' },
+  { value: 'preview', label: 'What agents get' },
   { value: 'checks', label: 'Checks' },
 ]
 

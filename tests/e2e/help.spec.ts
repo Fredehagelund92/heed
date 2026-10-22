@@ -52,7 +52,7 @@ const places: Place[] = [
     path: '/settings?section=connect',
     link: 'What is a tool?',
     title: 'Tool',
-    words: 'One thing an AI app can ask over MCP',
+    words: 'One thing an agent can ask over MCP',
     page: '/docs/glossary#tool',
   },
   {
@@ -61,16 +61,16 @@ const places: Place[] = [
     link: 'Step by step',
     title: 'Steps',
     words: 'Claude Code',
-    page: '/docs/connect-your-ai-app#steps',
+    page: '/docs/connect-an-agent#steps',
   },
   {
     screen: 'Connect your AI with no app connected',
     path: '/settings?section=connect',
     scenario: 'empty',
     link: 'How connecting works',
-    title: 'Add to your AI app',
+    title: 'Set up an agent',
     words: 'Claude Code',
-    page: '/docs/connect-your-ai-app',
+    page: '/docs/connect-an-agent',
   },
   {
     screen: 'Add context',
@@ -141,7 +141,7 @@ const places: Place[] = [
     person: OWNER,
     link: 'What live means',
     title: 'What live means',
-    words: 'The live edition is the one AI apps read now.',
+    words: 'The live edition is the one agents read now.',
     page: '/docs/editions#what-live-means',
   },
   {
@@ -158,7 +158,7 @@ const places: Place[] = [
     scenario: 'empty',
     link: 'What is a gap?',
     title: 'Gap',
-    words: 'A question that AI apps or people asked and no fact could answer',
+    words: 'A question that agents or people asked and no fact could answer',
     page: '/docs/glossary#gap',
   },
   {
@@ -287,7 +287,7 @@ test('the delivery banner says what stopping does', async ({ page }) => {
     .getByRole('button', { name: 'More actions for this edition' })
     .click()
   await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-  const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+  const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
   await dialog.getByRole('button', { name: 'Continue' }).click()
   await dialog.getByRole('textbox', { name: 'Why are you stopping it?' }).fill('A wrong caveat.')
   await dialog
@@ -299,7 +299,7 @@ test('the delivery banner says what stopping does', async ({ page }) => {
   const banner = page.getByRole('region', { name: 'Sharing stopped' })
   await helpLink(banner, 'What stopping does').click()
   await expect(card(page).getByRole('heading', { name: 'The stop switch' })).toBeVisible()
-  await expect(card(page)).toContainText("AI apps don't get what was stopped.")
+  await expect(card(page)).toContainText("Agents don't get what was stopped.")
   await settle(page)
   await expectNoViolations(page)
 })

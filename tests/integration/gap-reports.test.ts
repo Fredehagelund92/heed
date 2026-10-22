@@ -16,7 +16,7 @@ import { apiDatabase, servingPool, tableContents, testDatabase, transaction } fr
   A person reports a gap (FR-606 case 5) from Try it or the assistant, over HTTP, on a service
   that also serves MCP. The report counts against the topic's gap exactly as report_gap does
   (FR-308), its topic comes from the scope alone (FR-604), and nothing anywhere names the person
-  who sent it (FR-608, FR-613): no row, no history entry. Unknown terms are refused as get_context
+  who sent it (FR-608, FR-613): no row, no history entry. Unknown terms are refused as get_facts
   refuses them, a double click counts once, and each person has a tighter limit of their own.
 */
 
@@ -155,7 +155,7 @@ describe('reporting a gap', () => {
   it('needs a live edition, as Try it does, and a signed-in person', async () => {
     expect(beforeLive).toEqual({
       statusCode: 412,
-      message: 'Gaps can be reported once AI apps get their first facts.',
+      message: 'Gaps can be reported once agents get their first facts.',
     })
     expect((await report(null, { ...august, type: 'missing' })).statusCode).toBe(401)
   })
@@ -230,7 +230,7 @@ describe('reporting a gap', () => {
     expect(added).not.toMatch(/^public\.audit_log /m)
   })
 
-  it('refuses a scope get_context would not resolve, a sensitive note and unknown fields', async () => {
+  it('refuses a scope get_facts would not resolve, a sensitive note and unknown fields', async () => {
     const refused = async (payload: object, status: number) => {
       const response = await report('author', payload)
       expect(response.statusCode, response.body).toBe(status)

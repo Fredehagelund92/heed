@@ -171,7 +171,7 @@ export function rescueDraft(draft: Draft, itemId: string, world: RescueWorld): R
     problem: !owner
       ? `${world.to.name} has no owner to review it. Give it an owner in Administration, Domains, first.`
       : !scoped
-        ? 'None of the metrics or markets it applies to exist any more, so AI apps could never get it.'
+        ? 'None of the metrics or markets it applies to exist any more, so agents could never get it.'
         : null,
   }
 }

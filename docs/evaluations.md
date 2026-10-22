@@ -51,7 +51,7 @@ The evaluation runner records levels 4 and 5 on the review gate, so normal and
 high-risk items can be accepted, and it blocks a change whose answers get worse.
 
 - **Golden questions** (FR-501, FR-504): an id, a domain, a natural and a precise wording, the
-  scope in `get_context`'s input form, the items that must and must not be delivered, an optional
+  scope in `get_facts`'s input form, the items that must and must not be delivered, an optional
   must-have caveat (strict pass), whether a cause may not be claimed or a clarifying question is
   needed, rubrics, risk, source, status and split, and optionally `as_of`, the day it is asked
   on (a golden case keeps its own): a run reads it at that day, so "this past week" means the week
@@ -83,7 +83,7 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   and the checks that failed, and a scorecard counts both layers and each failed check, so a drop
   can be traced to retrieval and citing or to what the judge read.
 - **Retrieval pass** (no model): `evals.retrieval` sends every test question's wordings through
-  `get_context`'s own code on every sealed edition, and on the live edition again each day, and
+  `get_facts`'s own code on every sealed edition, and on the live edition again each day, and
   stores per question whether it was served, delivered its expected items, left out the forbidden
   ones and gave the expected status (item ids and booleans; never a wording). The first pass is
   the live edition's; every edition sealed after it gets one. `GET /evals/retrieval` (the live
@@ -96,7 +96,7 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   deliveries differ from the previous pass of the same edition and overlay (`date_expiry`). The
   run names its `trigger`; the budget and the spending caps hold as for any run.
 - **Cell cache** (FR-522): a cell whose inputs did not change (wording, expected results, what
-  `get_context` delivers, tool descriptions, prompts, models and effort, try) reuses the earlier
+  `get_facts` delivers, tool descriptions, prompts, models and effort, try) reuses the earlier
   result without a model call.
 - **Cost** (FR-409, FR-516): every run is estimated first, from typical calls that read and
   write the prompt cache as measured runs do; one above `evals.run_budget_micros` waits for
@@ -162,7 +162,7 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   ones hidden); any run is also readable by the person who started it. Gaps, topic counts and
   starting a draft from a gap stay with everyone signed in (FR-616).
 - **Models**: `MODELS=mock` (the default, and in every test) is a scripted model: it asks
-  `get_context` with the question and answers with the delivered ids, titles and summaries (and,
+  `get_facts` with the question and answers with the delivered ids, titles and summaries (and,
   when `get_related` is offered, follows the delivered items' links once and adds the neighbour
   items in service); the scripted judge grades by fixed rules. `MODELS=live` calls each role's
   provider with explicit model objects (`models.eval_answer`, Claude Sonnet 5.5 on the Anthropic
@@ -203,7 +203,7 @@ feedback's domain, and none of it returns a test question's or an agent's questi
   purge of delivery rows. Every count below `privacy.min_count` is null (FR-614), and so is a
   row's `total` when it or any verdict count in the row is hidden. Feedback no delivery or gap
   places is a row with a null domain, for an administrator asking for every domain.
-- `GET /quality/apps?weeks=`: how the AI apps that called the MCP server fared (FR-410), per app
+- `GET /quality/apps?weeks=`: how the agents that called the MCP server fared (FR-410), per app
   family and week (this week by default, at most 12): tool calls, and of them `needMoreDetail`
   and `noMatch` reads, `invalidInput` calls (arguments the tool could not read, FR-345) and
   `errors`. A family is one of a fixed list (`src/domain/app-family.ts`), mapped from the name an

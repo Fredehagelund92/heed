@@ -10,7 +10,7 @@ import { ConnectionsTab } from './connections-tab'
 import { ToolsTab } from './tools-tab'
 
 const tabTitles: Record<GatewayTab, string> = {
-  clients: 'AI apps',
+  clients: 'Agents',
   connections: 'Connections',
   tools: 'Tools',
   activity: 'Activity',
@@ -18,7 +18,7 @@ const tabTitles: Record<GatewayTab, string> = {
 
 /**
  * MCP and gateway (FR-407, FR-408; plan slice W11a), a section of Administration: which AI
- * clients may connect and with what limits, the AI apps people connected (FR-403), which tools
+ * clients may connect and with what limits, the agents people connected (FR-403), which tools
  * agents may call, and the traffic by client and tool. The tab is in the address (`tab=`); Clients is the default. Only an
  * administrator opens it; Administration tells anyone else whose section it is.
  */

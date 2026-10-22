@@ -20,7 +20,7 @@ import { clientOrigin, scopeWords } from '@/lib/connections'
 import { productName } from '@/lib/brand'
 
 /*
-  The consent screen of an AI app sign-in (FR-403, docs/ai-sign-in.md). The person's own AI app
+  The consent screen of an AI agent sign-in (FR-403, docs/ai-sign-in.md). The person's own AI agent
   sent them here from the login server; they sign in if they have not, read which app asks and
   what it may do, and allow or deny. The answer sends the browser back to the app. It stands
   outside the shell, like the signed-out page, and never inside another page's frame, so a
@@ -37,17 +37,17 @@ const framed = () => {
 
 export function ApprovePage({ requestId }: { requestId: string | undefined }) {
   return (
-    <AuthPage title="Connect an AI app">
+    <AuthPage title="Connect an AI agent">
       {framed() ? (
         <Notice title="This page can't open here">
           For your safety, {productName} shows this page only in its own browser tab. Go back to
-          your AI app and connect again.
+          your AI agent and connect again.
         </Notice>
       ) : requestId ? (
         <SignedIn requestId={requestId} />
       ) : (
         <Notice title="This sign-in link isn't complete">
-          Go back to your AI app and connect to {productName} again. It opens this page with a new
+          Go back to your AI agent and connect to {productName} again. It opens this page with a new
           link.
         </Notice>
       )}
@@ -114,8 +114,8 @@ function SignInStep() {
       <div className="flex flex-col gap-2">
         <h2 className="text-title font-bold tracking-title">Sign in to {productName}</h2>
         <p className="text-body text-muted-foreground">
-          An AI app asked to connect to {productName} as you. Sign in first, then decide whether to
-          allow it.
+          An AI agent asked to connect to {productName} as you. Sign in first, then decide whether
+          to allow it.
         </p>
       </div>
       <SignInMethods />
@@ -160,7 +160,7 @@ function Ended() {
   return (
     <Notice title="This sign-in has ended">
       It was answered already, it waited longer than ten minutes, or it was started in another
-      browser. Go back to your AI app and connect to {productName} again.
+      browser. Go back to your AI agent and connect to {productName} again.
     </Notice>
   )
 }
@@ -225,7 +225,7 @@ function ConsentForm({
         <p className="flex gap-2 text-dense text-muted-foreground">
           <ShieldCheckIcon aria-hidden="true" className="size-4 shrink-0" />
           It sees only what you can see, and it can never accept or share anything. You can
-          disconnect it at any time in Connect an AI app.
+          disconnect it at any time in Connect an agent.
         </p>
       </div>
       <div className="flex items-center gap-3 text-dense text-muted-foreground">
@@ -250,7 +250,7 @@ function ConsentForm({
       </div>
       <p className="flex gap-2 text-dense text-muted-foreground">
         <TriangleAlertIcon aria-hidden="true" className="size-4 shrink-0" />
-        Allow only an AI app you just asked to connect. If you didn&apos;t, choose Deny.
+        Allow only an AI agent you just asked to connect. If you didn&apos;t, choose Deny.
       </p>
     </section>
   )

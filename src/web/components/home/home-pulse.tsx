@@ -133,7 +133,7 @@ const tileState = (value: Loadable<unknown>): TileState =>
   value.state === 'ready' ? { state: 'ready' } : value
 
 function QuestionsTile({ agent }: { agent: Loadable<AgentPulse> }) {
-  const label = 'Questions from AI apps'
+  const label = 'Questions from agents'
   if (agent.state !== 'ready') return <Tile label={label} status={tileState(agent)} />
   const { weeks, minimum, none } = agent.data
   const week = weeks.at(-1)!
@@ -159,7 +159,7 @@ function QuestionsTile({ agent }: { agent: Loadable<AgentPulse> }) {
       }
       caption={
         none
-          ? 'No AI app has asked yet'
+          ? 'No agent has asked yet'
           : floor !== null
             ? `At least ${fmt(floor)}. A few more stay hidden.`
             : last === null
@@ -172,7 +172,7 @@ function QuestionsTile({ agent }: { agent: Loadable<AgentPulse> }) {
 }
 
 function AnsweredTile({ agent }: { agent: Loadable<AgentPulse> }) {
-  // The share of AI app calls that got at least one fact: reach, not whether an answer was right.
+  // The share of agent calls that got at least one fact: reach, not whether an answer was right.
   const label = 'Questions that found a fact'
   if (agent.state !== 'ready') return <Tile label={label} status={tileState(agent)} />
   const { weeks, minimum } = agent.data
@@ -188,7 +188,7 @@ function AnsweredTile({ agent }: { agent: Loadable<AgentPulse> }) {
       min={0}
       max={100}
       label={withChange(
-        `Share of AI app questions that found at least one fact per week, the last ${weeks.length} weeks: ${shares.map((share) => (share === null ? 'none' : `${Math.round(share)} percent`)).join(', ')}`,
+        `Share of agent questions that found at least one fact per week, the last ${weeks.length} weeks: ${shares.map((share) => (share === null ? 'none' : `${Math.round(share)} percent`)).join(', ')}`,
         trend,
       )}
     />
@@ -197,7 +197,7 @@ function AnsweredTile({ agent }: { agent: Loadable<AgentPulse> }) {
   let caption: string
   if (last.calls === 0) {
     value = <NoNumber>No questions</NoNumber>
-    caption = agent.data.none ? 'Shows once an AI app asks' : 'No AI app asked last week'
+    caption = agent.data.none ? 'Shows once an agent asks' : 'No agent asked last week'
   } else if (last.answered === null || last.calls === null || last.noItemCalls === null) {
     value = <NoNumber>Hidden</NoNumber>
     caption = `We hide counts under ${minimum}`

@@ -23426,7 +23426,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -26133,7 +26133,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -28035,7 +28035,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -30834,7 +30834,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -32316,7 +32316,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -33589,7 +33589,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -35122,7 +35122,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -36970,7 +36970,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -38208,7 +38208,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -39564,7 +39564,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -41018,7 +41018,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -46276,7 +46276,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps already get this edition, or some of its facts can't be shared with AI apps again."
+                          "default": "Agents already get this edition, or some of its facts can't be shared with agents again."
                         },
                         "data": {
                           "type": "object",
@@ -48875,7 +48875,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -51073,7 +51073,7 @@
     "/connections/request": {
       "get": {
         "operationId": "connections.request",
-        "summary": "The AI app sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query",
+        "summary": "The agent sign-in that this browser started, for the consent screen (FR-403); the handle goes in the query",
         "tags": [
           "session"
         ],
@@ -51679,7 +51679,7 @@
     "/connections": {
       "get": {
         "operationId": "connections.list",
-        "summary": "The AI apps connected to Heed as the signed-in person",
+        "summary": "The agents connected to Heed as the signed-in person",
         "tags": [
           "session"
         ],
@@ -51983,7 +51983,7 @@
     "/connections/{id}/disconnect": {
       "post": {
         "operationId": "connections.disconnect",
-        "summary": "Disconnect an AI app: its refresh tokens end and the MCP server refuses its access tokens at once",
+        "summary": "Disconnect an agent: its refresh tokens end and the MCP server refuses its access tokens at once",
         "tags": [
           "session"
         ],
@@ -52263,7 +52263,7 @@
     "/ai-connections": {
       "get": {
         "operationId": "aiConnections.list",
-        "summary": "Every person's AI app connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
+        "summary": "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
         "tags": [
           "admin"
         ],
@@ -52598,7 +52598,7 @@
     "/ai-connections/{id}/disconnect": {
       "post": {
         "operationId": "aiConnections.disconnect",
-        "summary": "Disconnect one person's AI app with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
+        "summary": "Disconnect one person's agent with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
         "tags": [
           "admin"
         ],
@@ -52996,7 +52996,7 @@
     "/ai-connections/people/{personId}/disconnect": {
       "post": {
         "operationId": "aiConnections.disconnectPerson",
-        "summary": "Disconnect every AI app of one person with one reason, in one step: each connection is its own history entry, with the batch id they share",
+        "summary": "Disconnect every agent of one person with one reason, in one step: each connection is its own history entry, with the batch id they share",
         "tags": [
           "admin"
         ],
@@ -59293,7 +59293,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "A fact is already in the Bin, or what AI apps get changed. Look at the latest version, then try again."
+                          "default": "A fact is already in the Bin, or what agents get changed. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -61959,7 +61959,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "A fact can't be shared with AI apps again, or what AI apps get changed. Look at the latest version, then try again."
+                          "default": "A fact can't be shared with agents again, or what agents get changed. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -73345,7 +73345,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -82473,7 +82473,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -84265,7 +84265,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -85737,7 +85737,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "The proposal, or what AI apps get, changed after you opened it. Look at the latest version, then try again."
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
                         },
                         "data": {}
                       },
@@ -89291,7 +89291,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -89942,7 +89942,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -90822,7 +90822,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -91507,7 +91507,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -92005,7 +92005,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -92454,7 +92454,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -93207,7 +93207,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -94828,7 +94828,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -95326,7 +95326,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -96054,7 +96054,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -96782,7 +96782,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -97510,7 +97510,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -98237,7 +98237,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -98965,7 +98965,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -99470,7 +99470,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -100933,7 +100933,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -101565,7 +101565,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -102078,7 +102078,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -104062,7 +104062,7 @@
     "/quality/apps": {
       "get": {
         "operationId": "quality.apps",
-        "summary": "How the AI apps that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)",
+        "summary": "How the agents that called the MCP server fared, per app family and week; small counts hidden (FR-410, FR-614)",
         "tags": [
           "quality"
         ],
@@ -114967,7 +114967,7 @@
     "/try-it": {
       "post": {
         "operationId": "tryIt.run",
-        "summary": "What an agent would get: get_context's reply for a scope on the live edition, without a model, recording nothing (FR-602)",
+        "summary": "What an agent would get: get_facts's reply for a scope on the live edition, without a model, recording nothing (FR-602)",
         "tags": [
           "assistant"
         ],
@@ -115928,7 +115928,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },
@@ -116482,7 +116482,7 @@
                         },
                         "message": {
                           "type": "string",
-                          "default": "AI apps don't get any facts yet. Ask an admin to finish the setup."
+                          "default": "Agents don't get any facts yet. Ask an admin to finish the setup."
                         },
                         "data": {}
                       },

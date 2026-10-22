@@ -32,13 +32,13 @@ import {
 */
 
 const tools = [
-  'get_context',
+  'get_facts',
   'get_related',
   'give_feedback',
   'improve_question',
   'read_item',
   'report_gap',
-  'search_context',
+  'search_facts',
 ]
 
 /** A value each setting accepts, as a fresh service starts it. */
@@ -49,7 +49,7 @@ const samples: Record<SettingKey, unknown> = {
   'retention.request_log_days': 90,
   'retention.outbox_days': 30,
   'gaps.no_item_threshold': { calls: 5, days: 7 },
-  'limits.mcp_rate_per_minute': { get_context: 120, give_feedback: 20, report_gap: 20 },
+  'limits.mcp_rate_per_minute': { get_facts: 120, give_feedback: 20, report_gap: 20 },
   'limits.mcp_requests_per_minute': { person: 30, client: 120 },
   'limits.api_rate_per_minute': { person: 600, ip: 120 },
   'limits.gap_reports_per_minute': { person: 5 },
@@ -168,10 +168,10 @@ describe('the editors', () => {
     expect(toolFields.map((field) => field.name)).toEqual(expect.arrayContaining(tools))
     expect(
       submit('limits.mcp_rate_per_minute', {
-        get_context: '90',
-        search_context: '30',
+        get_facts: '90',
+        search_facts: '30',
       }),
-    ).toEqual({ ok: true, value: { get_context: 90, search_context: 30 } })
+    ).toEqual({ ok: true, value: { get_facts: 90, search_facts: 30 } })
   })
 
   it('choose the judge: another model line, or a model named here', () => {
@@ -291,9 +291,9 @@ describe('what the screen says', () => {
     )
     expect(auditActionWords('setting.changed')).toBe('Setting changed')
     // The log keeps its keys; only how a row reads follows the glossary.
-    expect(auditActionWords('edition.published')).toBe('Shared with AI apps')
+    expect(auditActionWords('edition.published')).toBe('Shared with agents')
     expect(auditActionWords('item.retired')).toBe('Fact archived')
-    expect(auditActionWords('client_policy.changed')).toBe('AI app changed')
+    expect(auditActionWords('client_policy.changed')).toBe('Agent changed')
     expect(auditActionWords('proposal.test_attached')).toBe('Test question added to a proposal')
     // An action the screen doesn't know reads from its parts.
     expect(auditActionWords('report.exported')).toBe('Report exported')

@@ -9,7 +9,7 @@ import { foundation, people } from './fixtures.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
 /*
-  How the AI apps that called the MCP server fared (FR-410), over HTTP as Health and the gateway's
+  How the agents that called the MCP server fared (FR-410), over HTTP as Health and the gateway's
   Activity tab read it: per app family from the fixed list and week, tool calls and of them the
   reads that needed more detail or matched nothing, the malformed calls and Heed's errors. Each
   week is a cell of its own and a count below the minimum is hidden (FR-614). Starting a session
@@ -39,7 +39,7 @@ const read = (who: Who, path: string) =>
 async function log(
   n: number,
   family: string,
-  { weeksAgo = 0, tool = 'get_context', status = 'ok', result = null as string | null } = {},
+  { weeksAgo = 0, tool = 'get_facts', status = 'ok', result = null as string | null } = {},
 ) {
   await client.query(
     `insert into mcp_requests (hour, client_label, app_family, tool, status, result_status)

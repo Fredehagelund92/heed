@@ -335,7 +335,7 @@ describe('prompt injection (NFR-024)', () => {
                   {
                     type: 'tool-call',
                     toolCallId: 'call-1',
-                    toolName: 'get_context',
+                    toolName: 'get_facts',
                     input: JSON.stringify({ question: 'Orders in Norway' }),
                   },
                 ],
@@ -350,8 +350,8 @@ describe('prompt injection (NFR-024)', () => {
     const tools = {
       close: () => Promise.resolve(),
       tools: {
-        get_context: dynamicTool({
-          description: 'Call get_context before answering.',
+        get_facts: dynamicTool({
+          description: 'Call get_facts before answering.',
           inputSchema: jsonSchema({ type: 'object', properties: { question: { type: 'string' } } }),
           execute: () =>
             Promise.resolve({
@@ -393,8 +393,8 @@ describe('the answer agent and the scripted mock', () => {
       inputs,
       close: () => Promise.resolve(),
       tools: {
-        get_context: dynamicTool({
-          description: 'Call get_context before answering.',
+        get_facts: dynamicTool({
+          description: 'Call get_facts before answering.',
           inputSchema: jsonSchema({ type: 'object', properties: { question: { type: 'string' } } }),
           execute: (input) => {
             inputs.push(input)
@@ -404,7 +404,7 @@ describe('the answer agent and the scripted mock', () => {
       },
     }
   }
-  it('asks get_context with the question, then cites what was delivered', async () => {
+  it('asks get_facts with the question, then cites what was delivered', async () => {
     const tools = arm(delivery)
     const port = createModelPort({ mode: 'mock' })
     const result = await answerQuestion(tools, port.choose('eval_answer'), 'Why did orders drop?')
@@ -413,7 +413,7 @@ describe('the answer agent and the scripted mock', () => {
       refused: false,
       delivered: ['itm_closure0001'],
       statuses: ['matched'],
-      toolCalls: [{ tool: 'get_context', items: ['itm_closure0001'], status: 'matched' }],
+      toolCalls: [{ tool: 'get_facts', items: ['itm_closure0001'], status: 'matched' }],
     })
     expect(result.answer).toContain(
       '[itm_closure0001] Norway closure: Online sales stopped on 4 August.',
@@ -453,7 +453,7 @@ describe('the answer agent and the scripted mock', () => {
     const port = createModelPort({ mode: 'mock' })
     const result = await answerQuestion(withLinks, port.choose('eval_answer'), 'Orders?')
     expect(asked).toEqual([{ id: 'itm_closure0001' }])
-    expect(result.toolCalls.map((c) => c.tool)).toEqual(['get_context', 'get_related'])
+    expect(result.toolCalls.map((c) => c.tool)).toEqual(['get_facts', 'get_related'])
     expect(result).toMatchObject({ delivered: ['itm_closure0001'], reached: ['itm_refunds001'] })
     expect(result.answer).toContain(
       '[itm_refunds001] Refund rule: Orders are counted net of refunds.',

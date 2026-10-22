@@ -423,7 +423,7 @@ describe('links in an answer', () => {
       '/editions/compare',
     ]
     for (const path of told) expect(internalPath(path)).toBe(path)
-    // Every page of the app is reachable but the sign-in, the AI app consent and the previews.
+    // Every page of the app is reachable but the sign-in, the agent consent and the previews.
     const routes = readFileSync('src/web/routeTree.gen.ts', 'utf8')
     const paths = new Set(
       [...routes.matchAll(/fullPath: '(\/[^']*)'/g)].map((match) => match[1]!.replace(/\/$/, '')),

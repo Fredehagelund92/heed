@@ -53,7 +53,7 @@ export type MockAssistantReads = {
   }[]
   /** The items served to everyone on the live edition. */
   items: readonly MockServedItem[]
-  /** get_context's reply for a question and a typed scope. */
+  /** get_facts's reply for a question and a typed scope. */
   context: (question: string, input: TryItInput) => PreviewReply
   /** explain_item: whether one item applies to the question and scope, and why. */
   explain: (id: string, question: string, input: TryItInput) => Applicability
@@ -98,11 +98,11 @@ const SUMMARY_LIMIT = 12
 
 /** The service's words for why a fact does or doesn't apply (assistant/tools.ts, reasonText). */
 const reasons: Record<string, string> = {
-  not_in_edition: "AI apps don't get it today.",
+  not_in_edition: "Agents don't get it today.",
   need_more_detail: 'I need a metric, a market or dates first.',
   audience: "It's only for some groups of people.",
-  stopped: "It's switched off, so AI apps don't get it for now.",
-  high_risk_unverified: "It's high risk and needs checking first, so AI apps don't get it yet.",
+  stopped: "It's switched off, so agents don't get it for now.",
+  high_risk_unverified: "It's high risk and needs checking first, so agents don't get it yet.",
   cut: 'It applies, but the answer was full, so it was left out.',
   retired: "It's archived.",
 }
@@ -235,7 +235,7 @@ function metaFacts(reads: MockAssistantReads): MetaFacts {
   }
 }
 
-/** get_context, then explain_item for up to two nearby facts that do not apply. */
+/** get_facts, then explain_item for up to two nearby facts that do not apply. */
 function lookUp(
   reads: MockAssistantReads,
   question: string,
@@ -245,7 +245,7 @@ function lookUp(
   const reply = reads.context(question, input)
   const calls: Call[] = [
     {
-      tool: 'get_context',
+      tool: 'get_facts',
       input: { question, ...input, max_items: 20 },
       output: reply,
     },
@@ -398,7 +398,7 @@ function readOne(reads: MockAssistantReads, item: MockServedItem): Turn {
   }
 }
 
-/** find_context for one domain's name: a summary of what it covers, cut at the length limit. */
+/** find_facts for one domain's name: a summary of what it covers, cut at the length limit. */
 function summarise(
   reads: MockAssistantReads,
   area: { id: string; name: string; summary: string },
@@ -438,7 +438,7 @@ function summarise(
     .join(', ')
   const listed = page.slice(0, SUMMARY_LIMIT)
   return {
-    calls: [{ tool: 'find_context', input: { query: area.name, limit: 20 }, output }],
+    calls: [{ tool: 'find_facts', input: { query: area.name, limit: 20 }, output }],
     text: [
       `**${area.name} has ${counted(found.length, 'fact', 'facts').toLowerCase()}.**`,
       `By kind: ${mix || 'none yet'}.`,
@@ -522,7 +522,7 @@ const coach: Turn = {
     '- Where it applies: the metrics, markets or products.',
     '- From when, and until when if it has ended.',
     '- How you know: a link to the source and a short quote from it.',
-    "I'll suggest careful wording and a date to check it again. The owner of its domain checks the draft before AI apps get it.",
+    "I'll suggest careful wording and a date to check it again. The owner of its domain checks the draft before AI agents get it.",
   ].join('\n'),
   finish: 'stop',
 }
@@ -736,7 +736,7 @@ function choose(
 }
 
 /**
- * The person's last message: the question's words, the scope sent with it, and what get_context
+ * The person's last message: the question's words, the scope sent with it, and what get_facts
  * reads for it: the scope the composer showed (`data-scope`), bound as the service binds it.
  */
 function lastQuestion(messages: readonly UIMessage[]) {

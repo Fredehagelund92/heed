@@ -25,7 +25,7 @@ export const wordingSchema = z.object({
   kind: z.enum(['natural', 'precise']),
 })
 
-/** The governed scope the question is about, in get_context's own input form. */
+/** The governed scope the question is about, in get_facts's own input form. */
 export const questionScopeSchema = z.object({
   metrics: z.optional(z.array(key).check(z.maxLength(10))),
   dimension_filters: z.optional(
@@ -46,7 +46,7 @@ export const questionScopeSchema = z.object({
 /**
  * What a good answer shows. `caveat` is a must-have caveat: it is scored with strict pass, so
  * every try must contain it (FR-515). `status` is the status the agent's context tool must give:
- * get_context, or find_context, which replies in the same shape.
+ * get_facts, or find_facts, which replies in the same shape.
  * A link-follow question (FR-523) names the items whose context the answer must reach through a
  * link (`read_item` or `get_related`), and the stale or hidden link targets it must neither read
  * nor cite. Both are optional, so earlier questions keep their exact text and cache keys.
@@ -179,10 +179,10 @@ export type Observation = {
   /** The model declined (a refusal): no answer, never a pass or a fail. */
   refused: boolean
   answer: string
-  /** Items the agent's context calls (get_context or find_context) gave it. */
+  /** Items the agent's context calls (get_facts or find_facts) gave it. */
   delivered: string[]
   /**
-   * The delivered items given as applying to the scope asked: a word match of find_context is a
+   * The delivered items given as applying to the scope asked: a word match of find_facts is a
    * search hit, not a claim that it applies, so only these can break `must_not_deliver`.
    */
   applied: string[]
@@ -424,7 +424,7 @@ export function flipOf(baseline: Verdict, candidate: Verdict): Flip | null {
   return null
 }
 
-/** What get_context gave one wording: its status and the ids of the items it delivered. */
+/** What get_facts gave one wording: its status and the ids of the items it delivered. */
 export type DeliveryObservation = { status: string | null; delivered: readonly string[] }
 export type RetrievalChecks = {
   /** The reply was served: the context checks ran. */

@@ -183,10 +183,10 @@ test('the agent view shows the body an agent receives, and condenses the overlap
   await page.keyboard.type('Compare Norway with a market that was not affected.')
   await waitForSaved(page)
   await expectFlatRail(
-    page.getByRole('complementary', { name: 'Details and what AI apps get' }),
+    page.getByRole('complementary', { name: 'Details and what agents get' }),
     'left',
   )
-  await page.getByRole('tab', { name: 'What AI apps get' }).click()
+  await page.getByRole('tab', { name: 'What agents get' }).click()
   const preview = page.locator('[data-slot="agent-preview"]').first()
   await expect(preview).toHaveAttribute('data-state', 'matched')
   const body = preview.locator('[data-slot="agent-preview-body"]').first()
@@ -204,8 +204,8 @@ test('opens the agent view from the phone menu', async ({ page }) => {
   await fillContext(page)
   await waitForSaved(page)
   await page.getByRole('button', { name: 'More form actions' }).click()
-  await page.getByRole('menuitem', { name: 'What AI apps will get' }).click()
-  await expect(page.getByRole('tab', { name: 'What AI apps get' })).toHaveAttribute(
+  await page.getByRole('menuitem', { name: 'What agents will get' }).click()
+  await expect(page.getByRole('tab', { name: 'What agents get' })).toHaveAttribute(
     'aria-selected',
     'true',
   )
@@ -279,7 +279,7 @@ test('the agent view asks about a day with a date picker', async ({ page }) => {
   await openPage(page, '/library/new', { ...widths[0], theme: 'light' })
   await fillContext(page)
   await waitForSaved(page)
-  await page.getByRole('tab', { name: 'What AI apps get' }).click()
+  await page.getByRole('tab', { name: 'What agents get' }).click()
   await expectDatePicker(page, 'On which day')
 })
 
@@ -325,7 +325,7 @@ test('where it comes from and what not to conclude explain themselves, and follo
   page,
 }) => {
   await openPage(page, '/library/new', { ...widths[0], theme: 'light' })
-  const rail = page.getByRole('complementary', { name: 'Details and what AI apps get' })
+  const rail = page.getByRole('complementary', { name: 'Details and what agents get' })
   const source = rail.getByRole('region', { name: 'Where this comes from' })
   const caveat = rail.getByRole('region', { name: 'What not to conclude' })
   await expect(source.getByText('Needed')).toBeVisible()
@@ -343,13 +343,13 @@ test('where it comes from and what not to conclude explain themselves, and follo
   await expect(caveat.getByText('Needed')).toHaveCount(0)
   await expect(
     caveat.getByText(
-      'AI apps get this line with the fact and are told not to draw that conclusion.',
+      'Agents get this line with the fact and are told not to draw that conclusion.',
     ),
   ).toBeVisible()
   await expect(caveat.getByRole('button', { name: /Why we ask/ })).toHaveCount(0)
-  const card = caveat.getByRole('figure', { name: 'What AI apps get' })
+  const card = caveat.getByRole('figure', { name: 'What agents get' })
   await expect(card).toContainText(
-    "Nothing added. AI apps already know this fact doesn't prove a cause",
+    "Nothing added. Agents already know this fact doesn't prove a cause",
   )
   // The example follows the kind chosen in the header.
   await expect(caveat.locator('[data-slot="caveat-example"]')).toContainText(
@@ -367,7 +367,7 @@ test('where it comes from and what not to conclude explain themselves, and follo
   await expect(card).toContainText(
     "What not to conclude: Don't use this for comparing Poland with other markets.",
   )
-  await card.getByRole('button', { name: 'Show exactly what AI apps get' }).click()
+  await card.getByRole('button', { name: 'Show exactly what agents get' }).click()
   await expect(card.locator('pre')).toHaveText(
     '"not_to_conclude": "Don\'t use this for comparing Poland with other markets."',
   )

@@ -89,7 +89,7 @@ export type Expectations = {
   cites?: true
   /** The answer cites this subject's item. */
   citesSubject?: true
-  /** A get_context call asks about last week, counted from today (not the edition's date). */
+  /** A get_facts call asks about last week, counted from today (not the edition's date). */
   lastWeek?: true
   /** The answer never asks the person for their id, email or name: Heed knows them. */
   asksNoIdentity?: true
@@ -157,8 +157,8 @@ export const assistantCases: AssistantCase[] = [
   {
     id: 'explain-delivery',
     needsItem: true,
-    say: (s) => `What context applies to ${week(s)}?`,
-    expect: { someTool: ['get_context', 'explain_item'], cites: true, unchanged: true },
+    say: (s) => `Which facts apply to ${week(s)}?`,
+    expect: { someTool: ['get_facts', 'explain_item'], cites: true, unchanged: true },
     rubrics: ['Says which facts apply, each in a sentence on what it means for the question'],
   },
   {
@@ -172,7 +172,7 @@ export const assistantCases: AssistantCase[] = [
     needsItem: true,
     say: (s) =>
       `Why does ${s.item.id} not apply to ${s.metric} in ${s.value} from ${s.before} to ${s.before}?`,
-    expect: { someTool: ['explain_item', 'get_context', 'read_item'], unchanged: true },
+    expect: { someTool: ['explain_item', 'get_facts', 'read_item'], unchanged: true },
   },
   {
     id: 'coach-question',
@@ -206,7 +206,7 @@ export const assistantCases: AssistantCase[] = [
     id: 'last-week',
     needsItem: true,
     say: (s) => `Which facts apply to ${s.metric} in ${s.value} last week?`,
-    expect: { someTool: ['get_context'], lastWeek: true, unchanged: true },
+    expect: { someTool: ['get_facts'], lastWeek: true, unchanged: true },
   },
   {
     // The companion review: an owner was asked for his own id.
@@ -229,7 +229,7 @@ export const assistantCases: AssistantCase[] = [
     id: 'what-it-means',
     needsItem: true,
     say: (s) => `What does ${s.metric} mean, and where does that definition come from?`,
-    expect: { someTool: ['find_context'], unchanged: true },
+    expect: { someTool: ['find_facts'], unchanged: true },
   },
   {
     // The companion review: an owner asked what changed and no tool could say.
@@ -242,7 +242,7 @@ export const assistantCases: AssistantCase[] = [
     id: 'what-first',
     say: () => 'I was just made a deputy owner. What should I look at first?',
     expect: {
-      someTool: ['domain_overview', 'find_context'],
+      someTool: ['domain_overview', 'find_facts'],
       asksNoIdentity: true,
       unchanged: true,
     },
@@ -335,7 +335,7 @@ export const assistantCases: AssistantCase[] = [
     id: 'voice-revenue-right',
     say: () => "is the revenue number in this week's exec pack right",
     expect: {
-      someTool: ['find_context', 'get_context'],
+      someTool: ['find_facts', 'get_facts'],
       asksNoIdentity: true,
       unchanged: true,
     },
@@ -348,7 +348,7 @@ export const assistantCases: AssistantCase[] = [
     id: 'voice-nothing-written',
     needsItem: true,
     say: (s) => `Anything I should know about ${s.metric} in ${s.value} from 1 to 7 January 1999?`,
-    expect: { someTool: ['get_context'], unchanged: true },
+    expect: { someTool: ['get_facts'], unchanged: true },
     rubrics: [
       'Says plainly that nothing is written down for it, and offers to help write it down, without saying how matching works',
     ],
@@ -451,7 +451,7 @@ export type Outcome = {
   inputs?: unknown[]
   confirmations: string[]
   citations: CitationReport | null
-  /** The dates each get_context call asked about. */
+  /** The dates each get_facts call asked about. */
   windows?: { from?: unknown; to?: unknown }[]
   /** What the answer said before a tool call: a working note the person saw (workingNotes). */
   notes?: string[]
@@ -532,7 +532,7 @@ async function read(stream: AsyncGenerator<UIMessageChunk>, start: number) {
       outcome.tools.push(chunk.toolName)
       outcome.inputs!.push(chunk.input)
       const window = (chunk.input as { window?: { from?: unknown; to?: unknown } } | null)?.window
-      if (chunk.toolName === 'get_context' && window) outcome.windows!.push(window)
+      if (chunk.toolName === 'get_facts' && window) outcome.windows!.push(window)
     }
     if (chunk.type === 'tool-output-available') {
       const call = calls.get(chunk.toolCallId)

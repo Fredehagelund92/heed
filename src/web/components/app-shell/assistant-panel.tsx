@@ -21,9 +21,9 @@ const tabs: readonly DockTab<AssistantTab>[] = [
  * on, and stays open as you move between pages. It is never shown with the assistant's own pages
  * (contract 9.8). Ask is the assistant's chat (Assistant board, direction A), with its composer
  * pinned at the bottom and New chat in its bar. Try a question is Try it: a scope in, the facts
- * and instructions an AI app gets out, with no model. The two share one scope (C's shared scope
- * bar), so an answer and what an AI app gets are about the same thing; using these facts in your
- * own AI app is a setting of your own (Settings, Connect an AI app). Each tab expands to its own page, with the
+ * and instructions an agent gets out, with no model. The two share one scope (C's shared scope
+ * bar), so an answer and what an agent gets are about the same thing; using these facts in your
+ * own agent is a setting of your own (Settings, Connect an agent). Each tab expands to its own page, with the
  * scope; Ask keeps its conversation there.
  */
 export function AssistantPanel({

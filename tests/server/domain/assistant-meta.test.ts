@@ -175,7 +175,7 @@ describe('a question about how Heed works, which its help pages answer', () => {
     'How do I connect Claude Code to Heed?',
     'How do I review a proposal?',
     'Does Heed keep my questions?',
-    'Can my AI app change items?',
+    'Can my agent change items?',
     'who can see what I write?',
     'Hi, what is an owner please',
   ])('reads %s as one', (text) => {

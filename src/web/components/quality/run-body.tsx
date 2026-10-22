@@ -180,7 +180,7 @@ export function RunSummary({ detail }: { detail: EvalRunDetail }) {
           <FieldRow
             icon={ScaleIcon}
             label="Judge and code"
-            hint="Where the AI judge and the code checks disagree on a question. A judge that passes what the code checks fail is more lenient than the record of what the AI app got."
+            hint="Where the AI judge and the code checks disagree on a question. A judge that passes what the code checks fail is more lenient than the record of what the agent got."
           >
             {agreement.judgePassedCodeFailed.length || agreement.codePassedJudgeFailed.length
               ? [
@@ -604,7 +604,7 @@ export function Transcript({
                   ) : (
                     <MessageCircleIcon aria-hidden="true" className="size-icon-sm" />
                   )}
-                  {turn.role === 'person' ? 'Question' : 'AI app'}
+                  {turn.role === 'person' ? 'Question' : 'Agent'}
                 </span>
                 <p className="text-body whitespace-pre-wrap">{turn.text}</p>
               </>

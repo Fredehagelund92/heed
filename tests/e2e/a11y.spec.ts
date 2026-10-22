@@ -130,12 +130,12 @@ test.describe('axe with an open overlay', () => {
         GATEWAY_ADMIN,
       )
       await openPage(page, '/admin?section=gateway', { ...widths[0], theme })
-      await page.getByRole('button', { name: 'Add an AI app' }).click()
-      const dialog = page.getByRole('dialog', { name: 'Add an AI app' })
-      await dialog.getByRole('button', { name: 'Add AI app' }).click()
+      await page.getByRole('button', { name: 'Add an agent' }).click()
+      const dialog = page.getByRole('dialog', { name: 'Add an agent' })
+      await dialog.getByRole('button', { name: 'Add agent' }).click()
       await expect(dialog.getByRole('alert')).toBeVisible()
       await dialog.getByRole('radio', { name: 'Only the tools chosen below' }).check()
-      await dialog.getByRole('button', { name: 'Add AI app' }).click()
+      await dialog.getByRole('button', { name: 'Add agent' }).click()
       await expect(dialog).toContainText('Fix these 4 problems first')
       await settle(page)
       const results = await new AxeBuilder({ page }).withTags(wcag).analyze()
@@ -263,7 +263,7 @@ test.describe('axe with an open overlay', () => {
         await page.getByRole('button', { name: 'More actions for this edition' }).click()
         await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
         await expect(
-          page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' }),
+          page.getByRole('alertdialog', { name: 'Stop sharing with agents?' }),
         ).toContainText('facts in Customer value. Other domains stay as they are.')
         await settle(page)
         const results = await new AxeBuilder({ page }).withTags(wcag).analyze()

@@ -60,7 +60,7 @@ test('an owner finds Health in the sidebar, writes a test question and runs thei
   await expect(grid(page).getByRole('rowheader')).toHaveText(['Sales', 'Sandbox'], {
     timeout: 15_000,
   })
-  await expect(strip(page)).toContainText('AI apps get the facts as of')
+  await expect(strip(page)).toContainText('Agents get the facts as of')
   await expect(page.locator('[data-slot="quality-verdict"]')).toBeVisible()
 
   // A question of its own, so this test does not depend on another's.
@@ -164,7 +164,7 @@ test('an administrator sees every domain, and the old addresses land on Health',
   await page.goto('/gaps?status=open')
   await expect(page).toHaveURL(/\/health\?view=gaps&status=open$/)
   // The topic counts stay on the Gaps page, linked from Health's Gaps view.
-  await workList(page).getByRole('link', { name: 'See what AI apps ask about, per week' }).click()
+  await workList(page).getByRole('link', { name: 'See what agents ask about, per week' }).click()
   await expect(page).toHaveURL(/\/gaps\?view=topics$/)
   await expect(page.getByRole('navigation', { name: 'Gap views' })).toBeVisible()
 })
@@ -356,7 +356,7 @@ test('an owner writes a test from a gap, links and unlinks it, and resolving wai
   const verification = actions(page).locator('[data-slot="gap-verification"]')
   await expect(verification).toContainText(/Marked resolved .+\./)
   await expect(verification).toContainText(
-    'Not yet. It waits for a weekly or full run to pass on what AI apps get since it was resolved. 0 of 1 linked test has passed.',
+    'Not yet. It waits for a weekly or full run to pass on what agents get since it was resolved. 0 of 1 linked test has passed.',
   )
   await expect(verification.getByRole('button', { name: 'Run Sales now' })).toBeVisible()
   const gap = await context.request.get(`/api/v1/gaps/${gapId}`)

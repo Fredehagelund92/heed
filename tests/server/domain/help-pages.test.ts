@@ -100,7 +100,7 @@ describe('a help page as search_help reads it', () => {
         '[a missing page](missing.md), [the spec](https://modelcontextprotocol.io), [AI sign-in](../ai-sign-in.md)',
         'and [a script](javascript:alert(1)).',
         '',
-        "![The plug: AI apps on the left, Heed on the right.](images/mcp-plug.svg 'One plug.')",
+        "![The plug: agents on the left, Heed on the right.](images/mcp-plug.svg 'One plug.')",
       ].join('\n'),
       ['mcp', 'glossary'],
     )
@@ -114,7 +114,7 @@ describe('a help page as search_help reads it', () => {
       '[AI sign-in](https://github.com/Fredehagelund92/heed/blob/main/docs/ai-sign-in.md)',
     )
     expect(text).not.toContain('javascript:')
-    expect(text).toContain('The plug: AI apps on the left, Heed on the right.')
+    expect(text).toContain('The plug: agents on the left, Heed on the right.')
     expect(text).not.toContain('mcp-plug.svg')
   })
 
@@ -186,7 +186,7 @@ describe('the search over the help pages', () => {
     page(
       'mcp',
       'What is an MCP',
-      '## In one minute\n\nMCP is a plug for AI apps. Heed offers one.\n\n## What it is not\n\nAn MCP is not a model.',
+      '## In one minute\n\nMCP is a plug for agents. Heed offers one.\n\n## What it is not\n\nAn MCP is not a model.',
     ),
     page(
       'glossary',

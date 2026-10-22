@@ -113,7 +113,7 @@ export function lifecycleCopy(
     return {
       key: 'future',
       title: 'Not started yet',
-      line: `It applies from ${long(start)}, in ${plural(daysFrom(today, start), 'day')}${last === null ? '' : `, until ${long(last)}`}. AI apps get it only for questions about dates from then on.${review === null ? '' : ` The owner checks it by ${long(review)}.`}`,
+      line: `It applies from ${long(start)}, in ${plural(daysFrom(today, start), 'day')}${last === null ? '' : `, until ${long(last)}`}. Agents get it only for questions about dates from then on.${review === null ? '' : ` The owner checks it by ${long(review)}.`}`,
     }
   }
   switch (conditions.lifecycle) {
@@ -123,7 +123,7 @@ export function lifecycleCopy(
       return {
         key: 'retired',
         title: 'Archived',
-        line: `${who && when ? `${who} archived it on ${long(when)}. ` : ''}It stays in the history, and AI apps don't get it.`,
+        line: `${who && when ? `${who} archived it on ${long(when)}. ` : ''}It stays in the history, and agents don't get it.`,
       }
     }
     case 'ended': {
@@ -131,7 +131,7 @@ export function lifecycleCopy(
       return {
         key: 'ended',
         title: 'Ended',
-        line: `It ended ${ago === 0 ? 'today' : `${plural(ago, 'day')} ago`}, on ${long(last ?? today)}. AI apps get it only for questions about that period.`,
+        line: `It ended ${ago === 0 ? 'today' : `${plural(ago, 'day')} ago`}, on ${long(last ?? today)}. Agents get it only for questions about that period.`,
       }
     }
     case 'resolved_issue': {
@@ -139,7 +139,7 @@ export function lifecycleCopy(
       return {
         key: 'resolved_issue',
         title: 'Resolved',
-        line: `Resolved on ${long(lastDay)}. It applied ${appliedRange(start, lastDay)}, so AI apps get it only for questions about that period.`,
+        line: `Resolved on ${long(lastDay)}. It applied ${appliedRange(start, lastDay)}, so agents get it only for questions about that period.`,
       }
     }
     case 'active_issue': {
@@ -148,17 +148,17 @@ export function lifecycleCopy(
         return {
           key: 'active_issue',
           title: 'Active issue',
-          line: `It started on ${long(start)} and applies until ${long(last)}, ${left === 0 ? 'which is today' : `in ${plural(left, 'day')}`}. AI apps warn about it in answers about that time.`,
+          line: `It started on ${long(start)} and applies until ${long(last)}, ${left === 0 ? 'which is today' : `in ${plural(left, 'day')}`}. Agents warn about it in answers about that time.`,
         }
       }
       return {
         key: 'active_issue',
         title: 'Active issue',
-        line: `It started on ${long(start)} and is still going on. AI apps warn about it in answers about that time.${reviewLine('still_going_on')}`,
+        line: `It started on ${long(start)} and is still going on. Agents warn about it in answers about that time.${reviewLine('still_going_on')}`,
       }
     }
     case 'accepted': {
-      const agents = calm ? ' AI apps get it when a question is about it.' : ''
+      const agents = calm ? ' Agents get it when a question is about it.' : ''
       if (last !== null) {
         const left = daysFrom(today, last)
         return {
@@ -273,7 +273,7 @@ export function nextCheckText(
 }
 
 /**
- * The one line under the title while something needs checking: what AI apps do with the fact and
+ * The one line under the title while something needs checking: what agents do with the fact and
  * who acts. The badges say what is wrong; this says the consequence. Null when nothing does.
  */
 export function noteText(
@@ -291,7 +291,7 @@ export function noteText(
       ? 'checks it again'
       : 'checks it'
   const head =
-    item.riskLevel === 'high' ? 'AI apps may not get it' : 'AI apps are told it may be out of date'
+    item.riskLevel === 'high' ? 'Agents may not get it' : 'Agents are told it may be out of date'
   return `${head} until ${who} ${act}.`
 }
 

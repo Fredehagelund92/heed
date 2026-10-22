@@ -317,8 +317,8 @@ export function Delivered({
         </tbody>
       </table>
       <p className="text-caption text-muted-foreground">
-        From controlled test calls, counted over every try. Given means the AI app got the fact. It
-        doesn&apos;t show what the AI app did with it.
+        From controlled test calls, counted over every try. Given means the agent got the fact. It
+        doesn&apos;t show what the agent did with it.
       </p>
     </RecordSection>
   )
@@ -454,7 +454,7 @@ export function SameScope({
         </p>
       ) : matching.length === 0 ? (
         <p className="text-body text-muted-foreground">
-          No gap is about this question’s topic. Either AI apps haven&apos;t missed anything on it,
+          No gap is about this question’s topic. Either agents haven&apos;t missed anything on it,
           or you can&apos;t see such a gap here.
         </p>
       ) : (

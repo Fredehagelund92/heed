@@ -7,7 +7,7 @@ import type { ItemTab, TryItSearch } from '@/lib/search-params'
 
 /*
   What an agent would get (Try it): a typed scope (metrics, market or product values, and the
-  first and last day) in, get_context's reply on the live edition out, with no model and nothing
+  first and last day) in, get_facts's reply on the live edition out, with no model and nothing
   recorded. The scope lives in the address on the page, so a link shows the same reply.
 */
 
@@ -79,7 +79,7 @@ export const hasTerms = (scope: Scope) =>
 /** The request: metrics, the values grouped by their dimension, and the days, both included. */
 export function tryItInput({ scope, from, to }: TryItScope): TryItInput {
   const values = new Map<string, string[]>()
-  // A dimension with any value is named without a value, as get_context reads it.
+  // A dimension with any value is named without a value, as get_facts reads it.
   for (const dimension of scope.dimensions) values.set(dimension, [])
   for (const { dimension, value } of scope.dimensionValues)
     values.set(dimension, [...(values.get(dimension) ?? []), value])
@@ -111,9 +111,9 @@ export type ScopeNeed = { field: 'dates' | 'scope' | 'term'; words: string }
 
 export type TriedReply = {
   status: PreviewReply['status']
-  /** What the AI app may tell the person, word for word (`say`, FR-344). */
+  /** What the agent may tell the person, word for word (`say`, FR-344). */
   say: string | null
-  /** The step the AI app is told to take next (`next`): for it, not the person. */
+  /** The step the agent is told to take next (`next`): for it, not the person. */
   next: string | null
   /** The edition the reply came from; null when the checks could not run. */
   edition: string | null

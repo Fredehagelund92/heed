@@ -246,11 +246,11 @@ export function ScopeStrip({
       <span className="flex min-w-0 items-center gap-2 text-dense text-muted-foreground">
         {live ? (
           <span>
-            AI apps get the facts as of{' '}
+            Agents get the facts as of{' '}
             <span className="text-foreground">{formatDay(live.sealedAt ?? live.createdAt)}</span>
           </span>
         ) : editions.data ? (
-          <span>AI apps get no facts yet</span>
+          <span>Agents get no facts yet</span>
         ) : (
           <Skeleton className="h-4 w-16" />
         )}

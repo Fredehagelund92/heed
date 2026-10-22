@@ -18,7 +18,7 @@ import {
 } from '@/lib/connections'
 
 /*
-  A person's own AI apps in the web app: the plain words of the consent screen, what the http
+  A person's own agents in the web app: the plain words of the consent screen, what the http
   binding sends (the local sign-in's fixed header, then the session's token on the answer), and
   the mock's one pending sign-in, which is answered once, and the apps people connected: each
   person's own, and everyone's for an administrator, who disconnects them with a reason.
@@ -30,7 +30,7 @@ describe('the words', () => {
     expect(scopeSummary(['read', 'feedback'])).toBe('Read and feedback')
     expect(scopeSummary(['read', 'feedback', 'propose'])).toBe('Read, feedback and suggest changes')
   })
-  it('says how the app is known and where the answer goes', () => {
+  it('says how the agent is known and where the answer goes', () => {
     expect(
       clientOrigin({
         clientKind: 'document',
@@ -38,7 +38,7 @@ describe('the words', () => {
         redirectHost: 'app.example',
       }),
     ).toBe(
-      'The app describes itself at app.example. Heed sends you back to app.example when you answer.',
+      'The agent describes itself at app.example. Heed sends you back to app.example when you answer.',
     )
     expect(
       clientOrigin({
@@ -46,7 +46,9 @@ describe('the words', () => {
         clientHost: '127.0.0.1',
         redirectHost: '127.0.0.1',
       }),
-    ).toBe('The app registered itself with Heed. Heed sends you back to 127.0.0.1 when you answer.')
+    ).toBe(
+      'The agent registered itself with Heed. Heed sends you back to 127.0.0.1 when you answer.',
+    )
   })
 })
 
@@ -131,9 +133,9 @@ describe('every person’s apps, for an administrator', () => {
   })
 
   it('counts the apps and the people, or what a search kept', () => {
-    expect(connectionCountWords(all, all)).toBe('4 AI apps for 3 people')
-    expect(connectionCountWords(all.slice(0, 1), all.slice(0, 1))).toBe('1 AI app for 1 person')
-    expect(connectionCountWords(all.slice(0, 2), all)).toBe('2 of 4 AI apps')
+    expect(connectionCountWords(all, all)).toBe('4 agents for 3 people')
+    expect(connectionCountWords(all.slice(0, 1), all.slice(0, 1))).toBe('1 agent for 1 person')
+    expect(connectionCountWords(all.slice(0, 2), all)).toBe('2 of 4 agents')
   })
 
   it('lists apps in a sentence, and says when a connection ends', () => {

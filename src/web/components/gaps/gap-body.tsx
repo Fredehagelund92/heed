@@ -95,7 +95,7 @@ type Vocabulary = Parameters<typeof topicParts>[1]
 /** What agents asked about: the topic's metrics, dimension values and month. */
 export function GapTopic({ gap, vocabulary }: { gap: Gap; vocabulary: Vocabulary }) {
   return (
-    <RecordSection title="What AI apps asked about" icon={TargetIcon}>
+    <RecordSection title="What agents asked about" icon={TargetIcon}>
       <TopicBadges gap={gap} vocabulary={vocabulary} />
     </RecordSection>
   )
@@ -142,7 +142,7 @@ export function GapDetails({ gap, minimum }: { gap: Gap; minimum: number | null 
         <FieldRow
           icon={SearchXIcon}
           label="Found nothing"
-          hint="Times an AI app asked and got no fact."
+          hint="Times an agent asked and got no fact."
         >
           <GapCount count={shownCount(gap.noItemCalls, minimum)} />
         </FieldRow>
@@ -163,7 +163,7 @@ export function GapDrafts({ gap }: { gap: Gap }) {
         </ul>
       ) : (
         <p className="text-body text-muted-foreground">
-          No draft yet. Start one to give AI apps what they were missing.
+          No draft yet. Start one to give agents what they were missing.
         </p>
       )}
     </RecordSection>
@@ -363,7 +363,7 @@ const noteSources: Record<
   NonNullable<GapDetail['notes']>[number]['source'],
   { icon: Icon; name: string }
 > = {
-  report_gap: { icon: BotIcon, name: "From an AI app's report" },
+  report_gap: { icon: BotIcon, name: "From an agent's report" },
   feedback: { icon: MessageCircleIcon, name: 'From feedback on an answer' },
   owner: { icon: UserRoundIcon, name: 'Owner note' },
   person: { icon: UsersIcon, name: "From a person's report" },
@@ -468,7 +468,7 @@ export const statusMove: Record<
     label: 'Mark resolved',
     icon: CircleCheckIcon,
     title: 'Mark this gap as resolved?',
-    effect: 'It closes. If AI apps find nothing for this topic again after today, a new gap opens.',
+    effect: 'It closes. If agents find nothing for this topic again after today, a new gap opens.',
   },
   wont_fix: {
     label: "Won't fix",
@@ -609,12 +609,12 @@ function verificationEffect(gap: Gap | GapDetail, move: GapMove): string {
   const active = gap.tests.filter((test) => test.active).length
   if (move === 'resolved')
     return active
-      ? ` It counts as checked once ${active === 1 ? 'its linked test passes' : `its ${active} linked tests pass`} on what AI apps get from today.`
+      ? ` It counts as checked once ${active === 1 ? 'its linked test passes' : `its ${active} linked tests pass`} on what agents get from today.`
       : ' Link a test to it, so a passing run can check it.'
   if (gap.status === 'resolved' && (gap.resolvedEdition || gap.verifiedAt))
     return gap.verifiedAt
       ? " It no longer counts as checked. Its tests must pass again once it's resolved again."
-      : " Its tests must pass on what AI apps get once it's resolved again."
+      : " Its tests must pass on what agents get once it's resolved again."
   return ''
 }
 

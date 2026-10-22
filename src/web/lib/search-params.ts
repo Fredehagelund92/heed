@@ -410,7 +410,7 @@ export const signedOutSearchSchema = z.object({
 })
 export const validateSignedOutSearch = lenientSearch(signedOutSearchSchema)
 
-/** The AI app sign-in the consent page answers: the opaque handle the login server sent. */
+/** The agent sign-in the consent page answers: the opaque handle the login server sent. */
 export const connectApproveSearchSchema = z.object({
   request: z.optional(z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/))),
 })

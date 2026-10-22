@@ -96,7 +96,7 @@ export type AskSnapshot = {
 
 /**
  * The conversation as the service reads it: the scope line joins each question as text the model
- * reads, and its scope as get_context's fields (`data-scope`), which the service binds the
+ * reads, and its scope as get_facts's fields (`data-scope`), which the service binds the
  * latest question's tool calls to; a step that never finished (a stop, a failure) is left out, as
  * the model never saw it.
  */

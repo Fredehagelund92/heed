@@ -296,7 +296,7 @@ describe('the Ask composer’s editor document', () => {
     expect(wordsFor({ from: '2026-01-01', to: '2026-12-31' }, today)).toBe('2026')
   })
 
-  it('counts the quick periods as get_context counts the periods people name', () => {
+  it('counts the quick periods as get_facts counts the periods people name', () => {
     const days = fc.date({
       min: new Date('2000-01-01'),
       max: new Date('2099-12-31'),

@@ -204,7 +204,7 @@ describe('settings and limits', () => {
     const [current] = (await ok<Setting[]>('GET', '/settings', 'admin')).filter(
       (s) => s.key === 'limits.mcp_rate_per_minute',
     )
-    const value = { get_context: 60, report_gap: 5, give_feedback: 5 }
+    const value = { get_facts: 60, report_gap: 5, give_feedback: 5 }
     const reason = 'Tighter feedback limits'
     expect(
       (await call('PUT', path, 'admin', { version: current!.version, value: { nope: 1 }, reason }))
@@ -293,7 +293,7 @@ describe('tool switch and client policies', () => {
   it('adds a client label and changes its tools and limits', async () => {
     const cursor = {
       displayName: 'Cursor',
-      toolsAllowed: ['search_context', 'get_context', 'get_context'],
+      toolsAllowed: ['search_facts', 'get_facts', 'get_facts'],
       ratePerMinute: 30,
       maxResponseBytes: 50_000,
       enabled: true,
@@ -311,19 +311,19 @@ describe('tool switch and client policies', () => {
     expect(await ok<ClientPolicy>('PUT', '/clients/cursor', 'admin', cursor)).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_context', 'search_context'],
+      toolsAllowed: ['get_facts', 'search_facts'],
       ratePerMinute: 30,
       maxResponseBytes: 50_000,
       enabled: true,
     })
     expect((await serving.policy('cursor')).client).toMatchObject({
-      tools_allowed: ['get_context', 'search_context'],
+      tools_allowed: ['get_facts', 'search_facts'],
       rate_per_minute: 30,
     })
     await ok('PUT', '/clients/cursor', 'admin', { ...cursor, enabled: false, reason: 'Paused' })
     expect((await serving.policy('cursor')).client?.enabled).toBe(false)
     const clients = await ok<ClientPolicy[]>('GET', '/clients', 'admin')
-    // signed-in: every AI app a person signs in with.
+    // signed-in: every agent a person signs in with.
     expect(clients.map((c) => c.label)).toEqual(['claude-code', 'cursor', 'eval', 'signed-in'])
     const actions = (
       await client.query<{ action: string }>(

@@ -207,7 +207,7 @@ describe('scope extraction', () => {
           },
         ],
       })
-      // Dates in the words are read for the coach as for get_context.
+      // Dates in the words are read for the coach as for get_facts.
       expect(
         extractScope('Orders Norway this year', terms, '2026-08-05', {}, { datesRequired: true }),
       ).toMatchObject({ status: 'resolved', scope: { window: { start: '2026-01-01' } } })
@@ -474,7 +474,7 @@ describe('reading a question for Try it', () => {
   const keys = (question: string, today = '2026-10-13') =>
     readQuestion(question, terms, today).terms.map((term) => term.key)
 
-  it('reads what the question names, as get_context does, and its dates', () => {
+  it('reads what the question names, as get_facts does, and its dates', () => {
     expect(readQuestion('Orders Norway August 2026', terms, '2026-10-13')).toMatchObject({
       window: { start: '2026-08-01', end: '2026-09-01' },
     })
@@ -500,7 +500,7 @@ describe('reading a question for Try it', () => {
     expect(readQuestion('orders august or september', terms, '2026-10-13').window).toBeNull()
   })
 
-  it('gives the part of a scope a question names, and no dates where get_context reads today', () => {
+  it('gives the part of a scope a question names, and no dates where get_facts reads today', () => {
     expect(extractScope('Orders in Norway', terms, '2026-10-13')).toMatchObject({
       status: 'resolved',
       assumed: { date: '2026-10-13' },
@@ -524,7 +524,7 @@ describe('reading a question for Try it', () => {
     })
   })
 
-  it('reads the dates get_context reads, and says where each name and the dates are', () => {
+  it('reads the dates get_facts reads, and says where each name and the dates are', () => {
     const question = 'What were  ÓRDERS in Norway this year?'
     const read = readQuestion(question, terms, '2026-10-13')
     expect(read).toMatchObject({

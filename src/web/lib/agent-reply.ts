@@ -3,7 +3,7 @@ import type { ClaimLevel, ItemKind } from '@domain/item'
 import { ownCaveat } from '@domain/proposal-rules'
 
 /*
-  "What an agent will see": the reply of get_context for a draft, as proposals.preview returns it
+  "What an agent will see": the reply of get_facts for a draft, as proposals.preview returns it
   (FR-214), in the words and fields the card shows.
 */
 
@@ -36,7 +36,7 @@ export type ReplyItem = {
   reviewed: ServedStamp | null
 }
 
-/** A served review as an AI app receives it: the day it was accepted, by which role, in which edition. */
+/** A served review as an agent receives it: the day it was accepted, by which role, in which edition. */
 export type ServedStamp = { acceptedOn: string; by: string; edition: string }
 
 export type AgentReply =

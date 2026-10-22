@@ -17,7 +17,7 @@ import { headAt, liveHead, type Head } from './runs.ts'
 /**
  * The retrieval pass: the level 3 delivery check of FR-507, run on every edition over the
  * whole active test set as a score, with no model. Each question's wordings go through
- * get_context's own code; a question passes when every wording is served, delivers the expected
+ * get_facts's own code; a question passes when every wording is served, delivers the expected
  * items, leaves the forbidden ones out and gives the expected check-report status. It is checked
  * as delivered once nothing stops its area, like the review gate's level 3.
  * Only ids and booleans are stored, never a wording's text.
@@ -29,7 +29,7 @@ type Reply = {
   check_report?: { cut_ids?: string[] }
 }
 
-/** get_context's reply for one input on one edition held in memory, recording nothing. */
+/** get_facts's reply for one input on one edition held in memory, recording nothing. */
 export async function deliver(bundle: ServingBundle, clock: Clock, input: object): Promise<Reply> {
   return (await previewDelivery(bundle, clock, input)).structuredContent
 }

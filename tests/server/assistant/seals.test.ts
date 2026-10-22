@@ -49,7 +49,7 @@ describe('a sealed tool result', () => {
     }
     expect(check({ output: edited })).toBe('invalid')
     expect(check({ toolCallId: 'call_2' })).toBe('invalid')
-    expect(check({ toolName: 'get_context' })).toBe('invalid')
+    expect(check({ toolName: 'get_facts' })).toBe('invalid')
   })
 
   it('refuses a seal replayed in another conversation, for another person or another key', () => {

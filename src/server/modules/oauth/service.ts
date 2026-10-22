@@ -83,7 +83,7 @@ export const logSignIn = (
   result: string,
   reason?: SignInReason,
   level: 'info' | 'warn' = reason ? 'warn' : 'info',
-) => log[level]({ event: 'ai_sign_in', result, reason, client: signedInClient }, 'AI app sign-in')
+) => log[level]({ event: 'ai_sign_in', result, reason, client: signedInClient }, 'Agent sign-in')
 
 /**
  * Connections revoked in this process, by id, for as long as their access tokens can live: the
@@ -408,7 +408,7 @@ export function createLoginServer(options: {
       if (metadataDocumentProblem(id))
         return {
           reason: 'bad_client_metadata',
-          message: 'The app describes itself in a way we can’t accept.',
+          message: 'The agent describes itself in a way we can’t accept.',
         }
       let document: unknown
       try {
@@ -416,26 +416,28 @@ export function createLoginServer(options: {
       } catch {
         return {
           reason: 'metadata_unreadable',
-          message: 'We couldn’t read the app’s description. Try again later.',
+          message: 'We couldn’t read the agent’s description. Try again later.',
         }
       }
       const read = readClientMetadata(document, { metadataDocument: id })
       if ('problem' in read)
         return {
           reason: 'bad_client_metadata',
-          message: 'The app describes itself in a way we can’t accept.',
+          message: 'The agent describes itself in a way we can’t accept.',
         }
       // Nothing is stored for a document app until a signed-in person allows it (decide).
       return { client: { id, kind: 'metadata_document', ...read.metadata } }
     }
     if (!config.dynamicRegistration || !/^hc_[A-Za-z0-9_-]{43}$/.test(id))
-      return { reason: 'unknown_client', message: 'We don’t know this app.' }
+      return { reason: 'unknown_client', message: 'We don’t know this agent.' }
     const [row] = await database.query<Client>(
       `select id, kind, name, redirect_uris as "redirectUris" from auth.oauth_clients
         where id=$1 and kind='registered'`,
       [id],
     )
-    return row ? { client: row } : { reason: 'unknown_client', message: 'We don’t know this app.' }
+    return row
+      ? { client: row }
+      : { reason: 'unknown_client', message: 'We don’t know this agent.' }
   }
 
   return {
@@ -527,13 +529,13 @@ export function createLoginServer(options: {
       }
       const clientId = query.client_id
       if (!clientId || clientId.length > 512)
-        return page('unknown_client', 'The app didn’t say which app it is.')
+        return page('unknown_client', 'The agent didn’t say which agent it is.')
       const found = await findClient(database, clientId)
       if ('reason' in found) return page(found.reason, found.message)
       const { client } = found
       const redirect = query.redirect_uri
       if (!redirect || !redirectMatches(client.redirectUris, redirect))
-        return page('bad_redirect', 'The app asked to send you to an address it didn’t register.')
+        return page('bad_redirect', 'The agent asked to send you to an address it didn’t register.')
       // From here on, the client and where it gets its answer are known: errors go back there.
       const back = (error: string, description: string, reason: SignInReason): AuthorizeAnswer => {
         logSignIn(log, 'refused', reason)

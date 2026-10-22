@@ -59,7 +59,7 @@ const emptyWords: Record<WorkViewId, { title: string; text: string }> = {
   },
   gaps: {
     title: 'No gaps',
-    text: 'When AI apps ask about a topic in your domains and find nothing, or report that something is missing, it shows here.',
+    text: 'When agents ask about a topic in your domains and find nothing, or report that something is missing, it shows here.',
   },
   upkeep: {
     title: 'No upkeep due',
@@ -67,7 +67,7 @@ const emptyWords: Record<WorkViewId, { title: string; text: string }> = {
   },
   questions: {
     title: 'No test questions yet',
-    text: 'A test question asks what an AI app would be asked, and says what a good answer needs.',
+    text: 'A test question asks what an agent would be asked, and says what a good answer needs.',
   },
   runs: {
     title: 'No runs yet',
@@ -304,7 +304,7 @@ export function WorkList({
                   search={{ view: 'topics' }}
                   className="text-brand-ink underline underline-offset-3"
                 >
-                  See what AI apps ask about, per week
+                  See what agents ask about, per week
                 </Link>
               </>
             ) : null}

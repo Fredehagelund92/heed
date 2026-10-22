@@ -10,7 +10,7 @@ const groups = [{ title: null, sections: settingsSections }] as const
 
 /**
  * A person's own Settings (navigation decision, 12 October 2026), opened from the user menu:
- * Profile and appearance, and Connect your AI, with the AI apps connected as them. Everyone has
+ * Profile and appearance, and Connect your AI, with the agents connected as them. Everyone has
  * both. What runs the workspace is in Administration. The section is in the address
  * (`section=`), so each is linkable.
  */

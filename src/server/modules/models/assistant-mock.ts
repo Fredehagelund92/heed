@@ -256,18 +256,17 @@ export function attachedWords(line: string): string {
 }
 
 /**
- * How many facts are about a name, and how many of them AI apps get, from the counts the tools
- * give ("agents get 5 of them, not the other 2 yet: ..."): "7 facts are about it, and AI apps
+ * How many facts are about a name, and how many of them AI agents get, from the counts the tools
+ * give ("AI agents get 5 of them, not the other 2 yet: ..."): "7 facts are about it, and AI agents
  * get 5 of them. The other 2 wait for now."
  */
 export function factsAbout(count: string, words: string, name: string): string {
   const about = `${count} ${count === '1' ? 'fact is' : 'facts are'} about ${name}`
-  const some = /(?:agents|AI apps) get ([\d,]+) of them, not the other ([\d,]+) yet/.exec(words)
+  const some = /AI agents get ([\d,]+) of them, not the other ([\d,]+) yet/.exec(words)
   if (some)
-    return `${about}, and AI apps get ${some[1]} of them. The other ${some[2]} wait for now.`
-  if (/(?:agents|AI apps) get none of/.test(words))
-    return `${about}, and AI apps get none of them yet.`
-  return `${about}, and AI apps get ${count === '1' ? 'it' : 'all of them'}.`
+    return `${about}, and AI agents get ${some[1]} of them. The other ${some[2]} wait for now.`
+  if (/AI agents get none of/.test(words)) return `${about}, and AI agents get none of them yet.`
+  return `${about}, and AI agents get ${count === '1' ? 'it' : 'all of them'}.`
 }
 
 /** The answer about what is attached, from the block: what each one is. */
@@ -336,7 +335,7 @@ function pasted(text: string) {
 }
 
 /**
- * The scope the person picked in the Ask tab (SCOPE_LINE and get_context's fields as JSON), and
+ * The scope the person picked in the Ask tab (SCOPE_LINE and get_facts's fields as JSON), and
  * their words without that line. A real model passes the fields on as given; so does this one.
  */
 export function pickedScope(user: string): { words: string; scope: Record<string, unknown> } {
@@ -569,8 +568,8 @@ function choose(
     return { tool: 'domain_overview', input: about ? { domain: about.area } : {} }
   }
   if (/\b(search|find|list|what is|what are|defined|definition|mean)\b/i.test(user))
-    return { tool: 'find_context', input: { query: pasted(user) } }
-  return { tool: 'get_context', input: { question: user, ...scope } }
+    return { tool: 'find_facts', input: { query: pasted(user) } }
+  return { tool: 'get_facts', input: { question: user, ...scope } }
 }
 
 type Item = {
@@ -592,7 +591,7 @@ const factLine = (item: Item) => {
 const FACTS_SHOWN = 5
 
 /**
- * The metrics and the values a get_context reply read, as words: its keys without their kind
+ * The metrics and the values a get_facts reply read, as words: its keys without their kind
  * ("metric:average_order_value" is "average order value", "val:market/united_kingdom" is "United
  * Kingdom"), for the sentence that says what the facts cannot show.
  */
@@ -624,7 +623,7 @@ function assumedWords(assumed: unknown, system: string): string {
   return sentence ?? ''
 }
 
-/** Which of the metric, the market and the dates a get_context reply says the question lacks. */
+/** Which of the metric, the market and the dates a get_facts reply says the question lacks. */
 function missingScope(output: Output): string {
   const fields = ((output.options as { field?: string }[] | undefined) ?? []).map((o) => o.field)
   const missing = [
@@ -666,7 +665,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
   if (output.status === 'need_more_detail' && typeof output.message === 'string')
     return output.message
   switch (result.toolName) {
-    case 'get_context': {
+    case 'get_facts': {
       if (output.status === 'need_more_detail')
         // With something attached, the person is told about it and what would narrow it, never
         // asked which metric, market and dates they mean. Without, only a data question is asked
@@ -687,7 +686,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
         : []
       // The day it was read at when no dates were given, as the turn context says it is called.
       const assumed = output.assumed_date ? [assumedWords(output.assumed_date, system)] : []
-      // The check's own statements are written for AI apps; a reply says what they mean.
+      // The check's own statements are written for AI agents; a reply says what they mean.
       if (!items.length)
         return [
           ...about,
@@ -715,9 +714,9 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
     }
     case 'explain_item':
       if (output.status === 'not_found')
-        return "I couldn't find that fact in what AI apps get today."
+        return "I couldn't find that fact in what AI agents get today."
       return `${output.applies ? 'It applies here' : "It doesn't apply here"} [${String(output.id)}]. ${String(output.reason)}`
-    case 'find_context': {
+    case 'find_facts': {
       const items = (output.items as Item[] | undefined) ?? []
       // A definition with where it comes from and what Heed adds, counts and all, as a model says it.
       const definitions = (
@@ -736,7 +735,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
         const defined = d.definition
           ? `${origin ?? 'Its source'} defines ${d.term ?? 'it'} as "${d.definition}"`
           : `${d.term ?? 'It'} has no definition in its source yet.${from}`
-        // How many facts are about it, as the catalogue counts them, and how many AI apps get.
+        // How many facts are about it, as the catalogue counts them, and how many AI agents get.
         const shelf = /holds ([\d,]+) (?:items?|facts?) about /.exec(d.heed_adds ?? '')?.[1]
         const counts = shelf ? ` ${factsAbout(shelf, d.heed_adds ?? '', d.term ?? 'it')}` : ''
         return `${defined}${counts}`
@@ -798,7 +797,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
         ? changedWords(output.changes as { change?: string; id?: string; title?: string }[])
         : typeof output.message === 'string'
           ? output.message
-          : "I couldn't compare what AI apps got then and now."
+          : "I couldn't compare what AI agents got then and now."
     case 'improve_question':
       return ((output.suggestions as string[] | undefined) ?? []).join(' ')
     case 'check_draft':
@@ -816,7 +815,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
         `I saved it as a draft for you, "${String(output.title)}". Check each part, then send it for review.`,
         ...(output.external
           ? [
-              'It comes from a web page I read, so the owner of its domain checks it before AI apps get it.',
+              'It comes from a web page I read, so the owner of its domain checks it before AI agents get it.',
             ]
           : []),
         ...(typeof output.warning === 'string'
@@ -887,11 +886,11 @@ function waitingWords(domain: string, waiting: unknown): string[] {
 
 /** What changed, in a sentence and the facts themselves, newest first as the tool gives them. */
 function changedWords(changes: { change?: string; id?: string; title?: string }[]): string {
-  if (!changes.length) return 'Nothing changed in what AI apps get.'
+  if (!changes.length) return 'Nothing changed in what AI agents get.'
   const verbs: Record<string, string> = { added: 'Added', changed: 'Changed', retired: 'Archived' }
   const shown = changes.slice(0, FACTS_SHOWN)
   return [
-    `${changes.length === 1 ? 'One fact' : `${changes.length} facts`} changed in what AI apps get:`,
+    `${changes.length === 1 ? 'One fact' : `${changes.length} facts`} changed in what AI agents get:`,
     ...shown.map(
       (c) => `- ${verbs[c.change ?? ''] ?? 'Changed'}: ${c.title ?? 'a fact'} [${c.id}]`,
     ),

@@ -31,7 +31,7 @@ import { Outcome, triesWords, type Side } from './question-evidence'
 */
 
 export const factorWords = {
-  edition: 'the facts AI apps got',
+  edition: 'the facts agents got',
   revision: 'the question’s revision',
   wordings: 'the wordings',
   tries: 'the number of tries',
@@ -255,7 +255,7 @@ export function TestResult({
                 ) : (
                   <p className="text-body text-muted-foreground">
                     {attempt?.refused
-                      ? 'The AI app declined to answer.'
+                      ? 'The agent declined to answer.'
                       : attempt?.error
                         ? 'The try failed to run.'
                         : 'No answer was kept for this try.'}

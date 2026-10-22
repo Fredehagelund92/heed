@@ -160,7 +160,7 @@ describe("Home's search field", () => {
     ])
     expect(options[3]).toHaveTextContent(`Show all ${total} in the library`)
     expect(options[4]).toHaveTextContent('Ask the assistant: “orders poland”')
-    expect(options[5]).toHaveTextContent('Try a question: what do AI apps get for “orders poland”?')
+    expect(options[5]).toHaveTextContent('Try a question: what do agents get for “orders poland”?')
     expect(screen.getByRole('status')).toHaveTextContent(`Facts: ${total} matches`)
   })
 
@@ -183,7 +183,7 @@ describe("Home's search field", () => {
     await userEvent.keyboard('{ArrowUp}')
     expect(screen.getAllByRole('option').at(-1)).toHaveAttribute('aria-selected', 'true')
     await userEvent.keyboard('{Enter}')
-    // Try it opens on what the words name, read as get_context reads a question.
+    // Try it opens on what the words name, read as get_facts reads a question.
     const reading = await api.readTryItQuestion({ question: 'orders poland' })
     await vi.waitFor(() =>
       expect(navigate).toHaveBeenCalledWith({
@@ -323,13 +323,13 @@ describe("Home's table", () => {
 })
 
 describe("Home's quick actions", () => {
-  it('are three, leave the assistant to its launcher, and send Connect an AI app to Settings', () => {
+  it('are three, leave the assistant to its launcher, and send Connect an agent to Settings', () => {
     render(<QuickActions />)
     const list = screen.getByRole('list')
     expect(within(list).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByRole('link', { name: /Try a question/ })).toHaveAttribute('href', '/try-it')
     expect(screen.getByRole('link', { name: /Add a fact/ })).toHaveAttribute('href', '/library/new')
-    expect(screen.getByRole('link', { name: /Connect an AI app/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Connect an agent/ })).toHaveAttribute(
       'href',
       '/settings?section=connect',
     )

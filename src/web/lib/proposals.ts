@@ -144,7 +144,7 @@ export const channelNames: Record<ProposalRecord['channel'], string> = {
   assistant: 'Assistant',
   chat: 'Chat message',
   command_line: 'Command line',
-  mcp: 'AI app',
+  mcp: 'Agent',
   import: 'Import',
 }
 

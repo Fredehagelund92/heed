@@ -298,7 +298,7 @@ export function ContextForm({
   const sensitive = useMemo(() => contextTextFindings(values), [values])
   const found = sensitive[0]
   const held = found
-    ? `${textCheckShort[found.code] ?? 'Something private'} is in the text. Remove it to save and see what AI apps get.`
+    ? `${textCheckShort[found.code] ?? 'Something private'} is in the text. Remove it to save and see what agents get.`
     : undefined
   useMainAction(
     useMemo(() => ({ title: 'Send for review', run: () => formRef.current?.requestSubmit() }), []),
@@ -444,7 +444,7 @@ export function ContextForm({
       held={found ? 'Not saved. Fix the text first' : undefined}
     />
   )
-  // What to check before sending, when an AI app or the assistant wrote the draft (FR-121, FR-707).
+  // What to check before sending, when an agent or the assistant wrote the draft (FR-121, FR-707).
   const provenance = autosave.proposal?.provenance ?? initialProposal?.provenance ?? null
   const area = areas.find((area) => area.id === values.areaId)
   const owner = area?.ownerIds[0] ? people?.find((person) => person.id === area.ownerIds[0]) : null
@@ -480,7 +480,7 @@ export function ContextForm({
               </summary>
               <p className="py-3 text-body">{item.summary}</p>
               <p className="text-caption text-muted-foreground">
-                Your changes become a proposal. AI apps keep getting the current version until the
+                Your changes become a proposal. Agents keep getting the current version until the
                 owner accepts it.
               </p>
             </details>
@@ -675,11 +675,11 @@ export function ContextForm({
             <FieldError id={`${idFor('bodyMarkup')}-error`}>{textError('bodyMarkup')}</FieldError>
           </Field>
         </form>
-        <PageRail ref={railRef} aria-label="Details and what AI apps get">
+        <PageRail ref={railRef} aria-label="Details and what agents get">
           <Tabs value={tab} onValueChange={(next: 'details' | 'agent') => setTab(next)}>
             <TabsList variant="line" className="w-full justify-start border-b">
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="agent">What AI apps get</TabsTrigger>
+              <TabsTrigger value="agent">What agents get</TabsTrigger>
             </TabsList>
             <TabsContent value="details" keepMounted className="data-hidden:hidden">
               <div className="flex flex-col gap-6 pt-4">
@@ -704,8 +704,8 @@ export function ContextForm({
                       disabled={submitting}
                     />
                     <FieldDescription id={`${idFor('scope')}-hint`}>
-                      AI apps get this fact when a question is about these. Choose Any to cover
-                      every value.
+                      Agents get this fact when a question is about these. Choose Any to cover every
+                      value.
                     </FieldDescription>
                     <FieldError id={`${idFor('scope')}-error`}>{error('scope')}</FieldError>
                   </Field>
@@ -852,7 +852,7 @@ export function ContextForm({
                 }}
               >
                 <EyeIcon />
-                What AI apps will get
+                What agents will get
               </DropdownMenuItem>
               <AssistantMenuItem />
               {draft ? (

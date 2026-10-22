@@ -48,7 +48,7 @@ export async function connectInfo(
 }
 
 /**
- * What an agent would get (Try it): get_context on the live edition for a typed scope, with the
+ * What an agent would get (Try it): get_facts on the live edition for a typed scope, with the
  * code that serves agents, no model and nothing recorded: no delivery, no gap, no question
  * (FR-602, FR-603). The bundle is read in the person's transaction and resolved with no
  * audience groups, which is every person's audience while groups are parked, so the reply is
@@ -65,7 +65,7 @@ export async function tryIt(
   if (!bundle)
     throw new ORPCError('PRECONDITION_FAILED', {
       message:
-        'Nothing is shared with AI apps yet. They get facts once an owner accepts the first one.',
+        'Nothing is shared with agents yet. They get facts once an owner accepts the first one.',
     })
   const reply = await previewDelivery(bundle, clock, { ...input, question: '' }, web)
   // Nothing was delivered, so there is no delivery for an agent to give feedback on.
@@ -81,7 +81,7 @@ export async function tryIt(
 
 /**
  * A question read as a scope with the live edition's vocabulary (Home's "Try it" and the Ask
- * composer's "Heed reads" line): the same words get_context reads, answered with the scope's keys,
+ * composer's "Heed reads" line): the same words get_facts reads, answered with the scope's keys,
  * names and days, how the dates were read, the words that name more than one term, and the day a
  * question without dates is read at. The question stays in this call: it is not stored or logged,
  * and only the words the reader took go back to the person who asked (FR-602).
@@ -95,7 +95,7 @@ export async function readTryItQuestion(
   if (!bundle)
     throw new ORPCError('PRECONDITION_FAILED', {
       message:
-        'Nothing is shared with AI apps yet. They get facts once an owner accepts the first one.',
+        'Nothing is shared with agents yet. They get facts once an owner accepts the first one.',
     })
   return questionReading(question, bundle.terms, clock.today())
 }

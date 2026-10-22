@@ -158,9 +158,9 @@ test('an administrator goes back to an earlier edition: the effect first, and th
   await page.getByRole('menuitem', { name: 'Go back to this edition…' }).click()
   const dialog = page.getByRole('alertdialog', { name: /^Go back to how it was on / })
   // Step 1: the service's comparison of the live edition with this one, fact by fact.
-  await expect(dialog).toContainText(/facts? changes? for AI apps:/, { timeout: 15_000 })
+  await expect(dialog).toContainText(/facts? changes? for agents:/, { timeout: 15_000 })
   const changes = dialog.getByRole('list', {
-    name: `What changes for AI apps, from edition ${live!.label} back to ${earlier!.label}`,
+    name: `What changes for agents, from edition ${live!.label} back to ${earlier!.label}`,
   })
   await expect(changes.getByRole('listitem')).toHaveCount(preview.comparison.items.length)
   await dialog.getByRole('button', { name: 'Continue' }).click()
@@ -208,10 +208,10 @@ test('an administrator stops delivery from the live card and switches it back on
     timeout: 15_000,
   })
   await page.getByRole('menuitem', { name: 'Stop sharing…' }).click()
-  const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+  const dialog = page.getByRole('alertdialog', { name: 'Stop sharing with agents?' })
   await dialog.getByRole('combobox', { name: 'Domain' }).click()
   await page.getByRole('option', { name: 'Sandbox' }).click()
-  await expect(dialog).toContainText(/AI apps stop getting the (one fact|\d+ facts) in Sandbox\./, {
+  await expect(dialog).toContainText(/Agents stop getting the (one fact|\d+ facts) in Sandbox\./, {
     timeout: 15_000,
   })
   await dialog.getByRole('button', { name: 'Continue' }).click()
@@ -222,7 +222,7 @@ test('an administrator stops delivery from the live card and switches it back on
   await dialog.getByRole('button', { name: 'Stop sharing' }).click()
   const done = page.getByRole('alertdialog', { name: 'Stopped for Sandbox' })
   await expect(done.locator('[data-slot="release-history"]')).toContainText(
-    'Demo Administrator stopped sharing Sandbox with AI apps on',
+    'Demo Administrator stopped sharing Sandbox with agents on',
     { timeout: 15_000 },
   )
   await expect(done.locator('[data-slot="release-history"]')).toContainText(
@@ -239,9 +239,9 @@ test('an administrator stops delivery from the live card and switches it back on
   await resume.getByRole('textbox', { name: /Why/ }).fill('End to end: Sandbox is fine.')
   await resume.getByRole('button', { name: 'Start again' }).click()
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
-  await expect(card).toContainText('Shared with AI apps')
+  await expect(card).toContainText('Shared with agents')
   await expect(card.locator('[data-slot="release-history"]')).toContainText(
-    'Demo Administrator started sharing Sandbox with AI apps again on',
+    'Demo Administrator started sharing Sandbox with agents again on',
   )
   expect(await (await context.request.get('/api/v1/serving/stops')).json()).toEqual([])
 })
@@ -258,7 +258,7 @@ test('an owner sees the banner while delivery is stopped for a domain', async ({
     await signIn(context, baseURL!, 'per_jon@example.test')
     await page.goto('/library')
     const banner = page.getByRole('region', { name: 'Sharing stopped' })
-    await expect(banner).toContainText('AI apps get no facts from Sales for now.', {
+    await expect(banner).toContainText('Agents get no facts from Sales for now.', {
       timeout: 15_000,
     })
     await expect(banner).toContainText('Why: End to end: wrong caveat')
@@ -346,7 +346,7 @@ test('an owner reads the editions and what changed, without the administrator’
   const sidebar = page.getByRole('navigation', { name: 'Main navigation' })
   await sidebar.getByRole('link', { name: 'Editions' }).click({ timeout: 15_000 })
   const live = page.locator('[data-slot="live-edition"]')
-  await expect(live).toContainText('What AI apps get today', { timeout: 15_000 })
+  await expect(live).toContainText('What agents get today', { timeout: 15_000 })
   await expect(live.getByRole('button', { name: 'Export JSON' })).toBeVisible()
   // The history log's line is the administrators' and auditors', so it is not asked for.
   await expect(live.locator('[data-slot="release-history"]')).toHaveCount(0)

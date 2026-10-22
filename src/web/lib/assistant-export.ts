@@ -179,7 +179,7 @@ export function exportAsMarkdown(input: ExportInput): string {
       `Exported ${moment(chat.exportedAt, timeZone)}`,
       `${productName} ${chat.app.version}, build ${chat.app.build}`,
       chat.model && chat.mode ? `Assistant: ${chat.model} (${modeWords[chat.mode]})` : null,
-      chat.edition ? `What AI apps got: ${chat.edition}` : null,
+      chat.edition ? `What agents got: ${chat.edition}` : null,
     ]
       .filter(Boolean)
       .join(' · '),
@@ -222,7 +222,7 @@ function factLine(fact: ExportFact, origin: string): string {
     fact.domain,
     fact.verdict,
     fact.asOf ? `accepted ${moment(fact.asOf, 'UTC', false)}` : null,
-    fact.edition ? `AI apps got it in ${fact.edition}` : null,
+    fact.edition ? `Agents got it in ${fact.edition}` : null,
   ]
     .filter(Boolean)
     .join(', ')

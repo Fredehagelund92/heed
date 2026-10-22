@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import '@/components/assistant/answer-motion.css'
 
 /*
-  What an AI app or the assistant did, step by step (contract 7.2, 9.8): one muted row per real
+  What an agent or the assistant did, step by step (contract 7.2, 9.8): one muted row per real
   step, its verb in the present while it runs ("Reading") and in the past once it is done
   ("Read"), what it acted on in the foreground colour, and what it found after a middle dot. The
   running step turns a spinner, and a done step shows its icon. Once the work is done a trail of

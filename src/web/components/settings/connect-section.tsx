@@ -32,7 +32,7 @@ import { productName } from '@/lib/brand'
   own AI client: the address, a snippet to paste for each client that may connect today, every
   tool an agent can get (the ones switched off marked Off), and what to do next. With the login
   server on (FR-403, docs/ai-sign-in.md), a client that can sign in asks the person to sign in to
-  Heed and allow it, and the person's connected AI apps are listed here with Disconnect; any other
+  Heed and allow it, and the person's connected agents are listed here with Disconnect; any other
   client sends a token the data platform team gives out.
 */
 
@@ -105,7 +105,7 @@ export function ConnectSection() {
   const { address, clients, tools, signIn } = info.data
   const gateway = admin ? (
     <p className="text-dense text-muted-foreground">
-      You choose which AI apps can connect, and which tools they get, in{' '}
+      You choose which agents can connect, and which tools they get, in{' '}
       <Link
         to="/admin"
         search={{ section: 'gateway' }}
@@ -125,7 +125,7 @@ export function ConnectSection() {
             <EmptyMedia variant="icon">
               <PlugIcon />
             </EmptyMedia>
-            <EmptyTitle>AI apps can&apos;t connect here yet</EmptyTitle>
+            <EmptyTitle>Agents can&apos;t connect here yet</EmptyTitle>
             <EmptyDescription>Ask the data team when they can.</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -136,7 +136,7 @@ export function ConnectSection() {
   return (
     <div data-slot="connect" className="flex min-w-0 flex-col gap-6">
       <p className="text-dense">
-        Your AI app can check these facts before it answers a question about company data. It gets
+        Your AI agent can check these facts before it answers a question about company data. It gets
         the same facts you see in{' '}
         <Link
           to="/try-it"
@@ -150,9 +150,9 @@ export function ConnectSection() {
       <ConnectCard address={address} clients={clients} signIn={signIn} />
 
       {signIn ? (
-        <Section title="Your connected AI apps" level="h2">
+        <Section title="Your connected agents" level="h2">
           <p className="text-dense text-muted-foreground">
-            The AI apps you allowed to act as you. Each reads only what you can read. Disconnect one
+            The agents you allowed to act as you. Each reads only what you can read. Disconnect one
             and it stops working at once.
           </p>
           <ConnectedApps />
@@ -162,17 +162,16 @@ export function ConnectSection() {
       <div data-slot="connect-by-hand" className="flex min-w-0 flex-col gap-3 border-t pt-6">
         <h2 className="text-body font-bold">Set it up by hand</h2>
         <p className="text-dense text-muted-foreground">
-          The same steps as the prompt, one at a time, for an AI app that doesn&apos;t take a
-          prompt.
+          The same steps as the prompt, one at a time, for an agent that doesn&apos;t take a prompt.
         </p>
         {signIn ? (
           <Alert variant="info" data-slot="connect-sign-in">
             <InfoIcon />
             <AlertContent>
-              <AlertTitle>Sign in from your AI app</AlertTitle>
+              <AlertTitle>Sign in from your agent</AlertTitle>
               <AlertDescription>
-                Add the address below to an AI app that can sign in. The first time, it opens{' '}
-                {productName} in your browser. Sign in and allow it, and it acts as you. An AI app
+                Add the address below to an agent that can sign in. The first time, it opens{' '}
+                {productName} in your browser. Sign in and allow it, and it acts as you. An agent
                 that can&apos;t sign in needs an access key from the data team.
               </AlertDescription>
             </AlertContent>
@@ -181,9 +180,9 @@ export function ConnectSection() {
           <Alert variant="info" data-slot="connect-sign-in">
             <InfoIcon />
             <AlertContent>
-              <AlertTitle>AI apps connect with an access key</AlertTitle>
+              <AlertTitle>Agents connect with an access key</AlertTitle>
               <AlertDescription>
-                Here, AI apps can&apos;t sign in by themselves. Ask the data team for an access key.
+                Here, agents can&apos;t sign in by themselves. Ask the data team for an access key.
               </AlertDescription>
             </AlertContent>
           </Alert>
@@ -191,10 +190,10 @@ export function ConnectSection() {
       </div>
 
       <Section title="The address">
-        <CopyBlock text={address} label="the address for AI apps" />
+        <CopyBlock text={address} label="the address for agents" />
       </Section>
 
-      <Section title="AI apps that can connect today">
+      <Section title="Agents that can connect today">
         {clients.length ? (
           <ul className="flex flex-col gap-4">
             {clients.map((client) => {
@@ -216,7 +215,7 @@ export function ConnectSection() {
                           aria-hidden="true"
                           className="size-icon-sm -rotate-90 transition-transform group-data-panel-open/token:rotate-0"
                         />
-                        {"If your AI app can't sign in"}
+                        {"If your agent can't sign in"}
                         <span className="sr-only"> ({name})</span>
                       </CollapsibleTrigger>
                       <CollapsibleContent className="flex flex-col gap-2">
@@ -237,17 +236,17 @@ export function ConnectSection() {
           </ul>
         ) : (
           <p className="text-dense text-muted-foreground">
-            No AI app is switched on yet. An admin needs to add one first.
+            No agent is switched on yet. An admin needs to add one first.
           </p>
         )}
       </Section>
 
       <Section
         title="Ask first"
-        help={<HelpLink to="connect-your-ai-app#ask-first">Why a line?</HelpLink>}
+        help={<HelpLink to="connect-an-agent#ask-first">Why a line?</HelpLink>}
       >
         <p className="text-dense">
-          Your AI app decides when to check these facts. Add this line to its instructions so it
+          Your agent decides when to check these facts. Add this line to its instructions so it
           checks more often.
         </p>
         <ul data-slot="ask-heed-first" className="flex flex-col gap-4">
@@ -265,7 +264,7 @@ export function ConnectSection() {
         help={<HelpLink to="glossary#tool">What is a tool?</HelpLink>}
       >
         <ul
-          aria-label="The tools an AI app gets"
+          aria-label="The tools an agent gets"
           className="flex flex-col divide-y rounded-lg border"
         >
           {toolsInWords(tools).map(({ tool, name, about, enabled, personOnly }) => (
@@ -286,7 +285,7 @@ export function ConnectSection() {
               {about ? <span className="text-caption text-muted-foreground">{about}</span> : null}
               {personOnly ? (
                 <span className="text-caption text-muted-foreground">
-                  It works only in an AI app you signed in from, not with an access key. It only
+                  It works only in an agent you signed in from, not with an access key. It only
                   drafts, and never sends.
                 </span>
               ) : null}
@@ -314,28 +313,28 @@ export function ConnectSection() {
 
       <Section
         title="What to do next"
-        help={<HelpLink to="connect-your-ai-app#steps">Step by step</HelpLink>}
+        help={<HelpLink to="connect-an-agent#steps">Step by step</HelpLink>}
       >
         <ol className="flex list-decimal flex-col gap-2 pl-6 text-dense marker:text-muted-foreground">
           {signIn ? (
             <li>
-              Paste your AI app&apos;s setup from above. When it asks, sign in to {productName} and
+              Paste your agent&apos;s setup from above. When it asks, sign in to {productName} and
               allow it.
             </li>
           ) : (
             <>
-              <li>Ask the data team for an access key for your AI app.</li>
+              <li>Ask the data team for an access key for your agent.</li>
               <li>
-                Paste your AI app&apos;s setup from above, with the key in place of{' '}
+                Paste your agent&apos;s setup from above, with the key in place of{' '}
                 {TOKEN_PLACEHOLDER}.
               </li>
             </>
           )}
-          <li>Add the line under Ask first to your AI app&apos;s instructions.</li>
+          <li>Add the line under Ask first to your agent&apos;s instructions.</li>
           <li>
-            Ask your AI app a question about company data, and look for {toolName('get_context')} as
-            it answers: that&apos;s the step where it checks these facts. If it&apos;s not there,
-            ask it to check {productName} first.
+            Ask your agent a question about company data, and look for {toolName('get_facts')} as it
+            answers: that&apos;s the step where it checks these facts. If it&apos;s not there, ask
+            it to check {productName} first.
           </li>
           <li>
             To see what it was told, pick the same metric, market and dates in Try a question.
@@ -343,8 +342,8 @@ export function ConnectSection() {
         </ol>
         {signIn ? (
           <p className="text-dense text-muted-foreground">
-            An AI app that can&apos;t sign in needs an access key from the data team. Use its setup
-            under If your AI app can&apos;t sign in.
+            An agent that can&apos;t sign in needs an access key from the data team. Use its setup
+            under If your agent can&apos;t sign in.
           </p>
         ) : null}
         {gateway}

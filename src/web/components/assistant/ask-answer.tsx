@@ -58,7 +58,7 @@ import './answer-motion.css'
   read and how each one stands, and the checked row. All but the words come from the service's
   tool results and its citation check, never from the model's text, so they hold even when the
   model fails part way. Under a finished answer: copy, the thumbs (stored as a count, never with
-  the person or the words), and, when get_context read a scope, a link to it and What an agent
+  the person or the words), and, when get_facts read a scope, a link to it and What an agent
   would get for it. A greeting or thanks reads no scope, so it offers neither.
 
   An answer that is arriving settles in (contract 10): each step enters, runs and settles, the
@@ -431,7 +431,7 @@ function RateButton({ verdict, rating }: { verdict: RatingVerdict; rating: Answe
   )
 }
 
-/** The actions under a finished answer; `scope` is the scope get_context read, if it read one. */
+/** The actions under a finished answer; `scope` is the scope get_facts read, if it read one. */
 function Actions({
   scope,
   actions,
@@ -556,7 +556,7 @@ function NothingFound({
         </>
       ) : null}
       , which doesn’t mean nothing happened. If you know what did, write it down. The draft starts
-      with what you asked about, and the owner of its domain checks it before AI apps get it.
+      with what you asked about, and the owner of its domain checks it before agents get it.
     </AbsenceLine>
   )
 }
@@ -638,7 +638,7 @@ export function AskAnswer({
   actions,
 }: {
   answer: AnswerView
-  /** The scope the answer is about: what get_context used, else what was sent. */
+  /** The scope the answer is about: what get_facts used, else what was sent. */
   scope: TryItScope | null
   scopeText: string | null
   lookup: FactLookup
@@ -671,7 +671,7 @@ export function AskAnswer({
           <AlertContent>
             <AlertTitle>The assistant can’t answer this one</AlertTitle>
             <AlertDescription>
-              Try asking it another way, or see what AI apps get in Try a question.
+              Try asking it another way, or see what agents get in Try a question.
             </AlertDescription>
           </AlertContent>
         </Alert>

@@ -32,7 +32,8 @@ import { byteSize, createToolService, failure } from './service.ts'
 import type { ServingReads } from './reads.ts'
 import type { HelpLibrary } from '../modules/help/index.ts'
 import {
-  isToolName,
+  toolCalledBy,
+  aliasesOf,
   needsReads,
   personOnly,
   serverInstructions,
@@ -40,6 +41,7 @@ import {
   tools,
   toolSchemaDigest,
   toolOutputSchema,
+  type ToolName,
 } from './tools.ts'
 
 export interface McpDependencies {
@@ -67,7 +69,7 @@ export interface McpDependencies {
   /**
    * The HMAC key (at least 32 bytes) that seals `draft_context`'s question rounds, shared by
    * every instance (CL_MCP_STATE_KEY_FILE). Without it the questions are never asked in the
-   * person's AI app: the result lists them with the draft link instead.
+   * person's AI agent: the result lists them with the draft link instead.
    */
   stateKey?: Uint8Array
   /**
@@ -171,8 +173,8 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     const started = performance.now()
     const body = request.body as
       { id?: unknown; method?: unknown; params?: { name?: unknown } } | undefined
-    const name =
-      body?.method === 'tools/call' && isToolName(body.params?.name) ? body.params.name : null
+    // An old tool id counts as the tool that replaced it, so it is checked, limited and logged as that.
+    const name = body?.method === 'tools/call' ? toolCalledBy(body.params?.name) : null
     const pending: AnonymousRecord[] = []
     const family = appFamilyOfBody(body)
     let client = 'unknown',
@@ -266,7 +268,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     if (name && personOnly(name) && !principal.subject)
       return deny(
         403,
-        `${name} needs a person signed in to ${productName} through an AI app. A dev or service token names no person.`,
+        `${name} needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
         'forbidden',
       )
     if (request.method !== 'POST') {
@@ -374,7 +376,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     const handler = createMcpHandler(
       () => {
         const server = new McpServer(
-          // The id stays `heed`, since AI apps register the server by it; the title follows
+          // The id stays `heed`, since AI agents register the server by it; the title follows
           // the product's name (docs/rename-checklist.md).
           { name: 'heed', title: productName, version: '0.1.0' },
           {
@@ -385,15 +387,19 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
             },
           },
         )
-        for (const tool of allowed) {
+        // A tool is listed by its id, and an old id (deprecatedToolAliases) beside it, which
+        // answers as the tool and says so in its description.
+        const list = (listed: string, tool: ToolName, deprecated: boolean) => {
           const definition = tools[tool]
           const outputSchema = toolOutputSchema(tool)
           server.registerTool(
-            tool,
+            listed,
             {
-              // The title is what people see when their AI app calls the tool.
+              // The title is what people see when their AI agent calls the tool.
               title: definition.title,
-              description: definition.description,
+              description: deprecated
+                ? `Deprecated: use ${tool}, which takes the same arguments and gives the same result.`
+                : definition.description,
               // Arguments that do not fit reach the tool marked, so it answers them itself.
               inputSchema: lenientInputSchema(tool),
               ...(outputSchema ? { outputSchema } : {}),
@@ -451,6 +457,10 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
               return { ...result, _meta: { ...result._meta, tool_schema_digest: toolSchemaDigest } }
             }) as never,
           )
+        }
+        for (const tool of allowed) {
+          list(tool, tool, false)
+          for (const alias of aliasesOf(tool)) list(alias, tool, true)
         }
         return server
       },

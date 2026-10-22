@@ -1201,7 +1201,7 @@ export function describeContextApiWrites(
           kind: 'forbidden',
         })
         expect(
-          await refusal(as(person).setTool({ tool: 'get_context', enabled: false, reason: 'No' })),
+          await refusal(as(person).setTool({ tool: 'get_facts', enabled: false, reason: 'No' })),
         ).toMatchObject({ kind: 'forbidden' })
         expect(
           await refusal(
@@ -1222,7 +1222,7 @@ export function describeContextApiWrites(
     it('switches a tool off and on for every client, with a reason', async () => {
       const tools = await as('ravi').listTools()
       expect(tools.map((tool) => tool.tool)).toEqual(
-        expect.arrayContaining(['get_context', 'get_related', 'improve_question']),
+        expect.arrayContaining(['get_facts', 'get_related', 'improve_question']),
       )
       expect(tools.find((tool) => tool.tool === 'get_related')?.enabled).toBe(false)
       const before = tools.find((tool) => tool.tool === 'improve_question')!
@@ -1256,14 +1256,14 @@ export function describeContextApiWrites(
       expect(
         await refusal(
           as('ravi').setTool({
-            tool: 'get_context',
+            tool: 'get_facts',
             enabled: false,
             reason: 'Ask ravi@example.test why',
           }),
         ),
       ).toMatchObject({ kind: 'invalid' })
       expect(
-        (await as('ravi').listTools()).find((tool) => tool.tool === 'get_context')?.enabled,
+        (await as('ravi').listTools()).find((tool) => tool.tool === 'get_facts')?.enabled,
       ).toBe(true)
     })
 
@@ -1272,7 +1272,7 @@ export function describeContextApiWrites(
       const added = await as('ravi').saveClient({
         label,
         displayName: 'Conformance bot',
-        toolsAllowed: ['search_context', 'get_context', 'get_context'],
+        toolsAllowed: ['search_facts', 'get_facts', 'get_facts'],
         ratePerMinute: 30,
         maxResponseBytes: null,
         enabled: true,
@@ -1281,7 +1281,7 @@ export function describeContextApiWrites(
       expect(added).toEqual({
         label,
         displayName: 'Conformance bot',
-        toolsAllowed: ['get_context', 'search_context'],
+        toolsAllowed: ['get_facts', 'search_facts'],
         ratePerMinute: 30,
         maxResponseBytes: null,
         enabled: true,
@@ -1313,7 +1313,7 @@ export function describeContextApiWrites(
         await refusal(
           as('ravi').saveClient({
             ...added,
-            toolsAllowed: ['get_context', 'no_such_tool'],
+            toolsAllowed: ['get_facts', 'no_such_tool'],
             reason: 'Conformance: unknown tool',
           }),
         ),
@@ -1381,7 +1381,7 @@ export function describeContextApiWrites(
       const feedback = await as('jon').getFeedbackCounts({ area: 'area_sales', weeks: 2 })
       expect(feedback.rows.map((row) => row.area)).toEqual(['area_sales', 'area_sales'])
       expect((await as('ravi').getFeedbackCounts({ weeks: 1 })).rows.at(-1)?.area).toBeNull()
-      // The AI apps per family and week (FR-410): a family from the fixed list, never a name.
+      // The agents per family and week (FR-410): a family from the fixed list, never a name.
       const apps = await as('jon').getAppFamilyCounts({ weeks: 2 })
       expect(apps.minimumCount).toBeGreaterThan(0)
       for (const row of apps.rows) {

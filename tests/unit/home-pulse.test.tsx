@@ -316,8 +316,8 @@ describe('the pulse strip', () => {
     )
     expect(screen.getByRole('heading', { name: 'Last week' })).toBeVisible()
     expect(screen.getByText('5 to 11 Oct')).toBeVisible()
-    expect(tile('Questions from AI apps')).toHaveTextContent('129')
-    expect(tile('Questions from AI apps')).toHaveTextContent('12 weeks shown')
+    expect(tile('Questions from agents')).toHaveTextContent('129')
+    expect(tile('Questions from agents')).toHaveTextContent('12 weeks shown')
     expect(tile('Questions that found a fact')).toHaveTextContent('67%')
     expect(tile('Questions that found a fact')).toHaveTextContent('87 of 129 · 42 found nothing')
     expect(tile('Facts added or changed')).toHaveTextContent('6')
@@ -327,7 +327,7 @@ describe('the pulse strip', () => {
     const charts = screen.getAllByRole('img')
     expect(charts).toHaveLength(4)
     expect(charts[0]).toHaveAccessibleName(
-      'Questions from AI apps per week, the last 12 weeks: 0, 0, 0, 0, 0, 0, 0, 26, 34, 47, 105, 129. Up 24 on the week before',
+      'Questions from agents per week, the last 12 weeks: 0, 0, 0, 0, 0, 0, 0, 26, 34, 47, 105, 129. Up 24 on the week before',
     )
     expect(charts[3]).toHaveAccessibleName(
       '1,091 facts that apply today: 941 current, 88 check due, 51 source changed, 11 source missing. Up 3 points since a week ago, better',
@@ -346,11 +346,7 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    const marks = [
-      'Questions from AI apps',
-      'Questions that found a fact',
-      'Facts added or changed',
-    ]
+    const marks = ['Questions from agents', 'Questions that found a fact', 'Facts added or changed']
       .concat('Facts that are current')
       .map((name) => mark(name)!)
     expect(marks.map((element) => element.dataset.verdict)).toEqual([
@@ -394,7 +390,7 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    expect(mark('Questions from AI apps')).toBeNull()
+    expect(mark('Questions from agents')).toBeNull()
     expect(mark('Questions that found a fact')).toBeNull()
     expect(mark('Facts that are current')).toBeNull()
     expect(mark('Facts added or changed')!.dataset.direction).toBe('up')
@@ -425,10 +421,8 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    expect(tile('Questions from AI apps')).toHaveTextContent('105+')
-    expect(tile('Questions from AI apps')).toHaveTextContent(
-      'At least 105. A few more stay hidden.',
-    )
+    expect(tile('Questions from agents')).toHaveTextContent('105+')
+    expect(tile('Questions from agents')).toHaveTextContent('At least 105. A few more stay hidden.')
     expect(tile('Questions that found a fact')).toHaveTextContent('Hidden')
     expect(screen.getAllByRole('img')[0]!.getAttribute('aria-label')).toMatch(/51, at least 105/)
   })
@@ -443,13 +437,13 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    expect(tile('Questions from AI apps')).toHaveTextContent('<5')
-    expect(tile('Questions from AI apps')).toHaveTextContent('We hide counts under 5')
+    expect(tile('Questions from agents')).toHaveTextContent('<5')
+    expect(tile('Questions from agents')).toHaveTextContent('We hide counts under 5')
     expect(tile('Questions that found a fact')).toHaveTextContent('Hidden')
     expect(screen.getAllByRole('img')[0]!.getAttribute('aria-label')).toMatch(/fewer than 5/)
   })
 
-  it('says what an empty Heed means: no AI app questions and no facts yet', () => {
+  it('says what an empty Heed means: no agent questions and no facts yet', () => {
     render(
       <HomePulse
         agent={ready(agentPulse(weekly(zeros(13), zeros(13))))}
@@ -458,9 +452,9 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    expect(tile('Questions from AI apps')).toHaveTextContent('No AI app has asked yet')
+    expect(tile('Questions from agents')).toHaveTextContent('No agent has asked yet')
     expect(tile('Questions that found a fact')).toHaveTextContent('No questions')
-    expect(tile('Questions that found a fact')).toHaveTextContent('Shows once an AI app asks')
+    expect(tile('Questions that found a fact')).toHaveTextContent('Shows once an agent asks')
     expect(tile('Facts added or changed')).toHaveTextContent('Nothing written down yet')
     expect(tile('Facts that are current')).toHaveTextContent('None yet')
     expect(tile('Facts that are current')).toHaveTextContent('No facts apply yet')
@@ -491,7 +485,7 @@ describe('the pulse strip', () => {
         lastWeek="2026-10-05"
       />,
     )
-    expect(tile('Questions from AI apps')).toHaveTextContent('Not loaded')
+    expect(tile('Questions from agents')).toHaveTextContent('Not loaded')
     expect(tile('Facts that are current')).toHaveTextContent('86%')
     await userEvent.click(within(tile('Questions that found a fact')).getByRole('button'))
     expect(retry).toHaveBeenCalledOnce()

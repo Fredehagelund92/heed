@@ -57,10 +57,10 @@ const execute = createToolService(
   { write: refuse, reportGap: refuse, feedback: refuse },
   () => new Date('2026-10-08T12:00:00Z'),
 )
-/** What get_context delivers for the scope every item in these tests has. */
+/** What get_facts delivers for the scope every item in these tests has. */
 async function delivered() {
   const result = await execute(
-    'get_context',
+    'get_facts',
     {
       question: '',
       metrics: ['metric:orders'],

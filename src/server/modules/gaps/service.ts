@@ -248,7 +248,7 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
   return {
     /**
      * FR-606 case 5: a person reports a gap about the scope they were looking at. The scope is
-     * resolved on the live edition as get_context resolves it, so a term outside the governed
+     * resolved on the live edition as get_facts resolves it, so a term outside the governed
      * vocabulary is refused and a scope without dates is read at today; the topic comes from it
      * alone (FR-604).
      * One report counts against the topic's gap as report_gap does (FR-308). The function writes
@@ -259,7 +259,7 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
       const bundle = await loadLiveBundle(tx)
       if (!bundle)
         throw new ORPCError('PRECONDITION_FAILED', {
-          message: 'Gaps can be reported once AI apps get their first facts.',
+          message: 'Gaps can be reported once agents get their first facts.',
         })
       const { type, note, ...scopeInput } = input
       const scope = scopeOf({ ...scopeInput, question: '' }, bundle, clock.today())

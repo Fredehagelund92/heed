@@ -80,7 +80,7 @@ function refusalOf(error: unknown): { note: string | null; form: string | null }
   if (failure.kind === 'unavailable' && failure.status === 429)
     return { note: null, form: 'You reported several gaps just now. Try again in a minute.' }
   if (failure.kind === 'precondition')
-    return { note: null, form: "AI apps don't get any facts yet, so there's nothing to report." }
+    return { note: null, form: "Agents don't get any facts yet, so there's nothing to report." }
   return { note: null, form: describeApiError(error).description }
 }
 
@@ -185,7 +185,7 @@ function ReportGapForm({
       <DialogHeader>
         <DialogTitle>Report a gap</DialogTitle>
         <DialogDescription>
-          Tell the owners where AI apps fall short, so they can add or fix the facts.
+          Tell the owners where agents fall short, so they can add or fix the facts.
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-1 rounded-lg border bg-muted px-4 py-3">
@@ -256,7 +256,7 @@ function ReportGapForm({
             render={
               <Textarea
                 rows={3}
-                placeholder="What an AI app needs to know"
+                placeholder="What an agent needs to know"
                 className="resize-y text-body pointer-coarse:text-large"
               />
             }

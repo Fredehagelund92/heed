@@ -66,7 +66,7 @@ it('cuts links before items, respects multibyte budgets and never mutates the ca
   const saved = JSON.stringify(s.data)
   // Room for the item without its links, its sentence (FR-344), how the dates were read, how it
   // was reviewed (FR-326) and its domain's summary line, but not for one more link.
-  const reply = await s.call('get_context', { question, max_bytes: 5000 })
+  const reply = await s.call('get_facts', { question, max_bytes: 5000 })
   expect(reply.isError).not.toBe(true)
   expect(byteSize(reply)).toBeLessThanOrEqual(5000)
   expect(reply.structuredContent).toMatchObject({
@@ -79,7 +79,7 @@ it('cuts links before items, respects multibyte budgets and never mutates the ca
   ])
   expect(JSON.stringify(s.data)).toBe(saved)
   // With room, the full reply gives the domain's description too.
-  expect((await s.call('get_context', { question })).structuredContent.domains).toEqual([
+  expect((await s.call('get_facts', { question })).structuredContent.domains).toEqual([
     {
       id: 'finance',
       name: 'Finance',
@@ -87,7 +87,7 @@ it('cuts links before items, respects multibyte budgets and never mutates the ca
       description: 'Finance covers **orders** and returns, by market and payment provider.',
     },
   ])
-  const tiny = await s.call('get_context', { question, max_bytes: 1000 })
+  const tiny = await s.call('get_facts', { question, max_bytes: 1000 })
   expect(byteSize(tiny)).toBeLessThanOrEqual(1000)
   expect(tiny.structuredContent.status).toBe('check_failed')
 })
@@ -117,12 +117,12 @@ it('cuts the items past max_items before links, and keeps the link that names th
     (reply.structuredContent.items as { links: { rel: string; target: { id: string } }[] }[]).map(
       (i) => i.links.map((l) => `${l.rel} ${l.target.id}`),
     )
-  const all = await s.call('get_context', { question })
-  const two = await s.call('get_context', { question, max_items: 2 })
+  const all = await s.call('get_facts', { question })
+  const two = await s.call('get_facts', { question, max_items: 2 })
   // The two delivered items fit with all their links: the six cut first cost them none.
   const fits = byteSize(two)
   expect(byteSize(all)).toBeGreaterThan(fits)
-  const tight = await s.call('get_context', { question, max_items: 2, max_bytes: fits })
+  const tight = await s.call('get_facts', { question, max_items: 2, max_bytes: fits })
   expect(links(tight)).toEqual(links(two))
   expect(links(two)[0]).toHaveLength(8)
   expect(tight.structuredContent.check_report).toMatchObject({
@@ -134,13 +134,13 @@ it('cuts the items past max_items before links, and keeps the link that names th
     ]),
   })
   // One byte shorter: the domain's description goes first, and every link stays.
-  const brief = await s.call('get_context', { question, max_items: 2, max_bytes: fits - 1 })
+  const brief = await s.call('get_facts', { question, max_items: 2, max_bytes: fits - 1 })
   expect(links(brief)).toEqual(links(two))
   expect(brief.structuredContent.domains).toEqual([
     { id: 'finance', name: 'Finance', summary: 'Orders and returns, by market.' },
   ])
   // Shorter still: the link that names where Orders is defined is the one left.
-  const five = await s.call('get_context', {
+  const five = await s.call('get_facts', {
     question,
     max_items: 2,
     max_bytes: byteSize(brief) - 1,
@@ -150,7 +150,7 @@ it('cuts the items past max_items before links, and keeps the link that names th
     [5, 'mentions metric:orders'],
   ])
   const shorter = byteSize(five) - 1
-  const origin = await s.call('get_context', { question, max_items: 2, max_bytes: shorter })
+  const origin = await s.call('get_facts', { question, max_items: 2, max_bytes: shorter })
   expect(links(origin)).toEqual([['mentions metric:orders'], ['mentions metric:orders']])
   expect(byteSize(origin)).toBeLessThanOrEqual(shorter)
 })
@@ -163,12 +163,12 @@ it('lists removed items in resolver order and labels partial matches', async () 
     ...item,
     scope: { metrics: item.scope.metrics, dimensions: [], dimensionValues: [] },
   }
-  const reply = await s.call('get_context', { question: 'Orders August 2026', max_items: 1 })
+  const reply = await s.call('get_facts', { question: 'Orders August 2026', max_items: 1 })
   expect(reply.structuredContent).toMatchObject({
     items: [{ id: item.id, match: 'exact' }],
     check_report: { cut_ids: ['itm_partial001'] },
   })
-  const full = await s.call('get_context', { question: 'Orders August 2026' })
+  const full = await s.call('get_facts', { question: 'Orders August 2026' })
   const partial = (
     full.structuredContent.items as { id: string; match: string; applies_note?: string }[]
   ).find((i) => i.id === 'itm_partial001')
@@ -193,18 +193,18 @@ it('links never pull unrelated items into the delivery and hidden targets reveal
     to_id: hidden.id,
     label: 'Authored label',
   })
-  const reply = await s.call('get_context', { question })
+  const reply = await s.call('get_facts', { question })
   expect(JSON.stringify(reply)).not.toContain('PRIVATE')
   expect(JSON.stringify(reply)).not.toContain(hidden.id)
   expect(reply.structuredContent).toMatchObject({ check_report: { links_withheld: 1 } })
   expect((await s.call('read_item', { id: hidden.id })).structuredContent).toMatchObject({
     message: 'Not found',
   })
-  const search = await s.call('search_context', { mentions: hidden.id })
+  const search = await s.call('search_facts', { mentions: hidden.id })
   expect(search.structuredContent.items).toEqual([])
   hidden.audience = { kind: 'everyone' }
   hidden.scope = { metrics: ['metric:other'], dimensions: [], dimensionValues: [] }
-  expect((await s.call('get_context', { question })).structuredContent.items).toHaveLength(1)
+  expect((await s.call('get_facts', { question })).structuredContent.items).toHaveLength(1)
 })
 
 it('hides stopped, inactive, overdue high-risk and out-of-window targets; preserves safe tombstones', () => {
@@ -304,9 +304,9 @@ it('pages searches and backlinks and rejects a cursor after the overlay changes'
       label: item.title,
     })
   }
-  const first = await s.call('search_context', { limit: 10 })
+  const first = await s.call('search_facts', { limit: 10 })
   expect(first.structuredContent.items).toHaveLength(10)
-  const second = await s.call('search_context', {
+  const second = await s.call('search_facts', {
     limit: 10,
     cursor: first.structuredContent.next_cursor,
   })
@@ -322,17 +322,17 @@ it('pages searches and backlinks and rejects a cursor after the overlay changes'
   expect((next.structuredContent.backlinks as { items: unknown[] }).items).toHaveLength(5)
   s.data.overlay = '2'
   expect(
-    (await s.call('search_context', { cursor: first.structuredContent.next_cursor })).isError,
+    (await s.call('search_facts', { cursor: first.structuredContent.next_cursor })).isError,
   ).toBe(true)
 })
 
 it('restricts historical edition selection and rejects sensitive notes before storing them', async () => {
   const s = setup()
-  expect((await s.call('get_context', { question, edition: s.data.edition })).isError).toBe(true)
+  expect((await s.call('get_facts', { question, edition: s.data.edition })).isError).toBe(true)
   expect(s.editions).toEqual([])
-  expect(
-    (await s.call('get_context', { question, edition: s.data.edition }, true)).isError,
-  ).not.toBe(true)
+  expect((await s.call('get_facts', { question, edition: s.data.edition }, true)).isError).not.toBe(
+    true,
+  )
   expect(s.editions).toEqual([s.data.edition])
   expect(
     (await s.call('report_gap', { question, note: 'Contact person@example.test' })).isError,
@@ -356,7 +356,7 @@ it('records failed queue writes and bounded overflow without failing delivery', 
     (count) => failures.push(count),
     1,
   )
-  await s.call('get_context', { question })
+  await s.call('get_facts', { question })
   queue.enqueue(s.records[0]!)
   queue.enqueue(s.records[0]!)
   await queue.flush()
@@ -501,8 +501,8 @@ describe('an item about any market (FR-126, FR-316)', () => {
   it('answers a question about a market, or one that names the market without a value', async () => {
     const s = setup()
     anyMarket(s)
-    expect(ids(await s.call('get_context', { question }))).toEqual([['itm_norway01', 'exact']])
-    const byMarket = await s.call('get_context', {
+    expect(ids(await s.call('get_facts', { question }))).toEqual([['itm_norway01', 'exact']])
+    const byMarket = await s.call('get_facts', {
       question: '',
       metrics: ['Orders'],
       dimension_filters: [{ dimension: 'market', values: [] }],
@@ -515,9 +515,9 @@ describe('an item about any market (FR-126, FR-316)', () => {
   it('stays silent for a question that names no market, and counts the topic as such', async () => {
     const s = setup()
     anyMarket(s)
-    const reply = await s.call('get_context', { question: 'Orders August 2026' })
+    const reply = await s.call('get_facts', { question: 'Orders August 2026' })
     expect(reply.structuredContent).toMatchObject({ status: 'no_match', items: [] })
-    await s.call('get_context', { question: 'Orders by market August 2026' })
+    await s.call('get_facts', { question: 'Orders by market August 2026' })
     await new Promise((resolve) => setTimeout(resolve, 0))
     const topics = s.records.flatMap((record) =>
       record.kind === 'delivery' && record.value.topic ? [record.value.topic] : [],
@@ -545,10 +545,10 @@ describe('what a model reads (FR-346)', () => {
       canSelectEdition: false,
     } as const
     const calls: [ServedToolName, object, string[]][] = [
-      ['get_context', { question }, ['tool_schema_digest', 'overlay']],
-      ['get_context', { question, response_format: 'concise' }, ['tool_schema_digest', 'overlay']],
-      ['find_context', { query: 'orders' }, ['tool_schema_digest', 'overlay']],
-      ['search_context', { query: 'Norway' }, machine],
+      ['get_facts', { question }, ['tool_schema_digest', 'overlay']],
+      ['get_facts', { question, response_format: 'concise' }, ['tool_schema_digest', 'overlay']],
+      ['find_facts', { query: 'orders' }, ['tool_schema_digest', 'overlay']],
+      ['search_facts', { query: 'Norway' }, machine],
       ['read_item', { id: 'itm_norway01' }, machine],
       ['get_related', { id: 'metric:orders' }, machine],
       ['improve_question', { question }, ['tool_schema_digest', 'overlay']],
@@ -613,10 +613,10 @@ describe('the page of each delivered item in Heed (FR-347)', () => {
   it('gives every delivered item a well-formed link and a line that says where to open it', async () => {
     const call = linked(web)
     for (const [name, input] of [
-      ['get_context', { question }],
-      ['get_context', { question, response_format: 'concise' }],
-      ['find_context', { query: 'Norway' }],
-      ['search_context', { query: 'Norway' }],
+      ['get_facts', { question }],
+      ['get_facts', { question, response_format: 'concise' }],
+      ['find_facts', { query: 'Norway' }],
+      ['search_facts', { query: 'Norway' }],
       ['read_item', { id: 'itm_norway01' }],
     ] as const) {
       const reply = await call(name, input)
@@ -646,7 +646,7 @@ describe('the page of each delivered item in Heed (FR-347)', () => {
       expect(JSON.stringify(reply)).not.toContain('itm_boardonly01')
       expect(JSON.stringify(reply)).not.toContain('Board only')
     }
-    const withheld = await call('get_context', { question })
+    const withheld = await call('get_facts', { question })
     expect(withheld.structuredContent.check_report).toMatchObject({ withheld: 1 })
     const hidden = await call('read_item', { id: 'itm_boardonly01' })
     expect(hidden.structuredContent).toMatchObject({ status: 'no_match' })
@@ -656,7 +656,7 @@ describe('the page of each delivered item in Heed (FR-347)', () => {
 
   it('links a path on the web app when no address is set, one line per item', async () => {
     const call = linked(null)
-    const reply = await call('get_context', { question })
+    const reply = await call('get_facts', { question })
     expect(delivered(reply)[0]!.url).toBe('/library/itm_norway01')
     expect(reply.content[1]!.text).toBe(
       `Open in Heed - Norway closure: /library/itm_norway01 - ${reviewedSentence}`,
@@ -675,8 +675,8 @@ describe('a concise reply (FR-342)', () => {
   it('keeps what an answer needs and leaves out what read_item gives for one item', async () => {
     const s = setup()
     s.data.items[0]!.notToConclude = 'that customers moved to other markets'
-    const full = await s.call('get_context', { question })
-    const concise = await s.call('get_context', { question, response_format: 'concise' })
+    const full = await s.call('get_facts', { question })
+    const concise = await s.call('get_facts', { question, response_format: 'concise' })
     expect(full.structuredContent).toMatchObject({ items: [{ links: [{}, {}] }] })
     expect(concise.structuredContent).toEqual({
       say: full.structuredContent.say,
@@ -722,7 +722,7 @@ describe('a concise reply (FR-342)', () => {
 
   it('is full unless asked for: the source details of FR-326 stay the default', async () => {
     const s = setup()
-    const reply = await s.call('get_context', { question })
+    const reply = await s.call('get_facts', { question })
     expect((reply.structuredContent.items as object[])[0]).toMatchObject({
       body: 'Compare with an unaffected market.',
       evidence: [{ url: 'https://example.test/law' }],
@@ -739,7 +739,7 @@ describe('a concise reply (FR-342)', () => {
     }
     const sentence = reviewedSentence
     for (const response_format of ['full', 'concise'] as const) {
-      const reply = await s.call('get_context', { question, response_format })
+      const reply = await s.call('get_facts', { question, response_format })
       expect((reply.structuredContent.items as object[])[0]).toMatchObject({ reviewed })
       // The text beside the item's page says it in one sentence, for a client that reads text.
       expect(reply.content.at(-1)!.text).toBe(
@@ -748,30 +748,30 @@ describe('a concise reply (FR-342)', () => {
     }
     for (const [tool, args] of [
       ['read_item', { id: 'itm_norway01' }],
-      ['search_context', { query: 'Norway' }],
-      ['find_context', { query: 'Norway closure' }],
+      ['search_facts', { query: 'Norway' }],
+      ['find_facts', { query: 'Norway closure' }],
     ] as const) {
       const reply = await s.call(tool, args)
       expect(JSON.stringify(reply.structuredContent)).toContain(JSON.stringify(reviewed))
       expect(reply.content.at(-1)!.text).toContain(sentence)
     }
-    // Nobody's name is in what an AI app receives: the fixture's owner is Jon Abara.
-    const all = await s.call('get_context', { question })
+    // Nobody's name is in what an agent receives: the fixture's owner is Jon Abara.
+    const all = await s.call('get_facts', { question })
     expect(JSON.stringify(all)).not.toMatch(/Jon|Abara/)
   })
 
   it('leaves the review out for a version with no acceptance on record', async () => {
     const s = setup()
     for (const item of s.data.items) item.review = null
-    const reply = await s.call('get_context', { question })
+    const reply = await s.call('get_facts', { question })
     expect((reply.structuredContent.items as object[])[0]).not.toHaveProperty('reviewed')
     expect(reply.content.at(-1)!.text).toBe('Open in Heed - Norway closure: /library/itm_norway01')
   })
 
-  it('gives find_context without the source details its definitions say in words', async () => {
+  it('gives find_facts without the source details its definitions say in words', async () => {
     const s = setup()
-    const full = await s.call('find_context', { query: 'what is orders' })
-    const concise = await s.call('find_context', {
+    const full = await s.call('find_facts', { query: 'what is orders' })
+    const concise = await s.call('find_facts', {
       query: 'what is orders',
       response_format: 'concise',
     })
@@ -793,7 +793,7 @@ describe('a reply about more than one metric', () => {
     const s = setup()
     withRevenue(s.data)
     const revenue = 'How is revenue doing in Norway in August 2026?'
-    const full = await s.call('get_context', { question: revenue })
+    const full = await s.call('get_facts', { question: revenue })
     expect(ids(full.structuredContent.items)).toEqual([
       { id: 'itm_gmv0001', about: ['Gross sales'] },
       { id: 'itm_net0001', about: ['Net revenue'] },
@@ -802,7 +802,7 @@ describe('a reply about more than one metric', () => {
     ])
     expect(full.structuredContent.instructions).toContain(groupInstruction)
     // A concise reply, as the assistant asks for, keeps them and the sentence.
-    const concise = await s.call('get_context', { question: revenue, response_format: 'concise' })
+    const concise = await s.call('get_facts', { question: revenue, response_format: 'concise' })
     expect(ids(concise.structuredContent.items)).toEqual(ids(full.structuredContent.items))
     expect(concise.structuredContent.say).toBe(full.structuredContent.say)
     expect(concise.structuredContent.instructions).toContain(groupInstruction)
@@ -811,7 +811,7 @@ describe('a reply about more than one metric', () => {
   it('names them when several metrics are asked for, and not for one metric', async () => {
     const s = setup()
     withRevenue(s.data)
-    const two = await s.call('get_context', {
+    const two = await s.call('get_facts', {
       question: 'Orders and net revenue in Norway in August 2026',
     })
     expect(ids(two.structuredContent.items)).toEqual([
@@ -823,10 +823,10 @@ describe('a reply about more than one metric', () => {
     expect(two.structuredContent.say).not.toContain('is a group of')
     expect(two.structuredContent.instructions).not.toContain(groupInstruction)
     // One metric, even one of the group, leaves the reply as it was: the same bytes as before.
-    const one = await s.call('get_context', { question })
+    const one = await s.call('get_facts', { question })
     expect(ids(one.structuredContent.items)).toEqual([{ id: 'itm_norway01', about: undefined }])
-    expect(byteSize(one)).toBe(byteSize(await setup().call('get_context', { question })))
-    const net = await s.call('get_context', {
+    expect(byteSize(one)).toBe(byteSize(await setup().call('get_facts', { question })))
+    const net = await s.call('get_facts', {
       question: 'Net revenue in Norway in August 2026',
     })
     expect(ids(net.structuredContent.items).every((item) => item.about === undefined)).toBe(true)
@@ -838,14 +838,14 @@ describe('the member names a data tool queried (CON-517)', () => {
   it('gives the context of the metric that points at the member, as for its name', async () => {
     const s = setup()
     const window = { from: '2026-08-01', to: '2026-08-31' }
-    const named = await s.call('get_context', {
+    const named = await s.call('get_facts', {
       question: '',
       metrics: ['Orders'],
       dimension_filters: [{ dimension: 'Market', values: ['Norway'] }],
       window,
     })
     for (const metric of ['finance.orders', 'cube:finance.orders']) {
-      const reply = await s.call('get_context', {
+      const reply = await s.call('get_facts', {
         question: '',
         metrics: [metric],
         dimension_filters: [{ dimension: 'Market', values: ['Norway'] }],
@@ -861,7 +861,7 @@ describe('the member names a data tool queried (CON-517)', () => {
 
   it('says when no metric points at the member, and which one is closest', async () => {
     const s = setup()
-    const reply = await s.call('get_context', {
+    const reply = await s.call('get_facts', {
       question: '',
       metrics: ['finance.order_count'],
       window: { from: '2026-08-01', to: '2026-08-31' },
@@ -884,14 +884,14 @@ describe('the member names a data tool queried (CON-517)', () => {
 
   it('finds what Heed holds about a member, and recovers from one it does not know', async () => {
     const s = setup()
-    const known = await s.call('find_context', { query: 'finance.orders' })
+    const known = await s.call('find_facts', { query: 'finance.orders' })
     expect(known.structuredContent).toMatchObject({
       status: 'matched',
       members: [{ member: 'finance.orders', term: 'Orders', key: 'metric:orders' }],
       items: [{ id: 'itm_norway01' }],
       definitions: [{ key: 'metric:orders', named: 'exactly' }],
     })
-    const unknown = await s.call('find_context', { query: 'traffic.order_count' })
+    const unknown = await s.call('find_facts', { query: 'traffic.order_count' })
     expect(unknown.structuredContent).toMatchObject({
       status: 'no_match',
       items: [],
@@ -934,7 +934,7 @@ describe('a question without dates', () => {
     instructions: string
   }
   const ask = async (s: ReturnType<typeof setup>, input: object) =>
-    (await s.call('get_context', input)).structuredContent as Dated
+    (await s.call('get_facts', input)).structuredContent as Dated
   const assumed = {
     date: '2026-10-07',
     time_zone: 'UTC',

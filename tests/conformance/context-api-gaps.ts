@@ -501,14 +501,14 @@ export function describeContextApiGaps(name: string, getApis: () => GapApis) {
       // Another type is another gap.
       const outdated = await as('sofia').reportGap({ ...scope, type: 'outdated' })
       expect(outdated.id).not.toBe(first.id)
-      // A scope without dates is read at today, as get_context reads it: this month's topic.
+      // A scope without dates is read at today, as get_facts reads it: this month's topic.
       const { window: _window, ...dateless } = scope
       const today = await as('sofia').reportGap({ ...dateless, type: 'missing' })
       expect(today.id).toBe(first.id)
       expect(await as('jon').getGap(first.id)).toMatchObject({ reports: 3, personReports: 3 })
     })
 
-    it('refuses a report whose scope get_context would not resolve, or whose note is personal', async () => {
+    it('refuses a report whose scope get_facts would not resolve, or whose note is personal', async () => {
       const unknown = await refusal(
         as('maria').reportGap({
           metrics: ['metric:nothing_like_this'],

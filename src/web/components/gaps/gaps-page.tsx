@@ -219,18 +219,18 @@ export function GapsPage({ search }: { search: GapsSearch }) {
                 render={<Link to="/gaps" search={{ view: 'topics' }} />}
                 nativeButton={false}
               >
-                See what AI apps ask about
+                See what agents ask about
               </Button>
             )
           }
         >
-          When AI apps ask about a topic and find nothing, or report that something is missing, the
+          When agents ask about a topic and find nothing, or report that something is missing, the
           topic shows here, so its owners can add it.{' '}
           <HelpLink to="glossary#gap">What is a gap?</HelpLink>
         </ListEmpty>
       ) : (
         <ListEmpty title="No topic counts yet">
-          A topic shows here once AI apps ask about it at least {minimum ?? 5} times in a week. We
+          A topic shows here once agents ask about it at least {minimum ?? 5} times in a week. We
           never show smaller counts, so nobody can tell who asked.
         </ListEmpty>
       )

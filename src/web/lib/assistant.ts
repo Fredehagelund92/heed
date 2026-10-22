@@ -36,7 +36,7 @@ export type AskMetadata = {
   /** The same scope as words the model reads, sent with the question (lib/assistant-chat.ts). */
   scopeText?: string
   /**
-   * The same scope as get_context's fields, with where the dates came from and what was carried:
+   * The same scope as get_facts's fields, with where the dates came from and what was carried:
    * sent as the question's `data-scope` part, which binds the answer's tool calls.
    */
   read?: QuestionScope
@@ -119,9 +119,9 @@ export type AnswerView = {
   report: CitationReport | null
   limit: AssistantLimit | null
   refused: boolean
-  /** get_context found nothing that applies to the scope, and no tool found a fact that does. */
+  /** get_facts found nothing that applies to the scope, and no tool found a fact that does. */
   notFound: boolean
-  /** The scope get_context resolved, for Start a draft and What an agent would get. */
+  /** The scope get_facts resolved, for Start a draft and What an agent would get. */
   scopeUsed: TryItScope | null
   /** The answer stopped at its length limit. */
   cut: boolean
@@ -219,7 +219,7 @@ export const factCount = (n: number) => `${n.toLocaleString('en')} ${n === 1 ? '
 export const factCountWords = (n: number) =>
   `${words[n] ?? n.toLocaleString('en')} ${n === 1 ? 'fact' : 'facts'}`
 
-/** The scope get_context used, as chips and days: its window ends the day after its last day. */
+/** The scope get_facts used, as chips and days: its window ends the day after its last day. */
 export function scopeOfUsed(used: unknown): TryItScope | null {
   const scope = record(used)
   const metrics = Array.isArray(scope.metrics)
@@ -265,7 +265,7 @@ function factsOf(parts: DynamicToolUIPart[], titleOf: (id: string) => string | u
     const output = record(part.output)
     const title = (id: string, fallback: unknown) => titleOf(id) ?? text(fallback) ?? id
     switch (part.toolName) {
-      case 'get_context':
+      case 'get_facts':
         for (const item of list(output.items)) {
           const id = String(item.id)
           const partial = item.match === 'partial'
@@ -313,7 +313,7 @@ function factsOf(parts: DynamicToolUIPart[], titleOf: (id: string) => string | u
           })
         break
       }
-      case 'find_context':
+      case 'find_facts':
       case 'what_changed':
       case 'domain_overview':
       case 'find_overlaps':
@@ -341,7 +341,7 @@ function factsOf(parts: DynamicToolUIPart[], titleOf: (id: string) => string | u
   return [...facts.values()].sort((a, b) => rank[b.verdict] - rank[a.verdict])
 }
 
-/** A domain the assistant named by its id or its name (find_context takes either). */
+/** A domain the assistant named by its id or its name (find_facts takes either). */
 const areaName = (id: unknown, areas: readonly { id: string; name: string }[]) =>
   typeof id === 'string'
     ? (areas.find((area) => area.id === id || area.name.toLowerCase() === id.toLowerCase())?.name ??
@@ -366,7 +366,7 @@ function stepsOf(
     const ids = list(output.items).map((item) => String(item.id))
     const base = { id: part.toolCallId, running, failed, facts: ids, object: null }
     switch (part.toolName) {
-      case 'get_context': {
+      case 'get_facts': {
         const counts =
           output.status === 'need_more_detail'
             ? 'needs a metric, a market or dates'
@@ -413,7 +413,7 @@ function stepsOf(
         })
         break
       }
-      case 'find_context': {
+      case 'find_facts': {
         const total = Number(output.total ?? ids.length)
         const used = record(output.query_used)
         const domains = list(output.domains)
@@ -500,7 +500,7 @@ function stepsOf(
         steps.push({
           ...base,
           icon: 'check',
-          words: running ? 'Previewing what AI apps would get' : 'Previewed what AI apps would get',
+          words: running ? 'Previewing what agents would get' : 'Previewed what agents would get',
           counts: null,
         })
         break
@@ -709,7 +709,7 @@ export function readAnswer(
   const outputs = parts.flatMap((part) =>
     part.state === 'output-available' ? [{ tool: part.toolName, output: record(part.output) }] : [],
   )
-  const context = outputs.find((entry) => entry.tool === 'get_context')?.output
+  const context = outputs.find((entry) => entry.tool === 'get_facts')?.output
   const edition =
     outputs.map((entry) => text(entry.output.edition)).find((value) => value !== null) ?? null
   // Evidence from a page read_source read in this answer: an external source the person sees.
@@ -969,7 +969,7 @@ export function answerAsMarkdown(
 }
 
 /**
- * The line the model reads for the scope picked: get_context's own fields, as What an agent
+ * The line the model reads for the scope picked: get_facts's own fields, as What an agent
  * would get sends them, after a fixed prefix (SCOPE_LINE).
  */
 export function scopeLine(scope: TryItScope): string {

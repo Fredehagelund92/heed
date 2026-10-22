@@ -8,7 +8,7 @@
   {
     "type": "tool-input-available",
     "toolCallId": "call_get_context_23c418a4",
-    "toolName": "get_context",
+    "toolName": "get_facts",
     "input": {
       "question": "Which facts apply to this scope?\nThe scope I picked in Heed: Online share (metric:online_share); Italy (val:market/italy); from 2026-06-01 to 2026-06-30.",
       "max_items": 20

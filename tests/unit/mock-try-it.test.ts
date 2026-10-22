@@ -37,7 +37,7 @@ const scope = {
 }
 
 describe('What an agent would get, in the mock', () => {
-  it("answers get_context's reply for a scope, with the live edition, the size and no delivery", async () => {
+  it("answers get_facts's reply for a scope, with the live edition, the size and no delivery", async () => {
     const tried = await maria.tryIt(scope)
     expect(['matched', 'conflict']).toContain(tried.result.status)
     expect(tried.result.items?.map((item) => item.id)).toContain(served.id)
@@ -45,7 +45,7 @@ describe('What an agent would get, in the mock', () => {
     expect(tried.result.edition).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/)
     expect(tried.result.tool_schema_digest).toMatch(/^[0-9a-f]{64}$/)
     expect(tried.result.instructions).toMatch(/^State the documented fact/)
-    // What the AI app may tell the person, in the service's own sentences (FR-344).
+    // What the agent may tell the person, in the service's own sentences (FR-344).
     expect(tried.result.say).toMatch(/^\d+ facts? appl(y|ies) to .+\. Only that was checked\./)
     expect(Object.keys(tried.result)[0]).toBe('say')
     expect(tried.result.check_report.statements).toEqual([
@@ -55,7 +55,7 @@ describe('What an agent would get, in the mock', () => {
     expect(tried.limit).toBe(100_000)
   })
 
-  it('resolves the scope as get_context does: without dates at today, which it says', async () => {
+  it('resolves the scope as get_facts does: without dates at today, which it says', async () => {
     const open = await maria.tryIt({ metrics: scope.metrics })
     expect(open.result).toMatchObject({
       scope_used: { window: { start: '2026-10-07', end: '2026-10-08' } },
@@ -63,7 +63,7 @@ describe('What an agent would get, in the mock', () => {
       options: [],
     })
     expect(open.result.instructions).toContain('I assumed today, 7 October 2026')
-    // The person hears the same sentence, once, in what the AI app may say.
+    // The person hears the same sentence, once, in what the agent may say.
     expect(open.result.say).toMatch(
       /I assumed today, 7 October 2026\. Tell me if you meant a different period\.$/,
     )
@@ -126,7 +126,7 @@ describe('What an agent would get, in the mock', () => {
   })
 })
 
-describe('Connect an AI app, in the mock', () => {
+describe('Connect an agent, in the mock', () => {
   it('gives every person the address, every tool with its switch and the clients switched on', async () => {
     const off = ['draft_context', 'get_related']
     expect(await maria.getConnectInfo()).toEqual({
@@ -134,14 +134,14 @@ describe('Connect an AI app, in the mock', () => {
       tools: [
         'domain_overview',
         'draft_context',
-        'find_context',
-        'get_context',
+        'find_facts',
+        'get_facts',
         'get_related',
         'give_feedback',
         'improve_question',
         'read_item',
         'report_gap',
-        'search_context',
+        'search_facts',
         'search_help',
         'what_changed',
       ].map((tool) => ({

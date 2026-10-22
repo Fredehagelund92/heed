@@ -24,7 +24,7 @@ export function mineProposals(records: readonly ProposalRecord[]): ProposalRecor
 
 /**
  * A draft its writer has not submitted: only they see it, and no owner has it yet. Made in the
- * form, by the assistant or by an AI app, it is the same draft.
+ * form, by the assistant or by an agent, it is the same draft.
  */
 export function isUnsubmittedDraft(record: Pick<ProposalRecord, 'state'>): boolean {
   return record.state === 'draft'

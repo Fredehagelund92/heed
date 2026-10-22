@@ -27,7 +27,7 @@
 #                  measure alone does not prove why numbers changed, and whether it is
 #                  provisional or contested.
 #
-# Heed records a documented fact for analytics agents. It is not a legal reading of the measure.
+# Heed records a documented fact for AI agents to read. It is not a legal reading of the measure.
 
 items:
   # An invented example: Freeland's provisional customs order on webshop parcels, read on

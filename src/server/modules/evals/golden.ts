@@ -15,12 +15,12 @@ import { liveHead } from './runs.ts'
 
 /**
  * Stage 1 of the output test plan: the golden set's L1 pass on the live edition, with no model
- * (USD 0). Every wording and every follow-up turn goes through get_context's own code at the
+ * (USD 0). Every wording and every follow-up turn goes through get_facts's own code at the
  * case's as-of date, as served: every domain is served, so there is one reply to check.
  * A definition case also checks the term points at the
- * Cube member it names, and whether Cube describes it; and that find_context, the tool for a
+ * Cube member it names, and whether Cube describes it; and that find_facts, the tool for a
  * definition question (FR-338), gives the source's words and names where they come from, or
- * invents nothing for a name that is no metric; and that get_context gives the same definition
+ * invents nothing for a name that is no metric; and that get_facts gives the same definition
  * to the question as asked. A case may ask for the concise reply (FR-342), as an agent does, and
  * name metrics by the data tool's member names (CON-517).
  */
@@ -86,7 +86,7 @@ async function definitionChecks(
   if (d.described !== undefined)
     checks.find_words =
       (answer?.definition !== null && answer?.definition !== undefined) === d.described
-  // get_context gives a definition question the same definition first, beside the items.
+  // get_facts gives a definition question the same definition first, beside the items.
   if (c.scope) {
     const reply = (await deliver(bundle, systemClock(c.as_of), {
       question: natural.text,

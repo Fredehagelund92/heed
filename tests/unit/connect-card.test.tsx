@@ -20,7 +20,7 @@ import {
 import { instructionRules, serverInstructions } from '../../src/server/mcp/tools.ts'
 
 /*
-  Connect an AI app in one step (D9): the setup prompt with the Ask first line built in, the Heed
+  Connect an agent in one step (D9): the setup prompt with the Ask first line built in, the Heed
   skill, and the card's live state from the person's connected apps.
 */
 
@@ -210,7 +210,7 @@ describe('the connect card', () => {
         .click(screen.getByRole('button', { name: 'Copy prompt for Claude Code' }))
       expect(
         await screen.findByText(
-          /An AI app just signed in: Claude Desktop\. If that wasn't Claude Code/,
+          /An agent just signed in: Claude Desktop\. If that wasn't Claude Code/,
           {},
           { timeout: 10_000 },
         ),
@@ -222,7 +222,7 @@ describe('the connect card', () => {
     },
   )
 
-  it('says that an AI app with an access key does not show, and reads no connections', async () => {
+  it('says that an agent with an access key does not show, and reads no connections', async () => {
     const list = vi.spyOn(api, 'listConnections')
     render(
       withQueries(
@@ -230,7 +230,7 @@ describe('the connect card', () => {
       ),
     )
     expect(
-      await screen.findByText(/An AI app that connects with an access key doesn't show here/),
+      await screen.findByText(/An agent that connects with an access key doesn't show here/),
     ).toBeVisible()
     expect(screen.queryByText('Connected')).toBeNull()
     expect(screen.queryByText(/runs on this computer/)).toBeNull()

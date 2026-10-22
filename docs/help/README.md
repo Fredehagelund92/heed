@@ -1,26 +1,26 @@
 # The help pages
 
-These Markdown files are the product's docs. The app shows them in its Docs area, at `/docs`, in the app's own design, and GitHub shows the same files here. The assistant and AI apps over MCP answer questions about how the product works from the same pages, with the tool `search_help`, and link the page they used. A page changes in the same pull request as the screen, word or tool it describes.
+These Markdown files are the product's docs. The app shows them in its Docs area, at `/docs`, in the app's own design, and GitHub shows the same files here. The assistant and AI agents over MCP answer questions about how the product works from the same pages, with the tool `search_help`, and link the page they used. A page changes in the same pull request as the screen, word or tool it describes.
 
 Start with [What is {{product}}](what-is-heed.md).
 
 ## The pages
 
-| Page                                                                     | Kind     | Section            |
-| ------------------------------------------------------------------------ | -------- | ------------------ |
-| [What is {{product}}](what-is-heed.md)                                   | concept  | Start here         |
-| [What is an MCP, and how it all connects](mcp.md)                        | concept  | Start here         |
-| [A five-minute tour](tour.md)                                            | tour     | Start here         |
-| [Editions and the stop switch](editions.md)                              | concept  | Concepts           |
-| [The assistant](assistant.md)                                            | concept  | Concepts           |
-| [Add your first piece of context](add-your-first-context.md)             | guide    | Guides             |
-| [Review a proposal](review-a-proposal.md)                                | guide    | Guides             |
-| [Read Health](read-health.md)                                            | guide    | Guides             |
-| [Tell {{product}} about your business](tell-heed-about-your-business.md) | guide    | Guides             |
-| [Add a connector](add-a-connector.md)                                    | guide    | Guides             |
-| [Add to your AI app](connect-your-ai-app.md)                             | guide    | Connecting AI apps |
-| [Glossary](glossary.md)                                                  | glossary | Reference          |
-| [Common questions](common-questions.md)                                  | faq      | Questions          |
+| Page                                                                     | Kind     | Section           |
+| ------------------------------------------------------------------------ | -------- | ----------------- |
+| [What is {{product}}](what-is-heed.md)                                   | concept  | Start here        |
+| [What is an MCP, and how it all connects](mcp.md)                        | concept  | Start here        |
+| [A five-minute tour](tour.md)                                            | tour     | Start here        |
+| [Editions and the stop switch](editions.md)                              | concept  | Concepts          |
+| [The assistant](assistant.md)                                            | concept  | Concepts          |
+| [Add your first piece of context](add-your-first-context.md)             | guide    | Guides            |
+| [Review a proposal](review-a-proposal.md)                                | guide    | Guides            |
+| [Read Health](read-health.md)                                            | guide    | Guides            |
+| [Tell {{product}} about your business](tell-heed-about-your-business.md) | guide    | Guides            |
+| [Add a connector](add-a-connector.md)                                    | guide    | Guides            |
+| [Set up an agent](connect-an-agent.md)                                   | guide    | Connecting agents |
+| [Glossary](glossary.md)                                                  | glossary | Reference         |
+| [Common questions](common-questions.md)                                  | faq      | Questions         |
 
 ## How a page is made
 
@@ -33,13 +33,13 @@ short: What is an MCP # optional: a long title cut to 32 characters for the docs
 kind: concept # concept | guide | reference | tour | glossary | faq
 section: start # start | concepts | guides | connect | reference | questions
 order: 2 # its place in the section
-summary: What an MCP is, and how {{product}}, Cube and your AI app work together.
+summary: What an MCP is, and how {{product}}, Cube and your agent work together.
 audience: [everyone] # everyone | owner | approver | administrator | auditor | operator
 minutes: 5 # reading time
 owner: Product team
 reviewed: 2026-10-15 # the day someone last checked it against the app
 screens: [/settings?section=connect] # the app's screens it describes
-related: [connect-your-ai-app] # slugs shown under Related
+related: [connect-an-agent] # slugs shown under Related
 ---
 ```
 
@@ -58,7 +58,7 @@ The kind decides the layout:
 1. Lead with the answer. The first 80 words answer the title's question.
 2. One idea per sentence, about 15 words. Plain words: "start", not "initiate".
 3. Explain every abbreviation the first time on each page, and link the glossary.
-4. One word per thing, the screen's word, from the glossary in `src/domain/words.ts`: "fact", "owner", "AI app", "domain", "where it applies", and "edition" only for the Editions page and the review stamp. `docs/design/voice.md` says how to write with them. Name the product only where the sentence needs it.
+4. One word per thing, the screen's word, from the glossary in `src/domain/words.ts`: "fact", "owner", "agent", "domain", "where it applies", and "edition" only for the Editions page and the review stamp. Write "AI agent" where the page first mentions the agent and "agent" after that, since a reader who meets the bare word may take it for a person (the docs check tests it). `docs/design/voice.md` says how to write with them. Name the product only where the sentence needs it.
 5. Use the demo data for every example: Norway, Orders, Sales, Jon the owner, Maria the contributor.
 6. Bold is only for the words of a screen, exactly as the screen writes them: **Send for review**. Use italics for any other emphasis.
 7. One action per step, where before what: "Under **Where it applies**, add Orders."
@@ -89,4 +89,5 @@ A screen links to the page that answers the question people have there, in their
 - a bold word is not on any of the app's screens
 - a page has an em dash or a `#` heading
 - a page names the product by hand instead of with `{{product}}`, or a heading holds the token
+- a page's first mention of the agent is not "AI agent"
 - a picture has a script, a link, an event handler or an `id`

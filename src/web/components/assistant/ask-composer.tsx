@@ -37,7 +37,7 @@ import { ScopePopover } from './ask-scope'
 // The chip editor is its own chunk, as the summary's is: it starts loading with the composer.
 const AskEditor = lazy(() => import('./ask-editor'))
 
-/** get_context reads at most this many characters of a question. */
+/** get_facts reads at most this many characters of a question. */
 const MAX_QUESTION = 2000
 /** How long a question waits for its words to be read before it goes without them. */
 const READ_WAIT_MS = 3000

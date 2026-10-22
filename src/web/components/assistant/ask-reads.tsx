@@ -45,7 +45,7 @@ import '@/components/ui/scroll-fade.css'
 
 /** How long typing rests before the words are read: as Home's Try it reads them. */
 export const READ_DEBOUNCE_MS = 300
-/** get_context reads at most this many characters of a question. */
+/** get_facts reads at most this many characters of a question. */
 const MAX_QUESTION = 2000
 
 /**

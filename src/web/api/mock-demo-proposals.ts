@@ -438,7 +438,7 @@ export function seedDemoProposals(workflow: MockWorkflow, today: string) {
     revision: mine.revision,
     riskLevel: 'high',
     reason:
-      'An end date changes how AI apps compare acquisition costs for every United Kingdom question.',
+      'An end date changes how agents compare acquisition costs for every United Kingdom question.',
   })
 
   // To review, Jon wrote it: someone else must decide.
@@ -610,7 +610,7 @@ export const demoAgentIds = {
 /**
  * Drafts an AI agent saved for Priya with `draft_context` (FR-121), each field marked with where it
  * came from: one she has not submitted yet, and one she submitted, which waits for Tomas in
- * Marketing and reads like a regulatory matter. Her AI app asked her about the dates and the
+ * Marketing and reads like a regulatory matter. Her agent asked her about the dates and the
  * source of both, so those are confirmed. Runs after `seedDemoGaps`.
  */
 export function seedDemoAgentDrafts(workflow: MockWorkflow) {

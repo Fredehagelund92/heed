@@ -19,7 +19,7 @@ import { StoryApp } from './story-app'
   mock: the scope strip, the work
   list with its views (Got worse, Gaps with a filter, Test questions) and a search that matches
   nothing, the domain overview with nothing open, the assistant's ratings on it and in a domain's
-  record, the AI apps this week under them, a record open in the record pane with its actions, a
+  record, the agents this week under them, a record open in the record pane with its actions, a
   domain in scope with the run it is compared with, a domain that has no test questions yet, a
   record that is not there, the refusal a contributor gets, the Runs view, a first run with
   nothing yet, and slow and failed loads (Quality's page states, which Health took over in W8),
@@ -119,16 +119,16 @@ export const DomainRatings: Story = {
   },
 }
 /**
- * The AI apps this week (FR-410) under the ratings, on the overview of every domain: each family
+ * The agents this week (FR-410) under the ratings, on the overview of every domain: each family
  * from the fixed list, its tool calls and how many needed more detail, matched nothing, were
  * malformed or failed, with each count's share, and counts below the minimum hidden.
  */
-export const AIApps: Story = {
+export const Agents: Story = {
   render: () => <StoryApp path="/health" person="per_jon" />,
   play: async () => {
     const section = await screen.findByRole(
       'region',
-      { name: 'AI apps this week' },
+      { name: 'Agents this week' },
       { timeout: 10_000 },
     )
     const table = await within(section).findByRole('table')
@@ -136,7 +136,7 @@ export const AIApps: Story = {
       within(table)
         .getAllByRole('columnheader')
         .map((cell) => cell.textContent),
-    ).toEqual(['AI app', 'Calls', 'Need detail', 'Found nothing', 'Unreadable', 'Errors'])
+    ).toEqual(['Agent', 'Calls', 'Need detail', 'Found nothing', 'Unreadable', 'Errors'])
     await expect(within(table).getByText('Claude app')).toBeVisible()
     await expect(within(table).getAllByText('Fewer than 5').length).toBeGreaterThan(0)
   },

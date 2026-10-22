@@ -271,7 +271,7 @@ export function contextFormFindings(value: ContextFormValues): FormatFinding[] {
   const summary = parseMentions(value.summaryMarkup)
   if ([...value.title].length > limits.title)
     add('title', `Keep the title within ${limits.title} characters.`)
-  if (!summary.text.trim()) add('summaryMarkup', 'Write a short summary. AI apps read it first.')
+  if (!summary.text.trim()) add('summaryMarkup', 'Write a short summary. Agents read it first.')
   const reasonProblem = changeReasonProblem(value.reason)
   if (reasonProblem) add('reason', reasonProblem)
   if ([...summary.text].length > limits.summary)

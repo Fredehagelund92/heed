@@ -231,7 +231,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
     const dev = await mintDevToken(devKey, resource, { scopes: ['read', 'feedback', 'propose'] })
     const refused = await callRaw(dev, draftOf(text, complete))
     expect(refused.status).toBe(403)
-    expect(refused.text).toContain('needs a person signed in to Heed through an AI app')
+    expect(refused.text).toContain('needs a person signed in to Heed through an AI agent')
     const eval_ = await mintDevToken(devKey, resource, {
       client: 'eval',
       scopes: ['read', 'propose'],

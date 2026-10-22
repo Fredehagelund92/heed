@@ -126,7 +126,7 @@ export function RollbackDialog({ label, open, onOpenChange }: Controlled & { lab
         content: (
           <div className="flex flex-col gap-3">
             <p className="text-body">
-              From now on, AI apps get the facts of edition{' '}
+              From now on, agents get the facts of edition{' '}
               <span className="font-mono">{target}</span> again, saved as the new edition{' '}
               <span className="font-mono">{published.edition.label}</span>. Nothing was deleted.
             </p>
@@ -134,8 +134,7 @@ export function RollbackDialog({ label, open, onOpenChange }: Controlled & { lab
             {published.was ? (
               <p className="text-dense text-muted-foreground">
                 To undo this, go back to <span className="font-mono">{published.was}</span>, the
-                edition AI apps got before. You&apos;ll see what that changes first, as you did
-                here.
+                edition agents got before. You&apos;ll see what that changes first, as you did here.
               </p>
             ) : null}
           </div>
@@ -166,8 +165,8 @@ export function RollbackDialog({ label, open, onOpenChange }: Controlled & { lab
       title={day ? `Go back to how it was on ${day}?` : `Go back to edition ${target}?`}
       effect={
         <>
-          AI apps get the facts of edition <span className="font-mono">{target}</span> again.
-          Nothing is deleted, and you can undo this.
+          Agents get the facts of edition <span className="font-mono">{target}</span> again. Nothing
+          is deleted, and you can undo this.
         </>
       }
       review={{
@@ -212,7 +211,7 @@ export function RollbackDialog({ label, open, onOpenChange }: Controlled & { lab
 }
 
 /**
- * The first step of going back: what it changes for AI apps, in a sentence and fact by fact, or
+ * The first step of going back: what it changes for agents, in a sentence and fact by fact, or
  * why it can't go ahead. Only the preview's first page of facts is listed; the rest are a link
  * away, in What changed between the live edition and the target.
  */
@@ -290,7 +289,7 @@ function RollbackPreviewBody({
           ))}
         </ul>
         <p className="text-dense text-muted-foreground">
-          A version AI apps get again must pass today&apos;s checks and have an owner&apos;s yes.
+          A version agents get again must pass today&apos;s checks and have an owner&apos;s yes.
           Pick another edition, or ask the owner of the fact&apos;s domain to fix it first.
         </p>
       </div>
@@ -307,7 +306,7 @@ function RollbackPreviewBody({
       <p className="text-dense text-muted-foreground">{goBackReaders}</p>
       {items.length ? (
         <ul
-          aria-label={`What changes for AI apps, from edition ${live.label} back to ${target}`}
+          aria-label={`What changes for agents, from edition ${live.label} back to ${target}`}
           tabIndex={0}
           className="flex max-h-list flex-col divide-y divide-border-subtle overflow-y-auto rounded-sm border outline-ring focus-visible:outline-2"
         >
@@ -346,7 +345,7 @@ type Scope = StopTarget['scope']
 
 /**
  * The stop switch (FR-805; Editions design, slice S5), for an admin, in two steps. First what to
- * stop and how far it reaches: one domain, everything or one fact, counted from the facts AI apps
+ * stop and how far it reaches: one domain, everything or one fact, counted from the facts agents
  * get today. Then the reason, which everyone signed in sees in the banner, and the domain's name
  * or "everything" typed to confirm. It makes no edition and loses nothing; the dialog ends on
  * what happened, with the way to start again.
@@ -390,7 +389,7 @@ export function StopDeliveryDialog({ open, onOpenChange }: Controlled) {
       <ConfirmDialog
         open={open}
         onOpenChange={onOpenChange}
-        title="Stop sharing with AI apps?"
+        title="Stop sharing with agents?"
         effect={stopEffect(target)}
         review={{
           label: 'Choose what to stop',
@@ -609,7 +608,7 @@ export function ResumeDeliveryDialog({
           ...(stop.areaId ? { areaId: stop.areaId } : {}),
           ...(stop.itemId ? { itemId: stop.itemId } : {}),
         })
-        showToast('Started again', `AI apps get ${stopTargetWords(stop.target)} again.`)
+        showToast('Started again', `Agents get ${stopTargetWords(stop.target)} again.`)
       }}
     />
   )

@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { openPage, settle, TRY_IT_MATCH, widths } from './support'
 
 /*
-  What an agent would get (Try it) and Connect an AI app, as a person uses them: in the assistant's
+  What an agent would get (Try it) and Connect an agent, as a person uses them: in the assistant's
   panel from any page, as the Try it page with the scope in its address, from Home's quick action
-  and from the user menu. The reply is the mock's get_context on its live edition.
+  and from the user menu. The reply is the mock's get_facts on its live edition.
 */
 
 const desktop = { ...widths[0], theme: 'light' } as const
@@ -14,7 +14,7 @@ const assistant = (page: Page) =>
   page.getByRole((page.viewportSize()?.width ?? 1440) < 768 ? 'dialog' : 'region', {
     name: 'Assistant',
   })
-const delivered = (page: Page) => page.getByRole('list', { name: 'What the AI app gets, in order' })
+const delivered = (page: Page) => page.getByRole('list', { name: 'What the agent gets, in order' })
 
 /** The address as a person reads it: the router writes `:`, `,` and `/` percent-encoded. */
 const address = (page: Page) => decodeURIComponent(page.url())
@@ -34,13 +34,13 @@ test.describe('What an agent would get in the panel', () => {
     await openPage(page, '/', desktop)
     await launcher(page).click()
     await assistant(page).getByRole('tab', { name: 'Try a question' }).click()
-    await expect(assistant(page).getByText('See what an AI app gets')).toBeVisible()
+    await expect(assistant(page).getByText('See what an agent gets')).toBeVisible()
     // The dates start as the last 30 days of the service's day.
     await expect(assistant(page).getByLabel('From')).toHaveValue('8 Sept 2026')
     await expect(assistant(page).getByLabel('To')).toHaveValue('7 Oct 2026')
 
     // Nothing to ask yet: the bar says what is missing and keeps the focus in the chips.
-    await assistant(page).getByRole('button', { name: 'Show what AI apps get' }).click()
+    await assistant(page).getByRole('button', { name: 'Show what agents get' }).click()
     await expect(
       assistant(page).getByText('Add a metric, a market or a product first.'),
     ).toBeVisible()
@@ -63,7 +63,7 @@ test.describe('What an agent would get in the panel', () => {
     )
     await expect(assistant(page).getByText(/never a person's name\.$/)).toBeVisible()
     await expect(
-      assistant(page).getByLabel('what the AI app is told', { exact: true }),
+      assistant(page).getByLabel('what the agent is told', { exact: true }),
     ).toContainText('State the documented fact')
 
     // A fact opens beside the panel, which stays open with its reply.
@@ -85,15 +85,15 @@ test.describe('What an agent would get in the panel', () => {
     await expect(delivered(page).getByRole('link').first()).toHaveText(title)
   })
 
-  test('the panel has Ask and What an agent would get, and points to Connect an AI app', async ({
+  test('the panel has Ask and What an agent would get, and points to Connect an agent', async ({
     page,
   }) => {
     await openPage(page, '/library', desktop)
     await launcher(page).click()
     await expect(assistant(page).getByRole('tab')).toHaveText(['Ask', 'Try a question'])
     await assistant(page).getByRole('tab', { name: 'Try a question' }).click()
-    // Using these facts in your own AI app is a setting of your own.
-    await assistant(page).getByRole('link', { name: 'Connect an AI app' }).click()
+    // Using these facts in your own agent is a setting of your own.
+    await assistant(page).getByRole('link', { name: 'Connect an agent' }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
     await expect(page.getByRole('heading', { name: 'What to do next' })).toBeVisible()
   })
@@ -105,7 +105,7 @@ test.describe('What an agent would get in the panel', () => {
     await expect(assistant(page)).toHaveAttribute('data-mode', 'full')
     await addChip(page, 'Average order')
     await addChip(page, 'United Kingdom')
-    await assistant(page).getByRole('button', { name: 'Show what AI apps get' }).click()
+    await assistant(page).getByRole('button', { name: 'Show what agents get' }).click()
     await expect(delivered(page)).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
     await delivered(page).getByRole('link').first().click()
@@ -127,7 +127,7 @@ test.describe('the Try it page', () => {
     await page.getByRole('button', { name: 'Remove Market United Kingdom' }).click()
     await expect(delivered(page).getByRole('listitem')).toHaveCount(count)
     await addChip(page, 'Netherlands')
-    await page.getByRole('button', { name: 'Show what AI apps get' }).click()
+    await page.getByRole('button', { name: 'Show what agents get' }).click()
     await expect
       .poll(() => address(page))
       .toMatch(/about=metric:average_order_value,val:market\/netherlands/)
@@ -143,7 +143,7 @@ test.describe('the Try it page', () => {
     await openPage(page, '/try-it?about=metric:average_order_value', desktop)
     await expect(
       page.getByText(
-        "You didn't choose dates, so this is what applies today, 7 October 2026. AI apps are told to say so. Add a first and last day to see another period.",
+        "You didn't choose dates, so this is what applies today, 7 October 2026. Agents are told to say so. Add a first and last day to see another period.",
       ),
     ).toBeVisible()
     await expect(page.locator('[data-slot="try-it-outcome"]')).not.toHaveText('Needs more detail')
@@ -163,7 +163,7 @@ test.describe('the Try it page', () => {
     await expect(absence).toBeVisible()
     await expect(absence).toContainText('Nothing is written down for this')
     await expect(absence).toContainText('which doesn’t mean nothing happened')
-    // What the AI app tells the person names what was checked; the rule is its next step.
+    // What the agent tells the person names what was checked; the rule is its next step.
     await expect(page.locator('[data-slot="try-it-say"]')).toContainText(
       'Nothing is written down for Average order value in United Kingdom from 5 to 6 January 1999. Only that was checked.',
     )
@@ -243,7 +243,7 @@ test.describe('the Try it page', () => {
   test('a failed answer offers to try again', async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem('cl.mock-scenario', 'error'))
     await openPage(page, TRY_IT_MATCH, desktop)
-    await expect(page.getByText("We couldn't get what AI apps get", { exact: true })).toBeVisible()
+    await expect(page.getByText("We couldn't get what agents get", { exact: true })).toBeVisible()
     await page.evaluate(() => window.localStorage.removeItem('cl.mock-scenario'))
     await page.getByRole('button', { name: 'Try again' }).click()
     await expect(delivered(page)).toBeVisible()
@@ -400,10 +400,10 @@ test.describe('a fact opens beside the reply on the Try it page', () => {
   })
 })
 
-test.describe('Connect an AI app', () => {
+test.describe('Connect an agent', () => {
   test('Home, the user menu and the palette all lead to it', async ({ page }) => {
     await openPage(page, '/', desktop)
-    await page.getByRole('link', { name: /Connect an AI app/ }).click()
+    await page.getByRole('link', { name: /Connect an agent/ }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
 
     await openPage(page, '/library', desktop)
@@ -411,10 +411,10 @@ test.describe('Connect an AI app', () => {
       .locator('[data-slot="sidebar"]')
       .getByRole('button', { name: /Maria Lindqvist/ })
       .click()
-    await expect(page.getByRole('menuitem', { name: /Connect an AI app/ })).toHaveText(
-      /Connect an AI app\s*G\s*then\s*Y/,
+    await expect(page.getByRole('menuitem', { name: /Connect an agent/ })).toHaveText(
+      /Connect an agent\s*G\s*then\s*Y/,
     )
-    await page.getByRole('menuitem', { name: /Connect an AI app/ }).click()
+    await page.getByRole('menuitem', { name: /Connect an agent/ }).click()
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
 
     await openPage(page, '/library', desktop)
@@ -423,15 +423,15 @@ test.describe('Connect an AI app', () => {
     await expect(page).toHaveURL(/\/settings\?section=connect$/)
     // No sidebar row: it is a section of the person's own Settings, from the user menu.
     await expect(
-      page.locator('[data-slot="sidebar"]').getByRole('link', { name: 'Connect an AI app' }),
+      page.locator('[data-slot="sidebar"]').getByRole('link', { name: 'Connect an agent' }),
     ).toHaveCount(0)
   })
 
   test('says which clients connect today, and copies the setup', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write'])
     await openPage(page, '/settings?section=connect', desktop)
-    await expect(page.getByText('Sign in from your AI app')).toBeVisible()
-    await expect(page.getByLabel('the address for AI apps', { exact: true })).toHaveText(
+    await expect(page.getByText('Sign in from your agent')).toBeVisible()
+    await expect(page.getByLabel('the address for agents', { exact: true })).toHaveText(
       'http://localhost:3000/mcp',
     )
     const clients = page.locator('[data-slot="connect-client"]')
@@ -447,7 +447,7 @@ test.describe('Connect an AI app', () => {
       exact: true,
     })
     await expect(token).toBeHidden()
-    await clients.getByRole('button', { name: /If your AI app can't sign in/ }).click()
+    await clients.getByRole('button', { name: /If your agent can't sign in/ }).click()
     await expect(token).toHaveText(
       'claude mcp add --transport http heed http://localhost:3000/mcp \\\n  --header "Authorization: Bearer <your access key>"',
     )
@@ -463,7 +463,7 @@ test.describe('Connect an AI app', () => {
     await editor.getByLabel('Why').fill('The team uses Cursor now')
     await editor.getByRole('button', { name: 'Save changes' }).click()
     await expect(editor).toHaveCount(0)
-    await page.getByRole('link', { name: 'Go to Connect an AI app' }).click()
+    await page.getByRole('link', { name: 'Go to Connect an agent' }).click()
     await expect(page.locator('[data-slot="connect-client"]')).toHaveCount(2)
     await expect(page.getByLabel('the setup for Cursor', { exact: true })).toContainText(
       '"mcpServers"',

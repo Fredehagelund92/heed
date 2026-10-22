@@ -36,7 +36,7 @@ export type AgentDraftRequest = {
   /** A resent request with the same key returns the same draft instead of a second one. */
   retryKey?: string
   /**
-   * The question round whose answers the person gave in their AI app (MCP elicitation). A round
+   * The question round whose answers the person gave in their agent (MCP elicitation). A round
    * saves one draft: a second save with it, a replayed request state, is refused.
    */
   answersRound?: string
@@ -69,11 +69,11 @@ async function checkLimits(tx: Queryable) {
   )
   if ((used?.today ?? 0) >= limits.perDay)
     throw new ORPCError('TOO_MANY_REQUESTS', {
-      message: `Your AI apps saved ${limits.perDay} drafts in the last 24 hours, the most allowed. Finish or discard one in ${productName}, or try again tomorrow.`,
+      message: `Your agents saved ${limits.perDay} drafts in the last 24 hours, the most allowed. Finish or discard one in ${productName}, or try again tomorrow.`,
     })
   if ((used?.open ?? 0) >= limits.open)
     throw new ORPCError('TOO_MANY_REQUESTS', {
-      message: `${limits.open} drafts from your AI apps wait unsubmitted. Submit or discard some in ${productName} first.`,
+      message: `${limits.open} drafts from your agents wait unsubmitted. Submit or discard some in ${productName} first.`,
     })
 }
 

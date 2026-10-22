@@ -21,7 +21,7 @@ import type {
 /*
   Answer runs in the mock, as the Quality page reads them (evals.runs.list, evals.runs.get and
   evals.transcript): the weekly runs of mock-quality.ts as runs with their results and tries, and
-  each try's transcript. The answer is scripted: the agent asks get_context with the wording,
+  each try's transcript. The answer is scripted: the agent asks get_facts with the wording,
   answers with the items it was given and, when it was given every item the question expects,
   with the question's caveat. The tries are scored by the service's rules (scoreTry), so a
   question passes when the run's edition delivers what it expects (mock-quality.ts says what it
@@ -29,7 +29,7 @@ import type {
   wording gives the same answer.
 */
 
-/** One scripted try: what get_context gave, the answer, the judge's verdict and the score. */
+/** One scripted try: what get_facts gave, the answer, the judge's verdict and the score. */
 export type ScriptedTry = {
   delivered: string[]
   status: 'matched' | 'no_match'
@@ -38,7 +38,7 @@ export type ScriptedTry = {
   score: CellScore
 }
 
-/** The scripted try of a question that get_context gave `delivered`, of the items it expects. */
+/** The scripted try of a question that get_facts gave `delivered`, of the items it expects. */
 export function scriptedTry(question: TestQuestion, delivered: readonly string[]): ScriptedTry {
   const { must_deliver: expected, caveat } = question.expected
   const given = expected.filter((id) => delivered.includes(id))
@@ -121,7 +121,7 @@ export function weeklyRun(point: HistoryPoint, digest: (text: string) => string)
     modelId: point.modelId,
     judgeModelId: point.judgeModelId,
     trigger: null,
-    toolSchemaDigest: digest('get_context'),
+    toolSchemaDigest: digest('get_facts'),
     testSetDigest: digest(`${point.area}:${point.questions}`),
     tries: MOCK_TRIES,
     flipRepeats: 7,
@@ -155,7 +155,7 @@ export function startedRun(
     itemVersionId: null,
     ...mockModels,
     trigger: null,
-    toolSchemaDigest: digest('get_context'),
+    toolSchemaDigest: digest('get_facts'),
     testSetDigest: digest(questions.map((q) => `${q.id}:${q.revision}`).join(',')),
     tries: MOCK_TRIES,
     flipRepeats: 7,
@@ -296,7 +296,7 @@ export function runDetail(
   }
 }
 
-/** One try's transcript: the wording, the get_context call, the scripted answer and its score. */
+/** One try's transcript: the wording, the get_facts call, the scripted answer and its score. */
 export function transcriptOf(
   detail: EvalRunDetail,
   cell: EvalRunDetail['cells'][number],
@@ -336,7 +336,7 @@ export function transcriptOf(
       { role: 'user', content: wording },
       {
         role: 'assistant',
-        content: [{ type: 'tool-call', toolCallId: 'call-1', toolName: 'get_context', input }],
+        content: [{ type: 'tool-call', toolCallId: 'call-1', toolName: 'get_facts', input }],
       },
       {
         role: 'tool',
@@ -344,13 +344,13 @@ export function transcriptOf(
           {
             type: 'tool-result',
             toolCallId: 'call-1',
-            toolName: 'get_context',
+            toolName: 'get_facts',
             output: { type: 'json', value: { status: scripted.status, items } },
           },
         ],
       },
       { role: 'assistant', content: [{ type: 'text', text: scripted.answer }] },
     ],
-    toolCalls: [{ tool: 'get_context', input, status: scripted.status, items }],
+    toolCalls: [{ tool: 'get_facts', input, status: scripted.status, items }],
   }
 }

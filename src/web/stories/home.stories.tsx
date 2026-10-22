@@ -101,7 +101,7 @@ export const PhoneDrafts: Story = {
 }
 
 // Drafts of every length, for the row's columns: short and long titles, the longest domain name,
-// one an AI app drafted and ages from just now to weeks ago.
+// one an agent drafted and ages from just now to weeks ago.
 const minute = 60_000
 const longDomain = { ...areas[2]!, id: 'area_audience', name: 'Audience & Engagement' }
 const mixedDraft = (
@@ -495,7 +495,7 @@ export const EmptyLibrary: Story = {
   render: () => <StoryApp path="/" scenario="empty" preferences={returning} />,
   play: async () => {
     await expect(await screen.findByText('No facts yet')).toBeVisible()
-    await expect(await screen.findByText('No AI app has asked yet')).toBeVisible()
+    await expect(await screen.findByText('No agent has asked yet')).toBeVisible()
   },
 }
 

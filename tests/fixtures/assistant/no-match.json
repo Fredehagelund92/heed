@@ -8,7 +8,7 @@
   {
     "type": "tool-input-available",
     "toolCallId": "call_get_context_63cf2abb",
-    "toolName": "get_context",
+    "toolName": "get_facts",
     "input": {
       "question": "Why did online share change?\nThe scope I picked in Heed: Online share (metric:online_share); Italy (val:market/italy); from 2023-01-01 to 2023-01-31.",
       "max_items": 20

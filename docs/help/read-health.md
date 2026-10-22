@@ -14,7 +14,7 @@ related: [review-a-proposal, editions, glossary]
 
 ## Before you start
 
-- You'll: see how well AI apps answer with your domain's facts, and pick what to fix first.
+- You'll: see how well AI agents answer with your domain's facts, and pick what to fix first.
 - Who: owners and admins.
 - You need: a domain with a few test questions. A test question is a question with a known right answer.
 
@@ -34,11 +34,11 @@ related: [review-a-proposal, editions, glossary]
 
 6. Open **Upkeep**. Check the facts marked **Check date passed** first. When a fact is still right, choose **Mark as checked**.
 
-7. For a new fact that matters, write a test question. The next run then tells you if AI apps stop getting it.
+7. For a new fact that matters, write a test question. The next run then tells you if agents stop getting it.
 
 ## What the numbers mean
 
-- **AI apps get the facts as of**: the day of the facts AI apps get now.
+- **Agents get the facts as of**: the day of the facts agents get now.
 - **Retrieval**: how many test questions get the facts they should, such as 16 of 17. We check this every time the facts change, without any AI, so it's exact.
 - **Answers**: how many test questions pass the newest weekly answer test. This test uses an AI to answer and to grade.
 - **got worse**: how many test questions passed before and fail now.
@@ -51,7 +51,7 @@ The work list has six views:
 
 - **All**: everything below, in the order to work on it.
 - **Got worse**: test questions that passed before and fail now.
-- **Gaps**: topics where AI apps asked and found no fact. Counts below 5 show as "fewer than 5", so no one can tell who asked.
+- **Gaps**: topics where agents asked and found no fact. Counts below 5 show as "fewer than 5", so no one can tell who asked.
 - **Upkeep**: facts that need checking, such as **Check date passed**, a source that changed or disappeared, or **No test yet** when no test question covers a fact.
 - **Test questions**: the questions we test your domain with.
 - **Runs**: each test run, with what changed since the one before.
@@ -68,7 +68,7 @@ Under a domain, **Assistant ratings this week** counts the answers people marked
 
 ## What happens next
 
-When you accept a fix, AI apps get it at once. The next run shows whether the questions that got worse pass again.
+When you accept a fix, agents get it at once. The next run shows whether the questions that got worse pass again.
 
 ## If something goes wrong
 

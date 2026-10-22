@@ -2,9 +2,9 @@ import { dayWords } from './dates.ts'
 import { concepts } from './words.ts'
 
 /*
-  Reviewed before served: how a fact an AI app receives was reviewed (FR-326, amended 18 Oct
+  Reviewed before served: how a fact an agent receives was reviewed (FR-326, amended 18 Oct
   2026). Every delivered item says it was accepted, on which day, by which role in which domain,
-  and in which edition. What an AI app receives names the role ("the owner of Sales"),
+  and in which edition. What an agent receives names the role ("the owner of Sales"),
   never the person; inside Heed, behind sign-in, the review stamp may name the person too
   (design contract 7.2, `ReviewStamp`).
 */
@@ -30,7 +30,7 @@ export const previewItemId = (proposal: { id: string; itemId?: string | null }) 
 /** Who looks after a domain's items, as a role: "the owner of Sales". */
 export const ownerRole = (domain: string) => `the ${concepts.owner.name} of ${domain}`
 
-/** The role that accepted a version, as AI apps read it: the owner of the domain (a deputy decided as one), or an admin. */
+/** The role that accepted a version, as agents read it: the owner of the domain (a deputy decided as one), or an admin. */
 export const acceptedByRole = (as: AcceptedAs, domain: string) =>
   as === 'administrator' ? `an ${concepts.admin.name}` : ownerRole(domain)
 

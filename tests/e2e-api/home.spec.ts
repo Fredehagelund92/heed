@@ -92,9 +92,7 @@ test('the weekly agent totals never give a hidden count away, are the same for e
   expect(await read('/topics/weekly?weeks=13')).toEqual(weekly)
 
   await page.goto('/')
-  const tile = page
-    .locator('[data-slot="pulse-tile"]')
-    .filter({ hasText: 'Questions from AI apps' })
+  const tile = page.locator('[data-slot="pulse-tile"]').filter({ hasText: 'Questions from agents' })
   await expect(tile).toHaveAttribute('data-state', 'ready', { timeout: 15_000 })
   const last = weekly.weeks.at(-2)!
   await expect(tile).toContainText(

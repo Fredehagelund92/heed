@@ -1,8 +1,8 @@
 /**
  * The MCP and gateway screen's words and rules (FR-407, FR-408): what each tool does in plain
- * words, how an AI app's tools and limits read, and the AI app form. The service decides; these
+ * words, how an agent's tools and limits read, and the agent form. The service decides; these
  * only say what it will do, and check a form before it is sent. Code says client; people read
- * AI app (src/domain/words.ts).
+ * agent (src/domain/words.ts).
  */
 import * as z from 'zod/mini'
 import type { ClientPolicy, SaveClientInput, ToolSwitch } from '@/api'
@@ -22,9 +22,9 @@ export type ToolAccess = 'read' | 'feedback' | 'propose'
 
 /** What each tool may do, which the screen groups them by. */
 const toolAccess: Record<McpToolName, ToolAccess> = {
-  get_context: 'read',
-  find_context: 'read',
-  search_context: 'read',
+  get_facts: 'read',
+  find_facts: 'read',
+  search_facts: 'read',
   read_item: 'read',
   get_related: 'read',
   domain_overview: 'read',
@@ -39,7 +39,7 @@ const toolAccess: Record<McpToolName, ToolAccess> = {
 /**
  * Every tool the gateway serves, in the order the screen lists them: the ones that read facts
  * first, then the ones that take feedback, then the one that drafts for a person. The title and
- * the line are the ones an AI app shows (src/domain/mcp-text.ts). A tool the service adds later
+ * the line are the ones an agent shows (src/domain/mcp-text.ts). A tool the service adds later
  * is listed after these under its own name.
  */
 export const toolInfo: Record<string, { name: string; about: string; access: ToolAccess }> =
@@ -79,11 +79,11 @@ export function toolsOnWords(tools: readonly ToolSwitch[]): string {
   return `${on} of ${tools.length} ${tools.length === 1 ? 'tool is' : 'tools are'} on.`
 }
 
-/** Whether an AI app may call a tool by its own policy, before the tool's switch is applied. */
+/** Whether an agent may call a tool by its own policy, before the tool's switch is applied. */
 export const clientAllows = (client: ClientPolicy, tool: string) =>
   client.toolsAllowed === null || client.toolsAllowed.includes(tool)
 
-/** The switched-on AI apps a tool reaches, or would reach once on, by name. */
+/** The switched-on agents a tool reaches, or would reach once on, by name. */
 export function clientsReached(clients: readonly ClientPolicy[], tool: string): string[] {
   return clients
     .filter((client) => client.enabled && clientAllows(client, tool))
@@ -97,8 +97,8 @@ export function listWords(names: readonly string[]): string {
 }
 
 /**
- * The confirmation's one sentence: what switching a tool does, and to which AI apps. Without
- * the AI apps (they did not load) it says what happens to every one.
+ * The confirmation's one sentence: what switching a tool does, and to which agents. Without
+ * the agents (they did not load) it says what happens to every one.
  */
 export function toolSwitchEffect(
   tool: string,
@@ -107,19 +107,19 @@ export function toolSwitchEffect(
 ): string {
   if (!clients)
     return enabled
-      ? 'Every AI app that allows it can use it from its next call.'
-      : 'Every AI app stops using it from its next call.'
+      ? 'Every agent that allows it can use it from its next call.'
+      : 'Every agent stops using it from its next call.'
   const reached = clientsReached(clients, tool)
   if (!enabled)
     return reached.length
-      ? `${listWords(reached)} ${reached.length === 1 ? 'stops' : 'stop'} using it from the next call. It stays off for every AI app until you switch it on again.`
-      : 'None of the AI apps that are on use it now. It stays off for every AI app until you switch it on again.'
+      ? `${listWords(reached)} ${reached.length === 1 ? 'stops' : 'stop'} using it from the next call. It stays off for every agent until you switch it on again.`
+      : 'None of the agents that are on use it now. It stays off for every agent until you switch it on again.'
   return reached.length
     ? `${listWords(reached)} can use it from the next call.`
-    : 'None of the AI apps that are on allow it yet. Allow it for one on the AI apps tab.'
+    : 'None of the agents that are on allow it yet. Allow it for one on the agents tab.'
 }
 
-/** What an AI app may call: "Every tool that is on", or the chosen tools by name. */
+/** What an agent may call: "Every tool that is on", or the chosen tools by name. */
 export function clientToolsWords(client: ClientPolicy): string {
   if (client.toolsAllowed === null) return 'Every tool that is on'
   if (client.toolsAllowed.length === 0) return 'No tools'
@@ -130,7 +130,7 @@ export function clientToolsWords(client: ClientPolicy): string {
 
 const count = (value: number) => value.toLocaleString('en')
 
-/** "120", or "Default (120)" when the AI app has no limit of its own. */
+/** "120", or "Default (120)" when the agent has no limit of its own. */
 export function rateWords(client: Pick<ClientPolicy, 'ratePerMinute'>): string {
   return client.ratePerMinute === null
     ? `Default (${count(DEFAULT_RATE_PER_MINUTE)})`
@@ -140,14 +140,14 @@ export function rateWords(client: Pick<ClientPolicy, 'ratePerMinute'>): string {
 /** Bytes as kilobytes of 1,000, as the limit is set: "100 KB", "2.5 KB". */
 export const kilobytes = (bytes: number) => `${(bytes / 1000).toLocaleString('en')} KB`
 
-/** "100 KB", or "Default (100 KB)" when the AI app has no limit of its own. */
+/** "100 KB", or "Default (100 KB)" when the agent has no limit of its own. */
 export function answerSizeWords(client: Pick<ClientPolicy, 'maxResponseBytes'>): string {
   return client.maxResponseBytes === null
     ? `Default (${kilobytes(DEFAULT_MAX_RESPONSE_BYTES)})`
     : kilobytes(client.maxResponseBytes)
 }
 
-/** An AI app's limits in a sentence, for a row with no columns: "120 a minute, answers up to 100 KB". */
+/** An agent's limits in a sentence, for a row with no columns: "120 a minute, answers up to 100 KB". */
 export function limitsWords(client: Pick<ClientPolicy, 'ratePerMinute' | 'maxResponseBytes'>) {
   const rate =
     client.ratePerMinute === null
@@ -235,22 +235,22 @@ export function clientFormSchema({
   return z
     .object({
       label: z.string().check(
-        z.refine((value) => !isNew || value.trim() !== '', problem('Give the AI app a label.')),
+        z.refine((value) => !isNew || value.trim() !== '', problem('Give the agent a label.')),
         z.refine(
           (value) => !isNew || value.trim() === '' || LABEL_PATTERN.test(value.trim()),
           problem('Use 1 to 40 lowercase letters, digits, dots, dashes or underscores.'),
         ),
         z.refine(
           () => !isNew || takenLabels !== null,
-          problem("We couldn't load the AI apps, so we can't check the label is free. Try again."),
+          problem("We couldn't load the agents, so we can't check the label is free. Try again."),
         ),
         z.refine(
           (value) => !isNew || !takenLabels?.includes(value.trim()),
-          problem('Another AI app has this label. Edit that one in the list instead.'),
+          problem('Another agent has this label. Edit that one in the list instead.'),
         ),
       ),
       displayName: z.string().check(
-        z.refine((value) => value.trim() !== '', problem('Give the AI app a name.')),
+        z.refine((value) => value.trim() !== '', problem('Give the agent a name.')),
         z.refine(
           (value) => [...value.trim()].length <= CLIENT_NAME_MAX,
           problem(`Shorten the name to ${CLIENT_NAME_MAX} characters.`),

@@ -4,7 +4,7 @@ import { KindIcon } from '@/components/item/kind-icon'
 import { cn } from '@/lib/utils'
 
 /*
-  One card about the object an AI app or the assistant changes (contract 7.2, 9.8): the object's
+  One card about the object an agent or the assistant changes (contract 7.2, 9.8): the object's
   kind glyph and title, its state, what changes, what is left for the person, and one decision.
   The same card serves the assistant's draft before it is created and an agent's proposal on its
   review page, so a change an agent made reads the same wherever a person meets it.

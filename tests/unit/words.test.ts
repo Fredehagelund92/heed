@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   bannedWords,
   concepts,
+  currentWords,
   internalToPlain,
   plainName,
   usesWord,
@@ -58,11 +59,23 @@ describe('the glossary', () => {
 
   it('maps the words of the specification to plain names', () => {
     expect(plainName('scope')).toBe('where it applies')
-    expect(plainName('agent')).toBe('AI app')
-    expect(plainName('Delivery')).toBe('what AI apps get')
+    expect(plainName('AI app')).toBe('agent')
+    expect(plainName('client')).toBe('agent')
+    expect(plainName('agent')).toBeNull()
+    expect(plainName('Delivery')).toBe('what agents get')
     expect(plainName('review date')).toBe('check date')
     expect(plainName('held-out')).toBe('hidden test question')
     expect(plainName('a word nobody uses')).toBeNull()
+  })
+})
+
+describe('currentWords', () => {
+  it('reads the retired name, AI app, as agent, so a search for it still finds the page', () => {
+    expect(currentWords('connect my AI app')).toBe('connect my agent')
+    expect(currentWords('Which ai apps can connect?')).toBe('Which agents can connect?')
+    expect(currentWords('the OpenAI Apps SDK and AI applications')).toBe(
+      'the OpenAI Apps SDK and AI applications',
+    )
   })
 })
 
@@ -125,21 +138,31 @@ describe('wordsToChange', () => {
       'item > fact',
       'stewards > owners',
     ])
-    expect(found('Agents read it')).toEqual(['Agents > AI apps'])
+    expect(found('AI apps read it')).toEqual(['AI apps > agents'])
+  })
+
+  it('writes agent for the program that connects, and bans the retired AI app and a person as an agent', () => {
+    // 21 October 2026: agent is the word, always software outside the app and never a person.
+    expect(found('Agents get it. Connect an agent. An AI agent such as Claude.')).toEqual([])
+    expect(found('Connect an AI app.')).toEqual(['AI app > agent'])
+    expect(found('The AI apps read it.')).toEqual(['AI apps > agents'])
+    expect(found('Ask the support agent, not a human agent.')).toEqual([
+      'support agent > the role itself, such as the support team',
+      'human agent > the role itself, such as the support team',
+    ])
+    expect(found('The Claude app and the OpenAI Apps SDK are names.')).toEqual([])
   })
 
   it('tells a longer phrase once', () => {
     expect(found('The live edition holds every context item.')).toEqual([
-      'live edition > what AI apps get today',
+      'live edition > what agents get today',
       'context item > fact',
     ])
   })
 
   it('leaves a word where the glossary allows it', () => {
     expect(found('Compare two editions', ['edition'])).toEqual([])
-    expect(found('The live edition', ['edition'])).toEqual([
-      'live edition > what AI apps get today',
-    ])
+    expect(found('The live edition', ['edition'])).toEqual(['live edition > what agents get today'])
   })
 
   it('says a negative short, keeping its capital, unless "not" carries the sentence', () => {

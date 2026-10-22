@@ -3,7 +3,7 @@ import type { GoldenQuestionInput } from '../../src/domain/golden-question.ts'
 /*
   Test questions for the demo database (db/seed/demo.ts), a handful per area, about items the
   bulk seed's library holds (generateItems(1500), src/web/mocks/items.ts). Every wording names its
-  metric, market and dates, so get_context resolves it on its own, as the scripted answer model
+  metric, market and dates, so get_facts resolves it on its own, as the scripted answer model
   asks it (src/server/modules/models/mock.ts). Each expects the items an analyst needs and forbids
   one about the same metric elsewhere that must stay out.
 

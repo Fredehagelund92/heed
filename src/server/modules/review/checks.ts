@@ -33,7 +33,7 @@ export async function liveHead(tx: Queryable): Promise<Head> {
   )
   if (!head)
     throw new ORPCError('PRECONDITION_FAILED', {
-      message: "Nothing is shared with AI apps yet, so the checks can't run.",
+      message: "Nothing is shared with agents yet, so the checks can't run.",
     })
   return head
 }

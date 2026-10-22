@@ -3,7 +3,7 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 /*
   The assistant's Ask tab on the real service, with its scripted model (MODELS=mock): a question
   asked with a scope streams from POST /api/v1/assistant/chat, and the facts the answer shows as
-  applying are the ones get_context delivers for that scope, which Try it shows too. The chips
+  applying are the ones get_facts delivers for that scope, which Try it shows too. The chips
   are the ids the service's citation check let through; nothing in the panel comes from the
   model's words but the words.
 */
@@ -32,7 +32,7 @@ const scope = {
   window: { from: '2026-09-08', to: '2026-10-07' },
 }
 
-test('an answer shows the facts get_context delivers for the scope, each cited and checked', async ({
+test('an answer shows the facts get_facts delivers for the scope, each cited and checked', async ({
   page,
   context,
   baseURL,
@@ -113,7 +113,7 @@ test('a question goes with the scope its "Heed reads" line showed, and the answe
   await box.fill(
     'What applies to average order value in the United Kingdom from 2026-09-08 to 2026-10-07?',
   )
-  // The service reads the words as get_context reads them, once typing rests.
+  // The service reads the words as get_facts reads them, once typing rests.
   const line = page.getByRole('list', { name: 'About', exact: true })
   await expect(line.locator('[data-source="typed"]')).toHaveText([
     /Average order value/,
@@ -426,7 +426,7 @@ test('"What is this" with Product attached answers about Product, and New chat s
   await expect(newChat).toBeDisabled()
 })
 
-test('the assistant counts the facts about Product as the catalogue does, and says how many AI apps get', async ({
+test('the assistant counts the facts about Product as the catalogue does, and says how many agents get', async ({
   page,
   context,
   baseURL,
@@ -441,19 +441,19 @@ test('the assistant counts the facts about Product as the catalogue does, and sa
   }
   const shelf = terms.find((term) => term.key === 'dim:product')!.shelf.items
   expect(shelf).toBeGreaterThan(0)
-  // "AI apps get 366 of them. The other 4 wait for now.": both numbers, and what each one counts.
+  // "Agents get 366 of them. The other 4 wait for now.": both numbers, and what each one counts.
   // The demo seed holds high-risk items about Product that wait for a check, so some are held back;
-  // on the bulk seed alone AI apps get all of them.
+  // on the bulk seed alone agents get all of them.
   const agentsGet = (text: string) => {
-    const some = /AI apps get ([\d,]+) of them\. The other ([\d,]+) wait for now\./.exec(text)
-    if (!some) return /AI apps get all of them\./.test(text) ? shelf : Number.NaN
+    const some = /AI agents get ([\d,]+) of them\. The other ([\d,]+) wait for now\./.exec(text)
+    if (!some) return /AI agents get all of them\./.test(text) ? shelf : Number.NaN
     return Number(some[1]!.replace(/,/g, '')) + Number(some[2]!.replace(/,/g, ''))
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   const box = page.getByRole('textbox', { name: 'Your question' })
   const answer = page.getByRole('article', { name: 'Answer' })
 
-  // Attached: the count the model reads is the catalogue's, beside what AI apps get.
+  // Attached: the count the model reads is the catalogue's, beside what agents get.
   await page.goto('/assistant?about=dim:product')
   await expect(page.getByRole('button', { name: 'Remove Any product' })).toBeVisible({
     timeout: 15_000,
@@ -461,17 +461,17 @@ test('the assistant counts the facts about Product as the catalogue does, and sa
   await box.fill('What is this')
   await box.press('Enter')
   await expect(answer).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
-  const attached = `${shelf.toLocaleString('en')} facts are about it, and AI apps get`
+  const attached = `${shelf.toLocaleString('en')} facts are about it, and AI agents get`
   await expect(answer).toContainText(attached)
   expect(agentsGet((await answer.textContent())!)).toBe(shelf)
 
-  // Searched: find_context's definition counts by the same rule and says the same.
+  // Searched: find_facts's definition counts by the same rule and says the same.
   await page.goto('/assistant')
   await box.fill('What does Product mean?')
   await box.press('Enter')
   await expect(answer).toHaveAttribute('data-state', 'done', { timeout: 30_000 })
   await expect(answer).toContainText(
-    `${shelf.toLocaleString('en')} facts are about Product, and AI apps get`,
+    `${shelf.toLocaleString('en')} facts are about Product, and AI agents get`,
   )
   const searched = (await answer.textContent())!
   expect(agentsGet(searched)).toBe(shelf)

@@ -49,7 +49,7 @@ describe('notificationSentence', () => {
       `Jon Abara decided on the proposal: ${T}`,
     )
     expect(say({ kind: 'proposal.approved', state: 'in_review' })).toBe(
-      `Jon Abara accepted the proposal. It needs one more yes before AI apps get it: ${T}`,
+      `Jon Abara accepted the proposal. It needs one more yes before agents get it: ${T}`,
     )
   })
 
@@ -106,7 +106,7 @@ describe('notificationSentence', () => {
         subject: { type: 'edition', id: '2026-10-07.2' },
         title: null,
       }),
-    ).toBe('Jon Abara updated what AI apps get: 7 October 2026')
+    ).toBe('Jon Abara updated what agents get: 7 October 2026')
     expect(say({ kind: 'eval.scorecard', actor: null })).toBe('New answer test results are ready')
   })
 

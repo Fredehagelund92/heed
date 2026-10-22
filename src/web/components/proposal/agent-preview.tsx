@@ -24,10 +24,10 @@ import { cn } from '@/lib/utils'
 import { PartCard } from './part-card'
 
 /*
-  "What AI apps will get" (FR-214, contract 7.2 AgentPreview): the real get_context reply for a
-  draft, from the same code as delivery, shown as an AI app would read it. The card names what the
+  "What agents will get" (FR-214, contract 7.2 AgentPreview): the real get_facts reply for a
+  draft, from the same code as delivery, shown as an agent would read it. The card names what the
   question was about, says whether anything was found, and shows each fact with its dates, its
-  source and what an AI app may say about cause. Nothing is shared: a draft is seen only by the
+  source and what an agent may say about cause. Nothing is shared: a draft is seen only by the
   people FR-214 names.
 */
 
@@ -40,20 +40,20 @@ export const outcomeLook: Record<
     glyph: TriangleAlertIcon,
     tone: 'warning',
     label: 'Found, with a conflict',
-    sentence: 'Two of these facts say different things. AI apps are told they conflict.',
+    sentence: 'Two of these facts say different things. Agents are told they conflict.',
   },
   no_match: {
     glyph: CircleDashedIcon,
     tone: 'neutral',
     label: 'Nothing found',
-    sentence: 'AI apps are told that nothing is written down for this.',
+    sentence: 'Agents are told that nothing is written down for this.',
   },
   need_more_detail: {
     glyph: CircleDashedIcon,
     tone: 'neutral',
     label: 'Needs more detail',
     sentence:
-      'The question is too open. AI apps are asked to name the metric, the market or the dates.',
+      'The question is too open. Agents are asked to name the metric, the market or the dates.',
   },
   check_failed: {
     glyph: TriangleAlertIcon,
@@ -97,13 +97,13 @@ export function sourceHost(url: string): string | null {
 const claimWords = {
   fact_only: (
     <>
-      AI apps may say it <strong className="font-bold">could explain</strong> a change, never that
-      it <strong className="font-bold">caused</strong> it.
+      Agents may say it <strong className="font-bold">could explain</strong> a change, never that it{' '}
+      <strong className="font-bold">caused</strong> it.
     </>
   ),
   effect_stated: (
     <>
-      The source states the effect. AI apps may say it <strong className="font-bold">caused</strong>{' '}
+      The source states the effect. Agents may say it <strong className="font-bold">caused</strong>{' '}
       the change.
     </>
   ),
@@ -213,8 +213,8 @@ function DeliveredItem({
       ) : null}
       {item.verified ? null : (
         <Note icon={TriangleAlertIcon} tone="warning">
-          AI apps are told this fact may be out of date, because its source changed or its check
-          date passed.
+          Agents are told this fact may be out of date, because its source changed or its check date
+          passed.
         </Note>
       )}
     </li>
@@ -266,7 +266,7 @@ export function AgentPreview({
   domainOf,
   draftItemId,
   action,
-  waitingFor = "Fill in what happened, where it applies and when. Then you'll see what AI apps would get.",
+  waitingFor = "Fill in what happened, where it applies and when. Then you'll see what agents would get.",
   headingLevel = 2,
   className,
 }: {
@@ -293,7 +293,7 @@ export function AgentPreview({
   const stampOf = useReviewStamps(reply && 'items' in reply ? reply.items : [])
   return (
     <PartCard
-      title="What AI apps will get"
+      title="What agents will get"
       headingLevel={headingLevel}
       aside={published ? null : <Badge form="outline">Not shared yet</Badge>}
       data-slot="agent-preview"
@@ -317,7 +317,7 @@ export function AgentPreview({
         <p className="text-dense text-muted-foreground">{waitingFor}</p>
       ) : state === 'loading' || !reply ? (
         <div className="flex flex-col gap-3 rounded-lg border p-4">
-          <span className="sr-only">Asking as an AI app would</span>
+          <span className="sr-only">Asking as an agent would</span>
           <Skeleton className="h-4 w-16" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />
@@ -341,12 +341,12 @@ export function AgentPreview({
           ) : null}
           {'cut' in reply && reply.cut ? (
             <Note icon={InfoIcon}>
-              More facts apply than fit in one reply. AI apps get the ones that rank highest.
+              More facts apply than fit in one reply. Agents get the ones that rank highest.
             </Note>
           ) : null}
           {reply.edition ? (
             <p className="text-caption text-muted-foreground">
-              Compared with what AI apps get today.
+              Compared with what agents get today.
             </p>
           ) : null}
         </>

@@ -93,12 +93,12 @@ export function ToolsTab() {
     <section aria-labelledby="tools-title" className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h2 id="tools-title" className="text-large font-bold">
-          Tools AI apps can use
+          Tools agents can use
         </h2>
         <p className="max-w-reading text-dense text-muted-foreground">
           {tools.data ? <span aria-live="polite">{toolsOnWords(tools.data)} </span> : null}A tool
-          you switch off is gone for every AI app from its next call. You can narrow the list for
-          one AI app on the AI apps tab.
+          you switch off is gone for every agent from its next call. You can narrow the list for one
+          agent on the agents tab.
         </p>
       </div>
       {tools.isPending ? (
@@ -141,8 +141,8 @@ export function ToolsTab() {
             showToast(
               `${name} switched ${switching.enabled ? 'on' : 'off'}`,
               switching.enabled
-                ? 'AI apps can use it from their next call.'
-                : 'AI apps stop using it from their next call.',
+                ? 'Agents can use it from their next call.'
+                : 'Agents stop using it from their next call.',
             )
           }}
         />

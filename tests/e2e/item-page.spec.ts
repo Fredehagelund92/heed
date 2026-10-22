@@ -154,7 +154,7 @@ test.describe('the item page and Details column', () => {
     await openPage(page, items.endedChanged, desktop)
     await expect(header(page)).toContainText('Source changed')
     await expect(note(page)).toHaveText(
-      'AI apps are told it may be out of date until Tomas Eriksen checks it.',
+      'Agents are told it may be out of date until Tomas Eriksen checks it.',
     )
     await page.getByRole('tab', { name: 'Source' }).click()
     await expect(page.getByRole('region', { name: 'What the details mean' })).toContainText(
@@ -162,13 +162,13 @@ test.describe('the item page and Details column', () => {
     )
     await openPage(page, items.sourceMissing, desktop)
     await expect(header(page)).toContainText('High risk')
-    await expect(note(page)).toHaveText('AI apps may not get it until Jon Abara checks it.')
+    await expect(note(page)).toHaveText('Agents may not get it until Jon Abara checks it.')
   })
 
   test('archived facts explain their status without offering a change', async ({ page }) => {
     await openPage(page, `${items.retired}?tab=source`, desktop)
     await expect(page.getByRole('region', { name: 'What the details mean' })).toContainText(
-      "It stays in the history, and AI apps don't get it.",
+      "It stays in the history, and agents don't get it.",
     )
     await expect(page.getByRole('link', { name: 'Suggest a change' })).toHaveCount(0)
   })
@@ -426,7 +426,7 @@ test.describe('what not to conclude on the item page', () => {
         await expect(section.locator('[data-slot="item-caveat"]')).toHaveText(
           /^Low orders in Poland for these days do not mean that customers ordered less\./,
         )
-        await expect(section.getByText('AI apps get this line with the fact.')).toBeVisible()
+        await expect(section.getByText('Agents get this line with the fact.')).toBeVisible()
         expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,

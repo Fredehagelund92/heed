@@ -142,7 +142,7 @@ export const LongText: Story = {
       <PageRail placement="beside" aria-label="Long text">
         <RailSection title="Comparing Return on ad spend between Poland, Norway and the United States for every quarter">
           <p className="text-dense break-words">
-            AI apps are told it may be out of date until the owner of Sales checks the source tool
+            Agents are told it may be out of date until the owner of Sales checks the source tool
             again: https://reports.example.com/commercial/return-on-ad-spend/poland/2026
           </p>
         </RailSection>

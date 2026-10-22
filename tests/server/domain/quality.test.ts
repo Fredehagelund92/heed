@@ -238,7 +238,7 @@ describe("a try's evidence", () => {
           role: 'assistant',
           content: [
             { type: 'text', text: 'First.' },
-            { type: 'tool-call', toolName: 'get_context', input: {} },
+            { type: 'tool-call', toolName: 'get_facts', input: {} },
             { type: 'text', text: 'Second.' },
           ],
         },

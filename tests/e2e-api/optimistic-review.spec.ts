@@ -132,7 +132,7 @@ test('an accept shows at once while the service is slow, then shows its edition'
 
   // Then the service's answer: decided, and published.
   expect((await decided).ok()).toBe(true)
-  await expect(toast(page)).toContainText('AI apps get it within a minute.', { timeout: 15_000 })
+  await expect(toast(page)).toContainText('Agents get it within a minute.', { timeout: 15_000 })
   await expect(page.locator('[data-slot="proposal-badges"]')).toContainText('Accepted', {
     timeout: 15_000,
   })

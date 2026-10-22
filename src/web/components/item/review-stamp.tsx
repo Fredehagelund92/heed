@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
   the accepted mark, who accepted it with their role, the day and that its
   checks passed. It is quiet on purpose, like a commit line under a change: the mark stays neutral
   (a healthy fact is never green, 6.1) and only the person's name is in the foreground colour.
-  Inside Heed it names the person; an AI app reads the same line with the role alone.
+  Inside Heed it names the person; an agent reads the same line with the role alone.
 */
 
 /** A fact a page shows as served: its id, the version an agent gets and its review as served. */
@@ -145,7 +145,7 @@ export function ReviewStamp({
         className={className}
         icon={<CircleDotIcon aria-hidden="true" className="size-icon-sm" />}
       >
-        Not reviewed yet. AI apps get it once {domain ? `the owner of ${domain}` : 'the owner'}{' '}
+        Not reviewed yet. Agents get it once {domain ? `the owner of ${domain}` : 'the owner'}{' '}
         accepts it.
       </Line>
     )

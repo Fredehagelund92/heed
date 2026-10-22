@@ -47,7 +47,7 @@ import {
 const tabNames: Record<ProposalTab, string> = {
   activity: 'Activity',
   fields: 'Fields',
-  preview: 'What AI apps will get',
+  preview: 'What agents will get',
 }
 
 export function ProposalPage({

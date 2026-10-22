@@ -16,7 +16,7 @@ it('shows each tool a call that its own schema accepts', () => {
 })
 
 it('lets arguments that fit through as they are, and marks the rest with their issues', async () => {
-  const schema = lenientInputSchema('get_context')['~standard']
+  const schema = lenientInputSchema('get_facts')['~standard']
   const fits = await schema.validate({ question: 'Orders' })
   expect(fits).toMatchObject({ value: { question: 'Orders' } })
   expect(invalidInputOf((fits as { value: unknown }).value)).toBeUndefined()
@@ -26,13 +26,13 @@ it('lets arguments that fit through as they are, and marks the rest with their i
 })
 
 it('names the field and what it needs, never the value sent', async () => {
-  const schema = lenientInputSchema('get_context')['~standard']
+  const schema = lenientInputSchema('get_facts')['~standard']
   const secret = 'Alice asked about orders'
   const marked = (await schema.validate({ question: 42, metrics: secret, note: secret })) as {
     value: unknown
   }
   const issues = invalidInputOf(marked.value)!
-  const result = invalidInputResult('get_context', issues)
+  const result = invalidInputResult('get_facts', issues)
   // One problem per field: a list sent as a string is not also "too long".
   expect(result.structuredContent.problems.map((p) => p.problem)).toEqual([
     'question: expected string, received number',
@@ -46,7 +46,7 @@ it('names the field and what it needs, never the value sent', async () => {
   expect(JSON.stringify(result)).not.toContain('Alice')
   expect(result).toMatchObject({
     isError: true,
-    structuredContent: { status: 'invalid_input', example: exampleCalls.get_context },
+    structuredContent: { status: 'invalid_input', example: exampleCalls.get_facts },
   })
   // The person hears that nothing was looked up; the model reads what to fix, in the same text.
   expect(result.structuredContent.say).toBe(
@@ -55,7 +55,7 @@ it('names the field and what it needs, never the value sent', async () => {
   expect(result.content[0]!.text).toBe(
     `${result.structuredContent.say} ${result.structuredContent.next}`,
   )
-  expect(result.structuredContent.next).toMatch(/^get_context could not read its arguments: /)
+  expect(result.structuredContent.next).toMatch(/^get_facts could not read its arguments: /)
 })
 
 it('lists the required fields first', () => {

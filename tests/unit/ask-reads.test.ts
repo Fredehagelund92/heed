@@ -50,7 +50,7 @@ const revenueIn2026 = reading({
 const none = new Set<string>()
 
 describe('what Heed reads for a question', () => {
-  it('reads the words: their terms and their period, sent as get_context fields', () => {
+  it('reads the words: their terms and their period, sent as get_facts fields', () => {
     const reads = readsOf({
       reading: revenueIn2026,
       picked: null,
@@ -248,7 +248,7 @@ describe('items and domains in the question', () => {
     { kind: 'mention', target: 'area:commercial', label: 'Commercial' },
   ])
 
-  it('sends them with the question, apart from the terms get_context reads', () => {
+  it('sends them with the question, apart from the terms get_facts reads', () => {
     expect(tagged?.about).toEqual(['item:itm_a1b2c3d4', 'area:commercial'])
     const reads = readsOf({
       reading: null,

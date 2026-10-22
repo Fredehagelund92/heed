@@ -24,7 +24,7 @@ const envSchema = z
     MCP_RESOURCE_URL: z.url().default('http://localhost:3000/mcp'),
     MCP_DEV_KEY_FILE: z.string().default('.heed-dev-key.pem'),
     // The HMAC key (hex, 32 bytes or more, owner-only) that seals draft_context's questions in a
-    // person's AI app (FR-121). Every instance needs the same file. Outside production a missing
+    // person's agent (FR-121). Every instance needs the same file. Outside production a missing
     // file is created; in production a missing one turns those questions off.
     CL_MCP_STATE_KEY_FILE: z.string().default('.heed-mcp-state.key'),
     // The login server for a person's own AI client (FR-403, FR-404, docs/ai-sign-in.md).
@@ -55,7 +55,7 @@ const envSchema = z
     CL_AUTH: z.enum(['dev']).default('dev'),
     CL_DEV_PEOPLE_FILE: z.string().default('db/seed/people.local.yml'),
     // The web app's origins, which may send changes. The first is its public address: links to a
-    // draft and to each item an AI app is given go there (FR-121, FR-347).
+    // draft and to each item an agent is given go there (FR-121, FR-347).
     CL_WEB_ORIGINS: z
       .string()
       .default(DEFAULT_WEB_ORIGINS.join(','))
@@ -72,7 +72,7 @@ const envSchema = z
       ),
     // Pins the service's "today" (a UTC day) so demo data and end-to-end screenshots stay stable.
     CL_FIXED_TODAY: z.iso.date().optional(),
-    // Language models for the assistant, judges and evals. `get_context` never calls a model.
+    // Language models for the assistant, judges and evals. `get_facts` never calls a model.
     // `mock` scripts every role; `live` uses each role's provider and model from the settings
     // (`models.<role>`), with the provider's key from this environment.
     MODELS: z.enum(['mock', 'live']).default('mock'),

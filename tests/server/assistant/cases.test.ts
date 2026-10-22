@@ -176,8 +176,8 @@ describe('working notes', () => {
     // Round 6: Sonnet wrote "Year is unclear; try searching." between two tool calls.
     const chunks: UIMessageChunk[] = [
       { type: 'start' },
-      ...step(call('a', 'get_context')),
-      ...step(text('t1', 'Year is unclear; try searching.'), call('b', 'find_context')),
+      ...step(call('a', 'get_facts')),
+      ...step(text('t1', 'Year is unclear; try searching.'), call('b', 'find_facts')),
       ...step(text('t2', 'One item applies [itm_gspiinote1].')),
       { type: 'finish', finishReason: 'stop' },
     ]
@@ -235,7 +235,7 @@ describe('the companion cases', () => {
   it('want last week counted from today, not from the edition', () => {
     const lastWeek = byId('last-week')
     const asked = (from: string, to: string) =>
-      outcome({ tools: ['get_context'], windows: [{ from, to }] })
+      outcome({ tools: ['get_facts'], windows: [{ from, to }] })
     expect(judge(lastWeek, asked('2026-10-05', '2026-10-11'), null, true, '2026-10-12')).toEqual([])
     // The week before the edition's date (7 October) is not last week on 12 October.
     expect(judge(lastWeek, asked('2026-09-28', '2026-10-04'), null, true, '2026-10-12')).toEqual([
@@ -381,7 +381,7 @@ it("gives the model a plain sentence for a failed tool call, never the SDK's err
         {
           type: 'tool-result',
           toolCallId: 'c2',
-          toolName: 'get_context',
+          toolName: 'get_facts',
           output: { type: 'json', value: { items: [] } },
         },
       ],

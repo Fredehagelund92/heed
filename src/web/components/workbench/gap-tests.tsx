@@ -126,7 +126,7 @@ export function GapVerification({
             "No. It's closed as won't fix."
           ) : (
             <>
-              Not yet. An owner of {area?.name ?? 'its domain'} marks it resolved once AI apps get
+              Not yet. An owner of {area?.name ?? 'its domain'} marks it resolved once agents get
               the fix.
             </>
           )}
@@ -156,7 +156,7 @@ export function GapVerification({
             </span>
           ) : view.state === 'waiting' ? (
             <>
-              Not yet. It waits for a weekly or full run to pass on what AI apps get since it was
+              Not yet. It waits for a weekly or full run to pass on what agents get since it was
               resolved.
               {view.of !== null
                 ? ` ${view.passed!.toLocaleString('en')} of ${view.of.toLocaleString('en')} linked ${view.of === 1 ? 'test has' : 'tests have'} passed.`
@@ -168,7 +168,7 @@ export function GapVerification({
               resolved checks it.
             </>
           ) : view.state === 'no_edition' ? (
-            "It can't be: it was resolved before we recorded what AI apps got. Reopen it and resolve it again, so a test can check it."
+            "It can't be: it was resolved before we recorded what agents got. Reopen it and resolve it again, so a test can check it."
           ) : gap.status === 'wont_fix' ? (
             "No. A gap closed as won't fix is never checked."
           ) : active ? (

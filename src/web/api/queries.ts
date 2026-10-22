@@ -293,7 +293,7 @@ export const signInPeopleQuery = () =>
   })
 
 /**
- * The AI app sign-in this browser started, for the consent screen; null when it ended or another
+ * The agent sign-in this browser started, for the consent screen; null when it ended or another
  * browser started it. Read fresh every time: it can be answered or end at any moment.
  */
 export const connectRequestQuery = (id: string) =>
@@ -304,7 +304,7 @@ export const connectRequestQuery = (id: string) =>
     gcTime: 0,
   })
 
-/** The AI apps connected as the signed-in person. */
+/** The agents connected as the signed-in person. */
 export const connectionsQuery = () =>
   queryOptions({ queryKey: queryKeys.connections, queryFn: () => api.listConnections() })
 
@@ -466,7 +466,7 @@ export const ratingCountsQuery = (params: QualityWeeksParams = {}) =>
     queryFn: () => api.getRatingCounts(params),
   })
 
-/** How the AI apps that called the MCP server fared, per family and week, small counts hidden. */
+/** How the agents that called the MCP server fared, per family and week, small counts hidden. */
 export const appFamilyCountsQuery = (params: AppFamilyCountsParams = {}) =>
   queryOptions({
     queryKey: queryKeys.apps(params),
@@ -630,7 +630,7 @@ export const toolsQuery = () =>
 export const clientsQuery = () =>
   queryOptions({ queryKey: queryKeys.clients, queryFn: () => api.listClients() })
 
-/** Every person's open AI app connections (FR-403). Administrators only. */
+/** Every person's open agent connections (FR-403). Administrators only. */
 export const aiConnectionsQuery = () =>
   queryOptions({ queryKey: queryKeys.aiConnections, queryFn: () => api.listAiConnections() })
 

@@ -1,6 +1,6 @@
 # Security
 
-Heed holds what an organisation knows about its numbers, and it decides which AI apps and people
+Heed holds what an organisation knows about its numbers, and it decides which AI agents and people
 may read each fact. If you find a way around that, please tell us privately first.
 
 ## Report a vulnerability
@@ -30,7 +30,7 @@ if you'd like that.
 
 Anything that lets someone read, change or decide more than their role allows. For example:
 
-- an AI app or a person gets a fact they are not allowed to read;
+- an agent or a person gets a fact they are not allowed to read;
 - someone accepts, edits or archives a fact without the right to do so;
 - an access key, a sign-in or a session works longer or wider than it should;
 - a connector reaches a network address, a file or a secret it was not given;

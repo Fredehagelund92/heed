@@ -114,7 +114,7 @@ export function AgentView({
           <LinkIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
           <div className="flex min-w-0 flex-col items-start gap-1">
             <p>
-              {`Fill in ${sourceWords.title} before you send it. It doesn't change what AI apps get.`}
+              {`Fill in ${sourceWords.title} before you send it. It doesn't change what agents get.`}
             </p>
             <Button variant="link" size="sm" className="px-0" onClick={onShowEvidence}>
               Complete it
@@ -207,7 +207,7 @@ export function DraftChecks({
         <span>
           <b className="font-bold">More checks</b>
           <br />
-          When you send it, we test that it finds the right questions and reaches AI apps.
+          When you send it, we test that it finds the right questions and reaches agents.
         </span>
       </p>
     </PartCard>

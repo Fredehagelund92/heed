@@ -1,7 +1,7 @@
 /**
  * The members of a definition source that are not vocabulary terms yet, each as the term an
  * administrator may propose for it (B1 of the pilot walk; FR-125, FR-136). Heed reads every
- * public member of the source, but scope, the catalogue and `get_context` only know terms, so a
+ * public member of the source, but scope, the catalogue and `get_facts` only know terms, so a
  * member reaches people once a term names it and an owner or administrator accepts it.
  *
  * Pure: the service and the mock binding suggest the same terms from the same members.

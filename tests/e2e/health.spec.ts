@@ -190,7 +190,7 @@ test('with nothing open, an owner sees the scope, the list pane and the domain o
   await openPage(page, '/health', { ...desktop, theme: 'light' })
   await expect(page).toHaveTitle('Health - Heed')
   await expect(strip(page).getByRole('combobox', { name: 'Domain' })).toHaveText(/All domains/)
-  await expect(strip(page)).toContainText(/AI apps get the facts as of \d{1,2} \w{3,4} \d{4}/)
+  await expect(strip(page)).toContainText(/Agents get the facts as of \d{1,2} \w{3,4} \d{4}/)
   // Read out as counts: "8 of 9", not "8/9", and each number with its own words. The demo's
   // regression (mocks/items.ts) fails one question in the newest weekly run and retrieval pass.
   await expect(strip(page).getByRole('list', { name: 'Results' })).toMatchAriaSnapshot(`
@@ -214,12 +214,12 @@ test('with nothing open, an owner sees the scope, the list pane and the domain o
   await noSideways(page)
 })
 
-test('the overview of every domain shows how each AI app fared this week, small counts hidden', async ({
+test('the overview of every domain shows how each agent fared this week, small counts hidden', async ({
   page,
 }) => {
   await signInAs(page, 'per_jon')
   await openPage(page, '/health', { ...desktop, theme: 'light' })
-  const apps = page.getByRole('table', { name: 'Tool calls this week per AI app' })
+  const apps = page.getByRole('table', { name: 'Tool calls this week per agent' })
   // The demo's week (mocks/app-days.ts): most calls first, a count below 5 never shown.
   await expect(apps.getByRole('rowheader')).toHaveText([
     'Claude Code',
@@ -240,13 +240,13 @@ test('the overview of every domain shows how each AI app fared this week, small 
   await expect(apps).toHaveCount(0)
 })
 
-test('an owner of one domain sees the AI apps on the overview of the only domain they look after', async ({
+test('an owner of one domain sees the agents on the overview of the only domain they look after', async ({
   page,
 }) => {
   await signInAs(page, 'per_tomas')
   await openPage(page, '/health', { ...desktop, theme: 'light' })
   await expect(page.locator('[data-slot="quality-verdict"]')).toBeVisible()
-  await expect(page.getByRole('table', { name: 'Tool calls this week per AI app' })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Tool calls this week per agent' })).toBeVisible()
 })
 
 test('the page stays put and each pane scrolls on its own', async ({ page }) => {
@@ -465,10 +465,10 @@ test('its test result: each try by wording and edition, a transcript in place, t
     .click()
   await expect(page).toHaveURL(new RegExp(`cell=${QUALITY_FAILED_TRY}`))
   const transcript = pane(page).locator('[data-slot="transcript"]')
-  await expect(transcript).toContainText('Calls get_context')
+  await expect(transcript).toContainText('Calls get_facts')
   await page.reload()
   await expect(pane(page).getByRole('tab', { selected: true })).toHaveText('Test result')
-  await expect(transcript).toContainText('Calls get_context')
+  await expect(transcript).toContainText('Calls get_facts')
   await transcript.getByRole('button', { name: 'All results' }).click()
   await expect(page).not.toHaveURL(/cell=/)
   await expect(tries).toBeVisible()
@@ -961,7 +961,7 @@ test('the Gaps view marks the gaps people reported, and links to the topic count
       .locator('[data-slot="field-row"]')
       .filter({ hasText: 'From people' }),
   ).toContainText('Fewer than 5')
-  await workList(page).getByRole('link', { name: 'See what AI apps ask about, per week' }).click()
+  await workList(page).getByRole('link', { name: 'See what agents ask about, per week' }).click()
   await expect(page).toHaveURL(/\/gaps\?view=topics$/)
   await expect(page.getByRole('navigation', { name: 'Gap views' })).toBeVisible()
 })
@@ -1272,7 +1272,7 @@ test('a gap opens from the Gaps view with its evidence, its history and its acti
   await expect(page).toHaveURL(/tab=history/)
   await expect(pane(page).getByRole('list', { name: 'History' }).getByRole('listitem')).toHaveText([
     /6 Oct 2026\s*Last seen/,
-    /14 Sept 2026\s*First seen\. AI apps asked and found nothing\./,
+    /14 Sept 2026\s*First seen\. Agents asked and found nothing\./,
   ])
   // The tab stays with the next gap, and a reload keeps both.
   await page.keyboard.press('j')
@@ -1423,7 +1423,7 @@ test('an owner links a test to a gap, resolves it, and a passing run verifies it
     'Correction',
   ])
   await expect(fact(page, 'Resolved')).toHaveText(
-    'Not yet. An owner of Sales marks it resolved once AI apps get the fix.',
+    'Not yet. An owner of Sales marks it resolved once agents get the fix.',
   )
   await expect(fact(page, 'Checked by a test')).toHaveText(
     "Not yet. Once it's resolved, a passing run of its linked tests checks it.",
@@ -1448,14 +1448,14 @@ test('an owner links a test to a gap, resolves it, and a passing run verifies it
   await actions(page).getByRole('button', { name: 'Mark resolved' }).click()
   const confirm = page.getByRole('alertdialog', { name: 'Mark this gap as resolved?' })
   await expect(confirm).toContainText(
-    'It counts as checked once its linked test passes on what AI apps get from today.',
+    'It counts as checked once its linked test passes on what agents get from today.',
   )
   await confirm.getByRole('textbox', { name: 'Why' }).fill('The event item covers it.')
   await confirm.getByRole('button', { name: 'Mark resolved' }).click()
   await expect(confirm).toBeHidden()
   await expect(fact(page, 'Resolved')).toHaveText('Marked resolved 7 Oct 2026.')
   await expect(fact(page, 'Checked by a test')).toHaveText(
-    'Not yet. It waits for a weekly or full run to pass on what AI apps get since it was resolved. 0 of 1 linked test has passed.',
+    'Not yet. It waits for a weekly or full run to pass on what agents get since it was resolved. 0 of 1 linked test has passed.',
   )
   await expect(pane(page).locator('[data-slot="verified-badge"]')).toHaveCount(0)
 
@@ -1709,7 +1709,7 @@ test('an item from Upkeep: why it is listed, what changed, its details, and a te
   await expect(pane(page).getByRole('tab')).toHaveCount(0)
   await expect(pane(page).locator('[data-slot="why-listed"]')).toContainText('Check date passed')
   await expect(pane(page).getByRole('region', { name: 'What changed' })).toContainText(
-    'Between what AI apps got before and what they get today.',
+    'Between what agents got before and what they get today.',
   )
   await expect(pane(page).getByRole('definition').first()).toBeVisible()
   await expect(pane(page).getByRole('region', { name: 'Details' })).toContainText(/applies/i)
@@ -1777,7 +1777,7 @@ const axeStates = [
     ready: (page: Page) => page.locator('[data-slot="quality-verdict"]'),
   },
   {
-    name: 'the overview of every domain, with the AI apps',
+    name: 'the overview of every domain, with the agents',
     path: '/health',
     ready: (page: Page) => page.locator('[data-app-family="claude_code"]'),
   },

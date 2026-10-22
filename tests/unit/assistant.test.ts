@@ -91,7 +91,7 @@ describe('an answer recorded from the service', () => {
     })
   })
 
-  it('says nothing applies when get_context found nothing and the answer cites nothing', async () => {
+  it('says nothing applies when get_facts found nothing and the answer cites nothing', async () => {
     const answer = readAnswer(await assemble(noMatch))
     expect(answer.notFound).toBe(true)
     expect(answer.facts).toEqual([])
@@ -139,7 +139,7 @@ describe('an answer recorded from the service', () => {
     expect(wire[0]!.parts).toEqual([
       { type: 'text', text: 'Which facts apply?' },
       { type: 'text', text: 'The scope I picked.' },
-      // The scope the person saw, as get_context's fields: the service binds the calls to it.
+      // The scope the person saw, as get_facts's fields: the service binds the calls to it.
       { type: 'data-scope', data: read },
     ])
     expect(wire[1]!.parts.some((part) => part.type === 'data-citations')).toBe(true)
@@ -181,7 +181,7 @@ describe('the steps of a domain question', () => {
           },
         ),
         tool(
-          'find_context',
+          'find_facts',
           { query: 'commercial' },
           {
             items: [],
@@ -191,7 +191,7 @@ describe('the steps of a domain question', () => {
           },
         ),
         tool(
-          'find_context',
+          'find_facts',
           { query: 'what is Net sales' },
           {
             items: [{ id: 'itm_bbbbbbbb', title: 'Net sales note' }],
@@ -578,7 +578,7 @@ describe('the answer as people read it', () => {
     expect(markdown).not.toContain('…')
   })
 
-  it('tells the model the scope as get_context’s own fields, after a fixed prefix', () => {
+  it('tells the model the scope as get_facts’s own fields, after a fixed prefix', () => {
     expect(
       scopeLine({
         scope: {
@@ -590,7 +590,7 @@ describe('the answer as people read it', () => {
         to: '2026-06-30',
       }),
     ).toBe(
-      'Scope picked for this question, as get_context fields: {"metrics":["metric:orders"],"dimension_filters":[{"dimension":"dim:market","values":["val:market/north"]}],"window":{"from":"2026-06-01","to":"2026-06-30"}}',
+      'Scope picked for this question, as get_facts fields: {"metrics":["metric:orders"],"dimension_filters":[{"dimension":"dim:market","values":["val:market/north"]}],"window":{"from":"2026-06-01","to":"2026-06-30"}}',
     )
     expect(scopeOfUsed(null)).toBeNull()
   })
@@ -946,7 +946,7 @@ describe('how each fact read was reviewed (FR-326)', () => {
       id: 'answer',
       role: 'assistant',
       parts: [
-        tool('get_context', {
+        tool('get_facts', {
           edition: '2026-10-07.2',
           status: 'matched',
           items: [
@@ -956,7 +956,7 @@ describe('how each fact read was reviewed (FR-326)', () => {
         }),
         // A later read of the second fact gives its review; a weaker verdict keeps the stronger.
         tool('read_item', { item: { id: 'itm_bbbbbbbb', title: 'No review said', reviewed } }),
-        tool('find_context', { items: [{ id: 'itm_cccccccc', title: 'Found', reviewed: 'odd' }] }),
+        tool('find_facts', { items: [{ id: 'itm_cccccccc', title: 'Found', reviewed: 'odd' }] }),
       ],
     }
     const facts = readAnswer(message).facts

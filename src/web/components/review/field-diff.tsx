@@ -418,7 +418,7 @@ function RangeSide({
       ) : null}
       {becameHistory && bar?.last ? (
         <p data-slot="issue-history" className="text-caption text-muted-foreground">
-          It becomes history. AI apps get it only for questions about {formatDay(bar.start)} to{' '}
+          It becomes history. Agents get it only for questions about {formatDay(bar.start)} to{' '}
           {formatDay(bar.last)}.
         </p>
       ) : null}
@@ -615,8 +615,8 @@ function RowSide({
       return (
         <Badge form="bare" quiet={values.status !== 'retired'}>
           {values.status === 'retired'
-            ? 'Archived. AI apps stop getting it'
-            : 'Accepted. AI apps get it'}
+            ? 'Archived. Agents stop getting it'
+            : 'Accepted. Agents get it'}
         </Badge>
       )
     case 'replaces':
@@ -890,7 +890,7 @@ export function FieldDiff({
   change: boolean
   /** The two columns' names, when they are not the live and the proposed version. */
   columns?: { before: string; after: string }
-  /** Where each field came from, when an AI app or the assistant wrote the draft (FR-121). */
+  /** Where each field came from, when an agent or the assistant wrote the draft (FR-121). */
   provenance?: Provenance | null
 }) {
   const found = diffRows(diff)

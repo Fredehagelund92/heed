@@ -1,5 +1,5 @@
 /**
- * The AI app that called Heed's MCP server, in coarse buckets from a fixed list (FR-410). An MCP
+ * The agent that called Heed's MCP server, in coarse buckets from a fixed list (FR-410). An MCP
  * client names itself in `clientInfo` (on protocol 2026-07-28 with every request, before that
  * when it starts a session). That name is self-chosen free text, so it is never kept: it is mapped
  * here to one of these families, and anything not on the list becomes `other`. A family names the
@@ -36,8 +36,8 @@ export const appFamilyNames: Record<AppFamily, string> = {
   gemini_cli: 'Gemini CLI',
   goose: 'goose',
   heed: 'Built-in test runs',
-  other: 'Another app',
-  unknown: 'App not named',
+  other: 'Another agent',
+  unknown: 'Agent not named',
 }
 
 /** The first rule that matches a client's name, lower case, decides its family. */

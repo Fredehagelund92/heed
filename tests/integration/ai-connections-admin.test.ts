@@ -3,7 +3,7 @@ import { people } from './fixtures.ts'
 import { signInHarness } from './sign-in-harness.ts'
 
 /*
-  An administrator's view of every person's AI apps (FR-403, FR-807), end to end on PostgreSQL:
+  An administrator's view of every person's agents (FR-403, FR-807), end to end on PostgreSQL:
   the list names the person and the app as it names itself, a disconnect needs a reason that the
   history log keeps, a disconnected app's access token is refused at its very next request and
   its refresh token is refused, all of one person's apps end in one step, and nobody but an
@@ -45,7 +45,7 @@ async function signedIn(name: string) {
 const refresh = (app: { clientId: string; refresh_token: string }) =>
   token({ grant_type: 'refresh_token', refresh_token: app.refresh_token, client_id: app.clientId })
 
-describe('an administrator and the AI apps people connected', () => {
+describe('an administrator and the agents people connected', () => {
   it('lists every person’s apps and disconnects one with a reason, at its next request', async () => {
     const authorApp = await connect('author', 'read feedback propose')
     const ownerApp = await connect('owner')

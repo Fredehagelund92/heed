@@ -67,7 +67,7 @@ export const InAnEmptyState: Story = {
   render: () => (
     <Frame>
       <ListMessage icon={GitCommitHorizontalIcon} title="No editions yet">
-        We save an edition each time AI apps get a change. The first one shows here.{' '}
+        We save an edition each time agents get a change. The first one shows here.{' '}
         <HelpLink to="editions">What is an edition?</HelpLink>
       </ListMessage>
     </Frame>

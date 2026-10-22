@@ -89,13 +89,13 @@ async function openGoBack(label: string) {
   return screen.findByRole('alertdialog', { name: /^Go back to how it was on / })
 }
 
-/** Go back, step 1: what changes for AI apps, fact by fact, read before anything is done. */
+/** Go back, step 1: what changes for agents, fact by fact, read before anything is done. */
 export const GoBackDialog: Story = {
   render: () => <StoryApp path="/editions?edition=2026-10-02.1" person={admin} />,
   play: async () => {
     const dialog = await openGoBack('2026-10-02.1')
     await waitFor(() =>
-      expect(dialog).toHaveTextContent('2 facts change for AI apps: 2 stop being shared.'),
+      expect(dialog).toHaveTextContent('2 facts change for agents: 2 stop being shared.'),
     )
   },
 }
@@ -146,7 +146,7 @@ export const GoBackBlocked: Story = {
   },
 }
 
-/** Opens Stop sharing from the overflow menu of the card of what AI apps get today. */
+/** Opens Stop sharing from the overflow menu of the card of what agents get today. */
 async function openStop() {
   await userEvent.click(
     await screen.findByRole(
@@ -156,10 +156,10 @@ async function openStop() {
     ),
   )
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Stop sharing…' }))
-  return screen.findByRole('alertdialog', { name: 'Stop sharing with AI apps?' })
+  return screen.findByRole('alertdialog', { name: 'Stop sharing with agents?' })
 }
 
-/** Stop sharing, step 1: one domain by default, and how many facts AI apps stop getting. */
+/** Stop sharing, step 1: one domain by default, and how many facts agents stop getting. */
 export const StopDialog: Story = {
   render: () => <StoryApp path="/editions" person={admin} />,
   play: async () => {
@@ -198,7 +198,7 @@ export const DeliveryStopped: Story = {
     await StopDone.play!(context)
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     await expect(await screen.findByRole('region', { name: 'Sharing stopped' })).toHaveTextContent(
-      'AI apps get no facts from Sales for now.',
+      'Agents get no facts from Sales for now.',
     )
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   },

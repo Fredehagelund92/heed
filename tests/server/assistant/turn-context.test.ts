@@ -138,12 +138,12 @@ describe('the turn context', () => {
     )
     expect(text).toContain('Last week: 2026-10-05 to 2026-10-11.')
     expect(text).toContain('Last month: 2026-09-01 to 2026-09-30.')
-    // The periods get_context reads in a question's words, counted the same way.
+    // The periods get_facts reads in a question's words, counted the same way.
     expect(text).toContain('Last quarter: 2026-07-01 to 2026-09-30.')
     expect(text).toContain('This year so far: 2026-01-01 to 2026-10-12.')
     expect(text).toContain('never from an edition')
     expect(text).toContain(
-      'AI apps get the facts of the live edition 2026-10-07.2, saved on Wednesday 7 October 2026, which is not today.',
+      'AI agents get the facts of the live edition 2026-10-07.2, saved on Wednesday 7 October 2026, which is not today.',
     )
     // The week before the edition's date is not last week.
     expect(text).not.toContain('2026-09-28')

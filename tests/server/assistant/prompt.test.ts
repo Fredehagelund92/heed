@@ -24,7 +24,7 @@ import { assistantToolNames } from '../../../src/server/modules/assistant/tools.
 */
 
 const examples = assistantSystemPrompt.split('\n').filter((line) => line.startsWith('Example '))
-/** The statuses get_context and find_context reply with, which the instructions also name. */
+/** The statuses get_facts and find_facts reply with, which the instructions also name. */
 const statuses = new Set(['matched', 'conflict', 'no_match', 'need_more_detail', 'check_failed'])
 
 const routes = new URL('../../../src/web/routes/', import.meta.url)

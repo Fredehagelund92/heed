@@ -1,6 +1,6 @@
-# AI sign-in: connect your own AI app to Heed
+# AI sign-in: connect your own agent to Heed
 
-A person adds the Heed MCP address to their own AI app (Claude, ChatGPT, Cursor and others). The
+A person adds the Heed MCP address to their own agent (Claude, ChatGPT, Cursor and others). The
 app finds out how to sign in, the person signs in to Heed as themselves, approves a short consent
 screen, and from then on the app calls Heed's tools with exactly that person's audience and
 scopes. This page covers FR-401 to FR-406, FR-408, FR-410, FR-411, FR-414 and NFR-022 for the
@@ -8,18 +8,18 @@ first build, which runs on one computer (FR-413).
 
 ## How a person connects
 
-1. In the AI app, add an MCP server with the address `http://localhost:3000/mcp` (the
+1. In the agent, add an MCP server with the address `http://localhost:3000/mcp` (the
    `MCP_RESOURCE_URL` of the service). For Claude Code:
    `claude mcp add --transport http heed http://localhost:3000/mcp`, then `/mcp` and
    Authenticate (Claude Code registers itself, so it needs dynamic registration on).
 2. The app opens a browser at Heed. Sign in (locally: choose who you are from the dev people),
    read which app asks and what it may do, and choose **Allow** or **Deny**.
-3. The browser returns to the app. Its tools work as you. On **Connect an AI app** (user
+3. The browser returns to the app. Its tools work as you. On **Connect an agent** (user
    menu, Home and the assistant panel) you see every app connected as you, and **Disconnect** ends
    one at once.
 
 An administrator sees every person's connections in Administration, MCP and gateway,
-**Connections** (`aiConnections.list`): the person, the app's own name and where it came from, its
+**Connections** (`aiConnections.list`): the person, the agent's own name and where it came from, its
 scopes, when it connected, last refreshed and ends. **Disconnect** there ends one connection, or
 every connection of one person in one step (`aiConnections.disconnect`,
 `aiConnections.disconnectPerson`), through the same revocation as the person's own: the refresh
@@ -34,7 +34,7 @@ that supports neither cannot sign in, and its people keep using `npm run token:d
 ## How it works
 
 ```text
-AI app                  Heed MCP server         Heed login server            Browser (person)
+AI agent                Heed MCP server         Heed login server            Browser (person)
   | POST /mcp (no token)        |                        |                          |
   |---------------------------->| 401, WWW-Authenticate: resource_metadata=...      |
   | GET /.well-known/oauth-protected-resource/mcp  -> authorization_servers         |
