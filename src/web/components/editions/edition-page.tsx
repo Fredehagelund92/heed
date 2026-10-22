@@ -142,7 +142,12 @@ function EditionView({ label }: { label: string }) {
                 <Fact term="Reason">{editionReason(data)}</Fact>
                 <Fact term="By">
                   {person ? (
-                    <Owner name={person.name} initials={person.initials} size="md" />
+                    <Owner
+                      name={person.name}
+                      personId={person.id}
+                      initials={person.initials}
+                      size="md"
+                    />
                   ) : (
                     <span className="text-muted-foreground">Automatic</span>
                   )}

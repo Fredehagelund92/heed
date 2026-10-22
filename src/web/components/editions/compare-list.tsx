@@ -168,7 +168,7 @@ function Cell({
       const id = decidedBy(item)
       const person = id ? lookups.personOf(id) : null
       content = person ? (
-        <Owner name={person.name} initials={person.initials} size="sm" />
+        <Owner name={person.name} personId={person.id} initials={person.initials} size="sm" />
       ) : (
         <span className="truncate text-muted-foreground">{id ? 'Someone' : 'No decision'}</span>
       )

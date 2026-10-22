@@ -88,9 +88,11 @@ test.describe('Ask in the panel', () => {
     await expect(you).toHaveText(/^You/)
     await expect(you.locator('[data-slot="avatar"]')).toHaveText(/^[A-Z]{1,2}$/)
     await expect(labels.nth(1)).toContainText('Assistant')
-    // The mark is an avatar, not an inline glyph: 24 across.
+    // Both marks are avatars, not inline glyphs: 32 across, the assistant's as big as the person's.
     const mark = await labels.nth(1).locator('[data-slot="assistant-mark"]').boundingBox()
-    expect([mark?.width, mark?.height]).toEqual([24, 24])
+    expect([mark?.width, mark?.height]).toEqual([32, 32])
+    const own = await you.locator('[data-slot="avatar"]').boundingBox()
+    expect([own?.width, own?.height]).toEqual([32, 32])
     // The person's label and question share one right edge; the assistant's mark and answer one left edge.
     const question = assistant(page).locator('[data-slot="ask-question"]').first()
     const [label, bubble] = await Promise.all([

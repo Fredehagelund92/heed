@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, screen } from 'storybook/test'
 import { HeedDomainIcon, SearchIcon } from '@/components/icons'
+import { AssistantAvatar } from '@/components/assistant/assistant-avatar'
 import { PersonAvatar } from '@/components/person-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -34,11 +35,17 @@ export const Badges: Story = {
   ),
 }
 
+/** People on their soft tints, from their ids; the assistant in the brand blue; the four sizes. */
 export const Avatars: Story = {
   render: () => (
-    <div className="flex flex-wrap items-center gap-2 p-6">
-      {people.map((person) => (
-        <PersonAvatar key={person.id} person={person} />
+    <div className="flex flex-col gap-4 p-6">
+      {(['xs', 'sm', 'default', 'md', 'lg'] as const).map((size) => (
+        <div key={size} className="flex flex-wrap items-center gap-2" data-size-row={size}>
+          {people.map((person) => (
+            <PersonAvatar key={person.id} person={person} size={size} />
+          ))}
+          <AssistantAvatar size={size} />
+        </div>
       ))}
     </div>
   ),

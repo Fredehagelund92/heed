@@ -113,6 +113,8 @@ const kinds = ['event', 'note', 'guide', 'example'] as const
 /** The ring of domain hues (contract 6.13). Red and amber are not on it. */
 const hues = ['teal', 'sky', 'indigo', 'violet', 'pink', 'lime', 'stone', 'gray'] as const
 const statuses = ['success', 'warning', 'info', 'danger'] as const
+/** The eight soft tints of a person's avatar, and the assistant's own, each a background and initials. */
+const avatars = [1, 2, 3, 4, 5, 6, 7, 8] as const
 
 describe('tokens.css holds every token of the design contract', () => {
   const required = [
@@ -152,6 +154,14 @@ describe('tokens.css holds every token of the design contract', () => {
       ['solid', 'tint', 'line', 'ink', 'dot'].map((role) => `type-${kind}-${role}`),
     ),
     ...hues.flatMap((hue) => ['tint', 'line', 'ink', 'dot'].map((role) => `hue-${hue}-${role}`)),
+    ...avatars.flatMap((slot) => ['bg', 'fg'].map((role) => `avatar-${slot}-${role}`)),
+    'assistant-avatar-bg',
+    'assistant-avatar-fg',
+    'avatar-chip',
+    'avatar-row',
+    'avatar-chat',
+    'avatar-card',
+    'avatar-profile',
     ...statuses.flatMap((status) =>
       ['icon', 'fg', 'bg', 'border'].map((role) => `status-${status}-${role}`),
     ),
@@ -310,6 +320,13 @@ describe('contrast pairs of section 6.3 meet their minimum in both themes', () =
       { what: 'status text', fg: `status-${status}-fg`, bg: `status-${status}-bg`, min: 4.5 },
       { what: 'status text', fg: `status-${status}-fg`, bg: 'background', min: 4.5 },
     ]),
+    // The initials on a person's soft tint and the assistant's bot on its blue tint (avatars).
+    ...[...avatars.map((slot) => `avatar-${slot}`), 'assistant-avatar'].map((avatar): Pair => ({
+      what: 'avatar initials on their tint',
+      fg: `${avatar}-fg`,
+      bg: `${avatar}-bg`,
+      min: 4.5,
+    })),
     // A trend mark on a Home tile (contract 6.1, "Status"): the success and danger ink as text on
     // the card.
     ...['success', 'danger'].map((status): Pair => ({
@@ -343,6 +360,26 @@ describe('contrast pairs of section 6.3 meet their minimum in both themes', () =
       lg: '0.25rem',
       xl: '0.375rem',
     })
+  })
+
+  it('keeps eight different avatar tints, light and deeper in dark, and the avatar sizes', () => {
+    for (const theme of ['light', 'dark'] as const) {
+      const tints = avatars.map((slot) => paint(theme, `--avatar-${slot}-bg`).join())
+      expect(new Set(tints).size, `${theme} avatar tints`).toBe(8)
+      // Soft in light, a deeper tint in dark: the tint sits on the page side of its initials.
+      for (const slot of avatars) {
+        const tint = luminance(paint(theme, `--avatar-${slot}-bg`))
+        const initials = luminance(paint(theme, `--avatar-${slot}-fg`))
+        expect(theme === 'light' ? tint > initials : tint < initials, `${theme} ${slot}`).toBe(true)
+      }
+    }
+    expect([
+      light['--avatar-chip'],
+      light['--avatar-row'],
+      light['--avatar-chat'],
+      light['--avatar-card'],
+      light['--avatar-profile'],
+    ]).toEqual(['1.25rem', '1.75rem', '2rem', '2.25rem', '2.5rem'])
   })
 
   it('keeps red and amber off the domain ring', () => {

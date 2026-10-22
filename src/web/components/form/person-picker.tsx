@@ -93,6 +93,7 @@ function PersonOption({ person }: { person: PickedPerson }) {
     <ComboboxItem value={person} data-person={person.id}>
       <Owner
         name={person.name}
+        personId={person.id}
         initials={person.initials}
         role={person.email ?? undefined}
         size="md"

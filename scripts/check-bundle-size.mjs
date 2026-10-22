@@ -217,7 +217,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // words lazy; the address's search schema reads the connector id's pattern from connector-id.ts
 // and the connections' sorts from connection-sorts.ts; and the built-in manifests, whose titles
 // the trail names, are typed by define-manifest.ts, so the manifest's schema stays lazy.
-const budgetKb = { js: 207.06, css: 23.48 }
+// Raised with the tinted avatars, JS from 207.06 to 207.3 (206.635 KB here, 207.2 on CI; the
+// assistant's avatar is in a lazy module of its own) and CSS from 23.48 to 23.8 (23.720 KB): the
+// eight pastel pairs of a person's avatar and the assistant's pair, each for light and dark, the
+// five avatar sizes and their initials' sizes, as tokens, and the utilities that use them.
+const budgetKb = { js: 207.3, css: 23.8 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({

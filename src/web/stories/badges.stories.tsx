@@ -400,8 +400,9 @@ export const Dates: Story = {
 }
 
 /**
- * People are neutral avatars: bare in cells (20, 24), an outline chip in headers and filters, and
- * with a role line on the item page, where the name and the role start at one edge.
+ * People are initials on a soft tint of their own (from their id): bare in cells (28), an outline
+ * chip in headers and filters (20), and with a role line on the item page (32), where the name
+ * and the role start at one edge.
  */
 export const Owners: Story = {
   render: () => (
