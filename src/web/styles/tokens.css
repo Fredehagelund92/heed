@@ -39,6 +39,26 @@
   --primary-foreground: oklch(1 0 0); /* #ffffff */
   --primary-hover: oklch(0.45 0.15 262); /* #224fa7 */
   --brand-ink: oklch(0.47 0.15 262); /* #2855ad, links and the selected nav icon */
+
+  /* ---- avatars: a person's soft tint, picked from their id; the assistant's brand tint ---- */
+  --avatar-1-bg: oklch(0.92 0.05 115); /* lime */
+  --avatar-1-fg: oklch(0.33 0.07 115);
+  --avatar-2-bg: oklch(0.92 0.05 150); /* green */
+  --avatar-2-fg: oklch(0.33 0.07 150);
+  --avatar-3-bg: oklch(0.92 0.05 195); /* teal */
+  --avatar-3-fg: oklch(0.33 0.07 195);
+  --avatar-4-bg: oklch(0.92 0.05 235); /* sky */
+  --avatar-4-fg: oklch(0.33 0.07 235);
+  --avatar-5-bg: oklch(0.92 0.05 275); /* indigo */
+  --avatar-5-fg: oklch(0.33 0.07 275);
+  --avatar-6-bg: oklch(0.92 0.05 310); /* violet */
+  --avatar-6-fg: oklch(0.33 0.07 310);
+  --avatar-7-bg: oklch(0.92 0.05 350); /* pink */
+  --avatar-7-fg: oklch(0.33 0.07 350);
+  --avatar-8-bg: oklch(0.92 0.05 85); /* sand */
+  --avatar-8-fg: oklch(0.33 0.07 85);
+  --assistant-avatar-bg: oklch(0.93 0.04 262); /* pale Heed blue */
+  --assistant-avatar-fg: oklch(0.45 0.15 262); /* the deeper Heed blue */
   --ink: oklch(0.24 0.02 270); /* #1b1f29, counts, the selection bar, the assistant launcher */
   --ink-foreground: oklch(0.985 0.002 270); /* #f9fafb */
   --ink-hover: oklch(0.32 0.02 270); /* #2f333d */
@@ -225,6 +245,11 @@
 
   /* A field for a short number, such as a limit: room for "100,000" and its padding. */
   --number-field-width: 10rem;
+  --avatar-chip: 1.25rem;
+  --avatar-row: 1.75rem;
+  --avatar-chat: 2rem;
+  --avatar-card: 2.25rem;
+  --avatar-profile: 2.5rem;
   --row-height: 2.5rem;
   --row-height-comfortable: 3rem;
   --row-height-scope: 4rem;
@@ -409,6 +434,26 @@
   --primary-foreground: oklch(1 0 0); /* #ffffff */
   --primary-hover: oklch(0.51 0.15 262); /* #3361bb, darker so the label keeps 4.5 */
   --brand-ink: oklch(0.78 0.1 262); /* #94b8f8 */
+
+  /* avatars: a deeper tint with light initials */
+  --avatar-1-bg: oklch(0.36 0.06 115);
+  --avatar-1-fg: oklch(0.92 0.05 115);
+  --avatar-2-bg: oklch(0.36 0.06 150);
+  --avatar-2-fg: oklch(0.92 0.05 150);
+  --avatar-3-bg: oklch(0.36 0.06 195);
+  --avatar-3-fg: oklch(0.92 0.05 195);
+  --avatar-4-bg: oklch(0.36 0.06 235);
+  --avatar-4-fg: oklch(0.92 0.05 235);
+  --avatar-5-bg: oklch(0.36 0.06 275);
+  --avatar-5-fg: oklch(0.92 0.05 275);
+  --avatar-6-bg: oklch(0.36 0.06 310);
+  --avatar-6-fg: oklch(0.92 0.05 310);
+  --avatar-7-bg: oklch(0.36 0.06 350);
+  --avatar-7-fg: oklch(0.92 0.05 350);
+  --avatar-8-bg: oklch(0.36 0.06 85);
+  --avatar-8-fg: oklch(0.92 0.05 85);
+  --assistant-avatar-bg: oklch(0.32 0.07 262);
+  --assistant-avatar-fg: oklch(0.85 0.09 262);
   --ink: oklch(0.93 0.004 270); /* #e7e8eb */
   --ink-foreground: oklch(0.22 0.015 270); /* #181a22 */
   --ink-hover: oklch(0.86 0.004 270); /* #d0d1d4 */
@@ -628,6 +673,24 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-brand-ink: var(--brand-ink);
+  --color-avatar-1-bg: var(--avatar-1-bg);
+  --color-avatar-1-fg: var(--avatar-1-fg);
+  --color-avatar-2-bg: var(--avatar-2-bg);
+  --color-avatar-2-fg: var(--avatar-2-fg);
+  --color-avatar-3-bg: var(--avatar-3-bg);
+  --color-avatar-3-fg: var(--avatar-3-fg);
+  --color-avatar-4-bg: var(--avatar-4-bg);
+  --color-avatar-4-fg: var(--avatar-4-fg);
+  --color-avatar-5-bg: var(--avatar-5-bg);
+  --color-avatar-5-fg: var(--avatar-5-fg);
+  --color-avatar-6-bg: var(--avatar-6-bg);
+  --color-avatar-6-fg: var(--avatar-6-fg);
+  --color-avatar-7-bg: var(--avatar-7-bg);
+  --color-avatar-7-fg: var(--avatar-7-fg);
+  --color-avatar-8-bg: var(--avatar-8-bg);
+  --color-avatar-8-fg: var(--avatar-8-fg);
+  --color-assistant-avatar-bg: var(--assistant-avatar-bg);
+  --color-assistant-avatar-fg: var(--assistant-avatar-fg);
   --color-ink: var(--ink);
   --color-ink-foreground: var(--ink-foreground);
   --color-ink-hover: var(--ink-hover);
@@ -764,6 +827,11 @@
   --spacing-control-lg: var(--control-lg);
   --spacing-control-touch: var(--control-touch);
   --spacing-icon-sm: var(--icon-sm);
+  --spacing-avatar-chip: var(--avatar-chip);
+  --spacing-avatar-row: var(--avatar-row);
+  --spacing-avatar-chat: var(--avatar-chat);
+  --spacing-avatar-card: var(--avatar-card);
+  --spacing-avatar-profile: var(--avatar-profile);
   --spacing-icon-status: var(--icon-status);
   --spacing-menu: var(--menu-width);
   --spacing-popover: var(--popover-width);
@@ -830,6 +898,16 @@
   --text-large--line-height: 1.5rem;
   --text-title: 1.25rem;
   --text-title--line-height: 1.75rem;
+  --text-avatar-chip: 0.625rem;
+  --text-avatar-chip--line-height: 1;
+  --text-avatar-row: 0.6875rem;
+  --text-avatar-row--line-height: 1;
+  --text-avatar-chat: 0.8125rem;
+  --text-avatar-chat--line-height: 1;
+  --text-avatar-card: 0.875rem;
+  --text-avatar-card--line-height: 1;
+  --text-avatar-profile: 1rem;
+  --text-avatar-profile--line-height: 1;
   --text-display: 1.5rem;
   --text-display--line-height: 2rem;
   --tracking-large: -0.01em;

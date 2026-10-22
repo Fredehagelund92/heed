@@ -112,7 +112,7 @@ test.describe('shell metrics', () => {
   })
 
   /*
-    The user button in the rail: its 24 pixel avatar sits centred in the 32 pixel button, as the
+    The user button in the rail: its 28 pixel avatar sits centred in the 32 pixel button, as the
     16 pixel icons above it do, and nothing of it is cut. As in every rail button, the button
     clips the words beside the icon, so a screen reader still reads the name.
   */
@@ -134,7 +134,7 @@ test.describe('shell metrics', () => {
             avatar && icon ? avatar.left + avatar.width / 2 - (icon.left + icon.width / 2) : null,
         }
       })
-    await expect.poll(sides).toEqual({ width: 32, left: 4, right: 4, centred: 0 })
+    await expect.poll(sides).toEqual({ width: 32, left: 2, right: 2, centred: 0 })
   }
 
   for (const theme of themes) {

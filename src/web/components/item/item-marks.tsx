@@ -21,7 +21,7 @@ import {
   Undo2Icon,
   type Icon,
 } from '@/components/icons'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PersonAvatar } from '@/components/person-avatar'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { daysFrom, formatDay, kindNames, statusNames } from '@/lib/library'
 import { proposalStateNames } from '@/lib/proposals'
@@ -371,17 +371,19 @@ export function DateBadge({
   )
 }
 
-const avatarSize = { sm: 'xs', md: 'sm', lg: 'default' } as const
+/** 28 in a list or review row, 32 beside a role line; a chip's 20 is set below. */
+const avatarSize = { sm: 'sm', md: 'sm', lg: 'default' } as const
 
 /**
- * A person as a neutral initials avatar with the name, or the avatar alone (contract 7.2,
- * "Owner"). Avatars stay neutral so colour never competes with a domain. Bare in cells (20 in
- * compact rows, 24 in comfortable ones); `chip` is the outline chip for headers and filters.
+ * A person as an initials avatar with the name, or the avatar alone (contract 7.2, "Owner").
+ * The avatar's tint comes from `personId` (the name when there is none); a missing person is a
+ * quiet grey "?". Bare in cells (28); `chip` is the outline chip for headers and filters (20).
  * `role` is a muted line under the name ("Owner of Paid media"): the name and the role stack
  * beside the avatar, which centres on the two, so both lines start at the name.
  */
 export function Owner({
   name,
+  personId,
   initials,
   size = 'sm',
   showName = true,
@@ -391,6 +393,8 @@ export function Owner({
   className,
 }: {
   name: string | null
+  /** The person's stable id, which picks the avatar's tint; without it the name does. */
+  personId?: string | null
   /** What a missing person is called: "No deputy" where the column is the deputy. */
   empty?: string
   initials?: string
@@ -404,9 +408,19 @@ export function Owner({
     <span className={cn('truncate', name ? '' : 'text-muted-foreground')}>{name ?? empty}</span>
   )
   const avatar = (
-    <Avatar size={chip ? 'xs' : avatarSize[size]} aria-hidden="true">
-      <AvatarFallback>{name ? (initials ?? name.slice(0, 1)).slice(0, 1) : '?'}</AvatarFallback>
-    </Avatar>
+    <PersonAvatar
+      person={{
+        id: personId,
+        name: name ?? '',
+        initials: name
+          ? chip
+            ? (initials ?? name).slice(0, 1)
+            : (initials ?? name.slice(0, 1))
+          : '?',
+      }}
+      size={chip ? 'xs' : avatarSize[size]}
+      decorative
+    />
   )
   return (
     <span

@@ -341,7 +341,12 @@ function EditionsGrid({
               </div>
               <div role="cell" className={cn(gridCell, 'w-column-owner')}>
                 {person ? (
-                  <Owner name={person.name} initials={person.initials} size="sm" />
+                  <Owner
+                    name={person.name}
+                    personId={person.id}
+                    initials={person.initials}
+                    size="sm"
+                  />
                 ) : (
                   <span className="text-muted-foreground">Automatic</span>
                 )}

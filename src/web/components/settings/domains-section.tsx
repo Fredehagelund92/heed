@@ -132,6 +132,7 @@ export function DomainsSection() {
               <div role="cell" className={cn(gridCell, 'w-column-owner', optional)}>
                 <Owner
                   name={owner?.name ?? null}
+                  personId={owner?.id}
                   initials={owner?.initials}
                   role={besides}
                   empty="No owner"

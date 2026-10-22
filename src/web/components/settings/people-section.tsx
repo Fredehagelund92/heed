@@ -476,7 +476,7 @@ function PersonGridRow({
           data-row-link
           className="flex min-w-0 shrink-0 items-center gap-2 text-body outline-none after:absolute after:inset-0"
         >
-          <Owner name={person.name} initials={person.initials} size="md" />
+          <Owner name={person.name} personId={person.id} initials={person.initials} size="md" />
         </Link>
         {person.email ? (
           <TruncatedText text={person.email} className="text-muted-foreground" />

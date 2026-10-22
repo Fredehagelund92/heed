@@ -895,6 +895,7 @@ function SourceFields({
           <PersonPreview personId={owner.area.ownerIds[0] ?? ''}>
             <Owner
               name={owner.person.name}
+              personId={owner.area.ownerIds[0]}
               initials={owner.person.initials}
               size="lg"
               role={`Owner of ${owner.area.name}`}

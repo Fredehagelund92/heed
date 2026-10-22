@@ -18,7 +18,7 @@ import {
 } from '@/components/catalogue/catalogue-marks'
 import { CopyIcon, HeedValidUntilIcon, SearchXIcon, TagIcon, type Icon } from '@/components/icons'
 import { DomainBadge, KindBadge, StatusBadge } from '@/components/item/item-marks'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PersonAvatar } from '@/components/person-avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -474,9 +474,7 @@ function PersonPreview({
       className={cn('flex flex-col gap-3', variant === 'sheet' && 'px-4 pb-4')}
     >
       <div className="flex items-center gap-3">
-        <Avatar size="lg" aria-hidden="true">
-          <AvatarFallback>{person.initials}</AvatarFallback>
-        </Avatar>
+        <PersonAvatar person={person} size="lg" decorative />
         <div className="flex min-w-0 flex-col">
           {variant === 'sheet' ? null : (
             <p className="text-body font-bold" data-slot="preview-name">

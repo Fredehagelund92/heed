@@ -233,7 +233,12 @@ function Cell({ column, row, today }: { column: ColumnId; row: LibraryRow; today
     case 'owner':
       content = (
         <PersonPreview personId={row.ownerId} tabIndex={-1}>
-          <Owner name={row.ownerName} initials={row.ownerInitials} size="sm" />
+          <Owner
+            name={row.ownerName}
+            personId={row.ownerId}
+            initials={row.ownerInitials}
+            size="sm"
+          />
         </PersonPreview>
       )
       break
@@ -739,6 +744,7 @@ export const ItemList = forwardRef<ItemListHandle, ItemListProps>(function ItemL
                     ) : null}
                     <Owner
                       name={row.ownerName}
+                      personId={row.ownerId}
                       initials={row.ownerInitials}
                       showName={false}
                       className="ml-auto"

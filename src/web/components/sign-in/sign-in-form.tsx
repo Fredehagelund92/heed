@@ -162,7 +162,7 @@ export function SignInChoices({
                   <SelectGroup key={group.role}>
                     <SelectLabel>{group.title}</SelectLabel>
                     {group.people.map((p) => (
-                      <SelectItem key={p.email} value={p.email} className="gap-3">
+                      <SelectItem key={p.email} value={p.email} className="gap-3 py-0">
                         <PersonOption person={p} role={group.role} />
                       </SelectItem>
                     ))}
@@ -208,7 +208,7 @@ export function SignInChoices({
 }
 
 /**
- * The person as the picker shows them: a neutral avatar, the name, and under it their roles and
+ * The person as the picker shows them: an avatar on its tint, the name, and under it their roles and
  * the domains those roles are in, each domain with its own mark.
  */
 function PersonSummary({ person }: { person: SignInPerson }) {

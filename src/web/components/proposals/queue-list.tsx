@@ -189,7 +189,7 @@ function Cell({
       content = row.dueOn ? <DateBadge date={row.dueOn} today={today} deadline size="sm" /> : null
       break
     case 'proposer':
-      content = <Owner name={row.proposerName} size="sm" />
+      content = <Owner name={row.proposerName} personId={row.proposerId} size="sm" />
       break
   }
   return (

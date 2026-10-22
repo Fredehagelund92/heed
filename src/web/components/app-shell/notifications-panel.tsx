@@ -15,7 +15,7 @@ import {
   type Icon,
 } from '@/components/icons'
 import { CountBadge, proposalStateLook } from '@/components/item/item-marks'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { PersonAvatar } from '@/components/person-avatar'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -52,19 +52,21 @@ function initialsOf(name: string): string {
   return ((words[0]?.[0] ?? '') + (words.length > 1 ? (words.at(-1)?.[0] ?? '') : '')).toUpperCase()
 }
 
-/** Who acted, as a neutral avatar, or the source's glyph for a change nobody made by hand. */
+/** Who acted, as an avatar, or the source's glyph for a change nobody made by hand. */
 function Who({ item, initials }: { item: InboxItem; initials: string | null }) {
   const sentence = notificationSentence(item)
   if (sentence.actor && initials)
     return (
-      <Avatar size="sm" aria-hidden="true">
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
+      <PersonAvatar
+        person={{ id: item.actor?.id, name: sentence.actor, initials }}
+        size="sm"
+        decorative
+      />
     )
   return (
     <span
       aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+      className="flex size-avatar-row shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
     >
       <HeedSourceChangedIcon className="size-icon-sm" />
     </span>
@@ -138,7 +140,7 @@ function NotificationRow({
       data-unread={unread || undefined}
       className="group/note relative flex items-start gap-2 px-4 py-3 -outline-offset-2 hover:bg-accent has-[[data-row-link]:focus-visible]:outline-2 has-[[data-row-link]:focus-visible]:outline-ring"
     >
-      <span className="flex h-6 w-2 shrink-0 items-center" aria-hidden="true">
+      <span className="flex h-avatar-row w-2 shrink-0 items-center" aria-hidden="true">
         {unread ? <span className="size-2 rounded-full bg-status-info-icon" /> : null}
       </span>
       <Who item={item} initials={initials} />

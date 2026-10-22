@@ -4,7 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { currentUserQuery } from '@/api/queries'
 import { PersonAvatar } from '@/components/person-avatar'
 import { ChevronsUpDownIcon } from '@/components/icons'
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { usePermissions } from '@/lib/use-session'
 
@@ -30,6 +35,9 @@ export function UserMenu() {
   const [pressedEarly, setPressedEarly] = useState(false)
   const markReady = useCallback(() => setReady(true), [])
   const { data: user } = useQuery(currentUserQuery())
+  // The rail's 32 pixel button holds the 28 pixel row avatar; the open sidebar's card, the 36.
+  const { state, isMobile } = useSidebar()
+  const rail = state === 'collapsed' && !isMobile
   const { roleLines } = usePermissions()
   const roles = roleLines.join(', ')
   return (
@@ -44,12 +52,19 @@ export function UserMenu() {
           onClick={() => {
             if (!ready) setPressedEarly(true)
           }}
-          render={<SidebarMenuButton size="lg" className="aria-expanded:bg-sidebar-accent" />}
+          render={<SidebarMenuButton size="lg" className="pr-1 aria-expanded:bg-sidebar-accent" />}
         >
           {user ? (
-            <PersonAvatar person={user} size="sm" />
+            <PersonAvatar
+              person={user}
+              size={rail ? 'sm' : 'md'}
+              // The rail button's 24 pixel content box is 4 short of the avatar: 2 out on each side.
+              className={rail ? '-left-0.5' : undefined}
+            />
           ) : (
-            <Skeleton className="size-6 rounded-full" />
+            <Skeleton
+              className={rail ? 'size-avatar-row rounded-full' : 'size-avatar-card rounded-full'}
+            />
           )}
           <div className="grid flex-1 text-left">
             <span className="truncate font-bold">{user?.name ?? 'Signed in'}</span>

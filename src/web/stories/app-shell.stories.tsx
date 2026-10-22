@@ -116,12 +116,12 @@ export const LaptopRail: Story = {
   globals: { viewport: { value: 'laptop', isRotated: false } },
   play: async () => {
     const button = await screen.findByRole('button', { name: /^JA Jon Abara/ })
-    // Centred and whole: 4 pixels of the 32 pixel button on each side of the 24 pixel avatar.
+    // Centred and whole: 2 pixels of the 32 pixel button on each side of the 28 pixel avatar.
     await waitFor(() => {
       const outer = button.getBoundingClientRect()
       const inner = button.querySelector('[data-slot="avatar"]')?.getBoundingClientRect()
       const sides = inner ? [outer.width, inner.left - outer.left, outer.right - inner.right] : []
-      if (sides.join() !== '32,4,4') throw new Error(`The rail's user button is ${sides.join()}`)
+      if (sides.join() !== '32,2,2') throw new Error(`The rail's user button is ${sides.join()}`)
     })
   },
 }

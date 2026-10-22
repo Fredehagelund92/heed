@@ -51,7 +51,12 @@ function Row({ row, search }: { row: LibraryRow; search: LibrarySearch | undefin
         </div>
         <div className={cn(gridCell, 'w-column-owner')}>
           <PersonPreview personId={row.ownerId} tabIndex={-1}>
-            <Owner name={row.ownerName} initials={row.ownerInitials} size="sm" />
+            <Owner
+              name={row.ownerName}
+              personId={row.ownerId}
+              initials={row.ownerInitials}
+              size="sm"
+            />
           </PersonPreview>
         </div>
       </div>
@@ -72,6 +77,7 @@ function Row({ row, search }: { row: LibraryRow; search: LibrarySearch | undefin
             <RowStatus status={row.displayStatus} />
             <Owner
               name={row.ownerName}
+              personId={row.ownerId}
               initials={row.ownerInitials}
               showName={false}
               className="ml-auto"

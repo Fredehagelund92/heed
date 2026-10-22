@@ -415,6 +415,7 @@ export function ItemTabPanels({
                   <PersonPreview personId={owner.id}>
                     <Owner
                       name={owner.name}
+                      personId={owner.id}
                       initials={owner.initials}
                       size="lg"
                       role={area ? `Owner of ${area.name}` : undefined}

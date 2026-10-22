@@ -284,7 +284,7 @@ function EditionFacts({ edition, entry }: { edition: Edition; entry: EditionSumm
     {
       label: 'By',
       value: person ? (
-        <Owner name={person.name} initials={person.initials} size="sm" />
+        <Owner name={person.name} personId={person.id} initials={person.initials} size="sm" />
       ) : (
         <span className="text-muted-foreground">Automatic</span>
       ),

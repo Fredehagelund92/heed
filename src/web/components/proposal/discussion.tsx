@@ -87,7 +87,11 @@ export function Discussion({
           const you = comment.actorId === viewerId
           return (
             <li key={comment.id} data-slot="comment" className="flex gap-3">
-              <PersonAvatar person={{ name, initials: initialsOf(name) }} size="sm" decorative />
+              <PersonAvatar
+                person={{ id: comment.actorId, name, initials: initialsOf(name) }}
+                size="sm"
+                decorative
+              />
               <article
                 aria-label={`${you ? 'You' : name}, ${formatMoment(comment.at, 'long')}`}
                 className="flex min-w-0 flex-1 flex-col gap-2"
