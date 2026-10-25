@@ -6,6 +6,8 @@ tell this one world. New demo text keeps to it (section 15).
 
 The words follow the voice guide (`docs/design/voice.md`) and the glossary (`src/domain/words.ts`).
 
+The Heed v1 mockup tells the same world in its own fixtures: 22 context items, 18 Inbox cards, 12 reviews, 12 saved questions, 10 topics, 8 alert rules, 22 metrics, 5 dimensions, 13 terms and 14 people. They become the mock data of the new web app ([the product page](../product.md), section 14). The people, the domains and the Norway story match this page. Where the two lists differ in count, the mockup's fixtures are the demo data of the new web app, and the seed described here stays the service's until the two are brought together.
+
 ## 1. The rules the demo text keeps
 
 1. **Same counts, same order.** Every list keeps its length and order: the 22 metrics, the 4
@@ -20,13 +22,15 @@ The words follow the voice guide (`docs/design/voice.md`) and the glossary (`src
 3. **Markets, people, dates and numbers are fixed points.** Norway, Jon Abara, 4 August 2026,
    312 test accounts and 12 percent are named by the tests.
 4. **No word the glossary bans.** Demo text adds no banned word from `src/domain/words.ts`.
-   That rules out some obvious retail words: "item" (write "product" or "unit"), "delivery",
-   "delivered" and "deliveries" (write "shipping", "shipped" or "arrive"), "model" (write
-   "forecast"), "agent" for a person (write "someone on our team"), "client", "member" and
-   "term". This is why the metric is "Units per order", not "Items per order", and "On-time
-   shipping rate", not "On-time delivery rate". It is also why the story says "online sales
-   stopped", not "deliveries stopped": the show's step 6 stops sharing a fact, and the two
-   would read as one thing.
+   That rules out some obvious retail words: "delivery", "delivered" and "deliveries" (write
+   "shipping", "shipped" or "arrive"), "model" (write "forecast"), "agent" for a person (write
+   "someone on our team") and "client". This is why the story says "online sales stopped", not
+   "deliveries stopped": the show's step 6 stops sharing a context item, and the two would read
+   as one thing. The words "item", "term" and "member" were banned too. The glossary v2 of
+   [Copy](copy.md) lifts that ban, because "context item", "term" and "Member" are product
+   words in Heed v1. The glossary in `words.ts` catches up in the tokens and glossary pull
+   request; until then its older list governs the lint. Metric names such as "Units per order"
+   and "On-time shipping rate" keep their names, since the tests name them.
 5. **The draft rules must read the kind.** The kind of a drafted fact comes from its first
    sentence (`kindByRule`, `src/domain/agent-draft.ts`). An event needs a date ("on 4 August
    2026") and an event verb from its list (`closed`, `switched`, `started`, `stopped`, `paused`

@@ -1,5 +1,7 @@
 # How the product speaks: the voice guide
 
+> **Superseded for the new web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the code, the plain-words lint and the old front end still point to it, and it still governs the old front end until the switch to the new one. Where the two differ, Copy wins.
+
 This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
