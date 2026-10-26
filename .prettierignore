@@ -17,3 +17,5 @@ registry/r
 docs/requirements.md
 .claude/settings.local.json
 .claude
+# The clickable mockup is its own package with its own formatting (apps/mockup/README.md).
+apps/mockup

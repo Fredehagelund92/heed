@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A clickable mockup of %PRODUCT% v1: Inbox, Ask, Library and Settings, with mock data." />
+    <title>%PRODUCT% v1 mockup</title>
+    <script>
+      // The theme before the first paint, so dark never flashes light: ?theme= in the address, else the
+      // saved choice, else the system's.
+      ;(function () {
+        try {
+          var q = new URLSearchParams((location.hash.split("?")[1] || "")).get("theme")
+          var t = q === "dark" || q === "light" ? q : localStorage.getItem("heed-mockup-theme") || "system"
+          var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
+          if (dark) document.documentElement.classList.add("dark")
+        } catch (e) {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

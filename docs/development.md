@@ -209,6 +209,7 @@ docs/help/        the help pages, Markdown with SVG pictures, shown at /docs and
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
 registry.json     the Heed registry for shadcn (built output in registry/r)
+apps/mockup/      the clickable mockup, the acceptance specification: its own package (apps/mockup/README.md)
 ```
 
 ### Why this layout
