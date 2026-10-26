@@ -17,8 +17,8 @@ project: `npx vitest run --project server tests/server/domain`.
 - `validity.ts`: real UTC calendar dates, half-open windows and overlap. End dates are exclusive.
 - `vocabulary.ts`: governed stable keys and parents; accent-insensitive names and aliases; ambiguous
   names return options. Trigram suggestions never silently replace the caller's words.
-- `scope.ts`: the one reader of a question's names and dates, for `get_facts`, `find_facts`,
-  `report_gap`, `improve_question` and Try it (`extractScope`, `readQuestion`). Structured scope
+- `scope.ts`: the one reader of a question's names and dates, for `get_context`, `find_context`,
+  `report`, the deprecated ids they replaced, `improve_question` and Try it (`extractScope`, `readQuestion`). Structured scope
   takes precedence per field. Names are read by `termsInText`: whole-word, longest-name matching
   over every name a term goes by (`namesOf`: key, name, other names and the source member its
   definition points at), the same names `resolveTerm` reads a structured field by. A phrase that

@@ -44,11 +44,16 @@ export type Topic = GapTopic
 export interface AnonymousStore {
   write(records: readonly AnonymousRecord[]): Promise<void>
   reportGap(topic: Topic, note?: string): Promise<string>
+  /**
+   * Anonymous feedback: on a reply (its delivery id), on a domain (the domain of a context item
+   * report names), or both. The domain of a reply comes from its topic when none is given.
+   */
   feedback(
-    delivery: string,
+    delivery: string | null,
     verdict: 'helpful' | 'wrong' | 'missing' | 'unclear',
     client: string,
     note?: string,
+    area?: string | null,
   ): Promise<void>
 }
 

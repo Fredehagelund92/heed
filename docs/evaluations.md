@@ -51,7 +51,7 @@ The evaluation runner records levels 4 and 5 on the review gate, so normal and
 high-risk items can be accepted, and it blocks a change whose answers get worse.
 
 - **Golden questions** (FR-501, FR-504): an id, a domain, a natural and a precise wording, the
-  scope in `get_facts`'s input form, the items that must and must not be delivered, an optional
+  scope in `get_context`'s input form, the items that must and must not be delivered, an optional
   must-have caveat (strict pass), whether a cause may not be claimed or a clarifying question is
   needed, rubrics, risk, source, status and split, and optionally `as_of`, the day it is asked
   on (a golden case keeps its own): a run reads it at that day, so "this past week" means the week
@@ -135,9 +135,9 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   regressions against the previous one, measures the held-out targets of requirements section
   1.7, and posts an `eval.scorecard` outbox event. A scheduled run that has not finished within a
   day fails with an `eval_run_unfinished` alert; the watchdog alerts when eight days pass without one.
-- **Links runs** (FR-523): whether following links helps is measured before
-  `get_related` is switched on. A link-follow question sets `expected.reachable_via_link` (the
-  items whose context the answer must reach through `read_item` or `get_related`, and cite) and
+- **Links runs** (FR-523): whether following links helps is measured with `get_related` off on
+  one side and on on the other (it is on by default since the agent contract). A link-follow question sets `expected.reachable_via_link` (the
+  items whose context the answer must reach through `read_context` or `get_related`, and cite) and
   `expected.forbidden_links` (stale or hidden targets the answer must neither read nor cite).
   `POST /evals/areas/{id}/link-runs` (or `npm run eval -- --area <id> --links`) runs the domain's
   questions on the live edition twice: with `get_related` off (baseline) and on (candidate),
@@ -162,9 +162,9 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   ones hidden); any run is also readable by the person who started it. Gaps, topic counts and
   starting a draft from a gap stay with everyone signed in (FR-616).
 - **Models**: `MODELS=mock` (the default, and in every test) is a scripted model: it asks
-  `get_facts` with the question and answers with the delivered ids, titles and summaries (and,
-  when `get_related` is offered, follows the delivered items' links once and adds the neighbour
-  items in service); the scripted judge grades by fixed rules. `MODELS=live` calls each role's
+  `get_context` with the question and answers with the delivered ids, titles and summaries and the
+  reply's `say` (and, when `get_related` is offered, follows the first delivered item's links once
+  and adds the neighbour items in service); the scripted judge grades by fixed rules. `MODELS=live` calls each role's
   provider with explicit model objects (`models.eval_answer`, Claude Sonnet 5.5 on the Anthropic
   API by default, and `models.judge`); a string model is refused by lint. The judge defaults to
   `different_family`: the first model the answering model's provider lists (Opus, Sonnet, Haiku)
@@ -198,7 +198,8 @@ feedback's domain, and none of it returns a test question's or an agent's questi
   to failing or unanswered (`worse`, with the checks they fail now), the rest by verdict, and the
   exact two-sided sign test on the questions that changed (`pValue`, null when none changed).
   Runs that are not finished or of another domain answer 422; a proposal's runs are not compared.
-- `GET /quality/feedback?area=&weeks=` (G8): `give_feedback` per verdict, week and domain. Feedback
+- `GET /quality/feedback?area=&weeks=` (G8): feedback from `report` (and `give_feedback`, its
+  deprecated id) per verdict, week and domain. Feedback
   keeps the domain of the delivery it names (or of the gap it opened), so it outlives the 180-day
   purge of delivery rows. Every count below `privacy.min_count` is null (FR-614), and so is a
   row's `total` when it or any verdict count in the row is hidden. Feedback no delivery or gap

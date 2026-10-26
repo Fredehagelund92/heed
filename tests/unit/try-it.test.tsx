@@ -395,7 +395,7 @@ describe('Connect an agent, in words', () => {
     )
     for (const line of askHeedFirst) {
       expect(guide).toContain(`\n${line.text}\n`)
-      expect(line.text).toMatch(/get_facts/)
+      expect(line.text).toMatch(/get_context/)
       // A line raises the chance of a call; no words here may say it is sure.
       expect(`${line.where} ${line.text}`).not.toMatch(
         /\b(always|guarantee|every time|ensures?)\b/i,
@@ -405,15 +405,15 @@ describe('Connect an agent, in words', () => {
 
   it("lists the tools in the gateway's order, with their names and what they do", () => {
     const tools = toolsInWords(
-      ['report_gap', 'new_tool', 'get_facts'].map((tool) => ({
+      ['report', 'new_tool', 'get_context'].map((tool) => ({
         tool,
-        enabled: tool !== 'report_gap',
+        enabled: tool !== 'report',
         personOnly: false,
       })),
     )
     expect(tools.map((tool) => tool.name)).toEqual([
-      'Get facts for a question',
-      'Report something missing',
+      'Get context for a question',
+      'Tell the owner',
       'new_tool',
     ])
     expect(tools[1]!.enabled).toBe(false)
@@ -691,16 +691,14 @@ describe('Connect an agent', () => {
     expect(screen.queryByText(/Evaluation runner/)).toBeNull()
     const tools = screen.getByRole('list', { name: 'The tools an agent gets' })
     const rows = within(tools).getAllByRole('listitem')
-    expect(rows[0]).toHaveTextContent('Get facts for a question')
-    expect(rows[0]).not.toHaveTextContent('Off')
-    // Every tool is listed; the ones switched off say so, and who can switch them on.
-    const related = rows.find((row) => row.textContent.includes('Follow links'))!
-    expect(related).toHaveTextContent('Off')
-    expect(related).toHaveTextContent('An admin can switch it on.')
-    const draft = rows.find((row) => row.textContent.includes('Save a draft'))!
-    expect(draft).toHaveTextContent('Off')
-    expect(draft).toHaveTextContent('It works only in an agent you signed in from')
-    expect(draft).toHaveTextContent('It only drafts, and never sends.')
+    expect(rows[0]).toHaveTextContent('Get context for a question')
+    // Every tool of the agent contract is on, get_related and suggest_context too (FR-121, FR-332).
+    expect(rows.map((row) => row.textContent)).not.toContainEqual(expect.stringContaining('Off'))
+    const suggest = rows.find((row) => row.textContent.includes('Send a suggestion'))!
+    expect(suggest).toHaveTextContent('It works only in an agent you signed in from')
+    expect(suggest).toHaveTextContent(
+      'It sends only after you say yes, and the owner checks it before anything changes.',
+    )
     // The lines that make a client more likely to ask Heed first, each with a copy button, and
     // words that do not promise it.
     expect(screen.getByRole('heading', { name: 'Ask first' })).toBeVisible()
@@ -723,15 +721,19 @@ describe('Connect an agent', () => {
 
   it('sends an administrator to MCP and gateway in Administration, and to its Tools for a tool off', async () => {
     window.localStorage.setItem(MOCK_PERSON_KEY, 'per_ravi')
-    render(withQueries(<ConnectSection />))
-    expect(await screen.findByRole('link', { name: 'MCP and gateway' })).toHaveAttribute(
-      'href',
-      '/admin?section=gateway',
-    )
-    const switchOn = screen.getAllByRole('link', { name: 'MCP and gateway, under Tools' })
-    expect(switchOn).toHaveLength(2)
-    for (const link of switchOn)
-      expect(link).toHaveAttribute('href', '/admin?section=gateway&tab=tools')
+    await api.setTool({ tool: 'get_related', enabled: false, reason: 'Not now' })
+    try {
+      render(withQueries(<ConnectSection />))
+      expect(await screen.findByRole('link', { name: 'MCP and gateway' })).toHaveAttribute(
+        'href',
+        '/admin?section=gateway',
+      )
+      const switchOn = screen.getAllByRole('link', { name: 'MCP and gateway, under Tools' })
+      expect(switchOn).toHaveLength(1)
+      expect(switchOn[0]).toHaveAttribute('href', '/admin?section=gateway&tab=tools')
+    } finally {
+      await api.setTool({ tool: 'get_related', enabled: true, reason: 'Back on' })
+    }
   })
 
   it('offers a retry when the service fails', async () => {

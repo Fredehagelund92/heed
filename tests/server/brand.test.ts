@@ -140,7 +140,7 @@ describe('the service with another name', () => {
     const started = await startedAs(other)
     expect(started.prompt).toMatch(new RegExp(`^You are the assistant inside ${other}\\.`))
     expect(started.turnContext).toContain(`${other}'s context for this turn`)
-    expect(started.instructions).toMatch(new RegExp(`^${other} holds checked facts`))
+    expect(started.instructions).toMatch(new RegExp(`^${other} holds checked context`))
     expect(started.failed).not.toContain(other)
     for (const text of [
       started.prompt,

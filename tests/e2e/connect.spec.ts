@@ -119,7 +119,7 @@ test('Ask first gives the line for the instructions to copy, and promises no cal
   const labels = ['the line for CLAUDE.md or AGENTS.md', "the line for a data tool's instructions"]
   for (const label of labels) {
     const line = section.getByLabel(label, { exact: true })
-    await expect(line).toContainText('get_facts')
+    await expect(line).toContainText('get_context')
     await section.getByRole('button', { name: `Copy ${label}` }).click()
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(await line.textContent())
   }
@@ -128,7 +128,7 @@ test('Ask first gives the line for the instructions to copy, and promises no cal
     page.getByText("Add the line under Ask first to your agent's instructions."),
   ).toBeVisible()
   await expect(page.locator('[data-slot="connect"]')).not.toContainText(
-    /asks Heed before it answers|It asks Heed with Get facts for a question first/,
+    /asks Heed before it answers|It asks Heed with Get context for a question first/,
   )
 })
 
@@ -146,7 +146,7 @@ test('the connect card copies one prompt with the Ask first line, and does not c
   const prompt = await page.evaluate(() => navigator.clipboard.readText())
   expect(prompt).toContain('claude mcp add --transport http heed http://localhost:3000/mcp')
   expect(prompt).toContain(
-    'Before you answer a question about company data, ask Heed first: call its get_facts tool',
+    'Before you answer a question about company data, call get_context first and use what it returns.',
   )
   await expect(card.getByRole('button', { name: 'Copy prompt for Claude Code' })).toHaveText(
     'Copied',
@@ -180,10 +180,11 @@ test('the Heed skill downloads as SKILL.md with the ask-first rule and the statu
   const text = readFileSync(await download.path(), 'utf8')
   expect(text).toMatch(/^---\nname: heed\n/)
   for (const words of [
-    'ask Heed first',
-    '- matched:',
+    'call get_context first',
+    '- matched (Checked):',
     '- need_more_detail:',
-    '- no_match:',
+    '- no_match (Not found):',
+    'call suggest_context',
     'claude mcp add --transport http heed http://localhost:3000/mcp',
   ])
     expect(text).toContain(words)

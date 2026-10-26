@@ -515,32 +515,22 @@ function digestOf(text: string): string {
 }
 
 /**
- * The MCP tools and clients the service's migrations start with (db/migrations/0001_baseline.sql):
- * every tool on except `get_related`, which stays off until an evaluation shows it helps
- * (FR-332), and `draft_context`, off until an administrator turns it on (FR-121). The mock
+ * The MCP tools and clients the service's migrations leave (db/migrations/0004_agent_contract.sql):
+ * the six tools of the agent contract, all on, `suggest_context` and `get_related` included
+ * (FR-121, FR-332). The mock
  * adds one client that is switched off and limited to three tools, so the screens show every kind
  * of policy.
  */
 function startingGateway(today: string) {
   const since = `${shiftDate(today, -30)}T09:00:00.000Z`
   const tools: ToolSwitch[] = [
-    'domain_overview',
-    'draft_context',
-    'find_facts',
-    'get_facts',
+    'find_context',
+    'get_context',
     'get_related',
-    'give_feedback',
-    'improve_question',
-    'read_item',
-    'report_gap',
-    'search_facts',
-    'search_help',
-    'what_changed',
-  ].map((tool) => ({
-    tool,
-    enabled: tool !== 'get_related' && tool !== 'draft_context',
-    updatedAt: since,
-  }))
+    'read_context',
+    'report',
+    'suggest_context',
+  ].map((tool) => ({ tool, enabled: true, updatedAt: since }))
   const clients: ClientPolicy[] = [
     {
       label: 'claude-code',
@@ -553,7 +543,7 @@ function startingGateway(today: string) {
     {
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_facts', 'read_item', 'search_facts'],
+      toolsAllowed: ['find_context', 'get_context', 'read_context'],
       ratePerMinute: 60,
       maxResponseBytes: null,
       enabled: false,
@@ -4226,8 +4216,8 @@ export function createMockWorkflow(start: MockWorld) {
           tools: gateway.tools.map((tool) => ({
             tool: tool.tool,
             enabled: tool.enabled,
-            // Only a signed-in person may call it: the draft is theirs (FR-121).
-            personOnly: tool.tool === 'draft_context',
+            // Only a signed-in person may call it: the suggestion is theirs (FR-121).
+            personOnly: tool.tool === 'suggest_context',
           })),
           clients: gateway.clients
             .filter((client) => client.enabled && client.label !== 'eval')

@@ -58,7 +58,7 @@ export async function createMcpDependencies(config: Config, logger: Logger, logi
   const stateKey = await loadStateKey(config.mcpStateKeyFile, config.nodeEnv)
   if (!stateKey)
     logger.warn(
-      'CL_MCP_STATE_KEY_FILE does not exist: draft_context lists its questions instead of asking them in the agent',
+      'CL_MCP_STATE_KEY_FILE does not exist: suggest_context lists its questions instead of asking them in the agent',
     )
   return {
     ...(stateKey ? { stateKey } : {}),

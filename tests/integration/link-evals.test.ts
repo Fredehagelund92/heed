@@ -173,7 +173,7 @@ it('estimates a links run as both sides of every question, for maintainers only'
   expect((await call('POST', '/evals/areas/finance/link-runs', 'author')).statusCode).toBe(403)
 })
 
-it('shows that following links helps, what it costs, and leaves the tool switched off', async () => {
+it('shows that following links helps, what it costs, and leaves the switch as it was', async () => {
   const started = await call('POST', '/evals/areas/finance/link-runs', 'owner')
   expect(started.statusCode, started.body).toBe(200)
   const run = started.json<EvalRun>()
@@ -226,7 +226,7 @@ it('shows that following links helps, what it costs, and leaves the tool switche
     },
   ])
   expect(result.links).toMatchObject({ gained: ['link-refund-rule'], lost: [], gain: true })
-  // One get_facts call without links; with them, one more get_related call per answer.
+  // One get_context call without links; with them, one more get_related call per answer.
   expect(result.links.arms.baseline.calls).toBe(1)
   expect(result.links.arms.candidate.calls).toBe(2)
   expect(result.links.arms.candidate.answers).toBe(result.links.arms.baseline.answers)
@@ -236,14 +236,14 @@ it('shows that following links helps, what it costs, and leaves the tool switche
     const response = await call('GET', `/evals/cells/${cell.id}/transcript`, 'owner')
     return response.json<{ toolCalls: { tool: string; items: string[] }[] }>()
   }
-  expect((await transcript('baseline')).toolCalls.map((c) => c.tool)).toEqual(['get_facts'])
+  expect((await transcript('baseline')).toolCalls.map((c) => c.tool)).toEqual(['get_context'])
   const followed = (await transcript('candidate')).toolCalls
-  expect(followed.map((c) => c.tool)).toEqual(['get_facts', 'get_related'])
+  expect(followed.map((c) => c.tool)).toEqual(['get_context', 'get_related'])
   // The retired rule is a marker with the author's words: never read, never cited.
   expect(followed[1]!.items).toEqual([ids.refunds])
 
   const tools = await call('GET', '/tools', 'admin')
   expect(tools.json<{ tool: string; enabled: boolean }[]>()).toContainEqual(
-    expect.objectContaining({ tool: 'get_related', enabled: false }),
+    expect.objectContaining({ tool: 'get_related', enabled: true }),
   )
 })

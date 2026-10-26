@@ -77,7 +77,7 @@ test('Connect an agent shows what the service says a person may connect', async 
   // The gateway test switches a tool off and on beside this one, so only the first is certain.
   await expect(
     page.getByRole('list', { name: 'The tools an agent gets' }).getByRole('listitem').first(),
-  ).toContainText('Get facts for a question')
+  ).toContainText('Get context for a question')
 })
 
 test('a person reports a gap from Try it, and the administrator finds it from people', async ({

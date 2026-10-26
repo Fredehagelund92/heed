@@ -1,6 +1,8 @@
+import { stateOfStatus, stateWords } from './answer-state.ts'
 import { fullDayWords, periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
+import { concepts } from './words-v1.ts'
 
 /*
   What a read result means, in two parts (FR-344). `say` is for the person: one or two plain
@@ -18,6 +20,52 @@ import type { ResolvedScope, ScopeIssue } from './scope.ts'
 
 /** A result's two sentences: what the person hears, and what the AI agent does next. */
 export type Said = { say: string; next?: string }
+
+/**
+ * The words a reply speaks in: what one written thing is called, and the tools it points to. The
+ * six tools of the agent contract point at each other and start with the answer line
+ * (`contextVoice`), and call a written thing by the glossary's name (src/domain/words.ts), so they
+ * follow when it changes; the deprecated ids, and the assistant and the preview that still call
+ * them by those ids, keep the words they had (`factVoice`) until they go.
+ */
+export type Voice = {
+  /** One written thing, and several. */
+  item: readonly [string, string]
+  get: string
+  find: string
+  read: string
+  /** How an agent tells the owners that nothing is written down. */
+  report: string
+  /** How an agent gets what a size cut left out. */
+  cuts: string
+  /** The field that says which part a partial item covers, and the one that names a disagreement. */
+  appliesField: string
+  disagreesField: string
+  /** The reply's first words: its answer line, or nothing. */
+  stateFirst: boolean
+}
+export const factVoice: Voice = {
+  item: ['fact', 'facts'],
+  get: 'get_facts',
+  find: 'find_facts',
+  read: 'read_item',
+  report: 'call report_gap',
+  cuts: 'cut_ids lists the facts left out: call again with response_format concise or a higher max_bytes to get them.',
+  appliesField: 'applies_note',
+  disagreesField: 'conflicts_with',
+  stateFirst: false,
+}
+export const contextVoice: Voice = {
+  item: [concepts.fact.name, `${concepts.fact.name}s`],
+  get: 'get_context',
+  find: 'find_context',
+  read: 'read_context',
+  report: 'if the person agrees, call report with kind missing',
+  cuts: 'Call again with a higher max_bytes to get them.',
+  appliesField: 'applies',
+  disagreesField: 'disagrees_with',
+  stateFirst: true,
+}
 
 /** The absence rule every result that finds nothing gives the AI agent (FR-318). */
 export const notProof = 'That does not prove there is no caveat'
@@ -78,6 +126,33 @@ export function scopeWords(
   }
   return parts.join(' ')
 }
+
+/**
+ * What an item applies to, in words people say: "Orders and Returns in Norway", "Orders by
+ * market", "Norway". An item that names nothing applies to its whole domain.
+ */
+export function appliesWords(
+  bundle: Names,
+  scope: {
+    metrics: readonly string[]
+    dimensions?: readonly string[]
+    dimensionValues: readonly { dimension: string; value: string }[]
+  },
+): string {
+  const filters: Record<string, string[]> = Object.create(null) as Record<string, string[]>
+  for (const dimension of scope.dimensions ?? []) filters[dimension] ??= []
+  for (const { dimension, value } of scope.dimensionValues) (filters[dimension] ??= []).push(value)
+  const words = scopeWords(
+    bundle,
+    { metrics: [...scope.metrics], filters, window: { start: '1970-01-01', end: null } },
+    { show: false },
+  )
+  return `${words ? sentence(words) : 'Everything in its domain'}.`
+}
+
+/** When an item applies, as a sentence start: "From 4 August 2026 on", "In August 2026". */
+export const whenWords = (validity: Parameters<typeof periodWords>[0]) =>
+  sentence(periodWords(validity))
 
 /**
  * The metrics a scope asks about, with each metric group opened into its metrics (by name, as the
@@ -231,9 +306,10 @@ export const heldBackWords: Readonly<Record<string, readonly [string, string]>> 
  * Facts that match but aren't given to AI agents, counted by why: "2 more facts match but aren't
  * shared with AI agents: 1 is for another group and 1 waits for a check."
  */
-export function heldBackSay(reasons: readonly string[], more: boolean): string {
+export function heldBackSay(reasons: readonly string[], more: boolean, voice = factVoice): string {
   const n = reasons.length
-  return `${count(n, more ? 'more fact matches' : 'fact matches', more ? 'more facts match' : 'facts match')} but ${n === 1 ? "isn't" : "aren't"} shared with AI agents: ${heldBackWhy(reasons)}.`
+  const [one, many] = voice.item
+  return `${count(n, more ? `more ${one} matches` : `${one} matches`, more ? `more ${many} match` : `${many} match`)} but ${n === 1 ? "isn't" : "aren't"} shared with AI agents: ${heldBackWhy(reasons)}.`
 }
 
 /** Why facts aren't given, in a clause: "it's high risk and waits for a check". */
@@ -279,41 +355,50 @@ export type ContextSay = {
 }
 
 /**
- * get_facts's two sentences, for each status: what it read (the metrics, markets and dates) and
- * that it read only that; a match keeps what was cut, held back, needs checking or applies only
- * in part; an absence is never said without the rule and the next step for the AI agent.
+ * get_context's two sentences (get_facts's in the fact voice), for each status: what it read (the
+ * metrics, markets and dates) and that it read only that; a match keeps what was cut, held back,
+ * needs checking or applies only in part; an absence is never said without the rule and the next
+ * step for the AI agent. In the context voice `say` starts with the answer line (FR-349), from the
+ * reply's status.
  */
-export function contextSaid(bundle: Names, c: ContextSay): Said {
+export function contextSaid(bundle: Names, c: ContextSay, voice = factVoice): Said {
+  // Checks that could not run read nothing: never a question to fix (FR-344).
+  if (c.status === 'check_failed') {
+    const failed = failedSaid('The checks could not run. Try again shortly.')
+    return voice.stateFirst ? { ...failed, say: `${stateWords('failed')} ${failed.say}` } : failed
+  }
   if (c.status === 'need_more_detail' || !c.scope) return unreadSaid(bundle, c.issues, c.question)
   const scope = scopeWords(bundle, c.scope, { show: !c.assumed, readsAs: c.readsAs ?? null })
+  const [one, many] = voice.item
+  const applies = (n: number, more = '') =>
+    count(n, `${more}${one} applies`, `${more}${many} apply`)
   const say: string[] = []
   const next: string[] = []
   if (c.status === 'no_match' && c.withheld.length) {
     // Facts exist that AI agents don't get: never an absence, and no gap to report.
     const n = c.withheld.length
     say.push(
-      `${sentence(count(n, 'fact applies', 'facts apply'))} to ${scope}, but ${n === 1 ? "it isn't" : "they aren't"} shared with AI agents yet: ${heldBackWhy(c.withheld)}.`,
+      `${sentence(applies(n))} to ${scope}, but ${n === 1 ? "it isn't" : "they aren't"} shared with AI agents yet: ${heldBackWhy(c.withheld)}.`,
     )
     next.push(
-      `${notProof}: never say nothing is written down. Say that ${n === 1 ? 'a fact exists' : 'facts exist'} that AI agents don't get yet, which a person can read in the library.`,
+      `${notProof}: never say nothing is written down. Say that ${n === 1 ? `a ${one} exists` : `${many} exist`} that AI agents don't get yet, which a person can read in the library.`,
     )
   } else if (c.status === 'no_match') {
     say.push(`Nothing is written down for ${scope}.`, onlyThat)
     next.push(
-      `${notProof}, and it covers only this question, never the whole topic. Check the names and dates, or call find_facts with the question's words. If nothing applies there either, say nothing is written down for exactly this question, and call report_gap.`,
+      `${notProof}, and it covers only this question, never the whole topic. Check the names and dates, or call ${voice.find} with the question's words. If nothing applies there either, say nothing is written down for exactly this question, and ${voice.report}.`,
     )
   } else if (c.delivered === 0) {
     say.push(
-      `${sentence(count(c.cut, 'fact applies', 'facts apply'))} to ${scope}, but ${c.cut === 1 ? "it doesn't" : "they don't"} fit in this reply.`,
+      `${sentence(applies(c.cut))} to ${scope}, but ${c.cut === 1 ? "it doesn't" : "they don't"} fit in this reply.`,
     )
     next.push(
-      'Call again with response_format concise or a higher max_bytes: cut_ids lists the facts left out. Never say nothing is written down.',
+      voice === factVoice
+        ? 'Call again with response_format concise or a higher max_bytes: cut_ids lists the facts left out. Never say nothing is written down.'
+        : `${voice.cuts} Never say nothing is written down.`,
     )
   } else {
-    say.push(
-      `${sentence(count(c.delivered, 'fact applies', 'facts apply'))} to ${scope}.`,
-      onlyThat,
-    )
+    say.push(`${sentence(applies(c.delivered))} to ${scope}.`, onlyThat)
     if (c.partial === c.delivered)
       say.push(
         `${c.delivered === 1 ? 'It applies' : 'Each applies'} to only part of that question.`,
@@ -329,25 +414,22 @@ export function contextSaid(bundle: Names, c: ContextSay): Said {
           : `${c.unverified} of them may be out of date.`,
       )
     if (c.status === 'conflict') say.push('Some of them disagree.')
-    if (c.cut)
-      say.push(
-        `${count(c.cut, 'more fact applies', 'more facts apply')} but didn't fit in this reply.`,
-      )
-    if (c.withheld.length) say.push(heldBackSay(c.withheld, true))
-    if (c.partial) next.push('applies_note says which part each partial fact covers.')
+    if (c.cut) say.push(`${applies(c.cut, 'more ')} but didn't fit in this reply.`)
+    if (c.withheld.length) say.push(heldBackSay(c.withheld, true, voice))
+    if (c.partial) next.push(`${voice.appliesField} says which part each partial ${one} covers.`)
     if (c.status === 'conflict')
-      next.push('Give both sides of conflicts_with and say they disagree.')
-    if (c.cut)
-      next.push(
-        'cut_ids lists the facts left out: call again with response_format concise or a higher max_bytes to get them.',
-      )
+      next.push(`Give both sides of ${voice.disagreesField} and say they disagree.`)
+    if (c.cut) next.push(voice.cuts)
     if (c.about)
-      next.push('Each fact names the metrics it is about (about): answer for each metric apart.')
+      next.push(`Each ${one} names the metrics it is about (about): answer for each metric apart.`)
   }
   // What a group asked for holds, right after what was read for it and how far that went.
   const grouped = groupWords(c.groups ?? [])
   if (grouped) say.splice(say[1] === onlyThat ? 2 : 1, 0, grouped)
   if (c.assumed) say.push(c.assumed)
+  // The answer line comes first (FR-349): the label and, but for Checked, its sentence.
+  const state = voice.stateFirst ? stateOfStatus(c.status) : null
+  if (state) say.unshift(stateWords(state))
   return { say: say.join(' '), ...(next.length ? { next: next.join(' ') } : {}) }
 }
 
@@ -373,7 +455,7 @@ export function searchSaid(c: {
   }
 }
 
-/** find_facts's two sentences: found by words, by what the words name, or nothing, and why. */
+/** find_context's two sentences (find_facts's in the fact voice): found by words, by what the words name, or nothing, and why. */
 export function findSaid(
   bundle: Names,
   c: {
@@ -388,8 +470,10 @@ export function findSaid(
     definitions: readonly string[]
     area: string | null
   },
+  voice = factVoice,
 ): Said {
   // The words are the caller's own: the sentence never repeats them, nor what they may probe.
+  const [one, many] = voice.item
   const where = c.area ? ` in ${c.area}` : ''
   const scope = c.scope
     ? scopeWords(bundle, c.scope, { show: !c.assumed, readsAs: c.readsAs ?? null })
@@ -403,28 +487,28 @@ export function findSaid(
   let next: string
   if (c.status === 'matched' && c.foundBy === 'words') {
     say.push(
-      `${sentence(count(c.total, 'fact', 'facts'))}${where} ${c.total === 1 ? 'matches' : 'match'} these words.${shown}`,
+      `${sentence(count(c.total, one, many))}${where} ${c.total === 1 ? 'matches' : 'match'} these words.${shown}`,
       ...(defined ? [defined] : []),
     )
-    next = `These match words, not dates: for what applies to a metric, market and dates, call get_facts.${more}`
+    next = `These match words, not dates: for what applies to a metric, market and dates, call ${voice.get}.${more}`
   } else if (c.status === 'matched') {
     say.push(
-      `${sentence(count(c.total, 'fact applies', 'facts apply'))}${where} to ${scope}.${shown}`,
+      `${sentence(count(c.total, `${one} applies`, `${many} apply`))}${where} to ${scope}.${shown}`,
       onlyThat,
       ...(defined ? [defined] : []),
     )
-    next = `No fact's words matched, so these are the facts that apply to what the words name. Call get_facts for other metrics, markets or dates.${more}`
+    next = `No ${one}'s words matched, so these are the ${many} that apply to what the words name. Call ${voice.get} for other metrics, markets or dates.${more}`
   } else {
     say.push(
       `Nothing written down${where} matches these words${scope ? `, or applies to ${scope}` : ''}.`,
       ...(c.withheld
         ? [
-            `${count(c.withheld, 'fact matches', 'facts match')} but ${c.withheld === 1 ? "isn't" : "aren't"} shared with AI agents yet.`,
+            `${count(c.withheld, `${one} matches`, `${many} match`)} but ${c.withheld === 1 ? "isn't" : "aren't"} shared with AI agents yet.`,
           ]
         : []),
       ...(defined ? [defined] : []),
     )
-    next = `${notProof}: a search may only have missed the words, and why says what to try. Call get_facts with the metrics, markets and dates. If nothing applies there either, say nothing is written down for exactly that question, and call report_gap.`
+    next = `${notProof}: a search may only have missed the words, and why says what to try. Call ${voice.get} with the metrics, markets and dates. If nothing applies there either, say nothing is written down for exactly that question, and ${voice.report}.`
   }
   if (c.assumed) say.push(c.assumed)
   return { say: say.join(' '), next }
@@ -530,26 +614,32 @@ export function changesSaid(c: {
 }
 
 /**
- * read_item's two sentences: the one fact it gives, or that no fact by that id may be read, in the
- * same words for one the caller may not see as for one that does not exist (FR-334).
+ * read_context's two sentences (read_item's in the fact voice): the one item it gives, or that no
+ * item by that id may be read, in the same words for one the caller may not see as for one that
+ * does not exist (FR-334). `kind` is the kind as the reply names it.
  */
-export const readSaid = (item: { kind: string; version: number } | null): Said =>
-  item
+export const readSaid = (
+  item: { kind: string; version: number } | null,
+  voice = factVoice,
+): Said => {
+  const [one, many] = voice.item
+  return item
     ? {
         say: `This is the full ${item.kind}, version ${item.version}.`,
-        next: 'A link shows what a fact mentions: it does not mean the fact applies to the question.',
+        next: `A link shows what a ${one} mentions: it does not mean the ${one} applies to the question.`,
       }
     : {
-        say: "There's no fact by that id that you can read.",
-        next: 'That says nothing about what else is written down: find facts with find_facts or get_facts.',
+        say: `There's no ${one} by that id that you can read.`,
+        next: `That says nothing about what else is written down: find ${many} with ${voice.find} or ${voice.get}.`,
       }
+}
 
 /** get_related's two sentences: what links to the start, or that it may not be read (FR-334). */
 export const relatedSaid = (c: { shown: number; total: number; depth: number } | null): Said =>
   c
     ? {
         say: `${sentence(c.shown < c.total ? `${c.shown} of ${count(c.total, 'linked thing', 'linked things')}` : count(c.total, 'thing is', 'things are'))}${c.shown < c.total ? ' are shown' : ' linked to it'}, up to ${count(c.depth, 'step', 'steps')} away.`,
-        next: `A link shows what a text refers to: it doesn't mean a fact applies to the question, nor prove a cause.${c.shown < c.total ? ' next_cursor gives the next page.' : ''}`,
+        next: `A link shows what a text refers to: it doesn't mean an item applies to the question, nor prove a cause.${c.shown < c.total ? ' next_cursor gives the next page.' : ''}`,
       }
     : {
         say: "There's nothing by that id that you can read.",
@@ -560,6 +650,29 @@ export const relatedSaid = (c: { shown: number; total: number; depth: number } |
 export const gapSaid = (scope: string, assumed: string | null): Said => ({
   say: `Gap reported for ${scope}. The owners of the domain will see it was asked.${assumed ? ` ${assumed}` : ''}`,
 })
+
+/**
+ * report's sentence: what was sent, and to which owner when the report names a context item or a
+ * scope; never who asked. `to` is the owner as a role ("the owner of Sales").
+ */
+export function reportSaid(c: {
+  kind: 'missing' | 'wrong' | 'unclear' | 'helped'
+  to: string | null
+  /** What a report of something missing was about, in words, when it named a scope. */
+  scope?: string | null
+  assumed?: string | null
+}): Said {
+  const to = c.to ?? 'the owners of the domain'
+  const what =
+    c.kind === 'helped'
+      ? `Sent: it helped. ${sentence(to)} will see it.`
+      : c.kind === 'missing'
+        ? `Sent: something is missing${c.scope ? ` for ${c.scope}` : ''}. ${sentence(to)} will see it was asked.`
+        : `Sent: something is ${c.kind}. ${sentence(to)} will see it.`
+  return {
+    say: `${what} Who asked is not kept.${c.assumed ? ` ${c.assumed}` : ''}`,
+  }
+}
 
 /** improve_question's two sentences: how the question reads, and where its suggestions are. */
 export const improveSaid = (scope: string): Said => ({

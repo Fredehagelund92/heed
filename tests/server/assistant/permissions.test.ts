@@ -10,7 +10,7 @@ import {
   modelInputSchema,
   proposeOnly,
 } from '../../../src/server/modules/assistant/tools.ts'
-import { tools as mcpTools } from '../../../src/server/mcp/tools.ts'
+import { assistantReads } from '../../../src/server/modules/assistant/read-tools.ts'
 
 /*
   FR-706: the assistant may create only drafts and proposals for the person who uses it. It must
@@ -104,8 +104,8 @@ describe('what the assistant can reach (FR-706)', () => {
       expect(assistantOperations.has(operation), operation).toBe(true)
       expect(forbidden).not.toContain(operation)
       if (operation.startsWith('mcp.')) {
-        const tool = operation.slice(4) as keyof typeof mcpTools
-        expect(mcpTools[tool].scope, operation).toBe('read')
+        // A read of the tool service, by the id the assistant keeps (read-tools.ts).
+        expect(Object.keys(assistantReads), operation).toContain(operation.slice(4))
       } else if (operation.startsWith('web.')) {
         // The public web: it reads pages and searches, and writes nothing in Heed.
         expect(['web.read_source', 'web.search_web'], operation).toContain(operation)

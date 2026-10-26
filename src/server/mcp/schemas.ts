@@ -1,5 +1,7 @@
 import * as z from 'zod'
 import * as mini from 'zod/mini'
+import { replyStatuses } from '../../domain/answer-state.ts'
+import { kindFilters } from '../../domain/mcp-text.ts'
 import { isCalendarDate } from '../../domain/validity.ts'
 import { itemKinds } from '../../domain/item.ts'
 import { relatedLimits, relations } from '../../domain/links.ts'
@@ -64,6 +66,25 @@ export const contextInput = z.strictObject({
   max_bytes: z.number().int().min(1000).max(100000).default(100000),
   response_format: responseFormat.default('full'),
 })
+/**
+ * How much get_context's reply says (FR-342). `concise`, the default, is the agent contract's
+ * short reply: the status, say, what was asked, each item that applies with its source
+ * and check, the reply id and the edition. `full` adds every source detail of FR-326 and FR-331:
+ * each item's body, evidence, owner and links, and how the question was read.
+ */
+export const contextFormat = z
+  .enum(['concise', 'full'])
+  .describe(
+    "concise (the default): the answer line, say, what was asked, and each item that applies with its source and who checked it. full: also each item's body, every source, its links, and how the question was read (scope_used, dates_read, definitions, check_report). Ask for full when you will quote an item's text or follow its links.",
+  )
+export const getContextInput = z.strictObject({
+  ...scopeFields,
+  edition,
+  max_items: z.number().int().min(1).max(50).default(20),
+  max_bytes: z.number().int().min(1000).max(100000).default(100000),
+  response_format: contextFormat.default('concise'),
+})
+export type GetContextInput = z.infer<typeof getContextInput>
 export const readInput = z.strictObject({
   id: z.string().regex(/^itm_[a-z0-9]{8,16}$/),
   edition,
@@ -111,6 +132,65 @@ export const findInput = z.strictObject({
   max_bytes: z.number().int().min(1000).max(100000).default(100000),
   response_format: responseFormat.default('full'),
 })
+/**
+ * find_context (FR-338, merging find_facts and search_facts): what is written down about a few
+ * words, by the names people use. A kind is named as agents read it (event, warning, rule, guide).
+ */
+export const findContextInput = z.strictObject({
+  query: findInput.shape.query,
+  domain: domainName.optional(),
+  kind: z
+    .enum(Object.keys(kindFilters) as [keyof typeof kindFilters, ...(keyof typeof kindFilters)[]])
+    .optional()
+    .describe('Only items of this kind: event, warning, rule or guide.'),
+  window: findInput.shape.window,
+  edition,
+  limit: z.number().int().min(1).max(50).default(10),
+  max_bytes: z.number().int().min(1000).max(100000).default(100000),
+  response_format: responseFormat
+    .default('concise')
+    .describe(
+      'concise (the default): each definition without where its source keeps it. full: every source detail. Read an item in full with read_context.',
+    ),
+})
+export type FindContextInput = z.infer<typeof findContextInput>
+/**
+ * report (replacing report_gap and give_feedback): the person says something is missing, wrong or
+ * unclear, or that it helped, about a reply, an item, or a question's scope. It records
+ * what and where, never who: the reply's topic or the item's domain, and a short note checked
+ * for sensitive text (FR-611).
+ */
+export const reportKinds = ['missing', 'wrong', 'unclear', 'helped'] as const
+export const reportInput = z.strictObject({
+  kind: z
+    .enum(reportKinds)
+    .describe(
+      'missing: something the person needs is not written down. wrong: an item says something that is not true. unclear: it is hard to read or to use. helped: it helped.',
+    ),
+  reply_id: z.uuid().optional().describe('The reply_id of the get_context reply it is about.'),
+  context_id: z
+    .string()
+    .regex(/^itm_[a-z0-9]{8,16}$/)
+    .optional()
+    .describe('The id of the item it is about, when it is about one.'),
+  question: scopeFields.question
+    .optional()
+    .describe(
+      'For missing without a reply_id: the question, read in memory only for its metrics, markets and dates, never kept.',
+    ),
+  metrics: scopeFields.metrics,
+  dimension_filters: scopeFields.dimension_filters,
+  window: scopeFields.window,
+  note: z
+    .string()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe(
+      "A short note in the person's words, if they gave one. Never the question text, personal data or secrets.",
+    ),
+})
+export type ReportInput = z.infer<typeof reportInput>
 /** FR-348: a question about how Heed itself works, in words. */
 export const helpInput = z.strictObject({
   query: z
@@ -198,13 +278,13 @@ export const draftInput = z.strictObject({
     ),
   scope: z
     .strictObject({
-      metrics: scopeFields.metrics.describe('Metric names, as you used them with get_facts.'),
+      metrics: scopeFields.metrics.describe('Metric names, as you used them with get_context.'),
       dimension_filters: scopeFields.dimension_filters.describe(
         'Dimensions and the values it applies to, such as market Norway. No values means every value.',
       ),
     })
     .optional()
-    .describe("Names, as in your last get_facts call. They're matched to the vocabulary."),
+    .describe("Names, as in your last get_context call. They're matched to the vocabulary."),
   window: z
     .strictObject({
       from: date,
@@ -272,16 +352,23 @@ const question = z.strictObject({
   options: z.array(z.string()).optional(),
 })
 /**
- * What `draft_context` returns (its MCP output schema), field names and marks from the attribute
- * table (src/domain/proposal-attributes.ts). `status` says which parts are present: a saved draft,
- * a domain to choose, possible duplicates, or a refusal, which saves nothing.
+ * What `suggest_context` and `draft_context` return (their MCP output schema), field names and
+ * marks from the attribute table (src/domain/proposal-attributes.ts). `status` says which parts
+ * are present: a suggestion sent to the owner, a saved draft (draft_context's, or one the review
+ * checks kept back), a domain to choose, possible duplicates, or a refusal, which saves nothing.
  */
 export const draftOutput = z
   .object({
-    status: z.enum(['draft_saved', 'needs_area', 'possible_duplicate', 'refused']),
+    status: z.enum([
+      'suggestion_sent',
+      'draft_saved',
+      'needs_area',
+      'possible_duplicate',
+      'refused',
+    ]),
     saved: z.boolean(),
     message: z.string().optional(),
-    submitted: z.literal(false).optional(),
+    submitted: z.boolean().optional(),
     draft_id: z.string().optional(),
     number: z.number().optional(),
     title: z.string().optional(),
@@ -384,4 +471,64 @@ export const helpOutput = z
   .loose()
 /** read_item: the one item, with its page in Heed (FR-347). */
 export const readItemOutput = z.object({ ...said, item: citedItem.optional() }).loose()
+
+/** An item as the agent contract gives it: its page in Heed, and how it was checked. */
+const contextEntry = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    kind: z.string().describe('event, warning, rule or guide.'),
+    url: z.string().describe("The item's page, for the person: link it where you cite the item."),
+    checked: z
+      .object({ role: z.string(), date: z.string() })
+      .optional()
+      .describe(
+        'Who checked it before agents got it, as a role (never a person), and on which day.',
+      ),
+  })
+  .loose()
+/**
+ * What get_context returns (its MCP output schema, FR-344 and FR-349): the status, which carries
+ * the answer state, `say` and `next`, what was asked, the items that apply, the reply id
+ * to report on and the edition. `response_format` full adds the details of each item and how the
+ * question was read.
+ */
+export const contextOutput = z
+  .object({
+    say: said.say,
+    next: said.next,
+    status: z
+      .enum(replyStatuses)
+      .describe(
+        'The answer state: matched (Checked), partial (Partial), no_match (Not found), conflict (Conflict), stale (Outdated), check_failed (Not checked); need_more_detail when the question could not be read.',
+      ),
+    asked: z
+      .string()
+      .nullable()
+      .optional()
+      .describe('What was looked up: the metrics, markets and dates, in words.'),
+    context: z.array(contextEntry).optional(),
+    reply_id: z
+      .string()
+      .optional()
+      .describe('The id of this reply, for report when the person says what was wrong or helped.'),
+    edition: z.string().optional(),
+  })
+  .loose()
+/** find_context: the matching items, with their pages in Heed (FR-347). */
+export const findContextOutput = z
+  .object({ ...said, context: z.array(contextEntry).optional() })
+  .loose()
+/** read_context: the one item in full, with its page in Heed (FR-347). */
+export const readContextOutput = z.object({ ...said, context: contextEntry.optional() }).loose()
+/** report: that it was sent, and to which owner. */
+export const reportOutput = z
+  .object({
+    say: said.say,
+    next: said.next,
+    status: z.string(),
+    recorded: z.boolean().optional(),
+    to: z.string().optional().describe('Who will see it, as a role: the owner of a domain.'),
+  })
+  .loose()
 export type ContextInput = z.infer<typeof contextInput>

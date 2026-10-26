@@ -49,17 +49,19 @@ const client = (extra: Partial<ClientPolicy> = {}): ClientPolicy => ({
 
 describe('the tools in words', () => {
   it('names the tools it knows and keeps the name of one it does not', () => {
-    expect(toolName('get_facts')).toBe('Get facts for a question')
-    expect(toolName('give_feedback')).toBe('Say if it helped')
+    expect(toolName('get_context')).toBe('Get context for a question')
+    expect(toolName('report')).toBe('Tell the owner')
+    // A tool that left the list keeps its id, as the request log still names it.
+    expect(toolName('search_help')).toBe('search_help')
     expect(toolName('brand_new_tool')).toBe('brand_new_tool')
   })
 
   it('lists the reading tools first, then feedback, then any it does not know', () => {
-    const tools = ['search_facts', 'zzz_new', 'give_feedback', 'aaa_new', 'get_facts']
+    const tools = ['find_context', 'zzz_new', 'report', 'aaa_new', 'get_context']
     expect(orderTools(tools.map((tool) => ({ tool }))).map(({ tool }) => tool)).toEqual([
-      'get_facts',
-      'search_facts',
-      'give_feedback',
+      'get_context',
+      'find_context',
+      'report',
       'aaa_new',
       'zzz_new',
     ])
@@ -68,30 +70,30 @@ describe('the tools in words', () => {
   it('counts the tools that are on', () => {
     const at = '2026-10-07T12:00:00.000Z'
     const tool = (name: string, enabled: boolean) => ({ tool: name, enabled, updatedAt: at })
-    expect(toolsOnWords([tool('get_facts', true), tool('get_related', false)])).toBe(
+    expect(toolsOnWords([tool('get_context', true), tool('get_related', false)])).toBe(
       '1 of 2 tools are on.',
     )
-    expect(toolsOnWords([tool('get_facts', true)])).toBe('The tool is on.')
+    expect(toolsOnWords([tool('get_context', true)])).toBe('The tool is on.')
     expect(toolsOnWords([])).toBe('There are no tools yet.')
   })
 
   it('says which switched-on clients a tool switch reaches', () => {
     const clients = [
       client(),
-      client({ label: 'cursor', displayName: 'Cursor', toolsAllowed: ['read_item'] }),
+      client({ label: 'cursor', displayName: 'Cursor', toolsAllowed: ['read_context'] }),
       client({ label: 'eval', displayName: 'Evaluation runner' }),
       client({ label: 'old', displayName: 'Old bot', enabled: false }),
     ]
-    expect(toolSwitchEffect('get_facts', false, clients)).toBe(
+    expect(toolSwitchEffect('get_context', false, clients)).toBe(
       'Claude Code and Evaluation runner stop using it from the next call. It stays off for every agent until you switch it on again.',
     )
-    expect(toolSwitchEffect('read_item', true, clients)).toBe(
+    expect(toolSwitchEffect('read_context', true, clients)).toBe(
       'Claude Code, Cursor and Evaluation runner can use it from the next call.',
     )
-    expect(toolSwitchEffect('get_facts', true, [client({ enabled: false })])).toBe(
+    expect(toolSwitchEffect('get_context', true, [client({ enabled: false })])).toBe(
       'None of the agents that are on allow it yet. Allow it for one on the agents tab.',
     )
-    expect(toolSwitchEffect('get_facts', false, undefined)).toBe(
+    expect(toolSwitchEffect('get_context', false, undefined)).toBe(
       'Every agent stops using it from its next call.',
     )
   })
@@ -100,8 +102,8 @@ describe('the tools in words', () => {
 describe('a client in words', () => {
   it('says which tools a client may call', () => {
     expect(clientToolsWords(client())).toBe('Every tool that is on')
-    expect(clientToolsWords(client({ toolsAllowed: ['search_facts', 'get_facts'] }))).toBe(
-      'Get facts for a question, Search facts',
+    expect(clientToolsWords(client({ toolsAllowed: ['find_context', 'get_context'] }))).toBe(
+      'Get context for a question, Find context',
     )
     expect(clientToolsWords(client({ toolsAllowed: [] }))).toBe('No tools')
   })
@@ -213,7 +215,7 @@ describe('the client form', () => {
     const cursor = client({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['read_item', 'get_facts'],
+      toolsAllowed: ['read_context', 'get_context'],
       ratePerMinute: null,
       maxResponseBytes: 2_500,
       enabled: false,
@@ -223,7 +225,7 @@ describe('the client form', () => {
     expect(toSaveClientInput({ ...values, reason: '  Paused for now  ' })).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_facts', 'read_item'],
+      toolsAllowed: ['get_context', 'read_context'],
       ratePerMinute: null,
       maxResponseBytes: 2_500,
       enabled: false,
@@ -290,7 +292,7 @@ describe('the client editor', { timeout: 15_000 }, () => {
     const dialog = await screen.findByRole('dialog', { name: 'Edit Cursor' })
     expect(within(dialog).queryByRole('textbox', { name: 'Label' })).toBeNull()
     expect(dialog).toHaveTextContent('cursor')
-    await user.click(await within(dialog).findByRole('checkbox', { name: 'Improve a question' }))
+    await user.click(await within(dialog).findByRole('checkbox', { name: 'Tell the owner' }))
     await user.click(within(dialog).getByRole('checkbox', { name: 'Allowed to connect' }))
     const rate = within(dialog).getByRole('textbox', { name: /Requests a minute/ })
     await user.clear(rate)
@@ -302,7 +304,7 @@ describe('the client editor', { timeout: 15_000 }, () => {
     expect((await api.listClients()).find((entry) => entry.label === 'cursor')).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['get_facts', 'improve_question', 'read_item', 'search_facts'],
+      toolsAllowed: ['find_context', 'get_context', 'read_context', 'report'],
       ratePerMinute: 90,
       maxResponseBytes: null,
       enabled: true,
@@ -319,7 +321,7 @@ describe('the client editor', { timeout: 15_000 }, () => {
         expect(within(dialog).queryByRole('status', { name: 'Loading the tools' })).toBeNull(),
       )
       expect(
-        within(dialog).getByRole('checkbox', { name: 'Get facts for a question' }),
+        within(dialog).getByRole('checkbox', { name: 'Get context for a question' }),
       ).toBeChecked()
       expect(within(dialog).getByRole('checkbox', { name: 'Follow links' })).not.toBeChecked()
       expect(dialog).not.toHaveTextContent('Off for every agent now.')

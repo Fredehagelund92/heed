@@ -74,11 +74,19 @@ describe('the L1 checks of one reply', () => {
     const reply = {
       say: 'Heed has 1 item for Net revenue, Norway, 1-7 Oct 2026.',
       status: 'matched',
-      items: [item],
+      context: [item],
       check_report: { cut: false },
     }
     const checks = deliveryChecks(expected, reply, 'excludes test accounts')
     expect(Object.values(checks).every(Boolean)).toBe(true)
+    // The concise reply flags an item that may be out of date in its own words.
+    const concise = {
+      ...reply,
+      context: [{ id: 'itm_aaaaaaaa', version: 2, may_be_out_of_date: true, links: item.links }],
+    }
+    expect(
+      Object.values(deliveryChecks(expected, concise, 'excludes test accounts')).every(Boolean),
+    ).toBe(true)
     expect(Object.keys(checks).sort()).toEqual(
       [
         'cut',
@@ -100,7 +108,7 @@ describe('the L1 checks of one reply', () => {
     const filler = Array.from({ length: 5 }, (_, i) => ({ id: `itm_filler0${i}` }))
     const reply = {
       status: 'no_match',
-      items: [...filler, { id: 'itm_aaaaaaaa', version: 1 }, { id: 'itm_bbbbbbbb' }],
+      context: [...filler, { id: 'itm_aaaaaaaa', version: 1 }, { id: 'itm_bbbbbbbb' }],
       check_report: { cut: true },
     }
     expect(deliveryChecks(expected, reply, 'x'.repeat(501))).toEqual({

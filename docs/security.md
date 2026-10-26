@@ -7,11 +7,12 @@ How dependencies and commits are scanned, and how a backup is proved restorable.
 **Scanning.** `.github/workflows/security.yml` runs from the CI workflow on every pull request,
 on `main` and every night, whatever changed, because a new advisory can fail an unchanged
 lockfile. The CI gate needs it. It checks the registry signature of every
-installed package (`npm audit signatures`), every locked dependency against the OSV database
-(OSV-Scanner, with the reviewed exceptions in `osv-scanner.toml`), and every commit for secrets
+installed package (`npm audit signatures`), every locked dependency in `package-lock.json` and
+`apps/mockup/package-lock.json` against the OSV database (OSV-Scanner, with the reviewed exceptions
+in `osv-scanner.toml`), and every commit for secrets
 (gitleaks, with `.gitleaks.toml`: the default rules, plus one made-up key the content checks must
 recognise). Run them locally with `npm audit signatures`, `osv-scanner scan source --lockfile
-package-lock.json --config osv-scanner.toml` and `gitleaks git --config .gitleaks.toml .`.
+package-lock.json --lockfile apps/mockup/package-lock.json --config osv-scanner.toml` and `gitleaks git --config .gitleaks.toml .`.
 
 **The restore drill** (NFR-044, NFR-045). `npm run db:restore-drill` backs up the database in
 `DATABASE_URL_MIGRATE` (or `--source <url>`; the owner or a superuser) with `pg_dump`, restores it
