@@ -10,9 +10,11 @@ import type { Queryable } from '../../db/database.ts'
  */
 export async function trafficSummary(tx: Queryable, days: number): Promise<TrafficSummary> {
   const [window] = await tx.query<{ from: string; to: string; retention: number }>(
-    `with h as (select date_trunc('hour', now(), 'UTC') + interval '1 hour' as upper)
-     select to_char((upper - make_interval(days => $1)) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "from",
-            to_char(upper at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "to",
+    // In UTC: days taken from a time with a zone follow the session's clock changes, so a week
+    // across a change of summer time would be an hour short or long.
+    `with h as (select date_trunc('hour', now() at time zone 'UTC') + interval '1 hour' as upper)
+     select to_char(upper - make_interval(days => $1), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "from",
+            to_char(upper, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "to",
             (select (value #>> '{}')::int from settings_current where key = 'retention.request_log_days') as retention
        from h`,
     [days],

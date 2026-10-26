@@ -2606,7 +2606,7 @@
           "tags": [
             "assistant"
           ],
-          "summary": "What an agent would get: get_facts's reply for a scope on the live edition, without a model, recording nothing (FR-602)"
+          "summary": "What an agent would get: get_facts's reply and the answer engine's answer for a scope on the live edition, or with a draft in it, without a model, recording nothing (FR-602)"
         }
       }
     },
@@ -2623,6 +2623,76 @@
             "assistant"
           ],
           "summary": "A question read as a scope with the vocabulary of the live edition, so Try it opens on what was asked; the question is never stored (FR-602)"
+        }
+      }
+    }
+  },
+  "ask": {
+    "lookup": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/ask/lookup",
+          "tags": [
+            "assistant"
+          ],
+          "summary": "A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; the question is never stored (FR-602)"
+        }
+      }
+    },
+    "asked": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/ask/asked",
+          "tags": [
+            "assistant"
+          ],
+          "summary": "Asked this week: the topics agents asked about most, with the state each gets now; counts only, small counts hidden (FR-614)"
+        }
+      }
+    }
+  },
+  "engine": {
+    "reach": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/engine/reach",
+          "tags": [
+            "assistant"
+          ],
+          "summary": "How many questions agents asked this week would get a draft: each topic answered with the draft in the live edition; topics asked fewer than the minimum don't count (FR-614)"
+        }
+      }
+    }
+  },
+  "obs": {
+    "replay": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/observability/replay",
+          "tags": [
+            "quality"
+          ],
+          "summary": "The answer panel's replay: a topic answered now or before the last publish, step by step, with no model; for administrators and the owners of the topic's domains"
         }
       }
     }

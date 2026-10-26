@@ -19,6 +19,8 @@ const maintainOperations = [
   'evals.retrieval.edition',
   'evals.retrieval.trend',
   'quality.history',
+  // The replay of a topic: the service narrows it to the owners of the topic's domains.
+  'obs.replay',
   'quality.compare',
   'quality.feedback',
   'quality.ratings',
@@ -181,6 +183,11 @@ const readOperations = [
   'connect.get',
   'tryIt.read',
   'tryIt.run',
+  // The answer engine: Ask's look-up and Asked this week, and the reach of a draft the person
+  // may read (the service checks the draft).
+  'ask.lookup',
+  'ask.asked',
+  'engine.reach',
 ]
 
 describe('policy matrix', () => {

@@ -4,6 +4,7 @@ import { goldenExtras, goldenLibrary } from '../../db/seed/golden-fixtures.ts'
 import { loadGoldenSet } from '../../db/seed/golden-set.ts'
 import { formatHeldOut, heldOutUnavailable } from '../../db/seed/held-out.ts'
 import { heldOutL1 } from '../../db/seed/held-out-runs.ts'
+import { answer } from '../../src/domain/answer.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadLiveBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { deliver, goldenL1, type GoldenL1Result } from '../../src/server/modules/evals/index.ts'
@@ -159,4 +160,86 @@ it('gives the round 4 question the dates its words give, and says how it read th
   })
   expect(today.check_report.statements.join(' ')).toContain('today was assumed, 7 Oct 2026 (UTC)')
   expect(today.instructions).toContain('I assumed today, 7 October 2026')
+})
+
+/*
+  The answer engine (src/domain/answer.ts) answers people the way get_context answers agents:
+  Ask, Try it, the replay and the saved-question check read it. On every golden case, as asked
+  at its as-of date, it gives what get_context gives: the status, the items in their order with
+  their versions, matches and freshness, the items cut, the scope it read and the sentences. And it
+  answers fast: under 50 ms at the 95th percentile on the golden library (the demo library and the
+  fixtures).
+*/
+type Delivered = {
+  status?: string
+  say?: string
+  next?: string
+  scope_used?: unknown
+  items?: { id: string; version: number; match: string; freshness: string }[]
+  check_report?: { cut_ids: string[] }
+}
+it('gives what get_context gives on every golden case, and fast', async () => {
+  const durations: number[] = []
+  const compared: string[] = []
+  for (const c of cases) {
+    const format = c.response_format ? { response_format: c.response_format } : {}
+    const asks = [
+      ...(c.scope ? c.wordings.map((w) => ({ question: w.text, ...c.scope })) : []),
+      ...(c.turns ?? []).flatMap((turn) =>
+        turn.scope ? [{ question: turn.text, ...turn.scope }] : [],
+      ),
+    ]
+    for (const ask of asks) {
+      const reply = (await deliver(served, systemClock(c.as_of), {
+        ...ask,
+        ...format,
+      })) as Delivered
+      const result = answer(served, ask, { today: c.as_of, now: () => performance.now() })
+      durations.push(result.ms)
+      compared.push(c.id)
+      expect(
+        {
+          status: result.status,
+          items: result.items.map((i) => ({
+            id: i.id,
+            version: i.version,
+            match: i.match,
+            freshness: i.unverified ? 'unverified' : 'verified',
+          })),
+          // get_context lists the items it cut last-ranked first; the engine in rank order.
+          cut: result.leftOut
+            .filter((l) => l.reason === 'cut')
+            .map((l) => l.id)
+            .sort(),
+          scope: result.scope,
+          say: result.say,
+          next: result.next,
+        },
+        `${c.id}: ${ask.question}`,
+      ).toEqual({
+        status: reply.status,
+        items: (reply.items ?? []).map(({ id, version, match, freshness }) => ({
+          id,
+          version,
+          match,
+          freshness,
+        })),
+        cut: [...(reply.check_report?.cut_ids ?? [])].sort(),
+        scope: reply.scope_used ?? null,
+        say: reply.say,
+        next: reply.next ?? null,
+      })
+    }
+  }
+  // Every case with a scope was compared, and so was every follow-up turn with one.
+  expect(new Set(compared)).toEqual(
+    new Set(cases.filter((c) => c.scope || c.turns?.some((t) => t.scope)).map((c) => c.id)),
+  )
+  expect(compared.length).toBeGreaterThanOrEqual(100)
+  const sorted = [...durations].sort((a, b) => a - b)
+  const p95 = sorted[Math.ceil(sorted.length * 0.95) - 1]!
+  process.stdout.write(
+    `answer engine on the golden library: ${sorted.length} answers, p95 ${p95} ms\n`,
+  )
+  expect(p95).toBeLessThan(50)
 })

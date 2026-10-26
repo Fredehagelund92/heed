@@ -63,7 +63,15 @@ import { itemJsonSchema } from '../../domain/item-version.ts'
 import { checkModelSetting, type ModelPort } from '../modules/models/index.ts'
 import { labelOperation } from '../observability/metrics.ts'
 import { createLimiter } from './rate-limit.ts'
-import { connectInfo, readTryItQuestion, tryIt } from '../modules/agents/index.ts'
+import { connectInfo, readTryItQuestion } from '../modules/agents/index.ts'
+import {
+  askedThisWeek,
+  createBundleCache,
+  lookupQuestion,
+  reachOfDraft,
+  replayTopic,
+  tryItRun,
+} from '../modules/answer/index.ts'
 import {
   createDomainCache,
   prepareTurn,
@@ -165,6 +173,8 @@ export function createRouter({
   const assistantDomains = createDomainCache()
   const limitGapReports = createLimiter(() => clock.now())
   const limitRatings = createLimiter(() => clock.now())
+  // The editions the answer engine reads, kept a short while: one for every person.
+  const answerBundles = createBundleCache()
   const os = implement(contract).$context<RequestContext>()
   const authorized = os.use(async ({ context, next, path }) => {
     // Work outside the database that must follow the transaction's outcome, such as a secret
@@ -1007,10 +1017,30 @@ export function createRouter({
     },
     tryIt: {
       run: authorized.tryIt.run.handler(({ context, input }) =>
-        tryIt(context.tx, clock, input, origins[0] ?? null),
+        tryItRun(context.tx, clock, answerBundles, input, origins[0] ?? null, (id) =>
+          context.proposals.get(id),
+        ),
       ),
       read: authorized.tryIt.read.handler(({ context, input }) =>
         readTryItQuestion(context.tx, clock, input),
+      ),
+    },
+    ask: {
+      lookup: authorized.ask.lookup.handler(({ context, input }) =>
+        lookupQuestion(context.tx, clock, answerBundles, input),
+      ),
+      asked: authorized.ask.asked.handler(({ context }) =>
+        askedThisWeek(context.tx, clock, answerBundles),
+      ),
+    },
+    engine: {
+      reach: authorized.engine.reach.handler(async ({ context, input }) =>
+        reachOfDraft(context.tx, clock, answerBundles, await context.proposals.get(input.draft)),
+      ),
+    },
+    obs: {
+      replay: authorized.obs.replay.handler(({ context, input }) =>
+        replayTopic(context.tx, clock, answerBundles, input),
       ),
     },
     schema: {

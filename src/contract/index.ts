@@ -24,6 +24,17 @@ import {
 } from './schemas.ts'
 
 import {
+  askedSchema,
+  lookupEventSchema,
+  lookupInputSchema,
+  reachInputSchema,
+  reachSchema,
+  replayInputSchema,
+  replaySchema,
+  tryItRunInputSchema,
+  tryItRunSchema,
+} from './answer.ts'
+import {
   createProposalSchema,
   saveDraftSchema,
   proposalRecordSchema,
@@ -179,13 +190,7 @@ import {
   catalogueTermInputSchema,
 } from './catalogue.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
-import {
-  connectInfoSchema,
-  tryItInputSchema,
-  tryItReadInputSchema,
-  tryItReadingSchema,
-  tryItSchema,
-} from './connect.ts'
+import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
   adminDisconnectedSchema,
   adminDisconnectPersonSchema,
@@ -2012,10 +2017,10 @@ export const contract = {
         path: '/try-it',
         tags: ['assistant'],
         summary:
-          "What an agent would get: get_facts's reply for a scope on the live edition, without a model, recording nothing (FR-602)",
+          "What an agent would get: get_facts's reply and the answer engine's answer for a scope on the live edition, or with a draft in it, without a model, recording nothing (FR-602)",
       })
-      .input(tryItInputSchema)
-      .output(tryItSchema),
+      .input(tryItRunInputSchema)
+      .output(tryItRunSchema),
     read: read
       .errors({
         PRECONDITION_FAILED: {
@@ -2031,6 +2036,77 @@ export const contract = {
       })
       .input(tryItReadInputSchema)
       .output(tryItReadingSchema),
+  },
+  ask: {
+    lookup: read
+      .errors({
+        PRECONDITION_FAILED: {
+          message: "Agents don't get any context yet. Ask an admin to finish the setup.",
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/ask/lookup',
+        tags: ['assistant'],
+        summary:
+          'A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; the question is never stored (FR-602)',
+      })
+      .input(lookupInputSchema)
+      .output(eventIterator(lookupEventSchema)),
+    asked: read
+      .errors({
+        PRECONDITION_FAILED: {
+          message: "Agents don't get any context yet. Ask an admin to finish the setup.",
+        },
+      })
+      .route({
+        method: 'GET',
+        path: '/ask/asked',
+        tags: ['assistant'],
+        summary:
+          'Asked this week: the topics agents asked about most, with the state each gets now; counts only, small counts hidden (FR-614)',
+      })
+      .output(askedSchema),
+  },
+  engine: {
+    reach: read
+      .meta({ scope: 'propose' })
+      .errors({
+        PRECONDITION_FAILED: {
+          message: "Agents don't get any context yet, so no question would get this draft.",
+        },
+        UNPROCESSABLE_CONTENT: {
+          status: 422,
+          message: 'Complete the draft to see who would get it.',
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/engine/reach',
+        tags: ['assistant'],
+        summary:
+          "How many questions agents asked this week would get a draft: each topic answered with the draft in the live edition; topics asked fewer than the minimum don't count (FR-614)",
+      })
+      .input(reachInputSchema)
+      .output(reachSchema),
+  },
+  obs: {
+    replay: maintainRead
+      .errors({
+        PRECONDITION_FAILED: {
+          message:
+            'Agents got nothing before what they get today, so there is nothing to compare with yet.',
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/observability/replay',
+        tags: ['quality'],
+        summary:
+          "The answer panel's replay: a topic answered now or before the last publish, step by step, with no model; for administrators and the owners of the topic's domains",
+      })
+      .input(replayInputSchema)
+      .output(replaySchema),
   },
   schema: {
     item: publicRoute

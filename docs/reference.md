@@ -600,7 +600,11 @@ Two reads for every signed-in person, with no model and nothing recorded:
   limit. There is no question field, so no question text can be stored (FR-602), and no audience
   field: the bundle resolves with no audience groups, which is every person's audience while
   groups are parked. It records no delivery, topic, gap or request. Before the first edition is
-  live it answers 412.
+  live it answers 412. Beside the reply it gives the answer engine's `answer` for the same scope
+  (its state, items, what was left out and its steps, [The answer engine](#the-answer-engine)).
+  With `draft` (a proposal's id the person may read) both are for the live edition with the
+  draft in it, as the proposal's preview builds it; the answer's `target` names the draft and its
+  item, and a draft's answer is never called Checked.
 - `POST /gaps/reports` (Report a gap, FR-606 case 5): any signed-in person reports a gap about
   the scope they were looking at: the same `metrics`, `dimension_filters` and `window` as Try it,
   a gap `type` (FR-607) and an optional `note` of up to 500 characters (FR-611). The scope is
@@ -638,3 +642,54 @@ people), filters by origin, and shows people's reports in the gap's panel, throu
 privacy rule as every other count.
 Signing in from a person's own client (FR-403) is not built yet, so Connect says that a client
 connects with a token the data platform team gives out.
+
+## The answer engine
+
+One deterministic function (`src/domain/answer.ts`) answers people the way `get_context` answers
+an agent, with no model: Ask, Try it, the replay of a topic, Asked this week and the reach of a
+draft read it, and the review's before and after and the saved-question check are to follow. It
+takes what is asked (a question's words with the names sent beside them, a typed scope, or a
+topic's scope) and one edition bundle: the live edition, the edition before it, or the live
+edition with a draft in it. It reads the scope as `get_context` does, resolves it with the agent's
+audience, gives at most 20 items (`max_items`'s default), and says the same sentences (FR-344). On
+every case of the golden set its status, items, cut and sentences equal `get_context`'s
+(`tests/integration/golden-set.test.ts`), and it answers in under 50 ms at the 95th percentile
+on the demo library.
+
+An answer has five steps, each timed: `read_scope` (the scope, how the dates were read, the day
+assumed, what could not be read), `looked_up` (the items given), `left_out` (what was about the
+question and why it did not reach the answer: the resolver's reasons `source_visibility`,
+`stopped` and `high_risk_unverified`; `cut` past the item limit; `replaced`; and the near misses
+about an asked metric with other `dates`, other `values` or a `dimension` the question did not
+name, ten at most, the rest counted in `leftOutMore`; an item for another group is only counted,
+in `forAnotherGroup`, and never named, not even by its id), `checked` (the answer
+state) and `said`. Its state is one of the six (FR-349), in this order: `failed` when the checks
+could not run; `missing` when nothing was given or the question could not be read; `conflict`
+when given items disagree; `partial` when an asked metric or value has no item that covers it in
+full (`uncovered` names them) or the dates were assumed; `stale` when a given item may be out of
+date; else `grounded`.
+
+- `POST /ask/lookup` (Ask): a question (1 to 2,000 characters) and the names a person picked
+  beside it (`metrics`, `dimension_filters`, `window`, as Try it), on the live edition. It answers
+  with server-sent events: each step as it is done, then the answer. The question is read in
+  memory and never stored or logged (FR-602), and nothing is recorded.
+- `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
+  to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
+  first, each with the state the engine gives its newest shown month now (the month of today for a
+  row listed only by its total) and how many items that gives.
+  Counts only (FR-614): a month under `privacy.min_count` never shows on its own, a row's `count`
+  is null when a total would give such a month away (its `atLeast` is what the shown months add up
+  to), a row that shows under the minimum is not listed, and `hidden` counts the calls of the rows
+  not listed, itself hidden under the minimum.
+- `POST /engine/reach` (the editor's and the review's "12 questions agents asked this week would
+  get it"): a draft (a proposal's id the person may read). Each topic asked at least the minimum
+  times this week is answered for its month with the draft in the live edition, and the topics
+  whose answer gives the draft count their questions. A topic under the minimum never counts, so
+  the total gives none away.
+- `POST /observability/replay` (the answer panel's replay): a topic's id and `when`, `now` (the
+  live edition) or `before` (the sealed edition before it, 412 when there is none). The topic is
+  answered for its whole month, step by step. For administrators and the owners of the topic's
+  domains (`cl_manages_topic`), as its gap is; anyone else is told the topic does not exist.
+
+The bundles are read once and kept for 15 seconds by edition and overlay, as the agents' edition
+source keeps them, so a new publish or stop switch is read at once.

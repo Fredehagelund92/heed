@@ -317,11 +317,17 @@ const queries = () => [
   ['audit.export', `/api/v1/audit/export?format=jsonl`],
 ]
 
-/** Reads that are POSTs: a preview, the review stamps, the Bin's previews. */
+/**
+ * Reads that are POSTs: a preview, the review stamps, the Bin's previews, and the answer engine's
+ * look-up, Try it and reach, asked about the hidden item's own scope.
+ */
 const posts = () =>
   [
     ['proposals.preview', `/api/v1/proposals/${hiddenProposal}/preview`, {}],
     ['proposals.preview', `/api/v1/proposals/${linkingProposal}/preview`, {}],
+    ['ask.lookup', '/api/v1/ask/lookup', { question: 'Orders on holidays', metrics: ['Orders'] }],
+    ['tryIt.run', '/api/v1/try-it', { metrics: ['Orders'] }],
+    ['engine.reach', '/api/v1/engine/reach', { draft: linkingProposal }],
     ['library.reviews', '/api/v1/library/reviews', { ids: [hidden.id, linking.id] }],
     ['bin.preview', '/api/v1/bin/preview', { ids: [hidden.id] }],
     ['bin.rescuePreview', '/api/v1/bin/rescue-preview', { ids: [hidden.id], areaId: 'finance' }],
