@@ -100,7 +100,10 @@ describe('the claim check against the copied sentence', () => {
 
   it('checks nothing without a copied sentence, and returns every claim of a long text', () => {
     expect(claimCheck('Orders fell in Spain.', '')).toEqual([])
-    const long = Array.from({ length: 30 }, (_, i) => `Orders fell in market ${'abcdefghijklmnopqrstuvwxyzABCD'[i]}.`).join(' ')
+    const long = Array.from(
+      { length: 30 },
+      (_, i) => `Orders fell in market ${'abcdefghijklmnopqrstuvwxyzABCD'[i]}.`,
+    ).join(' ')
     const rows = claimCheck(long, 'Orders fell.')
     expect(rows).toHaveLength(30)
     expect(rows.slice(0, CLAIMS_SHOWN)).toHaveLength(CLAIMS_SHOWN)

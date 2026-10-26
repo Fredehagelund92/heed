@@ -276,9 +276,7 @@ export function claimCheck(text: string, sentence: string): ClaimRow[] {
       })
     }
   }
-  return rows
-    .sort((a, b) => a.at - b.at)
-    .map((r) => r.row)
+  return rows.sort((a, b) => a.at - b.at).map((r) => r.row)
 }
 
 /** How many claims the copied sentence does not plainly say: different, or to check. */
