@@ -6,6 +6,7 @@ import boundaries from 'eslint-plugin-boundaries'
   - domain    pure and shared; imports nothing else from the repository
   - contract  the typed API; imports domain only
   - web       the front end; imports domain and contract, never the service
+  - app       the new front end in src/app, under the same rules, until it replaces web
   - server    the service (Heed); imports domain, contract and the modules' index files
   - modules   src/server/modules/<name>; other code reaches a module only through its index.ts
   - cli       imports contract and domain only
@@ -35,7 +36,7 @@ const dependencies = {
   policies: [
     { from: { element: { type: 'contract' } }, allow: element('domain') },
     {
-      from: { element: { type: 'web' } },
+      from: { element: { types: { anyOf: ['web', 'app'] } } },
       allow: [element('domain'), element('contract'), element('connectors')],
     },
     { from: { element: { type: 'connectors' } }, allow: element('domain') },
@@ -56,14 +57,14 @@ const dependencies = {
     { from: { element: { type: 'cli' } }, allow: [element('domain'), element('contract')] },
     // Later policies win, so these refine the message for the common mistakes.
     {
-      from: { element: { type: 'web' } },
+      from: { element: { types: { anyOf: ['web', 'app'] } } },
       disallow: [element('server'), element('server-module')],
       message:
         'Module boundary: the front end never imports the service. It talks to it through the ' +
         'API. See "Module boundaries" in CONTRIBUTING.md.',
     },
     {
-      from: { element: { type: 'web' } },
+      from: { element: { types: { anyOf: ['web', 'app'] } } },
       disallow: connectorRuntime,
       message:
         "Module boundary: a connector's runtime runs in the service only. The front end reads its " +
@@ -174,12 +175,21 @@ export const boundaryConfigs = [
         { type: 'domain', pattern: 'src/domain' },
         { type: 'contract', pattern: 'src/contract' },
         { type: 'web', pattern: 'src/web' },
+        { type: 'app', pattern: 'src/app' },
         { type: 'cli', pattern: 'src/cli' },
         { type: 'connectors', pattern: 'src/connectors' },
       ],
     },
     rules: {
       'boundaries/dependencies': ['error', dependencies],
+    },
+  },
+  {
+    // The new app has its own `@/` (tsconfig.app.json), so its imports resolve through its own
+    // config: through tsconfig.json they would land in src/web.
+    files: ['src/app/**/*.{ts,tsx}'],
+    settings: {
+      'import/resolver': { typescript: { project: 'tsconfig.app.json' } },
     },
   },
   {

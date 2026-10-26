@@ -221,7 +221,11 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // assistant's avatar is in a lazy module of its own) and CSS from 23.48 to 23.8 (23.720 KB): the
 // eight pastel pairs of a person's avatar and the assistant's pair, each for light and dark, the
 // five avatar sizes and their initials' sizes, as tokens, and the utilities that use them.
-const budgetKb = { js: 207.3, css: 23.8 }
+// Raised JS from 207.3 to 208.0 with Base UI 1.9 (207.313 KB here; 206.621 with 1.8 on the same
+// machine, and CI measures about 0.6 KB more): the new web app in src/app is the approved mockup,
+// built on Base UI 1.9, and the repository keeps one version of each package, so the front end
+// moves with it. Nothing of the front end's own changed.
+const budgetKb = { js: 208.0, css: 23.8 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({

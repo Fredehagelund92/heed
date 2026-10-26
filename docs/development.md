@@ -25,6 +25,12 @@ tokens and guard rails. It has these screens:
 
 The sidebar shows each person only the places that are theirs. Other routes are stubs.
 
+The **new web app** in `src/app` is the approved mockup (`apps/mockup`, the acceptance
+specification) on the repository's router, icon module, class merge and lint. It is built beside
+the front end until it replaces it, and its pages read the mockup's store and fixtures, its mock
+binding. Run it with `npm run dev:app`; `npm run dev`, `docker compose up` and the Docker image
+still serve the front end in `src/web`.
+
 The **back end** is the service in `src/server`: a Fastify app with configuration, logging and a
 health check, a PostgreSQL 18 database, scheduled jobs with an operations view, and the API the
 app reads, described once in `src/contract` (oRPC, published as OpenAPI). The front end runs on
@@ -181,6 +187,15 @@ src/
       assistant/      the assistant: tools over the same services, the citation check, budgets, streaming
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev sessions and roles)
+  app/            the new web app, until it replaces web: the mockup's shell, pages, store and fixtures
+    routes/         one file per address (TanStack Router, file based); *.lazy.tsx for the review and the editors
+    components/     the shell, shadcn primitives (ui/), Heed's parts (heed/, obs/), the editor
+      icons.ts        the only module that imports the icon library
+    lib/            the store, the router's helpers (router.ts), search param schemas (search.ts), the brand
+    data/           the mock world's fixtures
+    pages/          one file per screen
+    styles/         index.css and tokens.css
+    theme-bootstrap.js  inlined into <head> to apply the theme before first paint
   web/            the front end, and nothing else
     routes/         one file per route (TanStack Router, file based)
     components/
@@ -205,6 +220,8 @@ tests/
   lint/           tests that lint deliberately wrong code and CSS, and break the module boundaries
   e2e/            Playwright: layout, shell, axe, screenshots
   e2e-api/        Playwright: the front end in http mode against the service
+  app/            Vitest, the new web app (src/app)
+  e2e-app/        Playwright: the new web app's golden job specs, on its mock build
   conformance/    the ContextApi suite that both API bindings pass
 docs/help/        the help pages, Markdown with SVG pictures, shown at /docs and on GitHub (its README)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
@@ -228,6 +245,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run dev`                                   | Dev server at http://localhost:5173. `VITE_DEVTOOLS=true npm run dev` adds the Query and Router devtools.                                                                                                                             |
 | `npm run dev:http`                              | The dev server in http mode: the app reads the Heed service through `/api/v1` instead of the mock.                                                                                                                                    |
+| `npm run dev:app`                               | The new web app (`src/app`) at http://localhost:5174, on its mock binding.                                                                                                                                                            |
 | `npm run dev:server`                            | The service at http://127.0.0.1:3000, restarted on change. Loads `.env.local` if it exists.                                                                                                                                           |
 | `npm run api:generate`                          | Rewrites `docs/api/openapi.json` and `src/web/api/contract.json` from `src/contract`                                                                                                                                                  |
 | `npm run heed -- <command>`                     | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
@@ -239,6 +257,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run db:restore-drill`                      | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
 | `npm run start:server`                          | The service without the file watcher                                                                                                                                                                                                  |
 | `npm run build`                                 | Type check, then a production build in `dist/web`                                                                                                                                                                                     |
+| `npm run build:app` / `npm run preview:app`     | Type check, then a production build of the new web app in `dist/app` / serve that build at http://localhost:4174                                                                                                                      |
 | `npm run size`                                  | Checks the first load against its budget (after a build)                                                                                                                                                                              |
 | `npm run typecheck`                             | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
 | `npm run lint`                                  | ESLint, then Stylelint                                                                                                                                                                                                                |
@@ -248,6 +267,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run test:integration`                      | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
 | `npm run storybook` / `npm run build-storybook` | Storybook at http://localhost:6006 / a static build                                                                                                                                                                                   |
 | `npm run test:e2e`                              | Playwright against a production build made for tests (layout, shell, axe; screenshots only if baselines exist, on Linux)                                                                                                              |
+| `npm run test:e2e:app`                          | Playwright: the new web app's golden job specs (`tests/e2e-app`) against its production build, the motion journey also with reduced motion                                                                                            |
 | `npm run test:e2e:api`                          | Playwright against an http mode build and the service (needs a seeded database, `E2E_DATABASE_URL`)                                                                                                                                   |
 | `npm run registry:build` / `registry:validate`  | Build or validate `registry.json`                                                                                                                                                                                                     |
 | `npm run check`                                 | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
@@ -266,12 +286,12 @@ it replaces; runs on `main` and at night always finish.
 
 A pull request takes the highest tier any of its files falls in.
 
-| Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the app reads: `docs/help`, `docs/templates` and `docs/api`                                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), registry and build |
-| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                    |
-| Medium    | Anything else: the front end, the domain, the contract, the tests, scripts and configuration                                                                                                                                            | Every app job: the checks, the service tests, the library on the real API, Storybook, Playwright  |
-| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                               |
+| Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the app reads: `docs/help`, `docs/templates` and `docs/api`                                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), registry and build                            |
+| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                                               |
+| Medium    | Anything else: the front end, the domain, the contract, the tests, scripts and configuration                                                                                                                                            | Every app job: the checks, the service tests, the library on the real API, Storybook, Playwright, the new app's golden specs |
+| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                          |
 
 Every tier also runs the security scan (known vulnerabilities in dependencies, and secrets in the
 history) and the held-out seal. A path no rule names counts as Medium, and an empty change runs

@@ -15,6 +15,15 @@ export default defineConfig({
         },
       },
       {
+        // The new web app's own units (src/app), moved with its code from the mockup.
+        extends: true,
+        test: {
+          name: 'app',
+          environment: 'node',
+          include: ['tests/app/**/*.test.ts'],
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'lint-rules',
