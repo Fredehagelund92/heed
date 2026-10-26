@@ -16,3 +16,5 @@ test-results
 *held-out*.key
 overlay
 .claude
+# The clickable mockup is its own package; no image runs it (apps/mockup/README.md).
+apps/mockup
