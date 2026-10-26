@@ -37,30 +37,26 @@ Follow one question through:
 
 1. You ask your agent: _How did orders in Norway change in August 2026?_
 2. The agent asks your data tool for the number. Cube defines what "orders" means and returns the figure.
-3. The agent asks {{product}} with the tool Get facts for a question: orders, Norway, August 2026.
-4. We find the fact that applies: a note that online sales to Norway stopped on 4 August 2026. The agent gets the note with its source, its domain, and one line on what not to conclude: _lower orders after 4 August don't mean fewer customers_. It also gets who checked it: _accepted on 5 August 2026 by the owner of Sales_.
+3. The agent asks {{product}} with the tool Get context for a question: orders, Norway, August 2026.
+4. We find the fact that applies: a note that online sales to Norway stopped on 4 August 2026. The agent gets an answer line first, here _Checked_, then the note with its source, its domain, and one line on what not to conclude: _lower orders after 4 August don't mean fewer customers_. It also gets who checked it: _checked on 5 August 2026 by the owner of Sales_.
 5. The agent answers with the number and the note, names the source, and can say that the owner of Sales checked the note before agents got it.
 
 Behind step 4, Maria wrote the note, and Jon, who owns Sales, accepted it. From then on, agents got it. Your agent is told the role that accepted it, never the person's name. In the app, the line under the fact names Jon. If no fact applies, we say so and add one to the count for that topic. That count is a gap.
 
 ## What your agent can ask
 
-These are the tools, as the page where you connect an agent names them:
+These are the six tools, as the page where you connect an agent names them. All six are on, and an admin can switch any of them off:
 
-| Tool                     | What it does                                                                                           |
-| ------------------------ | ------------------------------------------------------------------------------------------------------ |
-| Get facts for a question | Finds the checked facts that apply to a question, with their sources.                                  |
-| Find facts by name       | Finds facts by the words people use, such as Net sales or Spain, and what each metric means.           |
-| Search facts             | Finds facts by their title and summary.                                                                |
-| Read a fact              | Reads one fact in full, with its source.                                                               |
-| Describe a domain        | Says what a domain covers, who owns it and what needs checking.                                        |
-| See what changed         | Lists the facts that were added, changed or archived.                                                  |
-| Improve a question       | Checks the dates, metrics and markets in a question. No AI is used.                                    |
-| Search help              | Answers how-to questions from the help pages.                                                          |
-| Report something missing | Tells the owners that an agent found nothing written down for a question. It doesn't record who asked. |
-| Say if it helped         | Records whether the facts in an answer helped.                                                         |
+| Tool                       | What it does                                                              |
+| -------------------------- | ------------------------------------------------------------------------- |
+| Get context for a question | The context that applies to a question, with one sentence to relay.       |
+| Find context               | A word search over names, titles and summaries.                           |
+| Read a fact                | One fact in full.                                                         |
+| Tell the owner             | Tell the owner something is missing, wrong or unclear.                    |
+| Send a suggestion          | Send a suggestion to the owner, after you say yes.                        |
+| Follow links               | Follow a link between facts, definitions and domains, one step at a time. |
 
-Two more tools, Follow links and Save a draft, stay off until an admin turns them on. Save a draft saves a draft for you to check and send. It never sends it. That page shows which tools are on.
+Every answer starts with an answer line: Checked, Partial, Not found, Conflict, Outdated or Not checked. It says how sure the answer is, in the same words for you and for your agent. A suggestion your agent sends waits for the owner of its domain, who checks it and publishes it. Nothing changes until they do. That page shows which tools are on.
 
 ## Which model does what
 

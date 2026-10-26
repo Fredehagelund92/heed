@@ -36,11 +36,11 @@ export function describeContextApiAgents(name: string, getApi: () => ContextApi)
   describe(`ContextApi Connect and Try it conformance: ${name}`, () => {
     it('tells a person without a role every tool and the clients that may connect', async () => {
       const info = await api().getConnectInfo()
-      expect(info.tools).toContainEqual({ tool: 'get_facts', enabled: true, personOnly: false })
-      expect(info.tools).toContainEqual({ tool: 'get_related', enabled: false, personOnly: false })
+      expect(info.tools).toContainEqual({ tool: 'get_context', enabled: true, personOnly: false })
+      expect(info.tools).toContainEqual({ tool: 'get_related', enabled: true, personOnly: false })
       expect(info.tools).toContainEqual({
-        tool: 'draft_context',
-        enabled: false,
+        tool: 'suggest_context',
+        enabled: true,
         personOnly: true,
       })
       expect(info.clients).toEqual([{ label: 'claude-code', name: 'Claude Code with a token' }])

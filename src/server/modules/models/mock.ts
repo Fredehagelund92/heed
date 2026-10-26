@@ -9,12 +9,13 @@ import { MockLanguageModelV4 } from 'ai/test'
 /**
  * The scripted mock model: the default in development and every test (MODELS=mock). It
  * behaves like a careful agent so the evaluation harness can be tested end to end without a key:
- * the answer model calls get_facts with the question, then answers with what was delivered
- * (ids, titles, summaries) and the coverage statement; the judge model grades by fixed rules. A
- * deliberately wrong item therefore changes the answer in a way the judge sees. When get_related
- * is offered, it follows the links of the delivered items once and adds the neighbour items it
- * read, so a links run can show the instrument working. It never claims what a real model would
- * say.
+ * the answer model calls get_context with the question, then answers with what was delivered
+ * (ids, titles, summaries) and the reply's sentence (say); the judge model grades by fixed rules.
+ * A deliberately wrong item therefore changes the answer in a way the judge sees. When get_related
+ * is offered, it follows the links of the first item delivered, once, and adds the neighbour
+ * items it read, so a links run can show the instrument working; one call a turn, as a careful
+ * agent follows a link, keeps a run inside the eval client's rate. It never claims what a real
+ * model would say.
  */
 
 /** The judge's data block. The evaluation judge writes it; the scripted judge reads it. */
@@ -52,11 +53,12 @@ function lastUserText(prompt: LanguageModelV4Prompt): string {
   return ''
 }
 
+/** get_context's reply as the scripted answer reads it: the short reply of the agent contract. */
 type Delivery = {
   status?: string
-  items?: { id: string; title: string; summary: string }[]
+  say?: string
+  context?: { id: string; title: string; summary: string }[]
   options?: { field: string; input: string; options: string[] }[]
-  check_report?: { statements?: string[] }
 }
 type Neighbours = {
   nodes?: { id: string; type: string; status: string; label: string; summary?: string }[]
@@ -81,7 +83,7 @@ function results<T>(prompt: LanguageModelV4Prompt, tool: string, failed: T): T[]
   return found
 }
 const lastDelivery = (prompt: LanguageModelV4Prompt): Delivery | null =>
-  results<Delivery>(prompt, 'get_facts', { status: 'check_failed' })[0] ?? null
+  results<Delivery>(prompt, 'get_context', { status: 'check_failed' })[0] ?? null
 
 function answerFor(delivery: Delivery, neighbours: Neighbours[] = []): string {
   if (delivery.status === 'need_more_detail') {
@@ -90,9 +92,10 @@ function answerFor(delivery: Delivery, neighbours: Neighbours[] = []): string {
     )
     return `Which ${asks.join(' and ') || 'metric, market and dates'} do you mean?`
   }
-  const coverage = delivery.check_report?.statements?.join(' ') ?? ''
+  // What the reply says it read and how far that goes, as an agent relays it.
+  const coverage = delivery.say ?? ''
   if (delivery.status === 'check_failed') return `The context checks could not run. ${coverage}`
-  const items = delivery.items ?? []
+  const items = delivery.context ?? []
   if (!items.length) return `No governed context applies to this question. ${coverage}`
   const lines = items.map((item) => `- [${item.id}] ${item.title}: ${item.summary}`)
   // Only neighbour items in service carry a summary; a retired one is a marker, never cited.
@@ -114,7 +117,7 @@ function answerFor(delivery: Delivery, neighbours: Neighbours[] = []): string {
 function answer(options: LanguageModelV4CallOptions): Promise<LanguageModelV4GenerateResult> {
   const prompt = options.prompt
   const delivery = lastDelivery(prompt)
-  const canAsk = options.tools?.some((t) => t.name === 'get_facts') ?? false
+  const canAsk = options.tools?.some((t) => t.name === 'get_context') ?? false
   if (!delivery && canAsk)
     return Promise.resolve(
       result(
@@ -122,7 +125,7 @@ function answer(options: LanguageModelV4CallOptions): Promise<LanguageModelV4Gen
           {
             type: 'tool-call',
             toolCallId: 'call_get_context',
-            toolName: 'get_facts',
+            toolName: 'get_context',
             input: JSON.stringify({ question: lastUserText(prompt) }),
           },
         ],
@@ -132,16 +135,18 @@ function answer(options: LanguageModelV4CallOptions): Promise<LanguageModelV4Gen
     )
   const canFollow = options.tools?.some((t) => t.name === 'get_related') ?? false
   const neighbours = results<Neighbours>(prompt, 'get_related', {})
-  const delivered = delivery?.items ?? []
+  const delivered = delivery?.context ?? []
   if (delivered.length && canFollow && !neighbours.length)
     return Promise.resolve(
       result(
-        delivered.slice(0, 5).map((item, index) => ({
-          type: 'tool-call' as const,
-          toolCallId: `call_get_related_${index}`,
-          toolName: 'get_related',
-          input: JSON.stringify({ id: item.id }),
-        })),
+        [
+          {
+            type: 'tool-call' as const,
+            toolCallId: 'call_get_related',
+            toolName: 'get_related',
+            input: JSON.stringify({ id: delivered[0]!.id }),
+          },
+        ],
         prompt,
         'tool-calls',
       ),

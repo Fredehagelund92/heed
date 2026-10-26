@@ -20,20 +20,26 @@ import { ownerRole } from '../../domain/served-review.ts'
 import { productName } from '../brand.ts'
 
 /*
-  `draft_context` (FR-121): an AI agent saves an unsubmitted draft for the person it acts for.
-  The agent's model writes the words; Heed calls no model here. It derives what it can derive
-  exactly, marks every field, lists what only the person can answer, and saves through the same
-  write path as the assistant's drafts (saveAgentDraft). The person checks and submits the draft
-  in Heed: nothing here submits, accepts or publishes.
+  `suggest_context` (FR-121, changed for the agent contract): after the person says yes, an agent
+  sends a suggestion, as the person it acts for, to the owner of its domain. The agent's model
+  writes the words; Heed calls no model here. It derives what it can derive exactly, marks every
+  field, lists what only the person can answer, saves through the same write path as the
+  assistant's drafts (saveAgentDraft), and then sends it for review through the same path as the
+  person's own Send for review (proposals.submit), so it waits in the owner's queue with every
+  field marked. If the review checks refuse it, it stays the person's draft and the reply says why.
+  Nothing here accepts or publishes: only the owner does (docs/product.md, section 10).
 
-  It is the first MCP write that names a person, as the proposer, on the proposal only. The
-  request record keeps the shared client label and no person (FR-410); nothing here logs.
+  `draft_context`, its deprecated id, keeps what it did for one release: it saves the draft and
+  never sends it; the person checks and sends it in Heed.
 
-  When the person's AI agent can show forms (MCP 2026-07-28 multi round-trip elicitation), the
-  open questions are asked there first and nothing is saved until the app retries the call with
-  the answers and the sealed request state (`DraftRound`). The answers go through the same
-  derivation and the same write path, marked `confirmed`; the person still submits in Heed. An
-  app that cannot show forms gets the draft link and the question list, as before.
+  It is the MCP write that names a person, as the proposer, on the proposal only. The request
+  record keeps the shared client label and no person (FR-410); nothing here logs.
+
+  When the person's agent can show forms (MCP 2026-07-28 multi round-trip elicitation), the open
+  questions are asked there first and nothing is saved until the app retries the call with the
+  answers and the sealed request state (`DraftRound`). The answers go through the same derivation
+  and the same write path, marked `confirmed`. An app that cannot show forms gets the link and the
+  question list, as before.
 */
 
 /** One question round of a call, as the request state carries it. Signed, not secret. */
@@ -71,10 +77,13 @@ export type DraftQuestions = {
   ask: { message: string; requestedSchema: Record<string, unknown> }
   requestState: string
 }
+/** What a call does with the draft it saves: send it to the owner, or keep it as a draft. */
+export type DraftMode = 'suggest' | 'draft'
 export type DraftTool = (
   input: unknown,
   principal: Principal,
   round?: DraftRound,
+  mode?: DraftMode,
 ) => Promise<ToolResult | DraftQuestions>
 
 const firstCall: DraftRound = { canAsk: false, seal: () => Promise.reject(new Error('no key')) }
@@ -82,6 +91,9 @@ const digestOf = (value: unknown) => createHash('sha256').update(canonicalJson(v
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const instructions = `Show the person the questions and the link. They check every field marked prefilled and send the draft for review in ${productName} themselves. Don't send it for them, and don't save the same draft twice.`
+const sentInstructions =
+  "Tell the person the suggestion waits for the owner, who checks it and publishes it, and give them the link. Don't send the same suggestion twice."
+const keptInstructions = `Tell the person why it was kept as their draft, and give them the link: they can fix it and send it for review in ${productName}. Don't send it again as it is.`
 
 /** The open questions as the result lists them: what to ask, and the choices when closed. */
 const listed = (questions: Derivation['questions']) =>
@@ -168,11 +180,12 @@ export function createDraftTool(options: {
         ? `${web}/library/${p.itemId}/suggest?draft=${p.id}`
         : `${web}/library/new?draft=${p.id}`
       : null
-  return async (input, principal, round = firstCall) => {
+  return async (input, principal, round = firstCall, mode = 'suggest') => {
+    const tool = mode === 'suggest' ? 'suggest_context' : 'draft_context'
     // A dev or service token names no person, so there is nobody to own or submit the draft.
     if (!principal.subject)
       return refusal(
-        `draft_context needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
+        `${tool} needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
       )
     if (!uuid.test(principal.subject))
       return refusal("This sign-in doesn't name a person, so no draft was saved.")
@@ -191,13 +204,13 @@ export function createDraftTool(options: {
       const payload = round.state === 'refused' ? null : roundSchema.safeParse(round.state.payload)
       if (!payload?.success || payload.data.args !== digest)
         return refusal(
-          'These answers do not belong to this call: they were for another call, person or agent, or were changed on the way. Nothing was saved. Call draft_context again without them.',
+          `These answers do not belong to this call: they were for another call, person or agent, or were changed on the way. Nothing was saved. Call ${tool} again without them.`,
           { reason: 'request_state_invalid' },
         )
       const now = Math.floor(clock.now().getTime() / 1000)
       if (now - payload.data.at > ROUND_SECONDS || payload.data.at > now + 60)
         return refusal(
-          'The questions expired before the answers came back. Nothing was saved. Call draft_context again.',
+          `The questions expired before the answers came back. Nothing was saved. Call ${tool} again.`,
           { reason: 'request_state_expired' },
         )
       answering = payload.data
@@ -290,6 +303,28 @@ export function createDraftTool(options: {
           ...(args.window?.uncertain ? { datesUncertain: true } : {}),
           ...(answering ? { answersRound: answering.round } : {}),
         })
+        // suggest_context sends it to the owner as the person's own Send for review would; a
+        // refusal by the review checks keeps it as their draft, with why.
+        let kept: { message: string; findings?: { code: string; field: string }[] } | null = null
+        let sent = false
+        if (mode === 'suggest') {
+          await tx.query('savepoint suggest_submit')
+          try {
+            await proposals.submit(saved.id, saved.revision)
+            await tx.query('release savepoint suggest_submit')
+            sent = true
+          } catch (error) {
+            await tx.query('rollback to savepoint suggest_submit')
+            if (!(error instanceof ORPCError)) throw error
+            const data = error.data as { findings?: { code: string; field: string }[] } | undefined
+            kept = {
+              message: `It was kept as your draft and not sent: ${error.message.replace(/\.$/, '')}.`,
+              ...(data?.findings
+                ? { findings: data.findings.map(({ code, field }) => ({ code, field })) }
+                : {}),
+            }
+          }
+        }
         const domainName = context.areas.find((area) => area.id === saved.draft.areaId)?.name
         const fields = Object.fromEntries(
           markedFields
@@ -314,13 +349,20 @@ export function createDraftTool(options: {
             }),
         )
         return resultFor({
-          status: 'draft_saved',
+          status: sent ? 'suggestion_sent' : 'draft_saved',
           saved: true,
-          submitted: false,
+          submitted: sent,
+          ...(sent
+            ? {
+                message: `Sent to ${domainName ? ownerRole(domainName) : 'the owner of its domain'}. It waits for their check, and nothing changes until they publish it.`,
+              }
+            : kept
+              ? { message: kept.message }
+              : {}),
           draft_id: saved.id,
           number: saved.number,
           title: saved.draft.title ?? saved.title,
-          url: linkTo(saved),
+          url: sent ? (web ? `${web}/proposals/${saved.id}` : null) : linkTo(saved),
           fields,
           questions: listed(derived.questions),
           ...(answering ? { answered } : {}),
@@ -335,7 +377,8 @@ export function createDraftTool(options: {
           findings: saved.findings
             .filter((finding) => finding.severity === 'warning' || finding.code !== 'format')
             .map(({ code, field, message, severity }) => ({ code, field, message, severity })),
-          instructions,
+          ...(kept?.findings ? { blocking: kept.findings } : {}),
+          instructions: sent ? sentInstructions : kept ? keptInstructions : instructions,
         })
       })
     } catch (error) {

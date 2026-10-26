@@ -38,6 +38,9 @@ export const acceptedByRole = (as: AcceptedAs, domain: string) =>
 export const acceptedWords = (on: string, by: string, edition: string) =>
   `Accepted ${dayWords(on)} by ${by}, in edition ${edition}.`
 
+/** A check in one sentence, as the agent contract's reply gives it: "Checked 12 Jun 2026 by the owner of Sales." */
+export const checkedWords = (on: string, by: string) => `Checked ${dayWords(on)} by ${by}.`
+
 /** A served review in one sentence, naming the role that accepted it. */
 export const reviewedWords = (review: ServedReview, domain: string) =>
   acceptedWords(review.acceptedOn, acceptedByRole(review.acceptedAs, domain), review.edition)

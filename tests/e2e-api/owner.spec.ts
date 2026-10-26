@@ -39,7 +39,7 @@ function answer(page: Page, method: string, path: string) {
   )
 }
 
-/** The items get_facts gives the local Claude Code client for a question. */
+/** The items get_context gives the local Claude Code client for a question. */
 async function agentGets(
   question: string,
 ): Promise<{ id: string; title: string; summary: string }[]> {
@@ -59,11 +59,11 @@ async function agentGets(
     }),
   )
   try {
-    const reply = await wire.callTool({ name: 'get_facts', arguments: { question } })
+    const reply = await wire.callTool({ name: 'get_context', arguments: { question } })
     expect(reply.isError, JSON.stringify(reply.content)).not.toBe(true)
     return (
-      (reply.structuredContent as { items?: { id: string; title: string; summary: string }[] })
-        .items ?? []
+      (reply.structuredContent as { context?: { id: string; title: string; summary: string }[] })
+        .context ?? []
     )
   } finally {
     await wire.close()

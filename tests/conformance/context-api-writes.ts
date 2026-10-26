@@ -1201,7 +1201,7 @@ export function describeContextApiWrites(
           kind: 'forbidden',
         })
         expect(
-          await refusal(as(person).setTool({ tool: 'get_facts', enabled: false, reason: 'No' })),
+          await refusal(as(person).setTool({ tool: 'get_context', enabled: false, reason: 'No' })),
         ).toMatchObject({ kind: 'forbidden' })
         expect(
           await refusal(
@@ -1222,33 +1222,31 @@ export function describeContextApiWrites(
     it('switches a tool off and on for every client, with a reason', async () => {
       const tools = await as('ravi').listTools()
       expect(tools.map((tool) => tool.tool)).toEqual(
-        expect.arrayContaining(['get_facts', 'get_related', 'improve_question']),
+        expect.arrayContaining(['get_context', 'get_related', 'report']),
       )
-      expect(tools.find((tool) => tool.tool === 'get_related')?.enabled).toBe(false)
-      const before = tools.find((tool) => tool.tool === 'improve_question')!
+      expect(tools.find((tool) => tool.tool === 'get_related')?.enabled).toBe(true)
+      const before = tools.find((tool) => tool.tool === 'report')!
       expect(before.enabled).toBe(true)
 
       const off = await as('ravi').setTool({
-        tool: 'improve_question',
+        tool: 'report',
         enabled: false,
         reason: 'Conformance: off for a moment',
       })
-      expect(off).toMatchObject({ tool: 'improve_question', enabled: false })
+      expect(off).toMatchObject({ tool: 'report', enabled: false })
       expect(Date.parse(off.updatedAt)).toBeGreaterThanOrEqual(Date.parse(before.updatedAt))
-      expect(
-        (await as('ravi').listTools()).find((tool) => tool.tool === 'improve_question'),
-      ).toEqual(off)
+      expect((await as('ravi').listTools()).find((tool) => tool.tool === 'report')).toEqual(off)
       // Switching it to what it already is changes nothing.
-      expect(
-        await as('ravi').setTool({ tool: 'improve_question', enabled: false, reason: 'Again' }),
-      ).toEqual(off)
+      expect(await as('ravi').setTool({ tool: 'report', enabled: false, reason: 'Again' })).toEqual(
+        off,
+      )
       expect(
         await as('ravi').setTool({
-          tool: 'improve_question',
+          tool: 'report',
           enabled: true,
           reason: 'Conformance: back on',
         }),
-      ).toMatchObject({ tool: 'improve_question', enabled: true })
+      ).toMatchObject({ tool: 'report', enabled: true })
 
       expect(
         await refusal(as('ravi').setTool({ tool: 'no_such_tool', enabled: true, reason: 'On' })),
@@ -1256,14 +1254,14 @@ export function describeContextApiWrites(
       expect(
         await refusal(
           as('ravi').setTool({
-            tool: 'get_facts',
+            tool: 'get_context',
             enabled: false,
             reason: 'Ask ravi@example.test why',
           }),
         ),
       ).toMatchObject({ kind: 'invalid' })
       expect(
-        (await as('ravi').listTools()).find((tool) => tool.tool === 'get_facts')?.enabled,
+        (await as('ravi').listTools()).find((tool) => tool.tool === 'get_context')?.enabled,
       ).toBe(true)
     })
 
@@ -1272,7 +1270,7 @@ export function describeContextApiWrites(
       const added = await as('ravi').saveClient({
         label,
         displayName: 'Conformance bot',
-        toolsAllowed: ['search_facts', 'get_facts', 'get_facts'],
+        toolsAllowed: ['find_context', 'get_context', 'get_context'],
         ratePerMinute: 30,
         maxResponseBytes: null,
         enabled: true,
@@ -1281,7 +1279,7 @@ export function describeContextApiWrites(
       expect(added).toEqual({
         label,
         displayName: 'Conformance bot',
-        toolsAllowed: ['get_facts', 'search_facts'],
+        toolsAllowed: ['find_context', 'get_context'],
         ratePerMinute: 30,
         maxResponseBytes: null,
         enabled: true,
@@ -1313,7 +1311,7 @@ export function describeContextApiWrites(
         await refusal(
           as('ravi').saveClient({
             ...added,
-            toolsAllowed: ['get_facts', 'no_such_tool'],
+            toolsAllowed: ['get_context', 'no_such_tool'],
             reason: 'Conformance: unknown tool',
           }),
         ),

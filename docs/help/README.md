@@ -1,6 +1,6 @@
 # The help pages
 
-These Markdown files are the product's docs. The app shows them in its Docs area, at `/docs`, in the app's own design, and GitHub shows the same files here. The assistant and AI agents over MCP answer questions about how the product works from the same pages, with the tool `search_help`, and link the page they used. A page changes in the same pull request as the screen, word or tool it describes.
+These Markdown files are the product's docs. The app shows them in its Docs area, at `/docs`, in the app's own design, and GitHub shows the same files here. The assistant answers questions about how the product works from the same pages, with its tool `search_help`, and links the page it used. A page changes in the same pull request as the screen, word or tool it describes.
 
 Start with [What is {{product}}](what-is-heed.md).
 

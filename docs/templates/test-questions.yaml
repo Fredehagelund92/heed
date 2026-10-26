@@ -22,7 +22,7 @@
 #   id          3 to 81 lower-case letters, digits and dashes; your choice, stable
 #   area        the domain id
 #   wordings    two to six: at least one `natural` (as a person asks) and one `precise`
-#   scope       what get_facts is asked, in the vocabulary's keys: metrics, dimension_filters
+#   scope       what get_context is asked, in the vocabulary's keys: metrics, dimension_filters
 #               (a dimension and its values; no values means "by" that dimension), window
 #   expected    must_deliver: item ids the answer needs (an item's id is on its page, itm_...)
 #               must_not_deliver: item ids that must not be given as applying
