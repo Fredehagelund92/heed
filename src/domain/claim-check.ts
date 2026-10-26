@@ -20,7 +20,7 @@ export type ClaimVerdict = 'same' | 'different' | 'check'
 /** One claim: its words, the part of the sentence it was compared with (null: none), and how it reads. */
 export type ClaimRow = { claim: string; source: string | null; verdict: ClaimVerdict }
 
-/** At most this many claims are listed, in the order the text makes them. */
+/** A review lists this many claims, in the order the text makes them; all of them are counted. */
 export const CLAIMS_SHOWN = 12
 
 const months = [
@@ -102,11 +102,11 @@ const numberPhrase = new RegExp(
 
 const stopWords = new Set(
   (
-    'a an the of in on at to for from by with and or but nor is are was were be been being it its ' +
+    'a an the of in on at to for from by with and or but is are was were be been being it its ' +
     'this that these those there here their they them as up down out into onto over than then so ' +
-    'not no do does did has have had will would can could may might must shall should our we you ' +
-    'your us until since between within after before each every all any some more most less least ' +
-    'only also too very just which who whom whose what when where why how if while because about ' +
+    'do does did has have had will would can could may might must shall should our we you ' +
+    'your us until since between within after before each every all any some more most least ' +
+    'also too very just which who whom whose what when where why how if while because about ' +
     'per via own same other such'
   ).split(' '),
 )
@@ -132,6 +132,14 @@ export function stem(word: string): string {
   if (w.length > 3 && w.endsWith('e')) w = w.slice(0, -1)
   return w
 }
+
+/** Words that turn or narrow what a clause says: never plain filler, so a flipped claim is read. */
+const negators = new Set(['not', 'no', 'never', 'nor', 'without', 'only', 'less'])
+
+const negatorsIn = (text: string) =>
+  [...new Set((matchForm(text).match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => negators.has(w)))]
+    .sort()
+    .join()
 
 const contentWords = (text: string) =>
   (matchForm(text).match(/[\p{L}\p{N}]+/gu) ?? []).filter((w) => !stopWords.has(w))
@@ -253,18 +261,23 @@ export function claimCheck(text: string, sentence: string): ClaimRow[] {
         .replace(/\s+/g, ' ')
         .replace(/[.!?]\s*$/, '')
         .trim()
+      const plain = stems.filter((s) => !negators.has(s))
+      const window = found.length === stems.length ? windowOf(source, plain) : null
+      const same = window !== null && negatorsIn(window) === negatorsIn(clause)
       rows.push({
         at: at + start,
-        row:
-          found.length === stems.length
-            ? { claim, source: windowOf(source, stems), verdict: 'same' }
-            : { claim, source: found.length ? windowOf(source, found) : null, verdict: 'check' },
+        row: same
+          ? { claim, source: window, verdict: 'same' }
+          : {
+              claim,
+              source: window ?? (found.length ? windowOf(source, found) : null),
+              verdict: 'check',
+            },
       })
     }
   }
   return rows
     .sort((a, b) => a.at - b.at)
-    .slice(0, CLAIMS_SHOWN)
     .map((r) => r.row)
 }
 

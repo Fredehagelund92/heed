@@ -98,10 +98,34 @@ describe('the claim check against the copied sentence', () => {
     ])
   })
 
-  it('checks nothing without a copied sentence, and lists a long text in its first claims', () => {
+  it('checks nothing without a copied sentence, and returns every claim of a long text', () => {
     expect(claimCheck('Orders fell in Spain.', '')).toEqual([])
     const long = Array.from({ length: 30 }, (_, i) => `Orders fell in market ${i + 1}.`).join(' ')
-    expect(claimCheck(long, 'Orders fell.')).toHaveLength(CLAIMS_SHOWN)
+    const rows = claimCheck(long, 'Orders fell.')
+    expect(rows).toHaveLength(30)
+    expect(rows.slice(0, CLAIMS_SHOWN)).toHaveLength(CLAIMS_SHOWN)
+  })
+
+  it('counts a claim to check past the listed ones', () => {
+    const text = `${Array.from({ length: CLAIMS_SHOWN }, () => 'Refunds are available.').join(' ')} Refunds are not available.`
+    const rows = claimCheck(text, 'Refunds are available.')
+    expect(rows.slice(0, CLAIMS_SHOWN).every((r) => r.verdict === 'same')).toBe(true)
+    expect(claimsToCheck(rows)).toBe(1)
+  })
+
+  it('reads a flipped claim as one to check, in either direction', () => {
+    expect(claimCheck('Refunds are not available.', 'Refunds are available.')[0]?.verdict).toBe(
+      'check',
+    )
+    expect(claimCheck('Refunds are available.', 'Refunds are not available.')[0]?.verdict).toBe(
+      'check',
+    )
+    expect(claimCheck('Refunds are never available.', 'Refunds are available.')[0]?.verdict).toBe(
+      'check',
+    )
+    expect(claimCheck('Refunds are not available.', 'Refunds are not available.')[0]?.verdict).toBe(
+      'same',
+    )
   })
 
   it('gives the same rows every time', () => {
