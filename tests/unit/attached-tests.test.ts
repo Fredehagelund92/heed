@@ -20,22 +20,20 @@ const results = (patch: Partial<AttachedTest>): AttachedTest => ({
   answer: null,
   ...patch,
 })
-const inReview = { state: 'in_review', risk: 'normal' } as const
+const inReview = { state: 'in_review' } as const
 
 describe('readAttachedTest', () => {
   it('says a draft is checked and answered once it is submitted', () => {
-    expect(readAttachedTest(test(), { state: 'draft', risk: null })).toEqual({
+    expect(readAttachedTest(test(), { state: 'draft' })).toEqual({
       question: 'net-revenue-spain',
       state: 'not_run',
       delivery: "We check whether it finds the fact once it's sent.",
-      answer: "Answered once it's sent.",
+      answer: "No answer tests run on a proposal. It's answered once the change is accepted.",
     })
   })
 
-  it('says what is not checked or answered yet once it is sent', () => {
-    const reading = readAttachedTest(results({}), inReview)
-    expect(reading.delivery).toBe('Not checked yet.')
-    expect(reading.answer).toBe('Not answered yet.')
+  it('says what is not checked yet once it is sent', () => {
+    expect(readAttachedTest(results({}), inReview).delivery).toBe('Not checked yet.')
   })
 
   it('reads delivery without and with the change', () => {
@@ -83,9 +81,9 @@ describe('readAttachedTest', () => {
     })
   })
 
-  it('says a low-risk change runs no answer tests (FR-513)', () => {
-    expect(readAttachedTest(results({}), { state: 'in_review', risk: 'low' }).answer).toBe(
-      "Low risk runs no answer tests. It's answered once the change is accepted.",
+  it('says no answer tests run on a proposal, at any risk (FR-513)', () => {
+    expect(readAttachedTest(results({}), inReview).answer).toBe(
+      "No answer tests run on a proposal. It's answered once the change is accepted.",
     )
   })
 

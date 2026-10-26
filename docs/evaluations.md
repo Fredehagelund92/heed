@@ -47,8 +47,11 @@ provider of each kind).
 
 ## Evaluations
 
-The evaluation runner records levels 4 and 5 on the review gate, so normal and
-high-risk items can be accepted, and it blocks a change whose answers get worse.
+The evaluation runner scores the live library: the weekly runs, the runs an owner starts, the
+link runs and the runs a change outside the review sets off. It no longer gates a suggestion:
+every proposal needs levels 1 to 3 only, at every risk level (FR-513), and the free check of
+saved questions follows each publish instead (FR-526). The runs of proposals made before Heed v1
+keep the levels 4 and 5 they recorded.
 
 - **Golden questions** (FR-501, FR-504): an id, a domain, a natural and a precise wording, the
   scope in `get_context`'s input form, the items that must and must not be delivered, an optional
@@ -62,10 +65,11 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   `POST /evals/import` takes a YAML or JSON file (a dry run unless `dryRun: false`; nothing is
   saved unless every entry is valid) and `GET /evals/export` writes one. Owners of
   the domain and administrators maintain them; held-out questions are hidden from everyone else.
-- **Runs**: a submitted normal-risk version gets an impact run, a high-risk version a full run of
-  its domain. The impact set (FR-511) is every active question whose delivery changes between the
-  live edition and the live edition plus the version, or that names the item; the stored agent
-  deliveries are replayed the same way and counted by topic (FR-512). Each question's wordings
+- **Runs**: a run of a domain answers its active questions on the live edition. A run of a
+  proposed version, made before Heed v1, compared the live edition with the live edition plus the
+  version on its impact set (FR-511: every active question whose delivery changes, or that names
+  the item) and replayed the stored agent deliveries by topic (FR-512); such runs still finish and
+  read as they were, and none is queued any more. Each question's wordings
   are answered by the model through a real MCP client against a loopback copy of the MCP server,
   with the production tool descriptions, on both sides, three tries each; a question that flips
   is repeated to seven tries and the majority decides (FR-515). Every run records the tool
@@ -89,8 +93,8 @@ high-risk items can be accepted, and it blocks a change whose answers get worse.
   the live edition's; every edition sealed after it gets one. `GET /evals/retrieval` (the live
   edition), `GET /evals/retrieval/editions/{label}` and `GET /evals/retrieval/trend` read them,
   each with an optional `area`: owners see their domains, administrators every domain.
-- **Triggered full runs**: the review gate tests a proposal's impact set only, so `evals.retrieval`
-  also queues a full run (no baseline move) of a domain whose newest full or scheduled run is
+- **Triggered full runs**: no answer test runs in the review, so `evals.retrieval` queues a full
+  run (no baseline move) of a domain whose newest full or scheduled run is
   older than a change it did not see: new tool descriptions (`tool_descriptions`), a successful
   sync that changed or lost a definition the domain owns (`source_sync`), or a daily pass whose
   deliveries differ from the previous pass of the same edition and overlay (`date_expiry`). The
@@ -274,14 +278,10 @@ feedback's domain, and none of it returns a test question's or an agent's questi
   its domain's maintainers. Attaching an attached test or detaching one that is not changes nothing;
   each change is in the history log (`proposal.test_attached`, `proposal.test_detached`), and a
   proposal that moves to another domain leaves the old domain's tests behind. Level 3 marks each
-  attached question in its details (`attached`), the answer tests of normal and high risk always
-  plan them and report them in the level's message and `attached` details, and the gate adds
-  `attached`: each test with its level 3 result and its answers without and with the change from
-  the run that counts on the live edition. Attaching is report-only and changes no outcome: a test
-  planned only because it is attached cannot fail a level, and one the checks include anyway (an
-  domain question at level 3, the impact set, a high-risk version's full set) counts as it always
-  did. The assistant's draft check names the attached tests with their result, and its estimate
-  counts them.
+  attached question in its details (`attached`), and the gate adds `attached`: each test with its
+  level 3 result (no answer test runs on a proposal, so `answer` is null). Attaching is
+  report-only and changes no outcome: a domain question level 3 checks anyway counts as it always
+  did. The assistant's draft check names the attached tests with their result.
 - The mock binding answers the same (`src/web/api/mock-quality.ts`): one weekly run every Monday
   since the first edition, on the edition live then. A run is scored by the service's rules on
   what that edition delivers (each expected item it serves and that is in force on the run's day),

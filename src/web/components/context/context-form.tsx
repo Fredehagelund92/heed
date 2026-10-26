@@ -824,12 +824,7 @@ export function ContextForm({
             </TabsContent>
           </Tabs>
           <DraftChecks proposal={autosave.proposal} unsaved={autosave.unsaved} held={held} />
-          {autosave.proposal ? (
-            <AttachedTests
-              proposal={autosave.proposal}
-              risk={autosave.proposal.draft.riskLevel ?? null}
-            />
-          ) : null}
+          {autosave.proposal ? <AttachedTests proposal={autosave.proposal} /> : null}
         </PageRail>
       </PageDocument>
       <PagePhoneActions holdsAssistant>

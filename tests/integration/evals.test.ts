@@ -337,12 +337,9 @@ describe('golden questions', () => {
   })
 })
 
-describe('answer tests on the review gate', () => {
-  let wrong: ProposalRecord
-  let wrongRun = ''
-
-  it('blocks a deliberately wrong item: the answer starts to claim a cause', async () => {
-    // Five agent deliveries in one topic, so the replay has a topic to report (FR-512).
+describe('no answer tests on the review gate (FR-513)', () => {
+  it('gates a suggestion on levels 1 to 3 only, and queues no answer test for it', async () => {
+    // Five agent deliveries in one topic, as agents asked before.
     const topic = randomUUID()
     await client.query(
       `insert into topics(id,key,area_id,metric_keys,value_keys,month)
@@ -365,112 +362,24 @@ describe('answer tests on the review gate', () => {
           }),
         ],
       )
-    wrong = await submitted(
+    // A deliberately wrong item: the answer would claim a cause. No answer test stops it; the
+    // owner's review does, so it stays waiting here.
+    const wrong = await submitted(
       { summary: 'Orders in Norway fell because online sales stopped on 4 August 2026.' },
       closure,
     )
-    const pending = await decide(wrong.id)
-    expect(pending.statusCode).toBe(422)
-    expect(
-      pending
-        .json<{ data: { gate: Gate } }>()
-        .data.gate.levels.find((l) => l.level === 'answer_impact'),
-    ).toMatchObject({
-      outcome: 'not_run',
-      details: { message: expect.stringMatching(/running/) as unknown },
-    })
-    // Levels 1 to 3 pass: the item is still delivered where it should be.
-    expect((await gateOf(wrong.id)).levels.slice(0, 3).map((l) => l.outcome)).toEqual([
-      'passed',
-      'passed',
-      'passed',
-    ])
-
-    const summary = await work()
-    expect(summary.runs).toHaveLength(1)
     const gate = await gateOf(wrong.id)
-    expect(gate.levels.find((l) => l.level === 'answer_impact')).toMatchObject({
-      outcome: 'failed',
-      details: {
-        message: expect.stringMatching(
-          /These answers got worse with this change: norway-cause/,
-        ) as unknown,
-      },
-    })
-    const blocked = await decide(wrong.id)
-    expect(blocked.statusCode).toBe(422)
-
-    const [run] = await runsOf(wrong.id)
-    wrongRun = run!.id
-    expect(run).toMatchObject({
-      kind: 'impact',
-      state: 'finished',
-      modelId: 'mock/scripted-answer',
-      judgeModelId: 'mock/scripted-judge',
-      tries: 3,
-      flipRepeats: 7,
-      setAside: 1,
-      questions: 2,
-    })
-    expect(run!.toolSchemaDigest).toMatch(/^[0-9a-f]{64}$/)
-    expect(run!.testSetDigest).toMatch(/^[0-9a-f]{64}$/)
-    expect(run!.actualCostMicros).toBeGreaterThan(0)
-    const d = await detail(run!.id)
-    expect(d.flips).toEqual([{ id: 'norway-cause', flip: 'pass_to_fail' }])
-    expect(d.results.find((q) => q.id === 'norway-compare')).toMatchObject({
-      impact: true,
-      baseline: 'fail',
-      candidate: 'fail',
-      flip: null,
-    })
-    // The flipping question was repeated to seven tries on each side; the other stayed at three.
-    const tries = (q: string) =>
-      Math.max(...d.cells.filter((c) => c.questionId === q).map((c) => c.trial))
-    expect(tries('norway-cause')).toBe(7)
-    expect(tries('norway-compare')).toBe(3)
-    expect(d.replay).toMatchObject({ deliveries: 5, changed: 5, topics: [{ changed: 5 }] })
-    expect(d.levels.answer_impact).toMatchObject({ outcome: 'failed' })
-  })
-
-  it('shows owners the transcript of a failed try, and nobody else', async () => {
-    const d = await detail(wrongRun)
-    const failed = d.cells.find(
-      (c) => c.questionId === 'norway-cause' && c.arm === 'candidate' && c.passed === false,
-    )!
-    const transcript = await call('GET', `/evals/cells/${failed.id}/transcript`, 'owner')
-    expect(transcript.statusCode, transcript.body).toBe(200)
-    const body = transcript.json<{
-      wording: string
-      scores: { checks: Record<string, boolean> }
-      toolCalls: { tool: string; items: string[] }[]
-      messages: unknown[]
-    }>()
-    expect(body.scores.checks).toMatchObject({
-      no_cause_claim: false,
-      caveat: true,
-      delivered: true,
-    })
-    // get_related is on, so the scripted model follows the delivered item's links once.
-    expect(body.toolCalls).toEqual([
-      expect.objectContaining({ tool: 'get_context', items: [closure] }),
-      expect.objectContaining({ tool: 'get_related' }),
-    ])
-    expect(JSON.stringify(body.messages)).toContain('because online sales stopped')
-    expect((await call('GET', `/evals/cells/${failed.id}/transcript`, 'author')).statusCode).toBe(
-      403,
-    )
-    // Listing runs is for maintainers; someone who may not read the proposal does not see its runs.
+    expect(gate.required).toEqual(['format', 'matching', 'delivery'])
+    expect(gate.levels.map((l) => l.outcome)).toEqual(['passed', 'passed', 'passed'])
+    expect(gate.approvals).toEqual({ owner: false, approver: null })
+    const summary = await work()
+    expect(summary.runs).toEqual([])
+    expect(await runsOf(wrong.id)).toEqual([])
+    // Listing runs is still for maintainers.
     expect((await call('GET', `/evals/runs?proposal=${wrong.id}`, 'stranger')).statusCode).toBe(403)
-    expect((await call('GET', `/evals/runs/${wrongRun}`, 'stranger')).statusCode).toBe(404)
-    expect((await call('GET', `/evals/runs/${wrongRun}`, 'author')).statusCode).toBe(200)
-    // Eval traffic is never demand: the runner wrote no delivery records.
-    const deliveries = await client.query(
-      "select count(*)::int as n from deliveries where caller<>'agent'",
-    )
-    expect(deliveries.rows[0]).toEqual({ n: 0 })
   })
 
-  it('lists a fail-to-pass flip, reuses unchanged cells, and lets a corrected item through', async () => {
+  it('lets a corrected item through on one accept', async () => {
     const fixed = await submitted(
       {
         summary:
@@ -479,73 +388,12 @@ describe('answer tests on the review gate', () => {
       closure,
     )
     await work()
-    const [run] = await runsOf(fixed.id)
-    const d = await detail(run!.id)
-    expect(d.flips).toEqual([{ id: 'norway-compare', flip: 'fail_to_pass' }])
-    expect(d.levels.answer_impact).toMatchObject({ outcome: 'passed' })
-    // The live side did not change since the last run, so its cells reuse the earlier results.
-    const baseline = d.cells.filter((c) => c.arm === 'baseline' && c.trial <= 3)
-    expect(baseline.length).toBeGreaterThan(0)
-    expect(baseline.every((c) => c.reused)).toBe(true)
+    expect(await runsOf(fixed.id)).toEqual([])
     const accepted = await decide(fixed.id)
     expect(accepted.statusCode, accepted.body).toBe(200)
   })
 
-  it('reruns answer tests when the live edition changed since they ran', async () => {
-    // The wrong proposal's result is for the previous live edition: the gate no longer counts it.
-    const gate = await gateOf(wrong.id)
-    expect(gate.levels.find((l) => l.level === 'answer_impact')).toMatchObject({
-      outcome: 'not_run',
-      details: {
-        previous: 'failed',
-        message: expect.stringMatching(/live edition is now/) as unknown,
-      },
-    })
-    const summary = await work()
-    expect(summary.queued).toBe(1)
-    expect((await gateOf(wrong.id)).levels.find((l) => l.level === 'answer_impact')).toMatchObject({
-      outcome: 'failed',
-    })
-  })
-
-  it('plans a finished failed run again once a question is set aside and checks are rerun', async () => {
-    const level = async () =>
-      (await gateOf(wrong.id)).levels.find((l) => l.level === 'answer_impact')
-    expect(await level()).toMatchObject({ outcome: 'failed' })
-    const earlier = await runsOf(wrong.id)
-    const [before] = earlier
-    expect(before).toMatchObject({ state: 'finished' })
-
-    // The wrong item flips both questions, so both are set aside before the gate can pass.
-    const questions = ['norway-cause', 'norway-compare']
-    for (const id of questions) {
-      const aside = await call('POST', `/evals/questions/${id}/set-aside`, 'owner', {
-        revision: 1,
-        reason: 'Judged too strict for this wording',
-      })
-      expect(aside.statusCode, aside.body).toBe(200)
-    }
-    const rerun = await call('POST', `/proposals/${wrong.id}/checks`, 'author')
-    expect(rerun.statusCode, rerun.body).toBe(200)
-    const runs = await runsOf(wrong.id)
-    expect(runs).toHaveLength(earlier.length + 1)
-    expect(runs.map((r) => r.id)).toContain(before!.id)
-    await work()
-    expect(await level()).toMatchObject({ outcome: 'passed' })
-    const newest = (await runsOf(wrong.id)).find((r) => !earlier.some((o) => o.id === r.id))!
-    expect(newest).toMatchObject({ state: 'finished', setAside: before!.setAside + 2 })
-    expect((await detail(newest.id)).levels.answer_impact).toMatchObject({ outcome: 'passed' })
-
-    for (const id of questions) {
-      const restored = await call('POST', `/evals/questions/${id}/set-aside`, 'owner', {
-        revision: 1,
-        reason: null,
-      })
-      expect(restored.statusCode, restored.body).toBe(200)
-    }
-  })
-
-  it('needs the full area set for high risk, and records both levels', async () => {
+  it('needs no answer test at high risk either, and records no answer level', async () => {
     const high = await submitted({
       kind: 'note',
       title: 'Spain note',
@@ -558,24 +406,16 @@ describe('answer tests on the review gate', () => {
       },
     })
     await work()
-    const [run] = await runsOf(high.id)
-    expect(run).toMatchObject({ kind: 'full', state: 'finished' })
-    const levels = (await gateOf(high.id)).levels.slice(3)
-    expect(levels.map((l) => [l.level, l.outcome])).toEqual([
-      ['answer_impact', 'passed'],
-      ['answer_full', 'passed'],
-    ])
+    expect(await runsOf(high.id)).toEqual([])
+    expect((await gateOf(high.id)).required).toEqual(['format', 'matching', 'delivery'])
     const rows = await client.query(
-      'select level::text,eval_run_id::text from check_results where item_version_id=$1 and level::text like $2',
+      'select 1 from check_results where item_version_id=$1 and level::text like $2',
       [high.itemVersionId, 'answer_%'],
     )
-    expect(rows.rows).toEqual([
-      { level: 'answer_impact', eval_run_id: run!.id },
-      { level: 'answer_full', eval_run_id: run!.id },
-    ])
+    expect(rows.rowCount).toBe(0)
   })
 
-  it('plans the tests attached to a proposal and reports them without blocking it (FR-524)', async () => {
+  it('reports the tests attached to a proposal at level 3 only, and never blocks it (FR-524)', async () => {
     // A test that fails on the live edition, about a market the change does not touch.
     const id = 'spain-attached'
     expect(
@@ -616,28 +456,14 @@ describe('answer tests on the review gate', () => {
       })
       expect(sent.statusCode, sent.body).toBe(200)
       await work()
-      const [run] = await runsOf(p.id)
-      expect(run).toMatchObject({ kind: 'impact', state: 'finished', questions: 1 })
-      expect((await detail(run!.id)).results).toEqual([
-        expect.objectContaining({ id, impact: false, baseline: 'fail', candidate: 'fail' }),
-      ])
-      const gate = await gateOf(p.id)
-      expect(gate.levels.find((l) => l.level === 'answer_impact')).toMatchObject({
-        outcome: 'passed',
-        details: {
-          run: run!.id,
-          message:
-            'None of the test questions could change. Attached tests, reported only: spain-attached still fails.',
-          attached: [{ id, baseline: 'fail', candidate: 'fail' }],
-        },
-      })
-      expect(gate.attached).toEqual([
+      expect(await runsOf(p.id)).toEqual([])
+      expect((await gateOf(p.id)).attached).toEqual([
         {
           question: id,
           active: true,
           attachedHour: expect.stringMatching(/T\d{2}:00:00Z$/) as unknown,
           retrieval: { baseline: false, candidate: false },
-          answer: { run: run!.id, baseline: 'fail', candidate: 'fail' },
+          answer: null,
         },
       ])
       // Reported only: the failing test does not stand in the way of acceptance.

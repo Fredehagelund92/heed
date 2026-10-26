@@ -278,7 +278,7 @@ export function useReviewModel(
             'Accepted',
             result.edition
               ? 'Agents get it within a minute.'
-              : 'It needs one more yes before agents get it.',
+              : 'Agents get it once its checks pass.',
           )
         else if (outcome === 'request_changes')
           showToast(
@@ -320,22 +320,9 @@ export function useReviewModel(
   }
 
   const acceptEffect: ReactNode =
-    change === 'retire' ? (
-      'Agents stop getting it at once. You can still read the fact and its history.'
-    ) : bar.capacity === 'approver' ? (
-      review.gate?.approvals.owner ? (
-        'Yours is the second yes. Agents get it within a minute.'
-      ) : (
-        'We save your yes now. Agents get it once an owner accepts too.'
-      )
-    ) : record.riskLevel === 'high' && review.gate?.approvals.approver === false ? (
-      <>
-        This is a <b className="font-bold">high-risk</b> change. We save your yes now. Agents get it
-        once the approver accepts too.
-      </>
-    ) : (
-      'Agents get it within a minute.'
-    )
+    change === 'retire'
+      ? 'Agents stop getting it at once. You can still read the fact and its history.'
+      : 'Agents get it within a minute.'
   const copy: DecisionDialogCopy = {
     proposerName,
     subject: change,

@@ -500,7 +500,6 @@ export function StatusAttachedTests({ status, headingLevel = 2 }: Part & { headi
     <AttachedTests
       proposal={status.proposal}
       results={status.gate?.attached}
-      risk={status.risk}
       headingLevel={headingLevel}
     />
   )

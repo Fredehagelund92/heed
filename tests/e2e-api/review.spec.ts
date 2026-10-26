@@ -159,7 +159,7 @@ test('Maria writes, Jon reviews and accepts, an edition is published and Maria s
   await expect(page.locator('[data-slot="decision-alert"]')).toContainText('Agents get it.')
 })
 
-test('Jon raises a note to high risk in review and every check runs again', async ({
+test('Jon raises a note to high risk in review: the same three checks run again, and his accept publishes it', async ({
   page,
   context,
   playwright,
@@ -190,12 +190,12 @@ test('Jon raises a note to high risk in review and every check runs again', asyn
   await dialog.getByRole('button', { name: 'Save and check again' }).click()
   expect((await edited).ok()).toBe(true)
   await expect(dialog).toBeHidden({ timeout: 0 })
-  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(5)
+  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(3)
   await expect(page.locator('[data-slot="proposal-badges"]')).toContainText('High risk')
-  // The answer tests have not passed yet, so Accept waits and says why.
+  // A high risk needs no answer test and no second yes: Accept is open (FR-513).
   await expect(
     page.getByRole('region', { name: 'Your decision' }).getByRole('button', { name: /Accept/ }),
-  ).toHaveAttribute('aria-disabled', 'true')
+  ).not.toHaveAttribute('aria-disabled', 'true')
 
   const events = (await (await context.request.get(`/api/v1/proposals/${id}/events`)).json()) as {
     kind: string

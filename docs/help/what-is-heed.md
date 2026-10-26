@@ -59,7 +59,7 @@ The numbers stay where they are. Cube defines the metrics and returns the figure
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | Everyone   | Reads the library, writes facts, follows their proposals, and says what's missing.                                                 |
 | Owner      | Looks after a domain: reviews proposals, keeps its facts current, and writes test questions.                                       |
-| Approver   | Gives the second yes on a high-risk fact, such as one about law or financial reporting.                                            |
+| Approver   | A role from before: a high-risk fact no longer needs a second yes, so an approver reads proposals but decides none.                |
 | Admin      | Sets up domains and roles, chooses which agents can connect, and can stop what agents get.                                         |
 | Auditor    | Reads the history of every change.                                                                                                 |
 | Your agent | Checks the facts before it answers. If an admin allows it, it can save a draft for you to check. It never sends or changes a fact. |

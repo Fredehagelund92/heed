@@ -589,10 +589,10 @@ for (const size of widths) {
 const reviewShots = [
   { name: 'review-queue', path: '/proposals' },
   { name: 'review-ready', path: '/proposals/00000000-0000-4000-8000-00000000005a' },
-  { name: 'review-approver-next', path: '/proposals/00000000-0000-4000-8000-000000000042' },
+  { name: 'review-high-risk', path: '/proposals/00000000-0000-4000-8000-000000000042' },
   { name: 'review-claimed', path: '/proposals/00000000-0000-4000-8000-000000000028' },
   { name: 'review-proposer', path: '/proposals/00000000-0000-4000-8000-000000000064' },
-  { name: 'review-check-failed', path: '/proposals/00000000-0000-4000-8000-00000000002f' },
+  { name: 'review-sandbox', path: '/proposals/00000000-0000-4000-8000-00000000002f' },
   { name: 'review-retire', path: '/proposals/00000000-0000-4000-8000-000000000026' },
   // A proposal an agent drafted for Priya, as Tomas, its owner: no mark of who wrote it.
   {

@@ -1,8 +1,9 @@
 /**
  * Evaluations (slice S13): golden questions, answer tests through the real MCP wire with judges,
- * the cell cache, the impact set from replay, baselines, scorecards and spend caps. Records
- * levels 4 and 5 (`answer_impact`, `answer_full`) for the review gate. The retrieval pass scores
- * every edition without a model, and full runs follow changes outside the gate.
+ * the cell cache, the impact set from replay, baselines, scorecards and spend caps. The review
+ * gate needs levels 1 to 3 only (FR-513), so no suggestion waits for an answer test. The
+ * retrieval pass scores every edition without a model, and full runs follow changes outside the
+ * gate.
  */
 export { judgeAnswer, UnreadableVerdict } from './answer.ts'
 export { evalJobs } from './jobs.ts'
@@ -19,25 +20,17 @@ export {
 export { typicalJudgeCall } from './plan.ts'
 export { queueTriggeredRuns } from './triggers.ts'
 export {
-  estimateDraftRun,
   judgeFor,
   liveHead,
   modelsFor,
   queueAreaRun,
-  queueVersionRun,
   resumeRun,
   stopRun,
   type EvalDeps,
   type RunSummary,
 } from './runs.ts'
 export { readEvalSettings } from './settings.ts'
-export {
-  answerLevelView,
-  createEvalsService,
-  heldOutLabel,
-  hiddenQuestions,
-  type EvalsService,
-} from './service.ts'
+export { createEvalsService, heldOutLabel, hiddenQuestions, type EvalsService } from './service.ts'
 export { CEILING_MARGIN, workEvaluations, type WorkSummary } from './worker.ts'
 export {
   estimateWithheld,

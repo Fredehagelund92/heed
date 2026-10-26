@@ -269,10 +269,11 @@ markup and mention rows, check flags and retired items roundtrip through `v_item
 and vocabulary version gets the content digest the write path would give it, computed from its
 stored content, and every bulk edition its recomputed digest, so exports and the restore drill
 verify the demo data exactly.
-Every version also gets the review history the serving guards require (FR-205 to FR-207): an
-accepted proposal, passing results of the check levels its risk requires, an accept decision by
-an owner of the area (another owner when the first proposed a normal or high risk version) and, for
-high risk, by an approver; a retired item gets its owner's retire decision. So every seeded
+Every version also gets the review history the serving guards require (FR-205, FR-206): an
+accepted proposal, passing results of the check levels its risk required before migration 0005
+(levels 1 to 3 are all that is required now), an accept decision by an owner of the area (another
+owner when the first proposed a normal or high risk version) and, for high risk, an approver's
+accept as history; a retired item gets its owner's retire decision. So every seeded
 version passes `cl_item_version_problem`, and going back to any seeded edition serves its
 versions again. Roles hold from the first day of that history. Where the fixtures need someone the
 mock's roster lacks (a second owner in Marketing, Paid media and Sandbox, approvers outside Commercial),
@@ -358,24 +359,31 @@ person, add them to the dev people file.
 
 ## Review and release
 
-An area's approvers read its proposals and versions (they give the high-risk accept), a
-vocabulary proposal may have no area (an administrator decides an area-less term), and an item
-has at most one open retirement proposal. The API role may run the gate functions
-the serving guards use (`cl_required_levels`, `cl_version_gate_ok`, `cl_item_version_problem` and
-their role helpers), so the review screen shows the database's own verdict. Publishing still goes
-only through the `edition_*` functions.
+Every item version needs the same review: levels 1 to 3 pass (`cl_required_levels` gives the
+same three at every risk level) and an owner of its area or an administrator accepts it. An
+area's approvers still read its proposals and versions, but no longer decide: their earlier
+accepts stay as history. A vocabulary proposal may have no area (an administrator decides an
+area-less term), and an item has at most one open retirement proposal. The API role may run the
+gate functions the serving guards use (`cl_required_levels`, `cl_version_gate_ok`,
+`cl_item_version_problem` and their role helpers), so the review screen shows the database's own
+verdict. Publishing still goes only through the `edition_*` functions.
+
+The review compares a suggested version with the version in service it was written against
+(`cl_proposal_base`). `review_reads` keeps each person's own read receipts: when they opened a
+suggestion, and when they read which version of it; only that person reads or writes their rows.
+`proposal_relations` keeps how a suggestion relates to a live item it clashes with (it replaces
+it, the two disagree, or they are unrelated): an owner of the suggestion's area or an
+administrator writes one row per answer, for the version under review, and rows never change.
 
 ## Evaluations
 
-A run of the evaluation runner records
-who it acts for (`requested_by`: the proposer, or whoever started it), so it reads the
-unaccepted version and records `answer_impact` and `answer_full` under that person's row
-security; scheduled runs act for nobody and touch only the live edition. One run may be open per
-version and live edition. Cells say when the model refused (`refused`, with `passed` null) or a
-call failed (`error`). Transcripts stay append-only: the API role inserts them with the finished
-cell and has no UPDATE. `cl_eval_versions_due()` runs as the owner and returns only the ids of
-versions under review that have no run against the live edition, for the job to plan under the
-proposer. The settings add the tries, flip repeats, the run budget, the evaluation spending cap
+A run of the evaluation runner records who it acts for (`requested_by`: whoever started it);
+scheduled runs act for nobody and touch only the live edition. No suggestion waits for answer
+tests since migration 0005, so nothing queues a run of a version any more; one made before still
+finishes, records `answer_impact` and `answer_full` under its requester's row security, and stays
+in the history. Cells say when the model refused (`refused`, with `passed` null) or a call failed
+(`error`). Transcripts stay append-only: the API role inserts them with the finished
+cell and has no UPDATE. The settings add the tries, flip repeats, the run budget, the evaluation spending cap
 and the model per feature.
 
 `models.assistant` is the assistant's model. The assistant

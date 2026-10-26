@@ -109,15 +109,6 @@ const places: Place[] = [
     page: '/docs/glossary#check',
   },
   {
-    screen: 'the review page, test questions affected',
-    path: REVIEW,
-    person: OWNER,
-    link: "What's a test question?",
-    title: 'Test question',
-    words: 'A question with a known right answer',
-    page: '/docs/glossary#test-question',
-  },
-  {
     screen: 'Health, the numbers',
     path: '/health',
     person: OWNER,

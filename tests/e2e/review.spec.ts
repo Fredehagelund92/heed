@@ -14,10 +14,10 @@ const desktop = { ...widths[0], theme: 'light' } as const
 /** Jon's queue, by title. */
 const titles = {
   ready: 'United Kingdom launch campaign ran from 21 February 2025 to 30 September 2026',
-  approverNext: 'Regulator paused price promotions in the United States on 15 June 2026',
+  highRisk: 'Regulator paused price promotions in the United States on 15 June 2026',
   claimed: 'Conversion rate counts sign-ups from 15 January 2024',
   proposer: 'Net revenue for September 2026 includes a one-off correction for August discounts.',
-  checks: 'Compare Net revenue in Italy with markets that had the same tax change',
+  sandbox: 'Compare Net revenue in Italy with markets that had the same tax change',
   overdue: 'How to investigate a drop in Churn rate in Spain',
   retire: 'Online share excludes test accounts',
   low: 'Data for Gross margin before 7 June 2026 is incomplete for Sweden: the clothing feed started that day.',
@@ -56,7 +56,7 @@ test('opens on To review, highest risk first, grouped by domain, and filters it'
       .getByRole('link', { name: /To review/ }),
   ).toHaveAttribute('aria-current', 'page')
   await expect(table.getByRole('rowheader')).toHaveText([/Sales\s*9/, /Sandbox\s*2/])
-  await expect(table.getByRole('link').first()).toHaveText(titles.approverNext)
+  await expect(table.getByRole('link').first()).toHaveText(titles.highRisk)
   await expect(page.getByRole('group', { name: 'Totals' })).toContainText(/11\s*proposals/)
   await expect(page.getByRole('group', { name: 'Totals' })).toContainText(/3\s*high risk/)
   await expect(
@@ -68,7 +68,7 @@ test('opens on To review, highest risk first, grouped by domain, and filters it'
   await page.getByRole('checkbox', { name: 'You', exact: true }).click()
   await page.keyboard.press('Escape')
   await expect(table.getByRole('link')).toHaveText([
-    titles.approverNext,
+    titles.highRisk,
     titles.ready,
     'Units sold lags by two days in Cube',
   ])
@@ -78,7 +78,7 @@ test('opens on To review, highest risk first, grouped by domain, and filters it'
   await expect(table.getByRole('link')).toHaveText([titles.retire])
 })
 
-test('reads the diff and the checks, then accepts a high-risk change and waits for the approver', async ({
+test('reads the diff and the checks, then accepts a high-risk change, which publishes it', async ({
   page,
 }) => {
   await openPage(page, '/proposals', desktop)
@@ -96,12 +96,13 @@ test('reads the diff and the checks, then accepts a high-risk change and waits f
   ])
   await expect(diff.locator('ins').first()).toBeVisible()
   await expect(diff.locator('del').first()).toBeVisible()
-  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(5)
+  // Levels 1 to 3, whatever the risk; no answer tests (FR-513).
+  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(3)
   await page.getByRole('button', { name: 'Details of Finds the right questions' }).click()
   await expect(page.getByRole('list', { name: 'Test questions', exact: true })).toContainText(
     'Where it applies, on its first day',
   )
-  await expect(page.locator('[data-slot="impact-delta"]')).toContainText('1 could change')
+  await expect(page.locator('[data-slot="impact-delta"]')).toHaveCount(0)
   await expect(bar(page)).toContainText('Your decision, as owner of Sales')
 
   // Text mode is in the address.
@@ -113,7 +114,7 @@ test('reads the diff and the checks, then accepts a high-risk change and waits f
   await page.locator('body').click({ position: { x: 5, y: 5 } })
   await page.keyboard.press('a')
   const dialog = page.getByRole('alertdialog', { name: 'Accept this change?' })
-  await expect(dialog).toContainText('high-risk')
+  await expect(dialog).toContainText('Agents get it within a minute.')
   await dialog.getByRole('button', { name: 'Accept' }).click()
   await expect(dialog.getByText('Give a reason.')).toBeVisible()
   await dialog
@@ -121,15 +122,10 @@ test('reads the diff and the checks, then accepts a high-risk change and waits f
     .fill('The campaign end matches the marketing calendar.')
   await dialog.getByRole('button', { name: 'Accept' }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByText('It needs one more yes before agents get it.')).toBeVisible()
-  await expect(bar(page)).toContainText(/You accepted at \d\d:\d\d\. Waiting for the approver/)
-  await expect(bar(page).getByRole('button', { name: /Accepted by you/ })).toHaveAttribute(
-    'aria-disabled',
-    'true',
-  )
-  await expect(page.locator('[data-slot="approvals-card"]')).toContainText(
-    'Jon Abara (you) accepted',
-  )
+  // One accept publishes it, at high risk too: decided, it reads as a status page.
+  await expect(page.getByText(/^(From then on, )?agents get it\.$/).first()).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Your decision' })).toHaveCount(0)
+  await expect(page.locator('[data-slot="decision-alert"]')).toContainText('You accepted it')
 })
 
 test('reads a resubmission as what changed since the request, or whole', async ({ page }) => {
@@ -181,13 +177,13 @@ test('an attached test is reported in the checks rail, does not block, and is de
   await expect(attached).toContainText('We report them, and they never block a decision.')
   const test = attached.getByRole('listitem')
   await expect(test).toContainText('Why are orders low in the United Kingdom this week?')
-  // Level 3 already asked every question of the domain; the answer tests ran before it was attached.
+  // Level 3 already asked every question of the domain; no answer test runs on a proposal.
   await expect(test).toContainText('It finds the fact, with and without this change.')
-  await expect(test).toContainText('Not answered yet.')
+  await expect(test).toContainText('No answer tests run on a proposal.')
 
-  // The checks run again with it: its answers are reported, and the decision stays open.
+  // The checks run again with it, and the decision stays open.
   await rail.getByRole('button', { name: 'Run again' }).click()
-  await expect(test).toContainText(/(Passes|Fails|Still fails) with/)
+  await expect(test).toContainText('It finds the fact, with and without this change.')
   await expect(bar(page).getByRole('button', { name: 'Accept' })).toBeEnabled()
 
   await test
@@ -226,7 +222,7 @@ test('asks for changes, and rejects with the source-tool reason', async ({ page 
   await expect(page.locator('[data-slot="decision-alert"]')).toContainText('You asked for changes')
 
   await page.goto('/proposals')
-  await openReview(page, titles.checks)
+  await openReview(page, titles.sandbox)
   await page.getByRole('button', { name: 'Reject with this reason' }).click()
   const reject = page.getByRole('alertdialog', { name: 'Reject this proposal?' })
   await expect(reject.getByRole('textbox', { name: 'Why are you rejecting it?' })).toHaveValue(
@@ -256,39 +252,20 @@ test('keeps blocked decisions visible and says why', async ({ page }) => {
   await expect(
     page.locator('[data-slot="owner-edit"]').getByRole('button', { name: 'Change' }),
   ).toHaveAttribute('aria-disabled', 'true')
-
-  await page.goto('/proposals')
-  await openReview(page, titles.checks)
-  await expect(bar(page)).toContainText('The check “Answers stay right, whole domain” failed')
-  await expect(bar(page).getByRole('button', { name: /Accept/ })).toHaveAttribute(
-    'aria-disabled',
-    'true',
-  )
-  await expect(bar(page).getByRole('button', { name: 'Reject' })).not.toHaveAttribute(
-    'aria-disabled',
-  )
 })
 
-test('the approver adds the second accept to a high-risk proposal', async ({ page }) => {
+test('an approver reads a high-risk proposal and decides nothing', async ({ page }) => {
   await signInAs(page, 'per_lars')
+  // An approver no longer decides, so nothing waits for Lars to review.
   await openPage(page, '/proposals', desktop)
-  await openReview(page, titles.approverNext)
-  await expect(bar(page)).toContainText('Give the second yes')
-  // The decisions offered, beside the assistant's launcher the bar holds.
-  await expect(bar(page).locator('[data-outcome]').filter({ visible: true })).toHaveText([
-    /Accept as approver/,
-  ])
-  await bar(page).getByRole('button', { name: 'Accept as approver' }).click()
-  const dialog = page.getByRole('alertdialog', { name: 'Accept this proposal?' })
-  await expect(dialog).toContainText('Yours is the second yes')
-  await dialog
-    .getByRole('textbox', { name: 'Why are you accepting it?' })
-    .fill('Regulator notice read.')
-  await dialog.getByRole('button', { name: 'Accept as approver' }).click()
-  await expect(page.getByText(/^(From then on, )?agents get it\.$/).first()).toBeVisible()
+  await expect(
+    page
+      .getByRole('table', { name: 'Proposals to review' })
+      .getByRole('link', { name: titles.highRisk }),
+  ).toHaveCount(0)
 })
 
-test('the owner raises the risk and every check runs again', async ({ page }) => {
+test('the owner raises the risk and the same checks run again', async ({ page }) => {
   await openPage(page, '/proposals', desktop)
   await openReview(page, 'Units sold lags by two days in Cube')
   await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(3)
@@ -296,14 +273,14 @@ test('the owner raises the risk and every check runs again', async ({ page }) =>
   const dialog = page.getByRole('alertdialog', { name: 'Change the review settings' })
   await dialog.getByRole('radio', { name: /High risk/ }).click()
   await expect(dialog.getByRole('list', { name: 'What the change does' })).toContainText(
-    'high-risk approver',
+    'It needs the same three checks and one yes, whatever its risk.',
   )
   await dialog
     .getByRole('textbox', { name: 'Why are you changing them?' })
     .fill('A source lag changes every units sold answer.')
   await dialog.getByRole('button', { name: 'Save and check again' }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(5)
+  await expect(page.getByRole('list', { name: 'Checks' }).getByRole('listitem')).toHaveCount(3)
   await expect(page.locator('[data-slot="proposal-badges"]')).toContainText('High risk')
   await page.getByRole('button', { name: /History/ }).click()
   await expect(page.getByRole('list', { name: 'History' })).toContainText(
@@ -333,7 +310,7 @@ test('claims and hands over a proposal', async ({ page }) => {
 
 test('moves to the next proposal with j and k', async ({ page }) => {
   await openPage(page, '/proposals', desktop)
-  await openReview(page, titles.approverNext)
+  await openReview(page, titles.highRisk)
   const heading = page.getByRole('heading', { level: 1 })
   // The keys bind once the screen has registered its scope; pressing again past either end of
   // the queue does nothing, so a retry is safe.
@@ -343,7 +320,7 @@ test('moves to the next proposal with j and k', async ({ page }) => {
   }).toPass()
   await expect(async () => {
     await page.keyboard.press('k')
-    await expect(heading).toHaveText(titles.approverNext, { timeout: 1000 })
+    await expect(heading).toHaveText(titles.highRisk, { timeout: 1000 })
   }).toPass()
 })
 

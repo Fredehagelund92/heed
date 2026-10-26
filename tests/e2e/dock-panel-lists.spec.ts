@@ -17,7 +17,7 @@ const phone = { ...widths[2], theme: 'light' as const }
 
 /** Jon's queue, by title, in the queue's order where it matters. */
 const titles = {
-  approverNext: 'Regulator paused price promotions in the United States on 15 June 2026',
+  highRisk: 'Regulator paused price promotions in the United States on 15 June 2026',
   ready: 'United Kingdom launch campaign ran from 21 February 2025 to 30 September 2026',
   overdue: 'How to investigate a drop in Churn rate in Spain',
   proposer: 'Net revenue for September 2026 includes a one-off correction for August discounts.',
@@ -103,7 +103,7 @@ test.describe('the review queue', () => {
     await expect(page).toHaveURL(/tab=checks/)
     await expect(
       panel(page).getByRole('list', { name: 'Checks' }).getByRole('listitem'),
-    ).toHaveCount(5)
+    ).toHaveCount(3)
     await expect(panel(page).locator('[data-slot="approvals-card"]')).toBeVisible()
     await panel(page)
       .getByRole('tab', { name: /Discussion/ })
@@ -147,7 +147,7 @@ test.describe('the review queue', () => {
 
   test('j and k step the panel through the queue; Escape closes it; Back too', async ({ page }) => {
     await openPage(page, '/proposals', desktop)
-    await queue(page).getByRole('link', { name: titles.approverNext }).click()
+    await queue(page).getByRole('link', { name: titles.highRisk }).click()
     await expect(meta(page)).toHaveText(/1 of 11/)
     await page.keyboard.press('j')
     await expect(heading(page)).toHaveText(titles.ready)

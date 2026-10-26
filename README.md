@@ -122,9 +122,9 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 
 - **Five kinds of fact.** Event, note, guide, example and issue. Each says where it applies (metric, market,
   dates), links its source with one copied sentence, and says what not to conclude.
-- **Owners, not a free-for-all.** Every fact belongs to one domain, and that domain's owner accepts it. A
-  high-risk fact needs a second yes from an approver. Nothing reaches an agent on its own.
-- **Checked before it ships.** Four checks run on every proposal, including test questions that must still
+- **Owners, not a free-for-all.** Every fact belongs to one domain, and that domain's owner accepts it,
+  whatever its risk. Nothing reaches an agent on its own.
+- **Checked before it ships.** Three checks run on every proposal, including test questions that must still
   find the right fact. [Review a proposal](docs/help/review-a-proposal.md).
 - **Editions.** Agents read a fixed, dated set of accepted facts. Compare two editions, go back to an earlier
   one, or stop one fact, one domain or everything at once. [Editions](docs/help/editions.md).

@@ -94,9 +94,6 @@ import {
   addWorkingDays,
   matchingProbes,
   mentionDiff,
-  noneWorseWords,
-  testChange,
-  testChangeWords,
   versionDiff,
   vocabularyFindings,
   type VocabularyChange,
@@ -499,9 +496,6 @@ function fixtureVersionId(itemId: string, version: number): string {
 
 /** Where the mock's MCP server answers: the local service's address (README, "Connect Claude Code"). */
 export const MOCK_MCP_ADDRESS = 'http://localhost:3000/mcp'
-
-/** Dollars from micros, as the service writes a run's estimate: "$0.42". */
-const formatUsd = (micros: number) => `$${(micros / 1_000_000).toFixed(2)}`
 
 /** A deterministic 64 character hex digest, standing in for an edition's content digest. */
 function digestOf(text: string): string {
@@ -1363,12 +1357,8 @@ export function createMockWorkflow(start: MockWorld) {
     }
   }
 
-  function requiredLevels(risk: ItemVersion['riskLevel']): LevelResult['level'][] {
-    const levels: LevelResult['level'][] = ['format', 'matching', 'delivery']
-    if (risk !== 'low') levels.push('answer_impact')
-    if (risk === 'high') levels.push('answer_full')
-    return levels
-  }
+  /** Levels 1 to 3, at every risk level (cl_required_levels, FR-513). */
+  const requiredLevels = (): LevelResult['level'][] => ['format', 'matching', 'delivery']
 
   /** A typed scope (Try it's, or a report's) resolved as get_facts resolves it. */
   function scopeOfTry(input: TryItInput) {
@@ -2130,58 +2120,46 @@ export function createMockWorkflow(start: MockWorld) {
         )
       return stored
     }
-    /** An attached test's results in the newest checks of the version under review. */
+    /**
+     * An attached test's result in the newest level 3 check of the version under review. No
+     * answer tests run on a suggestion, so none has an answer result.
+     */
     function attachedResults(stored: StoredProposal): AttachedTest[] {
       let delivery: (LevelResult & { level: 'delivery' })['details'] | undefined
-      let answer: (LevelResult & { level: 'answer_impact' })['details'] | undefined
-      for (const level of stored.levels) {
-        if (level.outcome === 'not_run') continue
-        if (level.level === 'delivery') delivery = level.details
-        if (level.level === 'answer_impact') answer = level.details
-      }
+      for (const level of stored.levels)
+        if (level.outcome !== 'not_run' && level.level === 'delivery') delivery = level.details
       return testsOf(stored).map((test) => {
         const checked = delivery?.questions?.find((q) => q.id === test.question)
-        const answered = answer?.attached?.find((q) => q.id === test.question)
         return {
           ...test,
           retrieval:
             checked?.baseline === undefined || checked.candidate === undefined
               ? null
               : { baseline: checked.baseline, candidate: checked.candidate },
-          answer:
-            answered && answer?.run
-              ? { run: answer.run, baseline: answered.baseline, candidate: answered.candidate }
-              : null,
+          answer: null,
         }
       })
     }
 
     /**
-     * As the service's capacityFor: an owner of the area or an administrator decides, an approver
-     * adds the high-risk accept, and the proposer decides their own only as one of the first two.
+     * As the service's capacityFor: an owner of the area or an administrator decides, and one
+     * accept publishes; the proposer decides their own only as one of the two.
      */
     function capacityFor(
       areaId: string,
-      outcome: DecideInput['outcome'],
       wanted: Capacity | undefined,
-      risk: string | null,
       proposerId: string,
     ): Capacity {
       const roles = rolesIn(areaId)
       const admin = isAdmin()
-      const choice = wanted ?? (roles.has('owner') ? 'owner' : admin ? 'administrator' : 'approver')
-      if (choice === 'administrator' ? !admin : !roles.has(choice))
-        refuse(
-          'forbidden',
-          'Only the owners and approvers of this domain, or an admin, can decide.',
-        )
-      if (choice === 'approver' && (outcome !== 'accept' || risk !== 'high'))
-        refuse('forbidden', 'An approver only gives the second yes on a high-risk proposal.')
       if (proposerId === personId && !admin && !roles.has('owner'))
         refuse(
           'forbidden',
           'You wrote this proposal, so an owner of its domain or an admin decides it.',
         )
+      const choice = wanted ?? (roles.has('owner') ? 'owner' : 'administrator')
+      if (choice === 'approver' || (choice === 'administrator' ? !admin : !roles.has(choice)))
+        refuse('forbidden', 'Only the owners of this domain, or an admin, can decide.')
       return choice
     }
 
@@ -2195,32 +2173,24 @@ export function createMockWorkflow(start: MockWorld) {
       const owner = accepts.some((decision) =>
         ['owner', 'deputy', 'administrator'].includes(decision.capacity),
       )
-      const approver =
-        stored.version.riskLevel === 'high'
-          ? accepts.some((decision) => decision.capacity === 'approver')
-          : null
       // The database's own verdict, in its words (cl_item_version_problem).
       const problem = !owner
         ? 'no accept decision by an owner of the domain or an administrator'
-        : approver === false
-          ? 'high risk needs an accept decision by a named approver'
-          : stored.levels.some((level) => level.outcome !== 'passed')
-            ? 'a required check has not passed'
-            : null
+        : stored.levels.some((level) => level.outcome !== 'passed')
+          ? 'a required check has not passed'
+          : null
       return {
         required: stored.levels.map((level) => level.level),
         levels: structuredClone(stored.levels),
-        approvals: { owner, approver },
+        approvals: { owner, approver: null },
         problem,
         attached: attachedResults(stored),
       }
     }
 
     /**
-     * Levels 2 to 5. Matching and delivery pass, with the probes the service would generate from
-     * the item's scope. An area with test questions runs the answer tests, which pass, as a
-     * finished run; one without passes the impact level and fails the full set, as on the
-     * service with none.
+     * Levels 2 and 3. Matching and delivery pass, with the probes the service would generate from
+     * the item's scope, and the area's test questions as delivery reports them.
      */
     function runLevels(stored: StoredProposal) {
       const ranAt = now()
@@ -2249,47 +2219,8 @@ export function createMockWorkflow(start: MockWorld) {
       const questions = testQuestions().filter(
         (question) => question.area === version.areaId && question.status === 'active',
       )
-      const metrics = new Set(version.scope.metrics.map((key) => key.replace(/^metric:/, '')))
-      const affected = questions.filter((question) =>
-        (question.scope.metrics ?? []).some((metric) =>
-          metrics.has(metric.replace(/^metric:/, '')),
-        ),
-      )
-      const full = version.riskLevel === 'high'
-      // FR-524: the attached tests are always planned with the change, and reported only.
+      // FR-524: the attached tests are reported with the change, never blocking it.
       const attached = attachedIds(stored)
-      const planned = full
-        ? questions
-        : questions.filter((question) => affected.includes(question) || attached.has(question.id))
-      const run = questions.length ? recordRun(stored, planned, affected) : null
-      const reported = run ? run.results.filter((result) => attached.has(result.id)) : []
-      const report = reported.length
-        ? ` Attached tests, reported only: ${reported
-            .map((result) => {
-              const change = testChange(
-                result.baseline === null ? null : result.baseline === 'pass',
-                result.candidate === null ? null : result.candidate === 'pass',
-              )
-              return `${result.id} ${change ? testChangeWords[change] : 'has no answer to compare'}`
-            })
-            .join('; ')}.`
-        : ''
-      const answer = (count: number, message: string) => ({
-        edition,
-        ...(run ? { run: run.run.id, runState: run.run.state, setAside: 0 } : {}),
-        questions: count,
-        ...(run ? { estimate: formatUsd(run.run.estimatedCostMicros) } : {}),
-        message: message + report,
-        ...(reported.length
-          ? {
-              attached: reported.map(({ id, baseline, candidate }) => ({
-                id,
-                baseline,
-                candidate,
-              })),
-            }
-          : {}),
-      })
       const results: LevelResult[] = [
         stored.levels.find((level) => level.level === 'format') ?? {
           level: 'format',
@@ -2325,114 +2256,10 @@ export function createMockWorkflow(start: MockWorld) {
             note: 'Checked as delivered once nothing stops it.',
           },
         },
-        {
-          level: 'answer_impact',
-          outcome: 'passed',
-          ranAt,
-          details: answer(
-            planned.length,
-            affected.length
-              ? noneWorseWords(affected.length)
-              : 'None of the test questions could change.',
-          ),
-        },
-        questions.length
-          ? {
-              level: 'answer_full',
-              outcome: 'passed',
-              ranAt,
-              details: answer(
-                questions.length,
-                `All ${questions.length} test questions of the domain pass.`,
-              ),
-            }
-          : {
-              level: 'answer_full',
-              outcome: 'failed',
-              ranAt,
-              details: {
-                questions: 0,
-                message:
-                  "The domain has no active test questions, so this check can't pass. Add test questions first.",
-              },
-            },
       ]
-      stored.levels = requiredLevels(version.riskLevel).map((level) =>
+      stored.levels = requiredLevels().map((level) =>
         results.find((result) => result.level === level)!,
       )
-    }
-
-    /** A finished answer run of the version: every question passes on both arms. */
-    function recordRun(
-      stored: StoredProposal,
-      questions: readonly TestQuestion[],
-      affected: readonly TestQuestion[],
-    ): EvalRunDetail {
-      const at = now()
-      const impact = new Set(affected.map((question) => question.id))
-      // Runs count apart from proposals and events, so a world with test questions gives its
-      // proposals the same ids as one without.
-      const id = `00000000-0000-4000-9000-${(runs.size + 1).toString(16).padStart(12, '0')}`
-      const detail: EvalRunDetail = {
-        run: {
-          id,
-          kind: stored.version!.riskLevel === 'high' ? 'full' : 'impact',
-          state: 'finished',
-          areaId: stored.areaId,
-          proposalId: stored.id,
-          itemVersionId: stored.itemVersionId,
-          edition: liveEdition().label,
-          modelId: 'mock-model',
-          judgeModelId: 'mock-judge',
-          modelProvider: 'mock',
-          judgeProvider: 'mock',
-          modelFamily: 'mock/model',
-          judgeFamily: 'mock/judge',
-          judgeSameFamily: false,
-          modelVendor: 'mock',
-          judgeVendor: 'mock',
-          judgeSameVendor: true,
-          trigger: null,
-          toolSchemaDigest: digestOf('get_facts'),
-          testSetDigest: digestOf(questions.map((question) => question.id).join(',')),
-          tries: 3,
-          flipRepeats: 2,
-          questions: questions.length,
-          setAside: 0,
-          estimatedCostMicros: 60_000 * questions.length,
-          actualCostMicros: 52_500 * questions.length,
-          costCeilingMicros: null,
-          passRule: 'majority',
-          requestedBy: stored.proposerId,
-          approvedBy: null,
-          failure: null,
-          createdAt: at,
-          startedAt: at,
-          finishedAt: at,
-        },
-        results: questions.map((question) => ({
-          id: question.id,
-          impact: impact.has(question.id),
-          baseline: 'pass',
-          candidate: 'pass',
-          flip: null,
-          layers: {
-            baseline: { code: 'pass', judge: 'pass', failedChecks: [] },
-            candidate: { code: 'pass', judge: 'pass', failedChecks: [] },
-          },
-        })),
-        flips: [],
-        levels: {},
-        scorecard: null,
-        links: null,
-        replay: null,
-        agreement: null,
-        judging: { judged: 0, errors: 0 },
-        stopped: null,
-        cells: [],
-      }
-      runs.set(id, detail)
-      return detail
     }
 
     /** The live vocabulary as governed terms, with every term accepted since the world began. */
@@ -2675,13 +2502,7 @@ export function createMockWorkflow(start: MockWorld) {
         refuse('conflict', 'A proposal to archive a fact can only be accepted or rejected.')
       rejectSensitive(input.reason)
       rejectMentions(input.reason)
-      const capacity = capacityFor(
-        proposal.areaId!,
-        input.outcome,
-        input.capacity,
-        null,
-        proposal.proposerId,
-      )
+      const capacity = capacityFor(proposal.areaId!, input.capacity, proposal.proposerId)
       const at = now()
       decisions.push({
         id: uuid(),
@@ -2813,32 +2634,20 @@ export function createMockWorkflow(start: MockWorld) {
         if (!decidesAny) return skip('forbidden', bulkSkipWords.termDecider)
         return { review, effect: decides }
       }
-      const approves = roles.has('approver') && outcome === 'accept' && review.riskLevel === 'high'
-      if (!decidesAny && !approves) return skip('forbidden', bulkSkipWords.itemDecider)
+      if (!decidesAny) return skip('forbidden', bulkSkipWords.itemDecider)
       if (review.action === 'retire') {
         if (outcome === 'request_changes')
           return skip('not_allowed', bulkSkipWords.retirementChanges)
         return { review, effect: decides }
       }
-      const onlyApprover = approves && !decidesAny
-      if (review.claimedBy && review.claimedBy !== personId && !onlyApprover)
+      if (review.claimedBy && review.claimedBy !== personId)
         return skip('claimed', bulkSkipWords.claimed)
       if (outcome !== 'accept') return { review, effect: 'decide' }
+      // Levels 1 to 3 run again on accept, and one accept publishes (FR-513).
       const gate = stored ? gateOf(stored) : null
       const failed = gate?.levels.filter((level) => level.outcome === 'failed') ?? []
       if (failed.length) return skip('checks_failed', bulkSkipWords.failed(levelList(failed)))
-      const waiting =
-        gate?.levels.filter(
-          (level) =>
-            (level.level === 'answer_impact' || level.level === 'answer_full') &&
-            level.outcome !== 'passed',
-        ) ?? []
-      if (waiting.length) return skip('checks_waiting', bulkSkipWords.waiting(levelList(waiting)))
-      // A second owner's accept adds nothing: the approver's is the one still needed.
-      if (gate?.approvals.owner && !onlyApprover)
-        return skip('not_waiting', bulkSkipWords.approverNext)
-      const approverNext = review.riskLevel === 'high' && !gate?.approvals.approver && !onlyApprover
-      return { review, effect: approverNext ? 'wait' : 'publish' }
+      return { review, effect: 'publish' }
     }
     /** Leaves out an accept of an item that an earlier proposal of the same step already takes. */
     function bulkSameItem(
@@ -3284,12 +3093,7 @@ export function createMockWorkflow(start: MockWorld) {
           .filter((stored) => {
             if (!underReview.includes(stored.state)) return false
             if (areaId !== undefined && stored.areaId !== areaId) return false
-            const roles = rolesIn(stored.areaId)
-            return (
-              isAdmin() ||
-              roles.has('owner') ||
-              (stored.version?.riskLevel === 'high' && roles.has('approver'))
-            )
+            return isAdmin() || rolesIn(stored.areaId).has('owner')
           })
           .map((stored): QueueEntry => {
             const gate = gateOf(stored)
@@ -3718,14 +3522,8 @@ export function createMockWorkflow(start: MockWorld) {
         rejectSensitive(input.reason)
         rejectMentions(input.reason)
         const version = stored.version!
-        const capacity = capacityFor(
-          stored.areaId,
-          input.outcome,
-          input.capacity,
-          version.riskLevel,
-          stored.proposerId,
-        )
-        if (stored.claimedBy && stored.claimedBy !== personId && capacity !== 'approver')
+        const capacity = capacityFor(stored.areaId, input.capacity, stored.proposerId)
+        if (stored.claimedBy && stored.claimedBy !== personId)
           refuse('conflict', 'Another owner is already reviewing this proposal.')
         const decided = (outcome: StoredDecision['outcome']) => {
           if (
@@ -4249,7 +4047,7 @@ export function createMockWorkflow(start: MockWorld) {
               areaId: review.areaId,
               personId: review.personId,
               edition: review.edition,
-              checks: requiredLevels(item.riskLevel),
+              checks: requiredLevels(),
             },
           ]
         })
@@ -4688,8 +4486,7 @@ export function createMockWorkflow(start: MockWorld) {
 
       /**
        * CON-211, as the service does it: a new version with the same content, the current change
-       * marks and a new review date. A high-risk recheck waits for its answer tests and the
-       * approver, so it publishes nothing yet.
+       * marks and a new review date, published at once.
        */
       recheckItem({ id, reason }: ItemReasonInput): DecisionResult {
         rejectSensitive(reason)
@@ -4720,7 +4517,7 @@ export function createMockWorkflow(start: MockWorld) {
           number: lastSeedNumber + proposals.size + retirements.size + termProposals.size + 1,
           subject: 'item',
           action: 'recheck',
-          state: item.riskLevel === 'high' ? 'submitted' : 'accepted',
+          state: 'accepted',
           areaId: item.areaId,
           itemId: id,
           itemVersionId: uuid(),
@@ -4735,11 +4532,10 @@ export function createMockWorkflow(start: MockWorld) {
           claimedBy: null,
           dueAt: null,
           submittedAt: at,
-          closedAt: item.riskLevel === 'high' ? null : at,
+          closedAt: at,
           createdAt: at,
         }
         retirements.set(proposal.id, proposal)
-        if (item.riskLevel === 'high') return { proposal: structuredClone(proposal), edition: null }
         // The checked version holds what the version before it did, with the new review date.
         const next = nextVersion(id)
         const before = editionWorld().served(liveEdition(), id)?.content()

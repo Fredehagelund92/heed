@@ -51,12 +51,9 @@ export function usePermissions() {
       canDescribe: (areaId: string) => canDescribe(permissions, areaId),
       canAttachTests: (proposal: Pick<DecidableProposal, 'areaId' | 'proposerId' | 'state'>) =>
         session ? canAttachTests(permissions, personId, proposal) : false,
-      canDecide: (
-        proposal: DecidableProposal,
-        outcome?: 'accept' | 'request_changes' | 'reject',
-      ) =>
+      canDecide: (proposal: DecidableProposal) =>
         session
-          ? canDecide(permissions, personId, proposal, outcome)
+          ? canDecide(permissions, personId, proposal)
           : ({ allowed: false, reason: 'Loading your roles.' } as const),
       /** Whether a list row's proposal is the person's to decide (and select), or who can. */
       canDecideInList: (proposal: ListedProposal): ListDecision =>

@@ -608,43 +608,34 @@ export function describeContextApiWrites(
         ).toMatchObject({ kind: 'forbidden' })
     })
 
-    it('needs every check and the approver for a high-risk proposal', async () => {
+    it('publishes a high-risk proposal on one accept, after levels 1 to 3 (FR-513)', async () => {
       const high = await submitted(
         'maria',
         sales({ kind: 'event', riskLevel: 'high', title: 'High' }),
       )
-      expect((await as('lars').listReviewQueue()).map((row) => row.id)).toContain(high.id)
+      // An approver no longer decides anything, so it is not in their queue either.
+      expect((await as('lars').listReviewQueue()).map((row) => row.id)).not.toContain(high.id)
       expect(
         await refusal(
           as('lars').decide({
             id: high.id,
             revision: high.revision,
-            outcome: 'reject',
-            reason: 'No',
+            outcome: 'accept',
+            reason: 'Fine',
           }),
         ),
       ).toMatchObject({ kind: 'forbidden' })
-      const blocked = await refusal(
-        as('jon').decide({
-          id: high.id,
-          revision: high.revision,
-          outcome: 'accept',
-          reason: 'Fine',
-        }),
-      )
-      expect(blocked.kind).toBe('invalid')
-      expect(blocked.gate?.required).toEqual([
-        'format',
-        'matching',
-        'delivery',
-        'answer_impact',
-        'answer_full',
-      ])
-      expect(blocked.gate?.levels.find((level) => level.level === 'answer_full')?.outcome).toBe(
-        'failed',
-      )
-      expect(blocked.gate?.approvals).toEqual({ owner: false, approver: false })
-      expect(blocked.gate?.problem).toEqual(expect.any(String))
+      const review = await as('jon').getReview(high.id)
+      expect(review?.gate?.required).toEqual(['format', 'matching', 'delivery'])
+      expect(review?.gate?.approvals).toEqual({ owner: false, approver: null })
+      const decided = await as('jon').decide({
+        id: high.id,
+        revision: review!.proposal.revision,
+        outcome: 'accept',
+        reason: 'Fine',
+      })
+      expect(decided.proposal.state).toBe('accepted')
+      expect(decided.edition?.live).toBe(true)
     })
 
     it('lets an owner change risk, review date, claim and owner in review, and checks again', async () => {
@@ -694,15 +685,10 @@ export function describeContextApiWrites(
         revision: note.revision + 1,
       })
       expect(raised.proposal.itemVersionId).not.toBe(note.itemVersionId)
-      // Higher risk needs every level and the approver; the earlier version's checks do not count.
-      expect(raised.gate?.required).toEqual([
-        'format',
-        'matching',
-        'delivery',
-        'answer_impact',
-        'answer_full',
-      ])
-      expect(raised.gate?.approvals).toEqual({ owner: false, approver: false })
+      // A higher risk needs the same three levels and no approver; the earlier version's checks
+      // do not count (FR-513).
+      expect(raised.gate?.required).toEqual(['format', 'matching', 'delivery'])
+      expect(raised.gate?.approvals).toEqual({ owner: false, approver: null })
       expect(
         raised.gate?.levels
           .filter((level) => ['format', 'matching', 'delivery'].includes(level.level))
@@ -714,11 +700,11 @@ export function describeContextApiWrites(
         reviewDate,
         'effect_stated',
       ])
-      expect((await as('lars').listReviewQueue()).map((row) => row.id)).toContain(note.id)
+      expect((await as('lars').listReviewQueue()).map((row) => row.id)).not.toContain(note.id)
 
       const events = await as('maria').listProposalEvents(note.id)
       const edited = events.findIndex((event) => event.kind === 'edited')
-      // The checks run again on the changed version (the answer tests may report on their own).
+      // The checks run again on the changed version.
       expect(events[edited + 1]?.kind).toBe('checked')
       expect(events[edited]).toMatchObject({
         actorId: id('jon'),
@@ -763,7 +749,7 @@ export function describeContextApiWrites(
         claimedBy: id('sofia'),
         riskLevel: 'normal',
       })
-      expect(lowered.gate?.required).toEqual(['format', 'matching', 'delivery', 'answer_impact'])
+      expect(lowered.gate?.required).toEqual(['format', 'matching', 'delivery'])
       expect((await as('maria').getProposal(note.id))?.draft).not.toHaveProperty('claimAuthority')
     })
 

@@ -34,7 +34,6 @@ import {
   finishRun,
   headAt,
   modelsFor,
-  queueVersionRun,
   runColumns,
   sidesFor,
   sidesOfRun,
@@ -48,8 +47,7 @@ import { readEvalSettings, type EvalSettings } from './settings.ts'
 import { capReached, formatUsd } from './spend.ts'
 
 /**
- * The `evals.work` job: queue answer tests that are due, then work queued runs cell by cell until
- * the time slice ends. Every cell is saved as soon as it finishes, so a run that outlives a slice
+ * The `evals.work` job: work queued runs cell by cell until the time slice ends. Every cell is saved as soon as it finishes, so a run that outlives a slice
  * (or the service) continues where it stopped. A cell whose inputs did not change reuses the
  * earlier result without a model call (FR-522); within a run, cells with the same inputs run once,
  * so an unchanged question cannot flip by chance.
@@ -75,7 +73,6 @@ export type WorkOptions = {
   wait?: Sleep
 }
 export type WorkSummary = {
-  queued: number
   runs: string[]
   cells: number
   expired: number
@@ -112,9 +109,9 @@ export async function workEvaluations(
   deps: EvalDeps,
   options: WorkOptions,
 ): Promise<WorkSummary> {
-  const summary: WorkSummary = { queued: 0, runs: [], cells: 0, expired: 0, resumed: 0 }
+  const summary: WorkSummary = { runs: [], cells: 0, expired: 0, resumed: 0 }
   const worker = options.worker ?? randomUUID()
-  if (options.only === undefined) await housekeeping(database, deps, options, summary)
+  if (options.only === undefined) await housekeeping(database, options, summary)
   while (Date.now() < options.deadline && !options.signal.aborted) {
     // A run in flight first, then the oldest queued one; never one another worker holds.
     const [run] = await database.query<RunRow>(
@@ -138,12 +135,7 @@ export async function workEvaluations(
   return summary
 }
 
-async function housekeeping(
-  database: Database,
-  deps: EvalDeps,
-  options: WorkOptions,
-  summary: WorkSummary,
-) {
+async function housekeeping(database: Database, options: WorkOptions, summary: WorkSummary) {
   // FR-517: a scheduled run that has not finished within a day is failed and alerted, once.
   const expired = await database.query<{ id: string; area_id: string }>(
     `update eval_runs set state='failed',finished_at=now(),failure='The scheduled run did not finish within 24 hours',
@@ -171,22 +163,6 @@ async function housekeeping(
       returning id`,
   )
   summary.resumed = resumed.length
-  // Versions under review whose answer tests have not run against the live edition yet.
-  for (const due of await database.query<{ version: string; proposer: string }>(
-    'select version_id::text as version,proposer_id::text as proposer from cl_eval_versions_due()',
-  )) {
-    try {
-      const queued = await database.transaction(due.proposer, (tx) =>
-        queueVersionRun(tx, deps, due.version),
-      )
-      if (queued) summary.queued++
-    } catch (error) {
-      options.logger.error(
-        { err: errorCode(error), version: due.version },
-        'could not queue answer tests',
-      )
-    }
-  }
 }
 
 type Options = WorkOptions & { worker: string }

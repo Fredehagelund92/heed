@@ -210,7 +210,7 @@ export const ReviewQueueProposal: Story = {
 export const ReviewChecksTab: Story = {
   name: 'Review: the Checks tab',
   render: () => (
-    <StoryApp path={`/proposals?panel=${demoReviewIds.checks}&tab=checks`} person="per_jon" />
+    <StoryApp path={`/proposals?panel=${demoReviewIds.sandbox}&tab=checks`} person="per_jon" />
   ),
 }
 
@@ -228,9 +228,7 @@ export const ReviewNotClaimed: Story = {
 /** j steps the panel to the next proposal in the queue; Escape closes it. */
 export const ReviewKeyboard: Story = {
   name: 'Review: j and Escape',
-  render: () => (
-    <StoryApp path={`/proposals?panel=${demoReviewIds.approverNext}`} person="per_jon" />
-  ),
+  render: () => <StoryApp path={`/proposals?panel=${demoReviewIds.highRisk}`} person="per_jon" />,
   play: async ({ canvasElement }) => {
     const meta = () => canvasElement.querySelector('[data-slot="dock-meta"]')
     await waitFor(() => expect(meta()).toHaveTextContent('1 of 10'), { timeout: 10_000 })

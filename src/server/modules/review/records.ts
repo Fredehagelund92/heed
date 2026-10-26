@@ -83,8 +83,7 @@ export async function reviewQueue(
   return tx.query<LoadedProposal & { checks: QueueChecks | null }>(
     `select ${fields},${queueChecks} ${from}
       where p.state in ('submitted','in_review') and ($1::text is null or p.area_id=$1)
-        and (cl_is_admin_now() or cl_is_owner_now(p.area_id)
-             or (v.risk='high' and p.action in ('create','change','recheck') and cl_is_reviewer_now(p.area_id)))
+        and (cl_is_admin_now() or cl_is_owner_now(p.area_id))
       order by case v.risk when 'high' then 0 when 'normal' then 1 when 'low' then 2 else 3 end,
                p.submitted_at,p.id
       limit $2 offset $3`,

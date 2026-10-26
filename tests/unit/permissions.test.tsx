@@ -154,7 +154,7 @@ describe('what a person may do', () => {
 
   it('lets an owner decide in their own area, and an admin in every area', () => {
     expect(canDecide(jon, 'per_jon', open())).toEqual({ allowed: true, capacity: 'owner' })
-    expect(canDecide(sofia, 'per_sofia', open(), 'reject')).toEqual({
+    expect(canDecide(sofia, 'per_sofia', open())).toEqual({
       allowed: true,
       capacity: 'owner',
     })
@@ -171,7 +171,7 @@ describe('what a person may do', () => {
     })
     expect(canDecide(contributor, 'per_maria', open())).toEqual({
       allowed: false,
-      reason: 'Only an owner or high-risk approver of the domain, or an admin, can decide.',
+      reason: 'Only an owner of the domain, or an admin, can decide.',
     })
   })
 
@@ -191,10 +191,10 @@ describe('what a person may do', () => {
       canDecide(jon, 'per_jon', open({ proposerId: 'per_jon', areaId: 'area_marketing' })),
     ).toMatchObject({ allowed: false })
     expect(canDecide(contributor, 'per_maria', open())).toMatchObject({ allowed: false })
-    // An approver who is neither never adds the second accept to their own.
+    // An approver who is neither decides nothing, their own neither.
     expect(
       canDecide(lars, 'per_lars', open({ proposerId: 'per_lars', riskLevel: 'high' })),
-    ).toEqual({ allowed: false, reason: 'Someone else must accept a proposal you wrote.' })
+    ).toMatchObject({ allowed: false })
   })
 
   it('leaves a claimed proposal to its reviewer', () => {
@@ -207,17 +207,12 @@ describe('what a person may do', () => {
     })
   })
 
-  it('lets an approver add only the second accept of a high-risk proposal', () => {
-    expect(canDecide(lars, 'per_lars', open({ riskLevel: 'high', claimedBy: 'per_jon' }))).toEqual({
-      allowed: true,
-      capacity: 'approver',
-    })
-    expect(canDecide(lars, 'per_lars', open({ riskLevel: 'high' }), 'reject')).toMatchObject({
-      allowed: false,
-    })
-    expect(canDecide(lars, 'per_lars', open({ riskLevel: 'normal' }))).toMatchObject({
-      allowed: false,
-    })
+  it('lets an approver decide nothing: one accept publishes, at every risk (FR-513)', () => {
+    for (const riskLevel of ['low', 'normal', 'high'] as const)
+      expect(canDecide(lars, 'per_lars', open({ riskLevel }))).toEqual({
+        allowed: false,
+        reason: 'Only an owner of the domain, or an admin, can decide.',
+      })
   })
 
   it('decides nothing that is not waiting for a decision', () => {
@@ -251,11 +246,12 @@ describe('canDecideInList: whether a list row can be selected for a bulk step (F
     return decision
   }
 
-  it('lets an owner decide their domain, and an approver a high-risk item', () => {
+  it('lets an owner decide their domain, and an approver nothing, at every risk', () => {
     expect(canDecideInList(jon, 'per_jon', item())).toEqual({ allowed: true })
     expect(canDecideInList(sofia, 'per_sofia', item())).toEqual({ allowed: true })
-    expect(canDecideInList(lars, 'per_lars', item({ riskLevel: 'high' }))).toEqual({
-      allowed: true,
+    expect(canDecideInList(lars, 'per_lars', item({ riskLevel: 'high' }))).toMatchObject({
+      allowed: false,
+      why: 'role',
     })
     expect(canDecideInList(lars, 'per_lars', item())).toMatchObject({
       allowed: false,
@@ -325,11 +321,11 @@ describe('canDecideInList: whether a list row can be selected for a bulk step (F
       canDecideInList(lars, 'per_lars', item({ proposerId: 'per_lars', riskLevel: 'high' })),
     )
     expect(listDecisionWords(ownHighRisk, 'Sales', lars)).toBe(
-      "You can't decide a proposal you made. Another owner or high-risk approver of Sales, or an admin, can.",
+      "You can't decide a proposal you made. An owner of Sales, or an admin, can.",
     )
     const highRisk = denied(canDecideInList(contributor, 'per_ella', item({ riskLevel: 'high' })))
     expect(listDecisionWords(highRisk, 'Sales', contributor)).toBe(
-      "You can't decide this proposal. An owner or high-risk approver of Sales, or an admin, can.",
+      "You can't decide this proposal. An owner of Sales, or an admin, can.",
     )
     expect(
       listDecisionWords(denied(canDecideInList(jon, 'per_jon', item({ state: 'draft' }))), 'Sales'),

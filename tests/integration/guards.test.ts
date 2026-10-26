@@ -30,22 +30,18 @@ it('refuses missing and later failed checks', async () => {
   }
 })
 // FR-206 (16 October 2026): an administrator and an owner of the area accept their own proposal at
-// every risk; high risk still needs the named approver's accept, from a second person.
+// every risk. FR-513 (Heed v1): one accept and levels 1 to 3 publish it, whatever its risk.
 it.each(['low', 'normal', 'high'] as const)(
-  "takes an owner's and an administrator's own accept at %s risk",
+  "takes an owner's and an administrator's own accept at %s risk, with no approver",
   async (risk) => {
     await transaction(client, async () => {
       const v = await version(client, { risk, author: people.owner })
-      await accept(client, v.id, { approver: risk === 'high' })
+      await accept(client, v.id)
       await publish(client, v.id)
     })
     await transaction(client, async () => {
       const v = await version(client, { risk, author: people.admin })
-      await accept(client, v.id, {
-        actor: people.admin,
-        capacity: 'administrator',
-        approver: risk === 'high',
-      })
+      await accept(client, v.id, { actor: people.admin, capacity: 'administrator' })
       await publish(client, v.id)
     })
   },
@@ -65,26 +61,33 @@ it('still refuses a self accept by anyone who is neither an administrator nor an
         await publish(client, v.id)
       }),
     ).rejects.toThrow('no accept decision')
-  // A high-risk approver who is neither gives no approver's accept to their own proposal.
-  await expect(
-    transaction(client, async () => {
-      const v = await version(client, { risk: 'high', author: people.approver })
-      await accept(client, v.id, { approver: true })
-      await publish(client, v.id)
-    }),
-  ).rejects.toThrow('named approver')
+  // An approver's accept alone never publishes, their own proposal's or anyone's.
+  for (const author of [people.approver, people.author])
+    await expect(
+      transaction(client, async () => {
+        const v = await version(client, { risk: 'high', author })
+        await client.query(
+          `with p as (insert into proposals
+               (action,state,area_id,item_id,item_version_id,proposer_id,channel,submitted_at)
+             select 'create','submitted',area_id,item_id,id,proposer_id,'form',now()
+               from item_versions where id=$1 returning id,item_version_id,area_id)
+           insert into decisions (proposal_id,item_version_id,area_id,decided_by,capacity,outcome,reason)
+           select id,item_version_id,area_id,$2,'approver','accept','Reviewed high risk' from p`,
+          [v.id, people.approver],
+        )
+        await publish(client, v.id)
+      }),
+    ).rejects.toThrow('no accept decision')
 })
-it('requires a named approver for high risk', async () => {
-  await expect(
-    transaction(client, async () => {
-      const v = await version(client, { risk: 'high' })
-      await accept(client, v.id)
-      await publish(client, v.id)
-    }),
-  ).rejects.toThrow('named approver')
+it('needs no approver and no answer test at high risk (FR-207 withdrawn, FR-513)', async () => {
   await transaction(client, async () => {
     const v = await version(client, { risk: 'high' })
-    await accept(client, v.id, { approver: true })
+    await accept(client, v.id)
+    const required = await client.query<{ levels: string[] }>(
+      'select cl_required_levels(risk)::text[] as levels from item_versions where id=$1',
+      [v.id],
+    )
+    expect(required.rows[0]!.levels).toEqual(['format', 'matching', 'delivery'])
     await publish(client, v.id)
   })
 })

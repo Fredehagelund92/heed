@@ -323,50 +323,35 @@ describe('review and release', () => {
     expect((await client.query('select * from audit_verify()')).rows).toEqual([])
   })
 
-  it('blocks acceptance until every required check passes and needs an approver for high risk', async () => {
+  it('publishes on one accept once levels 1 to 3 pass, at every risk, with no approver (FR-513)', async () => {
     const event = await submitted({ kind: 'event', title: 'Norway event' })
-    // No test question is affected by the event, so level 4 passes at submit without a model.
-    expect(
-      (await review(event.id)).gate!.levels.find((l) => l.level === 'answer_impact'),
-    ).toMatchObject({
-      outcome: 'passed',
-      details: {
-        message: expect.stringMatching(/None of the test questions could change/) as unknown,
-      },
-    })
+    expect((await review(event.id)).gate!.required).toEqual(['format', 'matching', 'delivery'])
     const normal = await decide(event.id, 'accept')
     expect(normal.statusCode, normal.body).toBe(200)
     expect(normal.json<Decided>().edition).toMatchObject({ reason: 'proposal_accepted' })
 
     const high = await submitted({ title: 'Legal closure', riskLevel: 'high' })
-    const blocked = await decide(high.id, 'accept', 'approver')
-    expect(blocked.statusCode).toBe(422)
-    const gate = blocked.json<{ data: { gate: Gate } }>().data.gate
-    expect(gate.levels.find((l) => l.level === 'answer_full')).toMatchObject({
-      outcome: 'not_run',
-      details: { message: expect.stringMatching(/running/) as unknown },
-    })
+    const gate = (await review(high.id)).gate!
+    expect(gate.required).toEqual(['format', 'matching', 'delivery'])
+    expect(gate.approvals).toEqual({ owner: false, approver: null })
+    // No answer test is queued for it, now or by the job.
     await runAnswerTests()
-    expect((await review(high.id)).gate!.levels.map((l) => [l.level, l.outcome]).slice(3)).toEqual([
-      ['answer_impact', 'passed'],
-      ['answer_full', 'passed'],
+    const runs = await client.query('select 1 from eval_runs where item_version_id=$1', [
+      high.itemVersionId,
     ])
+    expect(runs.rowCount).toBe(0)
+    // An approver no longer decides, and their queue no longer lists it.
+    expect((await decide(high.id, 'accept', 'approver')).statusCode).toBe(403)
     const queue = (await call('GET', '/review/queue', 'approver')).json<ReviewProposal[]>()
-    expect(queue.map((q) => q.id)).toEqual([high.id])
-    const first = await decide(high.id, 'accept', 'approver')
-    expect(first.statusCode, first.body).toBe(200)
-    expect(first.json<Decided>()).toMatchObject({ edition: null, proposal: { state: 'submitted' } })
-    expect((await review(high.id)).gate!.approvals).toEqual({ owner: false, approver: true })
-    expect(await delivered()).not.toContain(high.itemId)
-    const second = await decide(high.id, 'accept')
-    expect(second.statusCode, second.body).toBe(200)
-    expect(second.json<Decided>()).toMatchObject({
+    expect(queue.map((q) => q.id)).not.toContain(high.id)
+    const accepted = await decide(high.id, 'accept')
+    expect(accepted.statusCode, accepted.body).toBe(200)
+    expect(accepted.json<Decided>()).toMatchObject({
       proposal: { state: 'accepted' },
       edition: { reason: 'proposal_accepted' },
     })
     expect(await delivered()).toContain(high.itemId)
-    const decisions = (await review(high.id)).decisions.map((d) => d.capacity)
-    expect(decisions).toEqual(['approver', 'owner'])
+    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['owner'])
   })
 
   it('accepts a version whose format check found warnings only (FR-505, FR-209)', async () => {
@@ -710,40 +695,43 @@ describe('review and release', () => {
     }
   })
 
-  it('lets an administrator accept their own high-risk proposal, which still needs every check and the approver', async () => {
+  it('lets an administrator publish their own high-risk proposal on one accept', async () => {
     const high = await submitted(
       { title: 'Administrator high-risk note', riskLevel: 'high' },
       'admin',
     )
-    // No exception for high risk: the full answer set gates the accept as for anyone.
-    const blocked = await decide(high.id, 'accept', 'admin')
-    expect(blocked.statusCode).toBe(422)
-    await runAnswerTests()
-    const first = await decide(high.id, 'accept', 'admin')
-    expect(first.statusCode, first.body).toBe(200)
-    expect(first.json<Decided>()).toMatchObject({ edition: null, proposal: { state: 'submitted' } })
-    expect((await review(high.id)).gate!.approvals).toEqual({ owner: true, approver: false })
-    expect(await delivered()).not.toContain(high.itemId)
-    // One person gives one accept: the approver's is a second person's.
-    const again = await decide(high.id, 'accept', 'admin', { capacity: 'administrator' })
-    expect(again.statusCode).toBe(409)
-    const second = await decide(high.id, 'accept', 'approver')
-    expect(second.statusCode, second.body).toBe(200)
-    expect(second.json<Decided>()).toMatchObject({
+    const accepted = await decide(high.id, 'accept', 'admin')
+    expect(accepted.statusCode, accepted.body).toBe(200)
+    expect(accepted.json<Decided>()).toMatchObject({
       proposal: { state: 'accepted' },
       edition: { reason: 'proposal_accepted' },
     })
     expect(await delivered()).toContain(high.itemId)
-    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual([
-      'administrator',
-      'approver',
-    ])
+    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['administrator'])
   })
 
-  it('lets a high-risk recheck wait for its answer tests and the approver, then publishes it', async () => {
+  it('publishes an accept that waited for an approver before migration 0005 when its owner accepts again', async () => {
+    const high = await submitted({ title: 'Waited for the approver', riskLevel: 'high' })
+    // As a database before 0005 left it: the owner's accept given, the version still waiting.
+    await client.query(
+      `insert into decisions (proposal_id,item_version_id,area_id,decided_by,capacity,outcome,reason)
+       values ($1,$2,'finance',$3,'owner','accept','Reviewed')`,
+      [high.id, high.itemVersionId, people.owner],
+    )
+    expect(await delivered()).not.toContain(high.itemId)
+    // The owner's own earlier accept publishes now, with no second decision.
+    const again = await decide(high.id, 'accept')
+    expect(again.statusCode, again.body).toBe(200)
+    expect(again.json<Decided>()).toMatchObject({
+      proposal: { state: 'accepted' },
+      edition: { reason: 'proposal_accepted' },
+    })
+    expect(await delivered()).toContain(high.itemId)
+    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['owner'])
+  })
+
+  it('publishes a high-risk recheck at once, as at every risk', async () => {
     const high = await submitted({ title: 'High-risk note', riskLevel: 'high' })
-    await runAnswerTests()
-    expect((await decide(high.id, 'accept', 'approver')).statusCode).toBe(200)
     expect((await decide(high.id, 'accept')).statusCode).toBe(200)
     const item = high.itemId!
     await client.query("update definitions set change_mark='2' where ref='demo:orders'")
@@ -752,45 +740,11 @@ describe('review and release', () => {
         "insert into overlay_events(kind,scope,item_id,flag,reason) values('flag_on','item',$1,'needs_check','Definition changed')",
         [item],
       )
-      const before = await liveLabel()
-      const waiting = await call('POST', `/items/${item}/recheck`, 'owner', {
+      const rechecked = await call('POST', `/items/${item}/recheck`, 'owner', {
         reason: 'Still right',
       })
-      expect(waiting.statusCode, waiting.body).toBe(200)
-      const result = waiting.json<Decided>()
-      expect(result).toMatchObject({ edition: null, proposal: { state: 'submitted' } })
-      expect(await liveLabel()).toBe(before)
-      expect(await servedVersion(item)).toBe(1)
-      const screen = await review(result.proposal.id)
-      expect(screen.decisions).toEqual([])
-      expect(screen.gate!.levels.find((l) => l.level === 'answer_full')).toMatchObject({
-        outcome: 'not_run',
-      })
-      expect(
-        (await call('GET', '/review/queue', 'approver')).json<ReviewProposal[]>().map((q) => q.id),
-      ).toContain(result.proposal.id)
-      expect((await decide(result.proposal.id, 'accept')).statusCode).toBe(422)
-
-      await runAnswerTests()
-      const reassign = async (proposer: string) => {
-        await client.query('alter table item_versions disable trigger user')
-        await client.query(
-          'update item_versions set proposer_id=$2 where item_id=$1 and version_no=2',
-          [item, proposer],
-        )
-        await client.query('alter table item_versions enable trigger user')
-      }
-      await reassign(people.approver)
-      const sameProposer = await decide(result.proposal.id, 'accept', 'approver')
-      expect(sameProposer.statusCode, sameProposer.body).toBe(403)
-      await reassign(people.owner)
-      const approved = await decide(result.proposal.id, 'accept', 'approver')
-      expect(approved.statusCode, approved.body).toBe(200)
-      expect(approved.json<Decided>()).toMatchObject({ edition: null })
-      // The owner records their own recheck: the proposer rule does not apply to it (CON-211).
-      const accepted = await decide(result.proposal.id, 'accept')
-      expect(accepted.statusCode, accepted.body).toBe(200)
-      expect(accepted.json<Decided>()).toMatchObject({
+      expect(rechecked.statusCode, rechecked.body).toBe(200)
+      expect(rechecked.json<Decided>()).toMatchObject({
         proposal: { state: 'accepted' },
         edition: { reason: 'source_rechecked', live: true },
       })
@@ -1479,7 +1433,7 @@ describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
   const edit = (id: string, revision: number, change: object, who: Who = 'owner') =>
     call('POST', `/proposals/${id}/review-edits`, who, { revision, ...change })
 
-  it('raises a low-risk note to high: a new version, every check again, then the approver', async () => {
+  it('raises a low-risk note to high: a new version, the same checks again, then one accept', async () => {
     const p = await submitted({ title: 'Raised in review' })
     const before = await review(p.id)
     const response = await edit(p.id, before.proposal.revision, {
@@ -1513,7 +1467,8 @@ describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
 
     // The details of every level are typed in the contract.
     const level = (name: string) => screen.gate!.levels.find((l) => l.level === name)!
-    expect(screen.gate!.required).toHaveLength(5)
+    // A higher risk needs the same three levels (FR-513).
+    expect(screen.gate!.required).toEqual(['format', 'matching', 'delivery'])
     expect(level('format')).toMatchObject({ outcome: 'passed', details: { findings: [] } })
     expect(level('matching')).toMatchObject({
       outcome: 'passed',
@@ -1527,10 +1482,6 @@ describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
     expect(level('delivery')).toMatchObject({
       outcome: 'passed',
       details: { delivered: true, cut: false, replacedShown: [], status: 'matched' },
-    })
-    expect(level('answer_full')).toMatchObject({
-      outcome: 'not_run',
-      details: { run: expect.any(String) as unknown, runState: 'queued' },
     })
 
     const audit = await client.query<{ actor_id: string; details: object }>(
@@ -1551,19 +1502,15 @@ describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
     ])
     expect((await client.query('select * from audit_verify()')).rows).toEqual([])
 
-    await runAnswerTests()
+    // The owner's accept publishes the new version: no approver is next.
     const owner = await decide(p.id, 'accept')
     expect(owner.statusCode, owner.body).toBe(200)
-    expect(owner.json<Decided>()).toMatchObject({ edition: null })
-    expect(await delivered()).not.toContain(p.itemId)
-    const approver = await decide(p.id, 'accept', 'approver')
-    expect(approver.statusCode, approver.body).toBe(200)
-    expect(approver.json<Decided>().edition).toMatchObject({ live: true })
+    expect(owner.json<Decided>().edition).toMatchObject({ live: true })
     expect(await servedVersion(p.itemId!)).toBe(2)
     expect(await delivered()).toContain(p.itemId)
   })
 
-  it('cancels the answer tests of the version it replaces', async () => {
+  it('cancels the open answer tests of the version it replaces, and queues none (FR-513)', async () => {
     const p = await submitted({ title: 'High and edited', riskLevel: 'high' })
     const runs = async (version: string | null) =>
       (
@@ -1572,15 +1519,22 @@ describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
           [version],
         )
       ).rows.map((r) => r.state)
-    expect(await runs(p.itemVersionId)).toEqual(['queued'])
+    expect(await runs(p.itemVersionId)).toEqual([])
+    // A run of the version queued before migration 0005 is still cancelled by an edit.
+    await client.query(
+      `insert into eval_runs (kind,state,area_id,proposal_id,item_version_id,baseline_edition_seq,
+         tool_schema_digest,model_id,client_label,test_set_digest,tries,estimated_cost_micros)
+       values ('full','queued','finance',$1,$2,(select seq from live_edition),'digest','mock-model',
+         'eval','\\x00'::bytea,3,0)`,
+      [p.id, p.itemVersionId],
+    )
     const { proposal } = await review(p.id)
     const response = await edit(p.id, proposal.revision, { reviewDate: '2027-02-01' })
     expect(response.statusCode, response.body).toBe(200)
     const edited = response.json<Review>()
     expect(await runs(p.itemVersionId)).toEqual(['cancelled'])
-    expect(await runs(edited.proposal.itemVersionId)).toEqual(['queued'])
+    expect(await runs(edited.proposal.itemVersionId)).toEqual([])
     expect(edited.diff.find((d) => d.field === 'reviewDate')?.after).toBe('2027-02-01')
-    await runAnswerTests()
   })
 
   it('accepts an edited change against the live version it was written for', async () => {

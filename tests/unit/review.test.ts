@@ -86,15 +86,13 @@ function proposal(extra: Partial<ReviewProposal> = {}): ReviewProposal {
 const passed = (levels: Gate['required']): Gate['levels'] =>
   levels.map((level) => ({ level, outcome: 'passed', ranAt: null, details: {} }))
 
-function gate(extra: Partial<Gate> = {}, risk: 'normal' | 'high' = 'normal'): Gate {
-  const required: Gate['required'] =
-    risk === 'high'
-      ? ['format', 'matching', 'delivery', 'answer_impact', 'answer_full']
-      : ['format', 'matching', 'delivery', 'answer_impact']
+/** The gate of a version under review: levels 1 to 3 at every risk, and no approver (FR-513). */
+function gate(extra: Partial<Gate> = {}, _risk: 'normal' | 'high' = 'normal'): Gate {
+  const required: Gate['required'] = ['format', 'matching', 'delivery']
   return {
     required,
     levels: passed(required),
-    approvals: { owner: false, approver: risk === 'high' ? false : null },
+    approvals: { owner: false, approver: null },
     problem: 'no accept decision by an owner of the domain or an administrator',
     attached: [],
     ...extra,
@@ -351,16 +349,11 @@ describe('the blocked-reason resolver', () => {
 
   it('blocks Accept, never the other two, while a check has not passed', () => {
     const checks = gate()
-    checks.levels[3] = {
-      level: 'answer_impact',
-      outcome: 'not_run',
-      ranAt: null,
-      details: { runState: 'running' },
-    }
+    checks.levels[2] = { level: 'delivery', outcome: 'not_run', ranAt: null, details: {} }
     const bar = decisionBar(review({}, checks), as(jon, 'per_jon'))
     expect(bar.state).toBe('checks')
     expect(bar.outcomes.accept).toMatchObject({ allowed: false, title: "You can't accept yet" })
-    expect(bar.detail).toMatch(/still running/)
+    expect(bar.detail).toMatch(/hasn't run yet/)
     expect(canOpen(bar, 'reject')).toBe(true)
     expect(canOpen(bar, 'request_changes')).toBe(true)
   })
@@ -384,19 +377,17 @@ describe('the blocked-reason resolver', () => {
       as(ravi, 'per_ravi'),
     )
     expect(own.state).toBe('ready')
-    expect(own.detail).toBe(
-      'All required checks passed. High risk: the approver accepts after you. You can decide your own proposal.',
-    )
+    expect(own.detail).toBe('All required checks passed. You can decide your own proposal.')
     expect(canOpen(own, 'accept')).toBe(true)
   })
 
-  it('never lets an approver who is neither add the second accept to their own', () => {
+  it('never lets an approver who is neither decide, their own neither (FR-513)', () => {
     const bar = decisionBar(
       review({ proposerId: 'per_lars', riskLevel: 'high' }, gate({}, 'high')),
       as(lars, 'per_lars'),
     )
-    expect(bar.state).toBe('proposer')
-    expect(bar.outcomes.accept).toMatchObject({ allowed: false, label: 'Accept as approver' })
+    expect(bar.state).toBe('no_role')
+    expect(bar.outcomes.accept).toMatchObject({ allowed: false, label: 'Accept' })
   })
 
   it('lets an owner accept their own low-risk proposal', () => {
@@ -421,40 +412,19 @@ describe('the blocked-reason resolver', () => {
     expect(bar.detail).toBe('Ask Sofia to hand it over, or wait.')
   })
 
-  it('waits for the approver once the owner accepted a high-risk change', () => {
-    const accepted = gate({ approvals: { owner: true, approver: false } }, 'high')
-    const decisions: Review['decisions'] = [
-      {
-        id: 'd',
-        decidedBy: 'per_jon',
-        capacity: 'owner',
-        outcome: 'accept',
-        reason: 'Fine',
-        decidedAt: '2026-10-07T09:41:00.000Z',
-      },
-    ]
+  it("publishes a high-risk change on the owner's accept, with no approver next (FR-513)", () => {
     const bar = decisionBar(
-      review({ riskLevel: 'high', claimedBy: 'per_jon' }, accepted, decisions),
+      review({ riskLevel: 'high', claimedBy: 'per_jon' }, gate({}, 'high')),
       as(jon, 'per_jon'),
     )
-    expect(bar.state).toBe('approver_next')
-    expect(bar.heading).toBe('You accepted at 09:41. Waiting for the approver')
-    expect(bar.outcomes.accept).toMatchObject({ allowed: false, label: 'Accepted by you' })
-
-    const approver = decisionBar(
-      review({ riskLevel: 'high', claimedBy: 'per_jon' }, accepted, decisions),
-      as(lars, 'per_lars'),
-    )
-    expect(approver.state).toBe('approver')
-    expect(approver.detail).toMatch(/^Jon Abara accepted at 09:41\./)
-    expect(approver.outcomes).toMatchObject({
-      accept: { allowed: true, label: 'Accept as approver' },
-      request_changes: null,
-      reject: null,
-    })
+    expect(bar.state).toBe('ready')
+    expect(bar.detail).toBe('All required checks passed.')
+    expect(
+      decisionBar(review({ riskLevel: 'high' }, gate({}, 'high')), as(lars, 'per_lars')).state,
+    ).toBe('no_role')
   })
 
-  it('offers an approver nothing below high risk, and nobody without a role', () => {
+  it('offers an approver nothing, and nobody without a role', () => {
     expect(decisionBar(review(), as(lars, 'per_lars')).state).toBe('no_role')
     expect(decisionBar(review(), as(maria, 'per_maria')).state).toBe('no_role')
   })
@@ -570,11 +540,11 @@ describe('the owner edit', () => {
     expect(ownerFieldProblems({ ...current, reviewDate: null }, { ends: true })).toEqual({})
   })
 
-  it('says the checks run again, and what a raise to high risk needs', () => {
+  it('says the checks run again, and that a raise to high risk needs nothing more (FR-513)', () => {
     expect(ownerEditEffects(current, current, names)).toEqual([])
     const raised = ownerEditEffects(current, { ...current, riskLevel: 'high' }, names)
     expect(raised[0]).toMatch(/every check runs again/)
-    expect(raised[1]).toMatch(/high-risk approver/)
+    expect(raised[1]).toBe('It needs the same three checks and one yes, whatever its risk.')
     expect(
       ownerEditEffects(
         current,
@@ -700,7 +670,7 @@ describe('the review keys', () => {
 })
 
 describe('a bulk decision on the demo queue (FR-223)', () => {
-  it('leaves out a failed check, a step the approver must take and a claimed one, not his own', async () => {
+  it('leaves out a claimed one, not his own, and waits for no approver', async () => {
     const workflow = createMockWorkflow({
       today: FIXTURE_TODAY,
       areas,
@@ -722,29 +692,26 @@ describe('a bulk decision on the demo queue (FR-223)', () => {
       const entry = queue.find((row) => row.id === demoReviewIds[key])!
       return { id: entry.id, revision: entry.revision }
     }
-    // The queue shows the failed check at a glance.
-    expect(queue.find((row) => row.id === demoReviewIds.checks)?.checks?.failed.length).toBe(1)
+    // Sandbox has no test questions, and its change needs only levels 1 to 3, which passed.
+    expect(queue.find((row) => row.id === demoReviewIds.sandbox)?.checks?.failed).toEqual([])
     const plan = await api.planDecisions({
-      proposals: (['ready', 'checks', 'approverNext', 'proposer', 'claimed'] as const).map(target),
+      proposals: (['ready', 'sandbox', 'highRisk', 'proposer', 'claimed'] as const).map(target),
       outcome: 'accept',
     })
-    // The ready one is high risk: Jon's accept is the first, the approver's still to come. His own
-    // note he decides as its owner (FR-206).
+    // Three are high risk: one accept publishes each, as any other (FR-513). His own note he
+    // decides as its owner (FR-206).
     expect(plan.decided.map((entry) => [entry.id, entry.effect])).toEqual([
-      [demoReviewIds.ready, 'wait'],
+      [demoReviewIds.ready, 'publish'],
+      [demoReviewIds.sandbox, 'publish'],
+      [demoReviewIds.highRisk, 'publish'],
       [demoReviewIds.proposer, 'publish'],
     ])
     expect(Object.fromEntries(plan.skipped.map((entry) => [entry.id, entry.code]))).toEqual({
-      [demoReviewIds.checks]: 'checks_failed',
-      [demoReviewIds.approverNext]: 'not_waiting',
       [demoReviewIds.claimed]: 'claimed',
     })
-    expect(plan.skipped.find((entry) => entry.code === 'checks_failed')?.message).toMatch(
-      /^A check it needs failed: /,
-    )
-    // Rejecting is open to the failed one and the one waiting for the approver.
+    // Rejecting is open to the high-risk one.
     const reject = await api.planDecisions({
-      proposals: (['checks', 'approverNext'] as const).map(target),
+      proposals: (['highRisk', 'proposer'] as const).map(target),
       outcome: 'reject',
     })
     expect(reject.decided.map((entry) => entry.effect)).toEqual(['decide', 'decide'])
@@ -752,7 +719,7 @@ describe('a bulk decision on the demo queue (FR-223)', () => {
 })
 
 describe('the demo queue in the mock', () => {
-  it('holds a proposal in every state of Jon’s decision bar, with a readable answer run', async () => {
+  it('holds a proposal in every state of Jon’s decision bar, and no answer run', async () => {
     const workflow = createMockWorkflow({
       today: FIXTURE_TODAY,
       areas,
@@ -773,7 +740,7 @@ describe('the demo queue in the mock', () => {
     const queue = await api.listReviewQueue()
     expect(queue.map((row) => row.id)).toEqual(expect.arrayContaining(Object.values(demoReviewIds)))
     const states = await Promise.all(
-      (['ready', 'approverNext', 'claimed', 'proposer', 'checks', 'retire'] as const).map(
+      (['ready', 'highRisk', 'claimed', 'proposer', 'sandbox', 'retire'] as const).map(
         async (key) => {
           const data = (await api.getReview(demoReviewIds[key]))!
           return decisionBar(data, {
@@ -785,7 +752,7 @@ describe('the demo queue in the mock', () => {
         },
       ),
     )
-    expect(states).toEqual(['ready', 'approver_next', 'claimed', 'ready', 'checks', 'ready'])
+    expect(states).toEqual(['ready', 'ready', 'claimed', 'ready', 'ready', 'ready'])
 
     // Alex's resubmission reads as what changed since Jon asked (heed-ux B2).
     const resubmitted = (await api.getReview(demoReviewIds.resubmitted))!
@@ -797,16 +764,10 @@ describe('the demo queue in the mock', () => {
       'evidence',
     ])
 
+    // Every proposal gets levels 1 to 3, whatever its risk; no answer tests run on it (FR-513).
     const ready = (await api.getReview(demoReviewIds.ready))!
-    const full = ready.gate?.levels.find((level) => level.level === 'answer_full')
-    const runId = full?.level === 'answer_full' ? full.details.run : undefined
-    expect(runId).toEqual(expect.any(String))
-    const run = await api.getEvalRun(runId!)
-    expect(run?.run).toMatchObject({
-      state: 'finished',
-      kind: 'full',
-      questions: mockTestQuestions.length,
-    })
+    expect(ready.gate?.required).toEqual(['format', 'matching', 'delivery'])
+    expect(ready.gate?.approvals).toEqual({ owner: false, approver: null })
     expect((await api.listTestQuestions({ area: 'area_sales' })).length).toBe(
       mockTestQuestions.length,
     )

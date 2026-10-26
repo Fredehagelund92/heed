@@ -316,18 +316,16 @@ export function ReviewAttachedTests({ model, headingLevel = 2 }: Part & { headin
   // Only a change to an item is checked, so only it carries attached tests.
   if (!review.gate) return null
   return (
-    <AttachedTests
-      proposal={record}
-      results={review.gate.attached}
-      risk={record.riskLevel}
-      headingLevel={headingLevel}
-    />
+    <AttachedTests proposal={record} results={review.gate.attached} headingLevel={headingLevel} />
   )
 }
 
-/** The approvals still needed and the answer tests' change, under the checks. */
+/**
+ * Who accepted, under the checks, and the answer tests' change for a version whose run was made
+ * before Heed v1 (no answer test runs on a proposal now).
+ */
 export function ReviewApprovals({ model, headingLevel = 2 }: Part & { headingLevel?: 2 | 3 }) {
-  const { review, record } = model
+  const { review } = model
   if (!review.gate) return null
   return (
     <>
@@ -337,7 +335,6 @@ export function ReviewApprovals({ model, headingLevel = 2 }: Part & { headingLev
         reviewerId={model.reviewerId}
         viewerId={model.viewerId}
         nameOf={model.nameOf}
-        risk={record.riskLevel}
         headingLevel={headingLevel}
       />
       {review.gate.required.some((level) => level.startsWith('answer')) ? (

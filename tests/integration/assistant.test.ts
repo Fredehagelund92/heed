@@ -1418,7 +1418,7 @@ describe('drafting (FR-702, FR-707)', () => {
     })
   })
 
-  it('lists overlaps and previews the impact with the model-dependence label', async () => {
+  it('lists overlaps and previews what agents would get, with no answer tests', async () => {
     const p = (
       await call('POST', '/proposals', 'author', { draft: draft({ title: 'Overlapping' }) })
     ).json<ProposalRecord>()
@@ -1436,13 +1436,14 @@ describe('drafting (FR-702, FR-707)', () => {
     const [overlap, impact] = toolOutputs(chunks)
     expect(overlap).toMatchObject({ accepted: [{ id: closure, title: 'Norway closure' }] })
     expect(impact).toMatchObject({
-      label: 'Answer test results depend on the language model and can vary between runs.',
-      answerTests: { kind: 'impact', questions: 0, cost: '$0.00' },
+      preview: { items: expect.any(Array) as unknown },
+      summary: expect.stringMatching(/^An agent asking this would get /) as unknown,
     })
+    expect(impact).not.toHaveProperty('answerTests')
     expect(citations(chunks)).toEqual({ cited: [closure], removed: [], quoted: 0, earlier: 0 })
   })
 
-  it("reports a draft's attached tests in its checks and counts them in its answer tests (FR-524)", async () => {
+  it("reports a draft's attached tests in its checks, and runs no answer test (FR-524, FR-513)", async () => {
     // A question about another market, which the draft does not change.
     const id = 'assistant-attached-spain'
     const saved = await call('PUT', `/evals/questions/${id}`, 'owner', {
@@ -1484,7 +1485,7 @@ describe('drafting (FR-702, FR-707)', () => {
         await chat('author', [userMessage('Check my draft and its tests')]),
       ) as [
         { levels: { level: string; outcome: string; details: Record<string, unknown> }[] },
-        { answerTests: { questions: number } },
+        Record<string, unknown>,
       ]
       expect(checks.levels.map((l) => [l.level, l.outcome])).toEqual([
         ['format', 'passed'],
@@ -1494,8 +1495,8 @@ describe('drafting (FR-702, FR-707)', () => {
       expect(checks.levels[2]!.details).toMatchObject({
         testQuestions: { checked: 1, regressions: 0, attached: [{ id, result: 'still fails' }] },
       })
-      // The change delivers nothing new for Spain, yet the attached test is planned.
-      expect(impact.answerTests).toMatchObject({ questions: 1 })
+      // Level 3 reports the attached test; no answer test is planned for a draft any more.
+      expect(impact).not.toHaveProperty('answerTests')
     } finally {
       await client.query("update golden_questions set status='retired' where id=$1", [id])
     }

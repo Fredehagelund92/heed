@@ -599,11 +599,6 @@ function RowSide({
       return (
         <div className="flex flex-col gap-1">
           <RiskBadge level={risk} form="bare" />
-          {review && which === 'after' && risk === 'high' ? (
-            <span className="text-caption text-muted-foreground">
-              Needs the approver and the answer tests on the whole domain.
-            </span>
-          ) : null}
         </div>
       )
     }

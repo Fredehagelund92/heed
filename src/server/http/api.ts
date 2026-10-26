@@ -220,7 +220,7 @@ export function createRouter({
               people: createPeopleService(tx),
               vocabulary: createVocabularyService(tx),
               proposals,
-              review: createReviewService(tx, clock, models),
+              review: createReviewService(tx, clock),
               bin: createBinService(tx, clock, proposals),
               inbox: createInboxService(tx),
               activity: createActivityService(tx),

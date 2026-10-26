@@ -69,7 +69,12 @@ it('moves the switches, the policies, the limits and the request log to the six 
               ('system', 'tool.switched_off', 'tool', 'get_related', '{"reason": "Not yet"}')`,
     )
 
-    expect(await migrate(client)).toBe(1)
+    // Up to 0004 only: later migrations have their own tests.
+    await copyFile(
+      new URL('0004_agent_contract.sql', migrationDirectory),
+      join(before, '0004_agent_contract.sql'),
+    )
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(1)
 
     const tools = await client.query<{ tool: string; enabled: boolean }>(
       'select tool, enabled from tool_config order by tool',
@@ -110,7 +115,7 @@ it('moves the switches, the policies, the limits and the request log to the six 
       'report',
       'search_help',
     ])
-    expect(await migrate(client)).toBe(0)
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(0)
   } finally {
     await rm(before, { recursive: true })
   }
