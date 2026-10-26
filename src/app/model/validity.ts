@@ -3,8 +3,16 @@
 // the dates; the labels ("From 4 Aug 2026, still going on") are never typed by hand, so the port
 // to the real data is a change of source, not of every screen.
 
+import type { Validity as ServerValidity } from '@domain/item'
+
 /** When a context item applies: ISO dates, either open. `ongoing` says an open end is still going on. */
 export type Validity = { from?: string; until?: string; ongoing?: boolean }
+
+/** The same window in the server's words: `from` is its start and `until` its end; both stay open when absent. */
+export const toServerValidity = (v: Validity): Partial<ServerValidity> => ({
+  ...(v.from ? { start: v.from } : {}),
+  ...(v.until ? { end: v.until } : {}),
+})
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
