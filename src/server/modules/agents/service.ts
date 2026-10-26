@@ -11,7 +11,7 @@ import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { byteSize } from '../../mcp/service.ts'
 import { personOnly, toolNames } from '../../mcp/tools.ts'
-import { enabledTools, loadLiveBundle } from '../editions/index.ts'
+import { enabledTools, loadLiveBundle, type ServingBundle } from '../editions/index.ts'
 import { previewDelivery } from '../proposals/index.ts'
 
 /** The gateway's own size limit: no client is ever answered more (FR-408). */
@@ -52,7 +52,8 @@ export async function connectInfo(
  * code that serves agents, no model and nothing recorded: no delivery, no gap, no question
  * (FR-602, FR-603). The bundle is read in the person's transaction and resolved with no
  * audience groups, which is every person's audience while groups are parked, so the reply is
- * the caller's own and never another audience's.
+ * the caller's own and never another audience's. A caller may pass the bundle: the live edition
+ * it already read, or the live edition with a draft in it.
  */
 export async function tryIt(
   tx: Queryable,
@@ -60,8 +61,9 @@ export async function tryIt(
   input: TryItInput,
   /** The web app's address, so the items' pages are the ones an agent gets (FR-347). */
   web: string | null = null,
+  served?: ServingBundle,
 ): Promise<TryIt> {
-  const bundle = await loadLiveBundle(tx)
+  const bundle = served ?? (await loadLiveBundle(tx))
   if (!bundle)
     throw new ORPCError('PRECONDITION_FAILED', {
       message:

@@ -13,7 +13,7 @@ export {
   saveAgentDraft,
   type AgentDraftRequest,
 } from './agent-drafts.ts'
-export { candidateBundle, previewDelivery, previewProposal } from './preview.ts'
+export { candidateBundle, draftBundle, previewDelivery, previewProposal } from './preview.ts'
 export { checkDraft } from './checks.ts'
 export { insertVersion, readVersion, readVersions, type StoredVersion } from './versions.ts'
 export { proposalEvent, proposalEvents, type ProposalChange } from './events.ts'

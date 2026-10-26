@@ -15,13 +15,18 @@ import {
   type ServingItem,
 } from '../editions/index.ts'
 
-/** The request transaction authorizes the proposal before assembling this private bundle. */
-export async function previewProposal(
+type Head = { seq: string; label: string; overlay: string }
+
+/**
+ * The live edition with a draft in it: what agents would be served if the draft were accepted,
+ * and the draft's item. The request transaction authorizes the proposal before assembling this
+ * private bundle. `load` reads the live edition's bundle; a caller may pass a cached one.
+ */
+export async function draftBundle(
   tx: Queryable,
-  clock: Clock,
   p: ProposalRecord,
-  input: z.infer<typeof previewSchema>,
-) {
+  load: (head: Head) => Promise<ServingBundle> = (head) => loadServingBundle(tx, head),
+): Promise<{ bundle: ServingBundle; item: string }> {
   if (p.subject !== 'item' || !['create', 'change'].includes(p.action))
     throw new ORPCError('NOT_FOUND')
   const checked = previewVersion(p.draft, p.proposerId, p.channel)
@@ -30,14 +35,14 @@ export async function previewProposal(
       message: 'Complete the draft to see what agents will get.',
       data: { findings: checked.findings },
     })
-  const [head] = await tx.query<{ seq: string; label: string; overlay: string }>(
+  const [head] = await tx.query<Head>(
     `select e.seq::text,e.label,coalesce((select seq::text from serving_overlay),'0') as overlay from editions e join live_edition l on l.seq=e.seq`,
   )
   if (!head)
     throw new ORPCError('PRECONDITION_FAILED', {
       message: "Nothing is shared with agents yet, so there's nothing to compare it with.",
     })
-  const bundle = await loadServingBundle(tx, head)
+  const bundle = await load(head)
   const v = checked.version
   const id = previewItemId(p)
   const [submittedVersion] = p.itemVersionId
@@ -49,14 +54,21 @@ export async function previewProposal(
     submittedVersion && !['draft', 'changes_requested'].includes(p.state)
       ? submittedVersion.version_no
       : (submittedVersion?.version_no ?? bundle.items.find((i) => i.id === id)?.version ?? 0) + 1
-  const privateBundle = candidateBundle(bundle, {
-    id,
-    versionNo,
-    proposerId: p.proposerId,
-    version: v,
-  })
+  return {
+    bundle: candidateBundle(bundle, { id, versionNo, proposerId: p.proposerId, version: v }),
+    item: id,
+  }
+}
+
+export async function previewProposal(
+  tx: Queryable,
+  clock: Clock,
+  p: ProposalRecord,
+  input: z.infer<typeof previewSchema>,
+) {
+  const { bundle } = await draftBundle(tx, p)
   const { id: _id, ...scope } = input
-  const result = await previewDelivery(privateBundle, clock, scope)
+  const result = await previewDelivery(bundle, clock, scope)
   // get_facts's reply; the contract's output schema checks it before it leaves the service.
   const reply = result.structuredContent as PreviewReply
   return { proposalId: p.id, revision: p.revision, result: reply }

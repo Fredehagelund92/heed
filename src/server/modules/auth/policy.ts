@@ -162,6 +162,10 @@ export const policies = {
   'connect.get': 'read',
   'tryIt.run': 'read',
   'tryIt.read': 'read',
+  'ask.lookup': 'read',
+  'ask.asked': 'read',
+  'engine.reach': 'propose',
+  'obs.replay': 'maintain',
   'schema.item': 'public',
 } as const
 
