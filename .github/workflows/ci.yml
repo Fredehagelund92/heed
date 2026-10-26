@@ -1,20 +1,81 @@
 name: CI
 
+# Which jobs run depends on what changed (docs/development.md, "Validation tiers"): the scope job
+# decides, and every job reports. Pushes to main, the nightly run and the full-ci label run
+# everything. "CI gate" passes only when every job passed or was skipped on purpose, so it is the
+# one check a branch rule needs. No workflow-level path filters: a required check that never
+# reports blocks the merge.
 on:
   push:
     branches: [main]
   pull_request:
+    # labeled: adding the full-ci label runs everything again.
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+# A new push to a pull request cancels the run it replaces. Pushes to main and the nightly run each
+# get a group of their own, so every one of them finishes.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    name: What the change needs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
+      check: ${{ steps.scope.outputs.check }}
+      app: ${{ steps.scope.outputs.app }}
+      mockup: ${{ steps.scope.outputs.mockup }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            .github/scripts/
+            apps/mockup/package.json
+          sparse-checkout-cone-mode: false
+      - name: Sort the changed paths into tiers (.github/scripts/ci-scope.sh)
+        id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          FULL_CI_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'full-ci') }}
+          PR: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
+        run: |
+          export FULL=false MOCKUP_PRESENT=false
+          if [ -f apps/mockup/package.json ]; then MOCKUP_PRESENT=true; fi
+          paths="$RUNNER_TEMP/changed-paths.txt"
+          : > "$paths"
+          if [ "$EVENT" != pull_request ] || [ "$FULL_CI_LABEL" = true ]; then
+            FULL=true
+          else
+            # Both names of a renamed file. The list stops at 3,000 files: a longer change runs
+            # everything.
+            gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" \
+              --jq '.[] | .filename, (.previous_filename // empty)' > "$paths"
+            listed=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' | wc -l)
+            if [ "$listed" -lt "$CHANGED_FILES" ]; then FULL=true; fi
+          fi
+          echo "Changed paths:"
+          # Indented, so that no file name can read as a workflow command.
+          sed 's/^/  /' "$paths"
+          bash .github/scripts/ci-scope.sh < "$paths" | tee -a "$GITHUB_OUTPUT"
+
   check:
     name: Types, lint, unit tests, build
+    needs: scope
+    if: needs.scope.outputs.check == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -73,6 +134,8 @@ jobs:
 
   service:
     name: Service integration tests (PostgreSQL 18)
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -112,6 +175,8 @@ jobs:
 
   library-api:
     name: Library on the real API (PostgreSQL 18, Playwright)
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -159,6 +224,8 @@ jobs:
 
   storybook:
     name: Storybook build
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -171,16 +238,30 @@ jobs:
       - run: npm run build-storybook
 
   e2e:
-    # About 3,000 tests (every page at its widths and themes): one runner with two workers needs
-    # over an hour, so the run is split into shards that each take a part of the tests. The
-    # Storybook tests (about 50, each playing dozens of stories) fall in one shard: 40 minutes.
-    name: Playwright (layout, axe, screenshots when baselines exist) (shard ${{ matrix.shard }} of 8)
+    # About 3,000 tests (every page at its widths and themes), split into parts that each take a
+    # share. The Storybook tests are few but slow (each plays dozens of stories), and the
+    # screenshot tests are many but skipped until baselines exist, so each has its own parts:
+    # sharding everything together by count left one part at 35 minutes and two empty.
+    name: Playwright ${{ matrix.suite }} (part ${{ matrix.shard }} of ${{ matrix.of }})
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        include:
+          - { suite: pages, shard: 1, of: 7 }
+          - { suite: pages, shard: 2, of: 7 }
+          - { suite: pages, shard: 3, of: 7 }
+          - { suite: pages, shard: 4, of: 7 }
+          - { suite: pages, shard: 5, of: 7 }
+          - { suite: pages, shard: 6, of: 7 }
+          - { suite: pages, shard: 7, of: 7 }
+          - { suite: stories, shard: 1, of: 3 }
+          - { suite: stories, shard: 2, of: 3 }
+          - { suite: stories, shard: 3, of: 3 }
+          - { suite: screenshots, shard: 1, of: 1 }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -188,13 +269,116 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --shard=${{ matrix.shard }}/8
+      - name: Playwright's browser, cached by the lockfile
+        id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Every spec except the Storybook and screenshot tests
+        if: matrix.suite == 'pages'
+        run: |
+          printf '%s\n' stories.spec.ts screenshots.spec.ts > "$RUNNER_TEMP/elsewhere.txt"
+          npx playwright test --test-list-invert "$RUNNER_TEMP/elsewhere.txt" --shard=${{ matrix.shard }}/${{ matrix.of }}
+      - name: The Storybook tests
+        if: matrix.suite == 'stories'
+        run: npx playwright test tests/e2e/stories.spec.ts --shard=${{ matrix.shard }}/${{ matrix.of }}
+      - name: The screenshot tests (skipped until baselines exist)
+        if: matrix.suite == 'screenshots'
+        run: npx playwright test tests/e2e/screenshots.spec.ts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-${{ matrix.shard }}
+          name: playwright-report-${{ matrix.suite }}-${{ matrix.shard }}
           path: |
             playwright-report
             test-results
           retention-days: 7
+
+  mockup:
+    # The clickable mockup in apps/mockup, its own npm package with its own lockfile. It runs when
+    # the mockup changes and in every full run, once apps/mockup exists.
+    name: 'Mockup: typecheck, lint, tests, build, e2e'
+    needs: scope
+    if: needs.scope.outputs.mockup == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/mockup
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: apps/mockup/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      # The journeys run on the installed Chrome, which the runner image already has: --force
+      # installs the current stable over it, with its system dependencies.
+      - run: npx playwright install --with-deps --force chrome
+      - name: Journeys on the production build
+        run: npm run e2e
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-mockup
+          path: apps/mockup/test-results
+          retention-days: 7
+
+  security:
+    # Dependencies and secrets (.github/workflows/security.yml): every pull request, every push to
+    # main and every night, whatever changed.
+    name: Security
+    uses: ./.github/workflows/security.yml
+
+  gate:
+    # The one required check. Passes when every job passed or was skipped on purpose (the scope
+    # job said it was not needed); fails on a failure, a cancel, or a job that should have run and
+    # did not.
+    name: CI gate
+    if: always()
+    needs: [scope, check, seal, service, library-api, storybook, e2e, mockup, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed or was skipped on purpose
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+          CHECK: ${{ needs.scope.outputs.check }}
+          APP: ${{ needs.scope.outputs.app }}
+          MOCKUP: ${{ needs.scope.outputs.mockup }}
+        run: |
+          expect() { # job, whether it should have run
+            result=$(jq -r --arg job "$1" '.[$job].result' <<< "$RESULTS")
+            if [ "$2" = true ]; then want=success; else want=skipped; fi
+            echo "$1: $result (expected $want)"
+            if [ "$result" != "$want" ]; then failed=true; fi
+          }
+          failed=false
+          expect scope true
+          expect security true
+          expect seal "$IS_PR"
+          expect check "$CHECK"
+          expect service "$APP"
+          expect library-api "$APP"
+          expect storybook "$APP"
+          expect e2e "$APP"
+          expect mockup "$MOCKUP"
+          if [ "$failed" = true ]; then
+            echo "::error::A job failed, was cancelled, or did not run when it should have."
+            exit 1
+          fi

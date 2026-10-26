@@ -201,4 +201,6 @@ it.
 - Small, focused commits. The pull request description lists what changed, which shared
   components you reused, and any token you added.
 - CI runs type check, lint, unit tests, the service tests against PostgreSQL 18, the Storybook
-  build, and Playwright with axe and screenshots. All must pass.
+  build, Playwright with axe and screenshots, and the security scan. Which of them a pull request
+  needs depends on what it changes ([Validation tiers](docs/development.md#validation-tiers)), and
+  the **CI gate** check must pass.

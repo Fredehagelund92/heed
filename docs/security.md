@@ -4,8 +4,9 @@ How dependencies and commits are scanned, and how a backup is proved restorable.
 
 ## Security, scanning and the restore drill
 
-**Scanning.** `.github/workflows/security.yml` runs on every pull request, on `main` and daily,
-because a new advisory can fail an unchanged lockfile. It checks the registry signature of every
+**Scanning.** `.github/workflows/security.yml` runs from the CI workflow on every pull request,
+on `main` and every night, whatever changed, because a new advisory can fail an unchanged
+lockfile. The CI gate needs it. It checks the registry signature of every
 installed package (`npm audit signatures`), every locked dependency against the OSV database
 (OSV-Scanner, with the reviewed exceptions in `osv-scanner.toml`), and every commit for secrets
 (gitleaks, with `.gitleaks.toml`: the default rules, plus one made-up key the content checks must
