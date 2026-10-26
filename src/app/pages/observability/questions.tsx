@@ -1,4 +1,7 @@
 import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { observabilityPageQuery, useSavedViews, useWrite } from '@/api/queries'
+import { useObservability } from '@/lib/obs'
 import {
   ArrowUpDownIcon,
   BookmarkIcon,
@@ -35,28 +38,20 @@ import { barButton, SearchField } from '@/components/heed/list'
 import { Legend, Swatch } from '@/components/obs/charts'
 import { RangeSwitch } from '@/components/obs/controls'
 import {
-  AGENTS,
-  couldNotRead,
   GROUPINGS,
   monthName,
   monthShort,
-  numbersOf,
   RANGES,
-  rollUp,
   SHOWN,
   shownCount,
   STATE_WORDS,
-  topicMonths,
-  topicName,
-  topicsOf,
   total,
-  rowOrder,
   type Grouping,
   type Shown,
   type Sort,
-} from '@/data/observability'
+} from '@/model/observability'
 import { TopicTable } from '@/components/obs/topic-table'
-import { domainIds, domains, type DomainId } from '@/data/world'
+import type { DomainId } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
 import { matches, usePublishOrder, useRowKeys } from '@/lib/list'
 import { useObsView } from '@/lib/obs'
@@ -67,15 +62,12 @@ import {
   filtersTo,
   gapOf,
   passes,
-  removeView,
-  saveView,
   sentence,
-  useSavedViews,
   type Filters,
   type Gap,
 } from '@/lib/obs-views'
 import { setQuery, useRoute } from '@/lib/router'
-import { useMe } from '@/lib/store'
+import { useDomainList, useDomains } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
 // Questions: what agents asked about, grouped by the same thing (a metric, a market, dates), never
@@ -93,9 +85,14 @@ const toggle = <T,>(list: T[] | undefined, v: T) => {
 }
 
 export function QuestionsPage() {
+  const load = useQuery(observabilityPageQuery('questions'))
   return (
     <ObsPage section="questions">
-      <Loadable what="the questions" skeleton={<ObsSkeleton section="questions" body="table" />}>
+      <Loadable
+        query={load}
+        what="the questions"
+        skeleton={<ObsSkeleton section="questions" body="table" />}
+      >
         <Questions />
       </Loadable>
     </ObsPage>
@@ -103,9 +100,11 @@ export function QuestionsPage() {
 }
 
 function Questions() {
+  const domains = useDomains()
+  const write = useWrite()
+  const obs = useObservability()
   const view = useObsView()
   const { query } = useRoute()
-  const me = useMe()
   const dock = useDock()
   const saved = useSavedViews()
   const [text, setText] = React.useState('')
@@ -122,29 +121,31 @@ function Questions() {
   const builtIn = BUILT_IN.find((v) => v.id === viewId) ?? (custom ? undefined : BUILT_IN[0])
   const set = (f: Filters) => setQuery(filtersTo(f))
 
-  const all = view.state === 'empty' ? [] : topicsOf({ ...view, domain: undefined })
+  const all = view.state === 'empty' ? [] : obs.topicsOf({ ...view, domain: undefined })
   const inView = all.filter(
     (t) =>
       (builtIn ? builtIn.has(t) : true) &&
       passes(t, custom ? { ...custom.filters, ...filters } : filters) &&
-      matches(text, topicName(t)),
+      matches(text, obs.topicName(t)),
   )
   const rows = inView
   usePublishOrder(
     'obs-topics',
-    rowOrder(rows, group, sort).map((t) => t.id),
+    obs.rowOrder(rows, group, sort).map((t) => t.id),
   )
   const peeked = dock?.kind === 'topic' ? dock.id : undefined
   const onKeyDown = useRowKeys({
     onMove: (id) => peeked && openDock('topic', id),
     onEscape: () => !!peeked,
   })
-  const said = sentence(filters)
+  const said = sentence(filters, domains)
   const asked = rows.reduce((n, t) => n + total(t.counts), 0)
-  const topics = group === 'none' ? rows.length : rollUp(rows).length
+  const topics = group === 'none' ? rows.length : obs.rollUp(rows).length
   // Calls that could not be read have no topic, so they show only when nothing narrows the list.
   const unread =
-    !said.length && !text && (builtIn?.id ?? 'all') === 'all' && !custom ? couldNotRead(view) : 0
+    !said.length && !text && (builtIn?.id ?? 'all') === 'all' && !custom
+      ? obs.couldNotRead(view)
+      : 0
   const viewCount = (has: (t: (typeof all)[number]) => boolean) =>
     all.filter((t) => has(t) && passes(t, { domain: filters.domain })).length
 
@@ -199,7 +200,7 @@ function Questions() {
             aria-label={`Remove the view ${custom.name}`}
             className="text-muted-foreground"
             onClick={() => {
-              removeView(custom.id)
+              void write('removeView', { id: custom.id })
               setQuery({ view: undefined })
               toast(`Removed the view ${custom.name}`)
             }}
@@ -208,7 +209,7 @@ function Questions() {
           </Button>
         )}
         <span className="ml-auto">
-          <SaveView filters={filters} disabled={!said.length} by={me.name} />
+          <SaveView filters={filters} disabled={!said.length} />
         </span>
       </div>
       {/* The bar: Filter, Sort, Group, search. */}
@@ -292,7 +293,7 @@ function Questions() {
                 }
               >
                 <DropdownMenuRadioItem value="all">All months</DropdownMenuRadioItem>
-                {topicMonths().map((m) => (
+                {obs.topicMonths().map((m) => (
                   <DropdownMenuRadioItem key={m} value={m}>
                     {monthName(m)}
                   </DropdownMenuRadioItem>
@@ -389,15 +390,18 @@ function FilterMenu({
   set: (f: Filters) => void
   owned: DomainId[] | null
 }) {
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const obs = useObservability()
   const view = useObsView()
-  const all = topicsOf({ ...view, domain: undefined })
+  const all = obs.topicsOf({ ...view, domain: undefined })
   const n = (f: Filters) => all.filter((t) => passes(t, f)).length
   const on =
     (filters.answer?.length ?? 0) +
     (filters.gap?.length ?? 0) +
     (filters.domain && !owned ? 1 : 0) +
     (filters.agent ? 1 : 0)
-  const sum = numbersOf(view).counts
+  const sum = obs.numbersOf(view).counts
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -435,7 +439,7 @@ function FilterMenu({
                     .map((d) => (
                       <DropdownMenuRadioItem key={d} value={d}>
                         <span className="flex w-full items-center justify-between gap-2">
-                          {domains[d].name}
+                          {domains[d]?.name}
                           <span className="text-xs text-muted-foreground tabular-nums">
                             {n({ ...filters, domain: d })}
                           </span>
@@ -484,7 +488,7 @@ function FilterMenu({
                   }
                 >
                   <DropdownMenuRadioItem value="all">All agents</DropdownMenuRadioItem>
-                  {AGENTS.map((a) => (
+                  {obs.data.agents.map((a) => (
                     <DropdownMenuRadioItem key={a.name} value={a.name}>
                       {a.name}
                     </DropdownMenuRadioItem>
@@ -546,10 +550,12 @@ function FilterMenu({
 }
 
 /** Save this view: a name, and everyone in the workspace has it as a tab. */
-function SaveView({ filters, disabled, by }: { filters: Filters; disabled: boolean; by: string }) {
+function SaveView({ filters, disabled }: { filters: Filters; disabled: boolean }) {
+  const domains = useDomains()
+  const write = useWrite()
   const [open, setOpen] = React.useState(false)
   const [name, setName] = React.useState('')
-  const suggested = sentence(filters).join(', ')
+  const suggested = sentence(filters, domains).join(', ')
   return (
     <Popover
       open={open}
@@ -581,11 +587,12 @@ function SaveView({ filters, disabled, by }: { filters: Filters; disabled: boole
           onSubmit={(e) => {
             e.preventDefault()
             if (!name.trim()) return
-            const id = saveView(name.trim(), filters, by)
-            setOpen(false)
-            setQuery({ view: id })
-            toast(`Saved the view ${name.trim()}`, {
-              description: 'Everyone in the workspace has it as a tab.',
+            void write('saveView', { name: name.trim(), filters }).then(({ id }) => {
+              setOpen(false)
+              setQuery({ view: id })
+              toast(`Saved the view ${name.trim()}`, {
+                description: 'Everyone in the workspace has it as a tab.',
+              })
             })
           }}
         >

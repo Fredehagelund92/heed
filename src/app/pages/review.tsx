@@ -4,11 +4,11 @@ import { DockFrame, DockMissing } from '@/components/dock'
 import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/data/integrations'
+import { connectorById } from '@/model/integrations'
 import { Button } from '@/components/ui/button'
-import { careLine, reviewFor, type Review } from '@/data/review'
+import { careLine, type Review } from '@/model/review'
 import { navigate } from '@/lib/router'
-import { useStore } from '@/lib/store'
+import { useInbox, useReviews } from '@/api/queries'
 
 // Reviewing a suggestion, in two places. The quick view (in the Inbox pane and the dock) says what
 // changes and opens the review; it never publishes. The full-screen review is where you work: the
@@ -121,7 +121,7 @@ export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
         <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">Formatting only. The words are the same.</span>{' '}
           <span className="text-muted-foreground">
-            {r.counts[0].n} formatting changes, no words or links changed.
+            {r.counts[0]!.n} formatting changes, no words or links changed.
           </span>
         </p>
       )}
@@ -187,8 +187,8 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
 
 /** The review in the dock: the quick view, and Review to open the full screen. No publishing here. */
 export function ReviewSheet({ cardId }: { cardId: string }) {
-  const r = reviewFor(cardId)
-  const { state } = useStore()
+  const r = useReviews().find((x) => x.id === cardId)
+  const state = useInbox()
   if (!r)
     return (
       <DockFrame title="Review">

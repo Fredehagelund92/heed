@@ -28,24 +28,16 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { domainIds, domains, people, type DomainId, type Person } from '@/data/world'
+import type { DomainId } from '@/model/items'
+import { emailOf, soleOwnerOf, type Person } from '@/model/people'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { domainHue } from '@/lib/tones'
-import { useDomains } from '@/lib/domains'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
-import {
-  activityOf,
-  emailOf,
-  invite,
-  lastActiveOf,
-  removePerson,
-  restorePerson,
-  setAdmin,
-  setOwner,
-  soleOwnerOf,
-} from '@/lib/people'
 import { href } from '@/lib/router'
-import { useMe, useStore } from '@/lib/store'
+import { useQuery } from '@tanstack/react-query'
+import { activityQuery, useSession, useWrite } from '@/api/queries'
+import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
+import { useMe } from '@/lib/workspace'
 
 // Settings > People: everyone in the workspace, as v1 has them. Two roles (admin, member); owning a
 // domain is not a role but a domain chip, and it lives on the domain, so the People page and a
@@ -59,6 +51,7 @@ function RoleChip({ admin }: { admin: boolean }) {
 
 /** The domains someone owns, as domain chips. */
 function OwnedChips({ p }: { p: Person }) {
+  const domains = useDomains()
   const owned = p.owns.filter((d) => domains[d])
   if (!owned.length) return <span className="text-sm text-muted-foreground">No domain</span>
   return (
@@ -70,7 +63,7 @@ function OwnedChips({ p }: { p: Person }) {
           hue={domainHue[d] ?? null}
           icon={<DomainDot id={d} className="size-2" />}
         >
-          {domains[d].name}
+          {domains[d]?.name}
         </TagChip>
       ))}
     </span>
@@ -110,6 +103,9 @@ export function InviteDialog({
   preset?: DomainId
 }) {
   const me = useMe()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const write = useWrite()
   const [text, setText] = React.useState('')
   const [admin, setAdminRole] = React.useState(false)
   const [owns, setOwns] = React.useState<DomainId[]>(preset ? [preset] : [])
@@ -134,7 +130,7 @@ export function InviteDialog({
           onSubmit={(e) => {
             e.preventDefault()
             if (!emails.length || bad.length) return
-            invite(emails, admin, owns)
+            void write('invite', { emails, admin, owns })
             toast(emails.length === 1 ? 'Invited' : `Invited ${emails.length} people`, {
               description: 'They get an email with a link to sign in.',
             })
@@ -198,7 +194,7 @@ export function InviteDialog({
                     className="inline-flex h-8 items-center gap-1.5 rounded-sm border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
                   >
                     <DomainDot id={d} />
-                    {domains[d].name}
+                    {domains[d]?.name}
                   </button>
                 )
               })}
@@ -225,11 +221,14 @@ function PersonSheet({
   onOpenChange: (o: boolean) => void
 }) {
   const me = useMe()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const write = useWrite()
   const mobile = useIsMobile()
   const [removing, setRemoving] = React.useState(false)
+  const recent = useQuery({ ...activityQuery(p?.name ?? ''), enabled: !!p }).data ?? []
   if (!p) return null
-  const alone = soleOwnerOf(p.name)
-  const recent = activityOf(p.name)
+  const alone = soleOwnerOf(p.name, domains)
   return (
     <Sheet open={!!p} onOpenChange={onOpenChange}>
       <SheetContent
@@ -285,10 +284,11 @@ function PersonSheet({
                       role="radio"
                       aria-checked={on}
                       disabled={!me.admin || p.name === me.name}
-                      onClick={() => {
-                        setAdmin(p.name, r === 'Admin')
-                        toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`)
-                      }}
+                      onClick={() =>
+                        void write('setAdmin', { name: p.name, admin: r === 'Admin' }).then(() =>
+                          toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`),
+                        )
+                      }
                       className="h-7 rounded-tile px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
                     >
                       {r}
@@ -305,14 +305,14 @@ function PersonSheet({
             </p>
             <ul className="flex flex-col">
               {domainIds.map((d) => {
-                const owns = domains[d].owners.includes(p.name)
+                const owns = !!domains[d]?.owners.includes(p.name)
                 const allowed = me.admin || me.owns.includes(d)
                 const id = `own-${d}`
                 return (
                   <li key={d} className="flex min-h-10 items-center gap-2">
                     <DomainDot id={d} />
                     <label htmlFor={id} className="flex-1 text-sm">
-                      {domains[d].name}
+                      {domains[d]?.name}
                     </label>
                     <Locked reason={allowed ? undefined : 'Only its owners and admins add owners'}>
                       <Switch
@@ -320,10 +320,14 @@ function PersonSheet({
                         checked={owns}
                         disabled={!allowed}
                         onCheckedChange={(v) => {
-                          if (setOwner(p.name, d, v) === 'last')
-                            toast(`${domains[d].name} needs an owner`, {
-                              description: 'Add another owner first, then take this one off.',
-                            })
+                          void write('setOwner', { name: p.name, domain: d, own: v }).then(
+                            (result) => {
+                              if (!result.done)
+                                toast(`${domains[d]?.name} needs an owner`, {
+                                  description: 'Add another owner first, then take this one off.',
+                                })
+                            },
+                          )
                         }}
                       />
                     </Locked>
@@ -345,7 +349,9 @@ function PersonSheet({
               </ul>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground">
-                {p.invited ? 'Nothing yet.' : `Last active ${lastActiveOf(p).toLowerCase()}.`}
+                {p.invited
+                  ? 'Nothing yet.'
+                  : `Last active ${(p.lastActive ?? 'a while ago').toLowerCase()}.`}
               </p>
             )}
           </section>
@@ -378,8 +384,8 @@ function PersonSheet({
                 <DialogHeader>
                   <DialogTitle>Hand over first</DialogTitle>
                   <DialogDescription>
-                    {p.name} is the only owner of {alone.map((d) => domains[d].name).join(' and ')}.
-                    Add another owner there, then remove them.
+                    {p.name} is the only owner of {alone.map((d) => domains[d]?.name).join(' and ')}
+                    . Add another owner there, then remove them.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -388,7 +394,7 @@ function PersonSheet({
                     nativeButton={false}
                     render={<a href={href(`/settings/domains/${alone[0]}`)} />}
                   >
-                    Open {domains[alone[0]].name}
+                    Open {domains[alone[0]!]?.name}
                   </Button>
                 </DialogFooter>
               </>
@@ -401,7 +407,7 @@ function PersonSheet({
                   <DialogDescription>
                     {p.invited
                       ? 'The link in their email stops working.'
-                      : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d].name).join(' and ')} carry on` : ''}.`}
+                      : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d]?.name).join(' and ')} carry on` : ''}.`}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -409,15 +415,27 @@ function PersonSheet({
                   <Button
                     variant="destructive"
                     onClick={() => {
-                      const at = people.indexOf(p)
-                      const owned = [...p.owns]
                       setRemoving(false)
                       onOpenChange(false)
                       // The row goes as it leaves the list; Undo brings it back in.
-                      leaveThen(p.name, () => removePerson(p.name))
+                      const removed = new Promise<{ undo?: string }>((resolve) =>
+                        leaveThen(
+                          p.name,
+                          () =>
+                            void write('removePerson', { name: p.name }).then((r) =>
+                              resolve(r.removed ? { undo: r.undo } : {}),
+                            ),
+                        ),
+                      )
                       toast(p.invited ? 'Invite revoked' : 'Removed', {
                         description: p.name,
-                        action: { label: 'Undo', onClick: () => restorePerson(p, owned, at) },
+                        action: {
+                          label: 'Undo',
+                          onClick: () =>
+                            void removed.then(({ undo }) => {
+                              if (undo) void write('undo', { token: undo })
+                            }),
+                        },
                       })
                     }}
                   >
@@ -434,14 +452,14 @@ function PersonSheet({
 }
 
 export function People() {
-  useDomains()
   const me = useMe()
-  const { state } = useStore()
+  const people = usePeople()
+  const { fresh } = useSession()
   const [q, setQ] = React.useState('')
   const [inviting, setInviting] = React.useState(false)
   const [open, setOpen] = React.useState<string | null>(null)
   // A new install has only the person who set it up.
-  const everyone = state.fresh ? people.filter((p) => p.name === me.name) : people
+  const everyone = fresh ? people.filter((p) => p.name === me.name) : people
   const shown = everyone.filter((p) =>
     `${p.name} ${emailOf(p)}`.toLowerCase().includes(q.trim().toLowerCase()),
   )
@@ -475,7 +493,7 @@ export function People() {
           <OwnedChips p={p} />
         </span>
         <span className="col-span-3 col-start-2 text-xs text-muted-foreground @3xl/main:col-span-1 @3xl/main:col-start-auto @3xl/main:text-right">
-          {p.invited ? <TagChip tone="warn">Invited</TagChip> : lastActiveOf(p)}
+          {p.invited ? <TagChip tone="warn">Invited</TagChip> : p.lastActive}
         </span>
       </button>
     </li>
@@ -539,7 +557,7 @@ export function People() {
             Nobody matches “{q.trim()}”.
           </p>
         )}
-        {state.fresh && (
+        {fresh && (
           <p className="border-t p-4 text-sm text-muted-foreground md:px-5">
             Just you so far. Invite the people who own a part of the business, so they can publish
             its context.

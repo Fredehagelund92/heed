@@ -10,10 +10,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { savedCounts, useSavedQuestions } from '@/data/saved-questions'
+import { savedCounts } from '@/model/saved-questions'
+import { useSavedQuestions } from '@/api/queries'
 import { BACK_TO_APP } from '@/lib/brand'
 import { OBS_SECTIONS } from '@/lib/obs'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 
 // Inside Observability the app sidebar gives way to its own menu, as it does in Settings: the way
 // back to the app on top, then six pages in three small groups. Usage is for admins.

@@ -4,12 +4,12 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
-import { CHECKS, GUIDES, liveCopy, PROMPT, WAIT_HINT, type Via } from '@/data/agents'
+import { CHECKS, GUIDES, liveCopy, PROMPT, WAIT_HINT, type Via } from '@/lib/agents'
 import { BACK_TO_APP, MCP_URL as ADDRESS, PRODUCT, SLUG } from '@/lib/brand'
-import { kindHint, kindLabel } from '@/data/world'
+import { kindHint, kindLabel } from '@/model/items'
 import { LIVE_PHASES } from '@/lib/connect'
 import { ANSWER_LINES } from '@/lib/help-content'
-import { cardTypeLabel } from '@/data/inbox'
+import { cardTypeLabel } from '@/model/inbox'
 
 // The rules for the words people read, as checks rather than conventions (the real app has them as
 // lint rules: eslint.product-name.js and eslint.plain-words.js). Only text a person reads is
@@ -81,7 +81,12 @@ describe('the words people read', () => {
   it('name the definitions connector only through its integration', () => {
     // "Cube" is the connected tool today, not a word of the product: generic copy takes the name
     // from the integration (connectorById), so a different connector is one change.
-    const own = ['data/integrations.ts', 'pages/integrations.tsx', 'data/world.ts']
+    const own = [
+      'model/integrations.ts',
+      'api/mock/data/integrations.ts',
+      'pages/integrations.tsx',
+      'api/mock/data/world.ts',
+    ]
     expect(where(prose.filter((t) => /\bCube\b/.test(t.text) && !own.includes(t.file)))).toEqual([])
   })
 

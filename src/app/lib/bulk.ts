@@ -1,5 +1,6 @@
-import { domains, kindLabel, ownersOf, type DomainId, type Fact, type Kind } from '@/data/world'
 import type { Definition } from '@/lib/definitions'
+import { kindLabel, type DomainId, type Fact, type Kind } from '@/model/items'
+import { ownersOf, type Domains } from '@/model/people'
 
 // What a change to many rows does, row by row, before anything happens: which rows it acts on, and
 // which it leaves alone and why ("2 skipped: owned by Marketing"). Owners of an item's domain and
@@ -16,24 +17,23 @@ export type FactAction =
   'archive' | 'delete' | 'domain' | 'kind' | 'owner-add' | 'owner-set' | 'check'
 
 /** Owners of the item's domain and admins change an item. */
-export const canChange = (f: Pick<Fact, 'domain'>, me: Me) =>
-  me.admin || domains[f.domain].owners.includes(me.name)
+export const canChange = (f: Pick<Fact, 'domain'>, me: Me, domains: Domains) =>
+  me.admin || !!domains[f.domain]?.owners.includes(me.name)
 
 /** The domains someone can move items into: their own, or every one for an admin. */
-export const movableTo = (me: Me) =>
-  (Object.keys(domains) as DomainId[]).filter(
-    (d) => me.admin || domains[d].owners.includes(me.name),
-  )
+export const movableTo = (me: Me, domains: Domains) =>
+  Object.keys(domains).filter((d) => me.admin || domains[d]?.owners.includes(me.name))
 
-const owned = (d: DomainId) => ({
-  why: `owned by ${domains[d].name}`,
-  reason: `Only owners of ${domains[d].name} and admins can change it.`,
+const owned = (d: DomainId, domains: Domains) => ({
+  why: `owned by ${domains[d]?.name}`,
+  reason: `Only owners of ${domains[d]?.name} and admins can change it.`,
 })
 
 export function planFacts(
   action: FactAction,
   facts: Fact[],
   me: Me,
+  domains: Domains,
   opts: { viewed?: Record<string, boolean>; domain?: DomainId; kind?: Kind; person?: Me } = {},
 ): Plan<Fact> {
   const act: Fact[] = []
@@ -41,11 +41,11 @@ export function planFacts(
   const skip = (f: Fact, s: { why: string; reason: string }) =>
     skipped.push({ id: f.id, title: f.title, ...s })
   for (const f of facts) {
-    if (!canChange(f, me)) {
-      skip(f, owned(f.domain))
+    if (!canChange(f, me, domains)) {
+      skip(f, owned(f.domain, domains))
       continue
     }
-    const why = whyNot(action, f, opts)
+    const why = whyNot(action, f, domains, opts)
     if (why) skip(f, why)
     else act.push(f)
   }
@@ -55,6 +55,7 @@ export function planFacts(
 function whyNot(
   action: FactAction,
   f: Fact,
+  domains: Domains,
   opts: { viewed?: Record<string, boolean>; domain?: DomainId; kind?: Kind; person?: Me },
 ) {
   switch (action) {
@@ -74,8 +75,8 @@ function whyNot(
     case 'domain':
       if (opts.domain && f.domain === opts.domain)
         return {
-          why: `already in ${domains[opts.domain].name}`,
-          reason: `It is in ${domains[opts.domain].name} already.`,
+          why: `already in ${domains[opts.domain]?.name}`,
+          reason: `It is in ${domains[opts.domain]?.name} already.`,
         }
       return
     case 'kind':
@@ -90,14 +91,14 @@ function whyNot(
       const p = opts.person
       if (!p) return
       // An owner answers for an item, so they must be able to change it.
-      if (!canChange(f, p))
+      if (!canChange(f, p, domains))
         return {
-          why: `${p.name} doesn't own ${domains[f.domain].name}`,
-          reason: `Only owners of ${domains[f.domain].name} and admins can own its items.`,
+          why: `${p.name} doesn't own ${domains[f.domain]?.name}`,
+          reason: `Only owners of ${domains[f.domain]?.name} and admins can own its items.`,
         }
-      if (action === 'owner-add' && ownersOf(f).includes(p.name))
+      if (action === 'owner-add' && ownersOf(f, domains).includes(p.name))
         return { why: 'already an owner', reason: `${p.name} owns it already.` }
-      if (action === 'owner-set' && ownersOf(f).join() === p.name)
+      if (action === 'owner-set' && ownersOf(f, domains).join() === p.name)
         return { why: 'already the owner', reason: `${p.name} is its only owner already.` }
       return
     }
@@ -116,14 +117,15 @@ function whyNot(
 /* ---------- terms ---------- */
 
 /** A term is changed by an admin, an owner of its domain, or the person who wrote it. */
-export const canChangeTerm = (d: Pick<Definition, 'domain' | 'by'>, me: Me) =>
-  me.admin || (!!d.domain && domains[d.domain].owners.includes(me.name)) || d.by === me.name
+export const canChangeTerm = (d: Pick<Definition, 'domain' | 'by'>, me: Me, domains: Domains) =>
+  me.admin || (!!d.domain && !!domains[d.domain]?.owners.includes(me.name)) || d.by === me.name
 
 /** Only terms change here: a synced metric or dimension is left alone, with the tool that owns it. */
 export function planTerms(
   action: 'delete' | 'domain',
   defs: Definition[],
   me: Me,
+  domains: Domains,
   opts: { tool: string; domain?: DomainId },
 ): Plan<Definition> {
   const act: Definition[] = []
@@ -136,17 +138,17 @@ export function planTerms(
         `synced from ${opts.tool}`,
         `Metrics and dimensions are read-only here: change them in ${opts.tool}.`,
       )
-    else if (!canChangeTerm(d, me))
+    else if (!canChangeTerm(d, me, domains))
       skip(
-        d.domain ? `owned by ${domains[d.domain].name}` : 'written by someone else',
+        d.domain ? `owned by ${domains[d.domain]?.name}` : 'written by someone else',
         d.domain
-          ? `Only owners of ${domains[d.domain].name} and admins can change it.`
+          ? `Only owners of ${domains[d.domain]?.name} and admins can change it.`
           : `Only ${d.by} and admins can change it.`,
       )
     else if (action === 'domain' && opts.domain && d.domain === opts.domain)
       skip(
-        `already in ${domains[opts.domain].name}`,
-        `It is in ${domains[opts.domain].name} already.`,
+        `already in ${domains[opts.domain]?.name}`,
+        `It is in ${domains[opts.domain]?.name} already.`,
       )
     else act.push(d)
   }
@@ -160,7 +162,7 @@ export function skippedLine(skipped: Skip[]) {
   if (!skipped.length) return ''
   const groups = new Map<string, number>()
   for (const s of skipped) groups.set(s.why, (groups.get(s.why) ?? 0) + 1)
-  if (groups.size === 1) return `${skipped.length} skipped: ${skipped[0].why}`
+  if (groups.size === 1) return `${skipped.length} skipped: ${skipped[0]!.why}`
   return `${skipped.length} skipped: ${[...groups].map(([why, n]) => `${n} ${why}`).join(', ')}`
 }
 
@@ -176,33 +178,24 @@ export const count = (n: number, one: string, many = `${one}s`) => `${n} ${n ===
 export const TYPE_ABOVE = 10
 export const needsTyping = (n: number) => n > TYPE_ABOVE
 
-/**
- * One try at a change to many rows. With ?bulk=fail the first try fails on its last row, so a
- * partial failure can be reviewed; a retry of what failed goes through.
- */
-export function attempt<T>(rows: T[], failFirst: boolean): { ok: T[]; failed: T[] } {
-  if (!failFirst || rows.length < 2) return { ok: rows, failed: [] }
-  return { ok: rows.slice(0, -1), failed: rows.slice(-1) }
-}
-
 /* ---------- export ---------- */
 
 const line = (label: string, value: string) => (value ? `- ${label}: ${value}\n` : '')
 
 /** The items as Markdown, one section each, the way a person or an agent reads them. */
-export function toMarkdown(facts: Fact[]) {
+export function toMarkdown(facts: Fact[], domains: Domains) {
   return (
     `# Context\n\n` +
     facts
       .map(
         (f) =>
           `## ${f.title}\n\n${f.summary}\n\n` +
-          line('Domain', domains[f.domain].name) +
+          line('Domain', domains[f.domain]?.name ?? '') +
           line('Kind', kindLabel[f.kind]) +
           line('Status', f.status) +
           line('Applies to', f.where.join(', ')) +
           line('When', f.when) +
-          line('Owners', ownersOf(f).join(', ')) +
+          line('Owners', ownersOf(f, domains).join(', ')) +
           line('Checked', f.checkedBy && `${f.checkedBy}, ${f.checkedOn}`) +
           line('Source', f.source) +
           line("Don't conclude", f.dontConclude),
@@ -214,7 +207,7 @@ export function toMarkdown(facts: Fact[]) {
 const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
 
 /** The items as a spreadsheet: one row each. */
-export function toCsv(facts: Fact[]) {
+export function toCsv(facts: Fact[], domains: Domains) {
   const head = [
     'Title',
     'Domain',
@@ -230,12 +223,12 @@ export function toCsv(facts: Fact[]) {
   ]
   const rows = facts.map((f) => [
     f.title,
-    domains[f.domain].name,
+    domains[f.domain]?.name ?? '',
     kindLabel[f.kind],
     f.status,
     f.where.join(', '),
     f.when,
-    ownersOf(f).join(', '),
+    ownersOf(f, domains).join(', '),
     f.checkedBy,
     f.checkedOn,
     f.source,

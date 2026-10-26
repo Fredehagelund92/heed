@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
@@ -21,6 +21,7 @@ export default defineConfig({
           name: 'app',
           environment: 'node',
           include: ['tests/app/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'tests/app/integration/**'],
         },
       },
       {
@@ -49,7 +50,7 @@ export default defineConfig({
           hookTimeout: 30_000,
           testTimeout: 30_000,
           environment: 'node',
-          include: ['tests/integration/**/*.test.ts'],
+          include: ['tests/integration/**/*.test.ts', 'tests/app/integration/**/*.test.ts'],
           env: {
             TEST_DATABASE_URL:
               process.env.TEST_DATABASE_URL ?? 'postgres://localhost:5432/postgres',

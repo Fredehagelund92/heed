@@ -23,27 +23,15 @@ import {
   PeekTitle,
 } from '@/components/heed/peek'
 import { Button } from '@/components/ui/button'
-import { domains } from '@/data/world'
-import {
-  conflictOf,
-  contextAbout,
-  cubeRef,
-  findDefinition,
-  kindName,
-  meaningOf,
-  sourceUrl,
-  SYNCED_AT,
-  synonymsOf,
-  useDefinitions,
-} from '@/lib/definitions'
+import { cubeRef, kindName, sourceUrl, SYNCED_AT, useGlossary } from '@/lib/definitions'
 import { openDock } from '@/lib/dock'
 import { href, navigate } from '@/lib/router'
-import { useFacts, useMe } from '@/lib/store'
+import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
 import { mentionId } from '@/lib/mentions'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 
 // The definition quick view: the note and one closed Details, as the context one. Title once (with
 // its type as the tile), the meaning, its domain and where it comes from in one quiet line (a
@@ -51,10 +39,11 @@ import { DEFINITIONS_TOOL } from '@/data/integrations'
 // row, and the one action. A word that means two things is the one attention line.
 
 export function DefinitionPeek({ name }: { name: string }) {
-  useDefinitions()
+  const glossary = useGlossary()
+  const domains = useDomains()
   const facts = useFacts()
   const me = useMe()
-  const d = findDefinition(name)
+  const d = glossary.find(name)
   const related = useRelated(d ? mentionId(d.type, d.name) : '')
   if (!d)
     return (
@@ -64,12 +53,12 @@ export function DefinitionPeek({ name }: { name: string }) {
         </DockMissing>
       </DockFrame>
     )
-  const subject = meaningOf(d)
-  const target = d.sameAs ? findDefinition(d.sameAs) : undefined
+  const subject = glossary.meaningOf(d)
+  const target = d.sameAs ? glossary.find(d.sameAs) : undefined
   // A conflict on this word, or on one of the words that mean it: one short line, settled on the page.
-  const own = conflictOf(d)
-  const word = own ? d : synonymsOf(d.name).find((s) => conflictOf(s))
-  const theirs = word && !own ? conflictOf(word) : undefined
+  const own = glossary.conflictOf(d)
+  const word = own ? d : glossary.synonymsOf(d.name).find((s) => glossary.conflictOf(s))
+  const theirs = word && !own ? glossary.conflictOf(word) : undefined
   const conflictLine = own
     ? own.short
     : theirs?.kind === 'two-things'
@@ -77,9 +66,9 @@ export function DefinitionPeek({ name }: { name: string }) {
       : theirs?.kind === 'chain'
         ? `“${word!.name}” points here; point it at ${subject.name} instead.`
         : theirs?.short
-  const about = subject.type === 'dimension' ? undefined : contextAbout(subject, facts)
+  const about = subject.type === 'dimension' ? undefined : glossary.contextAbout(subject, facts)
   const page = `/definitions/${encodeURIComponent(d.name)}`
-  const domain = d.domain ? domains[d.domain].name : 'All domains'
+  const domain = d.domain ? (domains[d.domain]?.name ?? 'All domains') : 'All domains'
   const values = d.values?.split(', ')
   // Other names are added by an admin or an owner of the definition's domain.
   const canEdit = me.admin || (!!d.domain && me.owns.includes(d.domain))

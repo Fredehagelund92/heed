@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react'
-import { domains, markets, metrics, dimensions, type DomainId } from '@/data/world'
+import type { Vocabulary } from '@/api'
+import type { DomainId } from '@/model/items'
+import type { Domains } from '@/model/people'
 
 // One hue per kind of thing a chip names, and one per domain, so a tag reads at a glance in every
 // place it appears (the editor, Details, the list, a mention, a filter). Colour is never the only
@@ -24,16 +26,20 @@ export const domainHue: Record<DomainId, number | null> = {
 }
 
 /** What a plain "applies to" word is: a metric, a market, a domain, or a word of the author's own. */
-export function kindOfWhere(w: string): 'metric' | 'dimension' | 'market' | 'domain' | 'term' {
-  if (metrics.some((m) => m.name === w)) return 'metric'
-  if (markets.includes(w)) return 'market'
-  if (dimensions.some((d) => d.name === w)) return 'dimension'
+export function kindOfWhere(
+  w: string,
+  vocabulary: Vocabulary,
+  domains: Domains,
+): 'metric' | 'dimension' | 'market' | 'domain' | 'term' {
+  if (vocabulary.metrics.some((m) => m.name === w)) return 'metric'
+  if (vocabulary.markets.includes(w)) return 'market'
+  if (vocabulary.dimensions.some((d) => d.name === w)) return 'dimension'
   if (Object.values(domains).some((d) => d.name === w)) return 'domain'
   return 'term'
 }
 
-export const domainIdByName = (name: string) =>
-  (Object.keys(domains) as DomainId[]).find((d) => domains[d].name === name)
+export const domainIdByName = (name: string, domains: Domains) =>
+  Object.values(domains).find((d) => d.name === name)?.id
 
 const tinted = 'bg-chip text-chip-foreground'
 

@@ -22,8 +22,8 @@ import { SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/
 import { DOCS_HOME, SUPPORT_EMAIL } from '@/lib/help-content'
 import { open } from '@/lib/events'
 import { navigate, useRoute } from '@/lib/router'
-import { setupSteps } from '@/data/inbox'
-import { useStore } from '@/lib/store'
+import { useSession, useWorkspace } from '@/api/queries'
+import { setupSteps } from '@/lib/setup'
 
 const note = 'ml-auto text-xs text-muted-foreground'
 
@@ -33,10 +33,11 @@ const note = 'ml-auto text-xs text-muted-foreground'
  */
 export function HelpMenu({ place }: { place: string }) {
   const { isMobile, setOpenMobile } = useSidebar()
-  const { state } = useStore()
+  const { install } = useSession()
+  const { setup } = useWorkspace()
   const { query } = useRoute()
-  const done = Number(query.get('done') ?? setupSteps.filter((s) => state.setup[s.id]).length)
-  const start = state.install === 'new' && done < setupSteps.length
+  const done = Number(query.get('done') ?? setupSteps.filter((s) => setup.done[s.id]).length)
+  const start = install === 'new' && done < setupSteps.length
   const close = () => setOpenMobile(false)
   return (
     <SidebarMenuItem>

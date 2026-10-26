@@ -1,4 +1,4 @@
-import type { Fact } from '@/data/world'
+import type { Fact } from '@/model/items'
 
 // When a context item holds and how fresh its check is, in the fixed vocabulary of the
 // list columns' design B: five time frames (Always, Ongoing, Since X, Until X, X to Y),
@@ -19,7 +19,8 @@ export type TimeFrame = {
 function day(s: string, year?: number): number | undefined {
   const m = s.trim().match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\s*(\d{4})?$/)
   if (!m) return undefined
-  const mon = MON.indexOf(m[2][0].toUpperCase() + m[2].slice(1, 3).toLowerCase())
+  const name = m[2]!
+  const mon = MON.indexOf(name[0]!.toUpperCase() + name.slice(1, 3).toLowerCase())
   const y = m[3] ? Number(m[3]) : year
   return mon < 0 || !y ? undefined : Date.UTC(y, mon, Number(m[1]))
 }
@@ -30,18 +31,19 @@ export function parseWhen(when: string): TimeFrame {
   if (/^always$/i.test(w)) return { t: 'always' }
   if (/^still going on$/i.test(w)) return { t: 'ongoing' }
   let m = w.match(/^from (.+?)(, still going on)?$/i)
-  if (m) return { t: 'since', from: day(m[1]) }
+  if (m) return { t: 'since', from: day(m[1]!) }
   m = w.match(/^until (.+)$/i)
-  if (m) return { t: 'until', to: day(m[1]) }
+  if (m) return { t: 'until', to: day(m[1]!) }
   m = w.match(/^(.+?) to (.+)$/)
   if (m) {
-    const to = day(m[2])
+    const [, start = '', end = ''] = m
+    const to = day(end)
     const year = to ? new Date(to).getUTCFullYear() : undefined
     // "12 to 19 May 2026": the start borrows the end's month and year.
     const from =
-      day(m[1], year) ??
-      (to && /^\d{1,2}$/.test(m[1].trim())
-        ? Date.UTC(year!, new Date(to).getUTCMonth(), Number(m[1]))
+      day(start, year) ??
+      (to && /^\d{1,2}$/.test(start.trim())
+        ? Date.UTC(year!, new Date(to).getUTCMonth(), Number(start))
         : undefined)
     return { t: 'range', from, to }
   }

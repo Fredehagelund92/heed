@@ -2,8 +2,8 @@ import * as React from 'react'
 import { MessageSquarePlusIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { commentActions, useComments, useSubjectReactions } from '@/lib/comments'
-import type { Subject } from '@/data/comments'
+import { useCommentActions, useComments, useSubjectReactions } from '@/lib/comments'
+import type { Subject } from '@/model/comments'
 import { Composer } from './composer'
 import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from './thread'
 import { countComments } from './utils'
@@ -35,6 +35,7 @@ export function CommentBox({
 }) {
   const comments = useComments(subject)
   const reactions = useSubjectReactions(subject)
+  const commentActions = useCommentActions()
   const [adding, setAdding] = React.useState(false)
   const total = countComments(comments)
   // A long discussion shows its newest five threads; earlier ones on request, above them.
@@ -46,10 +47,10 @@ export function CommentBox({
   const actions: ThreadActions = {
     me,
     owners,
-    post: (content, parentId) => commentActions.post(subject, me, content, { parentId }),
-    react: (id, emoji) => commentActions.react(subject, id, emoji, me),
-    edit: (id, content) => commentActions.edit(subject, id, content),
-    remove: (id) => commentActions.remove(subject, id),
+    post: (content, parentId) => void commentActions.post(subject, content, { parentId }),
+    react: (id, emoji) => void commentActions.react(subject, id, emoji),
+    edit: (id, content) => void commentActions.edit(subject, id, content),
+    remove: (id) => void commentActions.remove(subject, id),
   }
 
   return (
@@ -75,9 +76,9 @@ export function CommentBox({
             <ReactionChips
               reactions={reactions}
               me={me}
-              onReact={(e) => commentActions.reactToSubject(subject, e, me)}
+              onReact={(e) => void commentActions.reactToSubject(subject, e)}
             />
-            <ReactionPicker onPick={(e) => commentActions.reactToSubject(subject, e, me)} />
+            <ReactionPicker onPick={(e) => void commentActions.reactToSubject(subject, e)} />
             {!open && (
               <Button variant="outline" size="sm" className="ml-1" onClick={() => setAdding(true)}>
                 <MessageSquarePlusIcon data-icon="inline-start" />

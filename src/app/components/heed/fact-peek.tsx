@@ -16,7 +16,6 @@ import {
 import { toast } from 'sonner'
 import { DockFrame, DockMissing, PeekBar } from '@/components/dock'
 import { DockStepper } from '@/components/heed/list'
-import { historyOf } from '@/data/history'
 import {
   PeekAttention,
   PeekBand,
@@ -29,15 +28,17 @@ import {
   PeekTitle,
 } from '@/components/heed/peek'
 import { Button } from '@/components/ui/button'
-import { cards } from '@/data/inbox'
-import { domains, factById, kindLabel, ownersOf } from '@/data/world'
+import { kindLabel } from '@/model/items'
+import { ownersOf } from '@/model/people'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
 import { countComments } from '@/components/templates/comment-box/utils'
 import { closeDock, openDock } from '@/lib/dock'
 import { useComments } from '@/lib/comments'
 import { href, navigate, useRoute } from '@/lib/router'
-import { useFact, useMe, useStore } from '@/lib/store'
+import { useQuery } from '@tanstack/react-query'
+import { itemHistoryQuery, useInbox, useWrite } from '@/api/queries'
+import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
 import { WhereChip } from '@/components/heed/tag-chip'
 
@@ -48,8 +49,12 @@ import { WhereChip } from '@/components/heed/tag-chip'
 
 export function FactPeek({ id }: { id: string }) {
   const fact = useFact(id)
+  const facts = useFacts()
   const me = useMe()
-  const { state, dispatch } = useStore()
+  const domains = useDomains()
+  const { cards, done } = useInbox()
+  const history = useQuery(itemHistoryQuery(id)).data ?? []
+  const write = useWrite()
   const { query } = useRoute()
   const comments = useComments(`context:${id}`)
   const related = useRelated(`context:${id}`)
@@ -57,8 +62,10 @@ export function FactPeek({ id }: { id: string }) {
   // Opened here counts as read: only items someone opened can be marked checked together.
   const found = !!fact
   React.useEffect(() => {
-    if (found) dispatch({ type: 'viewedFact', id })
-  }, [found, id, dispatch])
+    if (found) void write('markViewed', { id })
+    // Once per item opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [found, id])
   if (!fact)
     return (
       <DockFrame title="Context">
@@ -68,10 +75,10 @@ export function FactPeek({ id }: { id: string }) {
       </DockFrame>
     )
   const owner = me.owns.includes(fact.domain) || me.admin
-  const owners = ownersOf(fact)
+  const owners = ownersOf(fact, domains)
   const page = `/context/${fact.id}`
-  const overlap = fact.disagreesWith ? factById(fact.disagreesWith) : undefined
-  const flag = flagCard?.flag && !state.done[flagCard.id] ? flagCard : undefined
+  const overlap = fact.disagreesWith ? facts.find((f) => f.id === fact.disagreesWith) : undefined
+  const flag = flagCard?.flag && !done[flagCard.id] ? flagCard : undefined
   const stale = fact.status === 'Needs checking' || !!fact.outOfDate
   const question = `What should I know about ${fact.where[0]?.toLowerCase() ?? 'this'}${fact.where[1] ? ` in ${fact.where[1]}` : ''}?`
   const nComments = countComments(comments)
@@ -86,7 +93,7 @@ export function FactPeek({ id }: { id: string }) {
             variant="outline"
             size="sm"
             onClick={() => {
-              dispatch({ type: 'complete', card: flag.id, outcome: 'Not a problem' })
+              void write('completeCard', { card: flag.id, outcome: 'Not a problem' })
               toast('Report closed', { description: 'The context item stays as it is.' })
               closeDock()
             }}
@@ -117,9 +124,8 @@ export function FactPeek({ id }: { id: string }) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              dispatch({
-                type: 'editFact',
+            onClick={() =>
+              void write('editItem', {
                 id: fact.id,
                 patch: {
                   status: 'Live',
@@ -127,11 +133,12 @@ export function FactPeek({ id }: { id: string }) {
                   checkedOn: '23 Oct 2026',
                   checkedBy: me.name,
                 },
-              })
-              toast('Checked: still true', {
-                description: 'Checked today. The next check is due in 90 days.',
-              })
-            }}
+              }).then(() =>
+                toast('Checked: still true', {
+                  description: 'Checked today. The next check is due in 90 days.',
+                }),
+              )
+            }
           >
             Still true
           </Button>
@@ -179,11 +186,11 @@ export function FactPeek({ id }: { id: string }) {
           <PeekFacts>
             {fact.status === 'Archived' ? (
               <PeekFact icon={ArchiveIcon}>
-                <b>{domains[fact.domain].name}</b> - archived, agents don't get it
+                <b>{domains[fact.domain]?.name}</b> - archived, agents don't get it
               </PeekFact>
             ) : fact.status === 'Draft' ? (
               <PeekFact icon={CircleDashedIcon}>
-                <b>{domains[fact.domain].name}</b> - a draft
+                <b>{domains[fact.domain]?.name}</b> - a draft
                 {fact.by && (
                   <>
                     {' '}
@@ -194,7 +201,7 @@ export function FactPeek({ id }: { id: string }) {
               </PeekFact>
             ) : (
               <PeekFact icon={CircleCheckIcon}>
-                <b>{domains[fact.domain].name}</b> - owned by <b>{and(owners)}</b> - checked{' '}
+                <b>{domains[fact.domain]?.name}</b> - owned by <b>{and(owners)}</b> - checked{' '}
                 {fact.checkedOn}
               </PeekFact>
             )}
@@ -261,7 +268,7 @@ export function FactPeek({ id }: { id: string }) {
             ]}
             links={[
               <PeekLink key="history" icon={ClockIcon} href={href(page)}>
-                History: {historyOf(fact, state.log).length} versions
+                History: {history.length} versions
               </PeekLink>,
               <PeekLink key="comments" icon={MessageSquareIcon} href={href(page)}>
                 {nComments ? `Comments: ${nComments}` : 'Comments'}

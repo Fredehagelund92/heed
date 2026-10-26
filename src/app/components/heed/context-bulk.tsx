@@ -25,21 +25,13 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/data/history'
+import { TODAY } from '@/model/history'
 import { leaveAllThen } from '@/lib/presence'
 import { APP_URL } from '@/lib/brand'
-import {
-  domains,
-  kindLabel,
-  ownersOf,
-  people,
-  type DomainId,
-  type Fact,
-  type Kind,
-} from '@/data/world'
+import { kindLabel, type DomainId, type Fact, type Kind } from '@/model/items'
+import { ownersOf } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
 import {
-  attempt,
   canChange,
   count,
   doneLine,
@@ -52,9 +44,11 @@ import {
   type FactAction,
   type Me,
 } from '@/lib/bulk'
-import { useRoute } from '@/lib/router'
-import { useOnline } from '@/lib/scenario'
-import { useMe, useStore, type LogEntry } from '@/lib/store'
+import { api } from '@/api'
+import { useLibrary, useRefreshAfter, useWrite } from '@/api/queries'
+import { useOnline } from '@/lib/send'
+import { useDomains, useMe, usePeople } from '@/lib/workspace'
+import type { LogEntry } from '@/model/items'
 
 // What a person can do to many context items at once, from the bar: Archive (the safe default, with
 // Undo), Delete (drafts only, after a confirmation, with Undo for a short while), and under More:
@@ -82,12 +76,13 @@ export function ContextBulk({
   deleting: boolean
   setDeleting: (open: boolean) => void
 }) {
-  const { state, dispatch } = useStore()
+  const { viewed } = useLibrary()
   const me = useMe()
+  const domains = useDomains()
+  const people = usePeople()
   const online = useOnline()
-  const { query } = useRoute()
-  // ?bulk=fail: the first change made here fails on its last row, so a partial failure can be seen.
-  const failOnce = React.useRef(query.get('bulk') === 'fail')
+  const write = useWrite()
+  const refreshAfter = useRefreshAfter()
   const [note, setNote] = React.useState<BulkNote>()
   const picked = facts.filter((f) => sel.isSelected(f.id))
   const who: Me = { name: me.name, admin: me.admin }
@@ -100,46 +95,45 @@ export function ContextBulk({
   }, [key])
 
   /** One change to the picked rows: it acts on what it may, keeps the rest ticked, and can be undone. */
-  function change(
+  const change = (...args: Parameters<typeof applyChange>) => void applyChange(...args)
+  async function applyChange(
     action: FactAction,
     verb: string,
     what: LogEntry['what'],
     summary: string,
     patch: (f: Fact) => Partial<Fact>,
-    opts: Parameters<typeof planFacts>[3] = {},
+    opts: Parameters<typeof planFacts>[4] = {},
     rows: Fact[] = picked,
   ) {
-    const plan = planFacts(action, rows, who, { ...opts, viewed: state.viewed })
+    const plan = planFacts(action, rows, who, domains, { ...opts, viewed })
     if (!plan.act.length) {
       setNote({ text: skippedLine(plan.skipped), skipped: plan.skipped })
       return
     }
-    const { ok, failed } = attempt(plan.act, failOnce.current)
-    failOnce.current = false
-    const before = state
-    const entry: LogEntry = {
-      id: `log-${++entries}`,
-      on: TODAY,
-      who: me.name,
-      what,
-      summary,
-      items: ok.map((f) => ({ id: f.id, title: f.title, domain: f.domain })),
+    const input = {
+      patches: action === 'delete' ? {} : Object.fromEntries(plan.act.map((f) => [f.id, patch(f)])),
+      remove: action === 'delete' ? plan.act.map((f) => f.id) : [],
+      entry: {
+        id: `log-${++entries}`,
+        on: TODAY,
+        who: me.name,
+        what,
+        summary,
+        items: plan.act.map((f) => ({ id: f.id, title: f.title, domain: f.domain })),
+      },
     }
-    const remove = action === 'delete' ? ok.map((f) => f.id) : []
-    const commit = () =>
-      dispatch({
-        type: 'bulk',
-        patches: action === 'delete' ? {} : Object.fromEntries(ok.map((f) => [f.id, patch(f)])),
-        remove,
-        entry,
-      })
-    // What leaves the list (archived or deleted) goes as rows leaving; other changes are made at once.
+    // The change is made at once; the list shows it once the rows that leave it (archived or
+    // deleted) have gone.
+    const result = await api.applyBulk(input)
+    const ok = plan.act.filter((f) => result.done.includes(f.id))
+    const failed = plan.act.filter((f) => result.failed.includes(f.id))
+    const refresh = () => void refreshAfter('applyBulk', input, result)
     if (action === 'delete' || action === 'archive')
       leaveAllThen(
         ok.map((f) => f.id),
-        commit,
+        refresh,
       )
-    else commit()
+    else refresh()
     // What is done leaves the selection; what failed or was left alone stays, with its line.
     const stay = [...failed.map((f) => f.id), ...plan.skipped.map((s) => s.id)]
     if (stay.length) sel.select(stay)
@@ -171,16 +165,10 @@ export function ContextBulk({
       duration: action === 'delete' ? UNDO_DELETE_MS : undefined,
       action: {
         label: 'Undo',
-        onClick: () => {
-          dispatch({
-            type: 'revert',
-            before,
-            cards: [],
-            facts: ok.map((f) => f.id),
-            entry: entry.id,
-          })
-          toast(`Undone: ${count(ok.length, 'item')} as before`)
-        },
+        onClick: () =>
+          void write('undo', { token: result.undo }).then(() =>
+            toast(`Undone: ${count(ok.length, 'item')} as before`),
+          ),
       },
     })
   }
@@ -199,15 +187,16 @@ export function ContextBulk({
     change('delete', 'deleted', 'deleted', 'Deleted: a draft nobody published.', () => ({}))
 
   // What each button would do now, so one that can't act says why before it is pressed.
-  const archivePlan = planFacts('archive', picked, who)
-  const deletePlan = planFacts('delete', picked, who)
+  const archivePlan = planFacts('archive', picked, who, domains)
+  const deletePlan = planFacts('delete', picked, who, domains)
   const publishedPlan = planFacts(
     'archive',
     picked.filter((f) => f.status !== 'Draft'),
     who,
+    domains,
   )
-  const cannot = picked.length > 0 && picked.every((f) => !canChange(f, who))
-  const ownedBy = [...new Set(picked.map((f) => domains[f.domain].name))].join(' and ')
+  const cannot = picked.length > 0 && picked.every((f) => !canChange(f, who, domains))
+  const ownedBy = [...new Set(picked.map((f) => domains[f.domain]?.name))].join(' and ')
   const noRights = cannot ? `Only owners of ${ownedBy} and admins can change these.` : undefined
   const off = online ? noRights : OFFLINE
   const archiveReason = off ?? (archivePlan.act.length ? undefined : archivePlan.skipped[0]?.reason)
@@ -217,7 +206,7 @@ export function ContextBulk({
     (deletePlan.act.length || publishedPlan.act.length ? undefined : deletePlan.skipped[0]?.reason)
 
   const owners = people.filter((p) => !p.invited && (p.admin || p.owns.length))
-  const domainChoices = movableTo(who)
+  const domainChoices = movableTo(who, domains)
 
   return (
     <>
@@ -266,13 +255,13 @@ export function ContextBulk({
                           'domain',
                           'moved',
                           'moved',
-                          `Moved to ${domains[d].name}.`,
+                          `Moved to ${domains[d]?.name}.`,
                           () => ({ domain: d }),
                           { domain: d },
                         )
                       }
                     >
-                      {domains[d].name}
+                      {domains[d]?.name}
                     </DropdownMenuItem>
                   ))}
                   {!who.admin && (
@@ -322,7 +311,7 @@ export function ContextBulk({
                           'changed',
                           'owners',
                           `${p.name} added as an owner.`,
-                          (f) => ({ owners: [...ownersOf(f), p.name] }),
+                          (f) => ({ owners: [...ownersOf(f, domains), p.name] }),
                           { person: p },
                         )
                       }
@@ -402,7 +391,7 @@ export function ContextBulk({
               <DropdownMenuSubContent className="w-52">
                 <DropdownMenuItem
                   onClick={() => {
-                    download('context.md', toMarkdown(picked), 'text/markdown')
+                    download('context.md', toMarkdown(picked, domains), 'text/markdown')
                     toast(`Exported ${count(picked.length, 'item')} as Markdown`)
                   }}
                 >
@@ -410,7 +399,7 @@ export function ContextBulk({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    download('context.csv', toCsv(picked), 'text/csv')
+                    download('context.csv', toCsv(picked, domains), 'text/csv')
                     toast(`Exported ${count(picked.length, 'item')} as a spreadsheet`)
                   }}
                 >

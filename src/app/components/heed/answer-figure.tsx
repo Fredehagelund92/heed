@@ -7,9 +7,9 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { connectorById } from '@/data/integrations'
-import type { Figure, FigureView } from '@/data/figures'
-import { domains, factById } from '@/data/world'
+import { connectorById } from '@/model/integrations'
+import type { Figure, FigureView } from '@/model/figures'
+import { useDomains, useFacts } from '@/lib/workspace'
 import { openDock } from '@/lib/dock'
 import { plainText } from '@/lib/mentions'
 
@@ -106,7 +106,9 @@ export function FigureAgainst({
   contact: string
 }) {
   const f = view.figure
-  const item = factById(f.against!.contextId)
+  const facts = useFacts()
+  const domains = useDomains()
+  const item = facts.find((x) => x.id === f.against!.contextId)
   const owners = item ? domains[item.domain] : undefined
   return (
     <div className="flex flex-col gap-3 rounded-surface border border-caution/45 bg-caution/5 p-3 dark:border-warn/45 dark:bg-caution/8">
@@ -129,7 +131,7 @@ export function FigureAgainst({
             </button>
             <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(item.summary)}</p>
             <p className="pt-1 text-xs text-muted-foreground">
-              {domains[item.domain].name}, checked by {item.checkedBy}, {item.checkedOn}
+              {domains[item.domain]?.name}, checked by {item.checkedBy}, {item.checkedOn}
             </p>
           </div>
         )}
@@ -139,7 +141,7 @@ export function FigureAgainst({
             {f.label}: <span className="tabular-nums">{f.value}</span>
           </p>
           <p className="text-sm text-muted-foreground">
-            {f.change && `${f.change[0].toUpperCase()}${f.change.slice(1)}.`}
+            {f.change && `${f.change[0]!.toUpperCase()}${f.change.slice(1)}.`}
           </p>
           <div className="pt-1">
             <Provenance source={view.source} asOf={view.asOf} figure={f} metric={metric} />

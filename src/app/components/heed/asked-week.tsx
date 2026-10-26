@@ -3,9 +3,11 @@ import { ArrowUpRightIcon, ChevronDownIcon, EyeOffIcon } from '@/components/icon
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { StateLine } from '@/components/heed/bits'
-import { ASKED_ROWS, askedThisWeek } from '@/data/asked-week'
+import { useQuery } from '@tanstack/react-query'
+import { askedWeekQuery } from '@/api/queries'
+import { ASKED_ROWS } from '@/model/ask'
 import { seesObservability } from '@/lib/obs'
-import { useFacts, useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 
 // The empty Ask: what agents asked about most this week, each topic with the state Ask gives it now
 // and how often it was asked. Everyone sees it, as counts only: never the words of a question, never
@@ -13,10 +15,10 @@ import { useFacts, useMe } from '@/lib/store'
 
 export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }) {
   const me = useMe()
-  const pool = useFacts()
-  const w = askedThisWeek(pool)
+  const w = useQuery(askedWeekQuery()).data
   // The four most asked; the rest open in place, so the empty page stays calm.
   const [all, setAll] = React.useState(false)
+  if (!w) return null
   const more = w.rows.length - ASKED_ROWS
   const rows = all ? w.rows : w.rows.slice(0, ASKED_ROWS)
   return (

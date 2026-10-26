@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { stateLabel } from '@/data/ask'
+import { stateLabel } from '@/model/ask'
 import { ANSWER_LINES, DOC_PAGES, llmsTxt, SHORTCUTS, WORDS } from '@/lib/help-content'
-import { kindLabel } from '@/data/world'
+import { kindLabel } from '@/model/items'
 import { PRODUCT } from '@/lib/brand'
 
 // One source for the product's own words: Help, the answer line's card, Ask's labels and the docs

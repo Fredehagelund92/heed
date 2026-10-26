@@ -64,6 +64,13 @@ const bannedImports = [
   { group: ['@magicui/*', 'magicui-cli'], message: 'No decorative animated component sets.' },
   ...serverOnlyImports,
 ]
+const appBannedImports = [
+  ...bannedImports,
+  {
+    group: ['lucide-react', 'lucide-react/*'],
+    message: 'Import icons from "@/components/icons" so there is one icon module.',
+  },
+]
 
 const styleProperties =
   '/^(padding|margin|gap|rowGap|columnGap|color|background|backgroundColor|borderColor|fill|stroke)/'
@@ -228,10 +235,11 @@ export default tseslint.config(
         'error',
         {
           patterns: [
-            ...bannedImports,
+            ...appBannedImports,
             {
-              group: ['lucide-react', 'lucide-react/*'],
-              message: 'Import icons from "@/components/icons" so there is one icon module.',
+              group: ['@/api/mock', '@/api/mock/*', '**/api/mock', '**/api/mock/*'],
+              message:
+                'Read and write through "@/api" and its queries; only the api folder knows the mock binding.',
             },
           ],
         },
@@ -244,6 +252,11 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // The api folder binds the mock binding behind HeedApi, so it may import it.
+    files: ['src/app/api/**/*.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: appBannedImports }] },
   },
   {
     // The one place in the new app that may import the icon library.

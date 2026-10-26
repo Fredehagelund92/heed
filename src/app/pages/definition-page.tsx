@@ -3,7 +3,9 @@ import { DefinitionDetails, TypeTile } from '@/components/heed/definition'
 import { Canvas, Paper } from '@/components/heed/doc'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
-import { findDefinition, kindName, meaningOf, sourceUrl, useDefinitions } from '@/lib/definitions'
+import { useQuery } from '@tanstack/react-query'
+import { definitionPageQuery } from '@/api/queries'
+import { kindName, sourceUrl, useGlossary } from '@/lib/definitions'
 import { href, navigate } from '@/lib/router'
 import { Loadable, PageSkeleton } from '@/components/heed/load-state'
 
@@ -12,8 +14,10 @@ import { Loadable, PageSkeleton } from '@/components/heed/load-state'
 // Only a term has Edit.
 
 export function DefinitionPage({ name }: { name: string }) {
-  useDefinitions()
-  const d = findDefinition(name)
+  const glossary = useGlossary()
+  const page = useQuery(definitionPageQuery(name))
+  // The page's own read shows it; the glossary knows it exists while that read loads.
+  const d = page.data ?? glossary.find(name)
   if (!d)
     return (
       <div className="flex h-full min-h-0 flex-col">
@@ -24,7 +28,7 @@ export function DefinitionPage({ name }: { name: string }) {
         </p>
       </div>
     )
-  const subject = meaningOf(d)
+  const subject = glossary.meaningOf(d)
   return (
     <div className="flex h-full min-h-0 flex-col">
       <SiteHeader title={d.name} icon={<BookAIcon />}>
@@ -64,7 +68,12 @@ export function DefinitionPage({ name }: { name: string }) {
       </SiteHeader>
       <Canvas className="min-h-0 flex-1 overflow-y-auto">
         <Paper className="@container">
-          <Loadable what="this definition" skeleton={<PageSkeleton />} errorClassName="p-0">
+          <Loadable
+            what="this definition"
+            skeleton={<PageSkeleton />}
+            errorClassName="p-0"
+            query={page}
+          >
             <div className="mb-6 flex items-center gap-3 sm:mb-8">
               <TypeTile d={d} size="lg" />
               <div className="min-w-0">

@@ -12,7 +12,7 @@ import {
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/data/integrations'
+import { connectorById } from '@/model/integrations'
 import {
   AddRow,
   BarSpacer,
@@ -53,22 +53,21 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty'
 import {
-  domainIds,
-  domains,
   kindLabel,
-  metrics,
   servedToAgents,
   type DomainId,
   type Fact,
   type Kind,
   type Status,
-} from '@/data/world'
+} from '@/model/items'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
 import { inForce, parseWhen, timeShort, trustOf } from '@/lib/timeframe'
 import { FreshDot, KindIcon, StatusIcon, TimeGlyph } from '@/components/heed/columns'
 import { href, navigate } from '@/lib/router'
-import { useFacts } from '@/lib/store'
+import { useQuery } from '@tanstack/react-query'
+import { contextPageQuery, useVocabulary } from '@/api/queries'
+import { useDomainList, useDomains } from '@/lib/workspace'
 import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
@@ -87,7 +86,6 @@ import { ContextBulk } from '@/components/heed/context-bulk'
 
 const STATUSES: Status[] = ['Draft', 'Live', 'Needs checking', 'Archived']
 const KINDS = Object.keys(kindLabel) as Kind[]
-const METRIC_NAMES = new Set(metrics.map((m) => m.name))
 const toggle = <T,>(list: T[], v: T) =>
   list.includes(v) ? list.filter((x) => x !== v) : [...list, v]
 
@@ -105,11 +103,19 @@ const GROUPS: Record<Group, string> = { none: 'No grouping', domain: 'Domain', m
 /** When it was last checked; a draft was never checked, so it sorts last. */
 const checked = (f: Fact) => (f.checkedOn ? Date.parse(f.checkedOn) : 0)
 const items = (n: number) => `${n.toLocaleString('en-GB')} context ${n === 1 ? 'item' : 'items'}`
-const metricOf = (f: Fact) => f.where.find((w) => METRIC_NAMES.has(w)) ?? 'No metric'
+/** The first metric an item applies to, for grouping by metric. */
+const metricOf = (f: Fact, metrics: Set<string>) =>
+  f.where.find((w) => metrics.has(w)) ?? 'No metric'
+const NO_FACTS: Fact[] = []
 const COLS = 8
 
 export function ContextPage() {
-  const facts = useFacts()
+  const load = useQuery(contextPageQuery())
+  const facts = load.data ?? NO_FACTS
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const { metrics } = useVocabulary()
+  const metricNames = React.useMemo(() => new Set(metrics.map((m) => m.name)), [metrics])
   const dock = useDock()
   const [text, setText] = React.useState('')
   // A domain page links here filtered to its domain (and to what is due for a check).
@@ -130,7 +136,7 @@ export function ContextPage() {
   const sort: Sort = chosenSort ?? (text.trim() ? 'best' : 'checked')
   const archived = facts.filter((f) => f.status === 'Archived').length
   const haystack = (f: Fact) =>
-    `${f.title} ${plainText(f.summary)} ${f.where.join(' ')} ${domains[f.domain].name} ${f.checkedBy}`
+    `${f.title} ${plainText(f.summary)} ${f.where.join(' ')} ${domains[f.domain]?.name} ${f.checkedBy}`
   // The rows a value would show if it were ticked: everything the other filters and the search let through.
   const pass = (f: Fact, skip?: 'domain' | 'status' | 'kind') =>
     (showArchived || status.includes('Archived') || skip === 'status' || f.status !== 'Archived') &&
@@ -145,7 +151,7 @@ export function ContextPage() {
       sort === 'title'
         ? a.title.localeCompare(b.title)
         : sort === 'domain'
-          ? domains[a.domain].name.localeCompare(domains[b.domain].name)
+          ? domains[a.domain]!.name.localeCompare(domains[b.domain]!.name)
           : sort === 'best'
             ? titleHits(b) - titleHits(a) || checked(b) - checked(a)
             : checked(b) - checked(a),
@@ -153,12 +159,12 @@ export function ContextPage() {
   const groups: { key: string; rows: Fact[] }[] =
     group === 'domain'
       ? domainIds
-          .map((d) => ({ key: domains[d].name, rows: filtered.filter((f) => f.domain === d) }))
+          .map((d) => ({ key: domains[d]!.name, rows: filtered.filter((f) => f.domain === d) }))
           .filter((g) => g.rows.length)
       : group === 'metric'
-        ? [...new Set(filtered.map(metricOf))]
+        ? [...new Set(filtered.map((f) => metricOf(f, metricNames)))]
             .sort((a, b) => (a === 'No metric' ? 1 : b === 'No metric' ? -1 : a.localeCompare(b)))
-            .map((m) => ({ key: m, rows: filtered.filter((f) => metricOf(f) === m) }))
+            .map((m) => ({ key: m, rows: filtered.filter((f) => metricOf(f, metricNames) === m) }))
         : [{ key: '', rows: filtered }]
   const visible = groups.flatMap((g) => (folded.includes(g.key) ? [] : g.rows))
   const order = visible.map((f) => f.id)
@@ -189,7 +195,7 @@ export function ContextPage() {
     setText('')
   }
   const on = [
-    domain.length && `Domain is ${domain.map((d) => domains[d].name).join(' or ')}`,
+    domain.length && `Domain is ${domain.map((d) => domains[d]?.name).join(' or ')}`,
     status.length && `Status is ${status.join(' or ')}`,
     kind.length && `Kind is ${kind.map((k) => kindLabel[k]).join(' or ')}`,
   ].filter(Boolean)
@@ -360,7 +366,12 @@ export function ContextPage() {
       </SiteHeader>
       {/* One scroller; what it holds (the bar, the table, the totals) sits in the 80rem frame, centred. */}
       <div className="@container/main flex min-h-0 flex-1 flex-col overflow-y-auto *:mx-auto *:w-full *:max-w-wide @min-[80rem]/main:*:border-x">
-        <Loadable what="the context" skeleton={<TableSkeleton />} errorClassName="border-b">
+        <Loadable
+          what="the context"
+          skeleton={<TableSkeleton />}
+          errorClassName="border-b"
+          query={load}
+        >
           {facts.length === 0 ? (
             <div className="p-4 md:p-6">
               <Empty className="border border-dashed">
@@ -410,7 +421,7 @@ export function ContextPage() {
                           <FilterValue
                             count={facts.filter((f) => f.domain === d && pass(f, 'domain')).length}
                           >
-                            {domains[d].name}
+                            {domains[d]?.name}
                           </FilterValue>
                         </DropdownMenuCheckboxItem>
                       ))}
@@ -554,7 +565,7 @@ export function ContextPage() {
                 {domain.length > 0 && (
                   <FilterChip
                     field="Domain"
-                    values={domain.map((d) => domains[d].name)}
+                    values={domain.map((d) => domains[d]!.name)}
                     onRemove={() => setDomain([])}
                   />
                 )}

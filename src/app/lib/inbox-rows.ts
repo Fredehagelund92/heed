@@ -1,8 +1,10 @@
-import { cards, waiting, type InboxCard, type Waiting } from '@/data/inbox'
-import type { Subject } from '@/data/comments'
-import { domains, factById } from '@/data/world'
-import { useMentionsOf, type MentionNote } from '@/lib/comments'
-import { useMe, useStore, type Outcome } from '@/lib/store'
+import * as React from 'react'
+import type { Inbox } from '@/api'
+import { useInbox } from '@/api/queries'
+import type { MentionNote, Subject } from '@/model/comments'
+import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
+import type { Domains } from '@/model/people'
+import { useDomains, useMe } from '@/lib/workspace'
 
 // The Inbox's rows, shared by the Inbox and the sidebar's count, so "Needs you" means one thing.
 
@@ -51,24 +53,38 @@ export const needs = (r: InboxRow) => (r.kind === 'card' ? !r.done || !!r.note :
  */
 export function useInboxRows(decided?: Record<string, Outcome>) {
   const me = useMe()
-  const { state } = useStore()
-  const done = decided ?? state.done
+  const inbox = useInbox()
+  const domains = useDomains()
+  return React.useMemo(
+    () => inboxRows(inbox, me.name, domains, decided),
+    [inbox, me.name, domains, decided],
+  )
+}
+
+/** The rows of a person's Inbox, from what the Inbox read says. */
+export function inboxRows(
+  inbox: Inbox,
+  me: string,
+  domains: Domains,
+  decided?: Record<string, Outcome>,
+) {
+  const done = decided ?? inbox.done
   // The newest unread mention per thread; a mention brings its card, or your waiting suggestion, back to Needs you.
-  const notes = new Map(useMentionsOf(me.name).map((n) => [n.subject, n]))
-  const mine = state.fresh ? [] : cards.filter((c) => c.for === me.name)
+  const notes = new Map(inbox.mentions.map((n) => [n.subject, n]))
+  const mine = inbox.cards.filter((c) => c.for === me)
   // What you sent this visit waits here too, until the owner decides.
-  const sentNow: Waiting[] = state.sent
-    .filter((x) => x.by === me.name)
+  const sentNow: Waiting[] = inbox.sent
+    .filter((x) => x.by === me)
     .map((x) => ({
       id: x.id,
-      for: me.name,
+      for: me,
       title: x.title,
-      waitingFor: `${x.to}, owner of ${domains[x.domain].name}`,
+      waitingFor: `${x.to}, owner of ${domains[x.domain]?.name ?? x.domain}`,
       domain: x.domain,
       sent: 'Today',
       card: x.id,
     }))
-  const mineWaiting = [...sentNow, ...(state.fresh ? [] : waiting.filter((w) => w.for === me.name))]
+  const mineWaiting = [...sentNow, ...inbox.waiting.filter((w) => w.for === me)]
   const noteOn = (id: string) => notes.get(`review:${id}`)
   const open = mine.filter((c) => !done[c.id] || noteOn(c.id))
   const finished = mine.filter((c) => done[c.id] && !noteOn(c.id))
@@ -76,14 +92,7 @@ export function useInboxRows(decided?: Record<string, Outcome>) {
     ...mine.map((c) => `review:${c.id}`),
     ...mineWaiting.map((w) => `review:${w.card}`),
   ])
-  const elsewhere = [...notes.values()].filter((n) => !covered.has(n.subject) && !state.fresh)
-  const titleOf = (subject: Subject) => {
-    const [kind, id] = subject.split(':')
-    return (
-      (kind === 'context' ? factById(id)?.title : cards.find((c) => c.id === id)?.title) ??
-      'A comment'
-    )
-  }
+  const elsewhere = [...notes.values()].filter((n) => !covered.has(n.subject))
   const rows: InboxRow[] = [
     ...open.map((card) => ({
       kind: 'card' as const,
@@ -94,7 +103,7 @@ export function useInboxRows(decided?: Record<string, Outcome>) {
     ...elsewhere.map((note) => ({
       kind: 'mention' as const,
       subject: note.subject,
-      title: titleOf(note.subject),
+      title: note.title,
       note,
     })),
     ...mineWaiting

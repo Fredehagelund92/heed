@@ -31,16 +31,18 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { scopeText, type Answer, type QuestionPart } from '@/data/ask'
+import { scopeText, type Answer, type QuestionPart } from '@/model/ask'
 import { MentionChip } from '@/components/heed/mention-chip'
-import { domains, type DomainId, type Fact } from '@/data/world'
+import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
 import { href, navigate, useRoute } from '@/lib/router'
-import { useFacts, useMe, useStore } from '@/lib/store'
+import { useQuery } from '@tanstack/react-query'
+import { figureQuery, useWrite } from '@/api/queries'
+import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
-import { figureFor, type FigureView } from '@/data/figures'
+import type { FigureView } from '@/model/figures'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useDefinitions } from '@/lib/definitions'
@@ -181,6 +183,7 @@ function readScope(answer: Answer): MentionRef[] {
 
 /** How a scoped question was read: its mentions, and what came from the words, said once in the answer's header. */
 function ScopeLine({ answer }: { answer: Answer }) {
+  const domains = useDomains()
   const scope = answer.scope ?? []
   if (!scope.length) return null
   const kinds = scope.map((m) => parseMentionId(m.id).kind)
@@ -198,10 +201,10 @@ function ScopeLine({ answer }: { answer: Answer }) {
       {/* A scoped domain says what it covers, in its owners' words. */}
       {scope
         .map((m) => parseMentionId(m.id))
-        .filter((m) => m.kind === 'domain' && domains[m.key as DomainId])
+        .filter((m) => m.kind === 'domain' && domains[m.key])
         .map((m) => (
           <span key={m.key} className="basis-full text-xs leading-5">
-            {domains[m.key as DomainId].name}: {domains[m.key as DomainId].covers}
+            {domains[m.key]?.name}: {domains[m.key]?.covers}
           </span>
         ))}
     </p>
@@ -214,10 +217,11 @@ function ScopeLine({ answer }: { answer: Answer }) {
 function useFollowed(facts: Fact[]) {
   const all = useFacts()
   const definitions = useDefinitions()
+  const domains = useDomains()
   const enabled = useLinksEnabled()
   const result = React.useMemo(
-    () => follow(facts, { facts: all, definitions }, enabled),
-    [facts, all, definitions, enabled],
+    () => follow(facts, { facts: all, definitions, domains }, enabled),
+    [facts, all, definitions, domains, enabled],
   )
   return { ...result, enabled }
 }
@@ -395,6 +399,7 @@ function LookupCard({
 
 /** One citation: a small marker; hovered or pressed, a card with the context item and a way to open it. */
 function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean }) {
+  const domains = useDomains()
   const marker =
     // 24px to see, 44px to tap: the hit area grows, the marker doesn't.
     'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-2xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
@@ -419,7 +424,7 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
       <PopoverContent side="top" align="start" className="w-80 gap-1.5 p-3">
         <p className="text-sm leading-snug font-medium">{fact.title}</p>
         <p className="text-xs text-muted-foreground">
-          {domains[fact.domain].name} - checked by {fact.checkedBy}, {fact.checkedOn}
+          {domains[fact.domain]?.name} - checked by {fact.checkedBy}, {fact.checkedOn}
         </p>
         <p className="line-clamp-3 text-sm text-muted-foreground">{plainText(fact.summary)}</p>
         <SourceLinks fact={fact} />
@@ -440,8 +445,9 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
 function SourceLinks({ fact }: { fact: Fact }) {
   const all = useFacts()
   const definitions = useDefinitions()
+  const domains = useDomains()
   const enabled = useLinksEnabled()
-  const links = linksOf(`context:${fact.id}`, { facts: all, definitions }).filter(
+  const links = linksOf(`context:${fact.id}`, { facts: all, definitions, domains }).filter(
     (l) => l.rel !== 'mentioned_by' && l.rel !== 'replaced_by',
   )
   if (!links.length) return null
@@ -575,6 +581,7 @@ function AliasChip({ alias }: { alias: NonNullable<Answer['alias']> }) {
 
 /** The full list of sources, closed: one quiet line under the answer that opens compact rows. */
 function SourceList({ facts, draft }: { facts: Fact[]; draft?: boolean }) {
+  const domains = useDomains()
   return (
     <Collapsible className="text-sm">
       <CollapsibleTrigger className="group/src -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -599,8 +606,8 @@ function SourceList({ facts, draft }: { facts: Fact[]; draft?: boolean }) {
                   <span className="block truncate text-sm">{f.title}</span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {draft
-                      ? `${domains[f.domain].name}, the draft`
-                      : `${domains[f.domain].name}, checked by ${f.checkedBy}, ${f.checkedOn}`}
+                      ? `${domains[f.domain]?.name}, the draft`
+                      : `${domains[f.domain]?.name}, checked by ${f.checkedBy}, ${f.checkedOn}`}
                   </span>
                 </span>
               </button>
@@ -644,6 +651,7 @@ function SomethingWrong({
   onClose: () => void
   onSent: () => void
 }) {
+  const domains = useDomains()
   const [part, setPart] = React.useState(facts[0]?.id ?? 'answer')
   const fact = facts.find((f) => f.id === part)
   const domain = fact?.domain ?? 'sales'
@@ -659,7 +667,7 @@ function SomethingWrong({
       <div>
         <p className="text-sm font-medium">Something wrong?</p>
         <p className="text-sm text-muted-foreground">
-          It goes to the owner of {domains[domain].name} with your words and this question. Nothing
+          It goes to the owner of {domains[domain]?.name} with your words and this question. Nothing
           else from this chat is kept.
         </p>
       </div>
@@ -705,7 +713,7 @@ function SomethingWrong({
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit">Send to the owner of {domains[domain].name}</Button>
+        <Button type="submit">Send to the owner of {domains[domain]?.name}</Button>
       </div>
     </form>
   )
@@ -714,7 +722,7 @@ function SomethingWrong({
 /** The next step that fits the state: for the owner, or for everyone else. */
 function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const me = useMe()
-  const { dispatch } = useStore()
+  const write = useWrite()
   const owns = me.owns.includes('sales') || me.admin
   const scope = scopeText({ metric: answer.metric, markets: answer.markets.slice(-1) })
   // A question that matched nothing has nothing to write for yet: say how to ask it.
@@ -768,7 +776,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   if (answer.state === 'conflict' && owns) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${facts[0].id}`)}>
+        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${facts[0]!.id}`)}>
           Choose which one stays
         </Button>
         <span className="text-xs text-muted-foreground">
@@ -778,15 +786,15 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
     )
   }
   if (answer.state === 'stale') {
-    const f = facts.find((x) => x.outOfDate) ?? facts[0]
+    // An Outdated answer rests on at least one item.
+    const f = facts.find((x) => x.outOfDate) ?? facts[0]!
     return owns ? (
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
           variant="outline"
-          onClick={() => {
-            dispatch({
-              type: 'editFact',
+          onClick={() =>
+            void write('editItem', {
               id: f.id,
               patch: {
                 status: 'Live',
@@ -794,11 +802,12 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
                 checkedBy: me.name,
                 checkedOn: '22 Oct 2026',
               },
-            })
-            toast('Checked: still true', {
-              description: 'Agents get it without the warning from now on.',
-            })
-          }}
+            }).then(() =>
+              toast('Checked: still true', {
+                description: 'Agents get it without the warning from now on.',
+              }),
+            )
+          }
         >
           Mark it still true
         </Button>
@@ -951,8 +960,15 @@ export function AnswerBody({
   const writing = stage === 'writing' && !stopped
   const finished = stage === 'done'
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
+  const asked = {
+    metric: answer.metric,
+    markets: answer.markets,
+    dates: answer.dates,
+    state: answer.state,
+  }
+  const figure = useQuery({ ...figureQuery(asked), enabled: !draft })
   const figures = useFigures()
-  const view = draft ? null : figureFor(answer, figures.enabled)
+  const view = draft ? null : (figure.data ?? null)
   const note = noteFor(answer.note, view)
   // A finished answer is kept by its key, so the right panel can share it or show where it says that.
   const key = answerKey(answer)

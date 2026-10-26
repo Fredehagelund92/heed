@@ -1,6 +1,6 @@
 import { ArrowRightLeftIcon, CircleCheckIcon, TriangleAlertIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { RESULT_WORDS, type SavedResult } from '@/data/saved-questions'
+import { RESULT_WORDS, type SavedResult } from '@/model/saved-questions'
 
 // A saved question's result, by shape and words as well as colour: a check for Same, two arrows for
 // Changed, a triangle for Needs a look.

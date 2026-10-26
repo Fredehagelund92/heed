@@ -1,6 +1,6 @@
-import { stateLabel, stateSentence, type Answer } from '@/data/ask'
-import { TODAY } from '@/data/history'
-import { WORKSPACE_NAME, type Fact } from '@/data/world'
+import { stateLabel, stateSentence, type Answer } from '@/model/ask'
+import { TODAY } from '@/model/history'
+import type { Fact } from '@/model/items'
 
 // Copy for Slack, and the answer card: what an answer keeps when it leaves the product. Only what
 // the answer already says: its state, its words, and each source with who checked it and when.
@@ -11,7 +11,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 /** "23 Oct 2026", from the demo world's today. */
 export const answeredOn = (iso: string = TODAY) => {
   const [y, m, d] = iso.split('-').map(Number)
-  return `${d} ${MONTHS[m - 1]} ${y}`
+  return `${d} ${MONTHS[m! - 1]} ${y}`
 }
 
 /** The state line as it travels: "Checked (2 items)", "Partial (1 item). Only part of this is written down." */
@@ -45,4 +45,6 @@ export function slackText(answer: Pick<Answer, 'question' | 'state' | 'text'>, f
 }
 
 /** The card's footer: where it is from, and when it was answered. */
-export const cardFooter = (iso?: string) => `${WORKSPACE_NAME} - answered ${answeredOn(iso)}`
+/** "Larchwood Outdoor - answered 23 Oct 2026": where an answer card is from, and when. */
+export const cardFooter = (workspace: string, iso?: string) =>
+  `${workspace} - answered ${answeredOn(iso)}`

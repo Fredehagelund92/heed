@@ -56,7 +56,7 @@ export function ThemeChoices() {
         return (
           <DropdownMenuRadioItem key={t} value={t}>
             <I />
-            {t[0].toUpperCase() + t.slice(1)}
+            {t[0]!.toUpperCase() + t.slice(1)}
           </DropdownMenuRadioItem>
         )
       })}
@@ -81,7 +81,7 @@ function ThemeMenu() {
                 <Button
                   variant="outline"
                   size="icon-sm"
-                  aria-label={`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`}
+                  aria-label={`Theme: ${theme[0]!.toUpperCase()}${theme.slice(1)}`}
                 />
               }
             />
@@ -98,7 +98,7 @@ function ThemeMenu() {
             return (
               <DropdownMenuRadioItem key={t} value={t}>
                 <I />
-                {t[0].toUpperCase() + t.slice(1)}
+                {t[0]!.toUpperCase() + t.slice(1)}
               </DropdownMenuRadioItem>
             )
           })}

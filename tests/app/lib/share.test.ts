@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { exampleAnswer } from '@/data/ask'
-import { facts } from '@/data/world'
+import { exampleAnswer } from '@/api/mock/data/ask'
+import { facts } from '@/api/mock/data/world'
 import { answeredOn, cardFooter, slackText, stateLineOf } from '@/lib/share'
 
 const of = (id: string) => {
@@ -33,6 +33,8 @@ describe('Copy for Slack', () => {
   })
   it("dates the card from the demo world's today, with the workspace's name and no product name in a sentence", () => {
     expect(answeredOn('2026-10-23')).toBe('23 Oct 2026')
-    expect(cardFooter('2026-10-23')).toBe('Larchwood Outdoor - answered 23 Oct 2026')
+    expect(cardFooter('Larchwood Outdoor', '2026-10-23')).toBe(
+      'Larchwood Outdoor - answered 23 Oct 2026',
+    )
   })
 })

@@ -1,59 +1,29 @@
-import * as React from 'react'
-import { connectorById, figureConnections, type ConnectorId } from '@/data/integrations'
-import { useRoute } from '@/lib/router'
+import { useSettings, useWrite } from '@/api/queries'
+import type { ConnectorId } from '@/model/integrations'
 
 // Whether Ask shows figures, per integration: off by default (Ask then links into the source),
-// switched on by an admin on the integration's page. Kept until the page reloads. The review flag
-// ?figures=on | off | <integration id> sets it from the address, so every state has a link.
-
-export const FIGURE_SOURCES: ConnectorId[] = ['cube', 'warehouse']
-
-const on: Record<string, boolean> = { cube: false, warehouse: false }
-const contacts: Record<string, string> = Object.fromEntries(
-  Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
-)
-let version = 0
-const listeners = new Set<() => void>()
-const changed = () => {
-  version += 1
-  for (const l of listeners) l()
-}
-
-export function setFigures(id: ConnectorId, value: boolean) {
-  on[id] = value
-  changed()
-}
-
-export function setDataContact(id: ConnectorId, name: string) {
-  contacts[id] = name
-  changed()
-}
+// switched on by an admin on the integration's page, with who to ask about its data.
 
 export type FigureSettings = {
   enabled: (id: ConnectorId) => boolean
   contact: (id: ConnectorId) => string
 }
 
-/** The figure settings as they stand, the address flag first. */
+/** The figure settings as they stand (the mock applies its ?figures= review flag). */
 export function useFigures(): FigureSettings {
-  React.useSyncExternalStore(
-    (l) => {
-      listeners.add(l)
-      return () => listeners.delete(l)
-    },
-    () => version,
-  )
-  const flag = useRoute().query.get('figures')
-  const only = flag?.replace(/^source[:=]/, '')
+  const { figures, contacts } = useSettings()
   return {
-    enabled: (id) =>
-      flag === 'on'
-        ? true
-        : flag === 'off'
-          ? false
-          : only && connectorById(only)
-            ? id === only
-            : (on[id] ?? false),
+    enabled: (id) => figures[id] ?? false,
     contact: (id) => contacts[id] ?? 'the data team',
+  }
+}
+
+/** Switching figures on or off for an integration, and naming its data contact. */
+export function useFigureActions() {
+  const write = useWrite()
+  return {
+    setFigures: (source: ConnectorId, on: boolean) => void write('setFigures', { source, on }),
+    setDataContact: (source: ConnectorId, name: string) =>
+      void write('setDataContact', { source, name }),
   }
 }

@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest'
 import type { CommentItem } from '@/components/templates/comment-box/types'
 import { EXTENSIONS } from '@/components/templates/comment-box/extensions'
 import { text } from '@/components/templates/comment-box/utils'
-import { answerFor } from '@/data/ask'
-import { seedComments } from '@/data/comments'
-import { factById, facts } from '@/data/world'
+import { answerFor } from '@/api/mock/data/ask'
+import { seedComments } from '@/api/mock/data/comments'
+import { factById, facts } from '@/api/mock/data/world'
 import { agentReply } from '@/lib/agent-reply'
-import { commentActions } from '@/lib/comments'
+import { createMockApi } from '@/api/mock'
 import { mentionsIn, plainText } from '@/lib/mentions'
 
 // Agents never read comments. A comment can disagree with the item it hangs on, and it was never
@@ -23,7 +23,7 @@ const words = (list: CommentItem[] = []) =>
 function everythingAgentsGet() {
   return facts.map((f) => {
     const [metric, ...markets] = f.where
-    const answer = answerFor(f.title, metric, markets.length ? markets : ['Norway'])
+    const answer = answerFor(f.title, metric!, markets.length ? markets : ['Norway'])
     const reply = agentReply(
       answer,
       answer.sources.map((id) => factById(id)!),
@@ -33,9 +33,11 @@ function everythingAgentsGet() {
 }
 
 describe('what agents get', () => {
-  it('never holds a comment, even one that contradicts the item', () => {
+  it('never holds a comment, even one that contradicts the item', async () => {
     const contradiction = 'Online sales to Norway started again on 1 October 2026.'
-    commentActions.post('context:itm_norway_stop', 'Maria Lindqvist', text(contradiction))
+    const { api } = createMockApi()
+    await api.postComment({ subject: 'context:itm_norway_stop', content: text(contradiction) })
+    expect(JSON.stringify(await api.getComments())).toContain(contradiction)
 
     const comments = [...Object.values(seedComments).flatMap((list) => words(list)), contradiction]
     expect(comments.length).toBeGreaterThan(5)

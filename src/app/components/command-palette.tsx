@@ -28,15 +28,15 @@ import {
   CommandShortcut,
 } from '@/components/ui/command'
 import { Kbd } from '@/components/ui/kbd'
-import { domains, type Kind } from '@/data/world'
-import { examples } from '@/data/ask'
+import type { Kind } from '@/model/items'
+import { useAskExamples } from '@/api/queries'
 import { onOpen, open as openOverlay } from '@/lib/events'
 import { navigate } from '@/lib/router'
 import { kindName, useDefinitions } from '@/lib/definitions'
-import { useFacts, useMe } from '@/lib/store'
+import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { TypeGlyph } from '@/components/heed/definition'
 import { useTheme } from '@/lib/theme-context'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 
 /** A context item's kind as a glyph, labelled for screen readers by the words beside it. */
 function KindGlyph({ kind }: { kind: Kind }) {
@@ -53,6 +53,8 @@ function KindGlyph({ kind }: { kind: Kind }) {
 // Heed app's search: 640 wide in the upper part of the screen, a 48px input row, 40px result rows
 // with a type glyph, quiet group headers, and a row of key hints.
 export function CommandPalette() {
+  const domains = useDomains()
+  const examples = useAskExamples()
   const [open, setOpen] = React.useState(false)
   const facts = useFacts()
   const definitions = useDefinitions()
@@ -164,13 +166,13 @@ export function CommandPalette() {
             {facts.map((f) => (
               <CommandItem
                 key={f.id}
-                value={`${f.title} ${f.where.join(' ')} ${domains[f.domain].name}`}
+                value={`${f.title} ${f.where.join(' ')} ${domains[f.domain]?.name}`}
                 onSelect={run(() => openDock('context', f.id))}
               >
                 <KindGlyph kind={f.kind} />
                 <span className="min-w-0 flex-1 truncate">{f.title}</span>
                 <CommandShortcut className="tracking-normal max-sm:hidden">
-                  {domains[f.domain].name}
+                  {domains[f.domain]?.name}
                 </CommandShortcut>
               </CommandItem>
             ))}

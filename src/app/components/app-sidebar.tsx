@@ -33,7 +33,8 @@ import {
 import { open } from '@/lib/events'
 import { useRoute } from '@/lib/router'
 import { useInboxRows } from '@/lib/inbox-rows'
-import { useMe, useStore } from '@/lib/store'
+import { useSession } from '@/api/queries'
+import { useMe } from '@/lib/workspace'
 import { PRODUCT } from '@/lib/brand'
 import { HelpMenu } from '@/components/help-menu'
 
@@ -98,11 +99,11 @@ export function AppSidebar({
 }: React.ComponentProps<typeof Sidebar> & { onWidth: (width: number, done: boolean) => void }) {
   const route = useRoute()
   const me = useMe()
-  const { state } = useStore()
+  const { install } = useSession()
   const { isMobile, setOpenMobile } = useSidebar()
   const place = route.parts[0] ?? 'inbox'
   const { needing } = useInboxRows()
-  const count = state.install === 'new' ? 0 : needing.length
+  const count = install === 'new' ? 0 : needing.length
   const close = () => isMobile && setOpenMobile(false)
 
   const items = [

@@ -1,4 +1,6 @@
 import { ArrowUpRightIcon, BellIcon, PlusIcon, UsersIcon } from '@/components/icons'
+import { useQuery } from '@tanstack/react-query'
+import { observabilityPageQuery, useAlerts, useWrite } from '@/api/queries'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -16,20 +18,10 @@ import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
-import {
-  lastOf,
-  RAISED,
-  rulesFor,
-  setMuted,
-  setRuleOn,
-  setThreshold,
-  thresholdOf,
-  useAlerts,
-  type Rule,
-} from '@/data/alerts'
-import { domains, type DomainId } from '@/data/world'
+import { lastOf, rulesFor, thresholdOf, type AlertSettings, type Rule } from '@/model/alerts'
+import type { DomainId } from '@/model/items'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
-import { useMe } from '@/lib/store'
+import { useDomains, useMe } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
 // Alerts: what raises a card in the Inbox, as rules of one sentence each, and what was raised
@@ -40,9 +32,14 @@ const ADD_REASON =
   'The eight rules are fixed for now. Your own rules, and email and chat, come later.'
 
 export function AlertsPage() {
+  const load = useQuery(observabilityPageQuery('alerts'))
   return (
     <ObsPage section="alerts">
-      <Loadable what="the alerts" skeleton={<ObsSkeleton section="alerts" body="rules" />}>
+      <Loadable
+        query={load}
+        what="the alerts"
+        skeleton={<ObsSkeleton section="alerts" body="rules" />}
+      >
         <Alerts />
       </Loadable>
     </ObsPage>
@@ -52,13 +49,14 @@ export function AlertsPage() {
 function Alerts() {
   const view = useObsView()
   const me = useMe()
-  const s = useAlerts()
-  const rules = rulesFor(me.admin)
+  const { rules: all, raised: lately, settings: s } = useAlerts()
+  const domains = useDomains()
+  const rules = rulesFor(all, me.admin)
   const owned = view.owned
   const raised =
     view.state === 'empty'
       ? []
-      : RAISED.filter((r) => !owned || (r.domain && owned.includes(r.domain)))
+      : lately.filter((r) => !owned || (r.domain && owned.includes(r.domain)))
   const head = 'text-xs font-medium text-muted-foreground'
   return (
     <Frame>
@@ -136,7 +134,7 @@ function Alerts() {
                     {r.domain && (
                       <span className="mr-1.5 inline-flex items-center gap-1.5 align-middle">
                         <DomainDot id={r.domain} />
-                        {domains[r.domain].name} -
+                        {domains[r.domain]?.name} -
                       </span>
                     )}{' '}
                     {r.line}
@@ -186,12 +184,19 @@ function RuleRow({
   admin: boolean
   owned: DomainId[] | null
   empty: boolean
-  state: ReturnType<typeof useAlerts>
+  state: AlertSettings
 }) {
+  const domains = useDomains()
+  const write = useWrite()
+  const setRuleOn = (id: Rule['id'], on: boolean) => void write('setAlertRule', { id, on })
+  const setMuted = (id: Rule['id'], ds: DomainId[], muted: boolean) =>
+    void write('muteAlert', { id, domains: ds, muted })
+  const setThreshold = (id: Rule['id'], value: string) =>
+    void write('setAlertThreshold', { id, value })
   const mine = owned ?? []
   const muted = !admin && mine.length > 0 && mine.every((d) => state.muted[r.id]?.includes(d))
   const on = admin ? !state.off.includes(r.id) : !muted
-  const where = mine.map((d) => domains[d].name).join(' and ')
+  const where = mine.map((d) => domains[d]?.name).join(' and ')
   const value = thresholdOf(r, state)
   const [before, after] = r.when.split('{n}')
   const seen = lastOf(r, owned)

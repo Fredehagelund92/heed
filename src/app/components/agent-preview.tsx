@@ -8,7 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { correctionInAgent, inAgent } from '@/data/ask'
+import { correctionInAgent, inAgent } from '@/lib/in-agent'
 import { useIsMobile } from '@/hooks/use-mobile'
 
 // How the same answers look inside a person's own agent: a static transcript, each answer ending in

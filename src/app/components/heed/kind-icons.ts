@@ -5,7 +5,7 @@ import {
   ZapIcon,
   type LucideIcon,
 } from '@/components/icons'
-import type { Kind } from '@/data/world'
+import type { Kind } from '@/model/items'
 
 /**
  * A context item's kind as an icon, the same in lists, mentions and the picker. A Rule is a ruler:

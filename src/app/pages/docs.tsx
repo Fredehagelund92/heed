@@ -28,9 +28,9 @@ import {
   CommandDialog,
 } from '@/components/ui/command'
 import { Kbd } from '@/components/ui/kbd'
-import { AGENT_TOOLS, CHECKS, PROMPT } from '@/data/agents'
-import { setupSteps } from '@/data/inbox'
-import { kindHint, kindLabel, type Kind } from '@/data/world'
+import { AGENT_TOOLS, CHECKS, PROMPT } from '@/lib/agents'
+import { setupSteps } from '@/lib/setup'
+import { kindHint, kindLabel, type Kind } from '@/model/items'
 import {
   ANSWER_LINES,
   DOC_GROUPS,
@@ -727,7 +727,7 @@ function Landing({ onSearch }: { onSearch: () => void }) {
       </div>
       <div className="grid gap-px border-y bg-border md:grid-cols-3">
         {start.map((p, i) => {
-          const Icon = icons[i]
+          const Icon = icons[i]!
           return (
             <a
               key={p.slug}

@@ -30,39 +30,29 @@ import { Kbd } from '@/components/ui/kbd'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  answerFor,
-  answerForScope,
-  askQuestion,
-  examples,
-  exampleAnswer,
-  readQuestion,
-  type Answer,
-  type QuestionPart,
-} from '@/data/ask'
+  askQuery,
+  useAskExamples,
+  useInbox,
+  useObservabilityData,
+  useSession,
+  useWrite,
+} from '@/api/queries'
+import type { Answer, AskInput, QuestionPart } from '@/model/ask'
 import type { AskQuestion, ComposerHandle } from '@/pages/ask-composer'
-import { cards } from '@/data/inbox'
-import type { Fact } from '@/data/world'
+import type { Fact } from '@/model/items'
 import { useDraft } from '@/lib/draft'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, setQuery, useRoute } from '@/lib/router'
-import { useFacts, useStore } from '@/lib/store'
 import { inputSurface } from '@/lib/surfaces'
-import {
-  addThread,
-  deleteThread,
-  findThread,
-  renameThread,
-  useThreads,
-  type Day,
-  type Thread,
-} from '@/lib/threads'
+import { findThread, useThreadActions, useThreads, type Day, type Thread } from '@/lib/threads'
 import { TruncatedText } from '@/components/heed/truncated'
 import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { StateLine } from '@/components/heed/bits'
-import { TOPICS, shownCount, total } from '@/data/observability'
+import { shownCount, total } from '@/model/observability'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. Mock answers only:
@@ -70,7 +60,9 @@ import { TOPICS, shownCount, total } from '@/data/observability'
 
 type Turn = { answer: Answer; phase: Phase }
 
-const ask = askQuestion
+/** What Ask is asked for a chat's first answer: its example, or its question. */
+const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
+  t.example ? { example: t.example } : { question: t.question }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -133,16 +125,17 @@ function Suggestions({
  * function that answers it, so a dead end shows before you reach it.
  */
 function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => void }) {
-  const pool = useFacts()
-  if (!items.length) return null
+  const { topics } = useObservabilityData()
+  const answers = useQueries({ queries: items.map((question) => askQuery({ question })) })
+  if (!items.length || answers.some((q) => !q.data)) return null
   return (
     <div role="group" aria-labelledby="ask-next" className="-mt-2 flex flex-col gap-2 pl-10">
       <p id="ask-next" className="text-xs font-medium text-muted-foreground">
         Ask next, and what you would get
       </p>
-      {items.map((q) => {
-        const a = askQuestion(q, pool)
-        const topic = TOPICS.find((t) => t.metric === a.metric && t.where === a.markets[0])
+      {items.map((q, i) => {
+        const a = answers[i]!.data!
+        const topic = topics.find((t) => t.metric === a.metric && t.where === a.markets[0])
         const detail = a.sources.length
           ? `${a.sources.length} ${a.sources.length === 1 ? 'item' : 'items'}`
           : a.state === 'missing' && topic
@@ -245,10 +238,10 @@ export function AskChat({
   const composer = React.useRef<ComposerHandle>(null)
   // A touch screen gets no automatic focus: the keyboard would cover the page before anyone asked for it.
   const [touch] = React.useState(() => window.matchMedia('(pointer: coarse)').matches)
-  const pool = useFacts()
-  const { state: store } = useStore()
-  const fresh = store.fresh
-  const add = (asked: string | AskQuestion) => {
+  const { fresh } = useSession()
+  const examples = useAskExamples()
+  const queryClient = useQueryClient()
+  const add = async (asked: string | AskQuestion) => {
     const {
       text: q,
       parts,
@@ -257,12 +250,7 @@ export function AskChat({
     const answer =
       draft && initial?.[0]
         ? { ...initial[0], question: q, parts }
-        : scope.length
-          ? answerForScope(q, scope, parts, pool)
-          : {
-              ...ask(q, pool),
-              parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
-            }
+        : await queryClient.fetchQuery(askQuery({ question: q, parts, scope }))
     const index = turns.length
     // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
     if (index === 0 && onStarter?.(q)) return
@@ -278,23 +266,18 @@ export function AskChat({
   const rescope = (parts: QuestionPart[]) => composer.current?.set(parts)
 
   // Ask again asks the same question again; a check that failed reads it afresh, since the failure was the check's.
-  const retry = (i: number) => () => {
+  const retry = (i: number) => () => void askAgain(i)
+  const askAgain = async (i: number) => {
+    const { question, parts, scope, id, state, dates } = turns[i]!.answer
+    const fresh = await queryClient.fetchQuery(
+      askQuery(state === 'failed' ? { question, reread: { dates } } : { question, parts, scope }),
+    )
     setTurns((ts) =>
-      ts.map((t, j) => {
-        if (j !== i) return t
-        const { question, parts, scope, id } = t.answer
-        const read = readQuestion(question)
-        const fresh =
-          t.answer.state === 'failed'
-            ? {
-                ...answerFor(question, read.metric, read.markets, t.answer.dates, { pool }),
-                alias: read.alias,
-              }
-            : scope?.length
-              ? answerForScope(question, scope, parts, pool)
-              : ask(question, pool)
-        return { answer: { ...fresh, id, parts, scope }, phase: reducedMotion() ? 'done' : 'live' }
-      }),
+      ts.map((t, j) =>
+        j === i
+          ? { answer: { ...fresh, id, parts, scope }, phase: reducedMotion() ? 'done' : 'live' }
+          : t,
+      ),
     )
     follow.current = true
     if (reducedMotion()) window.setTimeout(() => reveal(i), 0)
@@ -400,10 +383,10 @@ export function AskChat({
                   <Suggestions
                     grid
                     items={STARTERS.map((id) => examples.find((e) => e.id === id)!.question)}
-                    onPick={(q) => onStarter?.(q) || add(q)}
+                    onPick={(q) => onStarter?.(q) || void add(q)}
                   />
                 ) : (
-                  <AskedThisWeek onPick={(q) => onStarter?.(q) || add(q)} />
+                  <AskedThisWeek onPick={(q) => onStarter?.(q) || void add(q)} />
                 ))}
             </div>
           ) : (
@@ -432,7 +415,7 @@ export function AskChat({
                 </div>
               ))}
               {!draft && !busy && turns.at(-1)?.phase === 'done' && (
-                <AskNext items={next} onPick={(q) => add(q)} />
+                <AskNext items={next} onPick={(q) => void add(q)} />
               )}
             </div>
           )}
@@ -446,7 +429,7 @@ export function AskChat({
           <React.Suspense fallback={<ComposerPlaceholder placeholder={placeholder} />}>
             <AskComposer
               ref={composer}
-              onSubmit={add}
+              onSubmit={(q) => void add(q)}
               onStop={stop}
               busy={busy}
               placeholder={placeholder}
@@ -489,6 +472,7 @@ function ThreadRow({
   onOpen: () => void
   onDelete: () => void
 }) {
+  const threadActions = useThreadActions()
   const [renaming, setRenaming] = React.useState(false)
   const [leaving, setLeaving] = React.useState(false)
   const row = React.useRef<HTMLLIElement>(null)
@@ -506,7 +490,7 @@ function ThreadRow({
   }, [renaming])
 
   const finishRename = (title?: string) => {
-    if (title?.trim()) renameThread(thread.id, title.trim())
+    if (title?.trim()) threadActions.rename(thread.id, title.trim())
     setRenaming(false)
     requestAnimationFrame(() => openButton.current?.focus())
   }
@@ -741,18 +725,6 @@ function snippetOf(text: string, q: string): Snippet | undefined {
   }
 }
 
-/** What a chat's first answer says, read once per question. */
-const answerText = new Map<string, string>()
-const firstAnswer = (t: Thread) => {
-  const key = t.example ?? t.question
-  if (!answerText.has(key))
-    answerText.set(
-      key,
-      (t.example ? exampleAnswer(t.example) : ask(t.question)).text.replace(/\[\d+\]/g, ''),
-    )
-  return answerText.get(key)!
-}
-
 /** The chats beside the thread: New chat and search pinned on top, then the chats by day. */
 function ThreadList({
   current,
@@ -772,13 +744,14 @@ function ThreadList({
   onNewChat?: () => void
 }) {
   const all = useThreads()
-  const { state } = useStore()
+  const { fresh } = useSession()
+  const threadActions = useThreadActions()
   const [search, setSearch] = React.useState('')
-  const visible = state.fresh ? all.filter((t) => !t.seed) : all
+  const visible = fresh ? all.filter((t) => !t.seed) : all
   const q = search.trim().toLowerCase()
   // Search reads what was asked and what the answers said, the open chat's latest turns too, not only the title.
   const body = (t: Thread) =>
-    `${t.question} ${firstAnswer(t)}${t.id === current && live ? ` ${live.replace(/\[\d+\]/g, '')}` : ''}`
+    `${t.question} ${t.preview}${t.id === current && live ? ` ${live.replace(/\[\d+\]/g, '')}` : ''}`
   const shown = visible.filter((t) => `${t.title} ${body(t)}`.toLowerCase().includes(q))
   // The line that matched, unless the title already shows it.
   const snippet = (t: Thread) =>
@@ -799,10 +772,13 @@ function ThreadList({
       )
     onPick?.()
   }
-  const remove = (t: Thread) => {
-    const undo = deleteThread(t.id)
+  const remove = async (t: Thread) => {
+    const undo = await threadActions.remove(t.id)
     if (current === t.id) startChat()
-    toast('Chat deleted', { description: t.title, action: { label: 'Undo', onClick: undo } })
+    toast('Chat deleted', {
+      description: t.title,
+      action: { label: 'Undo', onClick: () => threadActions.undo(undo) },
+    })
   }
 
   return (
@@ -911,7 +887,7 @@ function ThreadList({
                       }
                       snippet={snippet(t)}
                       onOpen={() => open(t)}
-                      onDelete={() => remove(t)}
+                      onDelete={() => void remove(t)}
                     />
                   ))}
                 </ul>
@@ -948,12 +924,14 @@ export function AskPage() {
   const example = query.get('example')
   const chat = query.get('chat')
   const n = query.get('n')
-  useThreads()
-  const asked = findThread(chat)?.question
-  const initial = React.useMemo(
-    () => (example ? [exampleAnswer(example)] : asked ? [ask(asked)] : []),
-    [example, asked],
-  )
+  const threads = useThreads()
+  const asked = findThread(threads, chat)?.question
+  // An example or a chat opens on its first answer, which is read before the thread shows.
+  const first = useQuery({
+    ...askQuery(example ? { example } : { question: asked ?? '' }),
+    enabled: !!example || !!asked,
+  })
+  const initial = React.useMemo(() => (first.data ? [first.data] : []), [first.data])
   const [sheet, setSheet] = React.useState(false)
   const [live, setLive] = React.useState('')
   const [collapsed, setCollapsedState] = React.useState(
@@ -986,8 +964,8 @@ export function AskPage() {
 
   // A new chat joins the list with its first question. The thread stays mounted: only an opened
   // chat or New chat changes `n`, which is what starts a thread afresh.
-  const { dispatch } = useStore()
-  const threads = useThreads()
+  const write = useWrite()
+  const threadActions = useThreadActions()
   // A starter already asked opens that chat, so the history never gets the same question twice.
   const openExisting = (question: string) => {
     const t = threads.find((x) => x.question.toLowerCase() === question.toLowerCase())
@@ -1000,13 +978,16 @@ export function AskPage() {
     return true
   }
   const setup = query.get('setup')
+  // The chat a first question here started: the thread already shows it.
+  const [started, setStarted] = React.useState<string>()
   const onFirstAsk = (q: string) => {
     const id = `chat-${n ?? Date.now()}`
-    addThread(id, q)
+    setStarted(id)
+    threadActions.add(id, q)
     setQuery({ chat: id, setup: undefined, q: undefined })
     // The setup step "Ask a question about it" is done by asking one.
     if (setup) {
-      dispatch({ type: 'setupStep', step: 'ask' })
+      void write('completeSetupStep', { step: 'ask' })
       toast('Asked your first question', {
         description: 'This is what agents get from what you wrote.',
         action: { label: 'Back to setup', onClick: () => navigate('/inbox') },
@@ -1077,14 +1058,18 @@ export function AskPage() {
           </ResizableAside>
         </div>
         <div className="min-h-0 min-w-0 flex-1">
-          <AskChat
-            key={example ? `e-${example}` : `c-${n ?? ''}`}
-            initial={initial}
-            prefill={query.get('q') ?? undefined}
-            onFirstAsk={example || asked ? undefined : onFirstAsk}
-            onStarter={openExisting}
-            onTurns={setLive}
-          />
+          {/* An example or a chat opens on its first answer, so the thread waits for it; a chat
+              started here by asking is already showing it. */}
+          {(first.data || (!example && (!asked || chat === started))) && (
+            <AskChat
+              key={example ? `e-${example}` : `c-${n ?? ''}`}
+              initial={initial}
+              prefill={query.get('q') ?? undefined}
+              onFirstAsk={example || asked ? undefined : onFirstAsk}
+              onStarter={openExisting}
+              onTurns={setLive}
+            />
+          )}
         </div>
       </div>
       <Sheet open={sheet} onOpenChange={setSheet}>
@@ -1109,13 +1094,12 @@ export function AskDock() {
     initial: [],
   })
   const [history, setHistory] = React.useState(false)
+  const queryClient = useQueryClient()
+  const threadActions = useThreadActions()
   const newChat = () => setChat({ key: `new-${Date.now()}`, initial: [] })
-  const openChat = (t: Thread) => {
-    setChat({
-      key: t.id,
-      id: t.id,
-      initial: [t.example ? exampleAnswer(t.example) : ask(t.question)],
-    })
+  const openChat = async (t: Thread) => {
+    const answer = await queryClient.fetchQuery(askQuery(firstAsk(t)))
+    setChat({ key: t.id, id: t.id, initial: [answer] })
     setHistory(false)
   }
   return (
@@ -1139,7 +1123,7 @@ export function AskDock() {
             <PopoverContent align="end" aria-label="History" className="h-history w-72 p-0">
               <ThreadList
                 current={chat.id}
-                onOpenChat={openChat}
+                onOpenChat={(t) => void openChat(t)}
                 onNewChat={() => (newChat(), setHistory(false))}
               />
             </PopoverContent>
@@ -1165,7 +1149,7 @@ export function AskDock() {
         onFirstAsk={
           chat.initial.length
             ? undefined
-            : (question) => addThread(`chat-dock-${Date.now()}`, question)
+            : (question) => threadActions.add(`chat-dock-${Date.now()}`, question)
         }
       />
     </DockFrame>
@@ -1174,6 +1158,7 @@ export function AskDock() {
 
 /** Try it: Ask against a suggestion's draft, before agents get it. */
 export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolean }) {
+  const { cards } = useInbox()
   const card = cards.find((c) => c.id === cardId)
   const editorDraft = useDraft()
   const draft = cardId === 'editor' ? (editorDraft ?? undefined) : card?.suggestion?.draft

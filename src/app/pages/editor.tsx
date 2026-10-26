@@ -26,11 +26,11 @@ import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { ContextText } from '@/components/heed/mention-chip'
 import { useSideChoice } from '@/lib/side-panel'
-import { useSend } from '@/lib/scenario'
+import { useSend } from '@/lib/send'
 import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
-import { type Validity } from '@/data/contract'
+import { type Validity } from '@/model/validity'
 import {
   missingDates,
   validOfWhen,
@@ -66,22 +66,16 @@ import { Field, FieldLabel } from '@/components/ui/field'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { cards } from '@/data/inbox'
 import {
-  domainIds,
-  domains,
   kindHint,
   kindLabel,
-  markets,
-  metrics,
-  ownersOf,
-  people,
   servedToAgents,
   type DomainId,
   type Fact,
   type Kind,
   type Status,
-} from '@/data/world'
+} from '@/model/items'
+import { ownersOf, type Domain, type Domains } from '@/model/people'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { HeaderMore, SaveStatus } from '@/components/heed/editor-header'
 import { Panel, PanelGroup } from '@/components/heed/panel'
@@ -98,7 +92,10 @@ import {
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { setDraft } from '@/lib/draft'
 import { href, navigate, useRoute } from '@/lib/router'
-import { useFact, useFacts, useMe, useStore } from '@/lib/store'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Vocabulary } from '@/api'
+import { draftFromTextQuery, useInbox, useVocabulary, useWrite } from '@/api/queries'
+import { useDomainList, useDomains, useFact, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { useWide } from '@/hooks/use-wide'
 import { Kbd } from '@/components/ui/kbd'
 import { usePrimaryKey } from '@/hooks/use-primary-key'
@@ -127,38 +124,24 @@ type Form = {
   dontConclude: string
 }
 
-const NORWAY: Form = {
-  title: 'Online sales to Norway stopped on 4 August 2026',
-  body: 'A new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing.\n\nThere are no stores in Norway, so the [@ id="term:Webshop" label="Webshop"] was the only way to buy there.\n\n- Parcels already on their way still arrived.\n- Compare [@ id="metric:Orders" label="Orders"] in Norway with itself before or after the stop, never across it.\n\n> Paid campaigns there had stopped before this: [@ id="context:itm_za26xpzv" label="Regulator paused price promotions in Norway on 9 May 2026"].\n\nNot the same as the earlier change in Norway payments: [@ id="context:itm_kh4llvi9" label="Payment provider switched in Norway on 9 July 2025"].',
-  kind: 'event',
-  domain: 'sales',
-  owners: domains.sales.owners,
-  status: 'Live',
-  where: ['Orders', 'Norway'],
-  when: 'ongoing',
-  from: '2026-08-04',
-  until: '',
-  source: 'https://customs.example/norway/notices/2026-08-04',
-  quote:
-    'Parcels from webshops outside Norway are held at the border from 4 August 2026 until further notice.',
-  causes: false,
-  dontConclude: 'Fewer orders in Norway after 4 August do not mean fewer customers.',
-}
-
 const BLANK: Form = {
-  ...NORWAY,
   title: '',
   body: '',
+  kind: 'event',
+  domain: 'sales',
+  owners: [],
+  status: 'Live',
   where: [],
   when: 'always',
   from: '',
   until: '',
   source: '',
   quote: '',
+  causes: false,
   dontConclude: '',
 }
 
-function fromFact(f: Fact): Form {
+function fromFact(f: Fact, domains: Domains): Form {
   // From the stored dates, so the editor shows the real ones.
   const w = whenOfValid(f.valid)
   return {
@@ -166,7 +149,7 @@ function fromFact(f: Fact): Form {
     body: [f.summary, f.body].filter(Boolean).join('\n\n'),
     kind: f.kind,
     domain: f.domain,
-    owners: ownersOf(f),
+    owners: ownersOf(f, domains),
     // A draft is published as Live.
     status: f.status === 'Draft' ? 'Live' : f.status,
     where: f.where,
@@ -188,7 +171,7 @@ const validOf = (f: Form): Validity => validOfWhen(whenOf(f))
 /** The When people read, from the same function as everywhere else once the dates are there. */
 const whenText = (f: Form) => whenSummary(whenOf(f))
 
-function toFact(f: Form, id: string, me: string, original?: Fact): Fact {
+function toFact(f: Form, id: string, me: string, domains: Domains, original?: Fact): Fact {
   const [summary, ...rest] = f.body.split('\n\n')
   return {
     valid: validOf(f),
@@ -198,7 +181,7 @@ function toFact(f: Form, id: string, me: string, original?: Fact): Fact {
     body: rest.join('\n\n') || undefined,
     domain: f.domain,
     // Owners of its own only when they differ from its domain's.
-    owners: f.owners.join() === domains[f.domain].owners.join() ? undefined : f.owners,
+    owners: f.owners.join() === domains[f.domain]?.owners.join() ? undefined : f.owners,
     kind: f.kind,
     where: f.where,
     // Until its dates are picked, an edited item keeps saying what it said.
@@ -214,22 +197,21 @@ function toFact(f: Form, id: string, me: string, original?: Fact): Fact {
 }
 
 function initialForm(
-  mode: string,
   fact: Fact | undefined,
   query: URLSearchParams,
   home: DomainId,
+  { domains, gapDraft, fromText }: { domains: Domains; gapDraft?: Fact; fromText?: Fact },
 ): Form {
-  if (fact) return fromFact(fact)
-  if (query.get('draft') === 'norway') return NORWAY
+  if (fact) return fromFact(fact, domains)
+  if (fromText) return fromFact(fromText, domains)
   // New context starts in the writer's own domain, so an owner publishes rather than suggests.
-  const blank = { ...BLANK, domain: home, owners: domains[home].owners }
+  const blank = { ...BLANK, domain: home, owners: domains[home]?.owners ?? [] }
   // A Not found card opens its draft, never a blank page, with the draft's own dates.
-  const gap = cards.find((c) => c.id === query.get('gap'))?.gap
-  if (gap?.draft)
+  if (gapDraft)
     return {
-      ...fromFact(gap.draft),
-      domain: gap.draft.domain,
-      owners: domains[gap.draft.domain].owners,
+      ...fromFact(gapDraft, domains),
+      domain: gapDraft.domain,
+      owners: domains[gapDraft.domain]?.owners ?? [],
       when: 'between',
       from: '2026-10-14',
       until: '2026-10-16',
@@ -237,7 +219,7 @@ function initialForm(
   const metric = query.get('metric')
   const market = query.get('market')
   if (metric || market) return { ...blank, where: [metric, market].filter(Boolean) as string[] }
-  return mode === 'new' ? blank : NORWAY
+  return blank
 }
 
 /** "customs.example": a link's host, the way a link chip names it. */
@@ -275,40 +257,62 @@ const KIND_OPTIONS = (Object.keys(kindLabel) as Kind[]).map((k) => {
     icon: <Icon aria-hidden className="size-4 text-muted-foreground" />,
   }
 })
-// Read each time, so a domain added or renamed in Settings is here with its own words.
-const domainOptions = () =>
-  domainIds.map((d) => ({
-    value: d,
-    label: domains[d].name,
-    hint: domains[d].covers,
-    icon: <DomainDot id={d} />,
+// From the workspace as it stands, so a domain added or renamed in Settings is here with its own words.
+const domainOptions = (domains: Domain[]) =>
+  domains.map((d) => ({
+    value: d.id,
+    label: d.name,
+    hint: d.covers,
+    icon: <DomainDot id={d.id} />,
   }))
-const whereGroups = () => [
+const whereGroups = (domains: Domain[], vocabulary: Vocabulary) => [
   {
     heading: 'Domains',
-    items: domainIds.filter((d) => d !== 'sandbox').map((d) => domains[d].name),
+    items: domains.filter((d) => d.id !== 'sandbox').map((d) => d.name),
   },
-  { heading: 'Metrics', items: metrics.map((m) => m.name) },
-  { heading: 'Markets', items: markets },
+  { heading: 'Metrics', items: vocabulary.metrics.map((m) => m.name) },
+  { heading: 'Markets', items: vocabulary.markets },
 ]
 
 /* ---------- the page ---------- */
 
-export function FactEditor({
+export function FactEditor(props: { mode: 'new' | 'edit' | 'suggest'; factId?: string }) {
+  // ?draft=norway opens the editor as Draft from text fills it, so that state has a link.
+  const fromText = useQuery({
+    ...draftFromTextQuery(''),
+    enabled: useRoute().query.get('draft') === 'norway',
+  })
+  if (fromText.isFetching) return null
+  return <Editor {...props} fromText={fromText.data} />
+}
+
+function Editor({
   mode,
   factId,
+  fromText,
 }: {
   mode: 'new' | 'edit' | 'suggest'
   factId?: string
+  fromText?: Fact
 }) {
   const original = useFact(factId)
   const facts = useFacts()
   const me = useMe()
-  const { dispatch } = useStore()
+  const domains = useDomains()
+  const domainList = useDomainList()
+  const people = usePeople()
+  const vocabulary = useVocabulary()
+  const { cards } = useInbox()
+  const write = useWrite()
+  const queryClient = useQueryClient()
   const { query } = useRoute()
   // What the page opened with, so an edit or a suggestion that changes nothing can't be sent.
   const [initial] = React.useState<Form>(() =>
-    initialForm(mode, original, query, me.owns[0] ?? 'sales'),
+    initialForm(original, query, me.owns[0] ?? 'sales', {
+      domains,
+      gapDraft: cards.find((c) => c.id === query.get('gap'))?.gap?.draft,
+      fromText: mode === 'new' ? fromText : undefined,
+    }),
   )
   const [form, setForm] = React.useState<Form>(initial)
   const [sourceOpen, setSourceOpen] = React.useState(false)
@@ -346,11 +350,11 @@ export function FactEditor({
   const { state: sendState, send, online } = useSend()
   const owner = me.owns.includes(form.domain) || me.admin
   const isSuggest = mode === 'suggest' || !owner
-  const ownerName = form.owners[0] ?? domains[form.domain].owners[0]
+  const ownerName = form.owners[0] ?? domains[form.domain]?.owners[0] ?? ''
   const ids = React.useId()
   const KindIcon = kindIcons[form.kind]
   const fieldId = (name: string) => `${ids}-${name}`
-  const draft = toFact(form, original?.id ?? 'draft', me.name, original)
+  const draft = toFact(form, original?.id ?? 'draft', me.name, domains, original)
   React.useEffect(() => setDraft(draft))
 
   const overlaps = facts.filter(
@@ -377,9 +381,10 @@ export function FactEditor({
   // Long enough to clamp: about six lines of the preview's width.
   const long = text.split('\n').filter(Boolean).length + Math.floor(text.length / 45) > 6
 
-  const fill = () => {
-    setForm(NORWAY)
-    editor?.commands.setContent(NORWAY.body, { contentType: 'markdown' })
+  const fill = async () => {
+    const filled = fromFact(await queryClient.fetchQuery(draftFromTextQuery(pasted)), domains)
+    setForm(filled)
+    editor?.commands.setContent(filled.body, { contentType: 'markdown' })
     setDraftOpen(false)
     toast('Filled from your text', { description: 'Check each part before you publish.' })
   }
@@ -402,14 +407,11 @@ export function FactEditor({
     else if (!form.source) setSourceOpen(true)
   }
 
-  const commit = () => {
+  const commit = async () => {
     if (isSuggest) {
       // It waits visibly: a line on the item, and a row under All in your Inbox.
-      const id = `sent_${Date.now().toString(36)}`
-      dispatch({
-        type: 'send',
+      const { id } = await write('sendSuggestion', {
         sent: {
-          id,
           factId: original?.id,
           title: form.title,
           by: me.name,
@@ -418,7 +420,7 @@ export function FactEditor({
           at: 'just now',
         },
       })
-      toast(`Sent to ${ownerName}, owner of ${domains[form.domain].name}`, {
+      toast(`Sent to ${ownerName}, owner of ${domains[form.domain]?.name}`, {
         description: 'Agents get it once the owner publishes it.',
       })
       navigate(
@@ -427,14 +429,13 @@ export function FactEditor({
       )
       return
     }
-    const id = original?.id ?? `itm_new_${Date.now().toString(36)}`
-    if (original) dispatch({ type: 'editFact', id, patch: draft })
-    else dispatch({ type: 'addFact', fact: { ...draft, id } })
-    dispatch({ type: 'published', id })
-    const gap = query.get('gap')
-    if (gap) dispatch({ type: 'complete', card: gap, outcome: 'Context written' })
+    const { id } = await write('saveItem', {
+      fact: draft,
+      isNew: !original,
+      gap: query.get('gap') ?? undefined,
+      setup: !!query.get('setup'),
+    })
     if (query.get('setup')) {
-      dispatch({ type: 'setupStep', step: 'fact' })
       toast('Published', {
         description: 'Your first context item. Agents get it from the next question.',
       })
@@ -480,7 +481,7 @@ export function FactEditor({
         </Field>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button onClick={fill}>Fill it in</Button>
+          <Button onClick={() => void fill()}>Fill it in</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -502,13 +503,13 @@ export function FactEditor({
         <div className="rounded-frame border bg-muted/30 p-3 text-sm">
           <p className="leading-snug font-medium">{draft.title}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {domains[form.domain].name}, {kindLabel[form.kind].toLowerCase()},{' '}
+            {domains[form.domain]?.name}, {kindLabel[form.kind].toLowerCase()},{' '}
             {draft.when.charAt(0).toLowerCase() + draft.when.slice(1)}
           </p>
           <p className="text-xs text-muted-foreground">
             {isSuggest
               ? 'Not checked yet: waiting for the owner'
-              : `Checked by the owner of ${domains[form.domain].name}`}
+              : `Checked by the owner of ${domains[form.domain]?.name}`}
           </p>
           {/* The text as the document reads it: paragraphs, real bullets, a quote. Clamped when long,
               never boxed, so the panel keeps one scroll bar at most. */}
@@ -655,7 +656,7 @@ export function FactEditor({
                     Send
                     <span className="hidden sm:inline">
                       {' '}
-                      to the owner of {domains[form.domain].name}
+                      to the owner of {domains[form.domain]?.name}
                     </span>
                   </>
                 ) : (
@@ -778,7 +779,7 @@ export function FactEditor({
       <Paper>
         {mode === 'suggest' && original && (
           <p className="mb-5 rounded-frame bg-muted px-3 py-2 text-sm text-muted-foreground">
-            You're suggesting a change. {ownerName}, owner of {domains[original.domain].name},
+            You're suggesting a change. {ownerName}, owner of {domains[original.domain]?.name},
             decides; agents keep getting the context item as it is until then.
           </p>
         )}
@@ -801,15 +802,15 @@ export function FactEditor({
                 labelId={fieldId('domain')}
                 label="Domain"
                 value={form.domain}
-                options={domainOptions()}
+                options={domainOptions(domainList)}
                 onChange={(d) => {
                   set('domain', d)
-                  set('owners', domains[d].owners)
+                  set('owners', domains[d]?.owners ?? [])
                 }}
                 display={
                   <>
                     <DomainDot id={form.domain} />
-                    <span className="font-medium">{domains[form.domain].name}</span>
+                    <span className="font-medium">{domains[form.domain]?.name}</span>
                   </>
                 }
               />
@@ -868,7 +869,7 @@ export function FactEditor({
                 labelId={fieldId('where')}
                 label="Applies to"
                 values={form.where}
-                groups={whereGroups()}
+                groups={whereGroups(domainList, vocabulary)}
                 onChange={(w) => set('where', w)}
                 placeholder="Add a metric, market or domain"
                 searchPlaceholder="Search metrics, markets and domains"

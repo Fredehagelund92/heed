@@ -63,20 +63,28 @@ const withTheme = (place: string, theme: string) =>
   `${place}${place.includes('?') ? '&' : '?'}theme=${theme}`
 
 /**
-  Wait until the fonts are in and nothing moves, so axe reads the colours a person sees. An
+  Wait until the fonts are in and nothing moves, so axe reads the colours a person sees. Still
+  means still for ten frames in a row: a page's content can fade in a frame or two after its
+  header shows, and one still frame before that would let axe read the text half faded. An
   animation tied to scrolling (the editor toolbar's edge fade) runs as long as the page is open and
   only moves when someone scrolls, so it does not count.
 */
 async function settle(page: Page) {
-  await page.evaluate(() => document.fonts.ready)
-  await page.waitForFunction(() =>
-    document
+  await page.evaluate(async () => {
+    await document.fonts.ready
+    delete (window as Window & { stillFrames?: number }).stillFrames
+  })
+  await page.waitForFunction(() => {
+    const still = document
       .getAnimations()
       .every(
         (animation) =>
           animation.playState !== 'running' || animation.timeline !== document.timeline,
-      ),
-  )
+      )
+    const frames = window as Window & { stillFrames?: number }
+    frames.stillFrames = still ? (frames.stillFrames ?? 0) + 1 : 0
+    return frames.stillFrames >= 10
+  })
 }
 
 async function violations(page: Page) {

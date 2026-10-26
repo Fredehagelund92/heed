@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useDomains } from '@/lib/workspace'
 import { ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -6,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DockFrame, DockMissing } from '@/components/dock'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { TagChip } from '@/components/heed/tag-chip'
-import { domains, kindLabel, type Fact } from '@/data/world'
+import { kindLabel, type Fact } from '@/model/items'
 import { closeDock, openDock } from '@/lib/dock'
 import { plainText } from '@/lib/mentions'
 import { setQuery, useRoute } from '@/lib/router'
@@ -56,7 +57,8 @@ export function WherePanel({ id }: { id: string }) {
         </DockMissing>
       </DockFrame>
     )
-  const sentence = sentences[n - 1]
+  // n is kept within the sentences (1 to their count), and there is at least one.
+  const sentence = sentences[Math.min(Math.max(n, 1), sentences.length) - 1]!
   const cited = sentence.cites.map((c) => shown.facts[c - 1]).filter((f): f is Fact => Boolean(f))
   const step = (to: number, label: string, Icon: typeof ChevronUpIcon) => (
     <Tooltip>
@@ -87,7 +89,7 @@ export function WherePanel({ id }: { id: string }) {
       }
       footer={
         cited.length === 1 ? (
-          <Button variant="outline" onClick={() => openDock('context', cited[0].id)}>
+          <Button variant="outline" onClick={() => openDock('context', cited[0]!.id)}>
             Open the item
           </Button>
         ) : undefined
@@ -137,6 +139,7 @@ function Chain({
   fact: Fact
   many: boolean
 }) {
+  const domains = useDomains()
   const summary = plainText(fact.summary)
   const where = fact.source.replace(/^https?:\/\//, '')
   const KindGlyph = kindIcons[fact.kind]
@@ -148,7 +151,7 @@ function Chain({
         </TagChip>
         <h3 className="text-base leading-snug font-semibold text-balance">{fact.title}</h3>
         <p className="text-xs text-muted-foreground">
-          {domains[fact.domain].name} - {fact.where.join(', ')} - {fact.when}
+          {domains[fact.domain]?.name} - {fact.where.join(', ')} - {fact.when}
         </p>
       </div>
       <ol className="relative flex flex-col gap-4 before:absolute before:top-2 before:bottom-2 before:left-1.25 before:w-px before:bg-primary/30">

@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
-import type { Answer } from '@/data/ask'
-import type { Fact } from '@/data/world'
+import type { Answer } from '@/model/ask'
+import type { Fact } from '@/model/items'
+import { useWorkspace } from '@/api/queries'
 import { cardFooter, plainAnswer, slackText, sourceLine, stateLineOf } from '@/lib/share'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { useShownAnswer } from '@/lib/shown-answers'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 
 // Share, under an answer: one button, two ways for the answer to travel with its state and its
 // sources. A Slack message, previewed exactly as it pastes, and a card that fits a screenshot. A
@@ -38,6 +39,7 @@ export function ShareButton({
   answerId: string
   docked?: boolean
 }) {
+  const workspace = useWorkspace().name
   const dock = useDock()
   const [open, setOpen] = React.useState(false)
   const [way, setWay] = React.useState<Way>('slack')
@@ -77,7 +79,7 @@ export function ShareButton({
         <Button
           ref={copyRef}
           className="w-full"
-          onClick={() => void copyShare(way, answer, facts).then(() => setOpen(false))}
+          onClick={() => void copyShare(way, answer, facts, workspace).then(() => setOpen(false))}
         >
           {way === 'slack' ? 'Copy for Slack' : 'Copy card'}
         </Button>
@@ -88,6 +90,7 @@ export function ShareButton({
 
 /** The right panel: the two ways, and Copy at the foot. */
 export function SharePanel({ id }: { id: string }) {
+  const workspace = useWorkspace().name
   const shown = useShownAnswer(id)
   const [way, setWay] = React.useState<Way>('slack')
   // Escape closes it, as it closes a peek.
@@ -115,7 +118,7 @@ export function SharePanel({ id }: { id: string }) {
     <DockFrame
       title="Share this answer"
       footer={
-        <Button autoFocus onClick={() => void copyShare(way, shown.answer, shown.facts)}>
+        <Button autoFocus onClick={() => void copyShare(way, shown.answer, shown.facts, workspace)}>
           {way === 'slack' ? 'Copy for Slack' : 'Copy card'}
         </Button>
       }
@@ -127,7 +130,7 @@ export function SharePanel({ id }: { id: string }) {
   )
 }
 
-async function copyShare(way: Way, answer: Answer, facts: Fact[]) {
+async function copyShare(way: Way, answer: Answer, facts: Fact[], workspace: string) {
   const text = slackText(answer, facts)
   if (way === 'slack') {
     await navigator.clipboard?.writeText(text).catch(() => undefined)
@@ -139,7 +142,7 @@ async function copyShare(way: Way, answer: Answer, facts: Fact[]) {
   try {
     await navigator.clipboard.write([
       new ClipboardItem({
-        'text/html': new Blob([cardHtml(answer, facts)], { type: 'text/html' }),
+        'text/html': new Blob([cardHtml(answer, facts, workspace)], { type: 'text/html' }),
         'text/plain': new Blob([text], { type: 'text/plain' }),
       }),
     ])
@@ -261,6 +264,7 @@ function SlackPreview({ answer, facts }: { answer: Answer; facts: Fact[] }) {
 
 /** The card: a receipt in the product's square hairline frame. State, question, answer, numbered sources, one footer line. */
 export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] }) {
+  const workspace = useWorkspace().name
   return (
     <figure className="m-0 flex flex-col gap-3 rounded-mark border bg-background p-4">
       <StateLine state={answer.state} sentence tip={false} className="text-xs" />
@@ -282,14 +286,14 @@ export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] })
         </ol>
       )}
       <figcaption className="border-t border-dotted pt-2 text-2xs text-muted-foreground">
-        {cardFooter()}
+        {cardFooter(workspace)}
       </figcaption>
     </figure>
   )
 }
 
 /** The card as rich text for the clipboard: plain tags with inline styles, so it pastes as a block anywhere. */
-function cardHtml(answer: Answer, facts: Fact[]) {
+function cardHtml(answer: Answer, facts: Fact[], workspace: string) {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const state = stateLineOf(answer, facts.length)
   const rows = facts
@@ -306,7 +310,7 @@ function cardHtml(answer: Answer, facts: Fact[]) {
     rows
       ? `<table style="border-top:1px dotted #999;font-size:12px;width:100%;padding-top:8px">${rows}</table>`
       : '',
-    `<p style="margin:12px 0 0;border-top:1px dotted #999;padding-top:6px;font-size:11px;color:#666">${esc(cardFooter())}</p>`,
+    `<p style="margin:12px 0 0;border-top:1px dotted #999;padding-top:6px;font-size:11px;color:#666">${esc(cardFooter(workspace))}</p>`,
     `</div>`,
   ].join('')
 }

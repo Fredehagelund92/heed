@@ -378,7 +378,7 @@ export function StaticField({ children }: { children: React.ReactNode }) {
 
 const toDate = (iso: string) => {
   if (!iso) return undefined
-  const [y, m, d] = iso.split('-').map(Number)
+  const [y = 0, m = 1, d = 1] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 const toIso = (d: Date | undefined) =>

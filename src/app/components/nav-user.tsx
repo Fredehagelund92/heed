@@ -17,13 +17,14 @@ import {
 } from '@/components/ui/sidebar'
 import { open } from '@/lib/events'
 import { navigate } from '@/lib/router'
-import { useMe, useStore } from '@/lib/store'
+import { useApiWrite } from '@/api/queries'
+import { useMe } from '@/lib/workspace'
 
 // The sidebar block's user menu: Connect an agent and Sign out. Help sits in the sidebar's foot, the theme in the header.
 export function NavUser() {
   const { isMobile, setOpenMobile } = useSidebar()
   const me = useMe()
-  const { dispatch } = useStore()
+  const signOut = useApiWrite('signOut')
 
   return (
     <SidebarMenu>
@@ -71,8 +72,7 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                dispatch({ type: 'signOut' })
-                navigate('/signin')
+                signOut.mutate(undefined, { onSuccess: () => navigate('/signin') })
               }}
             >
               <LogOutIcon />

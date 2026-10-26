@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useObservability } from '@/lib/obs'
 import { BotIcon, ChevronDownIcon, LayersIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Changed } from '@/components/heed/changed'
@@ -12,8 +13,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { AGENTS, RANGES, type Range } from '@/data/observability'
-import { domainIds, domains } from '@/data/world'
+import { RANGES, type Range } from '@/model/observability'
+import { useDomainList, useDomains } from '@/lib/workspace'
 import type { ObsView } from '@/lib/obs'
 import { setQuery } from '@/lib/router'
 
@@ -93,6 +94,9 @@ function Filter({
 
 /** The page's filters: a domain, a kind of agent (admins), and the range. */
 export function ObsControls({ view, compact }: { view: ObsView; compact?: boolean }) {
+  const obs = useObservability()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   const doms = view.owned ?? domainIds.filter((d) => d !== 'sandbox')
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -100,11 +104,11 @@ export function ObsControls({ view, compact }: { view: ObsView; compact?: boolea
         <Filter
           heading="Domain"
           icon={<LayersIcon className="size-3.5" />}
-          label={view.domain ? domains[view.domain].name : 'All domains'}
+          label={view.domain ? (domains[view.domain]?.name ?? 'All domains') : 'All domains'}
           value={view.domain ?? 'all'}
           options={[
             ...(view.owned ? [] : [{ value: 'all', label: 'All domains' }]),
-            ...doms.map((d) => ({ value: d, label: domains[d].name })),
+            ...doms.map((d) => ({ value: d, label: domains[d]?.name ?? d })),
           ]}
           onChange={(v) => setQuery({ domain: v === 'all' ? undefined : v })}
         />
@@ -117,7 +121,7 @@ export function ObsControls({ view, compact }: { view: ObsView; compact?: boolea
           value={view.agent ?? 'all'}
           options={[
             { value: 'all', label: 'All agents' },
-            ...AGENTS.map((a) => ({ value: a.name, label: a.name })),
+            ...obs.data.agents.map((a) => ({ value: a.name, label: a.name })),
           ]}
           onChange={(v) => setQuery({ agent: v === 'all' ? undefined : v })}
         />

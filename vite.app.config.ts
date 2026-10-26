@@ -3,17 +3,20 @@ import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { storageKey } from './src/app/lib/brand.ts'
 import { productTitle } from './vite.config.ts'
 
 /*
   The new web app in src/app (the golden plan's P2): the approved mockup, on the repository's
   router, icon module and class merge. It builds beside the old front end until it replaces it:
-  `npm run dev:app` and `npm run build:app`, to dist/app. Its pages read the mockup's store and
-  fixtures, the mock binding.
+  `npm run dev:app` and `npm run build:app`, to dist/app. Its pages read their data through one
+  typed API (src/app/api): the mock binding by default, the Heed service with VITE_API_MODE=http.
 */
 
+const apiProxy = { '/api/v1': process.env.HEED_API_URL ?? 'http://127.0.0.1:3000' }
+
+const root = fileURLToPath(new URL('.', import.meta.url))
 const appRoot = fileURLToPath(new URL('./src/app', import.meta.url))
 const bootstrapPath = fileURLToPath(new URL('./src/app/theme-bootstrap.js', import.meta.url))
 
@@ -40,12 +43,20 @@ function themeBootstrap(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   root: appRoot,
-  envDir: fileURLToPath(new URL('.', import.meta.url)),
+  envDir: root,
   // VITE_ variables, and the product's name the service reads too (src/app/lib/brand.ts).
   envPrefix: ['VITE_', 'CL_PRODUCT_NAME'],
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    // The binding the app talks to (src/app/api/binding.ts): the mock, unless VITE_API_MODE=http
+    // asks for the Heed service, so neither build carries the other.
+    alias:
+      loadEnv(mode, root, 'VITE_').VITE_API_MODE === 'http'
+        ? [{ find: /^\.\/binding$/, replacement: `${appRoot}/api/binding-http.ts` }]
+        : [],
+  },
   plugins: [
     // The pages load with the app, as the mockup's do; the review and the editors, which carry
     // Tiptap, are lazy routes of their own (routes/**/*.lazy.tsx), fetched once the browser is
@@ -61,11 +72,13 @@ export default defineConfig({
     themeBootstrap(),
     productTitle(),
   ],
-  server: { port: 5174, strictPort: true },
-  preview: { port: 4174, strictPort: true },
+  // With VITE_API_MODE=http the app calls the Heed service at /api/v1 on its own origin; these
+  // forward it there (`npm run dev:server`), as the front end's do.
+  server: { port: 5174, strictPort: true, proxy: apiProxy },
+  preview: { port: 4174, strictPort: true, proxy: apiProxy },
   build: {
     outDir: fileURLToPath(new URL('./dist/app', import.meta.url)),
     emptyOutDir: true,
     sourcemap: 'hidden',
   },
-})
+}))

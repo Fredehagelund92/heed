@@ -13,7 +13,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { kindIcons } from '@/components/heed/kind-icons'
-import { kindLabel, type Fact, type Kind } from '@/data/world'
+import { kindLabel, type Fact, type Kind } from '@/model/items'
 import {
   checkedTip,
   timeDate,

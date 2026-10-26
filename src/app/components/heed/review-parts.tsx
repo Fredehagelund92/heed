@@ -13,7 +13,14 @@ import { pageKey } from '@/lib/keys'
 import { MentionChip } from '@/components/heed/mention-chip'
 import { Button } from '@/components/ui/button'
 import { changeIcons } from '@/components/heed/change-icons'
-import { countWord, marks, type Block, type ChangeKind, type Review, type Seg } from '@/data/review'
+import {
+  countWord,
+  marks,
+  type Block,
+  type ChangeKind,
+  type Review,
+  type Seg,
+} from '@/model/review'
 
 // The parts of a review, drawn so a change is easy to see and to separate from the next one. Each
 // change sits in its own block under a quiet kind label. Marks are never colour alone: added words

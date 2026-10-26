@@ -27,9 +27,13 @@ The sidebar shows each person only the places that are theirs. Other routes are 
 
 The **new web app** in `src/app` is the approved mockup (`apps/mockup`, the acceptance
 specification) on the repository's router, icon module, class merge and lint. It is built beside
-the front end until it replaces it, and its pages read the mockup's store and fixtures, its mock
-binding. Run it with `npm run dev:app`; `npm run dev`, `docker compose up` and the Docker image
-still serve the front end in `src/web`.
+the front end until it replaces it. Its pages read their data through one typed interface,
+`HeedApi` (`src/app/api/client.ts`), with TanStack Query: the mock binding answers from the
+mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
+`?slow=1`, `?demo=` and the rest), and the http binding talks to the service. Run it with
+`npm run dev:app` on the mock; `VITE_API_MODE=http npm run dev:app` takes the http binding, which
+is a skeleton until each screen is wired (only the session answers yet). `npm run dev`,
+`docker compose up` and the Docker image still serve the front end in `src/web`.
 
 The **back end** is the service in `src/server`: a Fastify app with configuration, logging and a
 health check, a PostgreSQL 18 database, scheduled jobs with an operations view, and the API the
@@ -163,7 +167,9 @@ recently opened items stay in the browser with either binding: the service recor
 decides, never what a person reads.
 
 Both bindings pass one conformance suite (`tests/conformance/context-api.ts`): the mock in
-`npm test`, the http binding against PostgreSQL in `npm run test:integration`.
+`npm test`, the http binding against PostgreSQL in `npm run test:integration`. The new web app's
+two bindings do the same with `tests/app/conformance/heed-api.ts`, the http one for the methods it
+wires so far (`wiredMethods` in `src/app/api/http.ts`).
 `npm run test:e2e:api` runs a Playwright smoke test of an http mode build against the service; it
 needs a migrated, seeded database named by `E2E_DATABASE_URL` (default: the local development
 database), and CI runs it on a PostgreSQL 18 container. Its service signs in the people in
@@ -187,12 +193,15 @@ src/
       assistant/      the assistant: tools over the same services, the citation check, budgets, streaming
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev sessions and roles)
-  app/            the new web app, until it replaces web: the mockup's shell, pages, store and fixtures
+  app/            the new web app, until it replaces web: the mockup's shell and pages on a typed API
+    api/            HeedApi (client.ts) and its method list, the query factories and what each write
+                    makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
+      mock/           the demo world: its fixtures (data/), its state, and its review flags (scenario.ts)
     routes/         one file per address (TanStack Router, file based); *.lazy.tsx for the review and the editors
     components/     the shell, shadcn primitives (ui/), Heed's parts (heed/, obs/), the editor
       icons.ts        the only module that imports the icon library
-    lib/            the store, the router's helpers (router.ts), search param schemas (search.ts), the brand
-    data/           the mock world's fixtures
+    model/          the types screens read, their words and the rules that follow from them
+    lib/            hooks over the API, the router's helpers (router.ts), search param schemas (search.ts), the brand
     pages/          one file per screen
     styles/         index.css and tokens.css
     theme-bootstrap.js  inlined into <head> to apply the theme before first paint
@@ -220,7 +229,7 @@ tests/
   lint/           tests that lint deliberately wrong code and CSS, and break the module boundaries
   e2e/            Playwright: layout, shell, axe, screenshots
   e2e-api/        Playwright: the front end in http mode against the service
-  app/            Vitest, the new web app (src/app)
+  app/            Vitest, the new web app (src/app); its HeedApi suite (conformance/), its http run (integration/)
   e2e-app/        Playwright: the new web app's golden job specs and axe, on its mock build
   conformance/    the ContextApi suite that both API bindings pass
 docs/help/        the help pages, Markdown with SVG pictures, shown at /docs and on GitHub (its README)

@@ -14,7 +14,7 @@ import {
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/editor'
 import { useSideChoice } from '@/lib/side-panel'
-import { useSend } from '@/lib/scenario'
+import { useSend } from '@/lib/send'
 import { HeaderMore } from '@/components/heed/editor-header'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import '@/components/editor/style.css'
@@ -38,19 +38,17 @@ import { DomainDot, TagChip } from '@/components/heed/tag-chip'
 import { ResizableAside } from '@/components/resizable-aside'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
-import { domainIds, domains, type DomainId } from '@/data/world'
+import { useWrite } from '@/api/queries'
+import type { DomainId } from '@/model/items'
 import {
-  conflictOf,
-  findDefinition,
-  meaningOf,
-  saveTerm,
   typeLabel,
   useDefinitions,
   type Definition,
   type DefinitionType,
+  useGlossary,
 } from '@/lib/definitions'
 import { href, navigate, useRoute } from '@/lib/router'
-import { useMe } from '@/lib/store'
+import { useDomainList, useDomains, useMe } from '@/lib/workspace'
 import { DefinitionPage } from '@/pages/definition-page'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useWide } from '@/hooks/use-wide'
@@ -74,7 +72,8 @@ const countWords = (text: string) =>
     .filter(Boolean).length
 
 export function DefinitionEditor({ name }: { name?: string }) {
-  const original = name ? findDefinition(name) : undefined
+  const glossary = useGlossary()
+  const original = name ? glossary.find(name) : undefined
   if (original?.synced) return <DefinitionPage name={original.name} />
   return <TermEditor key={name ?? 'new'} name={name} original={original} />
 }
@@ -82,6 +81,10 @@ export function DefinitionEditor({ name }: { name?: string }) {
 function TermEditor({ name, original }: { name?: string; original?: Definition }) {
   const me = useMe()
   const all = useDefinitions()
+  const glossary = useGlossary()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const write = useWrite()
   const { query } = useRoute()
   const preset = query.get('sameAs') ?? undefined
   const [title, setTitle] = React.useState(original?.name ?? '')
@@ -119,19 +122,19 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
       </div>
     )
 
-  const targetDef = target ? findDefinition(target) : undefined
+  const targetDef = target ? glossary.find(target) : undefined
   const draft: Definition = {
     ...(original ?? { type: 'term', synced: false, sourceNames: [], by: me.name }),
     name: title.trim(),
     definition: synonym ? '' : body.trim(),
     sameAs: target,
-    domain: synonym && targetDef ? (meaningOf(targetDef).domain ?? domain) : domain,
+    domain: synonym && targetDef ? (glossary.meaningOf(targetDef).domain ?? domain) : domain,
     updated: '23 Oct 2026',
   }
   const missing = [!title.trim() && 'the word', !synonym && !body.trim() && 'what it means'].filter(
     Boolean,
   ) as string[]
-  const conflict = title.trim() ? conflictOf(draft) : undefined
+  const conflict = title.trim() ? glossary.conflictOf(draft) : undefined
   const sideOpen = sideChoice ?? !!conflict
   const words = countWords(`${title} ${synonym ? '' : plainText(body)}`)
   // What a word can be another name for: a metric or a dimension.
@@ -159,8 +162,8 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
       ? 'Nothing has changed yet.'
       : ''
 
-  const commit = () => {
-    saveTerm(original?.name, draft)
+  const commit = async () => {
+    await write('saveTerm', { previous: original?.name, term: draft })
     toast(original ? 'Saved' : 'Published', {
       description: draft.sameAs
         ? `Agents read “${draft.name}” as ${draft.sameAs} from the next question.`
@@ -194,7 +197,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
               <span className="font-medium">{targetDef?.name ?? '...'}</span>
               {targetDef && (
                 <span className="text-muted-foreground">
-                  : {plainText(meaningOf(targetDef).definition)}
+                  : {plainText(glossary.meaningOf(targetDef).definition)}
                 </span>
               )}
             </p>
@@ -397,8 +400,8 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
               {synonym && targetDef ? (
                 <StaticField>
                   <span className="text-muted-foreground">
-                    {draft.domain ? domains[draft.domain].name : 'All domains'}, from{' '}
-                    {meaningOf(targetDef).name}
+                    {draft.domain ? domains[draft.domain]?.name : 'All domains'}, from{' '}
+                    {glossary.meaningOf(targetDef).name}
                   </span>
                 </StaticField>
               ) : (
@@ -408,16 +411,16 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
                   value={domain ?? ''}
                   options={domainIds.map((d) => ({
                     value: d,
-                    label: domains[d].name,
-                    hint: domains[d].covers,
+                    label: domains[d]?.name ?? d,
+                    hint: domains[d]?.covers,
                     icon: <DomainDot id={d} />,
                   }))}
-                  onChange={(d) => setDomain(d as DomainId)}
+                  onChange={(d) => setDomain(d)}
                   display={
                     domain ? (
                       <>
                         <DomainDot id={domain} />
-                        <span className="font-medium">{domains[domain].name}</span>
+                        <span className="font-medium">{domains[domain]?.name}</span>
                       </>
                     ) : (
                       <Ghost>Add a domain</Ghost>
@@ -459,7 +462,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
               )}
             </p>
             <p className="max-w-reading text-base leading-7 text-muted-foreground">
-              {targetDef ? plainText(meaningOf(targetDef).definition) : null}
+              {targetDef ? plainText(glossary.meaningOf(targetDef).definition) : null}
             </p>
           </div>
         ) : (

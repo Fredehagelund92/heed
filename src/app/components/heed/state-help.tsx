@@ -2,7 +2,7 @@ import { ArrowRightIcon } from '@/components/icons'
 import { StateLine } from '@/components/heed/bits'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DRAFT_LABEL, type AnswerState } from '@/data/ask'
+import { DRAFT_LABEL, type AnswerState } from '@/model/ask'
 import { ANSWER_LINES } from '@/lib/help-content'
 import { useRoute } from '@/lib/router'
 

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from '@/data/observability'
+import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from '@/model/observability'
 import { ArrivedAfterWait } from '@/lib/loading'
 
 // Observability's charts, small SVG on the app's own tokens. One rule for colour: blue is the one
@@ -80,7 +80,9 @@ function useWidth(fallback: number) {
   React.useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setW(Math.max(260, Math.round(e.contentRect.width))))
+    const ro = new ResizeObserver(([e]) =>
+      setW(Math.max(260, Math.round(e?.contentRect.width ?? 0))),
+    )
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -537,7 +539,7 @@ export function LineChart({
             <tr key={l}>
               <th scope="row">{l}</th>
               {series.map((s) => (
-                <td key={s.name}>{format(s.values[i])}</td>
+                <td key={s.name}>{format(s.values[i]!)}</td>
               ))}
             </tr>
           ))}
