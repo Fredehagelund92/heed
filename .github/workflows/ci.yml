@@ -302,13 +302,18 @@ jobs:
           retention-days: 7
 
   app:
-    # The new web app in src/app on its mock binding: the golden job specs it runs so far
-    # (tests/e2e-app), with the motion journey a second time under reduced motion.
-    name: 'New app: golden job specs on the mock build'
+    # The new web app in src/app on its mock binding (tests/e2e-app): the golden job specs J1 to
+    # J30, with the motion journey a second time under reduced motion, and axe on every place at
+    # 390 and 1440 in light and dark. Split into parts that each take a share.
+    name: 'New app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 2)'
     needs: scope
     if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -326,12 +331,12 @@ jobs:
         run: npx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      - name: Golden job specs (J22, J24, J29 and the addresses) on the production build
-        run: npm run test:e2e:app
+      - name: Golden job specs, the addresses and axe on the production build
+        run: npm run test:e2e:app -- --shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-app
+          name: playwright-report-app-${{ matrix.shard }}
           path: |
             playwright-report/e2e-app
             test-results/e2e-app

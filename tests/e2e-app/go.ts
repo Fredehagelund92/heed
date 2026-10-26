@@ -1,7 +1,14 @@
 import type { Page } from '@playwright/test'
 
-/** Open an address of the app. */
-export const go = (page: Page, route: string) => page.goto(route)
+/**
+  Open an address of the app. The mockup kept its addresses after the hash, so only a journey's
+  first visit loaded the page and every later one moved inside the running app, keeping what the
+  journey had done so far. go does the same.
+*/
+export async function go(page: Page, route: string) {
+  if (page.url().startsWith('http')) await moveTo(page, route)
+  else await page.goto(route)
+}
 
 /** Move to another address inside the app, as a link on the page does, without loading it again. */
 export const moveTo = (page: Page, route: string) =>

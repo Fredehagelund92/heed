@@ -2,8 +2,8 @@ import { defineConfig } from '@playwright/test'
 
 /*
   The golden journeys of the new web app (src/app): the approved mockup's job specs (J1 to J30,
-  apps/mockup/e2e), on a production build of the app with the mock binding. They arrive area by
-  area; tests/e2e-app holds the ones the app runs so far. The motion journey runs twice: as most
+  apps/mockup/e2e), on a production build of the app with the mock binding, with axe on every
+  place at 390 and 1440 in light and dark (axe.spec.ts). The motion journey runs twice: as most
   people see it, and with reduced motion, where nothing may move and every result must still
   arrive. PW_APP_PORT lets two checkouts run them side by side.
 */
