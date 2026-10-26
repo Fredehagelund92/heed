@@ -1,4 +1,5 @@
-import type { ItemKind } from '@domain/item'
+import type { TermDomainSource } from '@domain/catalogue'
+import type { CheckFlag, ItemKind, ItemStatus } from '@domain/item'
 import { whenLabel, type Validity } from './validity'
 
 // A context item as the app's screens read it, from the app's API (src/app/api). Pure types, the
@@ -63,6 +64,17 @@ export type Fact = {
   by?: string
 }
 
+/** A status in the server's words: accepted or retired, with the flags that wait for a look. A draft is no item yet. */
+export const toServerStatus = (
+  status: Status,
+): { status: ItemStatus; flags: CheckFlag[] } | null =>
+  status === 'Draft'
+    ? null
+    : {
+        status: status === 'Archived' ? 'retired' : 'accepted',
+        flags: status === 'Needs checking' ? ['needs_check'] : [],
+      }
+
 /** What agents get: a published item that isn't archived. */
 export const servedToAgents = (f: Pick<Fact, 'status'>) =>
   f.status === 'Live' || f.status === 'Needs checking'
@@ -84,6 +96,12 @@ export type Metric = {
   /** Other names analysts use, adopted from Cube or added by an owner. */
   otherNames?: string[]
 }
+
+/** A metric's domain in the server's words: the vocabulary's area, or none. */
+export const toServerTermDomain = (
+  m: Pick<Metric, 'domain'>,
+): { areaId: DomainId | null; source: TermDomainSource } =>
+  m.domain ? { areaId: m.domain, source: 'vocabulary' } : { areaId: null, source: 'none' }
 
 /** What a change to many items did, as their History and Settings say it. */
 export type LogEntry = {

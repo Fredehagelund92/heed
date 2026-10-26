@@ -1,3 +1,4 @@
+import type { Permissions } from '@contract/auth'
 import type { DomainId, Fact } from './items'
 
 // The workspace's people and domains as the app reads them (src/app/api): two roles, an admin or
@@ -35,6 +36,12 @@ export type Domains = Record<DomainId, Domain>
 /** Who answers for an item: its own owners, or else its domain's. */
 export const ownersOf = (f: Pick<Fact, 'owners' | 'domain'>, domains: Domains) =>
   f.owners?.length ? f.owners : (domains[f.domain]?.owners ?? [])
+
+/** What a person holds in the server's words: administrator, and owner of each domain they own. */
+export const toServerPermissions = (p: Person): Permissions => ({
+  roles: p.admin ? ['administrator'] : [],
+  assignments: p.owns.map((areaId) => ({ areaId, role: 'owner' })),
+})
 
 export const emailOf = (p: Person) =>
   p.email ?? `${p.name.toLowerCase().replace(/[^a-z]+/g, '.')}@larchwood.example`
