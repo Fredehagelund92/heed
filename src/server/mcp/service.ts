@@ -86,7 +86,7 @@ import {
   type GetContextInput,
 } from './schemas.ts'
 import { toolSchemaDigest, type ServedToolName } from './tools.ts'
-import { concepts } from '../../domain/words.ts'
+import { concepts } from '../../domain/words-v1.ts'
 import { productName } from '../brand.ts'
 
 /**

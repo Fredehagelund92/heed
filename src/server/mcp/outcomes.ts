@@ -43,7 +43,7 @@ import {
   unknownDomainWords,
   type Voice,
 } from '../../domain/say.ts'
-import { concepts } from '../../domain/words.ts'
+import { concepts } from '../../domain/words-v1.ts'
 
 /*
   The outcome tools (FR-338 to FR-340): a few task-shaped reads that each answer one thing

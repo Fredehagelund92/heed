@@ -2,7 +2,7 @@ import { stateOfStatus, stateWords } from './answer-state.ts'
 import { fullDayWords, periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
-import { concepts } from './words.ts'
+import { concepts } from './words-v1.ts'
 
 /*
   What a read result means, in two parts (FR-344). `say` is for the person: one or two plain
