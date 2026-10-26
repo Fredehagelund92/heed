@@ -1,5 +1,4 @@
 import type { AttachedTest, ProposalTest } from '@/api'
-import type { RiskLevel } from '@domain/item'
 import type { ProposalState } from '@domain/proposal-state'
 import type { CheckState } from './gate'
 
@@ -44,14 +43,9 @@ function deliveryWords(
   return "It still doesn't find the fact with this change."
 }
 
-function answerWords(
-  answer: AttachedTest['answer'] | undefined,
-  state: ProposalState,
-  risk: RiskLevel | null,
-): string {
-  if (risk === 'low')
-    return "Low risk runs no answer tests. It's answered once the change is accepted."
-  if (!answer) return state === 'draft' ? "Answered once it's sent." : 'Not answered yet.'
+function answerWords(answer: AttachedTest['answer'] | undefined): string {
+  if (!answer)
+    return "No answer tests run on a proposal. It's answered once the change is accepted."
   const { baseline, candidate } = answer
   if (candidate === null) return 'Not answered with this change.'
   if (candidate === 'no_answer') return 'No answer with this change.'
@@ -74,7 +68,7 @@ function stateOf(test: Partial<Pick<AttachedTest, 'retrieval' | 'answer'>>): Che
  */
 export function readAttachedTest(
   test: ProposalTest & Partial<Pick<AttachedTest, 'retrieval' | 'answer'>>,
-  { state, risk }: { state: ProposalState; risk: RiskLevel | null },
+  { state }: { state: ProposalState },
 ): AttachedTestReading {
   if (!test.active)
     return {
@@ -87,7 +81,7 @@ export function readAttachedTest(
     question: test.question,
     state: stateOf(test),
     delivery: deliveryWords(test.retrieval, state),
-    answer: answerWords(test.answer, state, risk),
+    answer: answerWords(test.answer),
   }
 }
 

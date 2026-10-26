@@ -1,7 +1,6 @@
 import { ORPCError } from '@orpc/client'
 import type * as z from 'zod/mini'
 import type { EvalRun, runDetailSchema } from '../../../contract/evals.ts'
-import type { LevelResult } from '../../../contract/review.ts'
 import type { Agreement } from '../../../domain/golden-question.ts'
 import type { Queryable } from '../../db/database.ts'
 import {
@@ -13,18 +12,15 @@ import {
   setAside,
 } from './questions.ts'
 import {
-  liveHead,
   planArea,
   queueAreaRun,
   resumeRun,
   runColumns,
   type EvalDeps,
   type RunRow,
-  type RunState,
   type Scorecard,
 } from './runs.ts'
 import { createRetrievalService } from './retrieval.ts'
-import { formatUsd } from './spend.ts'
 
 type RunDetail = z.infer<typeof runDetailSchema>
 
@@ -134,53 +130,6 @@ function redactCard(card: Scorecard | null, hidden: Set<string>): PublicScorecar
     failedChecks: card.failedChecks ?? null,
     agreement: redactAgreement(card.agreement ?? null, hidden),
   }
-}
-
-/**
- * How the review gate shows the answer levels (FR-513): a result counts only for the live
- * edition it ran against; otherwise the gate says what is happening instead (queued, running,
- * waiting for an administrator, or out of date and about to run again).
- */
-export async function answerLevelView(
-  tx: Queryable,
-  versionId: string,
-  levels: LevelResult[],
-): Promise<LevelResult[]> {
-  if (!levels.some((l) => l.level.startsWith('answer_'))) return levels
-  const head = await liveHead(tx)
-  const [run] = head
-    ? await tx.query<{ id: string; state: RunState; estimated: string }>(
-        `select id::text,state::text,estimated_cost_micros::text as estimated from eval_runs
-          where item_version_id=$1 and baseline_edition_seq=$2 order by created_at desc limit 1`,
-        [versionId, head.seq],
-      )
-    : []
-  return levels.map((level): LevelResult => {
-    if (level.level !== 'answer_impact' && level.level !== 'answer_full') return level
-    const ranOn = level.details.edition ?? null
-    if (level.outcome !== 'not_run' && head && ranOn === head.label) return level
-    const message =
-      run?.state === 'awaiting_approval'
-        ? `The answer tests are estimated at ${formatUsd(Number(run.estimated))}, above the run budget. An administrator must approve the run.`
-        : run && ['queued', 'running'].includes(run.state)
-          ? 'The answer tests are running against the live edition.'
-          : run?.state === 'cancelled'
-            ? 'The answer tests were cancelled. Run the checks again to start them.'
-            : run?.state === 'incomplete'
-              ? 'The answer tests stopped before every answer was made: a model provider kept failing, or a spending limit was reached. They are resumed shortly, or resume them from the run.'
-              : level.outcome !== 'not_run'
-                ? `The answer tests ran on edition ${ranOn ?? 'unknown'}; the live edition is now ${head?.label ?? 'unknown'}. They run again within a minute.`
-                : 'Answer tests have not run yet. The evaluation runner starts them within a minute.'
-    return {
-      ...level,
-      outcome: 'not_run',
-      details: {
-        message,
-        ...(run ? { run: run.id, runState: run.state } : {}),
-        ...(level.outcome !== 'not_run' ? { previous: level.outcome, previousEdition: ranOn } : {}),
-      },
-    }
-  })
 }
 
 /**

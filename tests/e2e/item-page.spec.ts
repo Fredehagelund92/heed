@@ -269,17 +269,17 @@ test.describe('actions', () => {
     await expect(page.getByRole('button', { name: 'Mark as checked' })).toHaveCount(0)
   })
 
-  test('on a high-risk item the check says the approver confirms it first', async ({ page }) => {
+  test('on a high-risk item the check publishes at once, as on any other', async ({ page }) => {
     await signInAs(page, 'per_jon')
     await openPage(page, items.sourceMissing, desktop)
     const check = page.getByRole('button', { name: 'Mark as checked' })
     await check.focus()
     await page.keyboard.press('Enter')
-    await expect(
-      page
-        .getByRole('alertdialog', { name: 'Checked, still correct?' })
-        .getByText(/Because it's high risk, an approver confirms it first\./),
-    ).toBeVisible()
+    const dialog = page.getByRole('alertdialog', { name: 'Checked, still correct?' })
+    await expect(dialog).toContainText(
+      'You checked the fact against its source. It stays as written, and agents are no longer told it may be out of date.',
+    )
+    await expect(dialog).not.toContainText('approver')
   })
 })
 

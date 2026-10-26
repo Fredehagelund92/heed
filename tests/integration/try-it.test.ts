@@ -73,6 +73,19 @@ const august = {
   metrics: ['metric:orders'],
   window: { from: '2026-08-01', to: '2026-08-31' },
 }
+
+/**
+ * An agent's delivery record is written a moment after its reply (the anonymous queue batches
+ * writes), so a test that calls the agent waits for it: a test after it that compares every
+ * table would otherwise see it land.
+ */
+async function recorded(deliveryId: string) {
+  for (let tries = 0; tries < 200; tries++) {
+    if ((await client.query('select 1 from deliveries where id=$1', [deliveryId])).rowCount) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  throw new Error(`The delivery ${deliveryId} was never recorded`)
+}
 let wire: Client
 let beforeLive: { statusCode: number; message: string }
 let restricted = ''
@@ -222,6 +235,7 @@ describe('try it', () => {
       ...delivered
     } = agent.structuredContent as Record<string, unknown>
     expect(deliveryId).toBeTruthy()
+    await recorded(deliveryId as string)
     expect(note).toMatch(/use get_context\.$/)
     // The tools' digest reaches an agent's client in _meta, kept from its model (FR-346).
     expect(tried.result).toEqual({
@@ -367,7 +381,8 @@ describe('reviewed before served (FR-326)', () => {
       areaId: 'finance',
       personId: people.owner,
       edition: expect.stringMatching(/^\d{4}-\d{2}-\d{2}\.\d+$/) as string,
-      checks: ['format', 'matching', 'delivery', 'answer_impact'],
+      // The checks it passed: levels 1 to 3, as every item needs (FR-513).
+      checks: ['format', 'matching', 'delivery'],
     })
     expect((await call('POST', '/library/reviews', null, { ids: [servedItem] })).statusCode).toBe(
       401,

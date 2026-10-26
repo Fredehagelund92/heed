@@ -72,11 +72,11 @@ const firstSection: Record<ContextItem['kind'], string> = {
   issue: 'What is affected',
 }
 
-/** What a risk level changes (FR-206, FR-207). */
+/** What a risk level changes: nothing any more, every fact gets the same review (FR-513). */
 const riskMeaning: Record<RiskLevel, string> = {
-  low: 'An owner may accept their own change if the checks pass.',
-  normal: 'A change needs an owner other than its author.',
-  high: 'Legal, regulatory or financial content. A change needs a second named approver.',
+  low: 'A change gets the same three checks and one accept as every fact.',
+  normal: 'A change gets the same three checks and one accept as every fact.',
+  high: 'Legal, regulatory or financial content. A change gets the same three checks and one accept as every fact.',
 }
 
 const claimMeaning = {

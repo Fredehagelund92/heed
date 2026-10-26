@@ -74,6 +74,12 @@ grant execute on function cl_is_reviewer_now(text), cl_required_levels(risk_leve
   cl_decides_own(uuid, text, timestamptz) to :api;
 -- A review edit swaps the version under review; the proposals guard compares what it must keep.
 grant execute on function cl_item_version_kept(uuid) to :api;
+-- The review compares a suggested version with the one in service it was written against (FR-224).
+grant execute on function cl_proposal_base(uuid) to :api;
+-- Read receipts are a person's own (FR-226); how a suggestion relates to a live item is written once
+-- and never changed (FR-225).
+grant insert, update (item_version_id, opened_at, read_at) on review_reads to :api;
+grant insert on proposal_relations to :api;
 
 -- Notifications: the relay writes other people's inbox items, so it runs as the owner.
 grant execute on function cl_outbox_relay(int) to :api;
@@ -82,8 +88,6 @@ grant execute on function cl_outbox_relay(int) to :api;
 -- report (case 5), which writes no person.
 grant execute on function cl_gaps_detect(), cl_area_review_times(text, timestamptz) to :api;
 grant execute on function cl_report_gap_person(text, text, text[], text[], text[], date, gap_type, text, bytea, bytea) to :api;
--- Evaluations: the job finds versions due for answer tests; each run then acts as its requester.
-grant execute on function cl_eval_versions_due() to :api;
 -- Gap tests: an owner links and unlinks a gap's tests and attaches tests to drafts; a manager may record a
 -- test's pass (a run records it through an owner-run function), and nothing else of a link changes. Who did it is in the history log, never in these rows.
 grant insert, delete on gap_tests, proposal_tests to :api;

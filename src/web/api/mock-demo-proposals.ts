@@ -8,9 +8,9 @@ import type { MockWorkflow } from './mock-workflow.ts'
  * Maria's proposals in the shared mock world: one in every state, written and reviewed over the
  * week before the fixture day, so the Proposals page and the status page open on believable
  * data (the front end plan's gap G15, for the mock). Other people write too, so Jon's To review
- * queue holds every state of the decision bar: one ready to accept, one waiting for the
- * approver, one a deputy claimed, one he wrote, one whose checks fail, an overdue one and a
- * retirement. Every step goes through the same workflow a person uses, so the events, checks
+ * queue holds every state of the decision bar: one ready to accept, a high-risk one he claimed,
+ * one a deputy claimed, one he wrote, one in a domain with no test questions, an overdue one and
+ * a retirement. Every step goes through the same workflow a person uses, so the events, checks
  * and decisions are the ones the screens read in real use.
  */
 
@@ -85,14 +85,14 @@ export const demoProposalIds = {
 export const demoReviewIds = {
   /** Kofi's change, claimed by Jon and raised to high risk: every check passed. */
   ready: '00000000-0000-4000-8000-00000000005a',
-  /** Ines's high-risk event: Jon accepted, the approver is next. */
-  approverNext: '00000000-0000-4000-8000-000000000042',
+  /** Ines's high-risk event, claimed by Jon: one accept publishes it, as any other. */
+  highRisk: '00000000-0000-4000-8000-000000000042',
   /** Alex's change, claimed by Sofia. */
   claimed: '00000000-0000-4000-8000-000000000028',
   /** Jon's own note in Sales, which he decides as its owner (FR-206). */
   proposer: '00000000-0000-4000-8000-000000000064',
-  /** Kofi's high-risk change in Sandbox, which has no test questions: a check failed. */
-  checks: '00000000-0000-4000-8000-00000000002f',
+  /** Kofi's high-risk change in Sandbox, which has no test questions: it needs only levels 1 to 3. */
+  sandbox: '00000000-0000-4000-8000-00000000002f',
   /** Lars's guide, waiting since last week. */
   overdue: '00000000-0000-4000-8000-000000000007',
   /** Ravi's proposal to retire an item. */
@@ -268,7 +268,7 @@ export function seedDemoProposals(workflow: MockWorkflow, today: string) {
   at(-2, '10:40')
   sofia.claimProposal(sent)
 
-  // To review in Sandbox, its whole-domain tests cannot pass: Sandbox has no test questions.
+  // To review in Sandbox, which has no test questions: like every change, it needs levels 1 to 3.
   at(-2, '11:10')
   const taxChange = kofi.createProposal({
     itemId: 'itm_3l5dlg30',
@@ -326,7 +326,7 @@ export function seedDemoProposals(workflow: MockWorkflow, today: string) {
     text: "Will do. The notice is in Norway's own language, so I will add the English summary as the quote.",
   })
 
-  // To review, waiting for the approver: Jon accepted Ines's high-risk event; Lars is next.
+  // To review: Ines's high-risk event, which Jon claimed. A high risk needs nothing more.
   at(-1, '10:05')
   const unitedStates = ines.createProposal({
     draft: {
@@ -352,11 +352,16 @@ export function seedDemoProposals(workflow: MockWorkflow, today: string) {
   at(-1, '11:02')
   const reviewing = jon.claimProposal(paused)
   at(-1, '11:41')
-  jon.decide({
+  const checked = jon.commentOnProposal({
     id: reviewing.id,
     revision: reviewing.revision,
-    outcome: 'accept',
-    reason: 'Regulator notice checked. The start date matches the notice.',
+    text: 'Regulator notice checked. The start date matches the notice. Is the end date known yet?',
+  })
+  at(-1, '12:05')
+  ines.commentOnProposal({
+    id: checked.id,
+    revision: checked.revision,
+    text: 'Not yet. The regulator says it will announce the end at least a week ahead.',
   })
 
   // In review: a change to an accepted note, claimed by Jon this morning.
@@ -411,7 +416,7 @@ export function seedDemoProposals(workflow: MockWorkflow, today: string) {
   })
 
   // To review, ready to accept: Kofi says the United Kingdom campaign ended; Jon claimed it and
-  // raised it to high risk, so every check ran again and the approver accepts after him.
+  // raised it to high risk, so every check ran again.
   at(0, '09:50')
   const campaign = kofi.createProposal({
     itemId: 'itm_kwiriumn',

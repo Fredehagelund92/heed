@@ -42,8 +42,7 @@
   <text class="hf-muted" x="56" y="48" text-anchor="middle">you write</text>
   <text class="hf-muted" x="192" y="48" text-anchor="middle">you send it</text>
   <text class="hf-muted" x="320" y="48" text-anchor="middle">the owner</text>
-  <text class="hf-muted" x="448" y="30" text-anchor="middle">high risk:</text>
-  <text class="hf-muted" x="448" y="48" text-anchor="middle">+ approver</text>
+  <text class="hf-muted" x="448" y="48" text-anchor="middle">one yes</text>
   <text class="hf-muted" x="576" y="48" text-anchor="middle">at once</text>
   <rect class="hf-soft" x="136" y="176" width="112" height="52" rx="8"/>
   <text x="192" y="198" text-anchor="middle">Changes</text>

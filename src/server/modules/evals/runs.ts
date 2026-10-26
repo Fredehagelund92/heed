@@ -24,13 +24,7 @@ import {
   type ModelChoice,
   type ModelPort,
 } from '../models/index.ts'
-import {
-  attachedQuestions,
-  candidateBundle,
-  proposalEvent,
-  readVersion,
-  type StoredVersion,
-} from '../proposals/index.ts'
+import { candidateBundle, proposalEvent, type StoredVersion } from '../proposals/index.ts'
 import { answerPromptDigest } from './answer.ts'
 import { evalClient } from './arm.ts'
 import {
@@ -50,9 +44,9 @@ import { formatUsd } from './spend.ts'
 
 /**
  * Evaluation runs. A run is planned and costed without a model, stored, and then worked by the
- * `evals.work` job. Normal-risk versions get an impact run (level 4, `answer_impact`); high-risk
- * versions a full run of their area (also level 5, `answer_full`) (FR-513). Scheduled runs score
- * a live area every week and move its baseline (FR-517, FR-518).
+ * `evals.work` job. Scheduled runs score a live area every week and move its baseline (FR-517,
+ * FR-518). No suggestion waits for answer tests: every item passes levels 1 to 3 only (FR-513).
+ * Runs of a version, made before that, still finish, resume and report their levels.
  */
 
 export type EvalDeps = { port: ModelPort; clock: Clock }
@@ -349,135 +343,8 @@ export async function insertRun(
   return row!
 }
 
-const OPEN_STATES: RunState[] = ['estimated', 'awaiting_approval', 'queued', 'running']
-
-export type Queued = { id: string; state: RunState }
-
-/**
- * Queues the answer tests of a normal or high-risk version against the live edition, under the
- * caller's row security (the proposer at submit, a reviewer on request). A run already made for
- * this version and live edition is reused unless `again` asks for a new one and the earlier run is no longer open.
- */
-export async function queueVersionRun(
-  tx: Queryable,
-  deps: EvalDeps,
-  versionId: string,
-  again = false,
-): Promise<Queued | null> {
-  const version = await readVersion(tx, versionId)
-  if (!version || version.version.riskLevel === 'low') return null
-  const head = await liveHead(tx)
-  if (!head) return null
-  const [existing] = await tx.query<Queued>(
-    `select id::text,state::text from eval_runs where item_version_id=$1 and baseline_edition_seq=$2
-      order by created_at desc limit 1`,
-    [versionId, head.seq],
-  )
-  if (existing && (!again || OPEN_STATES.includes(existing.state))) return existing
-  const [proposal] = await tx.query<{ id: string }>(
-    'select id::text from proposals where item_version_id=$1 order by created_at desc limit 1',
-    [versionId],
-  )
-  const { settings, models, kind, planned, cost, setAside, tools } = await planVersion(
-    tx,
-    deps,
-    head,
-    version,
-    proposal?.id ?? null,
-  )
-  const area = version.version.areaId
-  const [asideInArea] = await tx.query<{ ids: string[] }>(
-    `select coalesce(array_agg(id order by id),'{}') as ids from golden_questions
-      where area_id=$1 and status='active' and set_aside_reason is not null`,
-    [area],
-  )
-  const summary: RunSummary = {
-    edition: head.label,
-    plan: { questions: planned, setAside: asideInArea?.ids ?? setAside },
-    estimate: cost,
-    tools,
-  }
-  const run = await insertRun(tx, {
-    kind,
-    state: cost.micros > settings.runBudgetMicros ? 'awaiting_approval' : 'queued',
-    area,
-    proposal: proposal?.id ?? null,
-    version,
-    head,
-    models,
-    settings,
-    planned,
-    summary,
-    requestedBy: await person(tx),
-  })
-  if (!planned.length) await finishRun(tx, run, [])
-  return { id: run.id, state: planned.length ? run.state : 'finished' }
-}
-
 /** An area run's kind: the whole set on its own, or a links run with get_related off and on. */
 export type AreaRunKind = 'full' | 'scheduled' | 'links'
-
-/**
- * Plans a version's answer tests against the live edition, saving nothing: the impact set for a
- * normal-risk version, and also the rest of its area for a high-risk one (FR-511, FR-513). The
- * tests attached to its proposal are always planned, to be reported (FR-524).
- */
-async function planVersion(
-  tx: Queryable,
-  deps: EvalDeps,
-  head: Head,
-  version: Candidate,
-  proposal: string | null,
-) {
-  const settings = await readEvalSettings(tx)
-  const models = modelsFor(deps.port, settings)
-  const kind: RunKind = version.version.riskLevel === 'high' ? 'full' : 'impact'
-  const area = version.version.areaId
-  const { questions, setAside } = await loadActiveQuestions(tx, null)
-  const sides = await sidesFor(tx, head, version)
-  const changed = [version.itemId, ...version.version.replaces]
-  const tools = await armTools(tx, 'impact')
-  const all = await planQuestions(questions, sides, deps.clock, models, changed, tools)
-  const inArea = new Set(questions.filter((q) => q.body.area === area).map((q) => q.id))
-  const attached = await attachedQuestions(tx, proposal)
-  const planned = all
-    .map((q): PlannedQuestion => (attached.has(q.id) ? { ...q, attached: true } : q))
-    .filter((q) => q.impact || q.attached || (kind === 'full' && inArea.has(q.id)))
-  const cost = await estimate(tx, planned, settings.tries, models)
-  return { settings, models, kind, planned, cost, setAside, tools }
-}
-
-/**
- * What the answer tests of a draft would cost if it were submitted now (FR-704), saving nothing,
- * with the tests attached to its proposal. Low-risk versions have none. Counts only: which
- * questions are planned is not shown (FR-503).
- */
-export async function estimateDraftRun(
-  tx: Queryable,
-  deps: EvalDeps,
-  version: Candidate,
-  proposal: string | null,
-) {
-  const head = await liveHead(tx)
-  if (!head || version.version.riskLevel === 'low') return null
-  const { settings, models, kind, planned, cost } = await planVersion(
-    tx,
-    deps,
-    head,
-    version,
-    proposal,
-  )
-  return {
-    kind,
-    edition: head.label,
-    questions: planned.length,
-    cells: cost.cells,
-    cached: cost.cached,
-    costMicros: cost.micros,
-    needsApproval: cost.micros > settings.runBudgetMicros,
-    modelId: models.answer.id,
-  }
-}
 
 /** Plans an area's whole active set on the live edition, without saving anything (FR-516). */
 export async function planArea(

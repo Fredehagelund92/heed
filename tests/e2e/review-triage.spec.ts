@@ -16,7 +16,7 @@ const titles = {
   overdue: 'How to investigate a drop in Churn rate in Spain',
   issue: 'Reporting from the payment provider is down for the United Kingdom.',
   proposer: 'Net revenue for September 2026 includes a one-off correction for August discounts.',
-  checks: 'Compare Net revenue in Italy with markets that had the same tax change',
+  claimed: 'Conversion rate counts sign-ups from 15 January 2024',
   low: 'Data for Gross margin before 7 June 2026 is incomplete for Sweden: the clothing feed started that day.',
 } as const
 
@@ -89,15 +89,14 @@ test('selects with x, Shift j and Shift-click, a proposal Jon made himself too',
   await expect(selectionBar(page)).toHaveCount(0)
 })
 
-test('never accepts a failed check in bulk, and sends after the Undo window', async ({ page }) => {
+test('leaves out what another owner reviews, and sends after the Undo window', async ({ page }) => {
   test.setTimeout(60_000)
-  await expect(row(page, titles.checks).locator('[data-slot="queue-checks"]')).toHaveText(
-    /1 failed/,
-  )
-  await queue(page).getByRole('link', { name: titles.checks }).focus()
-  await page.keyboard.press('x')
-  await page.keyboard.press('Shift+J')
-  await expect(selectionBar(page)).toContainText('1 with a failed check')
+  // Sofia claimed one: Jon's bulk step leaves it out, and says why.
+  for (const title of [titles.claimed, titles.low]) {
+    await queue(page).getByRole('link', { name: title }).focus()
+    await page.keyboard.press('x')
+  }
+  await expect(selectionBar(page)).toContainText('2 selected')
 
   // Command K offers the bulk actions on the selection.
   await page.keyboard.press('Control+k')
@@ -107,7 +106,7 @@ test('never accepts a failed check in bulk, and sends after the Undo window', as
   await palette.getByRole('option', { name: 'Accept the 2 selected' }).click()
   const dialog = page.getByRole('alertdialog', { name: 'Accept 2 selected proposals?' })
   await expect(dialog.getByRole('region', { name: 'Left out' })).toContainText(
-    /A check it needs failed: .+\. Open it to read why\./,
+    'Another owner is reviewing it.',
   )
   await expect(dialog).toContainText('Agents get it within a minute.')
   await dialog
@@ -132,5 +131,5 @@ test('never accepts a failed check in bulk, and sends after the Undo window', as
     timeout: 20_000,
   })
   await expect(row(page, titles.low)).toHaveCount(0)
-  await expect(row(page, titles.checks)).toBeVisible()
+  await expect(row(page, titles.claimed)).toBeVisible()
 })

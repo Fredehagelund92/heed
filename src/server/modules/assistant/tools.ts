@@ -33,10 +33,9 @@ import {
 import { assistantReads } from './read-tools.ts'
 import { can, type Session } from '../auth/index.ts'
 import { DEFAULT_MCP_RATES, loadLiveBundle } from '../editions/index.ts'
-import { estimateDraftRun } from '../evals/index.ts'
 import { createGapsService } from '../gaps/index.ts'
 import { helpAnswer, type HelpLibrary } from '../help/index.ts'
-import { formatUsd, type ModelPort } from '../models/index.ts'
+import type { ModelPort } from '../models/index.ts'
 import {
   createProposalsService,
   marksOfSources,
@@ -434,12 +433,12 @@ export const assistantTools = {
   },
   estimate_impact: {
     description:
-      'Preview what an AI agent would be served for a question if a saved draft were accepted, and what its answer tests would cost. Answer test results depend on the language model.',
+      'Preview what an AI agent would be served for a question if a saved draft were accepted. The preview follows fixed rules, with no language model.',
     operation: 'proposals.preview',
     inputSchema: scopeInput.extend({ draft_number: draftNumber }),
     run: async (
       input: z.infer<typeof scopeInput> & { draft_number: DraftNumber },
-      { tx, clock, personId, models },
+      { tx, clock, personId },
     ) => {
       const proposals = createProposalsService(tx, clock, personId)
       const id = await draftIdOf(tx, input.draft_number)
@@ -447,42 +446,12 @@ export const assistantTools = {
       const { draft_number: _number, ...scope } = input
       const preview = await previewProposal(tx, clock, p, { id, ...scope })
       const result = preview.result as { status?: string; items?: { id: string; title: string }[] }
-      const prepared = await proposals.prepare({
-        draft: p.draft,
-        ...(p.itemId ? { itemId: p.itemId } : {}),
-        channel: p.channel,
-      })
-      const itemId = p.itemId ?? `itm_${p.id.replaceAll('-', '').slice(-16)}`
-      const [latest] = await tx.query<{ n: number | null }>(
-        'select max(version_no) as n from item_versions where item_id=$1',
-        [itemId],
-      )
-      const estimate = prepared.checks.version
-        ? await estimateDraftRun(
-            tx,
-            { port: models, clock },
-            { itemId, versionNo: (latest?.n ?? 0) + 1, version: prepared.checks.version },
-            p.id,
-          )
-        : null
+      const items = (result.items ?? []).map((i) => ({ id: i.id, title: i.title }))
       return {
-        preview: {
-          status: result.status,
-          items: (result.items ?? []).map((i) => ({ id: i.id, title: i.title })),
-        },
-        answerTests: estimate
-          ? {
-              kind: estimate.kind,
-              questions: estimate.questions,
-              cost: formatUsd(estimate.costMicros),
-              needsApproval: estimate.needsApproval,
-              model: estimate.modelId,
-            }
-          : null,
-        summary: estimate
-          ? `The answer tests would ask ${estimate.questions} test questions, at about ${formatUsd(estimate.costMicros)}.`
-          : 'This draft has no answer tests: it is low risk, incomplete, or there is no live edition.',
-        label: 'Answer test results depend on the language model and can vary between runs.',
+        preview: { status: result.status, items },
+        summary: items.length
+          ? `An agent asking this would get ${items.length} ${items.length === 1 ? 'fact' : 'facts'} if the draft were accepted.`
+          : 'An agent asking this would get no fact, even with the draft accepted.',
       }
     },
   },

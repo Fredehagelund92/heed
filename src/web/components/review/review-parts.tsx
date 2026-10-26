@@ -191,8 +191,8 @@ function ApprovalRow({
 }
 
 /**
- * Who has accepted this version and who is still needed, with names (frame C2, 6): the owner or
- * deputy always, the high-risk approver as well for high risk.
+ * Who has accepted this version, with names (frame C2, 6): one accept by an owner or an admin
+ * publishes it, at every risk level (FR-513).
  */
 export function ApprovalsCard({
   gate,
@@ -200,7 +200,6 @@ export function ApprovalsCard({
   reviewerId,
   viewerId,
   nameOf,
-  risk,
   headingLevel = 2,
 }: {
   gate: Pick<Gate, 'approvals'> | null
@@ -209,7 +208,6 @@ export function ApprovalsCard({
   reviewerId: string | null
   viewerId: string
   nameOf: (id: string) => string | null
-  risk: 'low' | 'normal' | 'high' | null
   headingLevel?: 2 | 3
 }) {
   const accept = (capacities: string[]) =>
@@ -220,8 +218,6 @@ export function ApprovalsCard({
     !id ? null : id === viewerId ? `${nameOf(id) ?? 'You'} (you)` : nameOf(id)
   // The first accept is an owner's of the domain or an administrator's (FR-202).
   const owner = gate?.approvals.owner ? accept(['owner', 'deputy', 'administrator']) : undefined
-  const approver = gate?.approvals.approver ? accept(['approver']) : undefined
-  const needsApprover = risk === 'high' || gate?.approvals.approver !== null
   return (
     <PartCard title="Approvals needed" headingLevel={headingLevel} data-slot="approvals-card">
       <ul className="flex flex-col gap-3">
@@ -230,19 +226,10 @@ export function ApprovalsCard({
             ? `${person(owner.decidedBy) ?? 'An owner'} accepted at ${timeOfDay(owner.decidedAt)}.`
             : `${person(reviewerId) ?? 'The owner'}. Not accepted yet.`}
         </ApprovalRow>
-        {needsApprover && gate?.approvals.approver !== null ? (
-          <ApprovalRow done={Boolean(gate?.approvals.approver)} title="High-risk approver">
-            {approver
-              ? `${person(approver.decidedBy) ?? 'The approver'} accepted at ${timeOfDay(approver.decidedAt)}.`
-              : 'Needed because the risk is high. Not accepted yet.'}
-          </ApprovalRow>
-        ) : null}
       </ul>
-      {!needsApprover || gate?.approvals.approver === null ? (
-        <p className="text-caption text-muted-foreground">
-          Only a high-risk fact needs an approver.
-        </p>
-      ) : null}
+      <p className="text-caption text-muted-foreground">
+        One accept by an owner or an admin is all it needs.
+      </p>
     </PartCard>
   )
 }

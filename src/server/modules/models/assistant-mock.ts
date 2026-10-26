@@ -809,7 +809,7 @@ function explain(result: ToolResult, attached: string[], user: string, system: s
         : 'No fact overlaps this draft.'
     }
     case 'estimate_impact':
-      return `${String(output.label)} ${String(output.summary)}`
+      return String(output.summary)
     case 'create_draft':
       return [
         `I saved it as a draft for you, "${String(output.title)}". Check each part, then send it for review.`,

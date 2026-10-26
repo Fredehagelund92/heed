@@ -70,7 +70,7 @@ A fact says what happened, not why a number changed, unless its source says so. 
 
 ### Risk level
 
-Low, normal or high. A high-risk fact, such as one about law or financial reporting, needs an approver too.
+Low, normal or high. It no longer changes the checks or who says yes: every fact gets the same three checks and one yes from an owner or an admin.
 
 ### Who can see it
 
@@ -126,7 +126,7 @@ The person who looks after a domain and accepts its facts. Every domain has an o
 
 ### Approver
 
-The person who gives a second yes before agents get a high-risk fact.
+A role from before: it gave a second yes on a high-risk fact. A high-risk fact no longer needs one, so an approver no longer decides.
 
 ### Admin
 

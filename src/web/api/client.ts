@@ -720,8 +720,8 @@ export interface ContextApi {
   /** Anyone proposes that an item is retired; an owner of its area decides. */
   proposeRetirement: (input: ItemReasonInput) => Promise<ReviewProposal>
   /**
-   * An owner or deputy records "checked, still correct". It publishes an edition at once, or
-   * waits in the review queue (`edition` is null) while its answer tests or an approver are due.
+   * An owner or deputy records "checked, still correct". It publishes an edition at once, once
+   * levels 1 to 3 pass, at every risk level.
    */
   recheckItem: (input: ItemReasonInput) => Promise<DecisionResult>
 

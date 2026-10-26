@@ -255,8 +255,8 @@ export const underReview = (state: ProposalState) => state === 'submitted' || st
 
 /**
  * A proposal opens in review mode for a person who may decide it while it waits for a decision:
- * an owner or approver of its domain, or an administrator, in any domain and their own
- * proposals too (FR-202, FR-206). Everyone else, the writer included when they hold no role
+ * an owner of its domain, or an administrator, in any domain and their own proposals too (FR-202,
+ * FR-206). An approver of its domain still reads it there, and the bar says who decides. Everyone else, the writer included when they hold no role
  * there, gets the status page.
  */
 export function opensInReview(
@@ -279,17 +279,7 @@ export type OutcomeState =
   | null
 
 export type DecisionState =
-  | 'ready'
-  | 'checks'
-  | 'proposer'
-  | 'claimed'
-  | 'approver_next'
-  | 'owner_next'
-  | 'approver'
-  | 'approved'
-  | 'no_role'
-  | 'closed'
-  | 'saving'
+  'ready' | 'checks' | 'proposer' | 'claimed' | 'owner_next' | 'no_role' | 'closed' | 'saving'
 
 export type DecisionBar = {
   state: DecisionState
@@ -308,12 +298,6 @@ export type DecisionContext = {
   area: Area | undefined
   nameOf: (id: string) => string | null
 }
-
-/**
- * The first accept: an owner's of the domain or an administrator's (FR-202). An accept made as
- * deputy, before the role went, counts as an owner's.
- */
-const ownerCapacities = ['owner', 'deputy', 'administrator']
 
 const capacityNames: Record<Capacity | 'administrator', string> = {
   owner: 'owner',
@@ -352,13 +336,6 @@ export function checkBlockReason(reading: CheckReading): string {
     default:
       return `${check} hasn't run yet. Run the checks again.`
   }
-}
-
-/** The newest accept on the proposal, by the people who give the given approvals. */
-function latestAccept(decisions: Review['decisions'], capacities: readonly string[]) {
-  return decisions
-    .filter((decision) => decision.outcome === 'accept' && capacities.includes(decision.capacity))
-    .sort((a, b) => b.decidedAt.localeCompare(a.decidedAt))[0]
 }
 
 const blocked = (label: string, title: string, reason: string): OutcomeState => ({
@@ -406,13 +383,13 @@ export function savingBar(outcome: DecisionOutcome, change: ChangeType): Decisio
 /**
  * The decision bar for one person and one proposal (frame C3): which decisions it offers, which
  * are blocked and why, and the two lines beside them. A blocked decision stays visible with its
- * reason. Mirrors the service's rules (review/service.ts): FR-202, FR-206, FR-207 and FR-211.
+ * reason. Mirrors the service's rules (review/service.ts): FR-202, FR-206 and FR-211.
  */
 export function decisionBar(
-  review: Pick<Review, 'proposal' | 'gate' | 'decisions'>,
+  review: Pick<Review, 'proposal' | 'gate'>,
   { viewerId, permissions, area, nameOf }: DecisionContext,
 ): DecisionBar {
-  const { proposal, gate, decisions } = review
+  const { proposal, gate } = review
   const areaName = area?.name ?? 'this domain'
   const change = changeTypeOf(proposal)
   // A retirement and a term are accepted or rejected; only an item version can go back for changes.
@@ -435,11 +412,10 @@ export function decisionBar(
 
   const capacities = capacitiesIn(permissions, proposal.areaId)
   // An owner of the domain, or an administrator in any domain, decides: their own proposals too
-  // (FR-202, FR-206). An approver who is neither adds the high-risk accept only.
+  // (FR-202, FR-206). One accept publishes, at every risk level (FR-513).
   const decider =
     capacities.find((capacity) => capacity !== 'approver') ??
     (isAdmin(permissions) ? 'administrator' : undefined)
-  const approverOnly = !decider && capacities.includes('approver')
   const proposer = proposal.proposerId === viewerId
   const reading = firstOpenCheck(gate)
   const ownNote = proposer ? ' You can decide your own proposal.' : ''
@@ -467,98 +443,17 @@ export function decisionBar(
     }
   }
 
-  if (!decider && !approverOnly)
+  if (!decider)
     return {
       state: 'no_role',
-      heading: `Only an owner or approver of ${areaName}, or an admin, decides`,
+      heading: `Only an owner of ${areaName} or an admin decides`,
       detail: 'You can read this proposal and its checks.',
       capacity: null,
-      outcomes: all(
-        "You can't decide this",
-        `Only an owner or high-risk approver of ${areaName}, or an admin, decides.`,
-      ),
+      outcomes: all("You can't decide this", `Only an owner of ${areaName}, or an admin, decides.`),
     }
 
-  // The high-risk approver adds the second accept to a high-risk proposal, and nothing else.
-  if (approverOnly) {
-    const onlyAccept = (outcome: OutcomeState) => ({
-      accept: outcome,
-      request_changes: null,
-      reject: null,
-    })
-    if (proposal.riskLevel !== 'high')
-      return {
-        state: 'no_role',
-        heading: 'No approver is needed',
-        detail: 'Only a high-risk proposal needs the second yes of an approver.',
-        capacity: null,
-        outcomes: onlyAccept(
-          blocked(
-            'Accept as approver',
-            'No approver is needed',
-            'Only a high-risk proposal needs the second yes of an approver.',
-          ),
-        ),
-      }
-    if (proposer)
-      return {
-        state: 'proposer',
-        heading: 'Someone else must decide',
-        detail: 'You wrote this proposal, so another approver gives the second yes.',
-        capacity: 'approver',
-        outcomes: onlyAccept(
-          blocked(
-            'Accept as approver',
-            'You wrote this proposal',
-            'Someone else must accept a proposal you wrote.',
-          ),
-        ),
-      }
-    const approval = latestAccept(decisions, ['approver'])
-    if (gate?.approvals.approver)
-      return {
-        state: 'approved',
-        heading:
-          approval?.decidedBy === viewerId
-            ? `You accepted at ${timeOfDay(approval.decidedAt)}`
-            : 'The approver has accepted',
-        detail: gate.approvals.owner
-          ? 'The owner and the approver both accepted.'
-          : 'Agents get it once an owner or an admin accepts too.',
-        capacity: 'approver',
-        outcomes: onlyAccept(
-          blocked(
-            approval?.decidedBy === viewerId ? 'Accepted by you' : 'Accepted',
-            'Already accepted',
-            'The approver has accepted this version.',
-          ),
-        ),
-      }
-    if (reading)
-      return {
-        state: 'checks',
-        heading: "You can't accept yet",
-        detail: checkBlockReason(reading),
-        capacity: 'approver',
-        outcomes: onlyAccept(
-          blocked('Accept as approver', "You can't accept yet", checkBlockReason(reading)),
-        ),
-      }
-    const owner = latestAccept(decisions, ownerCapacities)
-    return {
-      state: 'approver',
-      heading: 'Give the second yes',
-      detail:
-        gate?.approvals.owner && owner
-          ? `${nameOf(owner.decidedBy) ?? 'The owner'} accepted at ${timeOfDay(owner.decidedAt)}. As approver, you can only accept.`
-          : 'No owner or admin has accepted yet. We save your yes now, and agents get it once one of them accepts too.',
-      capacity: 'approver',
-      outcomes: onlyAccept(allowed('Accept as approver')),
-    }
-  }
-
-  // An owner of the domain, or an administrator (`decider` is set from here on).
-  const capacity = decider!
+  // An owner of the domain, or an administrator.
+  const capacity = decider
   if (proposal.claimedBy && proposal.claimedBy !== viewerId) {
     const name = nameOf(proposal.claimedBy) ?? 'Another owner'
     return {
@@ -570,30 +465,6 @@ export function decisionBar(
         `${firstName(name)} is reviewing this`,
         `${name} claimed this proposal. Ask ${firstName(name)} to hand it over, or wait.`,
       ),
-    }
-  }
-
-  const ownerAccept = latestAccept(decisions, ownerCapacities)
-  if (gate?.approvals.owner && gate.approvals.approver === false) {
-    const mine = ownerAccept?.decidedBy === viewerId
-    const who = ownerAccept
-      ? mine
-        ? `You accepted at ${timeOfDay(ownerAccept.decidedAt)}`
-        : `${nameOf(ownerAccept.decidedBy) ?? 'The other owner'} accepted at ${timeOfDay(ownerAccept.decidedAt)}`
-      : 'Accepted'
-    const reason = 'This version is accepted and waits for the high-risk approver.'
-    return {
-      state: 'approver_next',
-      heading: `${who}. Waiting for the approver`,
-      detail: "We've told the high-risk approver. Agents get it once they accept too.",
-      capacity,
-      outcomes: {
-        accept: blocked(mine ? 'Accepted by you' : 'Accepted', 'Already accepted', reason),
-        request_changes: asks
-          ? blocked('Ask for changes', 'Waiting for the approver', reason)
-          : null,
-        reject: blocked('Reject', 'Waiting for the approver', reason),
-      },
     }
   }
 
@@ -610,16 +481,13 @@ export function decisionBar(
       },
     }
 
-  const approverWaits = proposal.riskLevel === 'high' && gate?.approvals.approver === false
   return {
     state: 'ready',
     heading: `Your decision, as ${capacityNames[capacity]}${capacity === 'administrator' ? '' : ` of ${areaName}`}`,
     detail:
       change === 'retire'
         ? `Archiving takes effect at once, and agents stop getting the fact.${ownNote}`
-        : approverWaits
-          ? `All required checks passed. High risk: the approver accepts after you.${ownNote}`
-          : `All required checks passed.${ownNote}`,
+        : `All required checks passed.${ownNote}`,
     capacity,
     outcomes: {
       accept: allowed(acceptWord),
@@ -736,7 +604,7 @@ export function ownerFieldProblems(
 
 /**
  * What the change will do, in plain sentences, for the confirmation: every check runs again on
- * the changed version, and a raise to high risk needs the whole-domain tests and the approver.
+ * the changed version. A risk level changes no check and needs no second yes (FR-513).
  */
 export function ownerEditEffects(
   current: OwnerFields,
@@ -746,12 +614,8 @@ export function ownerEditEffects(
   const changed = changedOwnerFields(current, next)
   if (!changed.length) return []
   const effects = ['It becomes a new version of the proposal, and every check runs again on it.']
-  if (changed.includes('riskLevel') && next.riskLevel === 'high')
-    effects.push(
-      'High risk needs all five checks, the answer tests on the whole domain included, and the high-risk approver.',
-    )
-  else if (changed.includes('riskLevel') && current.riskLevel === 'high')
-    effects.push('It no longer needs the whole-domain answer tests or the approver.')
+  if (changed.includes('riskLevel'))
+    effects.push('It needs the same three checks and one yes, whatever its risk.')
   if (changed.includes('areaId'))
     effects.push(
       `It moves to ${areaName(next.areaId)}${ownerName ? `, and ${ownerName} reviews it` : ''}.`,

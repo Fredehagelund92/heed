@@ -61,7 +61,11 @@ const formerRoles: { areaId: string; personId: string; role: 'owner' | 'approver
   ),
 ]
 
-/** The check levels a risk requires (cl_required_levels, 0006). */
+/**
+ * The check levels each risk required before migration 0005, when every seeded version was
+ * accepted. The seeded history keeps them, and an approver's accept for high risk, as a database
+ * that ran before Heed v1 does; today every level beyond the first three is history only.
+ */
 const requiredLevels = {
   low: ['format', 'matching', 'delivery'],
   normal: ['format', 'matching', 'delivery', 'answer_impact'],

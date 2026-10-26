@@ -59,15 +59,15 @@ import { showToast } from '@/lib/toast'
   OwnerEdit (front end plan call 3; FR-105, FR-106, FR-123, FR-324; review.edit): what an owner
   decides around the content during review. The card lists the risk, the day it is
   checked again, the cause, the domain and the owner; Change opens one dialog for all of them,
-  with what the change will do. Every change is a new version: every check runs again on it, and
-  a raise to high risk needs the whole-domain tests and the approver. The content stays the
+  with what the change will do. Every change is a new version: every check runs again on it. A
+  risk level no longer changes the checks or who accepts (FR-513). The content stays the
   writer's.
 */
 
 const riskWords: Record<RiskLevel, string> = {
-  low: 'An owner may accept their own.',
-  normal: 'Needs the answer tests on the questions it could change.',
-  high: 'Needs every check, the whole domain included, and the approver.',
+  low: 'The same three checks and one accept as every fact.',
+  normal: 'The same three checks and one accept as every fact.',
+  high: 'The same three checks and one accept as every fact.',
 }
 
 const claimWords: Record<ClaimLevel, { title: string; hint: string }> = {

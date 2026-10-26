@@ -15,10 +15,10 @@ related: [add-your-first-context, editions, read-health]
 ## Before you start
 
 - You'll: decide on one proposal, so AI agents get only facts that are true and apply where they say.
-- Who: an owner of the proposal's domain or an admin, and an approver for a high-risk fact.
+- Who: an owner of the proposal's domain or an admin. One yes is all a fact needs, whatever its risk.
 - You need: a few minutes, and the source the proposal links to.
 
-![The life of a fact: you write a draft and send it, it waits for review, the owner reviews it, and once accepted agents get it at once. A high-risk fact also needs an approver. A proposal can come back with changes requested, or be rejected or withdrawn. A fact that needs checking still reaches agents.](images/item-life.svg 'From draft to agents. High risk adds a second yes from an approver.')
+![The life of a fact: you write a draft and send it, it waits for review, the owner reviews it, and once accepted agents get it at once. One yes is enough, whatever the risk. A proposal can come back with changes requested, or be rejected or withdrawn. A fact that needs checking still reaches agents.](images/item-life.svg 'From draft to agents, with one yes from the owner.')
 
 ## Steps
 
@@ -56,7 +56,7 @@ A row's box shows when you point at the row, as in the library. A proposal you c
 
 An admin can decide any proposal, their own too. An owner can decide their own proposals in their domain: those show in **To review** like any other, and the timeline says that the person who proposed it decided. Nobody else ever decides a proposal they made. So when everything waiting is yours, **To review** says so and names who decides. On a local install, **Switch person** signs you in as someone who can.
 
-The dialog first says what happens to each proposal: agents get it, it waits for the approver, or it's decided. It also names each one it leaves out, and why: one you proposed and may not decide, one with a failed check, one another owner has claimed, or one that changes a fact another selected proposal already changes. Then it asks for one reason for all. Each proposal still gets its own decision and its own checks.
+The dialog first says what happens to each proposal: agents get it, or it's decided. It also names each one it leaves out, and why: one you proposed and may not decide, one with a failed check, one another owner has claimed, or one that changes a fact another selected proposal already changes. Then it asks for one reason for all. Each proposal still gets its own decision and its own checks.
 
 After you confirm, the proposals leave the list and **Undo** shows for 8 seconds. Command or Control Z does the same. Nothing is sent until then.
 
@@ -75,7 +75,6 @@ In **To review** and on a proposal, J and K go to the next and previous proposal
 ## What happens next
 
 - When you accept, agents get the fact at once. The person who proposed it is told.
-- A high-risk fact waits for the approver after you accept. **Approvals needed** shows who still has to say yes. Agents get nothing until they accept too.
 - When you ask for changes, the proposal goes back to the person who wrote it. They change it and send it again.
 
 ## If something goes wrong

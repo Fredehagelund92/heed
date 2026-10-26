@@ -365,50 +365,48 @@ cookie, `Origin` and `x-heed-csrf`; decisions, retirements, rechecks, rollback a
 vocabulary proposals also take an `Idempotency-Key`.
 
 - `GET /review/queue` lists open proposals the person may decide, highest risk first, then
-  oldest. Approvers see high-risk proposals of their domain; administrators see vocabulary.
+  oldest: an owner those of their domain, an administrator every one, vocabulary included. An
+  approver decides nothing any more, so their queue is empty.
 - `GET /proposals/{id}/review` returns the field diff against the version in service, mentions
   added and removed, narrower-audience warnings, findings, the gate and the decisions. The gate
-  is the newest result of every level the risk requires, the approvals, and the database's own
-  verdict (`cl_item_version_problem`). `POST /proposals/{id}/checks` runs levels 1 to 3 again and queues new
-  answer tests unless a run is still open; unchanged cells come from the cache and set-aside
-  questions drop out.
+  is the newest result of levels 1 to 3, which every proposal needs whatever its risk (FR-513),
+  whether an owner or an administrator accepted (`approvals.approver` is always null), and the
+  database's own verdict (`cl_item_version_problem`). `POST /proposals/{id}/checks` runs levels
+  1 to 3 again. No answer test runs on a proposal.
 - `POST /proposals/{id}/review-edits` lets an owner of the domain (not the proposer)
   change a submitted or in-review item proposal: `riskLevel`, `reviewDate`, `claim` (with
   authority and quote for `effect_stated`), `ownerId` and `areaId`, with an optional `reason`.
   Name only what changes; the content stays the proposer's. Moving to another domain also needs an
   owner there, or an administrator. The edit is a new version that supersedes the
-  submitted one, so earlier accepts and check results stay with the old version; its open answer
-  tests are cancelled and every check runs again, so a higher risk needs its answer tests and, for
-  high, the approver. It answers the review, as `GET /proposals/{id}/review` does.
+  submitted one, so earlier accepts and check results stay with the old version; an open answer
+  test run of the old version, made before Heed v1, is cancelled, and levels 1 to 3 run again. A
+  risk level changes no check and needs no other accept. It answers the review, as
+  `GET /proposals/{id}/review` does.
 - `POST /proposals/{id}/decisions` takes `{ revision, outcome, reason, capacity? }` with
   `accept`, `request_changes` or `reject`. An owner of the domain or an administrator decides; an
-  approver adds the second accept to a high-risk proposal, in either order. An administrator
-  decides any proposal, their own too, and an owner their own in the domain; anyone else, such as
-  an approver who is neither, never decides their own (403). Accept runs levels 1 to 3 against the current live edition, and
-  the last needed accept publishes an edition in the same transaction: the version enters
-  service, replaced items leave it, the edition is sealed with its content digest and the live
-  pointer moves. A change written against a version that is no longer live returns 409.
+  approver decides nothing (403). An administrator decides any proposal, their own too, and an
+  owner their own in the domain; anyone else never decides their own (403). Accept runs levels 1
+  to 3 against the current live edition, and the accept publishes an edition in the same
+  transaction: the version enters service, replaced items leave it, the edition is sealed with its
+  content digest and the live pointer moves. An accept given before Heed v1 that waited for the
+  approver publishes when the person who gave it accepts again. A change written against a
+  version that is no longer live returns 409.
 - Level 2 probes the item's own scope with the resolver: inside it and on its first day it must
   be delivered (an exact match, a partial one with no dimension filter); the day before, its end
   day, another value of a filtered dimension and an unrelated metric must stay silent. Level 3
   runs the candidate through `get_facts`'s code: its probe delivers it, replaced items are
   absent, the reply fits, and no active test question of the domain turns from pass to fail. Both
   look at the item as delivered once nothing stops it.
-- Answer tests (level 4, `answer_impact`, for normal and high risk; level 5, `answer_full`, for
-  high risk) come from the evaluation runner (see [Evaluations](evaluations.md)). A result counts
-  only for the live edition it ran against; until a current one has passed, the gate shows the
-  level as not run with what is happening, and acceptance is blocked. There is no override
-  (FR-514).
+- No answer test gates a proposal (FR-513): levels 4 and 5 (`answer_impact`, `answer_full`) are
+  history, kept on the versions whose runs recorded them before Heed v1. A failed level 1 to 3
+  blocks acceptance, with no override (FR-514).
 - `POST /items/{id}/retire` retires at once (owner or administrator, with a reason).
   `POST /items/{id}/retire-proposals` lets anyone propose it; one can be open per item.
 - `POST /items/{id}/recheck` records "checked, still correct": a new version with the same content,
   the current change marks and, without an end date, a review date `review.default_days` from
-  today. It answers `{ proposal, edition }`. When every required level passes at once (low risk,
-  or answer tests with no affected question), the recheck is accepted and publishes a
-  `source_rechecked` edition and clears a needs-check flag. When answer tests still have to run,
-  `edition` is null and the recheck proposal waits in the review queue; once they pass, the owner
-  accepts it through `POST /proposals/{id}/decisions` (and, for high risk, an approver
-  too), and the last accept publishes the edition and clears the flag.
+  today. It answers `{ proposal, edition }`. Levels 1 to 3 run at once; when they pass, at every
+  risk level, the recheck is accepted and publishes a `source_rechecked` edition and clears a
+  needs-check flag. When one fails it answers 422 with the gate, and nothing is published.
 - `POST /vocabulary/proposals` proposes a new or changed term. An owner of the term's domain or an
   administrator decides; a term without a domain is the administrator's. A Cube domain that
   differs from a metric's domain is a warning when proposed and refused at the decision; a
@@ -527,7 +525,8 @@ publish. The front end's Ask tab in the assistant panel calls it.
   on the live edition; `explain_item` (why one item does or does not apply to a scope, from the
   resolver itself, naming the edition); `check_draft` (levels 1 to 3 as submit runs them, saving
   nothing; test questions appear as counts only, FR-503); `find_overlaps`; `estimate_impact`
-  (the preview, the answer-test cost and the label that results depend on the model); `read_gap`;
+  (what agents would get with the draft accepted, from the fixed rules: no answer test runs on a
+  proposal); `read_gap`;
   `domain_overview` (a domain by its name, or every domain with the metric and dimension names
   Heed knows) and `what_changed` (the live edition against the one before, for a domain or all);
   `search_help` (how Heed itself works, from the help pages, through the MCP tool's function, with

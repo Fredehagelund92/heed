@@ -175,13 +175,12 @@ export const DraftedWithAnAgent: Story = {
     await expect(canvas.queryByRole('button', { name: /^How it was drafted/ })).toBeNull()
   },
 }
-export const WaitingForTheApprover: Story = { render: () => reviewOf('approverNext') }
+export const HighRiskClaimed: Story = { render: () => reviewOf('highRisk') }
 export const AsTheApprover: Story = {
-  render: () => <StoryApp path={`/proposals/${demoReviewIds.approverNext}`} person="per_lars" />,
+  render: () => <StoryApp path={`/proposals/${demoReviewIds.highRisk}`} person="per_lars" />,
 }
 export const ClaimedByAnother: Story = { render: () => reviewOf('claimed') }
 export const YouWroteIt: Story = { render: () => reviewOf('proposer') }
-export const CheckFailed: Story = { render: () => reviewOf('checks') }
 export const Overdue: Story = { render: () => reviewOf('overdue') }
 export const Retirement: Story = { render: () => reviewOf('retire') }
 /** A resubmission (heed-ux B2): the request and the reply on top, what changed since by default. */
@@ -776,20 +775,18 @@ export const ApprovalsAndImpact: Story = {
     <div className="flex p-6">
       <PageRail placement="beside">
         <ApprovalsCard
-          gate={{ approvals: { owner: false, approver: false } }}
+          gate={{ approvals: { owner: false, approver: null } }}
           decisions={[]}
           reviewerId="per_jon"
           viewerId="per_jon"
           nameOf={nameOf}
-          risk="high"
         />
         <ApprovalsCard
-          gate={{ approvals: { owner: true, approver: false } }}
+          gate={{ approvals: { owner: true, approver: null } }}
           decisions={accepted}
           reviewerId="per_jon"
           viewerId="per_lars"
           nameOf={nameOf}
-          risk="high"
         />
         <ImpactDelta
           run={run}
@@ -854,20 +851,17 @@ const attachedOf = (question: string, active = true): ProposalTest => ({
 const attachedCases: {
   id: string
   state: Review['proposal']['state']
-  risk: 'low' | 'normal' | null
   tests: ProposalTest[]
   results?: AttachedTest[]
 }[] = [
   {
     id: '00000000-0000-4000-8000-0000000000a1',
     state: 'draft',
-    risk: null,
     tests: [attachedOf('net-revenue-month-to-date')],
   },
   {
     id: '00000000-0000-4000-8000-0000000000a2',
     state: 'in_review',
-    risk: 'normal',
     tests: [
       attachedOf('net-revenue-month-to-date'),
       attachedOf('orders-united-kingdom-september'),
@@ -890,7 +884,6 @@ const attachedCases: {
   {
     id: '00000000-0000-4000-8000-0000000000a3',
     state: 'in_review',
-    risk: 'low',
     tests: [attachedOf('units-sold-source-lag'), attachedOf('returns-weekend', false)],
     results: [
       {
@@ -917,12 +910,11 @@ function AttachedParts() {
     <QueryClientProvider client={client}>
       <div className="flex p-6">
         <PageRail placement="beside">
-          {attachedCases.map(({ id, state, risk, results }) => (
+          {attachedCases.map(({ id, state, results }) => (
             <AttachedTests
               key={id}
               proposal={{ id, state, areaId: 'area_sales', proposerId: 'per_maria' }}
               results={results}
-              risk={risk}
             />
           ))}
         </PageRail>

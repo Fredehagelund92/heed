@@ -141,7 +141,6 @@ export function canDecide(
   permissions: Permissions,
   personId: string,
   proposal: DecidableProposal,
-  outcome: 'accept' | 'request_changes' | 'reject' = 'accept',
 ): DecisionCheck {
   if (proposal.state !== 'submitted' && proposal.state !== 'in_review')
     return { allowed: false, reason: "This proposal isn't waiting for a decision." }
@@ -155,20 +154,7 @@ export function canDecide(
       return { allowed: false, reason: 'Someone else has claimed this proposal.' }
     return { allowed: true, capacity: decider }
   }
-  if (capacities.includes('approver')) {
-    if (outcome !== 'accept' || proposal.riskLevel !== 'high')
-      return {
-        allowed: false,
-        reason: 'A high-risk approver adds the second accept to a high-risk proposal only.',
-      }
-    if (proposal.proposerId === personId)
-      return { allowed: false, reason: 'Someone else must accept a proposal you wrote.' }
-    return { allowed: true, capacity: 'approver' }
-  }
-  return {
-    allowed: false,
-    reason: 'Only an owner or high-risk approver of the domain, or an admin, can decide.',
-  }
+  return { allowed: false, reason: 'Only an owner of the domain, or an admin, can decide.' }
 }
 
 /** A proposal as a list row knows it: enough to say whether the person may decide it there. */
@@ -222,9 +208,7 @@ export function canDecideInList(
       ? proposal.areaId
         ? ['owner', 'administrator']
         : ['administrator']
-      : proposal.riskLevel === 'high'
-        ? ['owner', 'approver', 'administrator']
-        : ['owner', 'administrator'],
+      : ['owner', 'administrator'],
     areaId: proposal.areaId,
     proposerExcluded: true,
   }
@@ -232,12 +216,7 @@ export function canDecideInList(
     return { allowed: false, why: 'waiting', deciders }
   const own = decidesOwn(permissions, proposal.areaId)
   if (proposal.proposerId === personId && !own) return { allowed: false, why: 'proposer', deciders }
-  const decides =
-    own ||
-    (!term &&
-      capacitiesIn(permissions, proposal.areaId).includes('approver') &&
-      proposal.riskLevel === 'high')
-  return decides ? { allowed: true } : { allowed: false, why: 'role', deciders }
+  return own ? { allowed: true } : { allowed: false, why: 'role', deciders }
 }
 
 const deciderNames: Record<DeciderRole, string> = {

@@ -9,7 +9,7 @@ import { matchingCheck, matchingProbes } from '../../../domain/review.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { asDelivered, loadServingBundle, type ServingBundle } from '../editions/index.ts'
-import { answerLevelView, deliver, deliveredIds } from '../evals/index.ts'
+import { deliver, deliveredIds } from '../evals/index.ts'
 import {
   attachedQuestions,
   attachedTests,
@@ -322,7 +322,11 @@ export async function draftChecks(
   return { edition: head.label, levels: [...levels, ...runs] }
 }
 
-/** The newest result of every required level, the approvals and the database's own verdict. */
+/**
+ * The newest result of every required level (levels 1 to 3, FR-513), whether an owner or an
+ * administrator accepted, and the database's own verdict. No approver is needed any more, so its
+ * approval is always null.
+ */
 export async function readGate(tx: Queryable, versionId: string): Promise<Gate> {
   const levels = await tx.query<LevelResult>(
     `select need.level::text as level,coalesce(r.outcome::text,'not_run') as outcome,
@@ -333,33 +337,26 @@ export async function readGate(tx: Queryable, versionId: string): Promise<Gate> 
       where v.id=$1 order by need.n`,
     [versionId],
   )
-  const [row] = await tx.query<{
-    owner: boolean
-    approver: boolean | null
-    problem: string | null
-  }>(
+  const [row] = await tx.query<{ owner: boolean; problem: string | null }>(
     `select exists(select 1 from decisions d where d.item_version_id=v.id and d.outcome='accept'
               and d.capacity in ('owner','deputy','administrator')) as owner,
-            case when v.risk='high' then exists(select 1 from decisions d where d.item_version_id=v.id
-              and d.outcome='accept' and d.capacity='approver') end as approver,
             cl_item_version_problem(v.id) as problem
        from item_versions v where v.id=$1`,
     [versionId],
   )
-  const shown = await answerLevelView(tx, versionId, levels)
   return {
     required: levels.map((l) => l.level),
-    levels: shown,
-    approvals: { owner: row?.owner ?? false, approver: row?.approver ?? null },
+    levels,
+    approvals: { owner: row?.owner ?? false, approver: null },
     problem: row?.problem ?? null,
-    attached: await attachedResults(tx, versionId, shown),
+    attached: await attachedResults(tx, versionId, levels),
   }
 }
 
 /**
  * FR-524: the tests attached to the version's proposal, each with its result in the newest level 3
- * check and in the answer run that counts on the live edition. A test attached after those ran has
- * no result there until they run again.
+ * check. A test attached after that ran has no result there until it runs again. No answer tests
+ * run on a suggestion, so no attached test has an answer result.
  */
 async function attachedResults(
   tx: Queryable,
@@ -372,27 +369,18 @@ async function attachedResults(
   )
   if (!proposal) return []
   const tests = await attachedTests(tx, proposal.id)
-  // Both answer levels come from one run and report the same attached results.
   let delivery: (LevelResult & { level: 'delivery' })['details'] | undefined
-  let answer: (LevelResult & { level: 'answer_impact' })['details'] | undefined
-  for (const level of levels) {
-    if (level.outcome === 'not_run') continue
-    if (level.level === 'delivery') delivery = level.details
-    if (level.level === 'answer_impact') answer = level.details
-  }
+  for (const level of levels)
+    if (level.outcome !== 'not_run' && level.level === 'delivery') delivery = level.details
   return tests.map((test) => {
     const checked = delivery?.questions?.find((q) => q.id === test.question)
-    const answered = answer?.attached?.find((q) => q.id === test.question)
     return {
       ...test,
       retrieval:
         checked?.baseline === undefined || checked.candidate === undefined
           ? null
           : { baseline: checked.baseline, candidate: checked.candidate },
-      answer:
-        answered && answer?.run
-          ? { run: answer.run, baseline: answered.baseline, candidate: answered.candidate }
-          : null,
+      answer: null,
     }
   })
 }

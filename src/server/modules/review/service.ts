@@ -32,9 +32,7 @@ import type { Term } from '../../../domain/vocabulary.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { lockReleases, publishEdition } from '../editions/index.ts'
-import { queueVersionRun } from '../evals/index.ts'
 import { forReader } from '../library/index.ts'
-import type { ModelPort } from '../models/index.ts'
 import {
   checkDraft,
   insertVersion,
@@ -127,8 +125,7 @@ function plainReason(reason: string) {
   rejectMentions(reason)
 }
 
-export function createReviewService(tx: Queryable, clock: Clock, models: ModelPort) {
-  const evals = { port: models, clock }
+export function createReviewService(tx: Queryable, clock: Clock) {
   async function stored(versionId: string | null): Promise<StoredVersion> {
     const version = versionId ? await readVersion(tx, versionId) : null
     if (!version) throw new ORPCError('NOT_FOUND')
@@ -149,42 +146,47 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
   }
   /** The accepted version a proposed version was written against, through any resubmissions. */
   async function baseVersionId(versionId: string): Promise<string | null> {
+    const [row] = await tx.query<{ id: string | null }>('select cl_proposal_base($1)::text as id', [
+      versionId,
+    ])
+    return row?.id ?? null
+  }
+  /**
+   * The person's own accept of a version that still waits: one given while a high-risk version
+   * also needed an approver's (before migration 0005). It publishes now, once the checks pass.
+   */
+  async function waitingAccept(versionId: string): Promise<string | null> {
     const [row] = await tx.query<{ id: string }>(
-      `with recursive chain(id,supersedes,depth) as (
-         select id,supersedes_version_id,0 from item_versions where id=$1
-         union all select v.id,v.supersedes_version_id,c.depth+1 from item_versions v join chain c on v.id=c.supersedes)
-       select c.id::text as id from chain c where c.depth>0
-         and exists(select 1 from item_version_service s where s.version_id=c.id) order by c.depth limit 1`,
+      `select d.id::text from decisions d
+        where d.item_version_id=$1 and d.decided_by=cl_person() and d.outcome='accept'
+          and d.capacity<>'approver' and cl_item_version_problem($1) is null
+          and not exists(select 1 from item_version_service s where s.version_id=$1)
+        order by d.decided_at desc limit 1`,
       [versionId],
     )
     return row?.id ?? null
   }
   /**
-   * FR-202: deciding is an owner's of the area or an administrator's, in any area; an approver
-   * adds the high-risk accept. FR-206: the proposer decides their own proposal only as an
-   * administrator or an owner of its area (cl_decides_own).
+   * FR-202: deciding is an owner's of the area or an administrator's, in any area. One accept
+   * publishes at every risk level: an approver no longer decides (FR-207 is withdrawn). FR-206:
+   * the proposer decides their own proposal only as an administrator or an owner of its area
+   * (cl_decides_own).
    */
   async function capacityFor(
     area: string,
-    outcome: Decide['outcome'],
     wanted: Capacity | undefined,
-    risk: string | null,
     proposerId: string,
   ): Promise<Capacity> {
     const { person: decider, admin, roles } = await deciderIn(tx, area)
     person ??= decider
-    const choice = wanted ?? (roles.has('owner') ? 'owner' : admin ? 'administrator' : 'approver')
-    if (choice === 'administrator' ? !admin : !roles.has(choice))
-      throw new ORPCError('FORBIDDEN', {
-        message: 'Only the owners and approvers of this domain, or an admin, can decide.',
-      })
-    if (choice === 'approver' && (outcome !== 'accept' || risk !== 'high'))
-      throw new ORPCError('FORBIDDEN', {
-        message: 'An approver only gives the second yes on a high-risk proposal.',
-      })
     if (proposerId === (await me()) && !admin && !roles.has('owner'))
       throw new ORPCError('FORBIDDEN', {
         message: 'You wrote this proposal, so an owner of its domain or an admin decides it.',
+      })
+    const choice = wanted ?? (roles.has('owner') ? 'owner' : 'administrator')
+    if (choice === 'approver' || (choice === 'administrator' ? !admin : !roles.has(choice)))
+      throw new ORPCError('FORBIDDEN', {
+        message: 'Only the owners of this domain, or an admin, can decide.',
       })
     return choice
   }
@@ -265,12 +267,10 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
     const version = await stored(p.itemVersionId)
     const capacity = await capacityFor(
       version.version.areaId,
-      input.outcome,
       input.capacity,
-      version.version.riskLevel,
       version.version.proposerId,
     )
-    if (p.claimedBy && p.claimedBy !== (await me()) && capacity !== 'approver')
+    if (p.claimedBy && p.claimedBy !== (await me()))
       throw new ORPCError('CONFLICT', {
         message: 'Another owner is already reviewing this proposal.',
       })
@@ -324,7 +324,9 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
         message: 'The accepted fact changed after this version was written. Ask for changes.',
       })
     await checkedGate(p, version)
-    const id = await insertDecision(tx, { ...decision, outcome: 'accept' })
+    const id =
+      (await insertDecision(tx, { ...decision, outcome: 'accept' })) ??
+      (await waitingAccept(version.id))
     if (!id) throw new ORPCError('CONFLICT', { message: 'You already accepted this version.' })
     const data = {
       decisionId: id,
@@ -389,7 +391,7 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       throw new ORPCError('CONFLICT', {
         message: 'A proposal to archive a fact can only be accepted or rejected.',
       })
-    const capacity = await capacityFor(p.areaId!, input.outcome, input.capacity, null, p.proposerId)
+    const capacity = await capacityFor(p.areaId!, input.capacity, p.proposerId)
     if ((await liveVersionId(tx, p.itemId!)) !== p.itemVersionId)
       throw new ORPCError('CONFLICT', {
         message:
@@ -694,14 +696,13 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
    * Whether a bulk decision may decide one proposal, and what it would do to it (FR-223): every
    * rule a single decision has, read before anything is written, so the plan and the step agree.
    * A proposal the person proposed is left out unless they are an administrator or an owner of
-   * its area (FR-206), and so is an accept with a failed required check or one whose answer tests
-   * have not passed yet.
+   * its area (FR-206), and so is an accept with a failed required check.
    */
   async function bulkCheck(
     target: { id: string; revision: number },
     outcome: BulkDecide['outcome'],
     lock: boolean,
-  ): Promise<{ p: LoadedProposal; effect: 'publish' | 'wait' | 'decide' } | BulkSkip> {
+  ): Promise<{ p: LoadedProposal; effect: 'publish' | 'decide' } | BulkSkip> {
     let p: LoadedProposal
     try {
       p = await loadProposal(tx, target.id, lock)
@@ -734,33 +735,18 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       if (!decidesAny) return skip('forbidden', bulkSkipWords.termDecider)
       return { p, effect: decides }
     }
-    const approves = roles.has('approver') && outcome === 'accept' && p.riskLevel === 'high'
-    // An approver who is neither the area's owner nor an administrator adds the second accept
-    // only.
-    const onlyApprover = approves && !decidesAny
-    if (!decidesAny && !approves) return skip('forbidden', bulkSkipWords.itemDecider)
+    if (!decidesAny) return skip('forbidden', bulkSkipWords.itemDecider)
     if (p.action === 'retire') {
       if (outcome === 'request_changes') return skip('not_allowed', bulkSkipWords.retirementChanges)
       return { p, effect: decides }
     }
-    if (p.claimedBy && p.claimedBy !== (await me()) && !onlyApprover)
-      return skip('claimed', bulkSkipWords.claimed)
+    if (p.claimedBy && p.claimedBy !== (await me())) return skip('claimed', bulkSkipWords.claimed)
     if (outcome !== 'accept') return { p, effect: 'decide' }
+    // Levels 1 to 3 run again on accept, and one accept publishes (FR-513).
     const gate = await readGate(tx, p.itemVersionId!)
     const failed = gate.levels.filter((level) => level.outcome === 'failed')
     if (failed.length) return skip('checks_failed', bulkSkipWords.failed(levelList(failed)))
-    // Levels 1 to 3 run again on accept; the answer tests run in the background and must pass.
-    const waiting = gate.levels.filter(
-      (level) =>
-        (level.level === 'answer_impact' || level.level === 'answer_full') &&
-        level.outcome !== 'passed',
-    )
-    if (waiting.length) return skip('checks_waiting', bulkSkipWords.waiting(levelList(waiting)))
-    // A second owner's accept adds nothing: the approver's is the one still needed.
-    if (gate.approvals.owner && !onlyApprover)
-      return skip('not_waiting', bulkSkipWords.approverNext)
-    const approverNext = p.riskLevel === 'high' && !gate.approvals.approver && !onlyApprover
-    return { p, effect: approverNext ? 'wait' : 'publish' }
+    return { p, effect: 'publish' }
   }
 
   /** How many editions the accepts of a bulk decision publish. */
@@ -797,7 +783,7 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
 
   /** What a bulk decision would do to each selected proposal, and which it leaves out. */
   async function planDecisions(input: z.infer<typeof bulkPlanInputSchema>) {
-    const decided: { p: LoadedProposal; effect: 'publish' | 'wait' | 'decide' }[] = []
+    const decided: { p: LoadedProposal; effect: 'publish' | 'decide' }[] = []
     const skipped: BulkSkip[] = []
     const taken = new Set<string>()
     for (const target of uniqueTargets(input.proposals)) {
@@ -1121,15 +1107,12 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       await proposalEvent(tx, p, 'checked', {
         levels: Object.fromEntries(runs.map((r) => [r.level, r.outcome])),
       })
-      // Answer tests run in the background against the live edition; a run that is no longer open starts again.
-      await queueVersionRun(tx, evals, version.id, true)
       return readGate(tx, version.id)
     },
 
     /**
      * After submit (which records level 1), levels 2 and 3 run in the same transaction so the
-     * review screen has them at once (NFR-054), and a normal or high-risk version's answer tests
-     * are queued for the evaluation runner. Before the first edition there is nothing to run.
+     * review screen has them at once (NFR-054). Before the first edition there is nothing to run.
      */
     async checkSubmitted(id: string) {
       const p = await loadProposal(tx, id)
@@ -1144,7 +1127,6 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       await proposalEvent(tx, p, 'checked', {
         levels: Object.fromEntries(runs.map((r) => [r.level, r.outcome])),
       })
-      await queueVersionRun(tx, evals, p.itemVersionId)
     },
 
     /**
@@ -1152,7 +1134,7 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
      * the claim level, the owner or the area of a proposal under review. The change is a new
      * version that supersedes the submitted one and keeps its content and proposer, so earlier
      * accepts and check results stay with the version they were made on. Every check runs again
-     * on the new version: a higher risk needs its answer tests and, for high, the approver.
+     * on the new version; every risk level needs the same three (FR-513).
      */
     async edit(input: Edit) {
       await lockReleases(tx)
@@ -1307,7 +1289,6 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
         await proposalEvent(tx, updated, 'checked', {
           levels: Object.fromEntries(runs.map((r) => [r.level, r.outcome])),
         })
-        await queueVersionRun(tx, evals, inserted.id)
       }
       return review(p.id)
     },
@@ -1480,17 +1461,8 @@ export function createReviewService(tx: Queryable, clock: Clock, models: ModelPo
       const p = await loadProposal(tx, row!.id)
       const checked = await stored(inserted.id)
       await runChecks(tx, clock, { id: p.id, channel: p.channel }, checked)
-      // Answer tests with nothing to run finish here; otherwise the runner takes them up.
-      await queueVersionRun(tx, evals, checked.id)
       const gate = await readGate(tx, checked.id)
-      if (!gatePasses(gate)) {
-        // A normal or high-risk recheck waits for its answer tests; the owner decides it then.
-        const pending = gate.levels.filter((l) => l.outcome !== 'passed')
-        if (!pending.every((l) => l.level.startsWith('answer_') && l.outcome === 'not_run'))
-          blocked(gate)
-        await proposalEvent(tx, p, 'submitted', { reason, waitingFor: 'answer tests' })
-        return { proposal: publicRecord(p), edition: null }
-      }
+      if (!gatePasses(gate)) blocked(gate)
       const id = await insertDecision(tx, {
         proposalId: p.id,
         itemVersionId: inserted.id,

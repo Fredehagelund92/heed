@@ -100,6 +100,29 @@ function draft(extra: Draft = {}): Draft {
   }
 }
 let proposalRun: string | null = null
+/** A finished answer run of a proposed version, as one made before migration 0005 is kept. */
+async function legacyRun(proposal: string, version: string) {
+  const [{ seq, label }] = (
+    await client.query<{ seq: string; label: string }>(
+      'select e.seq::text,e.label from live_edition l join editions e on e.seq=l.seq',
+    )
+  ).rows as [{ seq: string; label: string }]
+  const summary = {
+    edition: label,
+    plan: { questions: [], setAside: [] },
+    estimate: { cells: 0, cached: 0, micros: 0 },
+  }
+  const run = await client.query<{ id: string }>(
+    `insert into eval_runs (kind,state,area_id,proposal_id,item_version_id,baseline_edition_seq,
+       tool_schema_digest,model_id,judge_model_id,client_label,test_set_digest,tries,
+       estimated_cost_micros,requested_by,summary,started_at,finished_at)
+     values ('impact','finished','finance',$1,$2,$3,'digest','mock/scripted-answer',
+       'mock/scripted-judge','eval','\\x00'::bytea,3,0,$4,$5,now(),now())
+     returning id::text`,
+    [proposal, version, seq, people.author, JSON.stringify(summary)],
+  )
+  return run.rows[0]!.id
+}
 async function accepted(extra: Draft = {}) {
   const created = await call('POST', '/proposals', 'author', { draft: draft(extra) })
   expect(created.statusCode, created.body).toBe(200)
@@ -109,10 +132,9 @@ async function accepted(extra: Draft = {}) {
   })
   expect(submitted.statusCode, submitted.body).toBe(200)
   const review = await call('GET', `/proposals/${p.id}/review`, 'owner')
-  const run = review
-    .json<{ gate: { levels: { level: string; details: { run?: string } }[] } | null }>()
-    .gate?.levels.find((level) => level.level === 'answer_impact')?.details.run
-  if (run) proposalRun = run
+  // No answer test runs on a proposal any more (FR-513): one made before migration 0005 stays in
+  // the history, as its proposer's, and is read as it was.
+  proposalRun ??= await legacyRun(p.id, submitted.json<ProposalRecord>().itemVersionId!)
   const decided = await call('POST', `/proposals/${p.id}/decisions`, 'owner', {
     revision: review.json<{ proposal: { revision: number } }>().proposal.revision,
     outcome: 'accept',

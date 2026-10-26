@@ -109,9 +109,9 @@ export function ProposeRetirementDialog({
 
 /**
  * The owner's check (CON-211): "checked, still correct", or for an open issue past its review
- * date, "yes, still going on". The item stays as written and a new edition is made; a high-risk
- * item waits for its answer tests and the approver first. A definition that is missing cannot
- * be checked against, so the dialog says so before the service does.
+ * date, "yes, still going on". The item stays as written and a new edition is made at once, at
+ * every risk level. A definition that is missing cannot be checked against, so the dialog says so
+ * before the service does.
  */
 export function RecheckItemDialog({
   item,
@@ -132,7 +132,6 @@ export function RecheckItemDialog({
   const { data: library } = useQuery(libraryQuery())
   const today = library?.today ?? new Date().toISOString().slice(0, 10)
   const status = itemDisplayStatus(item, today)
-  const high = item.riskLevel === 'high'
   return (
     <ConfirmDialog
       open={open}
@@ -140,8 +139,8 @@ export function RecheckItemDialog({
       title={stillGoingOn ? 'Is this still going on?' : 'Checked, still correct?'}
       effect={
         stillGoingOn
-          ? `The fact stays as written, and agents get it as current again.${high ? " Because it's high risk, an approver confirms it first." : ''}`
-          : `You checked the fact against its source. It stays as written, and agents are no longer told it may be out of date.${high ? " Because it's high risk, an approver confirms it first." : ''}`
+          ? 'The fact stays as written, and agents get it as current again.'
+          : 'You checked the fact against its source. It stays as written, and agents are no longer told it may be out of date.'
       }
       action={stillGoingOn ? 'Yes, still going on' : 'Checked, still correct'}
       actionIcon={CheckIcon}
@@ -155,11 +154,7 @@ export function RecheckItemDialog({
         const result = await recheck.mutateAsync({ id: item.id, reason })
         rememberCheckReason(personId, kind, reason)
         if (result.edition) showToast('Check recorded', 'Agents get the checked fact now.')
-        else
-          showToast(
-            'Check recorded',
-            'Agents get it once its answer tests pass and an approver accepts it.',
-          )
+        else showToast('Check recorded', 'Agents get it once its checks pass.')
         onChecked?.()
       }}
     >

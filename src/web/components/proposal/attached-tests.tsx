@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { RiskLevel } from '@domain/item'
 import type { AttachedTest, ProposalRecord } from '@/api'
 import { proposalTestsQuery, testQuestionsQuery, useApiWrite } from '@/api/queries'
 import { LoaderCircleIcon, UnlinkIcon } from '@/components/icons'
@@ -16,22 +15,21 @@ import { PartCard } from './part-card'
 /*
   The test questions attached to a draft or proposal (FR-524, Workbench plan, slice V6), under
   its checks on the Add context form, the proposal's page and panel, and the review screen and
-  panel. Each test says where delivery and the answer tests stand with the change, and the part
-  says once that these results are reported and never block. Detach is offered to whoever may:
-  the draft's author while it is a draft, the area's owners, deputies and administrators until
-  a decision. The service checks again. With no test attached the part is not shown.
+  panel. Each test says where delivery stands with the change (no answer test runs on a
+  proposal), and the part says once that these results are reported and never block. Detach is
+  offered to whoever may: the draft's author while it is a draft, the area's owners, deputies and
+  administrators until a decision. The service checks again. With no test attached the part is
+  not shown.
 */
 
 export function AttachedTests({
   proposal,
   results,
-  risk,
   headingLevel = 2,
 }: {
   proposal: Pick<ProposalRecord, 'id' | 'state' | 'areaId' | 'proposerId'>
   /** The gate's results for each attached test; a draft has none until it is submitted. */
   results?: readonly AttachedTest[]
-  risk: RiskLevel | null
   headingLevel?: 2 | 3
 }) {
   const tests = useQuery(proposalTestsQuery(proposal.id))
@@ -63,7 +61,7 @@ export function AttachedTests({
       </p>
       <ul className="flex flex-col" aria-label="Attached tests">
         {withResults(tests.data, results).map((test) => {
-          const reading = readAttachedTest(test, { state: proposal.state, risk })
+          const reading = readAttachedTest(test, { state: proposal.state })
           const name = questionTitle(byId.get(test.question), test.question)
           return (
             <li

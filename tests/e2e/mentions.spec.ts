@@ -95,13 +95,17 @@ for (const size of [widths[0], phone]) {
       const field = summary(page, 1)
       await field.focus()
       await toEnd(page)
-      // "... Compare [Orders] before and after." Arrow left over the words: the arrow that
-      // reaches the chip selects it instead of jumping over it (a jump would reach Norway).
+      // "... Compare [Orders] before and after." Arrow left over the 18 characters after the chip,
+      // then once more: that arrow selects the chip instead of jumping over it (a jump would
+      // reach Norway).
       const selected = field.locator('[data-selected] [data-slot="mention-chip"]')
-      let presses = 0
-      while ((await selected.count()) === 0 && presses < 25) {
+      // The editor reads its selection back from the page after each key, so let a frame pass
+      // between presses; on a busy runner a fast press reads a caret that is one step behind.
+      for (let i = 0; i < ' before and after.'.length + 1; i++) {
         await page.keyboard.press('ArrowLeft')
-        presses++
+        await page.evaluate(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        )
       }
       await expect(selected).toHaveText(/^Orders/)
       await page.keyboard.press('Delete')
