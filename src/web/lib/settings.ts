@@ -665,7 +665,7 @@ export function groupSettings<T extends { key: string }>(
 // ---- the history log ----
 
 /**
- * The history log's actions in the glossary's words (src/domain/words.ts). The log stores the
+ * The history log's actions in the glossary's words (src/domain/words-v1.ts). The log stores the
  * action's key, so these change only how a row reads, never what was recorded.
  */
 const actionNames: Record<string, string> = {

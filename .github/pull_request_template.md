@@ -12,8 +12,8 @@
 
 ## Before you send it
 
-- [ ] The words people read follow `docs/design/voice.md` and the names in `src/domain/words.ts`
-- [ ] Names come from `words.ts`. Read it aloud: does a colleague say it this way?
+- [ ] The words people read follow `docs/design/copy.md` and the names in `src/domain/words.ts` (the old front end: `docs/design/voice.md` and `src/domain/words-v1.ts`)
+- [ ] Names come from the glossary. Read it aloud: does a colleague say it this way?
 - [ ] No real access keys, passwords or personal data, in the code or in the examples
 - [ ] Shared components you reused, and any token you added, are named below
 

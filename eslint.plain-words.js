@@ -1,11 +1,14 @@
 import { matchesGlob, relative } from 'node:path'
-import { bannedWords, wordsToChange } from './src/domain/words.ts'
+import { bannedWords, wordsToChange } from './src/domain/words-v1.ts'
+import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
 
 /*
-  The words people read follow the voice guide (docs/design/voice.md) and take their names from
-  the glossary (src/domain/words.ts). This reports a string, template text or JSX text that a
-  person reads and that holds a banned word, a negative people say short ("do not" for "don't")
-  or an unclear contraction ("you'd"), and says what to write instead.
+  The words people read take their names from a glossary. The new web app in src/app follows
+  glossary v2 (src/domain/words.ts, docs/design/copy.md); the old front end and the server follow
+  the earlier one (src/domain/words-v1.ts, docs/design/voice.md) until the switch. This reports a
+  string, template text or JSX text that a person reads and that holds a banned word and says
+  what to write instead. For the old voice it also reports a negative people say short ("do not"
+  for "don't") or an unclear contraction ("you'd").
 
   Only text a person reads is checked. Code is not: an import, a key, a type, a comparison, a
   class name, a test id, an address, an id or a word made of code's marks (`item_id`, `/library`,
@@ -15,9 +18,11 @@ import { bannedWords, wordsToChange } from './src/domain/words.ts'
   shares src/domain/say.ts with `next`, so tests/server/mcp/say.test.ts checks every `say` the
   tools give against the glossary instead, and the tool titles people read too.
 
-  A banned word may show where the glossary allows it (`allowedOn`): `surfaces` says which files
-  make each place. The rule warns while the screens are rewritten (voice plan V4 to V7), and
-  scripts/check-plain-words.ts fails a change that adds to the count in plain-words.baseline.json.
+  A banned word may show where the glossary allows it (`allowedOn`): `surfaces` and `appSurfaces`
+  say which files make each place. In the old front end the rule warns while the screens are
+  rewritten (voice plan V4 to V7), and scripts/check-plain-words.ts fails a change that adds to
+  the count in plain-words.baseline.json. In the new app it is an error: its count starts at zero
+  and stays there.
 */
 
 /** The files whose strings people read. */
@@ -35,7 +40,7 @@ export const notProductFiles = [
 ]
 
 /**
- * The places a banned word may show (`allowedOn` in src/domain/words.ts), each with the files
+ * The places a banned word may show (`allowedOn` in src/domain/words-v1.ts), each with the files
  * that make it: its screens and its help page.
  */
 export const surfaces = [
@@ -79,6 +84,52 @@ export const surfaces = [
     ],
   },
 ]
+
+/** The files whose strings people read in the new web app. */
+export const appWordsFiles = ['src/app/**/*.{ts,tsx}']
+/**
+ * Code in the new app that is not its own copy: the shadcn and editor parts as they ship, the
+ * generated route tree and tests, as the mockup's copy check leaves them out.
+ */
+export const appNotProductFiles = [
+  'src/app/components/ui/**',
+  'src/app/components/editor/**',
+  'src/app/components/static-renderer/**',
+  'src/app/**/*.gen.ts',
+  'src/app/**/*.test.{ts,tsx}',
+]
+
+/**
+ * The places of the new app a word of glossary v2 is allowed on, or banned on only (`allowedOn`
+ * and `onlyOn` in src/domain/words.ts), each with the files that make it. The paths are the
+ * mockup's, under src/app; the pull request that brings a file in keeps its path here in step.
+ */
+export const appSurfaces = [
+  {
+    // The connected tool is named on its own integration only.
+    place: 'Integrations',
+    files: [
+      'src/app/pages/integrations.tsx',
+      'src/app/data/integrations.ts',
+      'src/app/data/world.ts',
+    ],
+  },
+  // An edition is Advanced vocabulary: Settings and the agent's reply, never success copy.
+  { place: 'Settings', files: ['src/app/pages/settings.tsx'] },
+  { place: 'the agent reply', files: ['src/app/lib/agent-reply.ts'] },
+  {
+    // The review's own sentences, which never name the tool an agent ran in.
+    place: 'the review',
+    files: ['src/app/pages/review-page.tsx', 'src/app/components/heed/review-parts.tsx'],
+  },
+]
+
+/** The places of the new app that a file makes. */
+export function appPlacesOf(path) {
+  return appSurfaces
+    .filter(({ files }) => files.some((glob) => matchesGlob(path, glob)))
+    .map(({ place }) => place)
+}
 
 /** The banned words a file may hold: those the glossary allows on the place the file makes. */
 export function allowedIn(path) {
@@ -256,25 +307,37 @@ const codeSample = (text) =>
 const plainWords = {
   meta: {
     type: 'suggestion',
-    docs: { description: 'Write the words people read as the voice guide says.' },
+    docs: { description: 'Write the words people read in the words of the glossary.' },
     schema: [
       {
         type: 'object',
-        properties: { errorsOnly: { type: 'boolean' } },
+        properties: {
+          errorsOnly: { type: 'boolean' },
+          // `app`: glossary v2, for the new web app. Left out: the earlier glossary.
+          glossary: { enum: ['app'] },
+        },
         additionalProperties: false,
       },
     ],
     messages: {
+      appGlossary: 'Instead of "{{found}}", write: {{write}}. See docs/design/copy.md.',
       glossary: 'Instead of "{{found}}", write: {{write}}. See docs/design/voice.md.',
       contraction:
-        'Instead of "{{found}}", write "{{write}}", as people say it. Keep "not" in full only where it carries the sentence (fullNegatives in src/domain/words.ts).',
+        'Instead of "{{found}}", write "{{write}}", as people say it. Keep "not" in full only where it carries the sentence (fullNegatives in src/domain/words-v1.ts).',
       unclear:
         'Instead of "{{found}}", write it in full: {{write}}. See docs/design/voice.md, principle 5.',
     },
   },
   create(context) {
     const errorsOnly = context.options[0]?.errorsOnly ?? false
-    const allowed = allowedIn(relative(context.cwd, context.filename))
+    const path = relative(context.cwd, context.filename)
+    const toChange =
+      context.options[0]?.glossary === 'app'
+        ? (text) => {
+            const places = appPlacesOf(path)
+            return appWordsToChange(text, places).map((c) => ({ ...c, rule: 'appGlossary' }))
+          }
+        : (text) => wordsToChange(text, allowedIn(path))
     const check = (node, text, whole, isJsx) => {
       if (typeof text !== 'string' || !text.trim()) return
       if (!isJsx && (looksLikeCode(whole) || codeSample(whole))) return
@@ -282,7 +345,7 @@ const plainWords = {
       // Each word is reported where it stands, so a long text shows which words to change.
       const source = context.sourceCode.getText(node)
       let from = 0
-      for (const change of wordsToChange(text, allowed)) {
+      for (const change of toChange(text)) {
         const at = source.indexOf(change.found, from)
         if (at !== -1) from = at + change.found.length
         const start = node.range[0] + Math.max(at, 0)
@@ -307,7 +370,10 @@ const plainWords = {
 const plugin = { rules: { 'plain-words': plainWords } }
 export default plugin
 
-/** The rule where it applies, in warn mode until the count is 0 (voice plan V9). */
+/**
+ * The rule where it applies: in the old front end and the server in warn mode until the count is
+ * 0 (voice plan V9), in the new app as an error from the start.
+ */
 export const plainWordsConfigs = [
   {
     files: plainWordsFiles,
@@ -320,5 +386,11 @@ export const plainWordsConfigs = [
     ignores: plainWordsFiles,
     plugins: { heed: plugin },
     rules: { 'heed/plain-words': ['warn', { errorsOnly: true }] },
+  },
+  {
+    files: appWordsFiles,
+    ignores: appNotProductFiles,
+    plugins: { heed: plugin },
+    rules: { 'heed/plain-words': ['error', { glossary: 'app' }] },
   },
 ]

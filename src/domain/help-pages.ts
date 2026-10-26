@@ -208,7 +208,7 @@ export type HelpLine = { line: number; text: string }
  * What a person reads of a page, line by line: the title, short title and summary of its front
  * matter, then each line of its body without fenced code, comments, link addresses or emphasis
  * marks. Code spans stay, marked, for the reader of the words to leave alone
- * (src/domain/words.ts, `wordsToChange`).
+ * (src/domain/words-v1.ts, `wordsToChange`).
  */
 export function helpPageLines(source: string): HelpLine[] {
   const lines = source.replace(/\r\n?/g, '\n').split('\n')

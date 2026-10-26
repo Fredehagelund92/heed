@@ -16,7 +16,7 @@ export type AreaRole = Permissions['assignments'][number]['role']
 export type Capacity = AreaRole | 'administrator'
 
 const areaRoleOrder: readonly AreaRole[] = ['owner', 'approver']
-// The glossary's names (src/domain/words.ts).
+// The glossary's names (src/domain/words-v1.ts).
 const roleNames: Record<AreaRole, string> = {
   owner: 'Owner',
   approver: 'High-risk approver',

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { compareToBaseline, countWords, wordKey } from '../../scripts/plain-words-baseline.ts'
 
@@ -46,5 +47,14 @@ describe('the plain words baseline', () => {
     const { more, notes } = compareToBaseline({ 'a.tsx': { item: 2, scope: 1 } }, baseline)
     expect(more).toEqual([{ path: 'a.tsx', word: 'scope', count: 1, allowed: 0 }])
     expect(notes).toHaveLength(1)
+  })
+})
+
+describe('plain-words.baseline.json', () => {
+  it('starts at zero for the new web app: no file in src/app may hold an old word', () => {
+    const baseline = JSON.parse(
+      readFileSync(new URL('../../plain-words.baseline.json', import.meta.url), 'utf8'),
+    ) as Record<string, unknown>
+    expect(Object.keys(baseline).filter((path) => path.startsWith('src/app/'))).toEqual([])
   })
 })

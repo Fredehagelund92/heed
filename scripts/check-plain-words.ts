@@ -4,14 +4,15 @@ import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
 import { allowedIn } from '../eslint.plain-words.js'
 import { helpPageLines } from '../src/domain/help-pages.ts'
-import { wordsToChange } from '../src/domain/words.ts'
+import { wordsToChange } from '../src/domain/words-v1.ts'
 import { compareToBaseline, countWords, type WordCounts } from './plain-words-baseline.ts'
 
 /*
   The ratchet on the old voice (docs/design/voice.md, "The guard rail"), run in CI after the lint:
   `npm run lint:words`. It counts, for each file, what heed/plain-words reports in the code and
   what the same glossary finds in each help page, and compares the counts with
-  plain-words.baseline.json, word by word. It fails when a file has a word more often than the
+  plain-words.baseline.json, word by word. The new web app in src/app is counted too: it starts
+  at zero and has no entry in the baseline, so any word there fails. It fails when a file has a word more often than the
   baseline allows, or a new file has any, so no change adds old words. A fall is only a note: the
   baseline is lowered with --update whenever it suits, and no change has to touch it to pass.
 
@@ -32,8 +33,10 @@ async function codeFindings(): Promise<Finding[]> {
     cwd: root,
     ruleFilter: ({ ruleId }) => ruleId === 'heed/plain-words',
     overrideConfig: { languageOptions: { parserOptions: { projectService: false } } },
+    // src/app holds no code until the screens of the new app land.
+    errorOnUnmatchedPattern: false,
   })
-  const results = await eslint.lintFiles(['src/web', 'src/server'])
+  const results = await eslint.lintFiles(['src/web', 'src/server', 'src/app'])
   return results.flatMap((result) =>
     result.messages
       .filter((message) => message.ruleId === 'heed/plain-words')

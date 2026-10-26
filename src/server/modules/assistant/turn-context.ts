@@ -111,7 +111,7 @@ const spelled = (day: string) => {
 }
 const list = (names: string[]) =>
   names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
-/** A role as people read it (src/domain/words.ts). */
+/** A role as people read it (src/domain/words-v1.ts). */
 const roleWords = { owner: 'owner', approver: 'approver' } as const
 const globalRoleWords: Record<string, string> = { administrator: 'an admin', auditor: 'an auditor' }
 

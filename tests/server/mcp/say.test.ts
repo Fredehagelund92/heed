@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createToolService, failure, type ToolResult } from '../../../src/server/mcp/service.ts'
 import { periodWords, windowWords } from '../../../src/domain/dates.ts'
 import { findSaid, notLookedUp, notProof } from '../../../src/domain/say.ts'
-import { bannedWords, usesWord } from '../../../src/domain/words.ts'
+import { bannedWords, usesWord } from '../../../src/domain/words-v1.ts'
 import { DEFAULT_PRODUCT_NAME } from '../../../src/domain/brand.ts'
 import { toolWords } from '../../../src/domain/mcp-text.ts'
 import type { ServedToolName } from '../../../src/server/mcp/tools.ts'
@@ -14,7 +14,7 @@ import { bundle, fakeReads, memoryStore, withRevenue } from './fixtures.ts'
   repeat to the person as they stand, and `next`, the step for the AI agent. Each test reads the
   result alone, as a client that drops the server instructions (FR-343) does: together they must
   carry what the reply read, what it did not, and never let an empty, unreadable, cut or withheld
-  result read as an absence. `say` speaks the glossary's words (src/domain/words.ts) and never
+  result read as an absence. `say` speaks the glossary's words (src/domain/words-v1.ts) and never
   names the product; `next` keeps the tool and field names the AI agent calls.
 */
 function setup(change: (data: ServingBundle) => void = () => {}) {
@@ -72,7 +72,7 @@ function said(result: ToolResult) {
 /** What the AI agent is told to do next with a result. */
 const nextOf = (result: ToolResult) => String(result.structuredContent.next)
 /**
- * The banned words a sentence for people uses (src/domain/words.ts). A word allowed somewhere
+ * The banned words a sentence for people uses (src/domain/words-v1.ts). A word allowed somewhere
  * (edition, on the Editions page) still counts: the sentence is read everywhere.
  */
 const plainIn = (text: string) =>

@@ -2,7 +2,7 @@
  * The MCP and gateway screen's words and rules (FR-407, FR-408): what each tool does in plain
  * words, how an agent's tools and limits read, and the agent form. The service decides; these
  * only say what it will do, and check a form before it is sent. Code says client; people read
- * agent (src/domain/words.ts).
+ * agent (src/domain/words-v1.ts).
  */
 import * as z from 'zod/mini'
 import type { ClientPolicy, SaveClientInput, ToolSwitch } from '@/api'

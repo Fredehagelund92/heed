@@ -51,7 +51,7 @@
 
 ## 2. Tokens
 
-All values live in one file (`src/web/styles/tokens.css`, and in `src/app` until the switch). A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/tokens.test.ts`) guards the file and recomputes every contrast pair.
+All values live in one file (`src/web/styles/tokens.css`, and `src/app/styles/tokens.css` until the switch). A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/tokens.test.ts`, and `tests/lint/app-tokens.test.ts` for the new app) guards the file and recomputes every contrast pair.
 
 ### 2.1 Colour
 
@@ -207,7 +207,7 @@ Tailwind's default spacing scale, including half steps (`gap-1.5`, `px-2.5`). A 
 --container-wide: 80rem; /* Inbox, Settings, Context and Definitions lists */
 ```
 
-Layers use the named `z-*` utilities, never a number.
+Layers use the named `z-*` utilities, never a number. Lowest first: `z-base`, `z-raised` (a sticky table header or total row, a raised control), `z-header` (the page header, pane handles), `z-site-header` (the docs site's header), `z-dock` (the dock on a phone), `z-overlay` (dialogs, sheets, popovers, menus, tooltips) and `z-skip` (the skip link). The values are the mockup's: 0, 10, 20, 30, 40, 50 and 60.
 
 ### 2.6 Motion, focus, elevation
 
@@ -437,7 +437,7 @@ Light, dark and system, from a small menu at the right end of every header. `the
 
 1. **Tiptap in the first load.** The editor loads on demand (the comment box, the Ask composer and the document editors). Whether the Ask composer's editor can load later still, and what the first-load budget becomes at the switch, is decided when the bundle is measured.
 2. **Virtual lists.** The mockup renders whole lists. The app virtualises past 200 rows against the pane scroller. This changes no pixels, and the rows and the keyboard cursor must behave the same.
-3. **Chip hues as tokens.** The chip hues live in `lib/tones.ts` as numbers. They move into the token file with a contrast test when the new tokens land.
+3. **Chip hues as tokens.** Settled: the chip tint and its ink are `bg-chip` and `text-chip-foreground`, drawn from the chip's own `--chip-h`. The hues of metric, dimension, market, term and warn are `--chip-h-*` tokens; a domain's hue is its data. The token test checks every hue from 0 to 359 at 4.5:1 in both themes, so any domain hue is safe.
 4. **Right-to-left and other languages.** Out of scope for v1. Every vocabulary lives in one place per list so a later translation is possible.
 
 ## 11. Rules of Draft 1 that v2 withdraws

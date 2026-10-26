@@ -190,9 +190,11 @@ decision: FR-121 says what an agent may never set.
 
 ## Language
 
-Use everyday names in the UI, from the glossary in `src/domain/words.ts`, and write as
-`docs/design/voice.md` says: "fact", "proposal", "owner", and "edition" only on the Editions
-page. Do not show ids or database words to people: a contributor must never need to know Git,
+Use everyday names in the UI. The new web app in `src/app` takes them from glossary v2 in
+`src/domain/words.ts` and writes as `docs/design/copy.md` says: "context item", "suggestion",
+"owner", "People". The old front end in `src/web` keeps the earlier glossary in
+`src/domain/words-v1.ts` and `docs/design/voice.md` until the switch: "fact", "proposal", "owner",
+and "edition" only on the Editions page. Do not show ids or database words to people: a contributor must never need to know Git,
 YAML or MCP (NFR-015 in the requirements). Say what an empty state means and what to do about
 it.
 

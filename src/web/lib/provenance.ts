@@ -6,7 +6,7 @@ import type {
   Provenance,
   ProvenanceFlag,
 } from '@domain/provenance'
-import { plainName } from '@domain/words'
+import { plainName } from '@domain/words-v1'
 import { formatDay } from './library'
 
 /*

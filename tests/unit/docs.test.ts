@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_PRODUCT_NAME, PRODUCT_TOKEN } from '@domain/brand'
 import { headingSlug } from '@domain/heading-anchors'
 import { helpPageLines, ONE_MINUTE, readHelpPage, type HelpPage } from '@domain/help-pages'
-import { wordsToChange } from '@domain/words'
+import { wordsToChange } from '@domain/words-v1'
 import { parseGfm, type AnswerBlock, type AnswerInline } from '@/lib/answer-markdown'
 import { crumbDefinitions, pathOf } from '@/lib/crumbs'
 import {
@@ -145,7 +145,7 @@ describe('the docs check', () => {
     // The title comes from the front matter: no `#` heading in the body.
     expect(prose(page.body)).not.toMatch(/^# /m)
     // Plain hyphens only, and no "soon" (writing rules 9 and 12).
-    expect(page.source).not.toContain('—')
+    expect(page.source).not.toContain('\u2014')
     expect(prose(page.body)).not.toMatch(/\bsoon\b/i)
     const template = docTemplates[doc.kind]
     if (template === 'concept') {
@@ -423,7 +423,7 @@ describe('the pictures', () => {
   it.each(pictureFiles)('%s is safe to draw inline, sized, and used by a page', (file) => {
     const svg = readFileSync(join(folder, 'images', file), 'utf8')
     expect(unsafePicture.test(svg), 'no script, link, handler, CSS address or id').toBe(false)
-    expect(svg).not.toContain('—')
+    expect(svg).not.toContain('\u2014')
     const width = Number(/<svg[^>]*\swidth="(\d+)"/.exec(svg)?.[1])
     expect(width).toBeGreaterThan(0)
     expect(width).toBeLessThanOrEqual(640)

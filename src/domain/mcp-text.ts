@@ -8,7 +8,7 @@ import { aboutBusinessBlock } from './about-business.ts'
 
   People read some of it: an AI agent shows a tool's title when it calls it, the Connect page shows
   the title and its line, and the instructions set the words an AI agent uses with people. So the
-  titles and lines are in the voice of docs/design/voice.md, with the names of src/domain/words.ts.
+  titles and lines are in the voice of docs/design/voice.md, with the names of src/domain/words-v1.ts.
   The instructions are for models: they keep the field and status names a model reads in a reply
   (item, scope, no_match) and tell it to say the plain words to people.
 

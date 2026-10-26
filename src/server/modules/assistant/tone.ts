@@ -1,5 +1,5 @@
 import { metaKind } from '../../../domain/assistant-meta.ts'
-import { bannedWords, usesWord } from '../../../domain/words.ts'
+import { bannedWords, usesWord } from '../../../domain/words-v1.ts'
 import { productName } from '../../brand.ts'
 import { assistantToolNames } from './tools.ts'
 
