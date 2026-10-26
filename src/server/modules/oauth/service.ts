@@ -28,7 +28,12 @@ const requestSeconds = 600
 const unconnectedRegistrationDays = 1
 const unusedRegistrationDays = 30
 export const browserCookie = 'heed_oauth_browser'
-export const defaultScopes = ['read', 'feedback'] as const
+/**
+ * What a sign-in grants when the agent asks for nothing in particular: read, report and suggest,
+ * so suggest_context is on with the scope granted at consent (FR-121 as changed). The consent
+ * screen names each one.
+ */
+export const defaultScopes = ['read', 'feedback', 'propose'] as const
 export type PersonScope = (typeof personScopes)[number]
 
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')

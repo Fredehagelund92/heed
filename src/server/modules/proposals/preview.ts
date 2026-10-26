@@ -172,14 +172,16 @@ export function candidateBundle(
 }
 
 /**
- * Runs get_facts on a private bundle with the live reply's code, recording nothing (FR-108).
- * `web` is the web app's address for the items' pages (FR-347); without it they are paths.
+ * Runs get_facts on a private bundle with the live reply's code, recording nothing (FR-108), or
+ * get_context, the agent contract's tool, for the golden set's L1 pass. `web` is the web app's
+ * address for the items' pages (FR-347); without it they are paths.
  */
 export function previewDelivery(
   bundle: ServingBundle,
   clock: Clock,
   input: unknown,
   web: string | null = null,
+  tool: 'get_facts' | 'get_context' = 'get_facts',
 ) {
   const noWrite = (): Promise<never> => Promise.reject(new Error('Preview cannot record demand'))
   const execute = createToolService(
@@ -201,7 +203,7 @@ export function previewDelivery(
     web,
   )
   return execute(
-    'get_facts',
+    tool,
     input,
     { client: 'proposal-preview', scopes: ['read'], caller: 'eval', canSelectEdition: false },
     100000,

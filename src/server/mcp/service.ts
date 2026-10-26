@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { replyStatus } from '../../domain/answer-state.ts'
 import { canonicalJson } from '../../domain/canonical.ts'
 import { noGroups } from '../../domain/item.ts'
+import { agentKinds, kindFilters } from '../../domain/mcp-text.ts'
 import { ownCaveat } from '../../domain/proposal-rules.ts'
 import {
   agentInstructions,
@@ -19,7 +21,12 @@ import {
   type ResolvedScope,
 } from '../../domain/scope.ts'
 import { shiftDate } from '../../domain/validity.ts'
-import { acceptedWords, ownerRole } from '../../domain/served-review.ts'
+import {
+  acceptedByRole,
+  acceptedWords,
+  checkedWords,
+  ownerRole,
+} from '../../domain/served-review.ts'
 import type { EditionSource, ServingBundle, ServingItem } from '../modules/editions/index.ts'
 import { helpAnswer, repositoryHelp, type HelpLibrary } from '../modules/help/index.ts'
 import type { Principal } from './auth.ts'
@@ -39,9 +46,12 @@ import {
 } from './outcomes.ts'
 import type { ServingReads } from './reads.ts'
 import {
+  appliesWords,
   askedGroups,
   askedMetrics,
   contextSaid,
+  contextVoice,
+  factVoice,
   failedSaid,
   findSaid,
   gapSaid,
@@ -50,26 +60,33 @@ import {
   readSaid,
   refusedSaid,
   relatedSaid,
+  reportSaid,
   scopeWords,
   searchSaid,
   unreadSaid,
+  whenWords,
   type Said,
 } from '../../domain/say.ts'
 import {
   changesInput,
   contextInput,
   feedbackInput,
+  findContextInput,
   findInput,
   gapInput,
+  getContextInput,
   helpInput,
   improveInput,
   overviewInput,
   readInput,
   relatedInput,
+  reportInput,
   searchInput,
   type ContextInput,
+  type GetContextInput,
 } from './schemas.ts'
 import { toolSchemaDigest, type ServedToolName } from './tools.ts'
+import { concepts } from '../../domain/words.ts'
 import { productName } from '../brand.ts'
 
 /**
@@ -103,13 +120,15 @@ export const itemUrl = (web: string | null, id: string) =>
  * opens it in Heed (FR-347, FR-348).
  */
 function openLines(output: Record<string, unknown>): string[] {
+  const context = output.context
   const listed = [
     ...(Array.isArray(output.items) ? (output.items as unknown[]) : []),
     ...(output.item ? [output.item] : []),
+    ...(Array.isArray(context) ? (context as unknown[]) : context ? [context] : []),
     ...(Array.isArray(output.results) ? (output.results as unknown[]) : []),
   ]
   return listed.flatMap((item) => {
-    const { title, page, section, url, reviewed } = item as Record<string, unknown>
+    const { title, page, section, url, reviewed, checked } = item as Record<string, unknown>
     const name =
       typeof title === 'string'
         ? title
@@ -119,9 +138,12 @@ function openLines(output: Record<string, unknown>): string[] {
             : page
           : null
     const review = reviewed as Record<string, string> | undefined
+    const check = checked as { role: string; date: string } | undefined
     const stamp = review
       ? ` - ${acceptedWords(review.accepted_on!, review.accepted_by!, review.in_edition!)}`
-      : ''
+      : check
+        ? ` - ${checkedWords(check.date, check.role)}`
+        : ''
     return name !== null && typeof url === 'string'
       ? [`Open in ${productName} - ${name.replace(/\s+/g, ' ').trim()}: ${url}${stamp}`]
       : []
@@ -146,11 +168,23 @@ export const resultFor = (output: Record<string, unknown>, isError = false): Too
     ...(isError ? { isError: true } : {}),
   }
 }
+/**
+ * A result with a note first in it and a line of its own after it: a deprecated id's reply names
+ * the tool to use instead, wherever a client reads a result.
+ */
+export const withNote = (result: ToolResult, note: string): ToolResult => ({
+  ...result,
+  content: [...result.content, { type: 'text', text: note }],
+  structuredContent: { note, ...result.structuredContent },
+})
 // Reserve space for the JSON-RPC/SSE envelope, the bounded request id and digest metadata.
 export const byteSize = (result: ToolResult) => Buffer.byteLength(JSON.stringify(result)) + 384
 const hour = (now: Date) => now.toISOString().slice(0, 13) + ':00:00.000Z'
 const linkInstructions =
   agentInstructions + ' To follow a useful item link, call read_item with its id.'
+/** The same, for the agent contract's tools. */
+const contextLinkInstructions =
+  agentInstructions + ' To follow a useful link, call read_context with the item id.'
 /** FR-322: what a link is and how to follow one, in the reply that lists them. */
 export const linkStatement =
   'A link shows what a text refers to. It does not mean the item applies to your question.'
@@ -161,7 +195,7 @@ export const searchHint =
 export const definitionInstruction = `For what a metric means, quote definitions: the source's own words, and where they come from. Keep the facts apart as what is added to the definition, and never make up a definition.`
 const relatedInstructions =
   agentInstructions +
-  ' To read a neighbour item in full, call read_item with its id. Follow a link only when it helps answer the question.'
+  ' To read a neighbour item in full, call read_context with its id. Follow a link only when it helps answer the question.'
 const report = (status: Resolution['status'], matched = 0, withheld = 0) => ({
   status,
   matched,
@@ -251,6 +285,63 @@ function itemOutput(
     url,
   }
 }
+/** Who checked an item before agents got it, as a role, and on which day (FR-326). */
+function checkedOutput(item: ServingItem, bundle: ServingBundle) {
+  const review = item.review
+  return review
+    ? {
+        checked: {
+          role: acceptedByRole(review.acceptedAs, domainName(bundle, review.areaId)),
+          date: review.acceptedOn,
+        },
+      }
+    : {}
+}
+/**
+ * A context item as the agent contract gives it (docs/product.md, section 10): what it is and
+ * says, when and where it applies, who checked it and when, its first source, its don't conclude
+ * line, and whether it may be out of date or disagrees with another item in the same reply (the
+ * overlap notice, FR-350). It never carries a comment, a report or a saved question: it is built
+ * from the served edition only.
+ */
+export function contextEntry(
+  item: ServingItem,
+  bundle: ServingBundle,
+  today: string,
+  url: string,
+  extra: { disagrees?: readonly string[] } = {},
+) {
+  const unverified =
+    item.checkFlag !== null || (item.reviewDate !== null && item.reviewDate < today)
+  const source = item.evidence[0]
+  return {
+    id: item.id,
+    title: item.title,
+    summary: item.summary,
+    kind: agentKinds[item.kind],
+    when: whenWords(item.validity),
+    applies: appliesWords(bundle, item.scope),
+    ...checkedOutput(item, bundle),
+    ...(source ? { source: { url: source.url, quote: source.quote } } : {}),
+    not_to_conclude: item.notToConclude,
+    ...(unverified ? { may_be_out_of_date: true } : {}),
+    ...(extra.disagrees?.length ? { disagrees_with: [...extra.disagrees] } : {}),
+    url,
+  }
+}
+/** The fields a full reply's item has beside the entry: what the entry already says, it leaves out. */
+const entryKeys = new Set([
+  'id',
+  'title',
+  'summary',
+  'kind',
+  'not_to_conclude',
+  'url',
+  'conflicts_with',
+])
+/** Added to the instructions when a reply gives the definitions a question asks for, in a voice. */
+const definitionsFor = (many: string) =>
+  `For what a metric means, quote definitions: the source's own words, and where they come from. Keep the ${many} apart as what is added to the definition, and never make up a definition.`
 /** Said when a metric group was asked for: its metrics are separate figures. */
 export const groupInstruction =
   'A metric group was asked for, and say names its metrics: they are separate figures, so answer for each one and say so, or ask which one the person means; never give the group as one figure.'
@@ -312,7 +403,7 @@ type Definition = { term: string }
  * and how, a domain in a line, or what changed. A refusal and what_changed bring their own.
  */
 function outcomeSaid(
-  name: 'find_facts' | 'domain_overview' | 'what_changed',
+  name: OutcomeName,
   body: Record<string, unknown>,
   args: unknown,
   bundle: ServingBundle,
@@ -332,19 +423,32 @@ function outcomeSaid(
     })
   const find = args as FindArgs
   const check = body.check_report as { withheld: number }
-  return findSaid(bundle, {
-    status: String(body.status),
-    foundBy: body.found_by === 'scope' ? 'scope' : 'words',
-    total: Number(body.total),
-    shown: (body.items as unknown[]).length,
-    scope: (body.scope_used as ResolvedScope | undefined) ?? null,
-    assumed: (body.assumed_date as { sentence: string } | undefined)?.sentence ?? null,
-    readsAs: (body.dates_read as { reads_as: string } | undefined)?.reads_as ?? null,
-    withheld: check.withheld,
-    definitions: ((body.definitions as Definition[] | undefined) ?? []).map((d) => d.term),
-    area: find.domain === undefined ? null : (findArea(find.domain, bundle.areas)?.name ?? null),
-  })
+  const v1 = name === 'find_context'
+  return findSaid(
+    bundle,
+    {
+      status: String(body.status),
+      foundBy: body.found_by === 'scope' ? 'scope' : 'words',
+      total: Number(body.total),
+      shown: ((v1 ? body.context : body.items) as unknown[]).length,
+      scope: (body.scope_used as ResolvedScope | undefined) ?? null,
+      assumed: (body.assumed_date as { sentence: string } | undefined)?.sentence ?? null,
+      readsAs: (body.dates_read as { reads_as: string } | undefined)?.reads_as ?? null,
+      withheld: check.withheld,
+      definitions: ((body.definitions as Definition[] | undefined) ?? []).map((d) => d.term),
+      area: find.domain === undefined ? null : (findArea(find.domain, bundle.areas)?.name ?? null),
+    },
+    v1 ? contextVoice : factVoice,
+  )
 }
+/** The tools that read an outcome of the served edition: find_context, and the reads it replaced. */
+type OutcomeName = 'find_facts' | 'find_context' | 'domain_overview' | 'what_changed'
+
+/** find_context's arguments as findContext reads them: a kind by the name it is stored as. */
+const findArgsOf = ({ kind, ...args }: ReturnType<typeof findContextInput.parse>): FindArgs => ({
+  ...args,
+  ...(kind ? { kind: kindFilters[kind] } : {}),
+})
 
 /** Whether find_facts's words or its domain name a domain, as findContext reads them. */
 function namesDomain(bundle: ServingBundle, args: FindArgs) {
@@ -371,20 +475,23 @@ export function createToolService(
    * caller may select. A result that cannot fit the size limit loses its longest lists first.
    */
   async function outcome(
-    name: 'find_facts' | 'domain_overview' | 'what_changed',
+    name: OutcomeName,
     input: unknown,
     principal: Principal,
     maxBytes: number,
     onEdition: (seq: string) => void,
     today: string,
   ): Promise<ToolResult> {
+    const find = name === 'find_facts' || name === 'find_context'
     const args =
-      name === 'find_facts'
-        ? findInput.parse(input)
-        : name === 'domain_overview'
-          ? overviewInput.parse(input)
-          : changesInput.parse(input)
-    const edition = name === 'find_facts' ? (args as FindArgs).edition : undefined
+      name === 'find_context'
+        ? findArgsOf(findContextInput.parse(input))
+        : name === 'find_facts'
+          ? findInput.parse(input)
+          : name === 'domain_overview'
+            ? overviewInput.parse(input)
+            : changesInput.parse(input)
+    const edition = find ? (args as FindArgs).edition : undefined
     // Naming an edition, to read or to compare, needs edition scope, as for get_facts.
     const named =
       name === 'what_changed'
@@ -403,24 +510,28 @@ export function createToolService(
       overlay: bundle.overlay,
       tool_schema_digest: toolSchemaDigest,
     }
-    if (name !== 'find_facts' && !reads) return failure('This tool is not available here.')
+    if (!find && !reads) return failure('This tool is not available here.')
+    const found = find
+      ? findContext(
+          bundle,
+          args as FindArgs,
+          today,
+          // What a domain's source has beyond the vocabulary, read only for a domain named.
+          reads && namesDomain(bundle, args as FindArgs) ? await reads.waiting() : null,
+          name === 'find_context' ? contextVoice : factVoice,
+        )
+      : null
     const body: Record<string, unknown> =
-      name === 'find_facts'
-        ? cite(
-            findContext(
-              bundle,
-              args as FindArgs,
-              today,
-              // What a domain's source has beyond the vocabulary, read only for a domain named.
-              reads && namesDomain(bundle, args as FindArgs) ? await reads.waiting() : null,
-            ),
-          )
-        : name === 'domain_overview'
-          ? await domainOverview(bundle, args, today, reads!)
-          : await whatChanged(bundle, args as ChangesArgs, today, reads!)
-    // FR-342: a concise find_facts leaves out the source details its definitions already say
-    // in words.
-    const concise = name === 'find_facts' && (args as FindArgs).response_format === 'concise'
+      found && name === 'find_context'
+        ? contextFound(found, bundle, today)
+        : found
+          ? cite(found)
+          : name === 'domain_overview'
+            ? await domainOverview(bundle, args, today, reads!)
+            : await whatChanged(bundle, args as ChangesArgs, today, reads!)
+    // FR-342: a concise find_facts or find_context leaves out the source details its definitions
+    // already say in words.
+    const concise = find && (args as FindArgs).response_format === 'concise'
     const out: Record<string, unknown> = {
       ...saidFields(outcomeSaid(name, body, args, bundle)),
       ...common,
@@ -437,7 +548,15 @@ export function createToolService(
     const limit = Math.min(maxBytes, args.max_bytes)
     // Long lists are shortened from the end, the most useful entries first, until it fits: the
     // longest part of each list that fits is found by halving, so a large list costs few renders.
-    for (const key of ['items', 'changes', 'definitions', 'domains', 'metrics', 'dimensions']) {
+    for (const key of [
+      'items',
+      'context',
+      'changes',
+      'definitions',
+      'domains',
+      'metrics',
+      'dimensions',
+    ]) {
       const value = out[key]
       if (!Array.isArray(value) || byteSize(resultFor(out)) <= limit) continue
       const whole = [...(value as unknown[])]
@@ -466,6 +585,132 @@ export function createToolService(
       ? { ...body, items: body.items.map((item) => ({ ...item, url: urlOf(item.id) })) }
       : body
   }
+  /**
+   * find_context's reply: what find_facts found, with each item as the agent contract gives it
+   * (titles and summaries, never a body) under context, with its page in Heed.
+   */
+  function contextFound(
+    body: ReturnType<typeof findContext>,
+    bundle: ServingBundle,
+    today: string,
+  ): Record<string, unknown> {
+    if (!('items' in body)) return body
+    const byId = new Map(bundle.items.map((item) => [item.id, item]))
+    // A search result names its item and where it applies, without the source's sentence.
+    const context = body.items.map((line) => {
+      const { source: _source, ...entry } = contextEntry(
+        byId.get(line.id)!,
+        bundle,
+        today,
+        urlOf(line.id),
+      )
+      return { ...entry, match: line.match }
+    })
+    // context takes the place of items, so the reply reads in the same order.
+    return Object.fromEntries(
+      Object.entries(body).map(([key, value]): [string, unknown] =>
+        key === 'items' ? ['context', context] : [key, value],
+      ),
+    )
+  }
+
+  /**
+   * report (replacing report_gap and give_feedback): what the person says about a reply, a context
+   * item or a question's scope, recorded as anonymous feedback on the reply (the gap job turns
+   * missing, wrong and unclear into a gap for the reply's topic, FR-606 case 3) or as a gap for the
+   * scope. It names the owner who will see it, when it can, and never who asked (FR-602).
+   */
+  async function reportFor(
+    input: unknown,
+    principal: Principal,
+    onEdition: (seq: string) => void,
+    today: string,
+  ): Promise<ToolResult> {
+    const args = reportInput.parse(input)
+    const note = safeNote(args.note, args.question)
+    const verdict = args.kind === 'helped' ? 'helpful' : args.kind
+    const sent = (to: string | null, extra: Record<string, unknown> = {}, said?: Said) =>
+      resultFor({
+        ...saidFields(said ?? reportSaid({ kind: args.kind, to })),
+        status: 'recorded',
+        recorded: true,
+        ...(to ? { to } : {}),
+        ...extra,
+      })
+    if (args.reply_id !== undefined || args.context_id !== undefined) {
+      let area: string | null = null
+      let to: string | null = null
+      if (args.context_id !== undefined) {
+        // A context item is read as an agent reads it: one it may not see answers as one that
+        // does not exist (FR-334).
+        const bundle = await source.bundle()
+        onEdition(bundle.seq)
+        const item = bundle.items.find((i) => i.id === args.context_id)
+        if (!item || !canRead(bundle, item, today))
+          return resultFor({
+            ...saidFields(readSaid(null, contextVoice)),
+            status: 'no_match',
+            recorded: false,
+            message: 'Not found',
+          })
+        area = item.areaId
+        to = ownerRole(domainName(bundle, item.areaId))
+      }
+      await store.feedback(args.reply_id ?? null, verdict, principal.client, note, area)
+      return sent(to)
+    }
+    const scoped =
+      args.question !== undefined ||
+      args.metrics !== undefined ||
+      args.dimension_filters !== undefined
+    if (args.kind === 'missing' && scoped) {
+      const bundle = await source.bundle()
+      onEdition(bundle.seq)
+      const scope = scopeOf(
+        {
+          question: args.question ?? '',
+          ...(args.metrics ? { metrics: args.metrics } : {}),
+          ...(args.dimension_filters ? { dimension_filters: args.dimension_filters } : {}),
+          ...(args.window ? { window: args.window } : {}),
+        },
+        bundle,
+        today,
+      )
+      if (scope.status !== 'resolved')
+        return resultFor({
+          ...saidFields(unreadSaid(bundle, scope.issues, args.question)),
+          status: 'need_more_detail',
+          recorded: false,
+          options: scope.issues,
+        })
+      const topic = topicFor(scope.scope, bundle.metricArea)
+      const id = await store.reportGap(topic, note)
+      const assumed = scope.assumed ? assumedDate(scope.assumed) : null
+      const to = topic.area ? ownerRole(domainName(bundle, topic.area)) : null
+      return sent(
+        to,
+        { gap_id: id },
+        reportSaid({
+          kind: 'missing',
+          to,
+          scope: scopeWords(bundle, scope.scope, {
+            show: !assumed,
+            readsAs: scope.dates?.reads_as ?? null,
+          }),
+          assumed: assumed?.note.sentence ?? null,
+        }),
+      )
+    }
+    return resultFor({
+      say: `Nothing was sent yet: it needs to know which answer or ${concepts.fact.name} this is about.`,
+      next:
+        args.kind === 'missing'
+          ? "Call report again with the reply_id of the get_context reply, or context_id; with no reply, pass the question's metrics, markets and dates."
+          : 'Call report again with the reply_id of the get_context reply, or the context_id of the item it is about.',
+      status: 'need_more_detail',
+      recorded: false,
+    })
+  }
 
   return async function execute(
     name: ServedToolName,
@@ -484,7 +729,13 @@ export function createToolService(
         await store.feedback(args.delivery_id, args.verdict, principal.client, safeNote(args.note))
         return resultFor({ recorded: true, check_report: report('matched') })
       }
-      if (name === 'find_facts' || name === 'domain_overview' || name === 'what_changed')
+      if (name === 'report') return await reportFor(input, principal, onEdition, today)
+      if (
+        name === 'find_facts' ||
+        name === 'find_context' ||
+        name === 'domain_overview' ||
+        name === 'what_changed'
+      )
         return await outcome(name, input, principal, maxBytes, onEdition, today)
       // Heed's own help reads no edition: the same pages whatever is live.
       if (name === 'search_help')
@@ -492,15 +743,17 @@ export function createToolService(
       const args =
         name === 'get_facts'
           ? contextInput.parse(input)
-          : name === 'read_item'
-            ? readInput.parse(input)
-            : name === 'get_related'
-              ? relatedInput.parse(input)
-              : name === 'search_facts'
-                ? searchInput.parse(input)
-                : name === 'improve_question'
-                  ? improveInput.parse(input)
-                  : gapInput.parse(input)
+          : name === 'get_context'
+            ? getContextInput.parse(input)
+            : name === 'read_item' || name === 'read_context'
+              ? readInput.parse(input)
+              : name === 'get_related'
+                ? relatedInput.parse(input)
+                : name === 'search_facts'
+                  ? searchInput.parse(input)
+                  : name === 'improve_question'
+                    ? improveInput.parse(input)
+                    : gapInput.parse(input)
       const edition = 'edition' in args ? args.edition : undefined
       if (edition && !principal.canSelectEdition)
         return failure('Selecting an edition requires edition scope.')
@@ -512,8 +765,16 @@ export function createToolService(
         tool_schema_digest: toolSchemaDigest,
       }
       const limit = Math.min(maxBytes, 'max_bytes' in args ? args.max_bytes : 100000)
-      if (name === 'get_facts' || name === 'improve_question' || name === 'report_gap') {
-        const scoped = args as ContextInput
+      if (
+        name === 'get_facts' ||
+        name === 'get_context' ||
+        name === 'improve_question' ||
+        name === 'report_gap'
+      ) {
+        const scoped = args as ContextInput | GetContextInput
+        // get_context speaks the agent contract (docs/product.md, section 10); get_facts, its
+        // deprecated id, keeps its reply for one release.
+        const v1 = name === 'get_context'
         // improve_question coaches a question, so it says the dates are missing (FR-307); the
         // others read a question without dates at today, and say so.
         const scope = scopeOf(scoped, bundle, today, {
@@ -660,12 +921,14 @@ export function createToolService(
         const concise = scoped.response_format === 'concise'
         const instructions = withCaveats(
           [
-            linkInstructions,
-            ...(definitions.length ? [definitionInstruction] : []),
+            v1 ? contextLinkInstructions : linkInstructions,
+            ...(definitions.length
+              ? [v1 ? definitionsFor(`${concepts.fact.name}s`) : definitionInstruction]
+              : []),
             ...(groups.length ? [groupInstruction] : []),
             ...(assumed ? [assumed.instruction] : []),
           ].join(' '),
-          items,
+          v1 ? [{ not_to_conclude: true }] : items,
         )
         const dated = {
           ...(assumed ? { assumed_date: assumed.note } : {}),
@@ -673,23 +936,104 @@ export function createToolService(
         }
         // The domains the question is about, with what their owners wrote about them (FR-813).
         const domains = askedDomains(bundle, resolution.scope, concise)
+        // The reply's status, which carries the answer state (FR-349), as the items stand after
+        // any cut: get_facts keeps the resolver's.
+        // A value the question asks about, such as one of two markets, that no item given applies
+        // to: an item applies to it when it names no value of that dimension, or names it.
+        const uncovered = () =>
+          Object.entries(resolution.scope?.filters ?? {}).some(([dimension, values]) =>
+            values.some(
+              (value) =>
+                !items.some((item) => {
+                  const own = (index.item(item.id) as ServingItem).scope.dimensionValues.filter(
+                    (row) => row.dimension === dimension,
+                  )
+                  return !own.length || own.some((row) => row.value === value)
+                }),
+            ),
+          )
+        const statusNow = () =>
+          v1
+            ? replyStatus({
+                status: resolution.status,
+                items: items.map((item) => ({
+                  match: item.match,
+                  unverified: item.freshness === 'unverified',
+                })),
+                uncovered: uncovered(),
+              })
+            : resolution.status
         // FR-344: what the reply read and did not, as it stands after any cut.
         const said = () =>
-          contextSaid(bundle, {
-            status: resolution.status,
-            scope: resolution.scope,
-            issues: resolution.issues,
-            question: scoped.question,
-            delivered: items.length,
-            partial: items.filter((item) => item.match === 'partial').length,
-            unverified: items.filter((item) => item.freshness === 'unverified').length,
-            cut: check.cut_ids.length,
-            withheld: resolution.withheld.map((w) => w.reason),
-            assumed: assumed?.note.sentence ?? null,
-            readsAs: read?.reads_as ?? null,
-            groups,
-            about: metrics.length > 1,
+          contextSaid(
+            bundle,
+            {
+              status: statusNow(),
+              scope: resolution.scope,
+              issues: resolution.issues,
+              question: scoped.question,
+              delivered: items.length,
+              partial: items.filter((item) => item.match === 'partial').length,
+              unverified: items.filter((item) => item.freshness === 'unverified').length,
+              cut: check.cut_ids.length,
+              withheld: resolution.withheld.map((w) => w.reason),
+              assumed: assumed?.note.sentence ?? null,
+              readsAs: read?.reads_as ?? null,
+              groups,
+              about: metrics.length > 1,
+            },
+            v1 ? contextVoice : factVoice,
+          )
+        // What was looked up, in words, for the agent contract's reply.
+        const askedWords = resolution.scope
+          ? scopeWords(bundle, resolution.scope, { show: true, readsAs: read?.reads_as ?? null })
+          : null
+        // Each item as the agent contract gives it, from the items as they stand after any cut:
+        // an item disagrees only with another item in the same reply.
+        const entries = (full: boolean) => {
+          const ids = new Set(items.map((item) => item.id))
+          return items.map((item) => {
+            const serving = index.item(item.id) as ServingItem
+            const entry = contextEntry(serving, bundle, today, item.url, {
+              disagrees: serving.conflicts.filter((id) => ids.has(id)),
+            })
+            const about = item.about ? { about: item.about } : {}
+            if (!full) return { ...entry, ...about }
+            const rest = Object.fromEntries(
+              Object.entries(item).filter(([key]) => !entryKeys.has(key)),
+            )
+            return { ...entry, ...rest }
           })
+        }
+        const renderV1 = () => {
+          const head = {
+            status: statusNow(),
+            ...saidFields(said()),
+            asked: askedWords,
+          }
+          return concise
+            ? resultFor({
+                ...head,
+                context: entries(false),
+                ...(definitions.length ? { definitions } : {}),
+                reply_id: delivery,
+                ...common,
+              })
+            : resultFor({
+                ...head,
+                context: entries(true),
+                reply_id: delivery,
+                ...common,
+                response_format: 'full',
+                scope_used: resolution.scope,
+                ...dated,
+                ...(domains.length ? { domains } : {}),
+                ...(definitions.length ? { definitions } : {}),
+                options: resolution.issues,
+                check_report: check,
+                instructions,
+              })
+        }
         const out = {
           ...common,
           status: resolution.status,
@@ -704,7 +1048,7 @@ export function createToolService(
           instructions,
         }
         // FR-342: the concise reply, without what read_item gives for one item.
-        const render = () =>
+        const renderLegacy = () =>
           concise
             ? resultFor({
                 ...saidFields(said()),
@@ -722,6 +1066,7 @@ export function createToolService(
                 instructions: `${instructions} ${conciseInstruction}`,
               })
             : resultFor({ ...saidFields(said()), ...out })
+        const render = () => (v1 ? renderV1() : renderLegacy())
         const cutItem = () => {
           check.cut = true
           check.cut_ids.push(items.pop()!.id)
@@ -745,12 +1090,14 @@ export function createToolService(
           }
         while (items.length && byteSize(render()) > limit) cutItem()
         const deliveredIds = new Set(items.map((i) => i.id))
-        for (const item of items) {
-          const conflicts = bundle.items
-            .find((i) => i.id === item.id)!
-            .conflicts.filter((id) => deliveredIds.has(id))
-          if (conflicts.length) Object.assign(item, { conflicts_with: conflicts })
-        }
+        // get_facts names a conflict on the item; get_context says disagrees_with in its entry.
+        if (!v1)
+          for (const item of items) {
+            const conflicts = bundle.items
+              .find((i) => i.id === item.id)!
+              .conflicts.filter((id) => deliveredIds.has(id))
+            if (conflicts.length) Object.assign(item, { conflicts_with: conflicts })
+          }
         const output = render()
         if (byteSize(output) > limit)
           return failure('The required report cannot fit this size limit. Increase max_bytes.')
@@ -783,12 +1130,15 @@ export function createToolService(
         })
         return output
       }
-      if (name === 'read_item') {
+      if (name === 'read_item' || name === 'read_context') {
+        // read_context speaks the agent contract; read_item, its deprecated id, keeps its reply.
+        const v1 = name === 'read_context'
+        const voice = v1 ? contextVoice : factVoice
         const read = readInput.parse(input)
         const item = bundle.items.find((i) => i.id === read.id)
         if (!item || !canRead(bundle, item, today))
           return resultFor({
-            ...saidFields(readSaid(null)),
+            ...saidFields(readSaid(null, voice)),
             ...common,
             status: 'no_match',
             message: 'Not found',
@@ -805,18 +1155,27 @@ export function createToolService(
           offset = cursorOffset(read.cursor, key)
         const page = backlinks.slice(offset, offset + 20).map((i) => ({ id: i.id, title: i.title }))
         const shown = itemOutput(item, bundle, today, links.links, urlOf(item.id))
+        // The whole item as the agent contract gives it, then what read_item gave beside that.
+        const whole = v1
+          ? {
+              ...contextEntry(item, bundle, today, urlOf(item.id)),
+              ...Object.fromEntries(Object.entries(shown).filter(([k]) => !entryKeys.has(k))),
+            }
+          : shown
         const out = {
-          ...saidFields(readSaid(item)),
+          ...saidFields(
+            readSaid(v1 ? { kind: agentKinds[item.kind], version: item.version } : item, voice),
+          ),
           ...common,
           status: 'matched',
-          item: shown,
+          [v1 ? 'context' : 'item']: whole,
           backlinks: { count: backlinks.length, items: page },
           next_cursor:
             offset + page.length < backlinks.length ? cursorFor(key, offset + page.length) : null,
           ttlMs: 0,
           cacheScope: 'private',
           check_report: { ...report('matched', 1), links_withheld: links.withheld },
-          instructions: withCaveats(linkInstructions, [shown]),
+          instructions: withCaveats(v1 ? contextLinkInstructions : linkInstructions, [whole]),
         }
         const rendered = resultFor(out)
         return byteSize(rendered) <= limit

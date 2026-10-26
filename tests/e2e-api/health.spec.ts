@@ -169,7 +169,7 @@ test('an administrator sees every domain, and the old addresses land on Health',
   await expect(page.getByRole('navigation', { name: 'Gap views' })).toBeVisible()
 })
 
-/** Calls report_gap as the local Claude Code client, with a dev token the service accepts. */
+/** Calls report (something missing) as the local Claude Code client, with a dev token the service accepts. */
 async function reportGap(args: Record<string, unknown>): Promise<string> {
   // The service signs nothing: it checks tokens against the dev key it keeps beside it.
   const key = await devKey(process.env.MCP_DEV_KEY_FILE ?? '.heed-dev-key.pem', 'test')
@@ -188,7 +188,7 @@ async function reportGap(args: Record<string, unknown>): Promise<string> {
     }),
   )
   try {
-    const reply = await wire.callTool({ name: 'report_gap', arguments: args })
+    const reply = await wire.callTool({ name: 'report', arguments: { kind: 'missing', ...args } })
     expect(reply.isError, JSON.stringify(reply.content)).not.toBe(true)
     const content = reply.structuredContent as { recorded?: boolean; gap_id?: string }
     expect(content.recorded, JSON.stringify(reply.structuredContent)).toBe(true)
@@ -413,12 +413,14 @@ test('on the demo seed, an owner walks the regression from Got worse to its two 
   await expect(page).toHaveURL(new RegExp(`open=question(%3A|:)${REGRESSION}`))
   await expect(record(page).getByRole('heading', { level: 2 })).toHaveText(REGRESSION_TITLE)
 
-  // Evidence: the caveat check failed in the newest run and passed in the one before.
+  // Evidence: the note that ended is no longer given in the newest run, and was in the one
+  // before. (get_related is on, so the scripted agent still reaches it through a link and
+  // mentions it: the check that fails is the delivery.)
   const checks = record(page).getByRole('list', { name: 'Checks' })
   await expect(checks).toBeVisible({ timeout: 15_000 })
-  await expect(checks.getByRole('listitem').filter({ hasText: 'Fact mentioned' })).toContainText(
-    'Fail',
-  )
+  await expect(
+    checks.getByRole('listitem').filter({ hasText: /^Expected facts given/ }),
+  ).toContainText('Fail')
   // The open gap on the same scope in production, which the seed opened beside the question.
   await expect(record(page).getByRole('list', { name: 'Gaps on this topic' })).toContainText(
     'Net revenue in Spain',
@@ -432,9 +434,9 @@ test('on the demo seed, an owner walks the regression from Got worse to its two 
   const focus = page.locator('[data-slot="compare-focus"]')
   await expect(focus).toBeVisible()
   await expect(page).toHaveURL(/mode=compare/)
-  await expect(
-    focus.getByRole('region', { name: 'Mentions what it must', exact: true }),
-  ).toContainText('missing')
+  await expect(focus.getByRole('region', { name: 'Checks', exact: true })).toContainText(
+    'Expected facts given',
+  )
   await page.keyboard.press('Escape')
   await expect(focus).toHaveCount(0)
   await expect(page).not.toHaveURL(/mode=compare/)

@@ -128,26 +128,20 @@ describe('What an agent would get, in the mock', () => {
 
 describe('Connect an agent, in the mock', () => {
   it('gives every person the address, every tool with its switch and the clients switched on', async () => {
-    const off = ['draft_context', 'get_related']
+    // The six tools of the agent contract, every one on (FR-121, FR-332 as changed).
     expect(await maria.getConnectInfo()).toEqual({
       address: MOCK_MCP_ADDRESS,
       tools: [
-        'domain_overview',
-        'draft_context',
-        'find_facts',
-        'get_facts',
+        'find_context',
+        'get_context',
         'get_related',
-        'give_feedback',
-        'improve_question',
-        'read_item',
-        'report_gap',
-        'search_facts',
-        'search_help',
-        'what_changed',
+        'read_context',
+        'report',
+        'suggest_context',
       ].map((tool) => ({
         tool,
-        enabled: !off.includes(tool),
-        personOnly: tool === 'draft_context',
+        enabled: true,
+        personOnly: tool === 'suggest_context',
       })),
       clients: [{ label: 'claude-code', name: 'Claude Code with a token' }],
       signIn: true,
@@ -165,12 +159,12 @@ describe('Connect an agent, in the mock', () => {
       enabled: true,
       reason: 'The team uses Cursor',
     })
-    await admin.setTool({ tool: 'report_gap', enabled: false, reason: 'Not now' })
+    await admin.setTool({ tool: 'report', enabled: false, reason: 'Not now' })
     const info = await maria.getConnectInfo()
     expect(info.clients).toEqual([
       { label: 'claude-code', name: 'Claude Code with a token' },
       { label: 'cursor', name: 'Cursor' },
     ])
-    expect(info.tools).toContainEqual({ tool: 'report_gap', enabled: false, personOnly: false })
+    expect(info.tools).toContainEqual({ tool: 'report', enabled: false, personOnly: false })
   })
 })

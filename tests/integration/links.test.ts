@@ -132,7 +132,9 @@ const ask = async (name: string, args: Record<string, unknown>) => {
   return { reply, text: JSON.stringify(reply) }
 }
 
-it('ships get_related switched off until an administrator switches it on', async () => {
+it('ships get_related switched on, with its own switch (FR-332 as changed)', async () => {
+  expect((await wire.listTools()).tools.map((t) => t.name)).toContain('get_related')
+  await admin.query("update tool_config set enabled=false where tool='get_related'")
   expect((await wire.listTools()).tools.map((t) => t.name)).not.toContain('get_related')
   await expect(
     wire.callTool({ name: 'get_related', arguments: { id: ids.closure } }),
@@ -176,6 +178,11 @@ it('never names a hidden target, nor shows a canary, through any tool', async ()
     ask('get_related', { id: 'area:finance', relations: ['in_area', 'mentioned_by'], depth: 2 }),
     ask('get_related', { id: ids.hidden }),
     ask('get_related', { id: ids.retired }),
+    ask('get_context', { question: 'Orders in August 2026' }),
+    ask('get_context', { question: 'Orders in August 2026', response_format: 'full' }),
+    ask('find_context', { query: canary }),
+    ask('read_context', { id: ids.closure }),
+    ask('read_context', { id: ids.hidden }),
   ])
   for (const { text } of replies) {
     expect(text).not.toContain(canary)

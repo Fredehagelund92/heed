@@ -142,12 +142,12 @@ describe('connect', () => {
     expect(response.statusCode, response.body).toBe(200)
     expect(response.json<ConnectInfo>()).toEqual({
       address: resource,
-      // Every tool in the gateway's registry, so none can be left off the page. get_related
-      // ships switched off (FR-332), and draft_context until an administrator turns it on (FR-121).
+      // Every tool in the gateway's registry, so none can be left off the page, and every one on:
+      // get_related and suggest_context too (FR-121, FR-332 as changed).
       tools: toolNames.map((tool) => ({
         tool,
-        enabled: tool !== 'get_related' && tool !== 'draft_context',
-        personOnly: tool === 'draft_context',
+        enabled: true,
+        personOnly: tool === 'suggest_context',
       })),
       // The evaluation runner is the gateway's own client, not a person's.
       clients: [{ label: 'claude-code', name: 'Claude Code with a token' }],
@@ -157,7 +157,7 @@ describe('connect', () => {
   })
 
   it('follows the administrators: a tool switched off is marked off, a client is not offered', async () => {
-    const off = await call('POST', '/tools/search_facts', 'admin', {
+    const off = await call('POST', '/tools/find_context', 'admin', {
       enabled: false,
       reason: 'Trying it without search',
     })
@@ -168,7 +168,7 @@ describe('connect', () => {
     ] as const) {
       const saved = await call('PUT', `/clients/${label}`, 'admin', {
         displayName,
-        toolsAllowed: ['get_facts'],
+        toolsAllowed: ['get_context'],
         ratePerMinute: 10,
         maxResponseBytes: 50_000,
         enabled,
@@ -177,13 +177,13 @@ describe('connect', () => {
       expect(saved.statusCode, saved.body).toBe(200)
     }
     const info = (await call('GET', '/connect', 'stranger')).json<ConnectInfo>()
-    expect(info.tools).toContainEqual({ tool: 'search_facts', enabled: false, personOnly: false })
+    expect(info.tools).toContainEqual({ tool: 'find_context', enabled: false, personOnly: false })
     // Only a label and a name: never a client's tools, limits or switch.
     expect(info.clients).toEqual([
       { label: 'claude-code', name: 'Claude Code with a token' },
       { label: 'cursor', name: 'Cursor' },
     ])
-    const on = await call('POST', '/tools/search_facts', 'admin', {
+    const on = await call('POST', '/tools/find_context', 'admin', {
       enabled: true,
       reason: 'Search back on',
     })
@@ -215,11 +215,14 @@ describe('try it', () => {
       name: 'get_facts',
       arguments: { question: '', ...august },
     })
-    const { delivery_id: deliveryId, ...delivered } = agent.structuredContent as Record<
-      string,
-      unknown
-    >
+    // get_facts is the deprecated id of get_context: its old reply, and a note that says so.
+    const {
+      delivery_id: deliveryId,
+      note,
+      ...delivered
+    } = agent.structuredContent as Record<string, unknown>
     expect(deliveryId).toBeTruthy()
+    expect(note).toMatch(/use get_context\.$/)
     // The tools' digest reaches an agent's client in _meta, kept from its model (FR-346).
     expect(tried.result).toEqual({
       ...delivered,
@@ -332,16 +335,18 @@ describe('reviewed before served (FR-326)', () => {
       expect(JSON.stringify(agent)).not.toContain('Jon Abara')
       expect(JSON.stringify(agent)).not.toContain(people.owner)
     }
-    const overview = await wire.callTool({
-      name: 'domain_overview',
-      arguments: { domain: 'Finance' },
+    // The agent contract's reply names who checked it, as a role, and the day.
+    const short = await wire.callTool({
+      name: 'get_context',
+      arguments: { question: '', ...august },
     })
-    expect(overview.structuredContent).toMatchObject({
-      owners: {
-        reviewed_by: expect.stringMatching(/^(the owner of Finance|an admin)$/) as string,
-      },
-    })
-    expect(JSON.stringify(overview)).not.toContain('Jon Abara')
+    const entry = (short.structuredContent as { context: Record<string, unknown>[] }).context[0]!
+    expect(entry.checked).toEqual({ role: 'the owner of Finance', date: today })
+    expect((short.content as { text: string }[]).map((part) => part.text).join('\n')).toContain(
+      'by the owner of Finance.',
+    )
+    expect(JSON.stringify(short)).not.toContain('Jon Abara')
+    expect(JSON.stringify(short)).not.toContain(people.owner)
     // Try it shows exactly what the agent gets.
     const tried = (await call('POST', '/try-it', 'author', august)).json<TryIt>()
     expect(tried.result.items![0]!.reviewed).toEqual(reviewed)

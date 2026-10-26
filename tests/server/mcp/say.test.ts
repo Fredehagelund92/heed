@@ -4,6 +4,7 @@ import { periodWords, windowWords } from '../../../src/domain/dates.ts'
 import { findSaid, notLookedUp, notProof } from '../../../src/domain/say.ts'
 import { bannedWords, usesWord } from '../../../src/domain/words-v1.ts'
 import { DEFAULT_PRODUCT_NAME } from '../../../src/domain/brand.ts'
+import { stateOfStatus, stateWords } from '../../../src/domain/answer-state.ts'
 import { toolWords } from '../../../src/domain/mcp-text.ts'
 import type { ServedToolName } from '../../../src/server/mcp/tools.ts'
 import type { EditionSource, ServingBundle } from '../../../src/server/modules/editions/index.ts'
@@ -477,5 +478,42 @@ describe('the days of a window, as people read them', () => {
     [{ start: '2026-06-15', end: null }, 'from 15 June 2026 on'],
   ])('%o, after a subject, is %s', (window, words) => {
     expect(periodWords(window)).toBe(words)
+  })
+})
+
+/*
+  get_context speaks the agent contract: the status first, then say, which starts with the answer
+  line (FR-349). The answer line's words are fixed by docs/product.md (section 6); the rest of the
+  sentence uses no word the glossary bans where people read, and points at the six tools.
+*/
+describe('get_context says, with the answer line first', () => {
+  const contextSaidOf = (result: ToolResult) => {
+    const keys = Object.keys(JSON.parse(result.content[0]!.text) as object)
+    expect(keys.slice(0, 2)).toEqual(['status', 'say'])
+    const { status, say } = result.structuredContent as { status: string; say: string }
+    const state = stateOfStatus(status)
+    const line = state ? stateWords(state) : ''
+    expect(say.startsWith(line)).toBe(true)
+    expect(plainIn(say.slice(line.length))).toEqual([])
+    expect(say).not.toContain(DEFAULT_PRODUCT_NAME)
+    return say
+  }
+
+  it('says each state in its own words, and the rest as get_facts says it', async () => {
+    const call = setup()
+    expect(contextSaidOf(await call('get_context', ask()))).toBe(
+      'Checked. 1 fact applies to Orders in Norway in August 2026. Only that was checked.',
+    )
+    const none = await call(
+      'get_context',
+      ask({ window: { from: '2026-07-01', to: '2026-07-31' } }),
+    )
+    expect(contextSaidOf(none)).toBe(
+      'Not found. Nothing is written about this yet. Nothing is written down for Orders in Norway in July 2026. Only that was checked.',
+    )
+    expect(nextOf(none)).not.toMatch(/find_facts|report_gap|get_facts/)
+    expect(contextSaidOf(await call('get_context', { question: 'What happened?' }))).toMatch(
+      /^Nothing was looked up yet\. /,
+    )
   })
 })

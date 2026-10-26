@@ -36,8 +36,14 @@ import type { ServingBundle, ServingItem, ServingTerm } from '../modules/edition
 import type { Changes, ServingReads, WaitingTerms } from './reads.ts'
 import type * as z from 'zod'
 import type { changesInput, findInput, overviewInput } from './schemas.ts'
-import { changesSaid, refusedSaid, unknownDomainWords } from '../../domain/say.ts'
-import { concepts } from '../../domain/words-v1.ts'
+import {
+  changesSaid,
+  factVoice,
+  refusedSaid,
+  unknownDomainWords,
+  type Voice,
+} from '../../domain/say.ts'
+import { concepts } from '../../domain/words.ts'
 
 /*
   The outcome tools (FR-338 to FR-340): a few task-shaped reads that each answer one thing
@@ -602,13 +608,15 @@ function nothingFound(
     vocabulary: { metrics: number; dimensions: number }
     waiting_in_source?: { words: string }
   }[] = [],
+  voice: Voice = factVoice,
 ) {
+  const [one, many] = voice.item
   const why: string[] = []
   // A domain the words name that holds nothing yet: what it has and what is missing, first.
   for (const d of domains)
     if (!d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions)
       why.push(
-        `${d.name} has no facts and no names of its own yet.${d.waiting_in_source ? ` ${d.waiting_in_source.words}` : ''}`,
+        `${d.name} has no ${many} and no names of its own yet.${d.waiting_in_source ? ` ${d.waiting_in_source.words}` : ''}`,
       )
   for (const member of members) if (member.term === null) why.push(member.message)
   if (!read.concepts.length) {
@@ -623,11 +631,11 @@ function nothingFound(
         `${withheld.filter((w) => w.reason === reason).length} because ${withheldWords[reason] ?? reason}`,
     )
     why.push(
-      `${plural(withheld.length, 'fact matches', 'facts match')}, but AI agents don't get ${withheld.length === 1 ? 'it' : 'them'}: ${list(reasons)}.`,
+      `${plural(withheld.length, `${one} matches`, `${many} match`)}, but AI agents don't get ${withheld.length === 1 ? 'it' : 'them'}: ${list(reasons)}.`,
     )
   } else if (read.concepts.length)
     why.push(
-      'No fact that AI agents get has these words in its title, summary or text, or is about the names in them.',
+      `No ${one} that AI agents get has these words in its title, summary or text, or is about the names in them.`,
     )
   const tries: string[] = []
   for (const member of members)
@@ -659,10 +667,12 @@ function nothingFound(
   if (examples.length)
     tries.push(`Name a metric or a domain known here, such as ${list(examples)}.`)
   tries.push(
-    'For what applies to a question with dates, call get_facts with the metrics, the markets and the dates.',
+    `For what applies to a question with dates, call ${voice.get} with the metrics, the markets and the dates.`,
   )
   tries.push(
-    'If nothing is written down about it, say so plainly and report it as a gap, so the owners see it was asked.',
+    voice === factVoice
+      ? 'If nothing is written down about it, say so plainly and report it as a gap, so the owners see it was asked.'
+      : 'If nothing is written down about it, say so plainly and, if the person agrees, call report with kind missing, so the owners see it was asked.',
   )
   return { why, try: tries }
 }
@@ -680,7 +690,10 @@ export function findContext(
   today: string,
   /** The source members domains have that are no term yet, when the caller reads them. */
   waiting: WaitingTerms | null = null,
+  /** The words of the reply: find_context's, or find_facts's (src/domain/say.ts). */
+  voice: Voice = factVoice,
 ) {
+  const [one, many] = voice.item
   const domain = domainOf(args.domain, bundle)
   if ('refusal' in domain) return domain.refusal
   const area = domain.area
@@ -719,8 +732,8 @@ export function findContext(
         ...(assumed ? { assumed_date: assumed.note } : {}),
         ...(scope.dates ? { dates_read: scope.dates } : {}),
         note: found.length
-          ? `No fact's words matched, so these are the facts that apply to what the words name${assumed ? `, today (${today})` : ''}, as get_facts finds them.`
-          : `No fact's words matched, and no fact applies to what the words name${assumed ? ` today (${today})` : ''}.`,
+          ? `No ${one}'s words matched, so these are the ${many} that apply to what the words name${assumed ? `, today (${today})` : ''}, as ${voice.get} finds them.`
+          : `No ${one}'s words matched, and no ${one} applies to what the words name${assumed ? ` today (${today})` : ''}.`,
       }
     }
   }
@@ -798,7 +811,9 @@ export function findContext(
     ...(definitions.length ? { definitions } : {}),
     ...(domains.length ? { domains } : {}),
     ...(readAs.length ? { domain_read_as: readAs.map((r) => r.note) } : {}),
-    ...(status === 'no_match' ? nothingFound(bundle, read, area, withheld, members, domains) : {}),
+    ...(status === 'no_match'
+      ? nothingFound(bundle, read, area, withheld, members, domains, voice)
+      : {}),
     check_report: {
       status,
       matched: found.length,
@@ -809,7 +824,7 @@ export function findContext(
       checked: ['edition', 'audience', 'stop_switch', 'freshness'],
       statements: [coverageStatement, ...(assumed ? [assumed.statement] : [])],
     },
-    instructions: `${agentInstructions} Read an item in full with read_item. Quote a definition only as the source words it, and say where it comes from.${assumed ? ` ${assumed.instruction}` : ''}${items.some((item) => 'not_to_conclude' in item) ? ` ${caveatInstruction}` : ''}${readAs.length || domains.some((d) => 'name_note' in d) ? ` ${domainReadAsInstruction}` : ''}${status === 'no_match' && domains.some((d) => !d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions) ? ` ${emptyDomainInstruction}` : ''}`,
+    instructions: `${agentInstructions} Read an item in full with ${voice.read}. Quote a definition only as the source words it, and say where it comes from.${assumed ? ` ${assumed.instruction}` : ''}${items.some((item) => 'not_to_conclude' in item) ? ` ${caveatInstruction}` : ''}${readAs.length || domains.some((d) => 'name_note' in d) ? ` ${domainReadAsInstruction}` : ''}${status === 'no_match' && domains.some((d) => !d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions) ? ` ${emptyDomainInstruction}` : ''}`,
   }
 }
 

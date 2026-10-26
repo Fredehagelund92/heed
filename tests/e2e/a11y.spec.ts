@@ -206,9 +206,9 @@ test.describe('axe with an open overlay', () => {
         GATEWAY_ADMIN,
       )
       await openPage(page, '/admin?section=gateway&tab=tools', { ...widths[0], theme })
-      await page.getByRole('switch', { name: 'Get facts for a question' }).click()
+      await page.getByRole('switch', { name: 'Get context for a question' }).click()
       await expect(
-        page.getByRole('alertdialog', { name: 'Switch off Get facts for a question?' }),
+        page.getByRole('alertdialog', { name: 'Switch off Get context for a question?' }),
       ).toBeVisible()
       await settle(page)
       const results = await new AxeBuilder({ page }).withTags(wcag).analyze()

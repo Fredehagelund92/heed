@@ -14,66 +14,114 @@ claude mcp add --transport http heed http://localhost:3000/mcp \
   --header "Authorization: Bearer $(npm run --silent token:dev)"
 ```
 
-Three tools changed their ids on 21 October 2026, so that the tools say fact: `get_context` is
-`get_facts`, `search_context` is `search_facts` and `find_context` is `find_facts`. The old ids are
-still listed, marked deprecated, and answer exactly as the tools that replaced them: the same
-arguments, the same result, and a call by an old id is checked, limited and recorded as the new
-tool. `draft_context` keeps its id. A client or a saved instruction that names an old id keeps
-working; the instructions, the Connect page and the skill file name the new ids only.
+#### The six tools (the agent contract)
+
+Since the agent contract (Heed v1, [the product page](product.md#10-what-agents-get)) the server
+offers six tools, described in one list (`AGENT_TOOLS` in `src/domain/mcp-text.ts`):
+`get_context`, `find_context`, `read_context`, `report`, `suggest_context` and `get_related`.
+`improve_question`, `domain_overview`, `what_changed` and `search_help` left the list (the in-app
+assistant still runs them in process, by the same code).
+
+The earlier ids stay for one release as deprecated ids: `get_facts` (now `get_context`),
+`find_facts`, `search_facts` and `search_context` (now `find_context`), `read_item` (now
+`read_context`), `report_gap` and `give_feedback` (now `report`) and `draft_context` (now
+`suggest_context`). Each is listed beside the tool that replaced it, with a description that says
+`Deprecated: use <tool>.`, and answers with its old arguments and its old reply, plus a `note`
+first in it and a last line of text that names the tool to use. A call by an old id is checked,
+limited and recorded as the tool that replaced it, so it needs that tool's switch and scope.
+`draft_context` keeps what it did: it saves a draft and never sends it.
 
 Heed's server instructions (FR-343) tell the agent what Heed holds and what the data tool holds,
-to call `get_facts` first, how to read `matched`, `need_more_detail` and `no_match` (an absence
-only after a call scoped to it found no match), to pass on a result's `say`, plain sentences for the person in the
-glossary's words, and to follow its `next`, the step for the agent (every read result starts with them, FR-344, so they
-reach a client that drops the instructions), how to speak about a fact with people, that Heed reads the dates in a
-question's words (such as 2026, last quarter or 1 Jan to 30 Sep) and says how in `dates_read`, that a question without dates is read at today
-(the reply says so in `assumed_date`, with a sentence for the answer), never to put question text or personal data in
-a note, and to call `search_help` for how Heed itself works. The call-first and absence rules come first, within the first 512 characters, since
-some clients (the OpenAI Apps SDK) read no further; Claude Code reads up to 4,096. Ask Claude to call `get_facts` before answering a data question. For the Norway test
-fixture, the question is "Orders in Norway, August 2026". With the bulk seed, use a metric,
-market and date range from that data. The reply contains item versions, evidence, owner,
-coverage, and links. Every delivered item (`get_facts`, `find_facts`, `search_facts`,
-`read_item`) carries `url`, its page in Heed, and the result's text has a line per item, `Open in
-Heed - <title>: <url>`, so the reader of an AI answer can check a cited item in one click (FR-347).
-The address is the first of `CL_WEB_ORIGINS`, as for a draft's link; Heed's own assistant, the
-eval runner and the previews run without one and give the path (`/library/itm_...`). A link holds
-only the item's id: the page applies the audience rules to whoever opens it. With
-`response_format: "concise"` (FR-342) each item keeps its title,
-summary, dates, claim level, freshness and caveat but not its body, evidence, owner or links, about
-half the size, and the assistant always asks for it. Metric and dimension names may be the member
-names the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed
-resolves them through the term's definition, and a member no term points at comes back with "Did
-you mean" and the closest names (CON-517). A metric group (Revenue) stands for its metrics: `say` names them
-("Revenue is a group of 3 metrics: ..."), and on a reply about more than one metric each item names the
-ones it is about in `about`, so an agent never gives them as one figure. A question about what a
-metric means ("What does net revenue mean?") also gets `definitions` first, as `find_facts`
-gives them, and a cut keeps the link that names where an asked metric is defined. Use `read_item`
-to follow an item link. `search_facts` finds items by a
-few words ("net revenue Spain"): names of domains, metrics and dimension values match what an
-item is about, other words its title, summary and text (with light stemming), and items that match
-every word come first. It pages titles and summaries, says how it read the words (`query_used`),
-and takes a `kind`, an `area` (a domain id or name) and a `mentions` filter. `find_facts`
-(FR-338) is the outcome tool for "what is X": it reads names and other names (Net sales), domains and
-words in an item, falls back to the items that apply to the scope the words name, gives each named
-metric's or dimension's definition with where it comes from (a definition source read through
-Sources, or the library) and what Heed adds, and says why when nothing is found. `domain_overview`
-(FR-339) describes a domain by its name, with what its owner wrote about it (FR-813), its own
-metrics and dimensions, and the members its definition source maps to it that are no vocabulary
-term yet (how many of each kind, a few by name, whether they are proposed, and who proposes them in
-Administration, Sources), or lists every domain with its summary line, and `what_changed` (FR-340)
-explains what changed between two days. All three count the facts an agent doesn't get, each
-with its reason, and answer an unknown name with the closest match and every valid choice (FR-341).
-A domain named by another spelling ("and" for "&", other punctuation, a letter or two apart) is read
-as that domain (`src/domain/domain-match.ts`), and the reply says once how it read the words
-(`domain_read_as`), noting a stored name that looks misspelt as an observation.
-`improve_question` checks scope without a model.
-`report_gap` and `give_feedback` accept anonymous feedback.
-`search_help` (FR-348) answers how Heed itself works ("What is an MCP?") from the help pages in
-`docs/help`, the same files the Docs area shows, read once when the service starts through the page
-model the app uses (`src/domain/help-pages.ts`). It returns the best matching sections, ranked by
-the question's words with BM25 and no model, each with its page, heading, words, `url` on the web
-app and the day the page was last checked (`checked`), and a line each, `Open in Heed - <page>,
-<heading>: <url>`. It reads no edition, so it answers whatever is live.
+to call `get_context` first, how to read each status and its answer state (FR-349), to pass on a
+result's `say`, which starts with the answer line, and to follow its `next`, the step for the agent
+(every read result has them, FR-344, so they reach a client that drops the instructions), how to
+speak about a fact with people, how dates in a question's words are read and that a question
+without dates is read at today, that the reply is short by default, when to `report` and when to
+`suggest_context` (after the person says yes), and never to put question text or personal data in
+a note. The call-first and absence rules come first, within the first 512 characters, since some
+clients (the OpenAI Apps SDK) read no further; Claude Code reads up to 4,096. The rules are one
+text: the Connect page's setup line and its skill file read the same sentences from
+`src/domain/mcp-text.ts`.
+
+**`get_context`** answers a question, or a metric, markets and dates. For the Norway test fixture,
+ask "Orders in Norway, August 2026"; with the bulk seed, use a metric, market and date range from
+that data. Its default reply is short:
+
+```json
+{
+  "status": "matched",
+  "say": "Checked. 1 fact applies to Orders in Norway in August 2026. Only that was checked.",
+  "asked": "Orders in Norway in August 2026",
+  "context": [
+    {
+      "id": "itm_norway01",
+      "title": "Norway closure",
+      "summary": "Online sales stopped on 4 August.",
+      "kind": "event",
+      "when": "From 4 August 2026 on",
+      "applies": "Orders in Norway.",
+      "checked": { "role": "the owner of Finance", "date": "2026-08-04" },
+      "source": {
+        "url": "https://example.test/law",
+        "quote": "Online sales are stopped from 4 August."
+      },
+      "not_to_conclude": "cause not proven",
+      "url": "/library/itm_norway01"
+    }
+  ],
+  "reply_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
+  "edition": "2026-10-07.1"
+}
+```
+
+`status` carries the answer state (`src/domain/answer-state.ts`): `matched` (Checked), `partial`
+(Partial: no item covers the whole question), `no_match` (Not found), `conflict` (Conflict: two
+items that apply disagree), `stale` (Outdated: an item's check date passed or its source changed)
+and `check_failed` (Not checked); `need_more_detail` means the question could not be read, which is
+no answer state. `say` starts with the answer line, its label and, but for Checked, its sentence.
+`next` comes only when there is a step to take. Each item's `kind` is the label agents read
+(`event`, `warning`, `rule`, `guide`), `when` and `applies` say when and where it applies, `checked`
+names the role that checked it and the day, never a person, and `may_be_out_of_date: true` and
+`disagrees_with` (the ids of the items in the same reply it disagrees with, the overlap notice of
+FR-350) appear when they hold. A question about what a metric means ("What does net revenue
+mean?") also gets `definitions`. `reply_id` is what `report` takes.
+
+With `response_format: "full"` (FR-342) the reply keeps the same fields and adds what it always
+carried: each item's version, body, validity, claim level, every source, owner, review stamp and
+links (FR-326, FR-331), `scope_used`, `dates_read` and `assumed_date`, the domains the question is
+about with what their owners wrote (FR-813), `options`, `check_report` and `instructions`. Every
+item carries `url`, its page in Heed, and the result's text has a line per item, `Open in Heed -
+<title>: <url>`, with who checked it, so the reader of an answer can check a cited item in one click
+(FR-347). The address is the first of `CL_WEB_ORIGINS`; the eval runner and the previews run
+without one and give the path (`/library/itm_...`). A link holds only the item's id: the page
+applies the audience rules to whoever opens it. Metric and dimension names may be the member names
+the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed resolves them
+through the term's definition, and a member no term points at comes back with "Did you mean" and
+the closest names (CON-517). A metric group (Revenue) stands for its metrics: `say` names them, and
+on a reply about more than one metric each item names the ones it is about in `about`, so an agent
+never gives them as one figure. Agent replies never carry a comment, a report or a saved question:
+they are built from the served edition only.
+
+**`find_context`** (FR-338, merging `find_facts` and `search_facts`) finds what is written down
+about a few words: names and other names (Net sales), domains, member names and words in an item's
+title, summary or text. It falls back to the items that apply to the scope the words name, gives
+each named metric's or dimension's definition with where it comes from and what Heed adds, and says
+why when nothing is found. It takes a `domain` (a name or an id), a `kind` (`event`, `warning`,
+`rule`, `guide`), a `window` and a `limit`, and lists titles and summaries under `context`, never a
+body. An unknown domain comes back with the closest match and every valid choice (FR-341); a
+domain named by another spelling is read as that domain (`src/domain/domain-match.ts`).
+
+**`read_context`** reads one item in full (`context`): its text, every source, who checked it, its
+What not to conclude line and its outgoing links, with a page of the items that link to it.
+
+**`report`** takes what the person says, after they say yes: `kind` is `missing`, `wrong`,
+`unclear` or `helped`, with the `reply_id` of a `get_context` reply, a `context_id` when it is about
+one item, and an optional short note checked for sensitive text (FR-611). It is recorded as
+anonymous feedback on the reply, with the item's domain when it names one, and the gap job turns
+missing, wrong and unclear into a gap for the reply's topic (FR-606, case 3). Something missing with
+no reply takes the question's metrics, markets and dates instead and is recorded as a gap, as
+`report_gap` did. The reply says who will see it (`to`, "the owner of Sales") and never keeps who
+asked (FR-602).
 
 `get_related` (FR-332) follows links from an item id, a vocabulary key such as `metric:orders`,
 or a domain (`area:finance`): the neighbours one step away (`depth: 2` for two), each listed once
@@ -84,43 +132,42 @@ as `edges`. `relations` narrows the kinds (`replaces`, `replaced_by`, `conflicts
 the dates of neighbour items. Neighbours carry titles and summaries, never bodies; a retired or
 replaced item shows only the author's words. A neighbour the caller may not see is counted in
 `links_withheld`, never listed or counted in `counts`, and a start the caller may not see is "Not
-found", exactly like one that does not exist. A link never changes what `get_facts` delivers.
-The pure resolver is `src/domain/links.ts`. **The tool ships switched off** (`tool_config`); an
-administrator switches it on (`POST /tools/get_related`) once a links evaluation shows that
-following links helps ([Evaluations](evaluations.md)). For the assistant, `assistantRelatedTool` in
+found", exactly like one that does not exist. A link never changes what `get_context` delivers.
+The pure resolver is `src/domain/links.ts`. **It is on by default**, with its own switch
+(`POST /tools/get_related`). For the assistant, `assistantRelatedTool` in
 `src/server/mcp/related-tool.ts` is the same tool as an AI SDK tool run in process (null while
 switched off, and checked again on each call); `relatedCitations` lists the ids a turn may cite
 from its result: items in service only, never a retired item's marker.
 
-`draft_context` (FR-121) lets an agent save a draft of a context item for the person it acts for,
-when they ask it to record something from their work. **It ships switched off** (`tool_config`);
-an administrator switches it on (`POST /tools/draft_context`). Only a person signed in through a
-login server may call it, with the `propose` scope: a dev or service token names no person and is
-refused with a 403 that says so, and is never offered the tool. The agent passes the words (`text`,
-at most 2,000 characters, never a transcript) and optional hints: `title`, `summary`, `kind`,
-`scope` (names, as in its `get_facts` call), `window` (inclusive dates), `evidence` (links and
-one sentence each), `not_to_conclude` (what not to conclude, if the person said), `area` (only when the person chose one) and `item_id` to
-suggest a change. Heed calls no model here. `src/domain/agent-draft.ts` derives what it can
-exactly: names to vocabulary keys (never a key the agent made up), the domain when every scoped
-metric belongs to one domain (the vocabulary's domain, otherwise the Cube domain), dates the words
-name, and the kind by the shape of the words. It never sets the risk above its default, a claim
-with a stated effect, an audience, an owner, replacements, conflicts or mentions; words that
-suggest a legal or regulatory matter only raise a "may be high risk" flag for the owner, and
-words that read like orders to a model are kept as text and flagged. Every field carries a mark
-(`derived`, `default`, `prefilled`, `not_inferred`), stored on the proposal (`provenance`) and
-sent by the API; the screens do not draw them yet. The draft editor uses them to list the fields
-to check, and a field the person changes loses its mark. Text that looks like personal data or a secret (FR-117) is refused and
-nothing is saved. Before saving, accepted items whose scope and dates overlap and whose words read
-alike are returned as `possible_duplicate`, so the agent asks the person and calls again with
-`item_id` or `new_item: true`; without one domain it answers `needs_area`. A saved draft returns
-its link in the web app, every field with its mark and reason, at most four questions only the
-person can answer, the overlaps and the flags. The person checks it and submits it in Heed: the
-tool never submits. It writes through the application's database as the person, by the same
-function as the assistant's `create_draft` (`saveAgentDraft`), and names the person on the
-proposal and its history only: the MCP request log keeps the shared `signed-in` label. The
-setting `limits.agent_drafts` caps one person's agent drafts at 10 in 24 hours and 20 waiting
-unsubmitted. `npm run eval:drafts` measures the derivation over the 1,500 seeded items with a
-held-out third (`scripts/draft-eval.ts`, also run by `npm test`).
+**`suggest_context`** (FR-121) lets an agent send a suggestion, as the person it acts for, after
+the person says yes. **It is on by default**, and the `propose` scope is granted at consent (the
+consent page names it). Only a person signed in through a login server may call it: a dev or
+service token names no person and is refused with a 403 that says so, and is never offered the
+tool. The agent passes the words (`text`, at most 2,000 characters, never a transcript) and
+optional hints: `title`, `summary`, `kind`, `scope` (names, as in its `get_context` call), `window`
+(inclusive dates), `evidence` (links and one sentence each), `not_to_conclude` (if the person said),
+`area` (only when the person chose one) and `item_id` to suggest a change. Heed calls no model here.
+`src/domain/agent-draft.ts` derives what it can exactly: names to vocabulary keys (never a key the
+agent made up), the domain when every scoped metric belongs to one domain (the vocabulary's domain,
+otherwise the Cube domain), dates the words name, and the kind by the shape of the words. It never
+sets the risk above its default, a claim with a stated effect, an audience, an owner,
+replacements, conflicts or mentions; words that suggest a legal or regulatory matter only raise a
+"may be high risk" flag for the owner, and words that read like orders to a model are kept as text
+and flagged. Every field carries a mark (`derived`, `default`, `prefilled`, `not_inferred`), stored
+on the proposal (`provenance`) and sent by the API, so the owner sees what the agent filled in.
+Text that looks like personal data or a secret (FR-117) is refused and nothing is saved. Before
+saving, accepted items whose scope and dates overlap and whose words read alike are returned as
+`possible_duplicate`, so the agent asks the person and calls again with `item_id` or
+`new_item: true`; without one domain it answers `needs_area`. Then it saves the draft through the
+same function as the assistant's `create_draft` (`saveAgentDraft`) and sends it for review through
+the same path as the person's own Send for review (`proposals.submit`), so it waits in the owner's
+queue (`status: "suggestion_sent"`, with the link to the suggestion). Nothing is accepted or
+published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
+the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and the draft's
+link). It names the person on the proposal and its history only: the MCP request log keeps the
+shared `signed-in` label. The setting `limits.agent_drafts` caps one person's agent drafts at 10 in
+24 hours and 20 waiting unsubmitted. `npm run eval:drafts` measures the derivation over the 1,500
+seeded items with a held-out third (`scripts/draft-eval.ts`, also run by `npm test`).
 
 When the person's agent can show forms (MCP 2026-07-28 multi round-trip elicitation: the app
 declares `elicitation`, form mode, on the request), the tool asks up to four of its open
@@ -129,16 +176,15 @@ words disagree, the term an ambiguous name means, the first day, whether an issu
 on, and the source link and sentence, as one form of flat fields with closed choices where there
 are any. The app retries the call with the answers and the request state the tool returned. That
 state is signed with `CL_MCP_STATE_KEY_FILE` (HMAC-SHA256, through the SDK's request state
-codec), bound to the person and the app, carries a digest of the call's arguments, expires after
+codec), bound to the tool, the person and the app, carries a digest of the call's arguments, expires after
 ten minutes, and saves at most one draft (`proposals.answers_round` is unique). A changed,
 foreign, expired or reused state saves nothing and is refused with a `reason`. Answers are read as
 untrusted data: a value outside the choices offered, a malformed date or link counts as no answer
 and its question stays open. The answers go through the same derivation and `saveAgentDraft`,
 marked `confirmed` ("Confirmed" in the draft editor and on the review screen), and the result
-lists them in `answered`. If the person declines or cancels, the draft is saved as before. An app
-that cannot show forms (Claude.ai and ChatGPT today, every 2025-era connection, an app that shows
-only links) gets the draft link and the question list exactly as before. Either way the tool
-never submits. Which attributes the tool derives, defaults, prefills or never infers is one table
+lists them in `answered`. If the person declines or cancels, it is saved and sent as before. An
+app that cannot show forms (Claude.ai and ChatGPT today, every 2025-era connection, an app that
+shows only links) gets the link and the question list exactly as before. Which attributes the tool derives, defaults, prefills or never infers is one table
 shared with the form: `src/domain/proposal-attributes.ts` (CONTRIBUTING.md, "Proposal
 attributes").
 
@@ -161,8 +207,8 @@ the setting `limits.mcp_requests_per_minute` gives 30 for each person and 120 fo
 whose policy sets no rate of its own, so one person cannot spend the budget of everyone sharing a
 client label (the evaluation runner's token is no person, so a run counts against the `eval`
 client only). The setting `limits.mcp_rate_per_minute` also limits each tool per client (by
-default 120 `get_facts` calls and 20 `report_gap` and `give_feedback` calls a minute; a
-feedback tool without a value gets ten). Over a limit, the answer is 429 with `Retry-After` in
+default 120 `get_context` calls and 20 `report` calls a minute; a feedback tool without a value
+gets ten). Over a limit, the answer is 429 with `Retry-After` in
 seconds. Administrators change all of these through the API ([Administration, import and export](operations.md#administration-import-and-export)), and a
 change applies on the next request. Local rate counters live in memory for at most one minute.
 Several replicas of the service would need a shared limiter.
@@ -191,7 +237,7 @@ records. Questions, bearer tokens, addresses and incoming RPC ids never enter th
 Tool descriptions, schemas and annotations have a snapshot and SHA-256 digest, exposed in
 `X-Heed-Tool-Digest` and each tool result's `_meta` and stored with deliveries. What serves a cache
 or an audit stays out of what a model reads (FR-346): `tool_schema_digest`, `overlay` and, on
-paged replies (`search_facts`, `read_item`, `get_related`), `ttlMs: 0` and `cacheScope:
+paged replies (`read_context`, `get_related`), `ttlMs: 0` and `cacheScope:
 "private"` travel in `_meta`, which clients keep from the model (ChatGPT documents it as hidden).
 The text and `structuredContent` carry `say`, `next`, the status, `edition` and the items. A cache keys on
 `edition` and `_meta.overlay`, as before under the same names.

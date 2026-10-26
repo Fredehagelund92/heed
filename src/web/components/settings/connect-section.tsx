@@ -285,8 +285,8 @@ export function ConnectSection() {
               {about ? <span className="text-caption text-muted-foreground">{about}</span> : null}
               {personOnly ? (
                 <span className="text-caption text-muted-foreground">
-                  It works only in an agent you signed in from, not with an access key. It only
-                  drafts, and never sends.
+                  It works only in an agent you signed in from, not with an access key. It sends
+                  only after you say yes, and the owner checks it before anything changes.
                 </span>
               ) : null}
               {enabled ? null : admin ? (
@@ -332,9 +332,9 @@ export function ConnectSection() {
           )}
           <li>Add the line under Ask first to your agent&apos;s instructions.</li>
           <li>
-            Ask your agent a question about company data, and look for {toolName('get_facts')} as it
-            answers: that&apos;s the step where it checks these facts. If it&apos;s not there, ask
-            it to check {productName} first.
+            Ask your agent a question about company data, and look for {toolName('get_context')} as
+            it answers: that&apos;s the step where it checks these facts. If it&apos;s not there,
+            ask it to check {productName} first.
           </li>
           <li>
             To see what it was told, pick the same metric, market and dates in Try a question.
