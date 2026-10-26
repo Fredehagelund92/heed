@@ -7,8 +7,8 @@ import {
   CircleCheckIcon,
   CircleHelpIcon,
   CircleXIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { pageKey } from '@/lib/keys'
 import { MentionChip } from '@/components/heed/mention-chip'
 import { Button } from '@/components/ui/button'
@@ -50,7 +50,7 @@ export function KindLabel({
         className,
       )}
     >
-      <span aria-hidden className={cn('size-2 rounded-[2px]', tone)} />
+      <span aria-hidden className={cn('size-2 rounded-xs', tone)} />
       <Icon aria-hidden className="size-3.5 text-muted-foreground" />
       {n !== undefined && <span className="tabular-nums">{n}</span>}
       {n !== undefined ? countWord(kind, n) : kind}
@@ -85,7 +85,7 @@ export function Marked({
               key={i}
               data-change={change}
               className={cn(
-                'rounded-[3px] bg-[var(--mark-add)] px-0.5 text-foreground no-underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-[3px] [text-decoration-line:underline]',
+                'rounded-mark bg-[var(--mark-add)] px-0.5 text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3',
                 on && 'ring-2 ring-ring',
               )}
             >
@@ -100,7 +100,7 @@ export function Marked({
               key={i}
               data-change={change}
               className={cn(
-                'rounded-[3px] bg-[var(--mark-del)] px-0.5 text-foreground/80 decoration-[var(--mark-del-line)] decoration-2',
+                'rounded-mark bg-[var(--mark-del)] px-0.5 text-foreground/80 decoration-[var(--mark-del-line)] decoration-2',
                 on && 'ring-2 ring-ring',
               )}
             >
@@ -113,7 +113,7 @@ export function Marked({
           <span
             key={i}
             data-change={change}
-            className="rounded-[3px] bg-[var(--mark-fmt)] px-0.5 underline decoration-[var(--mark-fmt-line)] decoration-dotted decoration-2 underline-offset-[3px]"
+            className="rounded-mark bg-[var(--mark-fmt)] px-0.5 underline decoration-[var(--mark-fmt-line)] decoration-dotted decoration-2 underline-offset-3"
           >
             <span
               className={cn(s.note === 'Bold' && 'font-semibold', s.note === 'Italic' && 'italic')}
@@ -121,7 +121,7 @@ export function Marked({
               {s.text}
             </span>
             {s.note && (
-              <span className="ml-1 rounded-sm bg-[var(--mark-fmt-line)] px-1 align-[1px] text-[10px] font-medium text-white">
+              <span className="ml-1 rounded-sm bg-[var(--mark-fmt-line)] px-1 align-(--nudge) text-3xs font-medium text-mark-fmt-ink">
                 {s.note}
               </span>
             )}
@@ -159,13 +159,13 @@ export function ChangeBlock({
 function BlockBody({ block }: { block: Block }) {
   switch (block.kind) {
     case 'Wording':
-      return <Marked segs={marks(block.text)} className="text-[15px] leading-7" />
+      return <Marked segs={marks(block.text)} className="text-reading leading-7" />
     case 'Added':
     case 'Removed':
       return (
         <p
           className={cn(
-            'border-l-2 pl-3 text-[15px] leading-7',
+            'border-l-2 pl-3 text-reading leading-7',
             block.kind === 'Added'
               ? 'border-[var(--mark-add-line)]'
               : 'border-[var(--mark-del-line)] line-through',
@@ -181,7 +181,7 @@ function BlockBody({ block }: { block: Block }) {
           <p className="text-xs text-muted-foreground">{block.label}</p>
           {block.list ? (
             <div className="border-l-2 border-dotted border-[var(--mark-fmt-line)] pl-3">
-              <ol className="list-decimal pl-5 text-[15px] leading-7">
+              <ol className="list-decimal pl-5 text-reading leading-7">
                 {block.list.items.map((t) => (
                   <li key={t}>{t}</li>
                 ))}
@@ -191,7 +191,7 @@ function BlockBody({ block }: { block: Block }) {
               </p>
             </div>
           ) : (
-            <Marked segs={marks(block.text)} className="text-[15px] leading-7" />
+            <Marked segs={marks(block.text)} className="text-reading leading-7" />
           )}
         </div>
       )
@@ -199,7 +199,7 @@ function BlockBody({ block }: { block: Block }) {
       if ('mention' in block)
         return (
           <div className="flex flex-col gap-1.5 text-sm">
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px]">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-reading">
               {block.mention.change === 'added' ? 'Now links to' : 'No longer links to'}
               <MentionChip mention={{ id: block.mention.id, label: block.mention.label }} />
             </p>
@@ -211,32 +211,32 @@ function BlockBody({ block }: { block: Block }) {
         )
       return (
         <div className="flex flex-col gap-2 text-sm">
-          <p className="text-[15px]">
-            <span className="underline decoration-[var(--mark-link-line)] decoration-2 underline-offset-[3px]">
+          <p className="text-reading">
+            <span className="underline decoration-[var(--mark-link-line)] decoration-2 underline-offset-3">
               {block.text}
             </span>
             <span className="ml-2 text-xs text-muted-foreground">same words, new address</span>
           </p>
-          <dl className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 font-mono text-xs">
+          <dl className="grid grid-cols-(--cols-lead-14) gap-x-3 gap-y-1.5 font-mono text-xs">
             <dt className="font-sans text-muted-foreground">Was</dt>
             <dd className="break-all text-muted-foreground line-through decoration-[var(--mark-del-line)]">
               {block.before}
             </dd>
             <dt className="font-sans text-muted-foreground">Now</dt>
             <dd className="break-all">
-              <span className="rounded-[3px] bg-[var(--mark-link)] px-0.5">{block.after}</span>
+              <span className="rounded-mark bg-[var(--mark-link)] px-0.5">{block.after}</span>
             </dd>
           </dl>
         </div>
       )
     case 'Order':
       return (
-        <ol className="flex flex-col gap-1.5 text-[15px] leading-7">
+        <ol className="flex flex-col gap-1.5 text-reading leading-7">
           {block.steps.map((s, i) => (
             <li
               key={s.text}
               className={cn(
-                'grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 rounded-md py-1 pr-2',
+                'grid grid-cols-(--cols-lead-6) gap-2 rounded-md py-1 pr-2',
                 s.from && 'border-l-2 border-[var(--mark-move-line)] bg-[var(--mark-move)] pl-2',
               )}
             >
@@ -285,7 +285,7 @@ function DatesChange({ block }: { block: Extract<Block, { kind: 'Dates' }> }) {
           }}
         />
         <div
-          className="absolute top-1.5 h-3 rounded-r-sm bg-[repeating-linear-gradient(135deg,var(--mark-add-line)_0_3px,transparent_3px_6px)] ring-1 ring-[var(--mark-add-line)] ring-inset"
+          className="absolute top-1.5 h-3 rounded-r-sm bg-(image:--hatch-add) ring-1 ring-[var(--mark-add-line)] ring-inset"
           style={{
             left: at(block.span.was),
             width: `calc(${at(block.span.now)} - ${at(block.span.was)})`,
@@ -294,7 +294,7 @@ function DatesChange({ block }: { block: Extract<Block, { kind: 'Dates' }> }) {
         {[block.span.from, block.span.was, block.span.now].map((d) => (
           <span
             key={d}
-            className="absolute top-6 -translate-x-1/2 text-[11px] text-muted-foreground tabular-nums"
+            className="absolute top-6 -translate-x-1/2 text-2xs text-muted-foreground tabular-nums"
             style={{ left: at(d) }}
           >
             {d} May
@@ -387,11 +387,11 @@ export function Rewrite({ rewrite }: { rewrite: NonNullable<Review['rewrite']> }
       <div className="grid gap-4 @3xl:grid-cols-2">
         <div className="flex flex-col gap-2 rounded-frame border p-4">
           <p className="text-xs font-medium text-muted-foreground">Now</p>
-          <Marked segs={before} className="text-[15px] leading-7" />
+          <Marked segs={before} className="text-reading leading-7" />
         </div>
         <div data-side="after" className="flex flex-col gap-2 rounded-frame border p-4">
           <p className="text-xs font-medium text-muted-foreground">After you publish</p>
-          <Marked segs={after} active={active} className="text-[15px] leading-7" />
+          <Marked segs={after} active={active} className="text-reading leading-7" />
         </div>
       </div>
     </section>
@@ -410,11 +410,7 @@ export function ClaimCheck({
 }) {
   const verdict = {
     same: { icon: CircleCheckIcon, label: 'Same', cls: 'text-foreground' },
-    check: {
-      icon: CircleHelpIcon,
-      label: 'Same? Check',
-      cls: 'text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]',
-    },
+    check: { icon: CircleHelpIcon, label: 'Same? Check', cls: 'text-caution-ink' },
     different: { icon: CircleXIcon, label: 'Different', cls: 'text-destructive' },
   } as const
   return (

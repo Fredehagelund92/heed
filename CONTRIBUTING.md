@@ -167,14 +167,14 @@ the same pull request and say why.
 ## Proposal attributes
 
 Two paths write a proposal: the Add context and Suggest a change form, and the MCP tool
-`suggest_context` with which a person's AI agent suggests for them (and the assistant's
+`draft_context` with which a person's AI agent drafts for them (and the assistant's
 `create_draft`, through the same service function). They must not drift apart silently, so every
 attribute of a proposal is decided once, in `src/domain/proposal-attributes.ts`:
 
 - its limits and whether it is required, which the item version schema, the draft schema, the
   form's checks and the tool's input schema all read (never copy a number);
 - the form fields that edit it, or why the form has none;
-- how `suggest_context` treats it: `derived` (Heed works it out exactly), `defaulted` (the
+- how `draft_context` treats it: `derived` (Heed works it out exactly), `defaulted` (the
   documented default, which only people change), `prefilled` (the agent suggests, the person
   confirms) or `never_inferred` (people decide it), with the marks its drafts may carry, the tool
   inputs that may suggest it and the questions that may ask the person for it;

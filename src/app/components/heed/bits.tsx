@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { diffWords } from 'diff'
 import {
   BotIcon,
@@ -9,8 +9,8 @@ import {
   ClockIcon,
   ContrastIcon,
   TriangleAlertIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -72,16 +72,16 @@ export function PersonAvatar({
     >
       <AvatarFallback
         className={cn(
-          'font-semibold',
+          'bg-(--avatar-tint) font-semibold text-(--avatar-ink)',
           size === 16
-            ? 'text-[7px]'
+            ? 'text-5xs'
             : size === 20
-              ? 'text-[9px]'
+              ? 'text-4xs'
               : size === 28
-                ? 'text-[11px]'
+                ? 'text-2xs'
                 : 'text-xs',
         )}
-        style={{ background: tint, color: ink }}
+        style={{ '--avatar-tint': tint, '--avatar-ink': ink } as CSSProperties}
       >
         {initials(name)}
       </AvatarFallback>
@@ -199,9 +199,8 @@ const stateTone: Record<AnswerState, string> = {
   grounded: 'bg-primary/8 [&>svg]:text-primary',
   partial: 'bg-muted [&>svg]:text-muted-foreground',
   missing: 'border border-dashed border-input [&>svg]:text-muted-foreground',
-  conflict:
-    'bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--warn)_45%,transparent)] ring-inset [&>svg]:text-[var(--warn)]',
-  stale: 'bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] [&>svg]:text-[var(--warn)]',
+  conflict: 'bg-warn/14 ring-1 ring-warn/45 ring-inset [&>svg]:text-[var(--warn)]',
+  stale: 'bg-warn/8 [&>svg]:text-[var(--warn)]',
   failed: 'bg-destructive/10 [&>svg]:text-destructive',
 }
 
@@ -215,15 +214,12 @@ export function WordDiff({ before, after }: { before: string; after: string }) {
         p.added ? (
           <ins
             key={i}
-            className="rounded-sm bg-green-100 px-0.5 text-green-900 underline decoration-green-700/50 dark:bg-green-950 dark:text-green-100"
+            className="rounded-sm bg-diff-add px-0.5 text-diff-add-ink underline decoration-diff-add-line/50"
           >
             {p.value}
           </ins>
         ) : p.removed ? (
-          <del
-            key={i}
-            className="rounded-sm bg-red-100 px-0.5 text-red-900 dark:bg-red-950 dark:text-red-100"
-          >
+          <del key={i} className="rounded-sm bg-diff-del px-0.5 text-diff-del-ink">
             {p.value}
           </del>
         ) : (
@@ -246,7 +242,7 @@ export function FieldDiff({
 }) {
   const changed = before !== after
   return (
-    <div className="grid gap-1.5 border-t py-3 first:border-t-0 first:pt-0 @lg:grid-cols-[10rem_minmax(0,1fr)] @lg:gap-4">
+    <div className="grid gap-1.5 border-t py-3 first:border-t-0 first:pt-0 @lg:grid-cols-(--cols-lead-40) @lg:gap-4">
       <div className="flex items-center gap-2 text-sm text-muted-foreground @lg:flex-col @lg:items-start @lg:gap-1">
         {label}
         {changed && before && <Badge variant="secondary">Changed</Badge>}

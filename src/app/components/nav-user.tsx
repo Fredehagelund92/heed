@@ -1,4 +1,4 @@
-import { ChevronsUpDownIcon, LogOutIcon, PlugIcon } from 'lucide-react'
+import { ChevronsUpDownIcon, LogOutIcon, PlugIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
 import {
   DropdownMenu,

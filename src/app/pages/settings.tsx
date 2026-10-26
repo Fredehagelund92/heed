@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { cn } from 'cn'
-import { PlusIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { PlusIcon } from '@/components/icons'
 import { toast } from 'sonner'
 import { ConnectAgent } from '@/components/connect-agent'
 import { ToolLogo } from '@/components/heed/tool-logo'
@@ -39,7 +39,7 @@ import { AGENT_TOOLS, logoFor } from '@/data/agents'
 import { GuideLink } from '@/components/heed/guide-link'
 import { setLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
 import { revokeConnected, useConnected, type Connected } from '@/lib/connect'
-import { domainIds, domains, servedToAgents, type DomainId } from '@/data/world'
+import { domainIds, domains, servedToAgents } from '@/data/world'
 import { useFacts, useMe, useStore, type LogEntry } from '@/lib/store'
 import { relativeDate } from '@/data/history'
 import { excerptOf, useDomains } from '@/lib/domains'
@@ -133,8 +133,8 @@ function Domains() {
                 key={id}
                 role="listitem"
                 data-cell
-                href={`#/settings/domains/${id}`}
-                className="group/cell flex min-h-36 flex-col @2xl/main:min-h-44 gap-2 bg-background p-4 outline-none hover:bg-muted/40 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:p-5"
+                href={`/settings/domains/${id}`}
+                className="group/cell flex min-h-36 flex-col gap-2 bg-background p-4 outline-none hover:bg-muted/40 focus-visible:z-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:p-5 @2xl/main:min-h-44"
               >
                 <span className="flex items-center gap-2">
                   <DomainDot id={id} />
@@ -155,7 +155,7 @@ function Domains() {
                       <PersonAvatar key={o} name={o} />
                     ))}
                     {domains[id].owners.length > 4 && (
-                      <span className="grid size-7 place-items-center rounded-full bg-muted text-[11px] font-medium">
+                      <span className="grid size-7 place-items-center rounded-full bg-muted text-2xs font-medium">
                         +{domains[id].owners.length - 4}
                       </span>
                     )}
@@ -168,8 +168,8 @@ function Domains() {
                         !items.length
                           ? 'border border-muted-foreground'
                           : due
-                            ? 'bg-[oklch(0.7_0.15_70)]'
-                            : 'bg-[oklch(0.62_0.13_150)]',
+                            ? 'bg-due'
+                            : 'bg-ready',
                       )}
                     />
                     {items.length} {items.length === 1 ? 'item' : 'items'}
@@ -183,8 +183,8 @@ function Domains() {
           <a
             role="listitem"
             data-cell
-            href="#/settings/domains/new"
-            className="flex min-h-24 flex-col items-center justify-center gap-2 bg-background @2xl/main:min-h-44 p-4 text-sm text-muted-foreground outline-none hover:bg-muted/40 hover:text-foreground focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+            href="/settings/domains/new"
+            className="flex min-h-24 flex-col items-center justify-center gap-2 bg-background p-4 text-sm text-muted-foreground outline-none hover:bg-muted/40 hover:text-foreground focus-visible:z-raised focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @2xl/main:min-h-44"
           >
             <PlusIcon aria-hidden className="size-5" />
             Add a domain
@@ -285,8 +285,8 @@ function Agents() {
               <li
                 key={r.agent + r.who}
                 className={cn(
-                  'grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 border-t px-4 py-3 first:border-t-0 md:px-5',
-                  r.fresh && 'bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))]',
+                  'grid grid-cols-(--cols-around) items-center gap-x-3 border-t px-4 py-3 first:border-t-0 md:px-5',
+                  r.fresh && 'bg-fresh',
                 )}
               >
                 <ToolLogo c={{ logo: logoFor(r.agent) }} />
@@ -464,7 +464,7 @@ function Advanced() {
           key: `${e.id}.${i.id}`,
           title: i.title,
           hint: `Deleted by ${e.who}, ${relativeDate(e.on)}: ${e.summary.replace(/^Deleted: /, '')}`,
-          domain: i.domain as DomainId | undefined,
+          domain: i.domain,
         })),
       ),
     {
@@ -574,7 +574,7 @@ function Advanced() {
             [
               '7 Oct, 06:00',
               'Automatic',
-              <a key="cube" href="#/settings/integrations/cube" className={link}>
+              <a key="cube" href="/settings/integrations/cube" className={link}>
                 Read {DEFINITIONS_TOOL}: 2 definitions changed
               </a>,
             ],
@@ -593,14 +593,14 @@ function Advanced() {
           columns={cols('Job', 'Last run', 'Result')}
           rows={[
             [
-              <a key="cube" href="#/settings/integrations/cube" className={link}>
+              <a key="cube" href="/settings/integrations/cube" className={link}>
                 Read {DEFINITIONS_TOOL}
               </a>,
               'Today, 06:00',
               'Done',
             ],
             [
-              <a key="drive" href="#/settings/integrations/google-drive" className={link}>
+              <a key="drive" href="/settings/integrations/google-drive" className={link}>
                 Read Google Drive
               </a>,
               'Today, 06:00',
@@ -820,8 +820,8 @@ export function SettingsPage({
           crumbs={(name) => (
             <SettingsCrumbs
               trail={[
-                { label: 'Settings', href: '#/settings/general' },
-                { label: 'Domains and owners', href: '#/settings/domains' },
+                { label: 'Settings', href: '/settings/general' },
+                { label: 'Domains and owners', href: '/settings/domains' },
                 { label: name },
               ]}
             />
@@ -831,7 +831,7 @@ export function SettingsPage({
     )
   const title = (
     <SettingsCrumbs
-      trail={[{ label: 'Settings', href: '#/settings/general' }, { label: TITLES[current] }]}
+      trail={[{ label: 'Settings', href: '/settings/general' }, { label: TITLES[current] }]}
     />
   )
   if (current === 'general')

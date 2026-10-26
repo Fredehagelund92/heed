@@ -21,15 +21,7 @@
 # search_context is search_facts. The cases change only in those words: the tool names they expect,
 # the three rubrics and the help case's page address (connect-an-agent). Their expectations are
 # otherwise the same. The `source` lines keep the captain's words as he said them on 15 October.
-# Version 17 (26 October 2026): the agent contract (docs/product.md, section 10). L1 reads what
-# agents get from get_context, the tool that replaced get_facts, with response_format full (the
-# concise case reads the concise reply, the agent contract's default), and its status now carries
-# the answer state (src/domain/answer-state.ts): stale (Outdated) where an item that applies may be
-# out of date, and partial (Partial) where no item covers the whole question. 26 statuses in 23
-# cases change to that; every delivery, rank, version and phrase is the same. A question read at
-# today (no dates given) is Partial, so two of those statuses are partial. Two rubrics name
-# get_context. The assistant's cases keep their tool names: the assistant keeps its tools.
-version: 17
+version: 16
 library:
   seed: 20261007
   items: 1500
@@ -143,7 +135,7 @@ cases:
         from: '2026-10-06'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_ug150h5h]
       text: [one day]
     answer:
@@ -172,7 +164,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_qh1p1apw]
       unverified: [itm_qh1p1apw]
     answer:
@@ -201,7 +193,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_guy5npa9]
       unverified: [itm_guy5npa9]
     answer:
@@ -230,7 +222,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_hej570os]
       unverified: [itm_hej570os]
     answer:
@@ -290,7 +282,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_gssupbon1]
       versions:
         itm_gssupbon1: 2
@@ -440,7 +432,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_mx99qgeu, itm_qh1p1apw, itm_3z56e2jy]
       rank_max: 10
       text:
@@ -497,7 +489,7 @@ cases:
         - dimension: dim:market
           values: [val:market/united_states]
     delivery:
-      status: partial
+      status: matched
       must_deliver: [itm_sq1l7j9x]
       text: ['I assumed today, 7 October 2026. Tell me if you meant a different period.']
     rubrics:
@@ -521,7 +513,7 @@ cases:
         - dimension: dim:market
           values: [val:market/spain]
     delivery:
-      status: partial
+      status: matched
       must_deliver: [itm_4gnkxqc0]
       rank_max: 8
       text: ['I assumed today, 7 October 2026. Tell me if you meant a different period.']
@@ -763,7 +755,7 @@ cases:
         from: '2026-10-06'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_ug150h5h]
     answer:
       declines_out_of_remit: true
@@ -847,7 +839,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_k4p3nj1b]
     answer:
       must_cite: [itm_k4p3nj1b]
@@ -874,7 +866,7 @@ cases:
         from: '2026-10-06'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_1y8znds2]
       must_not_deliver: [itm_3romadve]
       text: [one day]
@@ -958,7 +950,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_sq1l7j9x]
     answer:
       must_cite: [itm_sq1l7j9x]
@@ -987,7 +979,7 @@ cases:
         from: '2024-01-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_yz287ldv, itm_nqtawzby]
       rank_max: 10
     answer:
@@ -1016,7 +1008,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_cog8dkgc, itm_ir6lacc4]
     answer:
       must_cite: [itm_cog8dkgc, itm_ir6lacc4]
@@ -1041,7 +1033,7 @@ cases:
         from: '2026-08-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_gstwoguide1, itm_75fuoxct]
     answer:
       must_cite: [itm_75fuoxct]
@@ -1065,7 +1057,7 @@ cases:
         from: '2026-10-07'
         to: '2026-10-07'
     delivery:
-      status: partial
+      status: matched
       cut: true
       source_refs: [cube:revenue.net_revenue]
     definition:
@@ -1246,7 +1238,7 @@ cases:
         from: '2026-10-07'
         to: '2026-10-07'
     delivery:
-      status: partial
+      status: matched
       cut: true
       source_refs: [cube:customers.repeat_purchase_rate]
     definition:
@@ -1280,7 +1272,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_pii53j85]
       source_refs: [cube:marketing.return_on_ad_spend]
     definition:
@@ -1310,7 +1302,7 @@ cases:
         from: '2026-10-07'
         to: '2026-10-07'
     delivery:
-      status: partial
+      status: matched
       cut: true
       source_refs: [cube:revenue.gross_sales]
     definition:
@@ -1368,7 +1360,7 @@ cases:
           must_cite: [itm_9omvkhl1]
           must_not_cite: [itm_yakb4kwg]
         rubrics:
-          - 'Keeps the metric and the week from the first question and asks get_context again for Spain'
+          - 'Keeps the metric and the week from the first question and asks get_facts again for Spain'
     source: 'Library: the same metric in two markets, each with its own note'
 
   - id: gs-conversation-discount-cost-correction
@@ -1390,7 +1382,7 @@ cases:
         from: '2026-10-06'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_1y8znds2]
     answer:
       must_cite: [itm_1y8znds2]
@@ -1406,7 +1398,7 @@ cases:
             from: '2026-10-06'
             to: '2026-10-07'
         delivery:
-          status: stale
+          status: matched
           must_deliver: [itm_gssupbon1]
           must_not_deliver: [itm_1y8znds2]
           rank_max: 6
@@ -1433,7 +1425,7 @@ cases:
         from: '2026-10-07'
         to: '2026-10-07'
     delivery:
-      status: partial
+      status: matched
       cut: true
       source_refs: [cube:customers.churn_rate]
     definition:
@@ -1454,7 +1446,7 @@ cases:
             from: '2026-10-06'
             to: '2026-10-07'
         delivery:
-          status: stale
+          status: matched
           must_deliver: [itm_ug150h5h]
         answer:
           must_cite: [itm_ug150h5h]
@@ -1475,7 +1467,7 @@ cases:
     scope:
       metrics: [metric:units_sold]
     delivery:
-      status: partial
+      status: matched
       cut: true
       text: ['I assumed today, 7 October 2026. Tell me if you meant a different period.']
     answer:
@@ -1522,7 +1514,7 @@ cases:
         from: '2026-10-01'
         to: '2026-10-07'
     delivery:
-      status: stale
+      status: matched
       must_deliver: [itm_sq1l7j9x]
     answer:
       must_cite: [itm_sq1l7j9x]
@@ -1538,12 +1530,12 @@ cases:
             from: '2026-09-01'
             to: '2026-09-30'
         delivery:
-          status: stale
+          status: matched
           must_deliver: [itm_sq1l7j9x]
         answer:
           must_cite: [itm_sq1l7j9x]
         rubrics:
-          - "Asks get_context again for September instead of reusing the week's answer"
+          - "Asks get_facts again for September instead of reusing the week's answer"
     source: 'Library: a correction of the dates'
 
   # ---- 15. Handoff: an agent names what it just queried in the data tool (CON-517). ------------

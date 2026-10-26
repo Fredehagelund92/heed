@@ -1,4 +1,9 @@
-import { ChevronRightIcon, CircleSlashIcon, DatabaseIcon, ExternalLinkIcon } from 'lucide-react'
+import {
+  ChevronRightIcon,
+  CircleSlashIcon,
+  DatabaseIcon,
+  ExternalLinkIcon,
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -79,7 +84,7 @@ export function FigureLine({
     <div className="flex gap-2.5">
       <DatabaseIcon aria-hidden className="mt-1 size-4 shrink-0 text-muted-foreground" />
       <div className="flex min-w-0 flex-col gap-0.5">
-        <p className="text-[15px] leading-relaxed">
+        <p className="text-reading leading-relaxed">
           <span className="text-muted-foreground">{f.label}:</span>{' '}
           <span className="font-semibold tabular-nums">{f.value}</span>
           {f.change ? `, ${f.change}` : ''}.
@@ -104,7 +109,7 @@ export function FigureAgainst({
   const item = factById(f.against!.contextId)
   const owners = item ? domains[item.domain] : undefined
   return (
-    <div className="flex flex-col gap-3 rounded-surface border border-[oklch(0.68_0.16_65/0.45)] bg-[oklch(0.68_0.16_65/0.05)] p-3 dark:border-[oklch(0.78_0.14_70/0.45)] dark:bg-[oklch(0.68_0.16_65/0.08)]">
+    <div className="flex flex-col gap-3 rounded-surface border border-caution/45 bg-caution/5 p-3 dark:border-warn/45 dark:bg-caution/8">
       <p className="text-sm">
         <span className="font-medium">The figure doesn't fit a context item.</span>{' '}
         <span className="text-muted-foreground">

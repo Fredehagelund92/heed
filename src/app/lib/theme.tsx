@@ -3,10 +3,13 @@ import * as React from 'react'
 // The theme provider from shadcn's Vite guide, plus ?theme=dark|light in the address for screenshots.
 
 import { ThemeContext, type Theme } from './theme-context'
-const KEY = 'heed-mockup-theme'
+import { storageKey } from '@/lib/brand'
+import { useRoute } from '@/lib/router'
+
+const KEY = storageKey('theme')
 
 function fromUrl(): Theme | null {
-  const t = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('theme')
+  const t = new URLSearchParams(window.location.search).get('theme')
   return t === 'dark' || t === 'light' ? t : null
 }
 
@@ -23,14 +26,13 @@ function initial(): Theme {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = React.useState<Theme>(initial)
 
-  React.useEffect(() => {
-    const onHash = () => {
-      const t = fromUrl()
-      if (t) setThemeState(t)
-    }
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  // A new ?theme= in the address switches to it, as it does on load.
+  const asked = useRoute().query.get('theme')
+  const [seen, setSeen] = React.useState(asked)
+  if (asked !== seen) {
+    setSeen(asked)
+    if (asked === 'dark' || asked === 'light') setThemeState(asked)
+  }
 
   React.useEffect(() => {
     const root = window.document.documentElement

@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ArrowUpRightIcon, ChevronDownIcon, EyeOffIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowUpRightIcon, ChevronDownIcon, EyeOffIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { StateLine } from '@/components/heed/bits'
 import { ASKED_ROWS, askedThisWeek } from '@/data/asked-week'
@@ -43,7 +43,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
               <button
                 type="button"
                 onClick={() => onPick(r.question)}
-                className="flex min-h-14 min-w-0 flex-1 flex-col items-start justify-center gap-1 rounded-md px-1.5 py-1.5 text-left outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+                className="flex min-h-14 min-w-0 flex-1 flex-col items-start justify-center gap-1 rounded-md px-1.5 py-1.5 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <span className="text-sm font-medium">{r.title}</span>
                 <StateLine state={r.state} tip={false} className="px-1.5 py-0.5 text-xs" />
@@ -77,7 +77,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
               type="button"
               aria-expanded={all}
               onClick={() => setAll(!all)}
-              className="-ml-1 inline-flex h-7 items-center gap-1 rounded-md px-1 font-medium text-foreground outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50 underline-offset-4"
+              className="-ml-1 inline-flex h-7 items-center gap-1 rounded-md px-1 font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               {all ? 'Show fewer' : `More asked this week (${more})`}
               <ChevronDownIcon
@@ -98,7 +98,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
           )}
           {seesObservability(me) && (
             <a
-              href="#/observability/questions"
+              href="/observability/questions"
               className="ml-auto inline-flex items-center gap-0.5 underline-offset-4 hover:text-foreground hover:underline"
             >
               In Observability

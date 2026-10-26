@@ -1,4 +1,10 @@
-import { RouteIcon, RulerIcon, TriangleAlertIcon, ZapIcon, type LucideIcon } from 'lucide-react'
+import {
+  RouteIcon,
+  RulerIcon,
+  TriangleAlertIcon,
+  ZapIcon,
+  type LucideIcon,
+} from '@/components/icons'
 import type { Kind } from '@/data/world'
 
 /**

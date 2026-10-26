@@ -12,7 +12,7 @@ import {
   MessageSquareWarningIcon,
   PencilIcon,
   TriangleAlertIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { DockFrame, DockMissing, PeekBar } from '@/components/dock'
 import { DockStepper } from '@/components/heed/list'

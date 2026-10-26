@@ -1,5 +1,5 @@
-import { ArrowUpRightIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowUpRightIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { DOC_PAGES, DOCS_HOME } from '@/lib/help-content'
 
 /** Under an aside's help: one quiet link to its guide in the documentation, which opens as its own site. */

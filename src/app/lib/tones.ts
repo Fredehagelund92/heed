@@ -35,8 +35,7 @@ export function kindOfWhere(w: string): 'metric' | 'dimension' | 'market' | 'dom
 export const domainIdByName = (name: string) =>
   (Object.keys(domains) as DomainId[]).find((d) => domains[d].name === name)
 
-const tinted =
-  'bg-[oklch(0.955_0.025_var(--chip-h))] text-[oklch(0.36_0.07_var(--chip-h))] dark:bg-[oklch(0.3_0.045_var(--chip-h))] dark:text-[oklch(0.9_0.04_var(--chip-h))]'
+const tinted = 'bg-chip text-chip-foreground'
 
 /** A chip's tint as classes and its hue as a variable. */
 export function chipTone(

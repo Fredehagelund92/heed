@@ -14,7 +14,7 @@ import {
   TypeIcon,
   UsersIcon,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { FieldDiff, PersonAvatar } from '@/components/heed/bits'
 import { Button } from '@/components/ui/button'
@@ -67,7 +67,7 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
             <button
               type="button"
               onClick={onOpen}
-              className="flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-[13px] outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="flex h-8 w-full items-center gap-2 rounded-md px-1.5 text-left text-dense outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           }
         >
@@ -173,7 +173,7 @@ export function VersionHistory({
         </div>
       )}
       <Sheet open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
-        <SheetContent side="right" className="w-[min(32rem,100vw)] gap-0 p-0">
+        <SheetContent side="right" className="w-history-panel gap-0 p-0">
           {viewing && (
             <>
               <SheetHeader className="border-b">

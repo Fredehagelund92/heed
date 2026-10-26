@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronRightIcon } from 'lucide-react'
+import { ChevronRightIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Logo } from '@/components/heed/logo'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

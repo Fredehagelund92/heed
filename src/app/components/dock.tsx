@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeftIcon, Maximize2Icon } from 'lucide-react'
+import { ArrowLeftIcon, Maximize2Icon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'

@@ -1,4 +1,4 @@
-import { ArrowRightIcon } from 'lucide-react'
+import { ArrowRightIcon } from '@/components/icons'
 import { StateLine } from '@/components/heed/bits'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -49,7 +49,7 @@ export function StateHelp({ state, draft }: { state: AnswerState; draft?: boolea
           {line.todo}
         </p>
         <a
-          href="#/help"
+          href="/help"
           className="mt-1 inline-flex w-fit items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           All answer lines

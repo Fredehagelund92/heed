@@ -14,7 +14,7 @@ import {
   PlugIcon,
   SettingsIcon,
   SunIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { openDock } from '@/lib/dock'
 import {
   Command,

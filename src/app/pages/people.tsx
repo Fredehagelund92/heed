@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { MailIcon, SearchIcon, UserPlusIcon } from 'lucide-react'
+import { MailIcon, SearchIcon, UserPlusIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Frame, FrameSection } from '@/components/heed/frame'
 import { DomainDot, TagChip } from '@/components/heed/tag-chip'
@@ -195,7 +195,7 @@ export function InviteDialog({
                     disabled={!allowed}
                     title={allowed ? undefined : 'Only its owners and admins add owners'}
                     onClick={() => setOwns(on ? owns.filter((x) => x !== d) : [...owns, d])}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-[6px] border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
+                    className="inline-flex h-8 items-center gap-1.5 rounded-sm border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
                   >
                     <DomainDot id={d} />
                     {domains[d].name}
@@ -234,7 +234,7 @@ function PersonSheet({
     <Sheet open={!!p} onOpenChange={onOpenChange}>
       <SheetContent
         side={mobile ? 'bottom' : 'right'}
-        className="gap-0 data-[side=bottom]:max-h-[90svh] data-[side=right]:sm:max-w-md"
+        className="gap-0 data-[side=bottom]:max-h-bottom-sheet-tall data-[side=right]:max-w-md"
       >
         <SheetHeader className="flex-row items-center gap-3 border-b pr-12">
           <PersonAvatar name={p.name} size={32} />
@@ -289,7 +289,7 @@ function PersonSheet({
                         setAdmin(p.name, r === 'Admin')
                         toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`)
                       }}
-                      className="h-7 rounded-[5px] px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
+                      className="h-7 rounded-tile px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
                     >
                       {r}
                     </button>
@@ -455,7 +455,7 @@ export function People() {
       <button
         type="button"
         onClick={() => setOpen(p.name)}
-        className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 border-t px-4 py-3 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:px-5 @3xl/main:grid-cols-[auto_minmax(0,1.4fr)_5.5rem_minmax(0,1.6fr)_7rem]"
+        className="grid w-full grid-cols-(--cols-around) items-center gap-x-3 gap-y-1.5 border-t px-4 py-3 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:px-5 @3xl/main:grid-cols-(--cols-people)"
       >
         <PersonAvatar name={p.name} />
         <span className="min-w-0">
@@ -510,7 +510,7 @@ export function People() {
             />
           </div>
         )}
-        <div className="hidden grid-cols-[auto_minmax(0,1.4fr)_5.5rem_minmax(0,1.6fr)_7rem] gap-x-3 border-t px-4 py-2 text-xs text-muted-foreground md:px-5 @3xl/main:grid">
+        <div className="hidden grid-cols-(--cols-people) gap-x-3 border-t px-4 py-2 text-xs text-muted-foreground md:px-5 @3xl/main:grid">
           <span className="w-7" aria-hidden />
           <span>Name</span>
           <span>Role</span>

@@ -83,7 +83,7 @@ describe('what a topic says', () => {
     expect(statusOf(spain)).toEqual({
       label: 'Draft ready',
       tone: 'gap',
-      href: '#/inbox?card=gap-spain',
+      href: '/inbox?card=gap-spain',
     })
     // Net revenue in Norway disagrees 3 times across its two months, so the grouped row says so.
     const revenue = rollUp(topicsOf({ range: 7 })).find((g) => g.name === 'Net revenue in Norway')!

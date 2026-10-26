@@ -46,12 +46,7 @@ it('renames the policy label, the tool ids and what is stored under them, and no
               (date_trunc('hour', now(), 'UTC'), 'cursor', 'read_item', 'ok', 'cursor')`,
     )
 
-    // 0003 alone: the migrations after it change the tool ids again (0004_agent_contract.sql).
-    await copyFile(
-      new URL('0003_agent_wording.sql', migrationDirectory),
-      join(before, '0003_agent_wording.sql'),
-    )
-    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(1)
+    expect(await migrate(client)).toBe(1)
 
     const tools = await client.query<{ tool: string; enabled: boolean }>(
       'select tool, enabled from tool_config order by tool',
@@ -94,7 +89,7 @@ it('renames the policy label, the tool ids and what is stored under them, and no
 
     // Run again, it changes nothing: not a label an admin changed since, not a setting that
     // names no old tool.
-    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(0)
+    expect(await migrate(client)).toBe(0)
     await client.query(
       "update client_policies set display_name = 'Claude Code' where client_label = 'claude-code'",
     )

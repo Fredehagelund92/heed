@@ -636,7 +636,7 @@ const gatewayDialogs = [
   {
     name: 'tool-switch-off',
     path: '/admin?section=gateway&tab=tools',
-    open: { role: 'switch', name: 'Get context for a question' },
+    open: { role: 'switch', name: 'Get facts for a question' },
   },
   {
     name: 'disconnect-app',

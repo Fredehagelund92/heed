@@ -450,10 +450,8 @@ describe('answer tests on the review gate', () => {
       caveat: true,
       delivered: true,
     })
-    // get_related is on, so the scripted model follows the delivered item's links once.
     expect(body.toolCalls).toEqual([
-      expect.objectContaining({ tool: 'get_context', items: [closure] }),
-      expect.objectContaining({ tool: 'get_related' }),
+      expect.objectContaining({ tool: 'get_facts', items: [closure] }),
     ])
     expect(JSON.stringify(body.messages)).toContain('because online sales stopped')
     expect((await call('GET', `/evals/cells/${failed.id}/transcript`, 'author')).statusCode).toBe(
@@ -970,14 +968,14 @@ describe('runs that stop before every answer is made (R4, R6)', () => {
     expect(d.run.failure).toMatch(/was planned for another-model/)
   }, 300_000)
 
-  /** Sets get_context's limit per client and minute; returns what puts the setting back. */
+  /** Sets get_facts's limit per client and minute; returns what puts the setting back. */
   async function getContextLimit(perMinute: number) {
     const [current] = (
       await client.query<{ value: Record<string, number> }>(
         "select value from settings_current where key='limits.mcp_rate_per_minute'",
       )
     ).rows
-    await setting('limits.mcp_rate_per_minute', { ...current!.value, get_context: perMinute })
+    await setting('limits.mcp_rate_per_minute', { ...current!.value, get_facts: perMinute })
     return () => setting('limits.mcp_rate_per_minute', current!.value)
   }
 
@@ -1446,7 +1444,7 @@ describe('the day a question is asked on (round 6)', () => {
       'norway-today': '2026-10-08',
     })
     // What the tool server told the agent for the natural wording: the week it read "this past
-    // week" as, the seven days to the day it read the question at (FR-304), in what was asked.
+    // week" as, the seven days to the day it read the question at (FR-304).
     const readAs = async (id: string) => {
       const rows = await client.query<{ messages: unknown }>(
         `select t.messages from eval_transcripts t join eval_cells c on c.id=t.cell_id
@@ -1456,15 +1454,15 @@ describe('the day a question is asked on (round 6)', () => {
       expect(rows.rowCount).toBeGreaterThan(0)
       return [
         ...JSON.stringify(rows.rows.map((r) => r.messages)).matchAll(
-          /(from [^"\\(]*?\(the 7 days to today\))/g,
+          /"dates_read":\{[^}]*"reads_as":"([^"]+)"/g,
         ),
       ].map((m) => m[1])
     }
     expect(new Set(await readAs('norway-as-of'))).toEqual(
-      new Set(['from 4 to 10 August 2026 (the 7 days to today)']),
+      new Set(['4-10 Aug 2026 (the 7 days to today; UTC)']),
     )
     expect(new Set(await readAs('norway-today'))).toEqual(
-      new Set(['from 2 to 8 October 2026 (the 7 days to today)']),
+      new Set(['2-8 Oct 2026 (the 7 days to today; UTC)']),
     )
 
     // Retired, so the runs after this one keep their own question counts.

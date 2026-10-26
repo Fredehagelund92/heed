@@ -30,7 +30,7 @@ import {
   responseFormat,
   scopeFields,
 } from '../../mcp/schemas.ts'
-import { assistantReads } from './read-tools.ts'
+import { tools as mcpTools } from '../../mcp/tools.ts'
 import { can, type Session } from '../auth/index.ts'
 import { DEFAULT_MCP_RATES, loadLiveBundle } from '../editions/index.ts'
 import { estimateDraftRun } from '../evals/index.ts'
@@ -276,7 +276,7 @@ const createDraftInput = mini.strictObject({
 export const assistantTools = {
   get_facts: {
     description:
-      assistantReads.get_facts +
+      mcpTools.get_facts.description +
       ' The reply names the edition. Use it first for a question about a metric, a market or dates, and to explain which items apply to a scope and why. Use the names find_facts or domain_overview gives. It is concise unless you ask for full: call read_item for an item you will quote evidence from.',
     operation: 'mcp.get_facts',
     // Concise by default (FR-342): every later step and turn sends the result again.
@@ -287,7 +287,7 @@ export const assistantTools = {
   },
   find_facts: {
     description:
-      assistantReads.find_facts +
+      mcpTools.find_facts.description +
       ` Use it before get_facts when the person names something in their own words, asks what ${productName} knows about a topic, or asks what a metric means. When it says why nothing was found, tell the person that and what you tried.`,
     operation: 'mcp.find_facts',
     inputSchema: findInput
@@ -297,14 +297,15 @@ export const assistantTools = {
   },
   read_item: {
     description:
-      assistantReads.read_item + ' Use it when the person names an item id, to read it whole.',
+      mcpTools.read_item.description +
+      ' Use it when the person names an item id, to read it whole.',
     operation: 'mcp.read_item',
     inputSchema: readInput.omit({ edition: true, max_bytes: true }),
     run: mcpTool('read_item'),
   },
   improve_question: {
     description:
-      assistantReads.improve_question +
+      mcpTools.improve_question.description +
       ' Use it to coach a question: make dates, definition, comparison and market clear.',
     operation: 'mcp.improve_question',
     inputSchema: improveInput.omit({ edition: true }),
@@ -488,7 +489,7 @@ export const assistantTools = {
   },
   domain_overview: {
     description:
-      assistantReads.domain_overview +
+      mcpTools.domain_overview.description +
       ' Use it when the person asks what a domain covers, what needs their attention, or what to look at first.',
     operation: 'mcp.domain_overview',
     inputSchema: overviewInput.omit({ max_bytes: true }),
@@ -496,7 +497,7 @@ export const assistantTools = {
   },
   what_changed: {
     description:
-      assistantReads.what_changed +
+      mcpTools.what_changed.description +
       ' Use it when the person asks what changed or what is new; filter by their domain when they owner one. For other editions, point to What changed (/editions/compare).',
     operation: 'mcp.what_changed',
     // The assistant reads as an agent without edition scope: the live edition and the one before.
@@ -505,7 +506,7 @@ export const assistantTools = {
   },
   search_help: {
     description:
-      assistantReads.search_help +
+      mcpTools.search_help.description +
       ` Use it when the person asks how ${productName} works, what a word on its screens means or how to do something in it. Link the page you used by its path.`,
     operation: 'mcp.search_help',
     inputSchema: helpInput,
@@ -633,7 +634,7 @@ export const assistantOperations: ReadonlySet<string> = new Set([
 
 /**
  * Whether the assistant may perform an operation for this person: one of its own operations,
- * and then a read of the tool service (read-tools.ts), or an API operation a propose-only principal may call.
+ * and then an MCP tool that only reads, or an API operation a propose-only principal may call.
  * Anything else fails closed.
  */
 export function allowed(operation: string, session: Session): boolean {
@@ -642,7 +643,7 @@ export function allowed(operation: string, session: Session): boolean {
   if (operation.startsWith('web.')) return true
   if (operation.startsWith('mcp.')) {
     const name = operation.slice(4)
-    return Object.hasOwn(assistantReads, name)
+    return Object.hasOwn(mcpTools, name) && mcpTools[name as keyof typeof mcpTools].scope === 'read'
   }
   return can(proposeOnly(session), operation)
 }

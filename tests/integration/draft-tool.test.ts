@@ -7,13 +7,11 @@ import { signInHarness } from './sign-in-harness.ts'
 import { tableContents } from './support.ts'
 
 /*
-  The MCP suggestion tool (FR-121) end to end on PostgreSQL: a person signs their AI client in
-  with the propose scope, and after they say yes the agent sends a suggestion, which waits for the
-  owner with every field's mark; one the review checks refuse stays the person's draft.
-  `draft_context`, its deprecated id, still saves a draft that the person submits in Heed. Then
-  each rule the wrong way: the switch, tokens that name no person, sensitive and instruction-like
-  text, a possible duplicate, the daily limit, and that the person is named on the proposal only,
-  never in another MCP record or a log line.
+  The MCP draft tool (FR-121) end to end on PostgreSQL: a person signs their AI client in with
+  the propose scope, the agent saves a draft, the person submits it in Heed and the owner
+  reviews it with every field's mark. Then each rule the wrong way: the off switch, tokens that
+  name no person, sensitive and instruction-like text, a possible duplicate, the daily limit,
+  and that the person is named on the proposal only, never in another MCP record or a log line.
 */
 
 const harness = await signInHarness()
@@ -66,12 +64,8 @@ async function callRaw(token: string, body: unknown) {
   })
   return { status: response.status, text: await response.text() }
 }
-const suggestionOf = (text: string, extra: Record<string, unknown> = {}) => ({
-  name: 'suggest_context',
-  arguments: { text, ...extra },
-})
 const switchTool = (enabled: boolean) =>
-  admin.query("update tool_config set enabled=$1 where tool='suggest_context'", [enabled])
+  admin.query("update tool_config set enabled=$1 where tool='draft_context'", [enabled])
 const setLimits = (perDay: number, open: number) =>
   admin.query(
     `insert into settings_versions (key,version,value,reason)
@@ -86,17 +80,10 @@ const agentDrafts = async () =>
   ).rows
 
 describe('an AI agent drafts context for the person it acts for', () => {
-  it('is on by default, and its switch takes its deprecated id with it', async () => {
-    const on = await mcpClient(await personToken())
-    const names = (await on.listTools()).tools.map((t) => t.name)
-    expect(names).toEqual(expect.arrayContaining(['suggest_context', 'draft_context']))
-    await on.close()
-    await switchTool(false)
+  it('is off until an administrator turns it on', async () => {
     const wire = await mcpClient(await personToken())
-    expect((await wire.listTools()).tools.map((t) => t.name)).not.toContain('suggest_context')
     expect((await wire.listTools()).tools.map((t) => t.name)).not.toContain('draft_context')
     await expect(wire.callTool(draftOf(text, complete))).rejects.toThrow()
-    await expect(wire.callTool(suggestionOf(text, complete))).rejects.toThrow()
     await wire.close()
     expect(await agentDrafts()).toEqual([])
   })
@@ -108,15 +95,10 @@ describe('an AI agent drafts context for the person it acts for', () => {
     await admin.query("update people set display_name = 'Person ' || id::text")
     const before = await tableContents(admin)
     const wire = await mcpClient(token)
-    const tools = (await wire.listTools()).tools
-    const tool = tools.find((t) => t.name === 'draft_context')
+    const tool = (await wire.listTools()).tools.find((t) => t.name === 'draft_context')
     expect(tool?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false })
-    expect(tool?.description).toBe(
-      'Deprecated: use suggest_context. It saves a draft for the person and never sends it, as before.',
-    )
-    expect(tools.find((t) => t.name === 'suggest_context')?.description).toMatch(
-      /Don't include names of customers or staff/,
-    )
+    expect(tool?.description).toMatch(/never sends the draft for review/)
+    expect(tool?.description).toMatch(/Don't include names of customers or staff/)
     const reply = await wire.callTool(draftOf(text, complete))
     await wire.close()
     expect(reply.isError).not.toBe(true)
@@ -155,11 +137,8 @@ describe('an AI agent drafts context for the person it acts for', () => {
     // The person is named on the proposal and its history only: no other new row names them.
     await vi.waitFor(async () =>
       expect(
-        (
-          await admin.query(
-            "select 1 from mcp_requests where tool='suggest_context' and status='ok'",
-          )
-        ).rowCount,
+        (await admin.query("select 1 from mcp_requests where tool='draft_context' and status='ok'"))
+          .rowCount,
       ).toBeGreaterThan(0),
     )
     const after = await tableContents(admin)
@@ -170,7 +149,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
         !/^public\.(proposals|proposal_events|audit_log|outbox_events) /.test(line),
     )
     expect(named).toEqual([])
-    const requests = (await admin.query("select * from mcp_requests where tool='suggest_context'"))
+    const requests = (await admin.query("select * from mcp_requests where tool='draft_context'"))
       .rows
     expect(JSON.stringify(requests)).not.toContain(people.author)
     expect(requests).toContainEqual(
@@ -341,7 +320,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
     harness.advance(61)
     const count = (await agentDrafts()).length
     const wire = await mcpClient(await personToken())
-    const tool = (await wire.listTools()).tools.find((t) => t.name === 'suggest_context')
+    const tool = (await wire.listTools()).tools.find((t) => t.name === 'draft_context')
     expect(tool?.description).toContain(draftingGuide)
     // A summary of its own over the limit: the field is named with what to do, nothing saved.
     const long = `${'Orders are booked in euros at the rate of the day. '.repeat(6)}`.trim()
@@ -453,85 +432,6 @@ describe('an AI agent drafts context for the person it acts for', () => {
     expect((reply.structuredContent as { questions: { field: string }[] }).questions[0]).toEqual(
       expect.objectContaining({ field: 'areaId' }),
     )
-  })
-
-  it('sends a suggestion for review as the person, after they say yes, and it waits for the owner', async () => {
-    harness.advance(61)
-    await setLimits(100, 100)
-    const wire = await mcpClient(await personToken())
-    const tool = (await wire.listTools()).tools.find((t) => t.name === 'suggest_context')
-    expect(tool?.description).toMatch(
-      /^Send a suggestion to the owner, after the person says yes\./,
-    )
-    expect(tool?.description).toMatch(/it never publishes/)
-    const reply = await wire.callTool(
-      suggestionOf('Orders in every market exclude gift cards, from 1 October 2026.', {
-        ...complete,
-        window: { from: '2026-10-01' },
-        new_item: true,
-      }),
-    )
-    await wire.close()
-    expect(reply.isError).not.toBe(true)
-    const out = reply.structuredContent as { draft_id: string; note?: string }
-    expect(out).toMatchObject({
-      status: 'suggestion_sent',
-      saved: true,
-      submitted: true,
-      message:
-        'Sent to the owner of Finance. It waits for their check, and nothing changes until they publish it.',
-      url: `http://localhost:5173/proposals/${out.draft_id}`,
-    })
-    expect(out.note).toBeUndefined()
-    // It waits in the owner's queue as the person's own suggestion; nothing is accepted.
-    const [row] = (
-      await admin.query<{ state: string; proposer_id: string; channel: string }>(
-        'select state,proposer_id,channel from proposals where id=$1',
-        [out.draft_id],
-      )
-    ).rows
-    expect(row).toEqual({ state: 'submitted', proposer_id: people.author, channel: 'mcp' })
-    const owner = browser()
-    await owner.signIn('owner')
-    const review = (await (await owner.api(`/proposals/${out.draft_id}/review`)).json()) as {
-      proposal: { state: string }
-      provenance: { by: string; fields: Record<string, string> }
-    }
-    expect(review.proposal.state).toBe('submitted')
-    expect(review.provenance).toMatchObject({ by: 'agent', fields: { summary: 'prefilled' } })
-  })
-
-  it("keeps a suggestion the review checks refuse as the person's draft, and says why", async () => {
-    harness.advance(61)
-    const wire = await mcpClient(await personToken())
-    // No source: a draft may be saved without one, but it cannot be sent for review.
-    const reply = await wire.callTool(
-      suggestionOf('Orders in every market exclude store credit, from 2 October 2026.', {
-        scope: { metrics: ['Orders'] },
-        window: { from: '2026-10-02' },
-        new_item: true,
-      }),
-    )
-    await wire.close()
-    const out = reply.structuredContent as {
-      draft_id: string
-      message: string
-      blocking: { code: string; field: string }[]
-    }
-    expect(out).toMatchObject({
-      status: 'draft_saved',
-      saved: true,
-      submitted: false,
-      url: `http://localhost:5173/library/new?draft=${out.draft_id}`,
-    })
-    expect(out.message).toMatch(/^It was kept as your draft and not sent: /)
-    expect(out.blocking.length).toBeGreaterThan(0)
-    const [row] = (
-      await admin.query<{ state: string }>('select state from proposals where id=$1', [
-        out.draft_id,
-      ])
-    ).rows
-    expect(row).toEqual({ state: 'draft' })
   })
 
   it('refuses a person who is no longer active', async () => {

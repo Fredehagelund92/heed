@@ -1,5 +1,11 @@
 import * as React from 'react'
-import { CopyIcon, DownloadIcon, EllipsisIcon, FolderInputIcon, Trash2Icon } from 'lucide-react'
+import {
+  CopyIcon,
+  DownloadIcon,
+  EllipsisIcon,
+  FolderInputIcon,
+  Trash2Icon,
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { BulkBar, BulkButton, type BulkNote } from '@/components/heed/bulk-bar'
 import { DeleteDialog } from '@/components/heed/delete-dialog'

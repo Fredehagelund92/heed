@@ -174,7 +174,10 @@ export const commentActions = {
   /** A scenario from the address: a normal week has its mentions unread, all done has them read. */
   scenario(mode: 'week' | 'done', person: string) {
     if (mode === 'week') return set({ ...state, mentionSeen: {} })
-    const read = (mentionNotes().get(person) ?? []).map((n) => [`${n.subject}|${person}`, true])
+    const read = (mentionNotes().get(person) ?? []).map((n): [string, boolean] => [
+      `${n.subject}|${person}`,
+      true,
+    ])
     if (read.length)
       set({ ...state, mentionSeen: { ...state.mentionSeen, ...Object.fromEntries(read) } })
   },

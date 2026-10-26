@@ -78,6 +78,8 @@ export default tseslint.config(
       'test-results/**',
       'src/web/routeTree.gen.ts',
       'src/web/lib/cn-tables.gen.ts',
+      'src/app/routeTree.gen.ts',
+      'src/app/lib/cn-tables.gen.ts',
       'registry/r/**',
       // Deliberately wrong code that tests/lint/guard-rails.test.ts lints on purpose.
       'tests/lint/fixtures/**',
@@ -123,11 +125,17 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser } },
   },
   {
+    // vite.app.config.ts puts the storage key in place of THEME_KEY when it inlines the file.
+    files: ['src/app/theme-bootstrap.js'],
+    languageOptions: { globals: { ...globals.browser, THEME_KEY: 'readonly' } },
+  },
+  {
     files: [
       '*.{js,ts}',
       'scripts/**',
       'src/server/**',
       'tests/e2e/**',
+      'tests/e2e-app/**',
       'tests/lint/**',
       'tests/server/**',
       'tests/integration/**',
@@ -202,6 +210,13 @@ export default tseslint.config(
     },
     rules: {
       ...betterTailwind.configs['correctness-error']?.rules,
+      // Classes a stylesheet of the app's own styles by name rather than as a utility: the
+      // editor's (components/editor/style.css and static-renderer/style.css), the Ask composer's
+      // placeholder, a mention in the editor, and sonner's toaster.
+      'better-tailwindcss/no-unknown-classes': [
+        'error',
+        { ignore: ['^rte-', '^ask-composer$', '^mention-node$', '^toaster$'] },
+      ],
       'better-tailwindcss/enforce-consistent-class-order': 'error',
       'better-tailwindcss/no-duplicate-classes': 'error',
       'better-tailwindcss/no-restricted-classes': [

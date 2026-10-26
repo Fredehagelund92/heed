@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -150,7 +150,7 @@ export function TextSwitch<T extends string>({
                 data-value={o.value}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                  'inline-flex h-7 items-center gap-1.5 rounded-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-3.5',
+                  'inline-flex h-7 items-center gap-1.5 rounded-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-3.5',
                   on
                     ? 'font-medium text-foreground'
                     : 'text-muted-foreground hover:text-foreground',

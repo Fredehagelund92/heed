@@ -1,9 +1,11 @@
 import type { AnswerState } from '@/data/ask'
 import { SLUG } from '@/lib/brand'
+import { answerLines } from '@domain/words'
 
 // One source for what Help and the docs say about the product's own words. The in-app Help page, the
 // answer line's card in Ask, Ask's own labels and the docs' "Answer lines" article draw from these
-// lists, so they can never disagree. Ten words is the ceiling: a "how do I" belongs in the docs.
+// lists, so they can never disagree. Ten words is the ceiling: a "how do I" belongs in the docs. The
+// answer lines' own words come from the glossary (src/domain/words.ts).
 
 /**
  * The six answer states, in one or two plain words, because many readers are not native English
@@ -21,50 +23,50 @@ export const ANSWER_LINES: {
 }[] = [
   {
     state: 'grounded',
-    label: 'Checked',
-    long: 'Based on checked context',
-    sentence: 'This is written down and checked.',
+    label: answerLines.grounded.label,
+    long: answerLines.grounded.long,
+    sentence: answerLines.grounded.sentence,
     means: 'Context applies, and its owner published it with a source and a check date.',
     todo: 'Nothing to do.',
   },
   {
     state: 'partial',
-    label: 'Partial',
-    long: 'Covers part of it',
-    sentence: 'Only part of this is written down.',
+    label: answerLines.partial.label,
+    long: answerLines.partial.long,
+    sentence: answerLines.partial.sentence,
     means:
       'Context covers part of the question, or the dates were assumed. The answer says which part.',
     todo: 'Write the missing part, or tell the owner.',
   },
   {
     state: 'missing',
-    label: 'Not found',
-    long: 'Nothing written down',
-    sentence: 'Nothing is written about this yet.',
+    label: answerLines.missing.label,
+    long: answerLines.missing.long,
+    sentence: answerLines.missing.sentence,
     means: 'Nobody has written anything down for this. It does not mean there is no explanation.',
     todo: 'Write context, or tell the owner.',
   },
   {
     state: 'conflict',
-    label: 'Conflict',
-    long: 'Context disagrees',
-    sentence: 'Two items say different things.',
+    label: answerLines.conflict.label,
+    long: answerLines.conflict.long,
+    sentence: answerLines.conflict.sentence,
     means: 'Two items that apply say different things. Agents give both and say so.',
     todo: 'An owner keeps one, narrows one, or keeps both.',
   },
   {
     state: 'stale',
-    label: 'Outdated',
-    long: 'May be out of date',
-    sentence: 'Some of this may be old.',
+    label: answerLines.stale.label,
+    long: answerLines.stale.long,
+    sentence: answerLines.stale.sentence,
     means: "An item's check date has passed, or a definition it relies on changed.",
     todo: 'The owner checks it: Still true, or Edit.',
   },
   {
     state: 'failed',
-    label: 'Not checked',
-    long: 'Could not check',
-    sentence: 'The check did not run.',
+    label: answerLines.failed.label,
+    long: answerLines.failed.long,
+    sentence: answerLines.failed.sentence,
     means: 'The check could not run just now. It is not the same as Not found.',
     todo: 'Ask again in a minute.',
   },
@@ -234,7 +236,7 @@ export const DOC_PAGES: DocPage[] = [
   },
 ]
 
-export const DOCS_HOME = '#/docs'
+export const DOCS_HOME = '/docs'
 export const SUPPORT_EMAIL = `support@${SLUG}.example`
 
 /** The plain-text index an agent can read at /docs/llms.txt: every page with its one line. */

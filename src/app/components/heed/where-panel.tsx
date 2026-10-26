@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronDownIcon, ChevronUpIcon, ExternalLinkIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { DockFrame, DockMissing } from '@/components/dock'
@@ -57,7 +57,7 @@ export function WherePanel({ id }: { id: string }) {
       </DockFrame>
     )
   const sentence = sentences[n - 1]
-  const cited = sentence.cites.map((c) => shown.facts[c - 1]).filter(Boolean) as Fact[]
+  const cited = sentence.cites.map((c) => shown.facts[c - 1]).filter((f): f is Fact => Boolean(f))
   const step = (to: number, label: string, Icon: typeof ChevronUpIcon) => (
     <Tooltip>
       <TooltipTrigger
@@ -93,7 +93,7 @@ export function WherePanel({ id }: { id: string }) {
         ) : undefined
       }
     >
-      <div className="flex flex-col gap-5 p-4 md:p-5">
+      <div className="flex flex-col gap-5 p-4 @md:p-5">
         <p className="text-xs text-muted-foreground">
           Sentence {n} of {sentences.length}
           <span className="pointer-coarse:hidden">
@@ -113,7 +113,7 @@ export function WherePanel({ id }: { id: string }) {
           </>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-[15px] leading-relaxed">{sentence.text}</p>
+            <p className="text-reading leading-relaxed">{sentence.text}</p>
             <p className="rounded-md border border-dashed px-3 py-2.5 text-sm text-muted-foreground">
               No context item is behind this sentence. It is Ask&apos;s own wording: it joins what
               the items say, or says what they leave out.
@@ -151,7 +151,7 @@ function Chain({
           {domains[fact.domain].name} - {fact.where.join(', ')} - {fact.when}
         </p>
       </div>
-      <ol className="relative flex flex-col gap-4 before:absolute before:top-2 before:bottom-2 before:left-[5px] before:w-px before:bg-primary/30">
+      <ol className="relative flex flex-col gap-4 before:absolute before:top-2 before:bottom-2 before:left-1.25 before:w-px before:bg-primary/30">
         <Node label={`In the answer, sentence ${n}`} first>
           <p className="text-sm leading-relaxed">
             <Marked segments={markShared(sentence, [summary])} />
@@ -222,7 +222,7 @@ function Node({
       <span
         aria-hidden
         className={cn(
-          'absolute top-1 left-0 size-[11px] rounded-full border-2 border-primary bg-background',
+          'absolute top-1 left-0 size-2.75 rounded-full border-2 border-primary bg-background',
           first && 'bg-primary',
         )}
       />
@@ -234,7 +234,7 @@ function Node({
 
 function Mark({ children }: { children: React.ReactNode }) {
   return (
-    <mark className="rounded-[3px] bg-primary/12 px-0.5 text-foreground not-italic dark:bg-primary/25">
+    <mark className="rounded-mark bg-primary/12 px-0.5 text-foreground not-italic dark:bg-primary/25">
       {children}
     </mark>
   )

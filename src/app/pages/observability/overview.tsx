@@ -12,8 +12,8 @@ import {
   ListChecksIcon,
   LockIcon,
   MessageSquareIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   Empty,
@@ -203,7 +203,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
           href={href('/observability/quality', { domain: view.domain })}
         />
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-19-10)">
         <FrameSection
           title={view.range === 90 ? 'Questions per week' : 'Questions per day'}
           description="What agents asked and how it was answered. A dashed line marks a publish."
@@ -268,12 +268,12 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
           </FrameSection>
         </div>
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-19-10)">
         <FrameSection
           title="Asked, not found"
           description="Questions about the same thing, five or more times in 7 days."
           action={
-            <a href="#/inbox" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            <a href="/inbox" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
               <ArrowUpRightIcon data-icon="inline-start" />
               Open in Inbox
             </a>
@@ -415,7 +415,7 @@ function NothingConnected() {
           />
         ))}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-6-5)">
         <div aria-hidden className="px-4 py-6 opacity-50 md:px-5">
           <StackedBars
             bars={barsOf({ range: 7 }).map((b) => ({
@@ -433,7 +433,7 @@ function NothingConnected() {
             </span>
             <h2 className="text-lg font-semibold">No agent has asked anything yet</h2>
           </div>
-          <p className="mb-4 max-w-[46ch] text-sm text-muted-foreground">
+          <p className="mb-4 max-w-caption text-sm text-muted-foreground">
             Nothing is connected, so there is nothing to show. Once an agent asks, this page fills
             in with counts: what was asked about, and how it was answered.
           </p>
@@ -516,7 +516,7 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
 function topRows(topics: TopicRow[], grouping: Grouping) {
   if (grouping === 'none')
     return topics.map((t) => ({ ...rollUp([t])[0], name: topicTitle(t), id: t.id }))
-  const groups = rollUp(topics).map((g) => ({ ...g, id: g.rows[0].id as string | undefined }))
+  const groups = rollUp(topics).map((g) => ({ ...g, id: g.rows[0].id }))
   if (grouping === 'metric') return groups
   const by = new Map<string, typeof groups>()
   for (const g of groups) by.set(g.domain ?? '', [...(by.get(g.domain ?? '') ?? []), g])

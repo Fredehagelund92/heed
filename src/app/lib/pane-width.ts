@@ -1,8 +1,10 @@
+import { storageKey } from '@/lib/brand'
+
 // Pane widths the person dragged, kept for the browser session.
 
 export function readWidth(key: string, fallback: number) {
   try {
-    const v = Number(sessionStorage.getItem(`heed-pane:${key}`))
+    const v = Number(sessionStorage.getItem(`${storageKey('pane')}:${key}`))
     return v > 0 ? v : fallback
   } catch {
     return fallback
@@ -11,7 +13,7 @@ export function readWidth(key: string, fallback: number) {
 
 export function saveWidth(key: string, width: number) {
   try {
-    sessionStorage.setItem(`heed-pane:${key}`, String(Math.round(width)))
+    sessionStorage.setItem(`${storageKey('pane')}:${key}`, String(Math.round(width)))
   } catch {
     // A private window can refuse storage; the width then lasts until the page reloads.
   }

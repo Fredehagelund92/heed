@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { Editor } from '@tiptap/react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import {
   Command,
   CommandFooter,
@@ -98,16 +98,16 @@ export const SuggestList = React.forwardRef<
       // Keeps the caret in the box when a row is clicked.
       onMouseDown={(e) => e.preventDefault()}
       className={cn(
-        'rounded-[10px]! border bg-popover p-0 shadow-md',
+        'rounded-lg! border bg-popover p-0 shadow-md',
         'animate-in duration-(--dur-2) fade-in-0 slide-in-from-top-1',
-        'max-sm:rounded-b-none! max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.25)] max-sm:slide-in-from-bottom-4 sm:w-[26rem]',
+        'max-sm:rounded-b-none! max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-safe-area max-sm:shadow-sheet-up max-sm:slide-in-from-bottom-4 sm:w-104',
         className,
       )}
     >
       <CommandList
         ref={list}
         label={label}
-        className="max-h-72 p-1 max-sm:max-h-[min(50svh,var(--sheet-max,50svh))]"
+        className="max-h-72 p-1 max-sm:max-h-bottom-sheet-phone"
       >
         {flat.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm">
@@ -130,7 +130,7 @@ export const SuggestList = React.forwardRef<
                     {m.label}
                   </span>
                   {m.hint && (
-                    <span className="max-w-[40%] shrink-0 truncate text-xs text-muted-foreground">
+                    <span className="max-w-2/5 shrink-0 truncate text-xs text-muted-foreground">
                       {m.hint}
                     </span>
                   )}

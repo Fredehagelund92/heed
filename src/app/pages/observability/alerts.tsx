@@ -1,6 +1,6 @@
-import { ArrowUpRightIcon, BellIcon, PlusIcon, UsersIcon } from 'lucide-react'
+import { ArrowUpRightIcon, BellIcon, PlusIcon, UsersIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import {
@@ -84,7 +84,7 @@ function Alerts() {
         </h3>
         <div
           aria-hidden
-          className="hidden grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_11rem_3rem] gap-x-4 border-b bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-5 py-2.5 @4xl/main:grid"
+          className="hidden grid-cols-(--cols-alerts) gap-x-4 border-b bg-band px-5 py-2.5 @4xl/main:grid"
         >
           <span className={head}>When</span>
           <span className={head}>What happens</span>
@@ -104,7 +104,7 @@ function Alerts() {
           ))}
         </ul>
         {!me.admin && (
-          <p className="border-b px-4 py-3 text-[13px] text-muted-foreground md:px-5">
+          <p className="border-b px-4 py-3 text-dense text-muted-foreground md:px-5">
             Four more rules go only to admins: about spend, failed calls and the whole workspace.
           </p>
         )}
@@ -132,7 +132,7 @@ function Alerts() {
                   >
                     {r.title}
                   </a>
-                  <p className="text-[13px] text-muted-foreground">
+                  <p className="text-dense text-muted-foreground">
                     {r.domain && (
                       <span className="mr-1.5 inline-flex items-center gap-1.5 align-middle">
                         <DomainDot id={r.domain} />
@@ -220,7 +220,7 @@ function RuleRow({
   return (
     <li
       className={cn(
-        'grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 border-b px-4 py-3.5 md:px-5 @4xl/main:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_11rem_3rem] @4xl/main:items-center',
+        'grid grid-cols-(--cols-trail-auto) gap-x-4 gap-y-1 border-b px-4 py-3.5 md:px-5 @4xl/main:grid-cols-(--cols-alerts) @4xl/main:items-center',
         !on && '[&_[data-dim]]:text-muted-foreground',
       )}
     >
@@ -228,12 +228,12 @@ function RuleRow({
         <p data-dim className="flex flex-wrap items-center gap-2 text-sm font-medium">
           {r.name}
           {r.isNew && (
-            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-[11px] font-normal text-muted-foreground">
+            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal text-muted-foreground">
               New
             </span>
           )}
         </p>
-        <p className="mt-0.5 text-[13px] text-muted-foreground">
+        <p className="mt-0.5 text-dense text-muted-foreground">
           {r.threshold && after !== undefined ? (
             <>
               {before}
@@ -252,7 +252,7 @@ function RuleRow({
                   <SelectTrigger
                     size="sm"
                     aria-label={`${r.name}: threshold`}
-                    className="mx-0.5 inline-flex h-6 gap-1 px-1.5 align-baseline text-[13px] text-foreground"
+                    className="mx-0.5 inline-flex h-6 gap-1 px-1.5 align-baseline text-dense text-foreground"
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -285,12 +285,12 @@ function RuleRow({
       </div>
       <p
         data-dim
-        className="text-[13px] @4xl/main:row-start-1 @4xl/main:col-start-2 @4xl/main:text-sm"
+        className="text-dense @4xl/main:col-start-2 @4xl/main:row-start-1 @4xl/main:text-sm"
       >
         <span className="text-muted-foreground @4xl/main:sr-only">Then: </span>
         {r.then}
       </p>
-      <p className="col-span-2 text-[13px] text-muted-foreground @4xl/main:col-span-1 @4xl/main:row-start-1 @4xl/main:col-start-3">
+      <p className="col-span-2 text-dense text-muted-foreground @4xl/main:col-span-1 @4xl/main:col-start-3 @4xl/main:row-start-1">
         <span className="@4xl/main:sr-only">Last raised: </span>
         {seen.href && last !== 'Never' ? (
           <a

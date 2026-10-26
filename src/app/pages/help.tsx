@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import {
   ArrowUpRightIcon,
   EyeOffIcon,
@@ -8,7 +8,7 @@ import {
   PenLineIcon,
   SearchIcon,
   XIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { StateLine } from '@/components/heed/bits'
 import { Frame, FrameFooter, FramePage, FrameSection } from '@/components/heed/frame'
 import { Switch } from '@/components/ui/switch'
@@ -98,7 +98,7 @@ function AnswerLines({ q }: { q: string }) {
       <div className="border-t" role="table" aria-label="Answer lines">
         <div
           role="row"
-          className="hidden grid-cols-[15rem_minmax(0,1fr)_14rem] gap-x-6 border-b bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-5 py-2 text-xs text-muted-foreground md:grid"
+          className="hidden grid-cols-(--cols-help) gap-x-6 border-b bg-band px-5 py-2 text-xs text-muted-foreground md:grid"
         >
           <span role="columnheader">The line</span>
           <span role="columnheader">What it means</span>
@@ -109,7 +109,7 @@ function AnswerLines({ q }: { q: string }) {
             <div
               key={a.state}
               role="row"
-              className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-[15rem_minmax(0,1fr)_14rem] md:items-start md:px-5"
+              className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-(--cols-help) md:items-start md:px-5"
             >
               <div role="cell">
                 <StateLine state={a.state} sentence tip={false} />

@@ -6,7 +6,7 @@
  */
 import * as z from 'zod/mini'
 import type { ClientPolicy, SaveClientInput, ToolSwitch } from '@/api'
-import { toolWords, type AgentToolName } from '@domain/mcp-text'
+import { toolWords, type McpToolName } from '@domain/mcp-text'
 
 /** The gateway's own limits when a client has none (src/server/mcp/gateway.ts). */
 export const DEFAULT_RATE_PER_MINUTE = 120
@@ -21,24 +21,30 @@ export const GATEWAY_REASON_MAX = 500
 export type ToolAccess = 'read' | 'feedback' | 'propose'
 
 /** What each tool may do, which the screen groups them by. */
-const toolAccess: Record<AgentToolName, ToolAccess> = {
-  get_context: 'read',
-  find_context: 'read',
-  read_context: 'read',
+const toolAccess: Record<McpToolName, ToolAccess> = {
+  get_facts: 'read',
+  find_facts: 'read',
+  search_facts: 'read',
+  read_item: 'read',
   get_related: 'read',
-  report: 'feedback',
-  suggest_context: 'propose',
+  domain_overview: 'read',
+  what_changed: 'read',
+  improve_question: 'read',
+  search_help: 'read',
+  report_gap: 'feedback',
+  give_feedback: 'feedback',
+  draft_context: 'propose',
 }
 
 /**
- * Every tool the gateway serves, in the order the screen lists them: the ones that read context
- * first, then the one that takes reports, then the one that suggests for a person. The title and
- * the line are the ones an agent shows (src/domain/mcp-text.ts). A tool the service adds later,
- * or one the request log still names from before, is listed after these under its own name.
+ * Every tool the gateway serves, in the order the screen lists them: the ones that read facts
+ * first, then the ones that take feedback, then the one that drafts for a person. The title and
+ * the line are the ones an agent shows (src/domain/mcp-text.ts). A tool the service adds later
+ * is listed after these under its own name.
  */
 export const toolInfo: Record<string, { name: string; about: string; access: ToolAccess }> =
   Object.fromEntries(
-    (Object.keys(toolAccess) as AgentToolName[]).map((tool) => [
+    (Object.keys(toolAccess) as McpToolName[]).map((tool) => [
       tool,
       { name: toolWords[tool].title, about: toolWords[tool].line, access: toolAccess[tool] },
     ]),
@@ -46,13 +52,13 @@ export const toolInfo: Record<string, { name: string; about: string; access: Too
 
 const toolOrder = Object.keys(toolInfo)
 
-/** A tool's name in words: "Get context for a question". A tool the screen does not know keeps its own name. */
+/** A tool's name in words: "Get facts for a question". A tool the screen does not know keeps its own name. */
 export const toolName = (tool: string) => toolInfo[tool]?.name ?? tool
 
 export const accessWords: Record<ToolAccess, string> = {
   read: 'Reads facts',
   feedback: 'Sends feedback',
-  propose: 'Suggests for a person',
+  propose: 'Drafts for a person',
 }
 
 /** The tools in the screen's order: known tools first, as `toolInfo` lists them, then the rest. */

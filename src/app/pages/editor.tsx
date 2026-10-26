@@ -20,9 +20,9 @@ import {
   SparklesIcon,
   TriangleAlertIcon,
   UserIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { ContextText } from '@/components/heed/mention-chip'
 import { useSideChoice } from '@/lib/side-panel'
@@ -515,9 +515,7 @@ export function FactEditor({
           <div
             className={cn(
               'mt-2.5 flex flex-col gap-2 leading-relaxed text-foreground/85',
-              long &&
-                !previewAll &&
-                'max-h-44 overflow-hidden [mask-image:linear-gradient(to_bottom,black_75%,transparent)]',
+              long && !previewAll && 'max-h-44 overflow-hidden fade-out-bottom',
             )}
           >
             {form.body.trim() ? (

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { and } from '@/lib/utils'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { ContextText, MentionText } from '@/components/heed/mention-chip'
 import { mentionId } from '@/lib/mentions'
 import { commentActions } from '@/lib/comments'
@@ -17,7 +17,7 @@ import {
   MessageSquareIcon,
   ShapesIcon,
   ShieldAlertIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { StatusBadge } from '@/components/heed/bits'
 import { PeekFact, PeekFacts } from '@/components/heed/peek'
@@ -236,7 +236,7 @@ export function FactPage({ id }: { id: string }) {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="#/context">Context</BreadcrumbLink>
+              <BreadcrumbLink href="/context">Context</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block" />
             <BreadcrumbItem>
@@ -328,7 +328,7 @@ export function FactPage({ id }: { id: string }) {
             {pending && (
               <div
                 role="status"
-                className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-frame border border-dashed px-3 py-2 text-sm animate-in duration-(--dur-2) fade-in-0"
+                className="mb-5 flex animate-in flex-wrap items-center gap-x-3 gap-y-2 rounded-frame border border-dashed px-3 py-2 text-sm duration-(--dur-2) fade-in-0"
               >
                 <ClockIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="min-w-0 flex-1">
@@ -351,7 +351,7 @@ export function FactPage({ id }: { id: string }) {
             {published && !pending && (
               <p
                 role="status"
-                className="mb-5 flex items-center gap-2 text-sm text-muted-foreground animate-in duration-(--dur-2) fade-in-0"
+                className="mb-5 flex animate-in items-center gap-2 text-sm text-muted-foreground duration-(--dur-2) fade-in-0"
               >
                 <CircleCheckIcon className="size-4 shrink-0 text-primary" aria-hidden />
                 Published {published} by you. Agents get it from the next question.
@@ -449,7 +449,7 @@ export function FactPage({ id }: { id: string }) {
               </div>
             </div>
             {!wide && attention && (
-              <div className="mt-6 overflow-hidden rounded-frame border border-[oklch(0.68_0.16_65/0.45)] bg-[oklch(0.68_0.16_65/0.06)] dark:border-[oklch(0.78_0.14_70/0.45)] dark:bg-[oklch(0.68_0.16_65/0.1)] [&>section]:border-b-0 [&>section+section]:border-t">
+              <div className="mt-6 overflow-hidden rounded-frame border border-caution/45 bg-caution/6 dark:border-warn/45 dark:bg-caution/10 [&>section]:border-b-0 [&>section+section]:border-t">
                 {attention}
               </div>
             )}

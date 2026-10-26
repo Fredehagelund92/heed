@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { EqualIcon, FolderIcon, GlobeIcon, SigmaIcon, SplitIcon, XIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { EqualIcon, FolderIcon, GlobeIcon, SigmaIcon, SplitIcon, XIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { chipTone, domainHue, domainIdByName, kindOfWhere, type Tone } from '@/lib/tones'
 import type { DomainId } from '@/data/world'
 
@@ -33,7 +33,7 @@ export function TagChip({
       title={title}
       style={t.style}
       className={cn(
-        'inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-[6px] pl-1.5 text-xs font-medium whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0 [&>svg]:opacity-80',
+        'inline-flex h-6 max-w-full min-w-0 items-center gap-1 rounded-sm pl-1.5 text-xs font-medium whitespace-nowrap [&>svg]:size-3 [&>svg]:shrink-0 [&>svg]:opacity-80',
         onRemove ? 'pr-0.5' : 'pr-1.5',
         t.className,
         className,
@@ -46,7 +46,7 @@ export function TagChip({
           type="button"
           aria-label={removeLabel}
           onClick={onRemove}
-          className="relative grid size-5 shrink-0 place-items-center rounded-[4px] outline-none after:absolute after:-inset-2 hover:bg-black/8 focus-visible:ring-2 focus-visible:ring-ring dark:hover:bg-white/10"
+          className="relative grid size-5 shrink-0 place-items-center rounded outline-none after:absolute after:-inset-2 hover:bg-chip-hover focus-visible:ring-2 focus-visible:ring-ring"
         >
           <XIcon aria-hidden className="size-3" />
         </button>
@@ -98,7 +98,7 @@ export function DomainDot({ id, className }: { id: DomainId; className?: string 
       aria-hidden
       className={cn(
         'inline-block size-2.5 shrink-0 rounded-full',
-        h === null ? 'border border-muted-foreground' : 'bg-[oklch(0.62_0.14_var(--chip-h))]',
+        h === null ? 'border border-muted-foreground' : 'bg-chip-dot',
         className,
       )}
       style={h === null ? undefined : ({ '--chip-h': h } as CSSProperties)}

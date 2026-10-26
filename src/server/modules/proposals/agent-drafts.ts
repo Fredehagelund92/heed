@@ -92,7 +92,7 @@ export async function saveAgentDraft(
     ])
     if (used)
       throw new ORPCError('CONFLICT', {
-        message: `These answers already saved a draft. Open it in ${productName}, or call the tool again without them`,
+        message: `These answers already saved a draft. Open it in ${productName}, or call draft_context again`,
       })
   }
   const proposals = createProposalsService(tx, clock, personId)

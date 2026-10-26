@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { CalendarIcon, PlusIcon, XIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { CalendarIcon, PlusIcon, XIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -92,7 +92,7 @@ export function PropertyRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="grid grid-cols-1 items-start gap-x-3 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 items-start gap-x-3 sm:grid-cols-(--cols-lead-34)">
       <dt
         id={id}
         className="flex h-7 items-center gap-2 text-sm text-muted-foreground sm:h-8 [&>svg]:size-3.5 [&>svg]:shrink-0"
@@ -182,7 +182,7 @@ export function PickerField({
         <SheetContent
           side="bottom"
           initialFocus={initialFocus}
-          className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          className="max-h-bottom-sheet gap-0 pb-safe"
         >
           <SheetHeader className="pb-2">
             <SheetTitle>{label}</SheetTitle>
@@ -326,7 +326,7 @@ export function SearchSelectField({
     >
       <Command label={label} className="p-0">
         <CommandInput ref={input} placeholder={searchPlaceholder} />
-        <CommandList label={label} className="max-h-72 max-sm:max-h-[min(26rem,60svh)]">
+        <CommandList label={label} className="max-h-72 max-sm:max-h-menu">
           <CommandEmpty>Nothing by that name.</CommandEmpty>
           {groups.map((g) => (
             <CommandGroup key={g.heading} heading={g.heading}>
@@ -436,7 +436,7 @@ export function WhenField({
       initialFocus={() =>
         presets.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
       }
-      className="w-auto max-w-[calc(100vw-2rem)]"
+      className="w-auto max-w-viewport-inset"
     >
       <div className="flex flex-col gap-1 sm:flex-row">
         <RadioGroup
@@ -456,7 +456,7 @@ export function WhenField({
             </label>
           ))}
         </RadioGroup>
-        <div className="flex min-w-0 flex-col p-1 sm:w-[17rem]">
+        <div className="flex min-w-0 flex-col p-1 sm:w-68">
           <p className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground" aria-live="polite">
             {hint}
           </p>
@@ -596,7 +596,7 @@ export function ChipsField({
       data-prop-value
       aria-labelledby={`${labelId} ${addId}-t`}
       className={cn(
-        'inline-flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted',
+        'inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted',
         !values.length && '-ml-1.5 h-8 text-sm',
       )}
     >
@@ -616,7 +616,7 @@ export function ChipsField({
           <SheetContent
             side="bottom"
             initialFocus={input}
-            className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="max-h-bottom-sheet gap-0 pb-safe"
           >
             <SheetHeader className="pb-2">
               <SheetTitle>{label}</SheetTitle>
@@ -661,7 +661,7 @@ export function InlineText({
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className="-mx-1.5 field-sizing-content w-[calc(100%+0.75rem)] max-w-xl resize-none rounded-md bg-transparent px-1.5 py-1.5 text-sm leading-5 transition-colors outline-none placeholder:text-muted-foreground hover:bg-muted/50 focus-visible:bg-transparent focus-visible:ring-3 focus-visible:ring-ring/40"
+      className="-mx-1.5 field-sizing-content w-overhang max-w-xl resize-none rounded-md bg-transparent px-1.5 py-1.5 text-sm leading-5 transition-colors outline-none placeholder:text-muted-foreground hover:bg-muted/50 focus-visible:bg-transparent focus-visible:ring-3 focus-visible:ring-ring/40"
     />
   )
 }
@@ -738,7 +738,7 @@ export function PeopleField({
     >
       <Command label={label} className="p-0">
         <CommandInput ref={input} placeholder="Search people" />
-        <CommandList label={label} className="max-h-72 max-sm:max-h-[min(26rem,60svh)]">
+        <CommandList label={label} className="max-h-72 max-sm:max-h-menu">
           <CommandEmpty>Nobody by that name.</CommandEmpty>
           {ordered.map((p) => (
             <CommandItem

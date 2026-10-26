@@ -22,7 +22,7 @@ test('one Help row opens the menu; Documentation lives in it', async ({ page }) 
     await expect(menu.getByRole('menuitem', { name: new RegExp(row) })).toBeVisible()
   await expect(menu.getByRole('menuitem', { name: /Get started/ })).toHaveCount(0)
   await menu.getByRole('menuitem', { name: 'Answer lines and words' }).click()
-  await expect(page).toHaveURL(/#\/help/)
+  await expect(page).toHaveURL(/\/help$/)
 })
 
 test('Get started shows in the menu while setup is unfinished', async ({ page }) => {
@@ -62,7 +62,7 @@ test('the Help page searches its own words, and sends the rest to the documentat
   await expect(page.getByText('Nothing in Help matches “refund”')).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Search the documentation/ }).first(),
-  ).toHaveAttribute('href', '#/docs?q=refund')
+  ).toHaveAttribute('href', '/docs?q=refund')
 })
 
 test('the answer line explains itself', async ({ page }) => {
@@ -73,7 +73,7 @@ test('the answer line explains itself', async ({ page }) => {
   await expect(page.getByText('What you do.')).toBeVisible()
   await expect(page.getByRole('link', { name: /All answer lines/ })).toHaveAttribute(
     'href',
-    '#/help',
+    '/help',
   )
 })
 

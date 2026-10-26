@@ -37,7 +37,7 @@ test.describe('the clients', () => {
     await expect(clientRow(page, 'claude-code')).toContainText('Every tool that is on')
     await expect(clientRow(page, 'claude-code')).toContainText('Allowed')
     await expect(clientRow(page, 'cursor')).toContainText(
-      'Get context for a question, Find context, Read a fact',
+      'Get facts for a question, Search facts, Read a fact',
     )
     await expect(clientRow(page, 'cursor')).toContainText('Default (100 KB)')
     await expect(clientRow(page, 'cursor')).toContainText('Switched off')
@@ -60,14 +60,14 @@ test.describe('the clients', () => {
 
     await dialog.getByRole('textbox', { name: 'Label' }).fill('support-bot')
     await dialog.getByRole('radio', { name: 'Only the tools chosen below' }).check()
-    await dialog.getByRole('checkbox', { name: 'Get context for a question' }).check()
-    await dialog.getByRole('checkbox', { name: 'Tell the owner' }).check()
+    await dialog.getByRole('checkbox', { name: 'Get facts for a question' }).check()
+    await dialog.getByRole('checkbox', { name: 'Report something missing' }).check()
     await dialog.getByRole('textbox', { name: /Requests a minute/ }).fill('30')
     await dialog.getByRole('button', { name: 'Add agent' }).click()
     await expect(dialog).toBeHidden()
     await expect(page.getByText('Support bot added')).toBeVisible()
     await expect(clientRow(page, 'support-bot')).toContainText(
-      'Get context for a question, Tell the owner',
+      'Get facts for a question, Report something missing',
     )
     await expect(clientRow(page, 'support-bot')).toContainText('30')
     await expect(page.getByRole('button', { name: 'Add an agent' })).toBeFocused()
@@ -125,18 +125,18 @@ test.describe('the tools', () => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway&tab=tools', desktop)
     await expect(page.getByRole('tab', { name: 'Tools', selected: true })).toBeVisible()
-    await expect(page.getByText('All 6 tools are on.')).toBeVisible()
-    await expect(toolRow(page, 'get_related')).toContainText('On since')
-    const getContext = page.getByRole('switch', { name: 'Get context for a question' })
+    await expect(page.getByText('10 of 12 tools are on.')).toBeVisible()
+    await expect(toolRow(page, 'get_related')).toContainText('Off since')
+    const getContext = page.getByRole('switch', { name: 'Get facts for a question' })
     await expect(getContext).toBeChecked()
 
     await getContext.click()
-    const off = page.getByRole('alertdialog', { name: 'Switch off Get context for a question?' })
+    const off = page.getByRole('alertdialog', { name: 'Switch off Get facts for a question?' })
     await expect(off).toContainText(
       'Claude Code with a token and Evaluation runner stop using it from the next call.',
     )
     // Nothing changes until it is confirmed with a reason (the page behind is inert meanwhile).
-    await expect(toolRow(page, 'get_context').locator('[data-slot="switch"]')).toHaveAttribute(
+    await expect(toolRow(page, 'get_facts').locator('[data-slot="switch"]')).toHaveAttribute(
       'aria-checked',
       'true',
     )
@@ -146,11 +146,11 @@ test.describe('the tools', () => {
     await off.getByRole('button', { name: 'Switch off' }).click()
     await expect(off).toBeHidden()
     await expect(getContext).not.toBeChecked()
-    await expect(page.getByText('5 of 6 tools are on.')).toBeVisible()
-    await expect(page.getByText('Get context for a question switched off')).toBeVisible()
+    await expect(page.getByText('9 of 12 tools are on.')).toBeVisible()
+    await expect(page.getByText('Get facts for a question switched off')).toBeVisible()
 
     await getContext.click()
-    const on = page.getByRole('alertdialog', { name: 'Switch on Get context for a question?' })
+    const on = page.getByRole('alertdialog', { name: 'Switch on Get facts for a question?' })
     await on.getByRole('textbox', { name: 'Why' }).fill('Fixed')
     await on.getByRole('button', { name: 'Switch on' }).click()
     await expect(on).toBeHidden()
@@ -162,10 +162,10 @@ test.describe('the tools', () => {
     await openPage(page, '/admin?section=gateway&tab=tools', desktop)
     const related = page.getByRole('switch', { name: 'Follow links' })
     await related.click()
-    const dialog = page.getByRole('alertdialog', { name: 'Switch off Follow links?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Switch on Follow links?' })
     await dialog.getByRole('button', { name: 'Cancel' }).click()
     await expect(dialog).toBeHidden()
-    await expect(related).toBeChecked()
+    await expect(related).not.toBeChecked()
   })
 })
 

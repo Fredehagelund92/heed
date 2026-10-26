@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useEditor, useEditorState } from '@tiptap/react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Button } from '@/components/ui/button'
@@ -122,8 +122,7 @@ export function Composer({
         <div
           onFocus={() => setFocused(true)}
           onBlur={(e) =>
-            !e.currentTarget.parentElement?.contains(e.relatedTarget as Node | null) &&
-            setFocused(false)
+            !e.currentTarget.parentElement?.contains(e.relatedTarget) && setFocused(false)
           }
         >
           <RichTextEditor.Content className="[&_.ProseMirror]:min-h-9! [&_.ProseMirror]:px-3! [&_.ProseMirror]:py-2! [&_.ProseMirror]:text-base sm:[&_.ProseMirror]:text-sm" />

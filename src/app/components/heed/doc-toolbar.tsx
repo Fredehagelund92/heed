@@ -1,6 +1,6 @@
 import { useEditorState, type Editor } from '@tiptap/react'
-import { ChevronDownIcon, MinusIcon, PlusIcon, QuoteIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronDownIcon, MinusIcon, PlusIcon, QuoteIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { Button } from '@/components/ui/button'
 import {
@@ -28,7 +28,7 @@ const SCROLL_SHADOWS = {
   ].join(', '),
 }
 
-const ACTIVE_ITEM = "rounded-md py-1 pl-2 text-[13px] [&_svg:not([class*='size-'])]:size-3.5"
+const ACTIVE_ITEM = "rounded-md py-1 pl-2 text-dense [&_svg:not([class*='size-'])]:size-3.5"
 
 const TEXT_STYLES = [
   { label: 'Paragraph', value: '0', className: '' },
@@ -47,11 +47,7 @@ function TextStyleMenu({ editor }: { editor: Editor | null }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-[6.5rem] justify-between px-2 text-[13px]"
-          />
+          <Button variant="ghost" size="sm" className="h-8 w-26 justify-between px-2 text-dense" />
         }
       >
         {TEXT_STYLES.find((s) => s.value === value)?.label}
@@ -85,7 +81,7 @@ function InsertMenu({ editor }: { editor: Editor | null }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-[13px]" />}
+        render={<Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-dense" />}
       >
         <PlusIcon className="size-4" />
         Insert
@@ -93,14 +89,14 @@ function InsertMenu({ editor }: { editor: Editor | null }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-36 p-1">
         <DropdownMenuItem
-          className="rounded-md py-1 text-[13px] [&_svg]:size-3.5!"
+          className="rounded-md py-1 text-dense [&_svg]:size-3.5!"
           onClick={() => editor?.chain().focus().toggleBlockquote().run()}
         >
           <QuoteIcon />
           Quote
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="rounded-md py-1 text-[13px] [&_svg]:size-3.5!"
+          className="rounded-md py-1 text-dense [&_svg]:size-3.5!"
           onClick={() => editor?.chain().focus().setHorizontalRule().run()}
         >
           <MinusIcon />
@@ -115,10 +111,10 @@ export function Toolbar({ editor, className }: { editor: Editor | null; classNam
   return (
     <div className={cn('flex h-tool shrink-0 items-center border-b bg-background', className)}>
       <div
-        className="w-full max-w-full overflow-x-auto px-2 [scrollbar-width:none] md:px-4 [&::-webkit-scrollbar]:hidden"
+        className="w-full max-w-full scrollbar-none overflow-x-auto px-2 md:px-4 [&::-webkit-scrollbar]:hidden"
         style={SCROLL_SHADOWS}
       >
-        <RichTextEditor.Toolbar className="flex-nowrap! justify-start! border-0! bg-transparent! px-1! py-1! sm:w-max [&>*]:shrink-0 [&_.rte-controls-group>button:not([data-state=on]):not([aria-pressed=true])]:text-foreground!">
+        <RichTextEditor.Toolbar className="flex-nowrap! justify-start! border-0! bg-transparent! px-1! py-1! sm:w-max [&_.rte-controls-group>button:not([data-state=on]):not([aria-pressed=true])]:text-foreground! [&>*]:shrink-0">
           <RichTextEditor.ControlsGroup>
             <RichTextEditor.Undo />
             <RichTextEditor.Redo />

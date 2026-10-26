@@ -43,7 +43,11 @@ const RichTextEditorRoot = ({
       }}
     >
       <div
-        className={cn('rte-root', variant !== 'default' && `rte-root--${variant}`, className)}
+        className={cn(
+          'rte-root',
+          variant === 'subtle' ? 'rte-root--subtle' : variant === 'compact' && 'rte-root--compact',
+          className,
+        )}
         data-variant={variant}
       >
         {children}

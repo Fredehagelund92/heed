@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { LinkIcon, MessageSquareTextIcon, ReceiptTextIcon, ShareIcon } from 'lucide-react'
+import { LinkIcon, MessageSquareTextIcon, ReceiptTextIcon, ShareIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { DockFrame, DockMissing } from '@/components/dock'
@@ -70,14 +70,14 @@ export function ShareButton({
         sideOffset={10}
         aria-label="Share this answer"
         initialFocus={copyRef}
-        className="max-h-[min(40rem,var(--available-height))] w-[min(28rem,calc(100vw-2rem))] gap-3 overflow-y-auto rounded-lg p-4"
+        className="max-h-popup w-share gap-3 overflow-y-auto rounded-lg p-4"
       >
         <p className="text-sm font-semibold">Share this answer</p>
         <ShareBody answer={answer} facts={facts} way={way} onWay={setWay} />
         <Button
           ref={copyRef}
           className="w-full"
-          onClick={() => copyShare(way, answer, facts).then(() => setOpen(false))}
+          onClick={() => void copyShare(way, answer, facts).then(() => setOpen(false))}
         >
           {way === 'slack' ? 'Copy for Slack' : 'Copy card'}
         </Button>
@@ -115,12 +115,12 @@ export function SharePanel({ id }: { id: string }) {
     <DockFrame
       title="Share this answer"
       footer={
-        <Button autoFocus onClick={() => copyShare(way, shown.answer, shown.facts)}>
+        <Button autoFocus onClick={() => void copyShare(way, shown.answer, shown.facts)}>
           {way === 'slack' ? 'Copy for Slack' : 'Copy card'}
         </Button>
       }
     >
-      <div className="p-4 md:p-5">
+      <div className="p-4 @md:p-5">
         <ShareBody answer={shown.answer} facts={shown.facts} way={way} onWay={setWay} />
       </div>
     </DockFrame>
@@ -190,7 +190,7 @@ function ShareBody({
               title={later ? LINK_REASON : undefined}
               onClick={() => !later && onWay(t.id as Way)}
               className={cn(
-                'flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-[13px] whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-10',
+                'flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-dense whitespace-nowrap text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50 pointer-coarse:h-10',
                 on && 'bg-background font-medium text-foreground shadow-xs',
                 later ? 'cursor-default' : 'hover:text-foreground',
               )}
@@ -198,7 +198,7 @@ function ShareBody({
               <t.icon className="size-3.5 shrink-0" aria-hidden />
               {t.label}
               {later && (
-                <span className="rounded-sm border px-1 text-[10px] leading-4 text-muted-foreground">
+                <span className="rounded-sm border px-1 text-3xs leading-4 text-muted-foreground">
                   Later
                 </span>
               )}
@@ -249,7 +249,7 @@ function SlackPreview({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       </p>
       <p>{plainAnswer(answer.text)}</p>
       {facts.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-[13px] text-muted-foreground">
+        <ul className="flex flex-col gap-0.5 text-dense text-muted-foreground">
           {facts.map((f, i) => (
             <li key={f.id}>{sourceLine(f, i)}</li>
           ))}
@@ -262,7 +262,7 @@ function SlackPreview({ answer, facts }: { answer: Answer; facts: Fact[] }) {
 /** The card: a receipt in the product's square hairline frame. State, question, answer, numbered sources, one footer line. */
 export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   return (
-    <figure className="m-0 flex flex-col gap-3 rounded-[3px] border bg-background p-4">
+    <figure className="m-0 flex flex-col gap-3 rounded-mark border bg-background p-4">
       <StateLine state={answer.state} sentence tip={false} className="text-xs" />
       <div className="flex flex-col gap-1.5">
         <p className="text-base leading-snug font-semibold text-balance">{answer.question}</p>
@@ -271,7 +271,7 @@ export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] })
       {facts.length > 0 && (
         <ol className="flex flex-col gap-1.5 border-t border-dotted pt-2.5 text-xs">
           {facts.map((f, i) => (
-            <li key={f.id} className="grid grid-cols-[1rem_minmax(0,1fr)_auto] gap-x-2">
+            <li key={f.id} className="grid grid-cols-(--cols-lead-4-trail-auto) gap-x-2">
               <span className="text-muted-foreground tabular-nums">{i + 1}</span>
               <span>{f.title}</span>
               <span className="text-right whitespace-nowrap text-muted-foreground">
@@ -281,7 +281,7 @@ export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] })
           ))}
         </ol>
       )}
-      <figcaption className="border-t border-dotted pt-2 text-[11px] text-muted-foreground">
+      <figcaption className="border-t border-dotted pt-2 text-2xs text-muted-foreground">
         {cardFooter()}
       </figcaption>
     </figure>

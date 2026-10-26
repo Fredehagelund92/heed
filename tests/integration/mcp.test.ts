@@ -173,41 +173,6 @@ it('persists anonymous feedback and atomically counts simultaneous reports for o
   ])
 })
 
-it('answers the agent contract over PostgreSQL: the short reply, the item, and a report with its domain', async () => {
-  const reply = await wire.callTool({
-    name: 'get_context',
-    arguments: { question: 'Orders August 2026' },
-  })
-  expect(reply.isError).not.toBe(true)
-  const short = reply.structuredContent as { reply_id: string; context: { id: string }[] }
-  expect(short).toMatchObject({
-    status: 'matched',
-    say: expect.stringMatching(/^Checked\. /) as string,
-    context: [{ id: item, checked: { role: 'the owner of Finance' } }],
-    edition: expect.stringMatching(/^\d{4}-\d{2}-\d{2}\.\d+$/) as string,
-  })
-  expect(
-    (await wire.callTool({ name: 'read_context', arguments: { id: item } })).structuredContent,
-  ).toMatchObject({ context: { id: item } })
-  const reported = await wire.callTool({
-    name: 'report',
-    arguments: { kind: 'unclear', reply_id: short.reply_id, context_id: item },
-  })
-  expect(reported.structuredContent).toMatchObject({ recorded: true, to: 'the owner of Finance' })
-  expect(
-    (
-      await admin.query('select verdict,client_label,area_id from feedback where delivery_id=$1', [
-        short.reply_id,
-      ])
-    ).rows,
-  ).toEqual([{ verdict: 'unclear', client_label: 'claude-code', area_id: 'finance' }])
-  // The delivery is recorded with the resolver's outcome, which the request log reads too.
-  await gateway.flush()
-  expect(
-    (await admin.query('select status from deliveries where id=$1', [short.reply_id])).rows,
-  ).toEqual([{ status: 'matched' }])
-})
-
 it('refuses a batch of report_gap calls whole: no report counted, one refusal logged (FR-408)', async () => {
   const before = (
     await admin.query<{ reports: number }>(

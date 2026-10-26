@@ -1,6 +1,6 @@
 import * as z from 'zod'
 import { notLookedUp } from '../../domain/say.ts'
-import { listedTool, toolInputSchema, type ListedName } from './tools.ts'
+import { tools, toolInputSchema, type ToolName } from './tools.ts'
 
 /*
   A tool call whose arguments do not fit the tool's input schema (FR-345).
@@ -12,42 +12,35 @@ import { listedTool, toolInputSchema, type ListedName } from './tools.ts'
   never its value, so no question text travels back into a record.
 */
 
-const question = 'How did orders do in Norway in August 2026?'
-const searchCall = { query: 'orders Norway' }
-const draftCall = {
-  text: 'Orders in Norway fell on 3 Aug 2026 while the payment provider was down.',
-  scope: {
+/** One valid call of each tool, as the error shows it. Each is checked against its schema. */
+export const exampleCalls: Record<ToolName, Record<string, unknown>> = {
+  get_facts: {
+    question: 'How did orders do in Norway in August 2026?',
     metrics: ['orders'],
     dimension_filters: [{ dimension: 'market', values: ['Norway'] }],
+    window: { from: '2026-08-01', to: '2026-08-31' },
   },
-}
-const scopedCall = {
-  question,
-  metrics: ['orders'],
-  dimension_filters: [{ dimension: 'market', values: ['Norway'] }],
-  window: { from: '2026-08-01', to: '2026-08-31' },
-}
-
-/** One valid call of each tool and each deprecated id, as the error shows it. Each is checked against its schema. */
-export const exampleCalls: Record<ListedName, Record<string, unknown>> = {
-  get_context: scopedCall,
-  find_context: { query: 'GMV Spain' },
-  read_context: { id: 'itm_0a1b2c3d' },
-  report: { kind: 'wrong', reply_id: '0f8fad5b-d9cb-469f-a165-70867728950e' },
-  suggest_context: draftCall,
-  get_related: { id: 'itm_0a1b2c3d' },
-  get_facts: scopedCall,
-  find_facts: { query: 'GMV Spain' },
-  search_facts: searchCall,
-  search_context: searchCall,
+  search_facts: { query: 'orders Norway' },
   read_item: { id: 'itm_0a1b2c3d' },
+  get_related: { id: 'itm_0a1b2c3d' },
+  find_facts: { query: 'GMV Spain' },
+  domain_overview: { domain: 'Sales' },
+  what_changed: { domain: 'Sales' },
+  search_help: { query: 'What is an MCP?' },
+  improve_question: { question: 'How did orders do last month?', metrics: ['orders'] },
   report_gap: {
-    question,
+    question: 'How did orders do in Norway in August 2026?',
     metrics: ['orders'],
     window: { from: '2026-08-01', to: '2026-08-31' },
   },
   give_feedback: { delivery_id: '0f8fad5b-d9cb-469f-a165-70867728950e', verdict: 'missing' },
-  draft_context: draftCall,
+  draft_context: {
+    text: 'Orders in Norway fell on 3 Aug 2026 while the payment provider was down.',
+    scope: {
+      metrics: ['orders'],
+      dimension_filters: [{ dimension: 'market', values: ['Norway'] }],
+    },
+  },
 }
 
 /** A Standard Schema issue, with what Zod adds to it when it is there. */
@@ -66,7 +59,7 @@ type Marked = { [marked]: readonly Issue[] }
  * through marked with their issues, so the tool answers them itself (`invalidInputOf`). The JSON
  * Schema a client reads is the tool's own.
  */
-export function lenientInputSchema(name: ListedName) {
+export function lenientInputSchema(name: ToolName) {
   const schema = toolInputSchema(name)
   const standard = schema['~standard']
   return {
@@ -113,8 +106,8 @@ export function problemOf(issue: Issue): { field: string; problem: string } {
 }
 
 /** The fields a tool takes, the required ones first and marked so. */
-export function fieldsOf(name: ListedName): string[] {
-  const json = z.toJSONSchema(listedTool(name).inputSchema, { io: 'input' }) as {
+export function fieldsOf(name: ToolName): string[] {
+  const json = z.toJSONSchema(tools[name].inputSchema, { io: 'input' }) as {
     properties?: Record<string, unknown>
     required?: string[]
   }
@@ -140,7 +133,7 @@ function distinct(issues: readonly Issue[]): Issue[] {
 }
 
 /** The error a tool answers arguments that do not fit with (isError, status `invalid_input`). */
-export function invalidInputResult(name: ListedName, all: readonly Issue[]) {
+export function invalidInputResult(name: ToolName, all: readonly Issue[]) {
   const issues = distinct(all)
   const problems = issues.slice(0, MAX_PROBLEMS).map(problemOf)
   const more = issues.length - problems.length

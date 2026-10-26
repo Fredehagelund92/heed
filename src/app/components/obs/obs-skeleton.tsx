@@ -26,7 +26,7 @@ export function ObsSkeleton({
       />
       {kpis > 0 && <KpiSkeleton n={kpis} />}
       {body === 'overview' && (
-        <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-19-10)">
           <ChartSkeleton />
           <div className="border-t @4xl/main:border-t-0 @4xl/main:border-l">
             <div className="flex flex-col gap-3 px-4 py-4 md:px-5">
@@ -49,7 +49,7 @@ export function ObsSkeleton({
       )}
       {body === 'rules' && <RowsSkeleton rows={8} tall />}
       {body === 'split' && (
-        <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-3-2)">
           <RowsSkeleton rows={6} tall />
           <div className="border-t @4xl/main:border-t-0 @4xl/main:border-l">
             <ChartSkeleton height={170} />

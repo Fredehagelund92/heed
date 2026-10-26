@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { Outlet } from '@tanstack/react-router'
 import { commentActions } from '@/lib/comments'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
@@ -13,7 +14,6 @@ import { DefinitionPeek } from '@/components/heed/definition-peek'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { ObservabilityPage } from '@/pages/observability'
 import { AnswerPanel } from '@/components/obs/answer-panel'
 import { SharePanel } from '@/components/heed/share-answer'
 import { WherePanel } from '@/components/heed/where-panel'
@@ -21,50 +21,22 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { open } from '@/lib/events'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
-import { navigate, useRoute } from '@/lib/router'
+import { navigate, useInAppLinks, useRoute } from '@/lib/router'
 import { useStore } from '@/lib/store'
 import { StoreProvider } from '@/lib/store-provider'
 import { ThemeProvider } from '@/lib/theme'
-import { AskDock, AskPage, TryIt } from '@/pages/ask'
-import { FactPage } from '@/pages/fact'
-import { HelpPage } from '@/pages/help'
-import { DocsSite } from '@/pages/docs'
-import { InboxPage } from '@/pages/inbox'
-import { ContextPage } from '@/pages/context'
-import { DefinitionPage } from '@/pages/definition-page'
-import { DefinitionsPage } from '@/pages/definitions'
+import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
-import { SettingsPage } from '@/pages/settings'
 import { SignInPage } from '@/pages/signin'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useDomains } from '@/lib/domains'
-
-// The editor carries Tiptap, so it loads on its own; the full-screen review is a place of its own.
-// Both are fetched once the browser is idle after the first page, so opening them rarely waits.
-const loadEditor = () => import('@/pages/editor')
-const loadReview = () => import('@/pages/review-page')
-const loadTermEditor = () => import('@/pages/definition-editor')
-const FactEditor = React.lazy(() => loadEditor().then((m) => ({ default: m.FactEditor })))
-const ReviewPage = React.lazy(() => loadReview().then((m) => ({ default: m.ReviewPage })))
-const DefinitionEditor = React.lazy(() =>
-  loadTermEditor().then((m) => ({ default: m.DefinitionEditor })),
-)
-const idle = (fn: () => void) =>
-  typeof window.requestIdleCallback === 'function'
-    ? window.requestIdleCallback(fn, { timeout: 3000 })
-    : setTimeout(fn, 1500)
-idle(() => {
-  void loadReview()
-  void loadEditor()
-  void loadTermEditor()
-})
 
 /**
  * A lazy page's fallback, in the page's own shape: nothing for 150ms, so a chunk already fetched never
  * flashes a skeleton. The review: its list, the document and the side panel. An editor: the
  * toolbar row and the sheet on its canvas.
  */
-function Loading({ shape }: { shape: 'review' | 'editor' }) {
+export function Loading({ shape }: { shape: 'review' | 'editor' }) {
   const shown = useAfter(true)
   if (!shown) return null
   if (shape === 'review')
@@ -138,61 +110,12 @@ function Loading({ shape }: { shape: 'review' | 'editor' }) {
   )
 }
 
-function Screen() {
-  const { parts, query } = useRoute()
-  const [place, a, b] = parts
-  // The editor starts from its address: the same path with another draft, gap or metric is a new start.
-  const start = ['draft', 'gap', 'metric', 'market', 'setup']
-    .map((k) => query.get(k) ?? '')
-    .join('|')
-  if (place === 'ask') return <AskPage />
-  // The review is a place to work, inside the shell with the sidebar as its icon rail. Esc goes back to the Inbox.
-  if (place === 'inbox' && b === 'review')
-    return (
-      <React.Suspense fallback={<Loading shape="review" />}>
-        <ReviewPage key={a} id={a} />
-      </React.Suspense>
-    )
-  if (place === 'context') {
-    const mode = a === 'new' ? 'new' : a && (b === 'edit' || b === 'suggest') ? b : null
-    if (mode)
-      return (
-        <React.Suspense fallback={<Loading shape="editor" />}>
-          <FactEditor
-            key={`${parts.join('/')}?${start}`}
-            mode={mode}
-            factId={a === 'new' ? undefined : a}
-          />
-        </React.Suspense>
-      )
-    if (a) return <FactPage id={a} />
-    return <ContextPage />
-  }
-  if (place === 'definitions') {
-    if (a === 'new' || b === 'edit')
-      return (
-        <React.Suspense fallback={<Loading shape="editor" />}>
-          <DefinitionEditor
-            key={`${parts.join('/')}?${query.get('sameAs') ?? ''}`}
-            name={a === 'new' ? undefined : decodeURIComponent(a)}
-          />
-        </React.Suspense>
-      )
-    if (a) return <DefinitionPage name={decodeURIComponent(a)} />
-    return <DefinitionsPage />
-  }
-  if (place === 'settings') return <SettingsPage section={a} sub={b} step={parts[3]} />
-  if (place === 'observability') return <ObservabilityPage section={a} />
-  if (place === 'help') return <HelpPage />
-  return <InboxPage />
-}
-
 /** A screen behind its own error boundary, reset on every navigation, so one failure never blanks the app. */
 function SafeScreen() {
   const { path } = useRoute()
   return (
     <ErrorBoundary key={path}>
-      <Screen />
+      <Outlet />
     </ErrorBoundary>
   )
 }
@@ -201,7 +124,7 @@ function SafeDock() {
   const dock = useDock()
   return (
     <ErrorBoundary key={`${dock?.kind}.${dock?.id}`}>
-      <div className="dock-swap h-full">
+      <div className="h-full dock-swap">
         <DockContent />
       </div>
     </ErrorBoundary>
@@ -229,6 +152,13 @@ function DockContent() {
     case 'where':
       return <WherePanel id={dock.id!} />
   }
+}
+
+/** The app inside its shell: the sidebar, the page and the dock. Signed out, the sign-in page. */
+export function AppShell() {
+  const { state } = useStore()
+  if (!state.user) return <SignInPage />
+  return <Shell />
 }
 
 function Shell() {
@@ -277,7 +207,7 @@ function Shell() {
       {/* The first stop for the keyboard: past the sidebar, straight to the page. A button, since a #link would change the address. */}
       <button
         type="button"
-        className="sr-only fixed top-3 left-3 z-[60] rounded-md bg-background px-3 py-2 text-sm font-medium shadow-md ring-3 ring-ring/50 focus-visible:not-sr-only"
+        className="sr-only fixed top-3 left-3 z-skip rounded-md bg-background px-3 py-2 text-sm font-medium shadow-md ring-3 ring-ring/50 focus-visible:not-sr-only"
         onClick={() => {
           // A page can name where it starts (Ask: the box to ask in); otherwise the page itself.
           const target = document.querySelector<HTMLElement>('[data-skip-target]')
@@ -320,7 +250,7 @@ function Shell() {
                 onResize={(size) => saveWidth(`dock-${dock.width}`, size.inPixels)}
               >
                 {/* The dock arrives: a 16px slide and a fade in 220ms; its content changing (peek to peek) only fades. */}
-                <div className="dock-enter h-full">
+                <div className="h-full dock-enter">
                   <SafeDock />
                 </div>
               </ResizablePanel>
@@ -328,7 +258,7 @@ function Shell() {
           </ResizablePanelGroup>
         )}
         {isMobile && dock && (
-          <div className="dock-enter fixed inset-0 z-40 bg-background">
+          <div className="fixed inset-0 z-dock dock-enter bg-background">
             <SafeDock />
           </div>
         )}
@@ -341,6 +271,7 @@ function Gate() {
   const { state, dispatch } = useStore()
   const route = useRoute()
   const demo = route.query.get('demo')
+  useInAppLinks()
   React.useEffect(() => {
     if (demo === 'setup' || demo === 'done' || demo === 'week' || demo === 'last')
       dispatch({ type: 'demo', mode: demo })
@@ -362,9 +293,8 @@ function Gate() {
     )
       setTimeout(() => open(overlay), 0)
   }, [overlay])
-  if (route.parts[0] === 'docs') return <DocsSite />
-  if (route.parts[0] === 'signin' || !state.user) return <SignInPage />
-  return <Shell />
+  // The documentation, sign-in or the app in its shell (routes/).
+  return <Outlet />
 }
 
 /**

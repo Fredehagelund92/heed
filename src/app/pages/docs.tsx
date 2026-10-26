@@ -12,8 +12,8 @@ import {
   SearchIcon,
   TextQuoteIcon,
   PenLineIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { StateLine } from '@/components/heed/bits'
 import { Logo } from '@/components/heed/logo'
 import { buttonVariants } from '@/components/ui/button'
@@ -46,7 +46,7 @@ import { navigate, useRoute } from '@/lib/router'
 // site (public, searchable, readable by agents); it shares the answer lines and words with Help.
 
 const base = '/docs'
-const guideHref = (slug: string) => `#${base}/${slug}`
+const guideHref = (slug: string) => `${base}/${slug}`
 
 /* ---------- article content ---------- */
 
@@ -269,7 +269,7 @@ const ARTICLES: Record<string, { lead: string; blocks: Block[] }> = {
       { t: 'h2', text: 'Following links' },
       {
         t: 'p',
-        text: 'An agent can follow a link between context items, definitions and domains, one step at a time, to read what it points to. A retired item is never followed, and following never changes what an answer includes. Admins can switch it off in Agents and access.',
+        text: 'An agent can follow a link between context items, definitions and domains, one step at a time, to read what it points to. An archived item is never followed, and following never changes what an answer includes. Admins can switch it off in Agents and access.',
       },
       { t: 'h2', text: 'Agents offer, people decide' },
       {
@@ -334,7 +334,7 @@ function DocsHeader({ onSearch }: { onSearch: () => void }) {
   const tabs = [
     {
       label: 'Guides',
-      href: `#${base}`,
+      href: `${base}`,
       on:
         path === base ||
         (path.startsWith(`${base}/`) && !path.endsWith('/tools') && !path.endsWith('/changelog')),
@@ -351,10 +351,10 @@ function DocsHeader({ onSearch }: { onSearch: () => void }) {
     },
   ]
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/70">
-      <div className="mx-auto flex h-12 max-w-[88rem] items-center gap-4 px-4 md:px-6">
+    <header className="sticky top-0 z-site-header border-b bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/70">
+      <div className="mx-auto flex h-12 max-w-352 items-center gap-4 px-4 md:px-6">
         <a
-          href={`#${base}`}
+          href={`${base}`}
           className="flex items-center gap-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <Logo className="h-5" />
@@ -390,7 +390,7 @@ function DocsHeader({ onSearch }: { onSearch: () => void }) {
             <span className="sr-only sm:hidden">Search the docs</span>
           </button>
           <a
-            href="#/inbox"
+            href="/inbox"
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'max-sm:hidden')}
           >
             Open the app
@@ -440,7 +440,7 @@ function Code({ label, text }: { label: string; text: string }) {
   const [copied, setCopied] = React.useState(false)
   return (
     <figure className="overflow-hidden rounded-frame border">
-      <figcaption className="flex items-center justify-between border-b bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4 py-2 text-xs text-muted-foreground">
+      <figcaption className="flex items-center justify-between border-b bg-band px-4 py-2 text-xs text-muted-foreground">
         {label}
         <button
           type="button"
@@ -455,7 +455,7 @@ function Code({ label, text }: { label: string; text: string }) {
           {copied ? 'Copied' : 'Copy'}
         </button>
       </figcaption>
-      <pre className="overflow-x-auto px-4 py-3.5 font-mono text-[13px] leading-6 whitespace-pre-wrap">
+      <pre className="overflow-x-auto px-4 py-3.5 font-mono text-dense leading-6 whitespace-pre-wrap">
         {text}
       </pre>
     </figure>
@@ -466,7 +466,7 @@ const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 
 function ArticleBody({ blocks }: { blocks: Block[] }) {
   return (
-    <div className="flex flex-col gap-4 text-[15px] leading-7">
+    <div className="flex flex-col gap-4 text-reading leading-7">
       {blocks.map((b, i) => {
         if (b.t === 'h2')
           return (
@@ -528,7 +528,7 @@ function ArticleBody({ blocks }: { blocks: Block[] }) {
                 <section key={tool.name} className="border-t px-4 py-3.5 first:border-t-0">
                   <h3 className="font-mono text-sm font-medium">{tool.name}</h3>
                   <p className="mt-0.5 text-sm leading-6 text-foreground/85">{tool.what}</p>
-                  <dl className="mt-2 grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm leading-6">
+                  <dl className="mt-2 grid grid-cols-(--cols-lead-18) gap-x-3 gap-y-1 text-sm leading-6">
                     <dt className="text-muted-foreground">Takes</dt>
                     <dd>{tool.takes}</dd>
                     <dt className="text-muted-foreground">Returns</dt>
@@ -541,10 +541,7 @@ function ArticleBody({ blocks }: { blocks: Block[] }) {
         if (b.t === 'code') return <Code key={i} label={b.label} text={b.text} />
         if (b.t === 'note')
           return (
-            <aside
-              key={i}
-              className="rounded-frame border bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4 py-3 text-sm leading-6"
-            >
+            <aside key={i} className="rounded-frame border bg-band px-4 py-3 text-sm leading-6">
               <strong className="font-medium">{b.title}. </strong>
               <span className="text-foreground/85">{b.text}</span>
             </aside>
@@ -554,7 +551,7 @@ function ArticleBody({ blocks }: { blocks: Block[] }) {
             {ANSWER_LINES.map((a) => (
               <div
                 key={a.state}
-                className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-[14rem_minmax(0,1fr)]"
+                className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-(--cols-lead-56)"
               >
                 <div>
                   <StateLine state={a.state} sentence tip={false} />
@@ -581,7 +578,7 @@ function Toc({ blocks }: { blocks: Block[] }) {
         {heads.map((h, i) => (
           <li key={h.text}>
             <a
-              href={`#${base}`}
+              href={`${base}`}
               onClick={(e) => (
                 e.preventDefault(),
                 document.getElementById(slugify(h.text))?.scrollIntoView({ behavior: 'smooth' })
@@ -607,11 +604,11 @@ function Article({ page }: { page: DocPage }) {
   const next = DOC_PAGES[i + 1]
   const heads = art.blocks.filter((b): b is Extract<Block, { t: 'h2' }> => b.t === 'h2')
   return (
-    <div className="grid min-w-0 lg:grid-cols-[minmax(0,1fr)_14rem]">
+    <div className="grid min-w-0 lg:grid-cols-(--cols-docs-page)">
       <article className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
-        <div className="mx-auto max-w-[44rem]">
+        <div className="mx-auto max-w-176">
           <nav aria-label="Breadcrumb" className="mb-4 text-sm text-muted-foreground">
-            <a href={`#${base}`} className="hover:text-foreground">
+            <a href={`${base}`} className="hover:text-foreground">
               Docs
             </a>
             <span className="mx-1.5" aria-hidden>
@@ -620,12 +617,12 @@ function Article({ page }: { page: DocPage }) {
             <span>{page.group}</span>
           </nav>
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-[2rem] leading-[1.1] font-bold tracking-[-0.02em] text-balance">
+            <h1 className="text-hero leading-hero font-bold tracking-hero text-balance">
               {page.title}
             </h1>
             {page.slug === 'connect-an-agent' && (
               <a
-                href="#/settings/agents"
+                href="/settings/agents"
                 className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
               >
                 <PlugIcon />
@@ -710,7 +707,7 @@ function Landing({ onSearch }: { onSearch: () => void }) {
     <div className="min-w-0">
       <div className="px-4 py-10 md:px-10 md:py-14 lg:px-14">
         <div className="max-w-2xl">
-          <h1 className="text-[2.5rem] leading-[1.05] font-bold tracking-[-0.025em] text-balance">
+          <h1 className="text-hero-lg leading-hero-lg font-bold tracking-tight text-balance">
             Documentation
           </h1>
           <p className="mt-3 text-lg leading-7 text-pretty text-muted-foreground">
@@ -783,7 +780,7 @@ function Landing({ onSearch }: { onSearch: () => void }) {
             shortcuts, and works without leaving your page.
           </p>
           <a
-            href="#/help"
+            href="/help"
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             Open Help
@@ -847,8 +844,8 @@ function Changelog() {
   ]
   return (
     <article className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
-      <div className="mx-auto max-w-[44rem]">
-        <h1 className="text-[2rem] leading-[1.1] font-bold tracking-[-0.02em]">What's new</h1>
+      <div className="mx-auto max-w-176">
+        <h1 className="text-hero leading-hero font-bold tracking-hero">What's new</h1>
         <p className="mt-3 mb-8 text-lg leading-7 text-muted-foreground">
           Changes people notice, newest first.
         </p>
@@ -856,12 +853,12 @@ function Changelog() {
           {items.map(([d, t, l]) => (
             <li key={t} className="relative pb-8 pl-6 last:pb-0">
               <span
-                className="absolute top-2 -left-[3px] size-1.5 rounded-full bg-foreground"
+                className="absolute top-2 -left-0.75 size-1.5 rounded-full bg-foreground"
                 aria-hidden
               />
               <div className="text-xs text-muted-foreground tabular-nums">{d}</div>
               <h2 className="text-base font-semibold">{t}</h2>
-              <p className="mt-1 text-[15px] leading-7 text-foreground/85">{l}</p>
+              <p className="mt-1 text-reading leading-7 text-foreground/85">{l}</p>
             </li>
           ))}
         </ol>
@@ -968,15 +965,12 @@ export function DocsSite() {
     <div className="min-h-svh bg-background text-foreground">
       <DocsHeader onSearch={() => setSearching(true)} />
       <div
-        className={cn(
-          'mx-auto grid max-w-[88rem] border-x',
-          slug && 'lg:grid-cols-[15.5rem_minmax(0,1fr)]',
-        )}
+        className={cn('mx-auto grid max-w-352 border-x', slug && 'lg:grid-cols-(--cols-lead-62)')}
         style={{ minHeight: 'calc(100svh - 3rem)' }}
       >
         {slug && (
           <aside className="hidden border-r px-4 py-8 lg:block">
-            <div className="sticky top-20 max-h-[calc(100svh-6rem)] overflow-y-auto">
+            <div className="sticky top-20 max-h-screen-inset-lg overflow-y-auto">
               <DocsNav slug={slug} />
             </div>
           </aside>

@@ -9,9 +9,9 @@ import {
   UserIcon,
   WholeWordIcon,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { TagChip } from '@/components/heed/tag-chip'
 import { Separator } from '@/components/ui/separator'
 import { domains, type Fact } from '@/data/world'
@@ -79,9 +79,7 @@ export function TypeTile({
       title={kindName(d)}
       className={cn(
         'inline-flex shrink-0 items-center justify-center border bg-muted text-foreground',
-        size === 'md'
-          ? 'size-6 rounded-[5px] [&>svg]:size-3.5'
-          : 'size-7 rounded-md [&>svg]:size-4',
+        size === 'md' ? 'size-6 rounded-tile [&>svg]:size-3.5' : 'size-7 rounded-md [&>svg]:size-4',
         className,
       )}
     >
@@ -131,14 +129,11 @@ export function ConflictNote({ d, className }: { d: Definition; className?: stri
     <p
       role="note"
       className={cn(
-        'flex gap-2 rounded-frame border border-[oklch(0.68_0.16_65/0.4)] bg-[oklch(0.68_0.16_65/0.08)] px-3 py-2 text-sm',
+        'flex gap-2 rounded-frame border border-caution/40 bg-caution/8 px-3 py-2 text-sm',
         className,
       )}
     >
-      <TriangleAlertIcon
-        aria-hidden
-        className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.78_0.14_70)]"
-      />
+      <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-warn" />
       <span>
         <span className="font-medium">
           {conflict.kind === 'chain'
@@ -358,7 +353,7 @@ export function SynonymTags({
         <p className="text-sm text-muted-foreground">No other names yet.</p>
       )}
       {refused.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-[oklch(0.5_0.14_55)] dark:text-[oklch(0.8_0.13_75)]">
+        <ul className="flex flex-col gap-0.5 text-xs text-caution-text">
           {refused.map((r) => (
             <li key={r.word}>{r.reason}</li>
           ))}

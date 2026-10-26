@@ -27,7 +27,7 @@ import {
   TextQuote,
   Underline,
   Undo2,
-} from 'lucide-react'
+} from '@/components/icons'
 import React from 'react'
 
 import type { RichTextEditorIcons } from './icon-types'

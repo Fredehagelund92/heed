@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { CircleSlashIcon, FolderIcon, GlobeIcon, UserRoundIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { CircleSlashIcon, FolderIcon, GlobeIcon, UserRoundIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { TypeGlyph } from '@/components/heed/definition'
 import { kindIcons } from '@/components/heed/kind-icons'
@@ -62,7 +62,7 @@ export function MentionIcon({
 // Whole, never broken across lines: the chip sits on the text's baseline and the line wraps around
 // it; a title longer than the line ends in an ellipsis inside the chip, the full title on hover.
 const chip =
-  'mention-chip inline-flex max-w-full items-baseline gap-1 rounded-[6px] px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap [&>svg]:self-center'
+  'mention-chip inline-flex max-w-full items-baseline gap-1 rounded-sm px-1.5 py-px align-baseline text-[0.92em] font-medium whitespace-nowrap [&>svg]:self-center'
 
 /** A mention's tint: the same as its tag chip (metrics, markets, terms and domains tinted; the rest neutral). */
 function mentionTone(kind: string, key: string) {
@@ -182,7 +182,7 @@ export function MentionChip({
       className={cn(
         chip,
         tone.className,
-        'cursor-pointer transition-[filter] outline-none hover:brightness-95 dark:hover:brightness-125 focus-visible:ring-3 focus-visible:ring-ring/50',
+        'cursor-pointer transition-[filter] outline-none hover:brightness-95 focus-visible:ring-3 focus-visible:ring-ring/50 dark:hover:brightness-125',
         className,
       )}
       onClick={(e) => {

@@ -1,4 +1,4 @@
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import type { Connector } from '@/data/integrations'
 
 /** A tool's real logo in a white tile, so it reads the same in light and dark. */
@@ -14,8 +14,8 @@ export function ToolLogo({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center border bg-white',
-        size === 'sm' && 'size-5 rounded-[5px] p-[3px]',
+        'inline-flex shrink-0 items-center justify-center border bg-logo-plate',
+        size === 'sm' && 'size-5 rounded-tile p-0.75',
         size === 'md' && 'size-8 rounded-md p-1.5',
         size === 'lg' && 'size-11 rounded-lg p-2',
         className,

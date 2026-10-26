@@ -9,8 +9,8 @@ import {
   CircleDashedIcon,
   CircleMinusIcon,
   InfinityIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { kindLabel, type Fact, type Kind } from '@/data/world'
@@ -127,7 +127,7 @@ export function TimeGlyph({ time }: { time: TimeFrame }) {
     <Tip
       label={timeLong(time)}
       detail={timeNow(time)}
-      className="items-center gap-1.5 text-[13px] whitespace-nowrap"
+      className="items-center gap-1.5 text-dense whitespace-nowrap"
     >
       <Icon aria-hidden className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
       <span>{timeDate(time)}</span>

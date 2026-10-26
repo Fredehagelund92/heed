@@ -11,9 +11,9 @@ import {
   SquarePenIcon,
   Trash2Icon,
   XIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { DockFrame } from '@/components/dock'
 import { AnswerBody, DraftBanner, Question, type Phase } from '@/components/heed/answer'
 import { ResizableAside } from '@/components/resizable-aside'
@@ -156,12 +156,12 @@ function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => vo
             className="group/next flex min-h-11 w-full items-center gap-3 rounded-surface border bg-background px-3 py-2 text-left transition-colors outline-none hover:border-foreground/25 hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/40"
           >
             <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-              <span className="text-[13px]">{q}</span>
+              <span className="text-dense">{q}</span>
               <span className="flex flex-wrap items-center gap-1.5">
                 <StateLine
                   state={a.state}
                   tip={false}
-                  className="gap-1.5 px-1.5 py-0 text-[11px] [&_svg]:size-3"
+                  className="gap-1.5 px-1.5 py-0 text-2xs [&_svg]:size-3"
                 />
                 {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
               </span>
@@ -374,14 +374,14 @@ export function AskChat({
     el?.scrollIntoView({ block: 'start', behavior: reducedMotion() ? 'auto' : 'smooth' })
   }, [count])
 
-  const width = compact ? 'max-w-none px-4' : 'max-w-[44rem] px-4'
+  const width = compact ? 'max-w-none px-4' : 'max-w-176 px-4'
   const placeholder = draft
     ? 'Ask another question against the draft'
     : 'Ask about a metric or a market'
 
   return (
     <div data-touch-targets className="@container flex h-full min-h-0 flex-col">
-      <div ref={viewport} className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+      <div ref={viewport} className="min-h-0 flex-1 scrollbar-stable overflow-y-auto">
         <div ref={content} className={cn('mx-auto flex min-h-full w-full flex-col', width)}>
           {turns.length === 0 ? (
             <div className="flex flex-1 flex-col justify-center gap-5 py-10">
@@ -442,12 +442,7 @@ export function AskChat({
       <div className="shrink-0 border-t bg-background">
         {/* Under the box, the bar height less its control row (40) and edge (1): the hairline over the
             controls then sits one bar from the bottom, in line with the sidebar's user block and the other bars. */}
-        <div
-          className={cn(
-            'mx-auto flex w-full flex-col gap-2 pt-3 pb-[calc(var(--spacing-bar)-41px)]',
-            width,
-          )}
-        >
+        <div className={cn('mx-auto flex w-full flex-col gap-2 pt-3 pb-ask-foot', width)}>
           <React.Suspense fallback={<ComposerPlaceholder placeholder={placeholder} />}>
             <AskComposer
               ref={composer}
@@ -538,9 +533,9 @@ function ThreadRow({
       ref={row}
       data-active={active || undefined}
       data-leaving={leaving || undefined}
-      className="group/row grid grid-rows-[1fr] transition-[grid-template-rows,opacity] duration-(--dur-3) ease-out starting:grid-rows-[0fr] starting:opacity-0 data-leaving:grid-rows-[0fr] data-leaving:opacity-0"
+      className="group/row grid grid-rows-(--rows-open) transition-[grid-template-rows,opacity] duration-(--dur-3) ease-out data-leaving:grid-rows-(--rows-shut) data-leaving:opacity-0 starting:grid-rows-(--rows-shut) starting:opacity-0"
     >
-      <div className="relative min-h-0 overflow-hidden rounded-md bg-(--row) [--row:var(--background)] hover:[--row:color-mix(in_oklab,var(--muted)_60%,var(--background))] group-data-active/row:shadow-[inset_0_0_0_1px_var(--border)] group-data-active/row:[--row:var(--muted)]">
+      <div className="relative min-h-0 overflow-hidden rounded-md bg-(--row) [--row:var(--background)] group-data-active/row:shadow-hairline group-data-active/row:[--row:var(--muted)] hover:[--row:var(--row-hover)]">
         {renaming ? (
           <Input
             ref={nameInput}
@@ -870,10 +865,7 @@ function ThreadList({
           )}
         </div>
       </div>
-      <nav
-        aria-label="Chats"
-        className="min-h-0 flex-1 overflow-y-auto px-2 pb-3 [mask-image:linear-gradient(to_bottom,transparent,black_0.75rem)]"
-      >
+      <nav aria-label="Chats" className="min-h-0 flex-1 overflow-y-auto fade-in-top px-2 pb-3">
         {visible.length === 0 ? (
           <div className="px-2.5 pt-5 text-sm">
             <p className="font-medium">No chats yet</p>
@@ -901,7 +893,7 @@ function ThreadList({
               <section key={day} aria-labelledby={`chats-${day}`} className="pt-3 first:pt-2">
                 <h2
                   id={`chats-${day}`}
-                  className="px-2.5 pb-1.5 text-[0.8125rem] leading-none font-semibold tracking-wide text-muted-foreground [font-variant-caps:all-small-caps]"
+                  className="px-2.5 pb-1.5 text-dense leading-none font-semibold tracking-wide text-muted-foreground all-small-caps"
                 >
                   {day}
                 </h2>
@@ -1096,7 +1088,7 @@ export function AskPage() {
         </div>
       </div>
       <Sheet open={sheet} onOpenChange={setSheet}>
-        <SheetContent side="left" className="w-[min(20rem,85vw)] gap-0 bg-background p-0">
+        <SheetContent side="left" className="w-popover-phone gap-0 bg-background p-0">
           <SheetHeader className="border-b">
             <SheetTitle>History</SheetTitle>
           </SheetHeader>
@@ -1144,11 +1136,7 @@ export function AskDock() {
               </TooltipTrigger>
               <TooltipContent>History</TooltipContent>
             </Tooltip>
-            <PopoverContent
-              align="end"
-              aria-label="History"
-              className="h-[min(28rem,70svh)] w-72 p-0"
-            >
+            <PopoverContent align="end" aria-label="History" className="h-history w-72 p-0">
               <ThreadList
                 current={chat.id}
                 onOpenChat={openChat}
@@ -1189,6 +1177,7 @@ export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolea
   const card = cards.find((c) => c.id === cardId)
   const editorDraft = useDraft()
   const draft = cardId === 'editor' ? (editorDraft ?? undefined) : card?.suggestion?.draft
+  const hasDraft = !!draft
   const initial = React.useMemo(() => {
     if (!draft) return []
     const question =
@@ -1216,7 +1205,7 @@ export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolea
     ]
     // The draft is read once it exists, when Try it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cardId, !!draft])
+  }, [cardId, hasDraft])
   const chat = (
     <AskChat
       key={`${cardId}-${!!draft}`}

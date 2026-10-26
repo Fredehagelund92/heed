@@ -1,6 +1,6 @@
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronRightIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronRightIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 
 // The context item as a document, laid out the way editorcn's Simple Document Editor template lays out its
 // page: a muted canvas, a paper sheet with the title as a large heading and the text as the
@@ -9,11 +9,7 @@ import { cn } from 'cn'
 
 /** editorcn's canvas: the muted surface the paper sits on. */
 export function Canvas({ className, children }: { className?: string; children: ReactNode }) {
-  return (
-    <div className={cn('bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))]', className)}>
-      {children}
-    </div>
-  )
+  return <div className={cn('bg-band-strong', className)}>{children}</div>
 }
 
 /**
@@ -25,7 +21,7 @@ export function Paper({ className, children }: { className?: string; children: R
   return (
     <article
       className={cn(
-        'bg-background px-4 py-5 transition-[border-color,box-shadow] sm:mx-auto sm:mt-4 sm:mb-6 sm:w-[calc(100%-3rem)] sm:max-w-sheet sm:rounded-frame sm:border sm:px-10 sm:py-12 sm:shadow-xs xl:px-14',
+        'bg-background px-4 py-5 transition-[border-color,box-shadow] sm:mx-auto sm:mt-4 sm:mb-6 sm:w-sheet-inset sm:max-w-sheet sm:rounded-frame sm:border sm:px-10 sm:py-12 sm:shadow-xs xl:px-14',
         // Writing in it, the sheet says so: a soft ring while the text has focus.
         'sm:has-[.ProseMirror:focus]:border-ring/60 sm:has-[.ProseMirror:focus]:ring-3 sm:has-[.ProseMirror:focus]:ring-ring/15',
         className,
@@ -57,7 +53,7 @@ export function Property({
   children: ReactNode
 }) {
   return (
-    <div className="grid min-h-8 grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]">
+    <div className="grid min-h-8 grid-cols-(--cols-lead-30) items-center gap-2 sm:grid-cols-(--cols-lead-36)">
       <dt className="flex items-center gap-2 text-muted-foreground [&>svg]:size-3.5 [&>svg]:shrink-0">
         {icon}
         {label}

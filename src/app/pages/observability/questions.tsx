@@ -8,9 +8,9 @@ import {
   LayersIcon,
   ListFilterIcon,
   XIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -181,7 +181,7 @@ function Questions() {
                   })
                 }
                 className={cn(
-                  '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-[13px] whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+                  '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
                   on && 'border-foreground font-medium text-foreground',
                 )}
               >

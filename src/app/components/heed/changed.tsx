@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 
 // A number that changed while you watched: there at once, with a tint that fades over 600ms, so the
 // change is seen without a count-up. Shown the first time, it is simply there.

@@ -32,7 +32,7 @@ describe('alert rules', () => {
     const card = cards.find((c) => c.id === 'look-sales')!
     expect(card.look!.questions).toHaveLength(savedCounts(savedQuestions()).look)
     expect(card.title).toBe(`${savedCounts(savedQuestions()).look} saved questions need a look`)
-    for (const r of RAISED.filter((x) => x.href.startsWith('#/inbox?card=')))
+    for (const r of RAISED.filter((x) => x.href.startsWith('/inbox?card=')))
       expect(cards.some((c) => r.href.endsWith(`=${c.id}`))).toBe(true)
   })
   it("shows an owner only their own domains' last raise", () => {

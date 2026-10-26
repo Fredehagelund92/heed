@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { GroupRow, Th, thClass } from '@/components/heed/list'
@@ -68,10 +68,7 @@ export function TopicTable({
   const sections =
     grouping === 'domain'
       ? [...domainIds, undefined]
-          .map((d) => ({
-            domain: d as DomainId | undefined,
-            groups: groups.filter((g) => g.domain === d),
-          }))
+          .map((d) => ({ domain: d, groups: groups.filter((g) => g.domain === d) }))
           .filter((s) => s.groups.length)
       : [{ domain: null as DomainId | undefined | null, groups }]
 
@@ -121,7 +118,7 @@ export function TopicTable({
           <th className={cn(thClass, 'w-24 px-2 text-right')}>Asked</th>
           <Th className="hidden w-24 px-2 @4xl/main:table-cell">{view.range} days</Th>
           <Th className="hidden w-60 min-w-60 px-2 @2xl/main:table-cell">How it was answered</Th>
-          <Th className="hidden w-44 pr-4 pl-2 @3xl/main:table-cell md:pr-5">Status</Th>
+          <Th className="hidden w-44 pr-4 pl-2 md:pr-5 @3xl/main:table-cell">Status</Th>
         </tr>
       </thead>
       <tbody onKeyDown={onKeyDown}>
@@ -206,7 +203,7 @@ function TopicLine({
     <tr
       data-peeked={peeked || undefined}
       className={cn(
-        'h-12 cursor-pointer border-t text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-[inset_2px_0_0_var(--foreground)]',
+        'h-12 cursor-pointer border-t text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked',
         month && 'bg-muted/20',
       )}
       onClick={open}
@@ -228,7 +225,7 @@ function TopicLine({
             aria-expanded={expand ? expand.open : undefined}
             className={cn(
               'block max-w-full truncate text-left outline-none hover:underline',
-              month ? 'text-[13px]' : 'font-medium',
+              month ? 'text-dense' : 'font-medium',
             )}
             onClick={(e) => {
               e.stopPropagation()
@@ -251,7 +248,7 @@ function TopicLine({
           {st && <span className="truncate">- {st.label}</span>}
         </span>
       </td>
-      <td className="hidden px-2 text-[13px] whitespace-nowrap text-muted-foreground @3xl/main:table-cell">
+      <td className="hidden px-2 text-dense whitespace-nowrap text-muted-foreground @3xl/main:table-cell">
         {!month && (
           <span className="flex items-center gap-1.5">
             {g.domain && <DomainDot id={g.domain} />}
@@ -297,7 +294,7 @@ function TopicLine({
         )}
       </td>
       <td
-        className="hidden pr-4 pl-2 @3xl/main:table-cell md:pr-5"
+        className="hidden pr-4 pl-2 md:pr-5 @3xl/main:table-cell"
         onClick={(e) => st?.href && e.stopPropagation()}
       >
         {!month && st ? (
@@ -316,7 +313,7 @@ function TopicLine({
             <span
               className={cn(
                 'inline-flex h-6 items-center gap-1 rounded-md border px-2 text-xs',
-                st.tone === 'warn' && 'border-[color-mix(in_oklab,var(--warn)_45%,transparent)]',
+                st.tone === 'warn' && 'border-warn/45',
               )}
             >
               <Swatch
@@ -370,9 +367,8 @@ function Flags({ g, disagree }: { g: TopicGroup; disagree: number }) {
             render={
               <span
                 className={cn(
-                  'inline-flex h-5 cursor-help items-center rounded-md border px-1.5 text-[11px] text-muted-foreground',
-                  f.warn &&
-                    'border-[color-mix(in_oklab,var(--warn)_45%,transparent)] text-foreground',
+                  'inline-flex h-5 cursor-help items-center rounded-md border px-1.5 text-2xs text-muted-foreground',
+                  f.warn && 'border-warn/45 text-foreground',
                 )}
               />
             }

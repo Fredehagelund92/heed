@@ -8,7 +8,7 @@ import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createDevVerifier, devIssuer } from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
-import { deprecatedToolAliases, tools as mcpTools, toolNames } from '../../src/server/mcp/tools.ts'
+import { tools as mcpTools } from '../../src/server/mcp/tools.ts'
 import { Evidence } from '../../src/server/modules/assistant/citations.ts'
 import {
   assistantTools,
@@ -416,36 +416,21 @@ describe('the audience rule on every read path', () => {
     const found: string[] = []
     const claims: (readonly string[] | undefined)[] = [undefined, ['finance_team'], ['sales']]
     const calls: [string, Record<string, unknown>][] = [
-      ['get_context', { question: 'Orders on holidays', metrics: ['Orders'] }],
-      [
-        'get_context',
-        { question: 'Orders on holidays', metrics: ['Orders'], response_format: 'full' },
-      ],
-      ['find_context', { query: 'Vaultsunrise harbour Zephyrledger' }],
-      ['find_context', { query: 'harbour holidays' }],
-      ['read_context', { id: hidden.id }],
-      ['read_context', { id: linking.id }],
-      ['get_related', { id: linking.id }],
-      ['get_related', { id: `item:${hidden.id}` }],
-      // The deprecated ids answer with their old code, so they are swept too.
       ['get_facts', { question: 'Orders on holidays', metrics: ['Orders'] }],
       ['find_facts', { query: 'Vaultsunrise harbour Zephyrledger' }],
+      ['find_facts', { query: 'harbour holidays' }],
       ['search_facts', { query: 'Zephyrledger' }],
       ['search_facts', { query: '', mentions: `item:${hidden.id}` }],
-      ['search_context', { query: 'Zephyrledger' }],
       ['read_item', { id: hidden.id }],
       ['read_item', { id: linking.id }],
+      ['get_related', { id: linking.id }],
+      ['get_related', { id: `item:${hidden.id}` }],
+      ['domain_overview', {}],
+      ['domain_overview', { domain: 'Finance' }],
+      ['what_changed', {}],
+      ['improve_question', { question: 'harbour closure on holidays' }],
     ]
-    // Every tool and every old id that reads is swept.
-    const reads = [
-      ...toolNames.filter((name) => mcpTools[name].scope === 'read'),
-      ...Object.keys(deprecatedToolAliases).filter(
-        (old) =>
-          mcpTools[deprecatedToolAliases[old as keyof typeof deprecatedToolAliases]].scope ===
-          'read',
-      ),
-    ]
-    expect(new Set(calls.map(([name]) => name))).toEqual(new Set(reads))
+    expect(calls.map(([name]) => name).every((name) => name in mcpTools)).toBe(true)
     for (const groups of claims) {
       const token = await new SignJWT({
         client_id: 'claude-code',
@@ -470,7 +455,7 @@ describe('the audience rule on every read path', () => {
       try {
         // Every tool this client may call; the others are refused before they read anything.
         const enabled = new Set((await wire.listTools()).tools.map((tool) => tool.name))
-        expect(enabled.has('read_context')).toBe(true)
+        expect(enabled.has('read_item')).toBe(true)
         for (const [name, args] of calls) {
           if (!enabled.has(name)) continue
           const reply = await wire.callTool({ name, arguments: args })

@@ -4,6 +4,8 @@
 // inserted is the character itself, plain text. Context and definitions take no picker: agents read
 // that text, so an emoji pasted there gets a quiet note instead.
 
+import { storageKey } from '@/lib/brand'
+
 export type EmojiGroup = 'Smileys' | 'Gestures' | 'Objects' | 'Symbols'
 export type Emoji = {
   char: string
@@ -198,7 +200,7 @@ export const hasEmoji = (text: string) => /\p{Extended_Pictographic}/u.test(text
 
 /* ---------- what was used lately, kept on this device ---------- */
 
-const KEY = 'heed.emoji.recent'
+const KEY = storageKey('emoji-recent')
 let recent: string[] = (() => {
   try {
     return JSON.parse(globalThis.localStorage?.getItem(KEY) ?? '[]') as string[]

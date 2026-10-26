@@ -1,5 +1,5 @@
-import { ArrowRightLeftIcon, CircleCheckIcon, TriangleAlertIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowRightLeftIcon, CircleCheckIcon, TriangleAlertIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { RESULT_WORDS, type SavedResult } from '@/data/saved-questions'
 
 // A saved question's result, by shape and words as well as colour: a check for Same, two arrows for

@@ -17,14 +17,14 @@ export function marks(s: string): Seg[] {
   const re = /\[-([\s\S]+?)-\]|\{\+([\s\S]+?)\+\}|\{\*([\s\S]+?)\*\}/g
   let last = 0
   for (const m of s.matchAll(re)) {
-    if (m.index! > last) out.push({ t: 'same', text: s.slice(last, m.index) })
+    if (m.index > last) out.push({ t: 'same', text: s.slice(last, m.index) })
     if (m[1] !== undefined) out.push({ t: 'del', text: m[1] })
     else if (m[2] !== undefined) out.push({ t: 'add', text: m[2] })
     else {
       const [text, note] = m[3].split('|')
       out.push({ t: 'fmt', text, note })
     }
-    last = m.index! + m[0].length
+    last = m.index + m[0].length
   }
   if (last < s.length) out.push({ t: 'same', text: s.slice(last) })
   return out

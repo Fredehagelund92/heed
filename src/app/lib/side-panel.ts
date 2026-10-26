@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { storageKey } from '@/lib/brand'
 
 // Whether a side panel is open, as the person last left it this session: the editors' What agents
 // get ("editor-side"), an item page's panel ("page-side"). Null until they choose, so a page can
@@ -6,7 +7,7 @@ import * as React from 'react'
 
 function read(key: string): boolean | null {
   try {
-    const v = sessionStorage.getItem(key)
+    const v = sessionStorage.getItem(storageKey(key))
     return v === null ? null : v === 'open'
   } catch {
     return null
@@ -19,7 +20,7 @@ export function useSideChoice(key = 'editor-side') {
     (open: boolean) => {
       setChoice(open)
       try {
-        sessionStorage.setItem(key, open ? 'open' : 'closed')
+        sessionStorage.setItem(storageKey(key), open ? 'open' : 'closed')
       } catch {
         // Storage can be blocked; the toggle still works on this page.
       }

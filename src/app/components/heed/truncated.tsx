@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // A title that may be cut off with an ellipsis, and the full title when it is: one component for
@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 // after 400ms; keyboard focus on the row shows it too. Touch gets nothing, and nothing shifts.
 
 const surface =
-  'max-w-80 rounded-md border bg-popover px-2.5 py-1.5 text-[13px] leading-snug text-popover-foreground whitespace-normal shadow-none [&>:last-child]:hidden'
+  'max-w-80 rounded-md border bg-popover px-2.5 py-1.5 text-dense leading-snug text-popover-foreground whitespace-normal shadow-none [&>:last-child]:hidden'
 
 /** `text` is what the tooltip says; `children` (a highlighted match, say) is what the row shows, by default the text. */
 export function TruncatedText({

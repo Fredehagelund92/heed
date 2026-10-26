@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { facts as seed, ownersOf, servedToAgents, type Fact } from '@/data/world'
+import { facts as seed, ownersOf, servedToAgents } from '@/data/world'
 import { historyOf } from '@/data/history'
 import {
   allDefinitions,
@@ -176,7 +176,7 @@ describe('export', () => {
     expect(csv[0]).toBe(
       'Title,Domain,Kind,Status,Applies to,When,Owners,Checked by,Checked on,Source,What agents should know',
     )
-    expect(toCsv([{ ...salesLive[0], title: 'A "quoted", title' } as Fact])).toContain(
+    expect(toCsv([{ ...salesLive[0], title: 'A "quoted", title' }])).toContain(
       '"A ""quoted"", title"',
     )
   })

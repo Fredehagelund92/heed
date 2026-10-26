@@ -8,7 +8,7 @@ import {
   ListChecksIcon,
   SparklesIcon,
   TextQuoteIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,

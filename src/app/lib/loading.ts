@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useRoute } from '@/lib/router'
+import { storageKey } from '@/lib/brand'
 
 // Loading, by the motion rules (docs/motion.md): nothing for a fast load; a skeleton of the page's
 // own shape only after 150ms, then held at least 300ms so it never flashes; a button's spinner
@@ -50,6 +51,7 @@ export function useDelayedBusy(busy: boolean, after = SHOW_AFTER, hold = HOLD_AT
       )
       return () => window.clearTimeout(t)
     }
+    return undefined
   }, [busy, shown, after, hold])
   return shown
 }
@@ -62,7 +64,7 @@ export const ArrivedAfterWait = React.createContext(false)
 
 /* ---------- Slow network: a switch in Help, or ?slow=1 in the address ---------- */
 
-const KEY = 'heed-slow-network'
+const KEY = storageKey('slow-network')
 const read = () => {
   try {
     return localStorage.getItem(KEY) === '1'

@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from 'lucide-react'
+import { ArrowLeftIcon } from '@/components/icons'
 import {
   SidebarContent,
   SidebarGroup,
@@ -34,7 +34,7 @@ export function ObservabilityNav({ section, close }: { section: string; close: (
       <SidebarHeader className="h-bar justify-center border-b px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={BACK_TO_APP} render={<a href="#/inbox" onClick={close} />}>
+            <SidebarMenuButton tooltip={BACK_TO_APP} render={<a href="/inbox" onClick={close} />}>
               <ArrowLeftIcon />
               <span>{BACK_TO_APP}</span>
             </SidebarMenuButton>
@@ -52,7 +52,7 @@ export function ObservabilityNav({ section, close }: { section: string; close: (
                     <SidebarMenuButton
                       tooltip={item.title}
                       isActive={section === item.id}
-                      render={<a href={`#/observability/${item.id}`} onClick={close} />}
+                      render={<a href={`/observability/${item.id}`} onClick={close} />}
                     >
                       <item.icon />
                       <span>{item.title}</span>

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -6,8 +7,8 @@ import {
   PlugIcon,
   TimerIcon,
   WrenchIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import {
   Empty,
   EmptyContent,
@@ -68,7 +69,7 @@ function Usage() {
           </EmptyHeader>
           <EmptyContent>
             <a
-              href="#/settings/agents"
+              href="/settings/agents"
               className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
             >
               Agents and access
@@ -141,7 +142,7 @@ function Usage() {
         <Tools tools={tools} />
       </FrameSection>
 
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-2">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-2">
         <FrameSection
           title="How fast"
           description={`The median reply and 95 of 100 replies, by ${speed.per}.`}
@@ -170,11 +171,11 @@ function Usage() {
           <FrameSection
             title="Agents"
             description="Counted by kind. The name an agent gives itself is not kept."
-            action={<PageLink href="#/settings/agents">Agents and access</PageLink>}
+            action={<PageLink href="/settings/agents">Agents and access</PageLink>}
           >
             <table className="w-full text-sm" aria-label="Calls by kind of agent">
               <thead>
-                <tr className="border-t bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
+                <tr className="border-t bg-band text-xs text-muted-foreground">
                   <th className="h-9 px-4 text-left font-medium md:pl-5">Agent</th>
                   <th className="h-9 px-4 text-right font-medium">Calls</th>
                   <th className="h-9 px-4 text-right font-medium md:pr-5">Last call</th>
@@ -207,7 +208,7 @@ function Usage() {
         <FrameSection
           title="Model spend"
           description="From the ledger, this month. A cap stops a feature and says why."
-          action={<PageLink href="#/settings/advanced">Limits</PageLink>}
+          action={<PageLink href="/settings/advanced">Limits</PageLink>}
         >
           <Spend />
         </FrameSection>
@@ -240,7 +241,11 @@ function SeriesLegend({ items }: { items: { name: string; color: string }[] }) {
     <ul className="flex flex-wrap gap-x-4 gap-y-1.5 px-1 pb-2 text-xs text-muted-foreground">
       {items.map((s) => (
         <li key={s.name} className="flex items-center gap-1.5">
-          <span aria-hidden className="h-0.5 w-3 rounded-full" style={{ background: s.color }} />
+          <span
+            aria-hidden
+            className="h-0.5 w-3 rounded-full bg-(--swatch)"
+            style={{ '--swatch': s.color } as CSSProperties}
+          />
           {s.name}
         </li>
       ))}
@@ -266,7 +271,7 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
   return (
     <table className="w-full text-sm" aria-label="Calls by tool">
       <thead>
-        <tr className="border-t bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
+        <tr className="border-t bg-band text-xs text-muted-foreground">
           <th className="h-9 px-4 text-left font-medium md:pl-5">Tool</th>
           <th className={th}>Calls</th>
           <th className={cn(th, '@max-2xl/main:hidden')}>Answered</th>
@@ -280,7 +285,7 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
           <tr key={t.name} className="border-t">
             <td className="px-4 py-2.5 md:pl-5">
               <span className="block font-mono text-xs">{t.name}</span>
-              <span className="block text-[13px] text-muted-foreground">{what(t.name)}</span>
+              <span className="block text-dense text-muted-foreground">{what(t.name)}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground @2xl/main:hidden">
                 {[
                   t.answered && `${t.answered} answered`,
@@ -292,7 +297,7 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
                   .join(', ')}
               </span>
             </td>
-            <td className="px-4 text-right align-top pt-2.5 tabular-nums @2xl/main:align-middle @2xl/main:pt-0">
+            <td className="px-4 pt-2.5 text-right align-top tabular-nums @2xl/main:pt-0 @2xl/main:align-middle">
               {t.calls.toLocaleString('en')}
             </td>
             <td className="px-4 text-right tabular-nums @max-2xl/main:hidden">
@@ -313,7 +318,7 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
 /** This month's spend as one bar against the cap, by feature, and the caps under it. */
 function Spend() {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)] gap-y-4 pb-1 @4xl/main:grid-cols-2">
+    <div className="grid grid-cols-1 gap-y-4 pb-1 @4xl/main:grid-cols-2">
       <div className="px-4 md:px-5">
         <p className="flex items-baseline gap-1.5">
           <span className="text-2xl font-semibold tracking-tight tabular-nums">
@@ -324,32 +329,42 @@ function Spend() {
           </span>
         </p>
         <div
-          className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-[2px] bg-muted"
+          className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-xs bg-muted"
           aria-hidden
         >
           {SPEND.parts.map((p, i) => (
             <span
               key={p.name}
-              style={{ width: `${(p.amount / SPEND.cap) * 100}%`, background: SPEND_FILL[i] }}
+              className="bg-(--swatch)"
+              style={
+                {
+                  width: `${(p.amount / SPEND.cap) * 100}%`,
+                  '--swatch': SPEND_FILL[i],
+                } as CSSProperties
+              }
             />
           ))}
         </div>
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {SPEND.parts.map((p, i) => (
             <li key={p.name} className="flex items-center gap-1.5">
-              <span aria-hidden className="size-2.5" style={{ background: SPEND_FILL[i] }} />
+              <span
+                aria-hidden
+                className="size-2.5 bg-(--swatch)"
+                style={{ '--swatch': SPEND_FILL[i] } as CSSProperties}
+              />
               {p.name}{' '}
               <span className="font-medium text-foreground tabular-nums">{money(p.amount)}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-muted-foreground">
+        <p className="mt-3 text-dense text-muted-foreground">
           Answering agents costs nothing. Answer tests ran once, from the command line.
         </p>
       </div>
       <table className="w-full self-start text-sm @4xl/main:border-l" aria-label="Spend caps">
         <thead>
-          <tr className="border-t bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground @4xl/main:border-t-0">
+          <tr className="border-t bg-band text-xs text-muted-foreground @4xl/main:border-t-0">
             <th className="h-9 px-4 text-left font-medium md:pl-5">Cap</th>
             <th className="h-9 px-4 text-right font-medium">Used</th>
             <th className="h-9 px-4 text-right font-medium md:pr-5">Of</th>

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Changed } from '@/components/heed/changed'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import {
   ActivityIcon,
   BookAIcon,
@@ -9,7 +9,7 @@ import {
   NotebookTextIcon,
   SearchIcon,
   SettingsIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { Logo, LogoSymbol } from '@/components/heed/logo'
 import { NavUser } from '@/components/nav-user'
 import { SettingsNav } from '@/components/settings-nav'
@@ -117,7 +117,7 @@ export function AppSidebar({
       collapsible="icon"
       className={cn(
         '*:data-[slot=sidebar-inner]:bg-background',
-        '*:data-[slot=sidebar-inner]:dark:bg-[radial-gradient(60%_18%_at_10%_0%,--theme(--color-foreground/.08),transparent)]',
+        '*:data-[slot=sidebar-inner]:dark:bg-(image:--glow-top)',
         '**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75',
       )}
       {...props}
@@ -132,7 +132,7 @@ export function AppSidebar({
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  render={<a href="#/inbox" aria-label={PRODUCT} onClick={close} />}
+                  render={<a href="/inbox" aria-label={PRODUCT} onClick={close} />}
                 >
                   <Logo className="h-5! w-auto! group-data-[collapsible=icon]:hidden" aria-hidden />
                   <LogoSymbol className="mx-auto hidden h-5! w-auto! group-data-[collapsible=icon]:block" />
@@ -150,7 +150,7 @@ export function AppSidebar({
                   close()
                   open('palette')
                 }}
-                className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground transition-colors outline-none hover:border-foreground/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]:hidden"
+                className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground transition-colors outline-none group-data-[collapsible=icon]:hidden hover:border-foreground/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <SearchIcon className="size-4 shrink-0" aria-hidden />
                 <span className="flex-1 text-left">Search</span>
@@ -179,7 +179,7 @@ export function AppSidebar({
                       <SidebarMenuButton
                         tooltip={item.title}
                         isActive={place === item.id}
-                        render={<a href={`#/${item.id}`} onClick={close} />}
+                        render={<a href={`/${item.id}`} onClick={close} />}
                       >
                         <item.icon />
                         <span>{item.title}</span>
@@ -198,7 +198,7 @@ export function AppSidebar({
                 Settings for admins and owners. */}
             <SidebarGroup className="mt-auto">
               <SidebarGroupContent>
-                <SidebarMenu className="**:data-[slot=sidebar-menu-button]:text-[13px] **:data-[slot=sidebar-menu-button]:[&>span]:text-muted-foreground">
+                <SidebarMenu className="**:data-[slot=sidebar-menu-button]:text-dense **:data-[slot=sidebar-menu-button]:[&>span]:text-muted-foreground">
                   {/* One Help row: its menu holds the Help page, the keys, Documentation and the ways to reach a person. */}
                   <HelpMenu place={place} />
                   {/* What agents asked and got, for the same people as Settings. */}
@@ -207,7 +207,7 @@ export function AppSidebar({
                       <SidebarMenuButton
                         tooltip="Observability"
                         isActive={place === 'observability'}
-                        render={<a href="#/observability" onClick={close} />}
+                        render={<a href="/observability" onClick={close} />}
                       >
                         <ActivityIcon />
                         <span>Observability</span>
@@ -221,10 +221,7 @@ export function AppSidebar({
                         tooltip="Settings"
                         isActive={place === 'settings'}
                         render={
-                          <a
-                            href={me.admin ? '#/settings' : '#/settings/domains'}
-                            onClick={close}
-                          />
+                          <a href={me.admin ? '/settings' : '/settings/domains'} onClick={close} />
                         }
                       >
                         <SettingsIcon />

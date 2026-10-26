@@ -3,8 +3,8 @@ import type { JSONContent } from '@tiptap/core'
 import Placeholder from '@tiptap/extension-placeholder'
 import StarterKit from '@tiptap/starter-kit'
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react'
-import { ArrowUpIcon, AtSignIcon, SquareIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowUpIcon, AtSignIcon, SquareIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -53,7 +53,8 @@ function read(doc: JSONContent): AskQuestion {
     para.content?.forEach((n) => {
       if (n.type === 'text') push(n.text ?? '')
       else if (n.type === 'hardBreak') push('\n')
-      else if (n.type === 'mention') push({ id: n.attrs?.id, label: n.attrs?.label })
+      else if (n.type === 'mention')
+        push({ id: n.attrs?.id as string, label: n.attrs?.label as string })
     })
   })
   // One space around a chip, never two (a chip brings its own).

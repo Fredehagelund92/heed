@@ -166,7 +166,7 @@ The connection AI agents use to check these facts. MCP is a standard for it, lik
 
 ### Tool
 
-One thing an agent can ask over MCP, such as Get context for a question.
+One thing an agent can ask over MCP, such as Get facts for a question.
 
 ### Access key
 

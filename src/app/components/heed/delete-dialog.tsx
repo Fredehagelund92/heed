@@ -81,10 +81,10 @@ function Body({
           <Button
             onClick={() => {
               onOpenChange(false)
-              archive!.onArchive()
+              archive.onArchive()
             }}
           >
-            Archive {count(archive!.count, 'item')}
+            Archive {count(archive.count, 'item')}
           </Button>
         </DialogFooter>
       </>

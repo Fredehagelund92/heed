@@ -4,7 +4,7 @@
 #   npm run heed -- import my-event.yaml --as <your email>           # dry run: checks only
 #   npm run heed -- import my-event.yaml --apply --as <your email>   # a proposal, sent for review
 #
-# The assistant ("draft a caveat from this link") and Claude Code with suggest_context follow the
+# The assistant ("draft a caveat from this link") and Claude Code with draft_context follow the
 # same shape. Replace the scope with your own vocabulary's keys (the Catalogue, or
 # `npm run heed -- schema`): the keys below are an example and are not in the demo data.
 #

@@ -108,7 +108,7 @@
     "dimension": 1
   },
   "src/web/lib/connect.ts": {
-    "caveat": 1
+    "caveat": 2
   },
   "src/web/lib/crumbs.ts": {
     "dimension": 1,

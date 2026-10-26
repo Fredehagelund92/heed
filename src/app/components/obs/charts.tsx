@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from '@/data/observability'
 import { ArrivedAfterWait } from '@/lib/loading'
 
@@ -128,7 +128,7 @@ export function StackedBars({
   const every = Math.max(room, bars.length > 20 ? 5 : 1)
   const tip = hover !== null ? bars[hover] : null
   return (
-    <figure ref={box as React.RefObject<HTMLElement>} className="relative m-0">
+    <figure ref={box} className="relative m-0">
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="block h-auto w-full"
@@ -150,7 +150,7 @@ export function StackedBars({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-[10px] tabular-nums"
+              className="fill-muted-foreground text-3xs tabular-nums"
             >
               {Math.round(max * f)}
             </text>
@@ -192,7 +192,7 @@ export function StackedBars({
                   x={x + bw / 2}
                   y={H - 6}
                   textAnchor="middle"
-                  className="fill-muted-foreground text-[10px]"
+                  className="fill-muted-foreground text-3xs"
                 >
                   {b.label}
                 </text>
@@ -213,7 +213,7 @@ export function StackedBars({
                 strokeDasharray="2 2"
                 strokeWidth="1"
               />
-              <text x={x + 4} y={pad.t - 8} className="fill-foreground text-[10px]">
+              <text x={x + 4} y={pad.t - 8} className="fill-foreground text-3xs">
                 Published
               </text>
             </g>
@@ -221,7 +221,7 @@ export function StackedBars({
         })}
       </svg>
       {tip && (
-        <div className="pointer-events-none absolute top-2 right-2 z-10 min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
+        <div className="pointer-events-none absolute top-2 right-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
           <p className="mb-1 font-medium">
             {tip.label}: {total(tip.counts)} asked
           </p>
@@ -301,7 +301,7 @@ export function BarRows({
           const inner = (
             <>
               <span
-                className="w-36 min-w-0 shrink-0 truncate text-[13px] @max-md/main:w-28"
+                className="w-36 min-w-0 shrink-0 truncate text-dense @max-md/main:w-28"
                 title={r.label}
               >
                 {r.name}
@@ -311,11 +311,11 @@ export function BarRows({
                 className="relative h-2.5 min-w-0 flex-1 overflow-hidden bg-muted/70"
               >
                 <span
-                  className="absolute inset-y-0 left-0"
-                  style={{
-                    width: `${w}%`,
-                    background: quiet && i > 0 ? 'var(--chart-2)' : 'var(--primary)',
-                  }}
+                  className={cn(
+                    'absolute inset-y-0 left-0',
+                    quiet && i > 0 ? 'bg-chart-2' : 'bg-primary',
+                  )}
+                  style={{ width: `${w}%` }}
                 />
                 {!!r.hatch && (
                   <svg
@@ -328,7 +328,7 @@ export function BarRows({
                   </svg>
                 )}
               </span>
-              <span className="min-w-10 shrink-0 text-right text-[13px] whitespace-nowrap text-muted-foreground tabular-nums">
+              <span className="min-w-10 shrink-0 text-right text-dense whitespace-nowrap text-muted-foreground tabular-nums">
                 {r.display ?? r.value}
               </span>
               {!!r.hatch && (
@@ -455,7 +455,7 @@ export function LineChart({
   const slot = plotW / Math.max(1, labels.length - 1)
   const every = slot >= 44 ? 1 : slot >= 22 ? 2 : 4
   return (
-    <figure ref={box as React.RefObject<HTMLElement>} className="m-0">
+    <figure ref={box} className="m-0">
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden>
         {[0, 1 / 3, 2 / 3, 1].map((f) => (
           <g key={f}>
@@ -471,7 +471,7 @@ export function LineChart({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-[10px] tabular-nums"
+              className="fill-muted-foreground text-3xs tabular-nums"
             >
               {format(Math.round(max * f))}
             </text>
@@ -513,7 +513,7 @@ export function LineChart({
               x={x(i)}
               y={H - 6}
               textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground text-3xs"
             >
               {l}
             </text>
@@ -570,7 +570,7 @@ export function Bars({
   const y = (v: number) => pad.t + plotH - (v / max) * plotH
   const every = slot >= 40 ? 1 : slot >= 20 ? 2 : 4
   return (
-    <figure ref={box as React.RefObject<HTMLElement>} className="m-0">
+    <figure ref={box} className="m-0">
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden>
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
@@ -586,7 +586,7 @@ export function Bars({
               x={pad.l - 6}
               y={y(max * f) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-[10px] tabular-nums"
+              className="fill-muted-foreground text-3xs tabular-nums"
             >
               {Math.round(max * f)}
             </text>
@@ -606,7 +606,7 @@ export function Bars({
                 x={pad.l + slot * i + slot / 2}
                 y={H - 6}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[10px]"
+                className="fill-muted-foreground text-3xs"
               >
                 {labels[i]}
               </text>

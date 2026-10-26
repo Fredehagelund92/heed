@@ -9,7 +9,7 @@ import {
   PlusIcon,
   TypeIcon,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import type { ChangeKind, Review } from '@/data/review'
 
 /** Each kind of change as a glyph: the review's block labels and the Inbox's rows use the same one. */

@@ -26,7 +26,7 @@ const DialogOverlay = ({ className, ...props }: DialogPrimitive.Backdrop.Props) 
   <DialogPrimitive.Backdrop
     data-slot="dialog-overlay"
     className={cn(
-      'fixed inset-0 isolate z-50 bg-black/10 backdrop-motion supports-backdrop-filter:backdrop-blur-xs',
+      'fixed inset-0 isolate z-overlay bg-scrim backdrop-motion supports-backdrop-filter:backdrop-blur-xs',
       className,
     )}
     {...props}
@@ -46,7 +46,7 @@ const DialogContent = ({
     <DialogPrimitive.Popup
       data-slot="dialog-content"
       className={cn(
-        'fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-none bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 dialog-motion outline-none sm:max-w-sm',
+        'fixed top-1/2 left-1/2 z-overlay grid w-full max-w-inset -translate-x-1/2 -translate-y-1/2 dialog-motion gap-4 rounded-none bg-popover p-4 text-xs/relaxed text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm',
         className,
       )}
       {...props}

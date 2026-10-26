@@ -85,7 +85,7 @@ export const createControl = ({
 }: CreateControlProps) => {
   const Control = ({ className }: { className?: string }) => {
     const { editor, labels, icons } = useRichTextEditorContext()
-    const ariaLabel = labels[label] as string
+    const ariaLabel = labels[label]
 
     const selector = createSelector(isActive, isDisabled)
     useEditorState({ editor: editor ?? null, selector })

@@ -9,8 +9,8 @@ import {
   ListTreeIcon,
   NotebookTextIcon,
   PlusIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/data/integrations'
 import {
@@ -210,13 +210,13 @@ export function ContextPage() {
         data-state={isSel ? 'selected' : undefined}
         data-peeked={peeked === f.id || undefined}
         data-leaving={leaving.has(f.id) || undefined}
-        className="group/row row-fade h-9 cursor-pointer border-b text-sm hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-[state=selected]:bg-muted data-peeked:bg-muted data-peeked:shadow-[inset_2px_0_0_var(--foreground)] @max-xl/main:h-auto"
+        className="group/row h-9 cursor-pointer border-b text-sm row-fade hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
         onClick={(e) => sel.rowClick(f.id, e) || openDock('context', f.id)}
       >
         <td
           className={cn(
-            'hidden w-[38px] pr-0 pl-4 align-middle md:w-[46px] md:pl-6 @xl/main:table-cell',
+            'hidden w-9.5 pr-0 pl-4 align-middle md:w-11.5 md:pl-6 @xl/main:table-cell',
             boxes && 'table-cell',
           )}
           onClick={(e) => e.stopPropagation()}
@@ -269,21 +269,21 @@ export function ContextPage() {
                 <ToolLogo
                   c={connectorById('google-drive')!}
                   size="sm"
-                  className="size-4 rounded-[4px] p-[2px]"
+                  className="size-4 rounded p-0.5"
                 />
                 <span className="sr-only">From {f.origin.tool}</span>
               </span>
             )}
           </span>
           {/* On a phone the columns fold into a second line: the time frame in words, then the scope. */}
-          <span className="mt-0.5 hidden min-w-0 items-center gap-2 text-[0.8125rem] text-muted-foreground @max-xl/main:flex">
+          <span className="mt-0.5 hidden min-w-0 items-center gap-2 text-dense text-muted-foreground @max-xl/main:flex">
             <span className="shrink-0">{timeShort(time)}</span>
             <span className="min-w-0 truncate">
               <Highlight text={where} query={text} />
             </span>
           </span>
         </td>
-        <td className="hidden w-[202px] max-w-[202px] min-w-[202px] px-1.5 align-middle text-[0.8125rem] text-muted-foreground @min-[60rem]/main:table-cell">
+        <td className="hidden w-50.5 max-w-50.5 min-w-50.5 px-1.5 align-middle text-dense text-muted-foreground @min-[60rem]/main:table-cell">
           {/* The scope as the same tag chips as everywhere: two, then how many more. */}
           <span className="flex min-w-0 items-center gap-1 overflow-hidden">
             {f.where.slice(0, 2).map((w) => (
@@ -294,13 +294,13 @@ export function ContextPage() {
             )}
           </span>
         </td>
-        <td className="hidden w-[72px] min-w-[72px] px-1.5 align-middle @xl/main:table-cell">
+        <td className="hidden w-18 min-w-18 px-1.5 align-middle @xl/main:table-cell">
           <StatusIcon status={f.status} />
         </td>
-        <td className="hidden w-[156px] min-w-[156px] px-1.5 align-middle @xl/main:table-cell">
+        <td className="hidden w-39 min-w-39 px-1.5 align-middle @xl/main:table-cell">
           <TimeGlyph time={time} />
         </td>
-        <td className="w-[76px] min-w-[76px] px-1.5 text-center align-middle @max-xl/main:w-10 @max-xl/main:min-w-10 @max-xl/main:pr-4 @max-xl/main:pl-0">
+        <td className="w-19 min-w-19 px-1.5 text-center align-middle @max-xl/main:w-10 @max-xl/main:min-w-10 @max-xl/main:pr-4 @max-xl/main:pl-0">
           <FreshDot fact={f} />
         </td>
         <td
@@ -571,12 +571,12 @@ export function ContextPage() {
               </FilterRow>
               <div className="min-w-0 shrink-0">
                 <table ref={table} className="w-full border-collapse">
-                  <thead className="sticky top-0 z-10">
+                  <thead className="sticky top-0 z-raised">
                     <tr>
                       <th
                         className={cn(
                           thClass,
-                          'hidden w-[38px] min-w-[38px] pr-0 pl-4 md:w-[46px] md:min-w-[46px] md:pl-6 @xl/main:table-cell',
+                          'hidden w-9.5 min-w-9.5 pr-0 pl-4 md:w-11.5 md:min-w-11.5 md:pl-6 @xl/main:table-cell',
                           boxes && 'table-cell',
                         )}
                       >
@@ -591,19 +591,15 @@ export function ContextPage() {
                         <span className="sr-only">Kind</span>
                       </Th>
                       {sortTh('title', 'Context', 'w-full px-1.5 @max-xl/main:px-3')}
-                      <Th className="hidden w-[202px] min-w-[202px] px-1.5 @min-[60rem]/main:table-cell">
+                      <Th className="hidden w-50.5 min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
                         Scope
                       </Th>
-                      <Th className="hidden w-[72px] min-w-[72px] px-1.5 @xl/main:table-cell">
-                        Status
-                      </Th>
-                      <Th className="hidden w-[156px] min-w-[156px] px-1.5 @xl/main:table-cell">
-                        When
-                      </Th>
+                      <Th className="hidden w-18 min-w-18 px-1.5 @xl/main:table-cell">Status</Th>
+                      <Th className="hidden w-39 min-w-39 px-1.5 @xl/main:table-cell">When</Th>
                       {sortTh(
                         'checked',
                         'Checked',
-                        'w-[76px] min-w-[76px] px-1.5 text-center @max-xl/main:hidden',
+                        'w-19 min-w-19 px-1.5 text-center @max-xl/main:hidden',
                         'Checked: fresh up to 30 days, ageing up to 90, then overdue',
                       )}
                       <Th className="hidden w-10 @max-xl/main:table-cell @max-xl/main:pr-4">
@@ -660,8 +656,8 @@ export function ContextPage() {
                     />
                   </tbody>
                   {/* While rows are picked the bar's band holds the foot, so the totals stop sticking over the last rows. */}
-                  <tfoot className={cn('z-10 bg-background', !sel.count && 'sticky bottom-0')}>
-                    <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-[inset_0_1px_0_var(--border)]">
+                  <tfoot className={cn('z-raised bg-background', !sel.count && 'sticky bottom-0')}>
+                    <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-hairline-top">
                       <td className={cn('hidden @xl/main:table-cell', boxes && 'table-cell')} />
                       <td />
                       <td className="h-bar px-1.5 @max-xl/main:px-3">{items(filtered.length)}</td>

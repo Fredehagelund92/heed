@@ -1,6 +1,6 @@
 import * as React from 'react'
 import type { ReactNode } from 'react'
-import { CheckIcon, CloudOffIcon, EllipsisIcon, Loader2Icon, SearchIcon } from 'lucide-react'
+import { CheckIcon, CloudOffIcon, EllipsisIcon, Loader2Icon, SearchIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ThemeChoices } from '@/components/site-header'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { open } from '@/lib/events'
 

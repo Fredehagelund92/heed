@@ -71,8 +71,10 @@ export const Footer = ({
     <div
       className={cn(
         'rte-footer',
-        variant !== 'default' && `rte-footer--${variant}`,
-        sticky && 'sticky z-10',
+        variant === 'subtle'
+          ? 'rte-footer--subtle'
+          : variant === 'compact' && 'rte-footer--compact',
+        sticky && 'sticky z-raised',
         className,
       )}
       data-sticky={sticky ? '' : undefined}

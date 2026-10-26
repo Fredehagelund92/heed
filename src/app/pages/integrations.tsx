@@ -21,9 +21,9 @@ import {
   SearchIcon,
   TriangleAlertIcon,
   XIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
@@ -96,8 +96,8 @@ const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
 const crumbs = (...rest: { label: string; href?: string }[]) => (
   <SettingsCrumbs
     trail={[
-      { label: 'Settings', href: '#/settings/general' },
-      { label: 'Integrations', href: '#/settings/integrations' },
+      { label: 'Settings', href: '/settings/general' },
+      { label: 'Integrations', href: '/settings/integrations' },
       ...rest,
     ]}
   />
@@ -106,11 +106,7 @@ const crumbs = (...rest: { label: string; href?: string }[]) => (
 type Health = 'healthy' | 'reading' | 'failed' | 'reauth' | 'paused'
 
 const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: string }> = {
-  healthy: {
-    label: 'Healthy',
-    icon: <CircleCheckIcon />,
-    cls: 'border-[oklch(0.62_0.15_150/0.35)] text-[oklch(0.45_0.12_150)] dark:text-[oklch(0.78_0.13_150)]',
-  },
+  healthy: { label: 'Healthy', icon: <CircleCheckIcon />, cls: 'border-good/35 text-good-ink' },
   reading: {
     label: 'Reading',
     icon: <LoaderCircleIcon className="animate-spin" />,
@@ -124,7 +120,7 @@ const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: st
   reauth: {
     label: 'Needs a new key',
     icon: <KeyRoundIcon />,
-    cls: 'border-[oklch(0.68_0.16_65/0.45)] text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]',
+    cls: 'border-caution/45 text-caution-ink',
   },
   paused: { label: 'Paused', icon: <PauseIcon />, cls: 'text-muted-foreground' },
 }
@@ -139,11 +135,7 @@ function HealthBadge({ health }: { health: Health }) {
   )
 }
 
-const dotCls = {
-  ok: 'bg-[oklch(0.62_0.15_150)]',
-  changed: 'bg-[oklch(0.68_0.16_65)]',
-  failed: 'bg-destructive',
-}
+const dotCls = { ok: 'bg-good', changed: 'bg-caution', failed: 'bg-destructive' }
 
 // The connector pages are built from the shared square frames (components/heed/frame.tsx).
 const Panel = Frame
@@ -166,7 +158,7 @@ function DataTable({
     <div className="overflow-x-auto border-t">
       <table className="w-full text-sm">
         <thead>
-          <tr className="bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
+          <tr className="bg-band text-xs text-muted-foreground">
             {head.map((h, i) => (
               <th
                 key={h}
@@ -217,7 +209,7 @@ function NoDomain() {
   return (
     <Badge
       variant="outline"
-      className="gap-1 border-[oklch(0.68_0.16_65/0.45)] font-normal text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)] [&>svg]:size-3"
+      className="gap-1 border-caution/45 font-normal text-caution-ink [&>svg]:size-3"
     >
       <TriangleAlertIcon />
       No domain
@@ -231,7 +223,7 @@ function ActivityList({ items }: { items: Activity[] }) {
       {items.map((a) => (
         <li
           key={a.when}
-          className="grid grid-cols-[7.5rem_minmax(0,1fr)] gap-x-4 gap-y-0.5 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-[8.5rem_9rem_minmax(0,1fr)] md:px-5"
+          className="grid grid-cols-(--cols-lead-30) gap-x-4 gap-y-0.5 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-(--cols-sync-row) md:px-5"
         >
           <span className="text-muted-foreground tabular-nums">{a.when}</span>
           <span className="flex items-center gap-2">
@@ -258,7 +250,7 @@ function Connection({
         {rows.map(([k, v]) => (
           <div
             key={k}
-            className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-[11rem_minmax(0,1fr)] md:px-5"
+            className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-(--cols-lead-44) md:px-5"
           >
             <dt className="text-muted-foreground">{k}</dt>
             <dd className="min-w-0 break-words">{v}</dd>
@@ -309,7 +301,7 @@ function FiguresSection({ c }: { c: Connector }) {
           [
             [
               'Data endpoint',
-              <code key="e" className="font-mono text-[13px] break-all">
+              <code key="e" className="font-mono text-dense break-all">
                 {conn.endpoint}
               </code>,
             ],
@@ -317,7 +309,7 @@ function FiguresSection({ c }: { c: Connector }) {
               'Secret',
               <span key="s" className="flex flex-wrap items-center gap-3">
                 <code
-                  className="font-mono text-[13px]"
+                  className="font-mono text-dense"
                   aria-label={`Secret ending in ${conn.secretTail}`}
                 >
                   {'••••••••••••'}
@@ -339,7 +331,7 @@ function FiguresSection({ c }: { c: Connector }) {
             [
               'Declared host',
               <span key="h">
-                <code className="font-mono text-[13px]">{conn.host}</code>
+                <code className="font-mono text-dense">{conn.host}</code>
                 <span className="block text-xs text-muted-foreground">
                   The only host called for a figure. Read only, with a 4 second limit.
                 </span>
@@ -383,14 +375,14 @@ function FiguresSection({ c }: { c: Connector }) {
         ).map(([k, v]) => (
           <div
             key={k}
-            className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-[11rem_minmax(0,1fr)] md:px-5"
+            className="grid gap-1 border-t px-4 py-3 text-sm first:border-t-0 sm:grid-cols-(--cols-lead-44) md:px-5"
           >
             <dt className="text-muted-foreground">{k}</dt>
             <dd className="min-w-0 break-words">{v}</dd>
           </div>
         ))}
       </dl>
-      <div className="flex items-start gap-2 border-t bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4 py-3 text-sm md:px-5">
+      <div className="flex items-start gap-2 border-t bg-band px-4 py-3 text-sm md:px-5">
         <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <p>
           <span className="font-medium">Which integration answers:</span>{' '}
@@ -471,7 +463,7 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
       <>
         14 documents.{' '}
         <a
-          href="#/inbox?demo=week&card=drive-marketplace"
+          href="/inbox?demo=week&card=drive-marketplace"
           className="font-medium text-primary underline-offset-4 hover:underline"
         >
           3 suggestions
@@ -484,7 +476,7 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
       <>First read at 07:00. Suggestions go to the owners of each folder's domain</>
     )
   return (
-    <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 border-t px-4 py-3 first:border-t-0 md:px-5 @3xl/main:grid-cols-[auto_minmax(0,1fr)_13rem_auto]">
+    <li className="grid grid-cols-(--cols-around) items-center gap-x-3 gap-y-1 border-t px-4 py-3 first:border-t-0 md:px-5 @3xl/main:grid-cols-(--cols-source)">
       <ToolLogo c={c} />
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
@@ -519,7 +511,7 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
       <Button
         variant="outline"
         size="sm"
-        className="row-start-1 col-start-3 @3xl/main:col-start-4"
+        className="col-start-3 row-start-1 @3xl/main:col-start-4"
         onClick={() =>
           navigate(`/settings/integrations/${c.id}`, state !== 'normal' ? { state } : undefined)
         }
@@ -548,14 +540,14 @@ function AvailableCell({ c, connected }: { c: Connector; connected: boolean }) {
           </Badge>
         ) : connected ? (
           <a
-            href={`#/settings/integrations/${c.id}`}
+            href={`/settings/integrations/${c.id}`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             Connected, manage <ArrowRightIcon className="size-3.5" aria-hidden />
           </a>
         ) : (
           <a
-            href={`#/settings/integrations/${c.id}/connect`}
+            href={`/settings/integrations/${c.id}/connect`}
             className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             Connect <ArrowRightIcon className="size-3.5" aria-hidden />
@@ -582,7 +574,7 @@ export function IntegrationsPage() {
     <Page
       title={
         <SettingsCrumbs
-          trail={[{ label: 'Settings', href: '#/settings/general' }, { label: 'Integrations' }]}
+          trail={[{ label: 'Settings', href: '/settings/general' }, { label: 'Integrations' }]}
         />
       }
       actions={
@@ -601,12 +593,9 @@ export function IntegrationsPage() {
           {state === 'reauth' && (
             <div
               role="alert"
-              className="flex flex-wrap items-start gap-3 border-t bg-[oklch(0.68_0.16_65/0.08)] px-4 py-4 text-sm md:px-5"
+              className="flex flex-wrap items-start gap-3 border-t bg-caution/8 px-4 py-4 text-sm md:px-5"
             >
-              <TriangleAlertIcon
-                aria-hidden
-                className="mt-0.5 size-4 shrink-0 text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]"
-              />
+              <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
               <p className="min-w-0 flex-1">
                 <span className="font-medium">Google Drive needs a new key.</span> Google refused
                 the service account key on 21 Oct. Reading is paused; published context is not
@@ -719,11 +708,9 @@ export function IntegrationsPage() {
 
 const docLook: Record<DocState, string> = {
   waiting: 'border-primary/35 text-primary',
-  published:
-    'border-[oklch(0.62_0.15_150/0.35)] text-[oklch(0.45_0.12_150)] dark:text-[oklch(0.78_0.13_150)]',
+  published: 'border-good/35 text-good-ink',
   returned: 'text-muted-foreground',
-  skipped:
-    'border-[oklch(0.68_0.16_65/0.45)] text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]',
+  skipped: 'border-caution/45 text-caution-ink',
 }
 const docLabel: Record<DocState, string> = {
   waiting: 'Suggestion waiting',
@@ -913,7 +900,7 @@ export function ConnectorPage({ id }: { id: string }) {
                 <span className="text-muted-foreground tabular-nums">19 of 27 definitions</span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-[70%] rounded-full bg-primary" />
+                <div className="h-full w-7/10 rounded-full bg-primary" />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 Takes a few seconds. Agents keep getting the same context while it runs.
@@ -1049,7 +1036,7 @@ export function ConnectorPage({ id }: { id: string }) {
                   head={['View', 'Metrics', 'Dimensions', 'Domain', 'Owners']}
                   align={['left', 'right', 'right', 'left', 'left']}
                   rows={cubeViews.map((v) => [
-                    <code key="v" className="font-mono text-[13px]">
+                    <code key="v" className="font-mono text-dense">
                       {v.view}
                     </code>,
                     v.metrics,
@@ -1058,11 +1045,8 @@ export function ConnectorPage({ id }: { id: string }) {
                     <Owners key="o" domain={v.domain} />,
                   ])}
                 />
-                <div className="flex flex-wrap items-center gap-3 border-t bg-[oklch(0.68_0.16_65/0.08)] px-4 py-3 text-sm md:px-5">
-                  <TriangleAlertIcon
-                    aria-hidden
-                    className="size-4 shrink-0 text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]"
-                  />
+                <div className="flex flex-wrap items-center gap-3 border-t bg-caution/8 px-4 py-3 text-sm md:px-5">
+                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-ink" />
                   <p className="min-w-0 flex-1">
                     <span className="font-medium">2 views have no domain.</span> Their definitions
                     stay shared, and no owner is told when they change.
@@ -1089,19 +1073,19 @@ export function ConnectorPage({ id }: { id: string }) {
                   rows={[
                     [
                       'Repository',
-                      <code key="r" className="font-mono text-[13px]">
+                      <code key="r" className="font-mono text-dense">
                         https://git.example/larchwood/cube-definitions
                       </code>,
                     ],
                     [
                       'Branch or tag',
-                      <code key="b" className="font-mono text-[13px]">
+                      <code key="b" className="font-mono text-dense">
                         main
                       </code>,
                     ],
                     [
                       'Folder',
-                      <code key="f" className="font-mono text-[13px]">
+                      <code key="f" className="font-mono text-dense">
                         cube/
                       </code>,
                     ],
@@ -1207,7 +1191,7 @@ export function ConnectorPage({ id }: { id: string }) {
                     <span key="t" className="flex flex-col">
                       {d.card ? (
                         <a
-                          href={`#/inbox?demo=week&card=${d.card}`}
+                          href={`/inbox?demo=week&card=${d.card}`}
                           className="font-medium underline-offset-4 hover:underline"
                         >
                           {d.title}
@@ -1253,7 +1237,7 @@ export function ConnectorPage({ id }: { id: string }) {
                   rows={[
                     [
                       'Reads as',
-                      <code key="a" className="font-mono text-[13px] break-all">
+                      <code key="a" className="font-mono text-dense break-all">
                         {SERVICE_ACCOUNT}
                       </code>,
                     ],
@@ -1353,13 +1337,13 @@ export function ConnectorPage({ id }: { id: string }) {
                   rows={[
                     [
                       'Repository',
-                      <code key="r" className="font-mono text-[13px]">
+                      <code key="r" className="font-mono text-dense">
                         https://git.example/larchwood/handbook
                       </code>,
                     ],
                     [
                       'Branch or tag',
-                      <code key="b" className="font-mono text-[13px]">
+                      <code key="b" className="font-mono text-dense">
                         main
                       </code>,
                     ],
@@ -1406,7 +1390,7 @@ function Stepper({ at }: { at: number }) {
             {i > 0 && <span aria-hidden className="h-px w-5 bg-border max-sm:hidden" />}
             <span
               className={cn(
-                'grid size-5 place-items-center rounded-full border text-[11px] tabular-nums',
+                'grid size-5 place-items-center rounded-full border text-2xs tabular-nums',
                 done && 'border-foreground bg-foreground text-background',
                 on && 'border-primary text-primary ring-2 ring-primary/20',
               )}
@@ -1433,7 +1417,7 @@ function Checks({ items, running }: { items: string[]; running: number }) {
           className={cn('flex items-center gap-2', i >= running && 'text-muted-foreground')}
         >
           {i < running ? (
-            <CircleCheckIcon aria-hidden className="size-4 text-[oklch(0.55_0.14_150)]" />
+            <CircleCheckIcon aria-hidden className="size-4 text-good-icon" />
           ) : i === running ? (
             <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
           ) : (
@@ -1456,8 +1440,7 @@ function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: Domai
             size="sm"
             className={cn(
               'w-40 justify-between font-normal',
-              !value &&
-                'border-[oklch(0.68_0.16_65/0.6)] text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]',
+              !value && 'border-caution/60 text-caution-ink',
             )}
           />
         }
@@ -1503,7 +1486,7 @@ export function ConnectFlow({ id }: { id: string }) {
       ? driveFolders.map((f) => ({
           name: `${f.folder} / ${f.path}`,
           detail: `${f.documents} documents`,
-          domain: f.domain as DomainId | undefined,
+          domain: f.domain,
         }))
       : [
           { name: 'docs/sales', detail: '5 files', domain: 'sales' as DomainId | undefined },
@@ -1603,7 +1586,7 @@ export function ConnectFlow({ id }: { id: string }) {
                           ]
                       ).map((t) => (
                         <li key={t} className="flex items-center gap-2">
-                          <CheckIcon aria-hidden className="size-4 text-[oklch(0.55_0.14_150)]" />
+                          <CheckIcon aria-hidden className="size-4 text-good-icon" />
                           {t}
                         </li>
                       ))}
@@ -1661,7 +1644,7 @@ export function ConnectFlow({ id }: { id: string }) {
                         <span className="flex-1 truncate">{SLUG}-reader.json</span>
                         <Badge
                           variant="outline"
-                          className="border-[oklch(0.62_0.15_150/0.35)] font-normal text-[oklch(0.45_0.12_150)] dark:text-[oklch(0.78_0.13_150)]"
+                          className="border-good/35 font-normal text-good-ink"
                         >
                           Uploaded
                         </Badge>
@@ -1710,20 +1693,20 @@ export function ConnectFlow({ id }: { id: string }) {
                             ? 'https://git.example/larchwood/cube-definitions'
                             : 'https://git.example/larchwood/handbook'
                         }
-                        className="font-mono text-[13px]"
+                        className="font-mono text-dense"
                       />
                     </Field>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <Field>
                         <FieldLabel htmlFor="branch">Branch or tag</FieldLabel>
-                        <Input id="branch" defaultValue="main" className="font-mono text-[13px]" />
+                        <Input id="branch" defaultValue="main" className="font-mono text-dense" />
                       </Field>
                       <Field>
                         <FieldLabel htmlFor="folder">Folder</FieldLabel>
                         <Input
                           id="folder"
                           defaultValue={isCube ? 'cube/' : 'docs/'}
-                          className="font-mono text-[13px]"
+                          className="font-mono text-dense"
                         />
                       </Field>
                     </div>
@@ -1766,7 +1749,7 @@ export function ConnectFlow({ id }: { id: string }) {
                         <span
                           className={cn(
                             'min-w-0 flex-1 truncate',
-                            isCube && 'font-mono text-[13px]',
+                            isCube && 'font-mono text-dense',
                           )}
                         >
                           {s.name}
@@ -1777,10 +1760,10 @@ export function ConnectFlow({ id }: { id: string }) {
                   ))}
                 </ul>
                 {isCube && (
-                  <p className="flex items-start gap-2 rounded-frame border border-[oklch(0.68_0.16_65/0.45)] bg-[oklch(0.68_0.16_65/0.08)] p-3 text-sm">
+                  <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
                     <TriangleAlertIcon
                       aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-[oklch(0.5_0.13_65)] dark:text-[oklch(0.8_0.13_75)]"
+                      className="mt-0.5 size-4 shrink-0 text-caution-ink"
                     />
                     <span>
                       2 views have no <code className="font-mono text-xs">meta.domain</code>. You
@@ -1812,7 +1795,7 @@ export function ConnectFlow({ id }: { id: string }) {
                 <div className="overflow-x-auto rounded-frame border">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-left text-xs text-muted-foreground">
+                      <tr className="bg-band text-left text-xs text-muted-foreground">
                         <th className="h-9 px-4 font-medium">{isCube ? 'Cube view' : 'Folder'}</th>
                         <th className="h-9 px-4 font-medium">Domain</th>
                         <th className="h-9 px-4 font-medium">Owners</th>
@@ -1821,9 +1804,7 @@ export function ConnectFlow({ id }: { id: string }) {
                     <tbody>
                       {chosen.map((n) => (
                         <tr key={n} className="border-t">
-                          <td className={cn('h-12 px-4', isCube && 'font-mono text-[13px]')}>
-                            {n}
-                          </td>
+                          <td className={cn('h-12 px-4', isCube && 'font-mono text-dense')}>{n}</td>
                           <td className="px-4">
                             <DomainPick
                               value={map[n]}
@@ -1895,7 +1876,7 @@ export function ConnectFlow({ id }: { id: string }) {
                     <li key={i} className="flex gap-2">
                       <CircleCheckIcon
                         aria-hidden
-                        className="mt-0.5 size-4 shrink-0 text-[oklch(0.55_0.14_150)]"
+                        className="mt-0.5 size-4 shrink-0 text-good-icon"
                       />
                       <span>{t}</span>
                     </li>

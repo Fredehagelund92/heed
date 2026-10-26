@@ -1,7 +1,7 @@
 import * as React from 'react'
-import { BookmarkIcon, XIcon } from 'lucide-react'
+import { BookmarkIcon, XIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
@@ -69,7 +69,7 @@ export function SaveQuestion({
       <PopoverContent
         align={quiet ? 'start' : 'end'}
         side="top"
-        className="w-96 max-w-[calc(100vw-2rem)]"
+        className="w-96 max-w-viewport-inset"
       >
         <form
           className="flex flex-col gap-3"

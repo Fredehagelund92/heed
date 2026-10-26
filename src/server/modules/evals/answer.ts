@@ -19,7 +19,6 @@ import {
   type GoldenQuestion,
   type JudgeVerdict,
 } from '../../../domain/golden-question.ts'
-import { resolverStatusOf } from '../../../domain/answer-state.ts'
 import { gradingTag, type GradingInput, type ModelChoice } from '../models/index.ts'
 import { ToolCallRefused, type Arm } from './arm.ts'
 
@@ -33,7 +32,7 @@ import { ToolCallRefused, type Arm } from './arm.ts'
 
 export const answerSystemPrompt = [
   'You answer questions about company analytics data for an analyst.',
-  'Before answering, call get_context with the metrics, markets and dates the question is about.',
+  'Before answering, call get_facts with the metrics, markets and dates the question is about.',
   'Base the answer only on the governed context the tools return, and cite every item you rely on by its id in square brackets, like [itm_abc12345].',
   'State the caveats the items give. Never claim a cause the items do not state: say what happened and what the items document.',
   'If the question lacks a metric, market or date range you need, ask one short clarifying question instead of guessing.',
@@ -71,8 +70,8 @@ export type ToolCallRecord = {
   status: string | null
   items: string[]
   /**
-   * The items the reply gives as applying to the scope asked: all of get_context's, and the
-   * scope matches of find_context, not its word matches, which are search hits with their own
+   * The items the reply gives as applying to the scope asked: all of get_facts's, and the
+   * scope matches of find_facts, not its word matches, which are search hits with their own
    * validity shown.
    */
   applied: string[]
@@ -82,42 +81,39 @@ export type AnswerResult = {
   answer: string
   delivered: string[]
   applied: string[]
-  /** Items read by following a link (read_context, or an item in service listed by get_related). */
+  /** Items read by following a link (read_item, or an item in service listed by get_related). */
   reached: string[]
   statuses: string[]
   toolCalls: ToolCallRecord[]
   messages: ModelMessage[]
 }
 
-type Listed = { id?: unknown; match?: unknown }
 type Reply = {
   status?: unknown
-  context?: Listed[] | Listed
+  items?: { id?: unknown; match?: unknown }[]
+  item?: { id?: unknown }
   nodes?: { id?: unknown; type?: unknown; status?: unknown }[]
 }
 export function recordOf(tool: string, input: unknown, output: unknown): ToolCallRecord {
   const reply = (output && typeof output === 'object' ? output : {}) as Reply
-  // get_context and find_context list their items under context; read_context gives one there.
-  const listed = Array.isArray(reply.context) ? reply.context : []
   const items = [
-    ...listed.map((i) => i.id),
-    ...(reply.context && !Array.isArray(reply.context) ? [reply.context.id] : []),
+    ...(Array.isArray(reply.items) ? reply.items.map((i) => i.id) : []),
+    ...(reply.item ? [reply.item.id] : []),
     // A neighbour item in service gives its summary; a tombstone gives only the author's words.
     ...(Array.isArray(reply.nodes)
       ? reply.nodes.filter((n) => n.type === 'item' && n.status === 'current').map((n) => n.id)
       : []),
   ].filter((id): id is string => typeof id === 'string')
-  const applied = listed
-    // get_context's items all apply; find_context's apply only as scope matches, its word matches
-    // ('all', 'some') are search hits.
-    .filter((i) => tool !== 'find_context' || i.match === undefined || i.match === 'scope')
+  const applied = (Array.isArray(reply.items) ? reply.items : [])
+    // get_facts's items all apply (their match is exact or partial); find_facts's apply only as
+    // scope matches, its word matches ('all', 'some') are search hits.
+    .filter((i) => tool !== 'find_facts' || i.match === undefined || i.match === 'scope')
     .map((i) => i.id)
     .filter((id): id is string => typeof id === 'string')
   return {
     tool,
     input,
-    // A test question expects what the resolver found: Partial and Outdated are matches (FR-349).
-    status: typeof reply.status === 'string' ? resolverStatusOf(reply.status) : null,
+    status: typeof reply.status === 'string' ? reply.status : null,
     items,
     applied,
   }
@@ -216,11 +212,11 @@ export async function answerQuestion(
 }
 
 /**
- * The tools an agent finds context with: get_context for a scope, find_context for words (a
- * definition question, FR-338). Both reply in the same shape, a status and the context items
- * delivered, so the status and delivery checks read whichever the agent used (try-it-2, round 4).
+ * The tools an agent finds context with: get_facts for a scope, find_facts for words (a
+ * definition question, FR-338). Both reply in the same shape, a status and the items delivered,
+ * so the status and delivery checks read whichever the agent used (try-it-2, round 4).
  */
-export const contextTools: readonly string[] = ['get_context', 'find_context']
+export const contextTools: readonly string[] = ['get_facts', 'find_facts']
 
 /**
  * What the tool calls of one answer gave the agent: the items and statuses of its context calls,
@@ -231,7 +227,7 @@ export function observed(
   toolCalls: readonly ToolCallRecord[],
 ): Pick<AnswerResult, 'delivered' | 'applied' | 'reached' | 'statuses'> {
   const answered = toolCalls.filter((c) => contextTools.includes(c.tool))
-  const followed = toolCalls.filter((c) => c.tool === 'read_context' || c.tool === 'get_related')
+  const followed = toolCalls.filter((c) => c.tool === 'read_item' || c.tool === 'get_related')
   return {
     delivered: [...new Set(answered.flatMap((c) => c.items))],
     applied: [...new Set(answered.flatMap((c) => c.applied))],

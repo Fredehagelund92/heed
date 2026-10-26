@@ -1,8 +1,9 @@
 import * as React from 'react'
+import { storageKey } from '@/lib/brand'
 
 // Whether a person keeps the Settings help aside open: folded until they open it, then the way they left it.
 
-const key = (person: string) => `help-aside:${person}`
+const key = (person: string) => storageKey(`help-aside:${person}`)
 
 function read(person: string) {
   try {

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CircleAlertIcon } from 'lucide-react'
+import { CircleAlertIcon } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -16,17 +16,17 @@ export class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { error: Error | null }
 > {
-  state = { error: null as Error | null }
+  override state = { error: null as Error | null }
 
   static getDerivedStateFromError(error: Error) {
     return { error }
   }
 
-  componentDidCatch(error: Error) {
+  override componentDidCatch(error: Error) {
     console.error('[heed] a screen failed:', error)
   }
 
-  render() {
+  override render() {
     const { error } = this.state
     if (!error) return this.props.children
     const load =

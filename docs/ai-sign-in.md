@@ -99,15 +99,12 @@ AI agent                Heed MCP server         Heed login server            Bro
   person, `disconnected_by_admin`, `refresh_reuse`, `code_reuse`, `revoked_by_client`,
   `person_inactive`). An administrator's disconnect names them as the actor and keeps their reason
   in the entry's reason column; the connections of one person ended together share a batch id.
-- **Suggestions.** With the `propose` scope, which a sign-in grants by default and the consent
-  page names, a person's app may call `suggest_context` (FR-121), on by default: after the person
-  says yes, it saves the suggestion as the person and sends it for review, so it waits for the
-  owner of its domain, who checks it and publishes it. If the review checks refuse it, it stays the
-  person's draft. `draft_context`, its deprecated id, saves an unsubmitted draft as before. It is
-  the only MCP call that names the person, as the proposer, on the proposal and its history; the
-  request log still keeps only `signed-in`. A dev token names no person, so it is refused. When the
-  app can show forms, the tool asks its open questions there first, in a request state bound to the
-  tool, the person and the app (`CL_MCP_STATE_KEY_FILE`, below).
+- **Drafts.** With the `propose` scope, a person's app may call `draft_context` (FR-121), once an
+  administrator has switched it on: it saves an unsubmitted draft owned by the person, who checks
+  and submits it in the web app. It is the only MCP call that names the person, as the proposer,
+  on the proposal and its history; the request log still keeps only `signed-in`. A dev token names
+  no person, so it is refused. When the app can show forms, the tool asks its open questions there
+  first, in a request state bound to the person and the app (`CL_MCP_STATE_KEY_FILE`, below).
 - **Rates.** Per caller address and minute: discovery 120, registration 10, authorize 30, token
   60, revocation 30; the web API's own limits cover the consent operations. Failed token requests
   count per client and caller address, 30 a minute; successful code exchanges and refreshes never

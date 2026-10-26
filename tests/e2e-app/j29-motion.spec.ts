@@ -1,6 +1,6 @@
 /// <reference lib="dom" />
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { expect, test, type Page } from '@playwright/test'
+import { go, moveTo } from './go.ts'
 
 // J29: motion and loading (docs/motion.md). Decisions do not wait, loading waits before it shows and
 // takes the page's shape, and nothing moves that the person did not ask for.
@@ -28,7 +28,7 @@ test('an Inbox decision shows at once, Undo brings it back, and a failed save ta
 })
 
 /** Counts the frames in which the page's first row moved, over 700ms after `act`. */
-async function framesMoved(page: import('@playwright/test').Page, act: () => Promise<unknown>) {
+async function framesMoved(page: Page, act: () => Promise<unknown>) {
   await page.evaluate(() => {
     const w = window as unknown as { __mv: { moved: number; done: boolean } }
     const probe = () =>
@@ -57,14 +57,10 @@ test('opening and closing a peek moves the page once, not frame after frame', as
   await expect(page.locator('tbody tr').first()).toBeVisible()
   await page.waitForTimeout(300)
   expect(
-    await framesMoved(page, () =>
-      page.evaluate(() => (location.hash = '#/context?dock=context.itm_ra39ow6c')),
-    ),
+    await framesMoved(page, () => moveTo(page, '/context?dock=context.itm_ra39ow6c')),
   ).toBeLessThanOrEqual(2)
   await expect(page.getByRole('region', { name: /Context/ }).last()).toBeVisible()
-  expect(
-    await framesMoved(page, () => page.evaluate(() => (location.hash = '#/context'))),
-  ).toBeLessThanOrEqual(2)
+  expect(await framesMoved(page, () => moveTo(page, '/context'))).toBeLessThanOrEqual(2)
 })
 
 test("a slow load waits, shows the page's shape, then the content, without the layout jumping", async ({
@@ -179,7 +175,7 @@ test.describe('with reduced motion', () => {
   test('the dock and overlays are there at once, and content still fades in', async ({ page }) => {
     await go(page, '/context')
     await expect(page.locator('tbody tr').first()).toBeVisible()
-    await page.evaluate(() => (location.hash = '#/context?dock=context.itm_ra39ow6c'))
+    await moveTo(page, '/context?dock=context.itm_ra39ow6c')
     const dock = page.locator('.dock-enter').first()
     await expect(dock).toBeVisible()
     expect(await dock.evaluate((el) => getComputedStyle(el).transitionDuration)).toBe('0s')

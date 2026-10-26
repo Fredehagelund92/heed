@@ -193,17 +193,17 @@ export const TOPICS: Topic[] = [
   topic('norway-no-metric', '', 'Norway', undefined, [4, 1, 0, 0, 0], { named: 'none' }),
   topic('discount-black-friday', 'Discount cost', 'Black Friday', 'marketing', [10, 1, 0, 3, 0]),
   topic('orders-poland', 'Orders', 'Poland', 'sales', [4, 2, 0, 1, 6], {
-    gap: { label: 'A suggestion waits', href: '#/inbox/sug-agent/review' },
+    gap: { label: 'A suggestion waits', href: '/inbox/sug-agent/review' },
   }),
   topic('orders-spain', 'Orders', 'Spain', 'sales', [1, 2, 0, 0, 9], {
-    gap: { label: 'Draft ready', href: '#/inbox?card=gap-spain' },
+    gap: { label: 'Draft ready', href: '/inbox?card=gap-spain' },
   }),
   topic('orders-germany', 'Orders', 'Germany', 'sales', [0, 0, 0, 0, 3], {
-    gap: { label: 'No draft yet', href: '#/inbox?card=gap-germany' },
+    gap: { label: 'No draft yet', href: '/inbox?card=gap-germany' },
   }),
   topic('orders-germany-nov', 'Orders', 'Germany', 'sales', [0, 0, 0, 0, 3], {
     month: '2026-11',
-    gap: { label: 'No draft yet', href: '#/inbox?card=gap-germany' },
+    gap: { label: 'No draft yet', href: '/inbox?card=gap-germany' },
   }),
   topic('cpa-germany', 'Cost per acquisition', 'Germany', 'marketing', [8, 1, 1, 0, 0]),
   topic('new-customers-norway', 'New customers', 'Norway', 'customer_value', [5, 1, 0, 0, 0]),
@@ -591,7 +591,7 @@ export const REPORTS: Report[] = [
     domain: 'sales',
     from: 'Maria Lindqvist, from Ask',
     when: 'Yesterday',
-    href: '#/inbox?card=flag-germany',
+    href: '/inbox?card=flag-germany',
   },
   {
     id: 'r-revenue',
@@ -601,7 +601,7 @@ export const REPORTS: Report[] = [
     domain: 'sales',
     from: 'Ines Duarte, from Ask',
     when: 'Tue 20 Oct',
-    href: '#/context/itm_s90n5xps',
+    href: '/context/itm_s90n5xps',
   },
   {
     id: 'r-poland',
@@ -612,7 +612,7 @@ export const REPORTS: Report[] = [
     from: 'Claude Code',
     agent: true,
     when: 'Fri 16 Oct',
-    href: '#/inbox/sug-agent/review',
+    href: '/inbox/sug-agent/review',
   },
   {
     id: 'r-gift',
@@ -622,7 +622,7 @@ export const REPORTS: Report[] = [
     domain: 'sales',
     from: 'Sofia Brandt, from Ask',
     when: 'Thu 15 Oct',
-    href: '#/context/itm_gift_card_only',
+    href: '/context/itm_gift_card_only',
   },
   {
     id: 'r-spain',
@@ -633,7 +633,7 @@ export const REPORTS: Report[] = [
     from: 'Claude app',
     agent: true,
     when: 'Wed 21 Oct',
-    href: '#/inbox?card=gap-spain',
+    href: '/inbox?card=gap-spain',
   },
   {
     id: 'r-discount',
@@ -644,7 +644,7 @@ export const REPORTS: Report[] = [
     from: 'Cursor',
     agent: true,
     when: 'Tue 20 Oct',
-    href: '#/context/itm_pfet8zj3',
+    href: '/context/itm_pfet8zj3',
   },
   {
     id: 'r-roas',
@@ -655,7 +655,7 @@ export const REPORTS: Report[] = [
     from: 'ChatGPT',
     agent: true,
     when: 'Mon 19 Oct',
-    href: '#/observability/questions?dock=topic.roas-sweden',
+    href: '/observability/questions?dock=topic.roas-sweden',
   },
   {
     id: 'r-customers',
@@ -665,7 +665,7 @@ export const REPORTS: Report[] = [
     domain: 'customer_value',
     from: 'Lars Dahl, from Ask',
     when: 'Sun 18 Oct',
-    href: '#/context/itm_p9lchmy0',
+    href: '/context/itm_p9lchmy0',
   },
   {
     id: 'r-repeat',
@@ -676,7 +676,7 @@ export const REPORTS: Report[] = [
     from: 'Other agents',
     agent: true,
     when: 'Sat 17 Oct',
-    href: '#/observability/questions?dock=topic.repeat-purchases-all',
+    href: '/observability/questions?dock=topic.repeat-purchases-all',
   },
 ]
 

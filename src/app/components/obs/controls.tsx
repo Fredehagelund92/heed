@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { BotIcon, ChevronDownIcon, LayersIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { BotIcon, ChevronDownIcon, LayersIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Changed } from '@/components/heed/changed'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { AGENTS, RANGES, type Range } from '@/data/observability'
-import { domainIds, domains, type DomainId } from '@/data/world'
+import { domainIds, domains } from '@/data/world'
 import type { ObsView } from '@/lib/obs'
 import { setQuery } from '@/lib/router'
 
@@ -37,7 +37,7 @@ export function RangeSwitch({ value }: { value: Range }) {
           aria-checked={value === r}
           onClick={() => setQuery({ range: r === 7 ? undefined : String(r) })}
           className={cn(
-            'rounded-[5px] px-2.5 text-[13px] whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:min-h-10',
+            'rounded-tile px-2.5 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:min-h-10',
             value === r && 'bg-muted font-medium text-foreground',
           )}
         >
@@ -93,7 +93,7 @@ function Filter({
 
 /** The page's filters: a domain, a kind of agent (admins), and the range. */
 export function ObsControls({ view, compact }: { view: ObsView; compact?: boolean }) {
-  const doms = (view.owned ?? domainIds.filter((d) => d !== 'sandbox')) as DomainId[]
+  const doms = view.owned ?? domainIds.filter((d) => d !== 'sandbox')
   return (
     <div className="flex flex-wrap items-center gap-2">
       {!compact && (view.owned?.length !== 1 || !view.owned) && (

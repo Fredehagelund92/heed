@@ -204,7 +204,7 @@ describe('settings and limits', () => {
     const [current] = (await ok<Setting[]>('GET', '/settings', 'admin')).filter(
       (s) => s.key === 'limits.mcp_rate_per_minute',
     )
-    const value = { get_context: 60, report: 5 }
+    const value = { get_facts: 60, report_gap: 5, give_feedback: 5 }
     const reason = 'Tighter feedback limits'
     expect(
       (await call('PUT', path, 'admin', { version: current!.version, value: { nope: 1 }, reason }))
@@ -269,36 +269,31 @@ describe('tool switch and client policies', () => {
   it('switches a tool off for every client and records it once', async () => {
     const before = await auditRows()
     const off = { enabled: false, reason: 'Gap reports flood the queue' }
-    expect((await call('POST', '/tools/report', 'owner', off)).statusCode).toBe(403)
+    expect((await call('POST', '/tools/report_gap', 'owner', off)).statusCode).toBe(403)
     expect((await call('POST', '/tools/no_such_tool', 'admin', off)).statusCode).toBe(404)
-    expect(await ok('POST', '/tools/report', 'admin', off)).toMatchObject({
-      tool: 'report',
+    expect(await ok('POST', '/tools/report_gap', 'admin', off)).toMatchObject({
+      tool: 'report_gap',
       enabled: false,
     })
-    expect((await serving.policy('claude-code')).tools).not.toContain('report')
+    expect((await serving.policy('claude-code')).tools).not.toContain('report_gap')
     // Asking for the state it is already in changes and records nothing.
-    await ok('POST', '/tools/report', 'admin', off)
+    await ok('POST', '/tools/report_gap', 'admin', off)
     expect(await auditRows()).toBe(before + 1)
-    await ok('POST', '/tools/report', 'admin', { enabled: true, reason: 'Queue cleared' })
-    expect((await serving.policy('claude-code')).tools).toContain('report')
+    await ok('POST', '/tools/report_gap', 'admin', { enabled: true, reason: 'Queue cleared' })
+    expect((await serving.policy('claude-code')).tools).toContain('report_gap')
     const tools = await ok<{ tool: string; enabled: boolean }[]>('GET', '/tools', 'admin')
-    // The six tools of the agent contract, every one on: suggest_context and get_related too
-    // (FR-121, FR-332 as changed for Heed v1).
-    expect(tools.map((t) => t.tool)).toEqual([
-      'find_context',
-      'get_context',
+    // get_related is built switched off until an evaluation shows gain (FR-332), and
+    // draft_context until an administrator turns it on (FR-121).
+    expect(tools.filter((t) => !t.enabled).map((t) => t.tool)).toEqual([
+      'draft_context',
       'get_related',
-      'read_context',
-      'report',
-      'suggest_context',
     ])
-    expect(tools.filter((t) => !t.enabled)).toEqual([])
   })
 
   it('adds a client label and changes its tools and limits', async () => {
     const cursor = {
       displayName: 'Cursor',
-      toolsAllowed: ['find_context', 'get_context', 'get_context'],
+      toolsAllowed: ['search_facts', 'get_facts', 'get_facts'],
       ratePerMinute: 30,
       maxResponseBytes: 50_000,
       enabled: true,
@@ -316,13 +311,13 @@ describe('tool switch and client policies', () => {
     expect(await ok<ClientPolicy>('PUT', '/clients/cursor', 'admin', cursor)).toEqual({
       label: 'cursor',
       displayName: 'Cursor',
-      toolsAllowed: ['find_context', 'get_context'],
+      toolsAllowed: ['get_facts', 'search_facts'],
       ratePerMinute: 30,
       maxResponseBytes: 50_000,
       enabled: true,
     })
     expect((await serving.policy('cursor')).client).toMatchObject({
-      tools_allowed: ['find_context', 'get_context'],
+      tools_allowed: ['get_facts', 'search_facts'],
       rate_per_minute: 30,
     })
     await ok('PUT', '/clients/cursor', 'admin', { ...cursor, enabled: false, reason: 'Paused' })
@@ -370,7 +365,7 @@ describe('history log', () => {
       actorName: 'admin',
       actorKind: 'person',
       subjectType: 'tool',
-      subjectId: 'report',
+      subjectId: 'report_gap',
       details: { reason: 'Queue cleared' },
     })
     const bySubject = await ok<{ entries: AuditEntry[] }>(

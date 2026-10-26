@@ -55,17 +55,17 @@ test('an administrator switches a tool off and on again, each with a reason', as
   baseURL,
 }) => {
   await signIn(context, baseURL!, admin)
-  expect(await tool(context.request, 'report')).toMatchObject({ enabled: true })
+  expect(await tool(context.request, 'improve_question')).toMatchObject({ enabled: true })
   try {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/admin?section=gateway&tab=tools')
-    const toggle = page.getByRole('switch', { name: 'Tell the owner' })
+    const toggle = page.getByRole('switch', { name: 'Improve a question' })
     await expect(toggle).toBeChecked({ timeout: 15_000 })
     // The service's moment reads as a date, not "Invalid Date".
-    await expect(page.locator('[data-tool="report"]')).toContainText(/On since \d/)
+    await expect(page.locator('[data-tool="improve_question"]')).toContainText(/On since \d/)
 
     await toggle.click()
-    const off = page.getByRole('alertdialog', { name: 'Switch off Tell the owner?' })
+    const off = page.getByRole('alertdialog', { name: 'Switch off Improve a question?' })
     await expect(off).toContainText(
       'Claude Code with a token, Evaluation runner and Agents people sign in with',
     )
@@ -73,18 +73,18 @@ test('an administrator switches a tool off and on again, each with a reason', as
     await off.getByRole('button', { name: 'Switch off' }).click()
     await expect(off).toBeHidden({ timeout: 15_000 })
     await expect(toggle).not.toBeChecked()
-    expect(await tool(context.request, 'report')).toMatchObject({ enabled: false })
+    expect(await tool(context.request, 'improve_question')).toMatchObject({ enabled: false })
 
     await toggle.click()
-    const on = page.getByRole('alertdialog', { name: 'Switch on Tell the owner?' })
+    const on = page.getByRole('alertdialog', { name: 'Switch on Improve a question?' })
     await on.getByRole('textbox', { name: 'Why' }).fill('End to end: back on')
     await on.getByRole('button', { name: 'Switch on' }).click()
     await expect(on).toBeHidden({ timeout: 15_000 })
     await expect(toggle).toBeChecked()
-    expect(await tool(context.request, 'report')).toMatchObject({ enabled: true })
+    expect(await tool(context.request, 'improve_question')).toMatchObject({ enabled: true })
   } finally {
-    if (!(await tool(context.request, 'report'))?.enabled)
-      await change(context.request, baseURL!, 'post', '/tools/report', {
+    if (!(await tool(context.request, 'improve_question'))?.enabled)
+      await change(context.request, baseURL!, 'post', '/tools/improve_question', {
         enabled: true,
         reason: 'End to end: put back',
       })

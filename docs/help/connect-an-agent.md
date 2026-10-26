@@ -40,7 +40,7 @@ Today, Claude Code is the agent that connects, and the page lists it. Other agen
 
 4. Go back to Claude Code and ask a question about company data, for example: _How did orders in Norway change in August 2026?_
 
-   When the agent checks the facts, it calls Get context for a question first. Then it answers with the number and the facts that apply.
+   When the agent checks the facts, it calls Get facts for a question first. Then it answers with the number and the facts that apply.
 
 ## The skill file
 
@@ -55,13 +55,13 @@ Your agent decides when to call a tool. Add this line to its instructions so it 
 For `CLAUDE.md` or `AGENTS.md` in your project, which Claude Code and other agents that write code read when they start:
 
 ```text
-Before you answer a question about company data, call get_context first and use what it returns.
+Before you answer a question about company data, ask {{product}} first: call its get_facts tool, and use the definitions, caveats and events it returns.
 ```
 
 For the instructions a data tool gives its own built-in AI, when that AI is connected to {{product}}:
 
 ```text
-When someone asks why a number moved, or before you trust a number, ask {{product}} with get_context for the events, caveats and definitions that apply.
+When someone asks why a number moved, or before you trust a number, ask {{product}} with get_facts for the events, caveats and definitions that apply.
 ```
 
 Both lines are on the page, under **Ask first**, with a copy button.

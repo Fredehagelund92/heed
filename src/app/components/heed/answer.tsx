@@ -11,9 +11,9 @@ import {
   RefreshCwIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { TypeGlyph } from '@/components/heed/definition'
 import { PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
@@ -117,8 +117,8 @@ export function Question({
   const showReadAs = !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
   return (
     <div className="group/q flex flex-col items-end gap-2">
-      <div className="flex max-w-[85%] min-w-0 items-end gap-2">
-        <div className="min-w-0 rounded-surface bg-muted px-4 py-2 text-[15px] leading-relaxed whitespace-pre-line wrap-anywhere [&_.mention-chip]:bg-background">
+      <div className="flex max-w-17/20 min-w-0 items-end gap-2">
+        <div className="min-w-0 rounded-surface bg-muted px-4 py-2 text-reading leading-relaxed wrap-anywhere whitespace-pre-line [&_.mention-chip]:bg-background">
           {answer.parts
             ? answer.parts.map((p, i) =>
                 typeof p === 'string' ? (
@@ -132,7 +132,7 @@ export function Question({
         <PersonAvatar name={me.name} size={28} className="hidden shrink-0 @md:flex" />
       </div>
       {/* Copy, and Edit to put the question back in the box: under the bubble, so it keeps its width; always there on a touch screen. */}
-      <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100 @md:pr-9">
+      <div className="-my-1 flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover/q:opacity-100 focus-within:opacity-100 @md:pr-9 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
         <IconButton
           label="Copy"
           onClick={() => {
@@ -189,7 +189,7 @@ function ScopeLine({ answer }: { answer: Answer }) {
     !kinds.some((k) => k === 'market' || k === 'context') && answer.markets.join(' and '),
   ].filter(Boolean)
   return (
-    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] leading-6 text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-dense leading-6 text-muted-foreground">
       <span>Scoped to</span>
       {scope.map((m) => (
         <MentionChip key={m.id} mention={m} />
@@ -397,7 +397,7 @@ function LookupCard({
 function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean }) {
   const marker =
     // 24px to see, 44px to tap: the hit area grows, the marker doesn't.
-    'relative ml-0.5 mr-px inline-flex h-6 min-w-6 translate-y-[-1px] items-center justify-center rounded-md bg-muted px-1.5 align-middle text-[11px] font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
+    'relative ml-0.5 mr-px inline-flex h-6 min-w-6 -translate-y-px items-center justify-center rounded-md bg-muted px-1.5 align-middle text-2xs font-medium text-foreground tabular-nums outline-none after:absolute after:-inset-[13px] hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50'
   if (!fact || draft)
     return (
       <span className={marker} aria-label={`Source ${n}`}>
@@ -480,7 +480,7 @@ function Cited({
     .replace(/(\[\d+\])([.,;:])/g, '$2$1')
     .split(/(\[\d+\])/)
   return (
-    <p className="text-[15px] leading-relaxed">
+    <p className="text-reading leading-relaxed">
       {parts.map((p, i) => {
         const m = p.match(/^\[(\d+)\]$/)
         if (!m) return <React.Fragment key={i}>{p}</React.Fragment>
@@ -515,7 +515,7 @@ function WhereSentences({
   const sentences = sentencesOf(text)
   const show = (n: number) => openDock('where', answerId, { wn: String(n) })
   return (
-    <p className="text-[15px] leading-relaxed">
+    <p className="text-reading leading-relaxed">
       {sentences.map((s, i) => (
         <React.Fragment key={i}>
           {i > 0 && ' '}
@@ -529,14 +529,14 @@ function WhereSentences({
               e.preventDefault()
               show(i + 1)
             }}
-            className="cursor-pointer rounded-[3px] underline decoration-foreground/25 decoration-dotted underline-offset-[5px] outline-none box-decoration-clone transition-colors hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25"
+            className="cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25"
           >
             {s.text}
             {s.cites.map((n) => (
               <span
                 key={n}
                 aria-hidden
-                className="ml-1 inline-flex h-5 min-w-5 translate-y-[-1px] items-center justify-center rounded-md bg-muted px-1 align-middle text-[11px] font-medium text-foreground tabular-nums"
+                className="ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums"
               >
                 {n}
               </span>
@@ -559,7 +559,7 @@ function AliasChip({ alias }: { alias: NonNullable<Answer['alias']> }) {
     <button
       type="button"
       onClick={() => openDock('def', alias.is)}
-      className="flex w-fit max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border bg-background px-3 py-2 text-left text-sm outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+      className="flex w-fit max-w-full flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <TypeGlyph d={{ type: 'term', sameAs: alias.is }} />
       <span className="text-muted-foreground">You asked about</span>
@@ -592,7 +592,7 @@ function SourceList({ facts, draft }: { facts: Fact[]; draft?: boolean }) {
                 type="button"
                 disabled={draft}
                 onClick={() => openDock('context', f.id)}
-                className="grid w-full grid-cols-[1.25rem_minmax(0,1fr)] gap-x-2 py-2 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none"
+                className="grid w-full grid-cols-(--cols-lead-5) gap-x-2 py-2 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset disabled:pointer-events-none"
               >
                 <span className="pt-px text-xs text-muted-foreground tabular-nums">{i + 1}</span>
                 <span className="min-w-0">
@@ -618,7 +618,7 @@ function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
   return (
     <p
       role="status"
-      className="flex items-start gap-2 text-sm text-muted-foreground animate-in duration-(--dur-4) fade-in-0"
+      className="flex animate-in items-start gap-2 text-sm text-muted-foreground duration-(--dur-4) fade-in-0"
     >
       <FlagIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>
@@ -650,7 +650,7 @@ function SomethingWrong({
 
   return (
     <form
-      className="flex flex-col gap-4 rounded-surface border border-input bg-background p-4 animate-in duration-(--dur-3) fade-in-0 slide-in-from-top-1"
+      className="flex animate-in flex-col gap-4 rounded-surface border border-input bg-background p-4 duration-(--dur-3) fade-in-0 slide-in-from-top-1"
       onSubmit={(e) => {
         e.preventDefault()
         onSent()
@@ -909,9 +909,7 @@ export function AnswerBody({
   const [report, setReport] = React.useState(answer.report)
   // Saving a question is for the owners of the domain it is about, and admins.
   const me = useMe()
-  const saveDomain = (facts[0]?.domain ??
-    me.owns.find((d) => d !== 'sandbox') ??
-    'sales') as DomainId
+  const saveDomain = facts[0]?.domain ?? me.owns.find((d) => d !== 'sandbox') ?? 'sales'
   const canSave = me.admin || me.owns.includes(saveDomain)
 
   // How far a live answer has got, in milliseconds; stages and words follow from it.
@@ -1014,7 +1012,7 @@ export function AnswerBody({
           </div>
         )}
         {finished && (
-          <div className="flex animate-in flex-col gap-3 delay-(--dur-3) duration-(--dur-4) fill-mode-backwards fade-in-0 slide-in-from-bottom-1">
+          <div className="flex animate-in flex-col gap-3 delay-(--dur-3) duration-(--dur-4) fade-in-0 fill-mode-backwards slide-in-from-bottom-1">
             {answer.state === 'failed' && onRetry && (
               <Button variant="outline" size="sm" className="w-fit" onClick={onRetry}>
                 <RefreshCwIcon data-icon="inline-start" />
@@ -1099,7 +1097,7 @@ export function AnswerBody({
                 <ShareButton answer={answer} facts={facts} answerId={key} docked={docked} />
               )}
               {/* The rest on hover or focus. */}
-              <span className="flex items-center gap-0.5 pointer-coarse:gap-2.5 opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
+              <span className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/msg:opacity-100 focus-within:opacity-100 pointer-coarse:gap-2.5 pointer-coarse:opacity-100">
                 <IconButton
                   label="Copy"
                   onClick={() => {

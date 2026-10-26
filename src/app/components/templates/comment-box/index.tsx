@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { MessageSquarePlusIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { MessageSquarePlusIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { commentActions, useComments, useSubjectReactions } from '@/lib/comments'
 import type { Subject } from '@/data/comments'

@@ -10,7 +10,7 @@ import {
   Trash2Icon,
   UserPlusIcon,
   UsersIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { BulkBar, BulkButton, type BulkNote } from '@/components/heed/bulk-bar'
 import { DeleteDialog } from '@/components/heed/delete-dialog'

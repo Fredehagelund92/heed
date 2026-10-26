@@ -49,40 +49,29 @@ describe('a golden case as a test question', () => {
 })
 
 describe('the status and delivery checks of an answer (try-it-2, round 4)', () => {
-  it('read find_context for a definition question, as they read get_context', () => {
-    // Round 4: Sonnet answered "what does net revenue mean" with find_context, and the status
-    // check, reading get_context alone, failed all six tries the judge passed.
+  it('read find_facts for a definition question, as they read get_facts', () => {
+    // Round 4: Sonnet answered "what does net revenue mean" with find_facts, and the status
+    // check, reading get_facts alone, failed all six tries the judge passed.
     const found = score('gs-definition-net-revenue', [
       [
-        'find_context',
-        { status: 'matched', context: [], definitions: [{ key: 'metric:net_revenue' }] },
+        'find_facts',
+        { status: 'matched', items: [], definitions: [{ key: 'metric:net_revenue' }] },
       ],
     ])
     expect(found.checks.status).toBe(true)
     expect(found.passed).toBe(true)
     const scoped = score('gs-definition-net-revenue', [
-      ['get_context', { status: 'matched', context: [] }],
+      ['get_facts', { status: 'matched', items: [] }],
     ])
     expect(scoped.checks.status).toBe(true)
   })
 
-  it('read Partial and Outdated as the match a test question expects (FR-349)', () => {
-    const q = question('gs-baseline-orders-united-kingdom')
-    const context = q.expected.must_deliver.map((id) => ({ id }))
-    for (const status of ['partial', 'stale'])
-      expect(
-        score('gs-baseline-orders-united-kingdom', [['get_context', { status, context }]]).checks
-          .status,
-        status,
-      ).toBe(true)
-  })
-
-  it('count the items find_context delivered as delivered', () => {
+  it('count the items find_facts delivered as delivered', () => {
     const q = question('gs-baseline-orders-united-kingdom')
     const items = q.expected.must_deliver.map((id) => ({ id }))
     expect(items.length).toBeGreaterThan(0)
     const found = score('gs-baseline-orders-united-kingdom', [
-      ['find_context', { status: 'matched', context: items }],
+      ['find_facts', { status: 'matched', items }],
     ])
     expect(found.checks.delivered).toBe(true)
     expect(found.checks.cited).toBe(true)
@@ -90,49 +79,49 @@ describe('the status and delivery checks of an answer (try-it-2, round 4)', () =
 
   it('stay strict when the agent used no context tool, or got the wrong status from one', () => {
     const read = score('gs-definition-net-revenue', [
-      ['read_context', { context: { id: 'itm_q2upr28v' } }],
-      ['what_changed', { status: 'matched', context: [{ id: 'itm_q2upr28v' }] }],
+      ['read_item', { item: { id: 'itm_q2upr28v' } }],
+      ['what_changed', { status: 'matched', items: [{ id: 'itm_q2upr28v' }] }],
     ])
     expect(read.checks.status).toBe(false)
     expect(read.passed).toBe(false)
     expect(score('gs-definition-net-revenue', []).checks.status).toBe(false)
     const missed = score('gs-definition-net-revenue', [
-      ['get_context', { status: 'need_more_detail', context: [] }],
-      ['find_context', { status: 'no_match', context: [] }],
+      ['get_facts', { status: 'need_more_detail', items: [] }],
+      ['find_facts', { status: 'no_match', items: [] }],
     ])
     expect(missed.checks.status).toBe(false)
     const q = question('gs-baseline-orders-united-kingdom')
     const elsewhere = score('gs-baseline-orders-united-kingdom', [
-      ['read_context', { context: { id: q.expected.must_deliver[0] } }],
+      ['read_item', { item: { id: q.expected.must_deliver[0] } }],
     ])
     expect(elsewhere.checks.delivered).toBe(false)
   })
 
   it('fail a forbidden item given as applying to the scope, not a search hit shown with its dates', () => {
-    // Round 4: find_context's word search also listed a note that did not apply to the scope,
+    // Round 4: find_facts's word search also listed a note that did not apply to the scope,
     // with its dates; the answer stayed honest and must not fail for it.
     const q = question('gs-baseline-orders-united-kingdom')
     const forbidden = q.expected.must_not_deliver[0]!
     const searched = score('gs-baseline-orders-united-kingdom', [
-      ['get_context', { status: 'no_match', context: [] }],
-      ['find_context', { status: 'matched', context: [{ id: forbidden, match: 'some' }] }],
+      ['get_facts', { status: 'no_match', items: [] }],
+      ['find_facts', { status: 'matched', items: [{ id: forbidden, match: 'some' }] }],
     ])
     expect(searched.checks.not_delivered).toBe(true)
     for (const [tool, item] of [
-      ['find_context', { id: forbidden, match: 'scope' }],
-      // get_context gives every item with how it matched the scope: exact or partial.
-      ['get_context', { id: forbidden, match: 'exact' }],
-      ['get_context', { id: forbidden, match: 'partial' }],
+      ['find_facts', { id: forbidden, match: 'scope' }],
+      // get_facts gives every item with how it matched the scope: exact or partial.
+      ['get_facts', { id: forbidden, match: 'exact' }],
+      ['get_facts', { id: forbidden, match: 'partial' }],
     ] as const) {
       const applied = score('gs-baseline-orders-united-kingdom', [
-        [tool, { status: 'matched', context: [item] }],
+        [tool, { status: 'matched', items: [item] }],
       ])
       expect(applied.checks.not_delivered).toBe(false)
     }
   })
 })
 
-/** A model that asks for get_context first, then answers in words. */
+/** A model that asks for get_facts first, then answers in words. */
 function agent() {
   const prompts: LanguageModelV4Prompt[] = []
   const model = new MockLanguageModelV4({
@@ -149,7 +138,7 @@ function agent() {
                 {
                   type: 'tool-call' as const,
                   toolCallId: 'call-1',
-                  toolName: 'get_context',
+                  toolName: 'get_facts',
                   input: JSON.stringify({ question: 'Orders in Norway' }),
                 },
               ],
@@ -171,7 +160,7 @@ function agent() {
 }
 const armWith = (execute: () => unknown): Arm => ({
   tools: {
-    get_context: dynamicTool({
+    get_facts: dynamicTool({
       description: 'Context for a question',
       inputSchema: jsonSchema({ type: 'object' }),
       execute: () => Promise.resolve().then(execute),
@@ -186,13 +175,11 @@ describe('a tool call the tool server did not answer (round 5)', () => {
     // context, and the try was scored as an ordinary fail.
     const { choice, prompts } = agent()
     const arm = armWith(() => {
-      throw new ToolCallRefused('get_context', 429)
+      throw new ToolCallRefused('get_facts', 429)
     })
     const answered = answerQuestion(arm, choice, 'How did orders do in Norway?')
     await expect(answered).rejects.toThrow(ToolCallRefused)
-    await expect(answered).rejects.toThrow(
-      'The tool server refused a call to get_context (HTTP 429)',
-    )
+    await expect(answered).rejects.toThrow('The tool server refused a call to get_facts (HTTP 429)')
     // No second model call is paid for an answer that is not made.
     expect(prompts).toHaveLength(1)
   })
@@ -228,7 +215,7 @@ describe('the prompt cache of an answer (round 5)', () => {
     // Round 5: 0 tokens read from the cache in 1,044 answer calls, against about 85% in the
     // assistant, so every step paid for the tools, the instructions and the context in full.
     const { choice, prompts } = agent()
-    const arm = armWith(() => ({ status: 'matched', context: [{ id: 'itm_abc12345' }] }))
+    const arm = armWith(() => ({ status: 'matched', items: [{ id: 'itm_abc12345' }] }))
     const result = await answerQuestion(
       arm,
       { ...choice, cacheBreakpoint: breakpoint },
@@ -249,7 +236,7 @@ describe('the prompt cache of an answer (round 5)', () => {
 
   it('sends the same prompt with no marks to a model without a prompt cache', async () => {
     const { choice, prompts } = agent()
-    const arm = armWith(() => ({ status: 'matched', context: [] }))
+    const arm = armWith(() => ({ status: 'matched', items: [] }))
     await answerQuestion(arm, choice, 'How did orders do in Norway?')
     expect(prompts.map(marks)).toEqual([[], []])
     expect(prompts[0]![0]).toMatchObject({ role: 'system', content: answerSystemPrompt })

@@ -220,7 +220,7 @@ Six tools. Each is described in one list in the code (`AGENT_TOOLS`), which Sett
 
 The default reply holds the answer state, one sentence to relay (`say`), what was asked, the items that apply, a reply id and the edition. Where two items disagree, the reply says so. A mention in an item is only its words in `get_context`. Following it is a separate, read-only tool, `get_related`, at most 50 nodes, in a fixed order. It never changes what an answer includes.
 
-The earlier tool ids (`get_facts`, `find_facts`, `search_facts`, `read_item`, `report_gap`, `give_feedback`, `draft_context`) stay for one release as deprecated ids: each answers with its old arguments and its old reply, and a note that names the tool to use.
+Until the agent contract change lands, the service still answers to the earlier tool ids (`get_facts`, `find_facts`, `search_facts`, `read_item`, `report_gap`, `give_feedback`, `draft_context`). Those stay for one release as aliases after the change.
 
 ## 11. Roles
 

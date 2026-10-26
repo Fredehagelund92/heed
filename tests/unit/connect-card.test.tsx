@@ -14,7 +14,6 @@ import {
   skillFor,
   skillPlaces,
   snippetFor,
-  statusRuleWords,
   statusRules,
   TOKEN_PLACEHOLDER,
 } from '@/lib/connect'
@@ -84,8 +83,8 @@ describe('the Heed skill', () => {
   it("reads the statuses word for word as the MCP server's instructions say them", () => {
     const instructions = serverInstructions([])
     for (const rule of statusRules) {
-      expect(skill).toContain(`- ${statusRuleWords(rule)}`)
-      expect(instructions).toContain(statusRuleWords(rule))
+      expect(skill).toContain(`- ${rule.status}: ${rule.text}`)
+      expect(instructions).toContain(`${rule.status}: ${rule.text}`)
     }
     // The absence rule is the server's own sentence.
     const absence = instructionRules.slice(instructionRules.indexOf('no_match does not prove'))

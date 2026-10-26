@@ -1,4 +1,4 @@
-import { BookAIcon, ExternalLinkIcon, NotebookPenIcon, PencilIcon } from 'lucide-react'
+import { BookAIcon, ExternalLinkIcon, NotebookPenIcon, PencilIcon } from '@/components/icons'
 import { DefinitionDetails, TypeTile } from '@/components/heed/definition'
 import { Canvas, Paper } from '@/components/heed/doc'
 import { SiteHeader } from '@/components/site-header'

@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { InfoIcon, XIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { InfoIcon, XIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -52,7 +52,7 @@ export function BulkBar({
         {said}
       </span>
       {count > 0 && (
-        <div className="flex shrink-0 animate-in flex-col items-center gap-1.5 border-t bg-background px-4 py-2.5 duration-(--dur-3) fade-in-0 slide-in-from-bottom-2 max-md:gap-0 max-md:border-t-0 max-md:bg-foreground max-md:p-0 max-md:pb-[env(safe-area-inset-bottom)]">
+        <div className="flex shrink-0 animate-in flex-col items-center gap-1.5 border-t bg-background px-4 py-2.5 duration-(--dur-3) fade-in-0 slide-in-from-bottom-2 max-md:gap-0 max-md:border-t-0 max-md:bg-foreground max-md:p-0 max-md:pb-safe-area">
           {note && <NoteLine note={note} />}
           <div
             role="region"

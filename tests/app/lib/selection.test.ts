@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { all, between, countLine, extend, NONE, step, toggle } from './selection'
+import { all, between, countLine, extend, NONE, step, toggle } from '@/lib/selection'
 
 const order = ['a', 'b', 'c', 'd', 'e', 'f']
 

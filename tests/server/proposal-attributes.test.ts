@@ -162,11 +162,11 @@ describe('the agent tool takes and returns the classified attributes only', () =
     expect(markedFields).toEqual(attributeNames.filter(isMarked))
   })
   it('describes what it does with each attribute from the table, so the words cannot go stale', () => {
-    const description = tools.suggest_context.description
+    const description = tools.draft_context.description
     expect(description).toContain(agentTreatmentSentence())
     for (const name of attributeNames) {
       if (['proposerId', 'createdVia', 'summaryMarkup', 'bodyMarkup'].includes(name)) continue
-      expect(description, `The description of suggest_context does not name "${name}".`).toContain(
+      expect(description, `The description of draft_context does not name "${name}".`).toContain(
         spec(name).words,
       )
     }

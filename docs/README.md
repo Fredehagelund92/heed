@@ -6,8 +6,6 @@ Everything written about Heed, in one place. If you are new, start with the prod
 
 The approved Heed v1 mockup is the acceptance specification for the web app. These pages are written from it. Read them in this order.
 
-The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state, with demo data and no backend. It is the acceptance reference for the new web app, which is changed to match it ([how it is checked](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
-
 | Page                                            | What it says                                                                                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Product](product.md)                           | The job, the people, the promise, every screen and its address, the six answer states, the kinds, the roles, privacy, the glossary, and the acceptance reference |
@@ -55,7 +53,7 @@ Older design pages that still apply:
 
 ## The order of authority
 
-1. The approved Heed v1 mockup, in [apps/mockup](../apps/mockup/README.md) (its commit is recorded in [Product](product.md#14-the-acceptance-reference)).
+1. The approved Heed v1 mockup (its commit is recorded in [Product](product.md#14-the-acceptance-reference)).
 2. [Product](product.md) and the [design contract v2](design/design-contract.md), which are written from it.
 3. The [requirements](requirements.md), which are changed to match both.
 

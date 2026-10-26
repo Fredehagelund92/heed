@@ -12,8 +12,8 @@ import {
   CircleDashedIcon,
   TriangleAlertIcon,
   EqualIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/data/integrations'
 import { PersonAvatar } from '@/components/heed/bits'
@@ -281,12 +281,12 @@ export function DefinitionsPage() {
         aria-selected={isSel}
         data-state={isSel ? 'selected' : undefined}
         data-peeked={peeked === d.name || undefined}
-        className="group/row h-9 cursor-pointer border-b text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-[state=selected]:bg-muted data-peeked:bg-muted data-peeked:shadow-[inset_2px_0_0_var(--foreground)] @max-xl/main:h-auto"
+        className="group/row h-9 cursor-pointer border-b text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
         onClick={(e) => sel.rowClick(d.name, e) || openDock('def', d.name)}
       >
         <td
-          className="hidden w-[38px] pr-0 pl-4 align-middle md:w-[46px] md:pl-6 @xl/main:table-cell"
+          className="hidden w-9.5 pr-0 pl-4 align-middle md:w-11.5 md:pl-6 @xl/main:table-cell"
           onClick={(e) => e.stopPropagation()}
         >
           <Checkbox
@@ -299,7 +299,7 @@ export function DefinitionsPage() {
           />
         </td>
         {/* The name with its type tile, its other names as tags (or, in the audit view, a synonym's Another name for); the rest are short facts. */}
-        <td className="max-w-0 pr-2 pl-4 align-middle md:pl-6 @xl/main:pl-1.5 @max-xl/main:py-2">
+        <td className="max-w-0 pr-2 pl-4 align-middle md:pl-6 @max-xl/main:py-2 @xl/main:pl-1.5">
           <span className="flex min-w-0 items-center gap-2.5">
             <TypeTile d={d} />
             <span className="flex min-w-0 flex-col @xl/main:flex-row @xl/main:items-center @xl/main:gap-2">
@@ -325,7 +325,7 @@ export function DefinitionsPage() {
                 matched={matchedBy(d)}
               />
               {/* On a phone the short facts go on a second line. */}
-              <span className="flex gap-2 text-[0.8125rem] text-muted-foreground @xl/main:hidden">
+              <span className="flex gap-2 text-dense text-muted-foreground @xl/main:hidden">
                 {group !== 'domain' && (
                   <span>{d.domain ? domains[d.domain].name : 'All domains'}</span>
                 )}
@@ -365,7 +365,7 @@ export function DefinitionsPage() {
             <Button
               variant="ghost"
               size="sm"
-              className="-mr-2 h-7 px-2 text-[0.8125rem] font-medium text-primary hover:text-primary"
+              className="-mr-2 h-7 px-2 text-dense font-medium text-primary hover:text-primary"
               aria-label={`Write context about ${d.name}`}
               onClick={(e) => {
                 e.stopPropagation()
@@ -463,7 +463,7 @@ export function DefinitionsPage() {
             {/* Views are a filter, not navigation: quiet words with counts, the shared text switch. */}
             <TextSwitch
               label="Definitions to show"
-              className="pl-1 text-[0.8125rem] @max-md/main:hidden"
+              className="pl-1 text-dense @max-md/main:hidden"
               value={view}
               onChange={setView}
               options={(['all', 'metric', 'dimension', 'term'] as View[]).map((v) => ({
@@ -635,7 +635,7 @@ export function DefinitionsPage() {
               Metrics and dimensions are synced from {tool}, read today at 06:00, and read-only
               here. Terms are written here, by the owner of their domain.{' '}
               <a
-                href="#/settings/integrations/cube"
+                href="/settings/integrations/cube"
                 className="font-medium text-foreground underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 {tool} in Integrations
@@ -669,12 +669,12 @@ export function DefinitionsPage() {
           )}
           <div className="min-w-0 shrink-0">
             <table ref={table} className="w-full border-collapse">
-              <thead className="sticky top-0 z-10">
+              <thead className="sticky top-0 z-raised">
                 <tr>
                   <th
                     className={cn(
                       thClass,
-                      'hidden w-[38px] min-w-[38px] pr-0 pl-4 md:w-[46px] md:min-w-[46px] md:pl-6 @xl/main:table-cell',
+                      'hidden w-9.5 min-w-9.5 pr-0 pl-4 md:w-11.5 md:min-w-11.5 md:pl-6 @xl/main:table-cell',
                     )}
                   >
                     <Checkbox
@@ -757,8 +757,8 @@ export function DefinitionsPage() {
                 />
               </tbody>
               {/* While rows are picked the bar's band holds the foot, so the totals stop sticking over the last rows. */}
-              <tfoot className={cn('z-10 bg-background', !sel.count && 'sticky bottom-0')}>
-                <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-[inset_0_1px_0_var(--border)]">
+              <tfoot className={cn('z-raised bg-background', !sel.count && 'sticky bottom-0')}>
+                <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-hairline-top">
                   <td className="hidden @xl/main:table-cell" />
                   <td className="h-bar pr-2 pl-4 md:pl-6 @xl/main:pl-1.5">
                     {mix(shown) || plural(0, 'definition')}

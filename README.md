@@ -128,9 +128,8 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
   find the right fact. [Review a proposal](docs/help/review-a-proposal.md).
 - **Editions.** Agents read a fixed, dated set of accepted facts. Compare two editions, go back to an earlier
   one, or stop one fact, one domain or everything at once. [Editions](docs/help/editions.md).
-- **An MCP server.** Six tools, all on by default: _Get context for a question_, _Find context_, _Read a
-  fact_, _Tell the owner_, _Send a suggestion_ and _Follow links_. Each answer starts with an answer line
-  (Checked, Partial, Not found, Conflict, Outdated or Not checked). Agents sign in as the person and see only what
+- **An MCP server.** Ten tools are on by default, such as _Get facts for a question_, _Search facts_ and
+  _Report something missing_; an admin can turn on two more. Agents sign in as the person and see only what
   that person can read. [MCP](docs/help/mcp.md).
 - **No AI picks the facts.** Rules choose what applies from the question's metrics, markets and dates, so the
   same question gets the same facts until someone accepts a change. **Try a question** shows exactly that.

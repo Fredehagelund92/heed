@@ -18,8 +18,10 @@ export const Toolbar = ({
     <div
       className={cn(
         'rte-toolbar',
-        variant !== 'default' && `rte-toolbar--${variant}`,
-        sticky && 'sticky z-10',
+        variant === 'subtle'
+          ? 'rte-toolbar--subtle'
+          : variant === 'compact' && 'rte-toolbar--compact',
+        sticky && 'sticky z-raised',
         className,
       )}
       data-sticky={sticky ? '' : undefined}

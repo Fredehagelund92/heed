@@ -10,7 +10,7 @@ import {
   PanelRightIcon,
   UserIcon,
   WholeWordIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/editor'
 import { useSideChoice } from '@/lib/side-panel'
@@ -121,12 +121,7 @@ function TermEditor({ name, original }: { name?: string; original?: Definition }
 
   const targetDef = target ? findDefinition(target) : undefined
   const draft: Definition = {
-    ...(original ?? {
-      type: 'term' as DefinitionType,
-      synced: false,
-      sourceNames: [],
-      by: me.name,
-    }),
+    ...(original ?? { type: 'term', synced: false, sourceNames: [], by: me.name }),
     name: title.trim(),
     definition: synonym ? '' : body.trim(),
     sameAs: target,

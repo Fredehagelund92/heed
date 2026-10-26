@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ArrowUpRightIcon, ListChecksIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowUpRightIcon, ListChecksIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { WordDiff } from '@/components/heed/bits'

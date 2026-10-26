@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { ViewTransition } from 'react'
-import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { setQuery } from '@/lib/router'
@@ -22,7 +22,7 @@ export function ListSkeleton({ rows = 8, className }: { rows?: number; className
     >
       <div className="flex h-11 items-center gap-3 border-b px-4">
         <Skeleton className="h-4 w-24" />
-        <Skeleton className="ml-auto h-7 w-56 max-w-[40%]" />
+        <Skeleton className="ml-auto h-7 w-56 max-w-2/5" />
       </div>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex h-12 items-center gap-3 border-b px-4">
@@ -58,10 +58,10 @@ export function TableSkeleton({
         <div key={i} className="flex items-center gap-3 border-b px-4" style={{ height: h }}>
           <Skeleton className="h-3.5 w-20" />
           <Skeleton className="h-3.5 w-24" />
-          {i === 0 && <Skeleton className="ml-auto h-7 w-56 max-w-[40%]" />}
+          {i === 0 && <Skeleton className="ml-auto h-7 w-56 max-w-2/5" />}
         </div>
       ))}
-      <div className="flex h-9 items-center gap-3 border-b bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4">
+      <div className="flex h-9 items-center gap-3 border-b bg-band px-4">
         <Skeleton className="h-3 w-16" />
         <Skeleton className="ml-auto h-3 w-12 max-sm:hidden" />
         <Skeleton className="h-3 w-16" />
@@ -134,7 +134,7 @@ export function ChartSkeleton({ height = 260 }: { height?: number }) {
     <div className="flex flex-col gap-3 px-4 py-4 md:px-5">
       <Skeleton className="h-4 w-36" />
       <Skeleton className="h-3 w-64 max-w-full" />
-      <div className="mt-2 flex items-end gap-[6%] border-b px-[4%]" style={{ height }}>
+      <div className="mt-2 flex items-end gap-skeleton border-b px-skeleton-pad" style={{ height }}>
         {[48, 62, 30, 26, 70, 58, 50].map((h, i) => (
           <Skeleton key={i} className="flex-1 rounded-none" style={{ height: `${h}%` }} />
         ))}

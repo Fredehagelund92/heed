@@ -19,9 +19,9 @@ import {
   PencilIcon,
   SearchIcon,
   TriangleAlertIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { DomainBadge, FieldDiff } from '@/components/heed/bits'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/data/integrations'
@@ -125,7 +125,7 @@ function evidence(id: string) {
     r.mode === 'new'
       ? 'New item'
       : r.mode === 'retire'
-        ? 'Retires an item'
+        ? 'Archives an item'
         : r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(', ')
   const care = careLine(r)
   return [care, size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? 'question' : 'questions'}`]
@@ -187,7 +187,7 @@ function NewReply({ id }: { id: string }) {
       </p>
       <p className="line-clamp-3 text-muted-foreground">{reply.excerpt}</p>
       <a
-        href={`#/inbox/${id}/review`}
+        href={`/inbox/${id}/review`}
         className="w-fit text-primary underline-offset-4 hover:underline"
       >
         Read the comments
@@ -265,7 +265,7 @@ function InboxList({
               </li>
             )}
             {firstOfRead && (
-              <li className="flex h-10 items-center gap-2 bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4 text-xs @md:px-6">
+              <li className="flex h-10 items-center gap-2 bg-band px-4 text-xs @md:px-6">
                 <ToolLogo c={connectorById('google-drive')!} size="sm" />
                 <span className="truncate font-medium">
                   From {source.tool}, {source.read.toLowerCase()}
@@ -274,7 +274,7 @@ function InboxList({
                   {fromRead} new {fromRead === 1 ? 'suggestion' : 'suggestions'}
                 </span>
                 <a
-                  href="#/settings/integrations/google-drive?state=suggestions"
+                  href="/settings/integrations/google-drive?state=suggestions"
                   className="ml-auto shrink-0 whitespace-nowrap text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   About this read
@@ -319,10 +319,7 @@ function InboxList({
                     )}
                   >
                     {care ? (
-                      <TriangleAlertIcon
-                        aria-label={care}
-                        className="text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
-                      />
+                      <TriangleAlertIcon aria-label={care} className="text-caution-icon" />
                     ) : source ? (
                       <ToolLogo c={connectorById('google-drive')!} size="sm" />
                     ) : (
@@ -569,7 +566,7 @@ function CardDetail({
       <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5">
         {review ? (
           <div className="max-w-2xl">
-            {note && <MentionBlock note={note} href={`#/inbox/${card.id}/review`} />}
+            {note && <MentionBlock note={note} href={`/inbox/${card.id}/review`} />}
             <NewReply id={card.id} />
             <QuickReview r={review} sender={false} />
           </div>
@@ -635,7 +632,7 @@ function CardDetail({
               </p>
             ) : null}
             {/* The key, only while the pointer is on the pane: it is for people who already work with the keyboard. */}
-            <span className="hidden text-xs text-muted-foreground opacity-0 transition-opacity group-hover/pane:opacity-100 pointer-coarse:hidden md:inline">
+            <span className="hidden text-xs text-muted-foreground opacity-0 transition-opacity group-hover/pane:opacity-100 md:inline pointer-coarse:hidden">
               <Kbd>Enter</Kbd> to {card.primary.toLowerCase()}
             </span>
             <Button
@@ -814,7 +811,7 @@ function MentionDetail({
         <div className="flex max-w-2xl flex-col gap-4">
           <MentionBlock
             note={note}
-            href={fact ? `#/context/${fact.id}` : undefined}
+            href={fact ? `/context/${fact.id}` : undefined}
             link="Open the context item"
           />
           <Thread subject={subject} domain={domain} />

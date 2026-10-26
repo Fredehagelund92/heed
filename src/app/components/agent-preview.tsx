@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { BotIcon } from 'lucide-react'
+import { BotIcon } from '@/components/icons'
 import { StateLine } from '@/components/heed/bits'
 import {
   Sheet,
@@ -31,7 +31,7 @@ function AgentLine({ children }: { children: React.ReactNode }) {
 function UserLine({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex justify-end">
-      <div className="max-w-[85%] rounded-frame bg-muted px-4 py-2 text-[15px] leading-relaxed">
+      <div className="max-w-17/20 rounded-frame bg-muted px-4 py-2 text-reading leading-relaxed">
         {children}
       </div>
     </div>
@@ -46,7 +46,7 @@ function Transcript({ agent }: { agent: string }) {
           <UserLine>{t.you}</UserLine>
           <AgentLine>
             <p className="text-xs font-medium text-muted-foreground">{agent}</p>
-            <p className="text-[15px] leading-relaxed">{t.agent}</p>
+            <p className="text-reading leading-relaxed">{t.agent}</p>
             <StateLine state={t.state} className="text-xs font-medium text-muted-foreground">
               {t.line}
             </StateLine>
@@ -60,7 +60,7 @@ function Transcript({ agent }: { agent: string }) {
             <UserLine key={i}>{m.text}</UserLine>
           ) : (
             <AgentLine key={i}>
-              <p className="text-[15px] leading-relaxed">{m.text}</p>
+              <p className="text-reading leading-relaxed">{m.text}</p>
             </AgentLine>
           ),
         )}
@@ -85,7 +85,7 @@ export function AgentPreviewLink({ agent }: { agent: string }) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side={mobile ? 'bottom' : 'right'}
-          className="gap-0 data-[side=bottom]:max-h-[85svh] data-[side=right]:sm:max-w-md"
+          className="gap-0 data-[side=bottom]:max-h-bottom-sheet data-[side=right]:max-w-md"
         >
           <SheetHeader className="border-b pr-12">
             <SheetTitle>How an agent answers</SheetTitle>
@@ -94,7 +94,7 @@ export function AgentPreviewLink({ agent }: { agent: string }) {
               found. Numbers come from the data tool.
             </SheetDescription>
           </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 pb-safe">
             <Transcript agent={agent} />
           </div>
         </SheetContent>

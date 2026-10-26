@@ -9,10 +9,11 @@ import {
   SearchIcon,
   SquareArrowOutUpRightIcon,
   XIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { useListOrder, words } from '@/lib/list'
-import { cn } from 'cn'
+import { navigate } from '@/lib/router'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -40,7 +41,7 @@ export function ListBar({ children }: { children: React.ReactNode }) {
 
 /** A control in the bar. */
 export const barButton =
-  "h-7 gap-1.5 px-2 text-[0.8125rem] font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+  "h-7 gap-1.5 px-2 text-dense font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
 
 export function BarSpacer({ children }: { children?: React.ReactNode }) {
   return (
@@ -99,7 +100,7 @@ export function SearchField({
         }}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-7 pr-8 pl-8 text-[0.8125rem] md:text-[0.8125rem] @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
+        className="h-7 pr-8 pl-8 text-dense md:text-dense @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
       />
       <Kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 max-md:hidden">
         /
@@ -202,7 +203,7 @@ export function Highlight({ text, query }: { text: string; query: string }) {
   const parts: React.ReactNode[] = []
   let last = 0
   for (const m of text.matchAll(re)) {
-    const start = m.index! + m[1].length
+    const start = m.index + m[1].length
     parts.push(
       text.slice(last, start),
       <mark key={start} className="bg-transparent font-bold text-inherit">
@@ -271,7 +272,7 @@ export function RowMenu({
             variant="ghost"
             size="icon-xs"
             aria-label={`More for ${title}`}
-            className="text-muted-foreground opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 aria-expanded:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+            className="text-muted-foreground opacity-0 group-hover/row:opacity-100 group-has-[:focus-visible]/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100 [@media(hover:none)]:opacity-100"
             onClick={(e) => e.stopPropagation()}
           />
         }
@@ -279,7 +280,7 @@ export function RowMenu({
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
-        <DropdownMenuItem onClick={() => (window.location.hash = page)}>
+        <DropdownMenuItem onClick={() => navigate(page)}>
           <SquareArrowOutUpRightIcon />
           Open the page
         </DropdownMenuItem>
@@ -410,7 +411,7 @@ export function DockStepper({
  * when the header sticks while scrolling (a collapsed border would not).
  */
 export const thClass =
-  'h-9 bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground shadow-[inset_0_-1px_0_color-mix(in_oklab,var(--border),var(--foreground)_14%)]'
+  'h-9 bg-band px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground shadow-[inset_0_-1px_0_color-mix(in_oklab,var(--border),var(--foreground)_14%)]'
 
 /** A header cell. */
 export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
@@ -418,10 +419,10 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
 }
 
 const dot: Record<Status, string> = {
-  Draft: 'bg-transparent ring-1 ring-inset ring-[oklch(0.62_0_0)]',
-  Live: 'bg-[oklch(0.62_0.15_150)]',
-  'Needs checking': 'bg-[oklch(0.68_0.16_65)]',
-  Archived: 'bg-[oklch(0.62_0_0)]',
+  Draft: 'bg-transparent ring-1 ring-inset ring-off',
+  Live: 'bg-good',
+  'Needs checking': 'bg-caution',
+  Archived: 'bg-off',
 }
 
 const statusHint: Record<Status, string> = {

@@ -26,8 +26,8 @@ type Word = { word: string; start: number; end: number }
 const wordsOf = (text: string): Word[] =>
   [...text.matchAll(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu)].map((m) => ({
     word: m[0].toLowerCase().replace(/’/g, "'"),
-    start: m.index!,
-    end: m.index! + m[0].length,
+    start: m.index,
+    end: m.index + m[0].length,
   }))
 
 /** Which words of `text` sit in a run of at least `min` words that also appears, word for word, in one of `others`. */

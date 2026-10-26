@@ -13,9 +13,9 @@ import {
   RefreshCwIcon,
   TriangleAlertIcon,
   WifiOffIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -145,7 +145,7 @@ function Quality() {
     }, 130)
   }
 
-  const domainChoices = (own ?? domainIds.filter((d) => d !== 'sandbox')) as DomainId[]
+  const domainChoices = own ?? domainIds.filter((d) => d !== 'sandbox')
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
       {domainChoices.length > 1 && (
@@ -208,11 +208,11 @@ function Quality() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent className="flex-row justify-center">
-            <a href="#/ask" className={cn(buttonVariants())}>
+            <a href="/ask" className={cn(buttonVariants())}>
               <MessageSquareIcon data-icon="inline-start" />
               Ask a question
             </a>
-            <a href="#/inbox" className={cn(buttonVariants({ variant: 'outline' }))}>
+            <a href="/inbox" className={cn(buttonVariants({ variant: 'outline' }))}>
               <InboxIcon data-icon="inline-start" />
               Open the Inbox
             </a>
@@ -239,7 +239,7 @@ function Quality() {
               Nothing is published.
             </span>
           </p>
-          <span aria-hidden className="mt-2 block h-[3px] overflow-hidden rounded-full bg-muted">
+          <span aria-hidden className="mt-2 block h-0.75 overflow-hidden rounded-full bg-muted">
             <span
               className="block h-full origin-left bg-primary transition-transform duration-(--dur-2)"
               style={{ transform: `scaleX(${Math.min(1, checked / Math.max(1, c.total))})` }}
@@ -250,7 +250,7 @@ function Quality() {
       {failed && (
         <div
           role="alert"
-          className="flex flex-wrap items-center gap-3 border-t bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] px-4 py-3 text-sm md:px-5"
+          className="flex flex-wrap items-center gap-3 border-t bg-warn/8 px-4 py-3 text-sm md:px-5"
         >
           <WifiOffIcon className="size-4 shrink-0 text-[var(--warn)]" aria-hidden />
           <span className="min-w-0 flex-1">
@@ -278,7 +278,7 @@ function Quality() {
         />
         <Kpi icon={<TriangleAlertIcon />} label="Needs a look" value={c.look} sub="got worse" />
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-3-2)">
         <div>
           {GROUPS.map((g) => {
             const qs = shown.filter((q) => q.result === g.result)
@@ -343,12 +343,12 @@ function Quality() {
               <p className="font-medium">
                 Check the wording, with and without context, and compare models
               </p>
-              <p className="text-[13px] text-muted-foreground">
+              <p className="text-dense text-muted-foreground">
                 Needs a model key. The free check above already runs after every change.
               </p>
             </div>
             <a
-              href="#/settings/advanced"
+              href="/settings/advanced"
               className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0')}
             >
               <ArrowUpRightIcon data-icon="inline-start" />
@@ -404,12 +404,7 @@ function QuestionRow({
     </Button>
   )
   return (
-    <li
-      className={cn(
-        'flex gap-3 border-b px-4 py-3 md:px-5',
-        q.result === 'look' && 'bg-[color-mix(in_oklab,var(--warn)_5%,transparent)]',
-      )}
-    >
+    <li className={cn('flex gap-3 border-b px-4 py-3 md:px-5', q.result === 'look' && 'bg-warn/5')}>
       <ResultIcon result={q.result} className="mt-0.5" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
@@ -464,7 +459,7 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
         <PlusIcon data-icon="inline-start" />
         Add a question
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-96 max-w-[calc(100vw-2rem)]">
+      <PopoverContent align="end" className="w-96 max-w-viewport-inset">
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {

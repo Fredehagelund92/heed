@@ -8,7 +8,7 @@ import type { StaticEditorOptions, TiptapStaticRendererOptions } from '@tiptap/s
 import { createElement } from 'react'
 import type { ElementType, HTMLAttributes, ReactNode } from 'react'
 
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 
 const resolveUniqueExtensions = (extensions: Extensions) => {
   const byName = new Map<string, (typeof extensions)[number]>()
@@ -30,7 +30,7 @@ export type StaticRendererProps = Omit<
   extensions?: Extensions
   // Editor-level options applied while rendering JSON.
   staticEditorOptions?: StaticEditorOptions
-  // renderToReactElement options — nodeMapping/markMapping for custom nodes.
+  // renderToReactElement options: nodeMapping/markMapping for custom nodes.
   options?: Partial<TiptapStaticRendererOptions<ReactNode, Mark, Node>>
 }
 

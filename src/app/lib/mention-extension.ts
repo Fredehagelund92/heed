@@ -73,8 +73,8 @@ function renderList<I, S>(
           props: { ...props, ...extra, exit },
           editor: props.editor,
         })
-        const el = renderer.element as HTMLElement
-        el.classList.add('z-50')
+        const el = renderer.element
+        el.classList.add('z-overlay')
         // On a phone the list is a sheet along the bottom; elsewhere it follows the caret.
         if (phone()) {
           el.classList.add('fixed', 'inset-x-0')
@@ -182,6 +182,7 @@ export function emojiExtension() {
             if (!x) return null
             rememberEmoji(x.char)
             state.tr.insertText(x.char, range.from + match[1].length, range.to)
+            return undefined
           },
         }),
       ]

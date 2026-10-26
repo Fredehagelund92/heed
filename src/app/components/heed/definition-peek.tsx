@@ -1,6 +1,12 @@
 import * as React from 'react'
-import { ArrowLeftRightIcon, FlaskConicalIcon, LockIcon, PencilIcon, PlusIcon } from 'lucide-react'
-import { cn } from 'cn'
+import {
+  ArrowLeftRightIcon,
+  FlaskConicalIcon,
+  LockIcon,
+  PencilIcon,
+  PlusIcon,
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { DockFrame, DockMissing, PeekBar } from '@/components/dock'
 import { AnotherNameFor, SynonymTags, TypeTile } from '@/components/heed/definition'
 import { DockStepper } from '@/components/heed/list'

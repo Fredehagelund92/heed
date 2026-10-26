@@ -6,8 +6,10 @@ test-results
 node_modules
 package-lock.json
 src/web/routeTree.gen.ts
-# Generated from src/web/lib/cn-config.ts by `npm run cn:generate`
+src/app/routeTree.gen.ts
+# Generated from src/web/lib/cn-config.ts and src/app/lib/cn-config.ts by `npm run cn:generate`
 src/web/lib/cn-tables.gen.ts
+src/app/lib/cn-tables.gen.ts
 # Generated from src/contract by `npm run api:generate`
 docs/api/openapi.json
 src/web/api/contract.json

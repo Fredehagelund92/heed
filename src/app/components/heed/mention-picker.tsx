@@ -124,7 +124,7 @@ export function MentionNode({ node, editor }: NodeViewProps) {
   return (
     <NodeViewWrapper as="span" className="mention-node">
       <MentionChip
-        mention={{ id: node.attrs.id, label: node.attrs.label }}
+        mention={{ id: node.attrs.id as string, label: node.attrs.label as string }}
         interactive={!editor.isEditable}
       />
     </NodeViewWrapper>

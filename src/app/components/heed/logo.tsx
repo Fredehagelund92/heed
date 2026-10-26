@@ -2,7 +2,7 @@
 // (src/web/components/app-shell/logo.tsx). The wordmark is Outfit 500, outlined, so no font loads.
 // One colour: the ink of the text around it, never the primary.
 import type { ComponentProps } from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { PRODUCT } from '@/lib/brand'
 
 const blade =

@@ -7,9 +7,9 @@ import {
   PencilIcon,
   SmilePlusIcon,
   Trash2Icon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { StaticRenderer } from '@/components/static-renderer'
 import { MentionChip } from '@/components/heed/mention-chip'
@@ -69,7 +69,7 @@ export function ReactionChips({
                   aria-label={`${label}, ${r.by.length}: ${names(r.by, me)}`}
                   onClick={() => onReact(r.emoji)}
                   className={cn(
-                    'flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]',
+                    'flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-97',
                     mine
                       ? 'border-primary/40 bg-primary/10 text-foreground'
                       : 'text-muted-foreground hover:bg-muted',
@@ -77,7 +77,7 @@ export function ReactionChips({
                 />
               }
             >
-              <span aria-hidden className="text-[13px] leading-none">
+              <span aria-hidden className="text-dense leading-none">
                 {r.emoji}
               </span>
               {r.by.length > 1 && <span aria-hidden>{r.by.length}</span>}
@@ -259,13 +259,15 @@ function Entry({
           />
         ) : (
           <StaticRenderer
-            className="text-sm leading-relaxed text-foreground/90 [&_code]:text-[0.85em]"
+            className="text-sm leading-relaxed text-foreground/90 [&_code]:text-code"
             content={comment.content}
             extensions={EXTENSIONS}
             options={{
               nodeMapping: {
                 mention: ({ node }) => (
-                  <MentionChip mention={{ id: node.attrs.id, label: node.attrs.label }} />
+                  <MentionChip
+                    mention={{ id: node.attrs.id as string, label: node.attrs.label as string }}
+                  />
                 ),
               },
             }}

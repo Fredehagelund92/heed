@@ -11,6 +11,7 @@ import {
 import { useDefinitions, type Definition } from '@/lib/definitions'
 import { useFacts } from '@/lib/store'
 import { useDomains } from '@/lib/domains'
+import { storageKey } from '@/lib/brand'
 
 // What an '@' can point at, kept free of the editor so lists, pages and the Inbox can read
 // mentions without loading it. A mention is stored as `kind:key` with the words the author saw
@@ -87,15 +88,13 @@ function build(facts: Fact[], definitions: Definition[], version = 0): Mentionab
           : undefined,
       synonym: !!d.sameAs,
     })),
-    ...facts
-      .filter(servedToAgents)
-      .map((f) => ({
-        id: mentionId('context', f.id),
-        kind: 'context' as const,
-        label: f.title,
-        hint: domains[f.domain].name,
-        contextKind: f.kind,
-      })),
+    ...facts.filter(servedToAgents).map((f) => ({
+      id: mentionId('context', f.id),
+      kind: 'context' as const,
+      label: f.title,
+      hint: domains[f.domain].name,
+      contextKind: f.kind,
+    })),
     ...markets.map((m) => ({
       id: mentionId('market', m),
       kind: 'market' as const,
@@ -133,7 +132,7 @@ export function useMentionTarget(id: string): Mentionable | undefined {
 
 /* ---------- recent first ---------- */
 
-const RECENT_KEY = 'mention-recent'
+const RECENT_KEY = storageKey('mention-recent')
 let recent: string[] = (() => {
   try {
     return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as string[]
@@ -235,7 +234,7 @@ export function mentionParts(md: string): (string | MentionRef)[] {
 
 /** Every mention in stored text. */
 export const mentionsIn = (md: string | undefined) =>
-  md ? (mentionParts(md).filter((p) => typeof p !== 'string') as MentionRef[]) : []
+  md ? mentionParts(md).filter((p): p is MentionRef => typeof p !== 'string') : []
 
 /** The words an agent reads: each mention becomes the label its author saw, nothing more. */
 export const plainText = (md: string) => md.replace(TOKEN, (_, a: string) => attrs(a).label)

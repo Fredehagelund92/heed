@@ -27,8 +27,8 @@ export function ObsCrumbs({
   return (
     <SettingsCrumbs
       trail={[
-        { label: 'Observability', href: '#/observability/overview' },
-        { label: OBS_TITLES[section], href: `#/observability/${section}` },
+        { label: 'Observability', href: '/observability/overview' },
+        { label: OBS_TITLES[section], href: `/observability/${section}` },
         ...rest,
       ]}
     />

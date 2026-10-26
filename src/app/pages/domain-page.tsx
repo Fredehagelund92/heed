@@ -12,7 +12,7 @@ import {
   UserIcon,
   UserPlusIcon,
   WholeWordIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { RichTextEditor } from '@/components/editor'
 import { DocumentEditorShell } from '@/components/heed/document-shell'
@@ -303,10 +303,12 @@ export function DomainPage({
                 lockedReason={canEdit ? undefined : 'Only its owners and admins add owners'}
                 onChange={(v) => {
                   // A domain always keeps one owner.
-                  if (!v.length && !isNew)
-                    return toast('A domain needs an owner', {
+                  if (!v.length && !isNew) {
+                    toast('A domain needs an owner', {
                       description: 'Add another owner first, then take this one off.',
                     })
+                    return
+                  }
                   setOwners(v)
                   save({ owners: v })
                 }}

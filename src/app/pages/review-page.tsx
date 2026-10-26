@@ -12,9 +12,9 @@ import {
   ListIcon,
   TriangleAlertIcon,
   Undo2Icon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
 import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
@@ -164,7 +164,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
                         onClick={() => onPick(r.id)}
                         className={cn(
                           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50',
-                          on && 'bg-muted shadow-[inset_0_0_0_1px_var(--border)]',
+                          on && 'bg-muted shadow-hairline',
                           done && 'text-muted-foreground',
                         )}
                       >
@@ -173,7 +173,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
                         ) : care ? (
                           <TriangleAlertIcon
                             aria-label={careLine(r) ?? 'Needs care'}
-                            className="size-3.5 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
+                            className="size-3.5 shrink-0 text-caution-icon"
                           />
                         ) : on ? (
                           <CircleIcon
@@ -415,7 +415,7 @@ function SourceView({ r }: { r: Review }) {
       <p className="text-xs text-muted-foreground">
         The stored markdown, line by line. Exact, but a moved step reads as removed and added.
       </p>
-      <pre className="overflow-x-auto rounded-frame border font-mono text-[13px] leading-6">
+      <pre className="overflow-x-auto rounded-frame border font-mono text-dense leading-6">
         {rows.map((row, k) => (
           <div
             key={k}
@@ -438,15 +438,12 @@ function SourceView({ r }: { r: Review }) {
                       row.t === '-' ? (
                         <del
                           key={i}
-                          className="rounded-sm bg-[color-mix(in_oklab,var(--mark-del-line)_28%,transparent)] decoration-[var(--mark-del-line)]"
+                          className="rounded-sm bg-mark-del-line/28 decoration-[var(--mark-del-line)]"
                         >
                           {w.text}
                         </del>
                       ) : (
-                        <ins
-                          key={i}
-                          className="rounded-sm bg-[color-mix(in_oklab,var(--mark-add-line)_28%,transparent)] no-underline"
-                        >
+                        <ins key={i} className="rounded-sm bg-mark-add-line/28 no-underline">
                           {w.text}
                         </ins>
                       )
@@ -541,7 +538,7 @@ function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
             {r.unchanged.length} fields unchanged: {r.unchanged.join(', ')}
           </button>
           {showUnchanged && fact && (
-            <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-[9rem_minmax(0,1fr)]">
+            <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-(--cols-lead-36)">
               {r.unchanged.map((f) => (
                 <React.Fragment key={f}>
                   <dt>{f}</dt>
@@ -585,7 +582,7 @@ function SyncedFrom({ r }: { r: Review }) {
       <blockquote className="rounded-frame bg-muted px-3 py-2 text-sm italic">
         “{s.quote}”
       </blockquote>
-      <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
+      <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-(--cols-lead-40)">
         <dt className="text-muted-foreground">Set by the document</dt>
         <dd>The title, what agents should know, where and when it applies</dd>
         <dt className="text-muted-foreground">Not set by it</dt>
@@ -621,10 +618,7 @@ function Clash({ r }: { r: Review }) {
   return (
     <section className="flex flex-col gap-4 py-2">
       <header className="flex items-center gap-2">
-        <TriangleAlertIcon
-          aria-hidden
-          className="size-4 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
-        />
+        <TriangleAlertIcon aria-hidden className="size-4 text-caution-icon" />
         <span className="text-sm font-medium">
           It overlaps live context that says something else
         </span>
@@ -632,11 +626,11 @@ function Clash({ r }: { r: Review }) {
       <div className="grid gap-3 @3xl:grid-cols-2">
         <div className="flex flex-col gap-2 rounded-frame border p-4">
           <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
-          <Marked segs={marks(c.mine)} className="text-[15px] leading-7" />
+          <Marked segs={marks(c.mine)} className="text-reading leading-7" />
         </div>
         <div className="flex flex-col gap-2 rounded-frame border p-4">
           <p className="text-xs font-medium text-muted-foreground">Live: {c.title}</p>
-          <Marked segs={marks(c.theirs)} className="text-[15px] leading-7" />
+          <Marked segs={marks(c.theirs)} className="text-reading leading-7" />
         </div>
       </div>
       <fieldset className="flex flex-col gap-2">
@@ -647,7 +641,7 @@ function Clash({ r }: { r: Review }) {
           label="How do they relate?"
           options={relations.map((x) => ({ value: x.id, label: x.label }))}
           value={relation ?? undefined}
-          onChange={(v) => setRelation(v as Relation)}
+          onChange={(v) => setRelation(v)}
         />
         <p className="text-xs text-muted-foreground">
           {relation ? relations.find((x) => x.id === relation)!.hint : 'Choose one of the three.'}
@@ -1057,7 +1051,7 @@ function Decision({
       onPointerLeave={() => hold(hovered, false)}
       onFocus={() => hold(focused, true)}
       onBlur={() => hold(focused, false)}
-      className="flex flex-col gap-2 animate-in duration-(--dur-4) fade-in-0 slide-in-from-bottom-1"
+      className="flex animate-in flex-col gap-2 duration-(--dur-4) fade-in-0 slide-in-from-bottom-1"
     >
       <p className="flex items-center gap-2 text-sm font-medium">
         <CircleCheckIcon className="size-4 text-primary" aria-hidden />
@@ -1119,7 +1113,7 @@ function Decision({
     if (returning) return null
     const at = reviews.findIndex((x) => x.id === r.id)
     return (
-      <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-4 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="flex shrink-0 flex-col gap-2 border-t bg-background px-4 pt-2.5 pb-safe-sm">
         {archiveDialog}
         {finished ? (
           outcome
@@ -1133,10 +1127,7 @@ function Decision({
             {problem ?? (
               <p className="flex items-center gap-2 text-sm">
                 {careLine(r) ? (
-                  <TriangleAlertIcon
-                    aria-hidden
-                    className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
-                  />
+                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
                 ) : (
                   <ReadyIcon className="size-4 shrink-0" aria-hidden />
                 )}
@@ -1235,7 +1226,7 @@ function Decision({
           <div className="flex flex-col gap-2">
             {problem}
             {/* Desktop decisions are full size: 36px, 13px text. */}
-            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-[13px]">
+            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-dense">
               {shownActions}
             </div>
             {draft && (
@@ -1515,7 +1506,7 @@ export function ReviewPage({ id }: { id: string }) {
   )
 
   return (
-    <RelationContext.Provider value={relation as [Relation | null, (r: Relation) => void]}>
+    <RelationContext.Provider value={relation}>
       {/* Under a finger every control is at least 40px; the phone bar's actions are 44px. */}
       <div key={r.id} className={cn('flex h-full min-h-0 flex-col bg-background', TOUCH)}>
         <SiteHeader
@@ -1524,7 +1515,7 @@ export function ReviewPage({ id }: { id: string }) {
               <BreadcrumbList className="flex-nowrap text-sm">
                 <BreadcrumbItem className="max-sm:hidden">
                   <BreadcrumbLink
-                    href={`#/inbox?card=${r.id}`}
+                    href={`/inbox?card=${r.id}`}
                     className="text-foreground/75 hover:text-foreground"
                   >
                     Inbox
@@ -1716,7 +1707,7 @@ export function ReviewPage({ id }: { id: string }) {
             : `Suggestion ${at + 1} of ${reviews.length}: ${r.title}`}
         </p>
         <Sheet open={queueOpen} onOpenChange={setQueueOpen}>
-          <SheetContent side="left" className="w-[min(20rem,85vw)] gap-0 bg-background p-0">
+          <SheetContent side="left" className="w-popover-phone gap-0 bg-background p-0">
             <SheetHeader className="border-b">
               <SheetTitle>Waiting for {me.name.split(' ')[0]}</SheetTitle>
             </SheetHeader>

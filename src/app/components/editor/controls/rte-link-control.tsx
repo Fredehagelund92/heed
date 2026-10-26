@@ -23,7 +23,7 @@ export const LinkControl = () => {
     (isOpen: boolean) => {
       if (isOpen) {
         const linkData = editor?.getAttributes('link')
-        setUrl(linkData?.href || '')
+        setUrl((linkData?.href as string | undefined) || '')
       } else {
         setUrl('')
       }

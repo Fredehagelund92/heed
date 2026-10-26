@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ChevronDownIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronDownIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 // Efferd's square hairline frames, as dashboard 2 draws them: a frame is a rectangle with a
@@ -60,7 +60,7 @@ function SectionHeader({
         <div className="flex max-w-full shrink-0 items-center gap-2">
           {/* On a narrow page the buttons wrap rather than run off the edge. */}
           {action && (
-            <div className="relative z-10 flex max-w-full flex-wrap items-center gap-2">
+            <div className="relative z-raised flex max-w-full flex-wrap items-center gap-2">
               {action}
             </div>
           )}
@@ -115,10 +115,7 @@ export function FrameSection({
       >
         <div
           data-slot="frame-section-header"
-          className={cn(
-            headerRow,
-            'relative flex-nowrap transition-colors hover:bg-[color-mix(in_oklab,var(--muted)_35%,var(--background))]',
-          )}
+          className={cn(headerRow, 'relative flex-nowrap transition-colors hover:bg-band-soft')}
         >
           <SectionHeader
             title={title}
@@ -213,7 +210,7 @@ export function FrameTable({
     <div className="overflow-x-auto border-t">
       <table className="w-full text-sm" aria-label={label}>
         <thead>
-          <tr className="bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
+          <tr className="bg-band text-xs text-muted-foreground">
             {columns.map((c, i) => (
               <th
                 key={i}
@@ -275,7 +272,7 @@ export function FrameRows({
           className={cn(
             'grid items-center gap-x-6 gap-y-2 border-t px-4 py-3 text-sm first:border-t-0 md:px-5',
             // A small control (a switch, a button) stays on the right at every width; a wide one goes under its name on a phone.
-            r.wide ? 'sm:grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]',
+            r.wide ? 'sm:grid-cols-(--cols-trail-auto)' : 'grid-cols-(--cols-trail-auto)',
           )}
         >
           <dt className="min-w-0">
@@ -300,7 +297,7 @@ export function FrameFooter({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-2 border-t bg-[color-mix(in_oklab,var(--muted)_35%,var(--background))] px-4 py-3 md:px-5',
+        'flex flex-wrap items-center gap-2 border-t bg-band-soft px-4 py-3 md:px-5',
         className,
       )}
     >
@@ -310,8 +307,8 @@ export function FrameFooter({
 }
 
 const calloutTone = {
-  warn: 'border-[oklch(0.68_0.16_65/0.45)] bg-[oklch(0.68_0.16_65/0.08)]',
-  info: 'bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))]',
+  warn: 'border-caution/45 bg-caution/8',
+  info: 'bg-band',
 }
 
 /** A square tinted band for something to act on: a callout, never a floating card. */

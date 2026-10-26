@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
 
 /**
@@ -109,7 +109,7 @@ export function ResizableAside({
         title={collapsible ? `Drag to resize, click to ${collapsed ? 'show' : 'hide'}` : undefined}
         data-dragging={drag !== null || undefined}
         className={cn(
-          'group/handle absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none outline-none',
+          'group/handle absolute inset-y-0 z-header w-2 cursor-col-resize touch-none outline-none',
           side === 'left' ? '-right-1' : '-left-1',
         )}
         onPointerDown={(e) => {

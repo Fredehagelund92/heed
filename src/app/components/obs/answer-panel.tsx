@@ -12,8 +12,8 @@ import {
   PlayIcon,
   RouteIcon,
   ScanSearchIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { StateLine } from '@/components/heed/bits'
@@ -110,7 +110,7 @@ export function AnswerPanel({ id }: { id: string }) {
         </>
       }
     >
-      <div className="px-4 pt-4 md:px-5">
+      <div className="px-4 pt-4 @md:px-5">
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold">Answer</span> - as agents get it now
         </p>
@@ -125,11 +125,11 @@ export function AnswerPanel({ id }: { id: string }) {
             ? `Reading ${now.answer.sources.length} context ${now.answer.sources.length === 1 ? 'item' : 'items'}…`
             : 'Found no context items'
         }
-        className="mt-2 px-4 md:px-5"
+        className="mt-2 px-4 @md:px-5"
       >
-        <div className="mt-2 flex flex-wrap items-center gap-2 px-4 md:px-5">
+        <div className="mt-2 flex flex-wrap items-center gap-2 px-4 @md:px-5">
           <StateLine state={now.answer.state} className="text-xs" />
-          <span className="text-[13px] text-muted-foreground">
+          <span className="text-dense text-muted-foreground">
             Asked {shownCount(asked)} times {view.label}.
             {counts.missing ? ` ${shownCount(counts.missing)} not found.` : ''}
           </span>
@@ -137,7 +137,7 @@ export function AnswerPanel({ id }: { id: string }) {
         <div
           role="tablist"
           aria-label="About this answer"
-          className="mt-3 flex gap-1 border-b px-3 md:px-4"
+          className="mt-3 flex gap-1 border-b px-3 @md:px-4"
         >
           {(
             [
@@ -170,7 +170,7 @@ export function AnswerPanel({ id }: { id: string }) {
           role="tabpanel"
           id={`ap-panel-${tab}`}
           aria-labelledby={`ap-tab-${tab}`}
-          className="px-4 py-4 md:px-5"
+          className="px-4 py-4 @md:px-5"
         >
           {tab === 'overview' && <OverviewTab t={t} asked={asked} />}
           {tab === 'steps' && <StepsTab t={t} when={when} />}
@@ -247,7 +247,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="max-w-[48ch] text-[13px] text-muted-foreground">
+        <p className="max-w-caption-wide text-dense text-muted-foreground">
           This is a replay: it runs the same steps an agent's request runs, with no model. It takes
           about {run.ms} ms.
         </p>
@@ -269,7 +269,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
               aria-checked={when === k}
               onClick={() => setQuery({ when: k === 'now' ? undefined : k })}
               className={cn(
-                'rounded-[5px] px-2.5 text-[13px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+                'rounded-tile px-2.5 text-dense text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
                 when === k && 'bg-muted font-medium text-foreground',
               )}
             >
@@ -279,7 +279,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
         </div>
       </div>
       {when === 'before' && !changed.length && (
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-dense text-muted-foreground">
           The same steps as now: nothing it reads was published since.
         </p>
       )}
@@ -291,11 +291,11 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
           return (
             <li key={s.key} className="relative flex gap-3 pb-4 last:pb-0">
               {i < steps.length - 1 && (
-                <span aria-hidden className="absolute top-8 bottom-0 left-[13px] w-px bg-border" />
+                <span aria-hidden className="absolute top-8 bottom-0 left-3.25 w-px bg-border" />
               )}
               <span
                 className={cn(
-                  'relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground',
+                  'relative z-raised flex size-7 shrink-0 items-center justify-center rounded-full border bg-background text-muted-foreground',
                   s.key === 'checked' && run.answer.state === 'grounded' && 'text-primary',
                   s.key === 'checked' &&
                     (run.answer.state === 'conflict' || run.answer.state === 'stale') &&
@@ -309,7 +309,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
                   <span>
                     {s.title}
                     {isChanged && (
-                      <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                      <span className="ml-2 rounded-sm bg-primary/10 px-1.5 py-0.5 text-2xs font-medium text-primary">
                         Changed since
                       </span>
                     )}
@@ -330,13 +330,13 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
                     ))}
                   </p>
                 )}
-                <p className="mt-1 text-[13px] text-pretty text-muted-foreground">
+                <p className="mt-1 text-dense text-pretty text-muted-foreground">
                   {s.key === 'said' ? `“${s.text}”` : s.text}
                 </p>
                 {s.items && s.items.length > 0 && (
                   <ul className="mt-1.5 flex flex-col gap-1">
                     {s.items.map((it) => (
-                      <li key={it.id} className="text-[13px]">
+                      <li key={it.id} className="text-dense">
                         <a
                           href={href(`/context/${it.id}`)}
                           className="rounded-md border px-1.5 py-0.5 underline-offset-4 hover:underline"
@@ -351,11 +351,13 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
                 {s.ms !== undefined && (
                   <span aria-hidden className="mt-2 block h-1 bg-muted">
                     <span
-                      className="block h-full bg-chart-2"
-                      style={{
-                        marginLeft: `${(from / run.ms) * 100}%`,
-                        width: `${Math.max(2, (s.ms / run.ms) * 100)}%`,
-                      }}
+                      className="ml-(--from) block h-full bg-chart-2"
+                      style={
+                        {
+                          '--from': `${(from / run.ms) * 100}%`,
+                          width: `${Math.max(2, (s.ms / run.ms) * 100)}%`,
+                        } as React.CSSProperties
+                      }
                     />
                   </span>
                 )}
@@ -396,9 +398,9 @@ function WarningsTab({ t, counts }: { t: (typeof TOPICS)[number]; counts: Record
               <StateLine state={s} className="px-1.5 py-0.5 text-xs" />
               <span className="text-muted-foreground">{times(counts[s])}</span>
             </div>
-            <p className="text-[13px] text-muted-foreground">{why[s]}</p>
+            <p className="text-dense text-muted-foreground">{why[s]}</p>
             {s === 'missing' && t.gap && (
-              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-[13px]">
+              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-dense">
                 <LightbulbIcon className="size-3.5 shrink-0" aria-hidden />
                 <span className="flex-1">
                   {t.gap.label === 'Draft ready'

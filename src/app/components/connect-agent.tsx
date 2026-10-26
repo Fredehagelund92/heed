@@ -9,8 +9,8 @@ import {
   CopyIcon,
   LoaderCircleIcon,
   PlugIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { FrameSection } from '@/components/heed/frame'
@@ -55,6 +55,7 @@ import {
   type LivePhase,
 } from '@/lib/connect'
 import { onOpen } from '@/lib/events'
+import { storageKey } from '@/lib/brand'
 import { useRoute } from '@/lib/router'
 import { useMe } from '@/lib/store'
 
@@ -127,14 +128,14 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
   const [copied, setCopied] = React.useState(false)
   return (
     <figure className="border bg-background" aria-labelledby="connect-prompt-label">
-      <figcaption className="flex min-h-11 items-center justify-between gap-3 border-b bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] py-1.5 pr-1.5 pl-3">
+      <figcaption className="flex min-h-11 items-center justify-between gap-3 border-b bg-band py-1.5 pr-1.5 pl-3">
         <span id="connect-prompt-label" className="text-xs text-muted-foreground">
           Paste this into your agent
         </span>
         <Button
           size="sm"
           onClick={() => {
-            copy(PROMPT)
+            void copy(PROMPT)
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
             onCopy()
@@ -149,7 +150,7 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
           p.code ? (
             <code
               key={i}
-              className="block rounded-md bg-muted px-2.5 py-1.5 font-mono text-[12.5px] leading-relaxed [overflow-wrap:anywhere]"
+              className="block rounded-md bg-muted px-2.5 py-1.5 font-mono text-code-sm leading-relaxed wrap-anywhere"
             >
               {p.text}
             </code>
@@ -191,7 +192,7 @@ function LiveLine({
     <div
       role="status"
       aria-live="polite"
-      className="grid grid-cols-[1rem_minmax(0,1fr)] gap-x-3 gap-y-1 [&>svg]:mt-0.5 [&>svg]:size-4"
+      className="grid grid-cols-(--cols-lead-4) gap-x-3 gap-y-1 [&>svg]:mt-0.5 [&>svg]:size-4"
     >
       {React.cloneElement(icon, { 'aria-hidden': true })}
       <p className="text-sm font-medium">{title}</p>
@@ -204,7 +205,7 @@ function LiveLine({
               {TOOL_NAMES.map((t, i) => (
                 <React.Fragment key={t}>
                   {i > 0 && (i === TOOL_NAMES.length - 1 ? ' and ' : ', ')}
-                  <code className="font-mono text-[12.5px] text-foreground">{t}</code>
+                  <code className="font-mono text-code-sm text-foreground">{t}</code>
                 </React.Fragment>
               ))}
               .
@@ -246,7 +247,7 @@ function CopyButton({ label, text, onCopy }: { label: string; text: string; onCo
       size="sm"
       variant="outline"
       onClick={() => {
-        copy(text)
+        void copy(text)
         setCopied(true)
         setTimeout(() => setCopied(false), 1500)
         onCopy()
@@ -284,7 +285,7 @@ function TextButton({ children, ...props }: React.ComponentProps<'button'>) {
   )
 }
 
-const CLAUDE_KEY = 'connect-claude'
+const CLAUDE_KEY = storageKey('connect-claude')
 function readClaude(): 'code' | 'app' {
   try {
     return sessionStorage.getItem(CLAUDE_KEY) === 'app' ? 'app' : 'code'
@@ -307,7 +308,7 @@ function Cell({
   switcher?: React.ReactNode
 }) {
   return (
-    <li className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2 bg-background p-4 min-[28rem]:flex min-[28rem]:min-h-40 min-[28rem]:flex-col md:p-5">
+    <li className="grid grid-cols-(--cols-lead-auto) items-start gap-x-3 gap-y-2 bg-background p-4 min-[28rem]:flex min-[28rem]:min-h-40 min-[28rem]:flex-col md:p-5">
       <ToolLogo c={{ logo }} />
       <div>
         <p className="text-sm font-medium">{name}</p>
@@ -400,7 +401,7 @@ export function SetupLine({ line, onCopy }: { line: string; onCopy?: () => void 
           aria-label="Copy the line"
           size="icon-xs"
           onClick={() => {
-            copy(line)
+            void copy(line)
             setCopied(true)
             toast('Copied', { description: 'Paste it where the step says.' })
             setTimeout(() => setCopied(false), 1500)
@@ -460,10 +461,10 @@ function ByHand({
             <ol
               id={id}
               hidden={!open}
-              className={cn('flex max-w-[52rem] flex-col gap-3 pt-1 pb-4', pad)}
+              className={cn('flex max-w-208 flex-col gap-3 pt-1 pb-4', pad)}
             >
               {g.steps.map((s, i) => (
-                <li key={i} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 gap-y-2">
+                <li key={i} className="grid grid-cols-(--cols-lead-6) gap-x-3 gap-y-2">
                   <span
                     aria-hidden
                     className="grid size-6 place-items-center border text-xs font-medium tabular-nums"
@@ -506,7 +507,7 @@ export function ConnectAgent({ inDialog }: { inDialog?: boolean }) {
   }
   return (
     <div className="flex flex-col">
-      <div className={cn('flex max-w-[52rem] flex-col gap-4 pb-5', pad, inDialog && 'pt-4')}>
+      <div className={cn('flex max-w-208 flex-col gap-4 pb-5', pad, inDialog && 'pt-4')}>
         <PromptCard onCopy={() => start('prompt')} />
         <p className="-mt-1.5 text-xs text-muted-foreground">
           It adds the connection, writes one line into the agent's instructions, and tells you how
@@ -517,7 +518,7 @@ export function ConnectAgent({ inDialog }: { inDialog?: boolean }) {
           me={me}
           onAgain={again}
           onCopyAgain={() => {
-            copy(PROMPT)
+            void copy(PROMPT)
             start('prompt')
           }}
         />
@@ -547,7 +548,7 @@ export function ConnectAgentDialog() {
   React.useEffect(() => onOpen('connect', () => setOpen(true)), [])
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[calc(100svh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-2xl">
+      <DialogContent className="max-h-screen-inset grid-rows-(--rows-frame) sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Connect an agent</DialogTitle>
           <DialogDescription>

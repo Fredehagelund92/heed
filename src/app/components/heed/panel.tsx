@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ChevronRightIcon, PanelRightOpenIcon, XIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronRightIcon, PanelRightOpenIcon, XIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -45,7 +45,7 @@ export function Panel({
         <h2
           className={cn(
             'min-w-0 flex-1 truncate px-1 text-sm font-medium',
-            quietTitle && 'text-[13px] font-normal text-muted-foreground',
+            quietTitle && 'text-dense font-normal text-muted-foreground',
           )}
         >
           {title}

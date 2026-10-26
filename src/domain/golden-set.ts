@@ -13,7 +13,6 @@ import {
   wordingSchema,
   type GoldenQuestionInput,
 } from './golden-question.ts'
-import { resolverStatusOf } from './answer-state.ts'
 import { isCalendarDate } from './validity.ts'
 
 /**
@@ -47,15 +46,12 @@ export type CaseType = (typeof caseTypes)[number]
 export const behaviours = ['answer', 'clarify', 'no_context', 'decline'] as const
 
 /**
- * get_context's statuses a case can expect: the answer states (src/domain/answer-state.ts) but
- * Not checked, and need_more_detail. `area_not_live` is no reply any more (every domain is served
- * since 14 Oct 2026); it stays only so a sealed case that still expects it reads, and fails until
- * its holder edits it.
+ * get_facts's statuses a case can expect (the resolver's, without check_failed).
+ * `area_not_live` is no reply any more (every domain is served since 14 Oct 2026); it stays only
+ * so a sealed case that still expects it reads, and fails until its holder edits it.
  */
 export const replyStatuses = [
   'matched',
-  'partial',
-  'stale',
   'conflict',
   'no_match',
   'need_more_detail',
@@ -294,8 +290,7 @@ export type GoldenSet = z.infer<typeof goldenSetSchema>
 
 /** A case in the open format (FR-504): what can be imported as a test question today. */
 export function toQuestion(c: GoldenCase): GoldenQuestionInput {
-  // A test question expects what the resolver found: Partial and Outdated are matches.
-  const status = c.delivery.status && resolverStatusOf(c.delivery.status)
+  const status = c.delivery.status
   return {
     id: c.id,
     area: c.area,
@@ -319,18 +314,17 @@ export function toQuestion(c: GoldenCase): GoldenQuestionInput {
   }
 }
 
-/** One context item as get_context's reply has it, with what L1 reads. */
+/** One delivered item as get_facts's reply has it, with what L1 reads. */
 export type DeliveredItem = {
   id: string
   version?: number
   freshness?: string
-  may_be_out_of_date?: boolean
   links?: { target: { source_ref?: string } }[]
 }
 export type DeliveryReply = {
   say?: string
   status?: string
-  context?: DeliveredItem[]
+  items?: DeliveredItem[]
   check_report?: { cut?: boolean }
 }
 
@@ -347,7 +341,7 @@ export function deliveryChecks(
   reply: DeliveryReply,
   serialized: string,
 ): DeliveryChecks {
-  const items = reply.context ?? []
+  const items = reply.items ?? []
   const delivered = items.map((i) => i.id)
   const checks: DeliveryChecks = {
     served: reply.status !== undefined && reply.status !== 'check_failed',
@@ -369,10 +363,9 @@ export function deliveryChecks(
       ([id, version]) => items.find((i) => i.id === id)?.version === version,
     )
   if (expected.unverified)
-    checks.unverified = expected.unverified.every((id) => {
-      const item = items.find((i) => i.id === id)
-      return item?.freshness === 'unverified' || item?.may_be_out_of_date === true
-    })
+    checks.unverified = expected.unverified.every(
+      (id) => items.find((i) => i.id === id)?.freshness === 'unverified',
+    )
   if (expected.text) checks.text = expected.text.every((phrase) => serialized.includes(phrase))
   if (expected.size_max !== undefined) checks.size = serialized.length <= expected.size_max
   if (expected.source_refs) {

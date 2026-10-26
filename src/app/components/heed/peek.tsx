@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { ChevronRightIcon, type LucideIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ChevronRightIcon, type LucideIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
 // The quick view (peek) of a context item or a definition, from the peek design's option 2: a note
@@ -57,7 +57,7 @@ export function PeekTitle({
 
 /** The words themselves, the largest text in the peek. */
 export function PeekMeaning({ children }: { children: React.ReactNode }) {
-  return <div className="mt-3 text-[15px] leading-6">{children}</div>
+  return <div className="mt-3 text-reading leading-6">{children}</div>
 }
 
 /** The one thing that needs a decision, with one button. The choice itself is made on the page. */
@@ -73,12 +73,9 @@ export function PeekAttention({
   return (
     <div
       role="note"
-      className="mt-4 flex items-center gap-2.5 rounded-frame border border-[oklch(0.68_0.16_65/0.45)] bg-[oklch(0.68_0.16_65/0.08)] py-2 pr-2 pl-3 text-sm dark:border-[oklch(0.78_0.14_70/0.45)] dark:bg-[oklch(0.68_0.16_65/0.12)]"
+      className="mt-4 flex items-center gap-2.5 rounded-frame border border-caution/45 bg-caution/8 py-2 pr-2 pl-3 text-sm dark:border-warn/45 dark:bg-caution/12"
     >
-      <Icon
-        aria-hidden
-        className="size-4 shrink-0 text-[oklch(0.5_0.14_55)] dark:text-[oklch(0.78_0.14_70)]"
-      />
+      <Icon aria-hidden className="size-4 shrink-0 text-caution-text dark:text-warn" />
       <span className="min-w-0 flex-1 text-pretty break-words">{children}</span>
       {action && <span className="shrink-0">{action}</span>}
     </div>
@@ -94,8 +91,8 @@ export function PeekFact({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-start gap-2 text-[13px] leading-5 text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
-      <Icon aria-hidden className="mt-[3px] size-3.5 shrink-0" />
+    <div className="flex items-start gap-2 text-dense leading-5 text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
+      <Icon aria-hidden className="mt-0.75 size-3.5 shrink-0" />
       <div className="min-w-0 break-words">{children}</div>
     </div>
   )
@@ -139,11 +136,11 @@ export function PeekDetails({
         Details
       </button>
       <div id={id} hidden={!open} className="px-4 pb-5 @md:px-5">
-        <dl className="grid grid-cols-[5.75rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm @md:grid-cols-[6.5rem_minmax(0,1fr)]">
+        <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
           {rows.map(([k, v]) => (
             <React.Fragment key={k}>
-              <dt className="text-[13px] leading-[22px] font-medium text-muted-foreground">{k}</dt>
-              <dd className="min-w-0 leading-[22px] break-words">{v}</dd>
+              <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
+              <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
             </React.Fragment>
           ))}
         </dl>
@@ -166,7 +163,7 @@ export function PeekLink({
   href?: string
 }) {
   const cls =
-    "h-7 gap-1.5 px-1.5 -ml-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
+    "h-7 gap-1.5 px-1.5 -ml-1.5 text-dense font-medium text-muted-foreground hover:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
   if (href)
     return (
       <Button

@@ -15,7 +15,7 @@ import { cardTypeLabel } from '@/data/inbox'
 // lint rules: eslint.product-name.js and eslint.plain-words.js). Only text a person reads is
 // checked: string literals, template text and JSX text. Comments and code names are not.
 
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
+const ROOT = fileURLToPath(new URL('../../../src/app', import.meta.url))
 /** Not the product's own copy: the shadcn and editorcn parts as they ship, and tests. */
 const SKIP = [
   /^components\/ui\//,

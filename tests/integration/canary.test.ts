@@ -1,4 +1,3 @@
-import { resolverStatusOf } from '../../src/domain/answer-state.ts'
 import { execFile } from 'node:child_process'
 import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
 import { promisify } from 'node:util'
@@ -204,27 +203,25 @@ it(
       for (let batch = 0; batch < 100; batch++) {
         const replies = await Promise.all(
           Array.from({ length: 10 }, (_, i) =>
-            wire.callTool({ name: 'get_context', arguments: shapes[(batch * 10 + i) % 3]! }),
+            wire.callTool({ name: 'get_facts', arguments: shapes[(batch * 10 + i) % 3]! }),
           ),
         )
         for (const reply of replies) {
           expect(reply.isError).not.toBe(true)
-          const content = reply.structuredContent as { status: string; reply_id: string }
-          // Partial and Outdated answers are matches the resolver found.
-          const status = resolverStatusOf(content.status)
-          statuses.set(status, (statuses.get(status) ?? 0) + 1)
-          if (status === 'no_match') unmatched.push(content.reply_id)
+          const content = reply.structuredContent as { status: string; delivery_id: string }
+          statuses.set(content.status, (statuses.get(content.status) ?? 0) + 1)
+          if (content.status === 'no_match') unmatched.push(content.delivery_id)
         }
       }
       for (let i = 0; i < 5; i++) {
         const gap = await wire.callTool({
-          name: 'report',
-          arguments: { kind: 'missing', question: `${sentence} in July 2026` },
+          name: 'report_gap',
+          arguments: { question: `${sentence} in July 2026` },
         })
         expect(gap.isError).not.toBe(true)
         const feedback = await wire.callTool({
-          name: 'report',
-          arguments: { kind: 'missing', reply_id: unmatched[i]! },
+          name: 'give_feedback',
+          arguments: { delivery_id: unmatched[i]!, verdict: 'missing' },
         })
         expect(feedback.isError).not.toBe(true)
       }
@@ -249,7 +246,7 @@ it(
     expect(
       (
         await client.query(
-          "select distinct app_family from mcp_requests where tool = 'get_context' and status = 'ok'",
+          "select distinct app_family from mcp_requests where tool = 'get_facts' and status = 'ok'",
         )
       ).rows,
     ).toEqual([{ app_family: 'other' }])
@@ -299,7 +296,7 @@ it(
     })
     expect(metrics.statusCode).toBe(200)
     expect(metrics.body).toContain(
-      'heed_mcp_requests_total{app_family="other",status="ok",tool="get_context"} 1000',
+      'heed_mcp_requests_total{app_family="other",status="ok",tool="get_facts"} 1000',
     )
     exported.push(metrics.body)
     for (const gap of gaps)

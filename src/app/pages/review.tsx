@@ -1,5 +1,5 @@
-import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
@@ -151,17 +151,14 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
       {/* What needs care shows before Review, never only inside it. */}
       {care && (
         <p className="flex items-center gap-2 text-sm font-medium">
-          <TriangleAlertIcon
-            aria-hidden
-            className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
-          />
+          <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
           {care}
           <span className="font-normal text-muted-foreground">
             {r.claims ? 'before publishing' : r.clash ? `: ${r.clash.title}` : ''}
           </span>
         </p>
       )}
-      <p className="text-[15px] leading-relaxed text-pretty">{r.summary}</p>
+      <p className="text-reading leading-relaxed text-pretty">{r.summary}</p>
       {r.formattingOnly && (
         <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">Formatting only. The words are the same.</span>

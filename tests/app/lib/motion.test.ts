@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 // The motion rules as checks (docs/motion.md): every duration and easing comes from the tokens in
 // index.css, so reduced motion is one rule there, not an override on each component.
 
-const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
+const ROOT = fileURLToPath(new URL('../../../src/app', import.meta.url))
 const files = (dir: string): string[] =>
   readdirSync(dir).flatMap((name) => {
     const path = join(dir, name)

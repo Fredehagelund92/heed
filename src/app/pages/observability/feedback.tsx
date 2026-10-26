@@ -8,8 +8,8 @@ import {
   MinusIcon,
   ThumbsDownIcon,
   ThumbsUpIcon,
-} from 'lucide-react'
-import { cn } from 'cn'
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
@@ -121,7 +121,7 @@ function Feedback() {
           sub="reported a gap or gave feedback"
         />
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-3-2)">
         <div>
           <div
             role="tablist"
@@ -138,7 +138,7 @@ function Feedback() {
                   aria-selected={tab === k}
                   onClick={() => setTab(k)}
                   className={cn(
-                    '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-[13px] whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
+                    '-mb-px flex h-10 items-center gap-1.5 border-b-2 border-transparent px-2 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
                     tab === k && 'border-foreground font-medium text-foreground',
                   )}
                 >
@@ -181,8 +181,7 @@ function Feedback() {
                       <span
                         className={cn(
                           'inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-2 text-xs whitespace-nowrap',
-                          r.state === 'inbox' &&
-                            'border-[color-mix(in_oklab,var(--warn)_45%,transparent)] text-foreground',
+                          r.state === 'inbox' && 'border-warn/45 text-foreground',
                           r.state === 'looked' && 'text-foreground',
                           r.state === 'fine' && 'text-muted-foreground',
                         )}
@@ -200,7 +199,7 @@ function Feedback() {
             </ul>
           </div>
           <a
-            href="#/inbox"
+            href="/inbox"
             className="flex items-center gap-1.5 px-4 py-3 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline md:px-5"
           >
             <ArrowUpRightIcon className="size-3.5" aria-hidden />

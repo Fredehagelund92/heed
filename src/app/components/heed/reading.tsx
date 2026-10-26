@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { Loader2Icon, SearchIcon } from 'lucide-react'
-import { cn } from 'cn'
+import { Loader2Icon, SearchIcon } from '@/components/icons'
+import { cn } from '@/lib/utils'
 import { useStages } from '@/lib/stages'
 
 // The staged look-up, where an agent's kind of work really happens (Ask, Try it, the answer panel,

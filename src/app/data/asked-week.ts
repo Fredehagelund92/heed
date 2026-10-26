@@ -40,7 +40,7 @@ function nextOf(t: Topic, state: AnswerState): AskedRow['next'] {
   const card = t.gap.href.match(/card=([\w-]+)/)?.[1]
   // A draft waits: Write it opens that draft, never a blank page. A suggestion waits: review it.
   if (t.gap.label === 'Draft ready' && card)
-    return { label: 'Write it', href: `#/context/new?gap=${card}` }
+    return { label: 'Write it', href: `/context/new?gap=${card}` }
   return t.gap.label === 'A suggestion waits'
     ? { label: 'Review it', href: t.gap.href }
     : { label: 'Open the card', href: t.gap.href }

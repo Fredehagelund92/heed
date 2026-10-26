@@ -68,5 +68,5 @@ npx playwright test --project reduced-motion        # J29 with reduced motion on
 BASE_URL=http://localhost:5173/ npx playwright test # the same specs against another build
 ```
 
-CI runs them in the `Mockup: typecheck, lint, tests, build, e2e` job (`.github/workflows/ci.yml`)
+CI runs them in the `Mockup: typecheck, lint, tests, build, e2e` job (`.github/workflows/mockup.yml`)
 after the type check, oxlint, the unit tests and the production build.

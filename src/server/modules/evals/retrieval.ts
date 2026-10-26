@@ -33,19 +33,6 @@ type Reply = {
 export async function deliver(bundle: ServingBundle, clock: Clock, input: object): Promise<Reply> {
   return (await previewDelivery(bundle, clock, input)).structuredContent
 }
-/**
- * get_context's reply, as agents get it, for one input on one edition held in memory, recording
- * nothing: the full reply unless the input asks for the concise one.
- */
-export async function deliverContext(
-  bundle: ServingBundle,
-  clock: Clock,
-  input: object,
-): Promise<Record<string, unknown>> {
-  return (
-    await previewDelivery(bundle, clock, { response_format: 'full', ...input }, null, 'get_context')
-  ).structuredContent
-}
 export const deliveredIds = (reply: Reply) => (reply.items ?? []).map((i) => i.id)
 
 export type RetrievalTrigger = 'edition' | 'daily'

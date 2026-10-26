@@ -806,7 +806,7 @@ test.describe('MCP traffic and the server address', () => {
     await signInAs(page, 'per_ravi')
     await openPage(page, '/admin?section=gateway&tab=activity', desktop)
     const grid = page.getByRole('table', { name: 'Calls by agent and tool' })
-    await expect(grid.locator('[data-traffic="claude-code.get_context"]')).toContainText('1,842')
+    await expect(grid.locator('[data-traffic="claude-code.get_facts"]')).toContainText('1,842')
     await expect(grid.locator('[data-traffic="unknown.protocol"]')).toContainText('No agent named')
     await expect(page.locator('[data-slot="traffic-calls"]')).toContainText('4,456')
     // Malformed calls are the agent's mistake, counted apart from Heed's errors.
@@ -815,7 +815,7 @@ test.describe('MCP traffic and the server address', () => {
     await expect(apps.locator('[data-app-family="claude_code"]')).toContainText('142')
     await page.getByRole('link', { name: '30 days' }).click()
     await expect(page).toHaveURL(/days=30/)
-    await expect(grid.locator('[data-traffic="claude-code.get_context"]')).toContainText('7,894')
+    await expect(grid.locator('[data-traffic="claude-code.get_facts"]')).toContainText('7,894')
   })
 
   test('the Clients tab shows the address AI clients connect to', async ({ page }) => {

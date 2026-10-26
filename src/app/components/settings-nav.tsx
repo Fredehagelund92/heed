@@ -6,7 +6,7 @@ import {
   SlidersHorizontalIcon,
   UsersIcon,
   WrenchIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import {
   SidebarContent,
   SidebarGroup,
@@ -61,7 +61,7 @@ export function SettingsNav({ section, close }: { section: string; close: () => 
       <SidebarHeader className="h-bar justify-center border-b px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip={BACK_TO_APP} render={<a href="#/inbox" onClick={close} />}>
+            <SidebarMenuButton tooltip={BACK_TO_APP} render={<a href="/inbox" onClick={close} />}>
               <ArrowLeftIcon />
               <span>{BACK_TO_APP}</span>
             </SidebarMenuButton>
@@ -79,7 +79,7 @@ export function SettingsNav({ section, close }: { section: string; close: () => 
                     <SidebarMenuButton
                       tooltip={item.title}
                       isActive={section === item.id}
-                      render={<a href={`#/settings/${item.id}`} onClick={close} />}
+                      render={<a href={`/settings/${item.id}`} onClick={close} />}
                     >
                       <item.icon />
                       <span>{item.title}</span>

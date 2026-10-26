@@ -2,7 +2,8 @@
 
 exports[`locks the production prompt, schemas, annotations and digest 1`] = `
 {
-  "deprecated": [
+  "digest": "f73b6a4f281bc403a1aefedd3814eff63c4f3d41da53ce4e5c5c1fc996cecf29",
+  "tools": [
     {
       "annotations": {
         "destructiveHint": false,
@@ -10,7 +11,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Deprecated: use get_context. It takes the arguments it took before and gives the reply it gave, with items and delivery_id.",
+      "description": "Finds the checked facts that apply to a question, with their sources. Call get_facts before answering a question about company data. Pass structured metrics, dimension_filters and inclusive UTC dates when known. Without window, the dates in the question are read (such as 2026, last quarter or 1 Jan to 30 Sep) and dates_read says how; without any dates, the question is read at today and assumed_date says so. The member names you just queried in the data tool work as names, and a name that isn't known comes back with the closest that is. A dimension filter with no values names the dimension for every value, as in a breakdown by market. Returns the checked facts (items) that apply, with their sources, coverage and links, and the domain of each asked metric; with response_format concise, a short reply without bodies, evidence and links. A link neither widens where a fact applies nor proves a cause. Read a linked fact with read_item only when it helps answer the question.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -171,7 +172,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Get context for a question",
+      "title": "Get facts for a question",
     },
     {
       "annotations": {
@@ -180,7 +181,344 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Deprecated: use find_context. It takes the arguments it took before and gives the reply it gave, with items.",
+      "description": "Finds facts by their title and summary. Call get_facts before answering a question about company data. Find facts (items) by a few words, not a whole question, such as "net revenue Spain". Matches the names of domains, metrics and dimension values (such as a market) against what a fact is about, and other words against its title, summary and text. Facts that match every word come first; query_used says how the words were read. Filter by kind, by domain (area: a domain id or name, such as Sales) or by mentions to find the facts that refer to one. Returns titles and summaries, without bodies. Follow next_cursor for another page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "description": "A domain by its id or its name, such as area_sales or Sales.",
+            "maxLength": 80,
+            "type": "string",
+          },
+          "cursor": {
+            "maxLength": 2000,
+            "type": "string",
+          },
+          "edition": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+            "type": "string",
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "event",
+              "guide",
+              "example",
+              "issue",
+            ],
+            "type": "string",
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "max_bytes": {
+            "default": 100000,
+            "maximum": 100000,
+            "minimum": 1000,
+            "type": "integer",
+          },
+          "mentions": {
+            "maxLength": 160,
+            "type": "string",
+          },
+          "query": {
+            "default": "",
+            "maxLength": 2000,
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "search_facts",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "items": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "id": {
+                  "type": "string",
+                },
+                "reviewed": {
+                  "additionalProperties": false,
+                  "description": "How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.",
+                  "properties": {
+                    "accepted_by": {
+                      "type": "string",
+                    },
+                    "accepted_on": {
+                      "type": "string",
+                    },
+                    "in_edition": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "accepted_on",
+                    "accepted_by",
+                    "in_edition",
+                  ],
+                  "type": "object",
+                },
+                "url": {
+                  "description": "The fact's page, for the person: link it where you cite the fact.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "id",
+                "url",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "next": {
+            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "say": {
+            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "status": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "say",
+          "status",
+        ],
+        "type": "object",
+      },
+      "title": "Search facts",
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Reads one fact in full, with its source. Call get_facts before answering a question about company data. Read one fact (item) you may see, with its sources and outgoing links, plus a page of the facts that link to it. An edition needs a service token with edition scope. A link proves neither that a fact applies nor a cause.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "maxLength": 2000,
+            "type": "string",
+          },
+          "edition": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+            "type": "string",
+          },
+          "id": {
+            "pattern": "^itm_[a-z0-9]{8,16}$",
+            "type": "string",
+          },
+          "max_bytes": {
+            "default": 100000,
+            "maximum": 100000,
+            "minimum": 1000,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "id",
+        ],
+        "type": "object",
+      },
+      "name": "read_item",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "item": {
+            "additionalProperties": {},
+            "properties": {
+              "id": {
+                "type": "string",
+              },
+              "reviewed": {
+                "additionalProperties": false,
+                "description": "How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.",
+                "properties": {
+                  "accepted_by": {
+                    "type": "string",
+                  },
+                  "accepted_on": {
+                    "type": "string",
+                  },
+                  "in_edition": {
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "accepted_on",
+                  "accepted_by",
+                  "in_edition",
+                ],
+                "type": "object",
+              },
+              "url": {
+                "description": "The fact's page, for the person: link it where you cite the fact.",
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "url",
+            ],
+            "type": "object",
+          },
+          "next": {
+            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "say": {
+            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "status": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "say",
+          "status",
+        ],
+        "type": "object",
+      },
+      "title": "Read a fact",
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Finds the facts, metrics and domains linked to a fact, a metric or a domain. Call get_facts before answering a question about company data. Follow links from a fact's item id, a vocabulary key such as metric:orders, or a domain. Returns neighbours one or two steps away with their kind of link, never bodies. A link shows what a text refers to: it neither widens where a fact applies nor proves a cause. Call it only when a link helps answer the question; read a neighbour with read_item. Follow next_cursor for another page.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "maxLength": 2000,
+            "type": "string",
+          },
+          "depth": {
+            "default": 1,
+            "maximum": 2,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "edition": {
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
+            "type": "string",
+          },
+          "id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string",
+          },
+          "max_bytes": {
+            "default": 100000,
+            "maximum": 100000,
+            "minimum": 1000,
+            "type": "integer",
+          },
+          "max_nodes": {
+            "default": 20,
+            "maximum": 50,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "relations": {
+            "items": {
+              "enum": [
+                "replaces",
+                "replaced_by",
+                "conflicts_with",
+                "applies_to",
+                "mentions",
+                "mentioned_by",
+                "in_area",
+              ],
+              "type": "string",
+            },
+            "maxItems": 7,
+            "minItems": 1,
+            "type": "array",
+          },
+          "window": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+              },
+              "to": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "from",
+              "to",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "id",
+        ],
+        "type": "object",
+      },
+      "name": "get_related",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "next": {
+            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "say": {
+            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "status": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "say",
+          "status",
+        ],
+        "type": "object",
+      },
+      "title": "Follow links",
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Finds facts by the words people use, such as GMV or Spain, and what each metric means. Call get_facts before answering a question about company data. Find what is written down about a few words or a question, by the names people use: metrics and their other names (such as GMV), markets, domains, member names from the data tool (such as payments.orders), and words in a fact. Use it for "what do we know about", "what is" or "how is it defined", and when you don't know the exact names. Returns the matching facts (items) with titles and summaries, and for each metric or dimension the words name: the definition its source gives, where that definition comes from, and what these facts add. When no words match, it returns the facts that apply to what the words name, on the dates the window or the words give (dates_read says how it read the words) or else today, as assumed_date says; when nothing is found, why says what to try. Read a fact in full with read_item.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -321,7 +659,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Find context",
+      "title": "Find facts by name",
     },
     {
       "annotations": {
@@ -330,39 +668,16 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Deprecated: use find_context. It takes the arguments it took before (query, kind, area, mentions, cursor) and gives the reply it gave.",
+      "description": "Says what a domain covers, who owns it and what needs checking. Call get_facts before answering a question about company data. Describe a domain in one call: what it is and what kind of data it holds, as its owners wrote it, its owners, what it covers, the facts that need checking, its open gaps and its recent changes. Without a domain, lists every domain with its summary line and those counts, and the metric and dimension names known here. Name the domain as people do, such as Sales.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "area": {
-            "description": "A domain by its id or its name, such as area_sales or Sales.",
+          "domain": {
+            "description": "A domain by its name, such as Sales (its id, such as area_sales, works too).",
             "maxLength": 80,
+            "minLength": 1,
             "type": "string",
-          },
-          "cursor": {
-            "maxLength": 2000,
-            "type": "string",
-          },
-          "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "kind": {
-            "enum": [
-              "note",
-              "event",
-              "guide",
-              "example",
-              "issue",
-            ],
-            "type": "string",
-          },
-          "limit": {
-            "default": 20,
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer",
           },
           "max_bytes": {
             "default": 100000,
@@ -370,64 +685,14 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
             "minimum": 1000,
             "type": "integer",
           },
-          "mentions": {
-            "maxLength": 160,
-            "type": "string",
-          },
-          "query": {
-            "default": "",
-            "maxLength": 2000,
-            "type": "string",
-          },
         },
         "type": "object",
       },
-      "name": "search_facts",
+      "name": "domain_overview",
       "outputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": {},
         "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": {},
-              "properties": {
-                "id": {
-                  "type": "string",
-                },
-                "reviewed": {
-                  "additionalProperties": false,
-                  "description": "How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.",
-                  "properties": {
-                    "accepted_by": {
-                      "type": "string",
-                    },
-                    "accepted_on": {
-                      "type": "string",
-                    },
-                    "in_edition": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "accepted_on",
-                    "accepted_by",
-                    "in_edition",
-                  ],
-                  "type": "object",
-                },
-                "url": {
-                  "description": "The fact's page, for the person: link it where you cite the fact.",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "url",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
           "next": {
             "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
             "minLength": 1,
@@ -448,7 +713,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Find context",
+      "title": "Describe a domain",
     },
     {
       "annotations": {
@@ -457,32 +722,21 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Deprecated: use find_context. It takes the arguments search_facts took (query, kind, area, mentions, cursor) and gives the reply it gave.",
+      "description": "Lists the facts that were added, changed or archived. Call get_facts before answering a question about company data. Say what changed for agents between two editions: by default the live edition and the one before. Filter by domain. Use it for "what changed", "what is new" or "what was archived" (retired). Facts agents don't get are counted, not named.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "area": {
-            "description": "A domain by its id or its name, such as area_sales or Sales.",
+          "domain": {
+            "description": "A domain by its name, such as Sales (its id, such as area_sales, works too).",
             "maxLength": 80,
-            "type": "string",
-          },
-          "cursor": {
-            "maxLength": 2000,
+            "minLength": 1,
             "type": "string",
           },
           "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "kind": {
-            "enum": [
-              "note",
-              "event",
-              "guide",
-              "example",
-              "issue",
-            ],
+            "description": "The edition to report on, such as 2026-10-07.2. The live edition when left out.",
+            "maxLength": 40,
+            "minLength": 1,
             "type": "string",
           },
           "limit": {
@@ -497,64 +751,20 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
             "minimum": 1000,
             "type": "integer",
           },
-          "mentions": {
-            "maxLength": 160,
-            "type": "string",
-          },
-          "query": {
-            "default": "",
-            "maxLength": 2000,
+          "since": {
+            "description": "The earlier edition to compare with. The edition just before when left out.",
+            "maxLength": 40,
+            "minLength": 1,
             "type": "string",
           },
         },
         "type": "object",
       },
-      "name": "search_context",
+      "name": "what_changed",
       "outputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": {},
         "properties": {
-          "items": {
-            "items": {
-              "additionalProperties": {},
-              "properties": {
-                "id": {
-                  "type": "string",
-                },
-                "reviewed": {
-                  "additionalProperties": false,
-                  "description": "How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.",
-                  "properties": {
-                    "accepted_by": {
-                      "type": "string",
-                    },
-                    "accepted_on": {
-                      "type": "string",
-                    },
-                    "in_edition": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "accepted_on",
-                    "accepted_by",
-                    "in_edition",
-                  ],
-                  "type": "object",
-                },
-                "url": {
-                  "description": "The fact's page, for the person: link it where you cite the fact.",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "url",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
           "next": {
             "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
             "minLength": 1,
@@ -575,7 +785,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Find context",
+      "title": "See what changed",
     },
     {
       "annotations": {
@@ -584,78 +794,160 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Deprecated: use read_context. It takes the arguments it took before and gives the reply it gave, with item.",
+      "description": "Answers how-to questions from the help pages. Answer a question about how Heed itself works, such as what an MCP or an edition is, from its help pages: the same pages as its Docs. Pass the question's words. Returns the best matching sections, each with its page and link: answer from them and link the page. For company data, use get_facts.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
         "properties": {
-          "cursor": {
-            "maxLength": 2000,
+          "query": {
+            "description": "The question in the words asked, such as "what is an MCP?" or "how do I review a proposal".",
+            "maxLength": 300,
+            "minLength": 2,
             "type": "string",
+          },
+        },
+        "required": [
+          "query",
+        ],
+        "type": "object",
+      },
+      "name": "search_help",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
+          "next": {
+            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "results": {
+            "items": {
+              "additionalProperties": {},
+              "properties": {
+                "page": {
+                  "type": "string",
+                },
+                "text": {
+                  "type": "string",
+                },
+                "url": {
+                  "description": "Where the section opens, for the person: link it where you answer from it.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "page",
+                "text",
+                "url",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "say": {
+            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "status": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "say",
+          "status",
+        ],
+        "type": "object",
+      },
+      "title": "Search help",
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+      },
+      "description": "Checks the dates, metrics and markets in a question. No AI is used. Call get_facts before answering a question about company data. Check the dates, definitions and markets of a question, the same way every time. Suggests comparisons, overlapping events and guides that apply.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": false,
+        "properties": {
+          "dimension_filters": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "dimension": {
+                  "description": "A dimension by its name, or the member name you queried (view.member).",
+                  "maxLength": 160,
+                  "minLength": 1,
+                  "type": "string",
+                },
+                "values": {
+                  "items": {
+                    "maxLength": 160,
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "maxItems": 50,
+                  "type": "array",
+                },
+              },
+              "required": [
+                "dimension",
+                "values",
+              ],
+              "type": "object",
+            },
+            "maxItems": 10,
+            "type": "array",
           },
           "edition": {
             "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
             "type": "string",
           },
-          "id": {
-            "pattern": "^itm_[a-z0-9]{8,16}$",
+          "metrics": {
+            "description": "Metric names as people say them, their other names, or the member names you queried in the data tool (view.member, such as payments.orders).",
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string",
+            },
+            "maxItems": 10,
+            "type": "array",
+          },
+          "question": {
+            "maxLength": 2000,
             "type": "string",
           },
-          "max_bytes": {
-            "default": 100000,
-            "maximum": 100000,
-            "minimum": 1000,
-            "type": "integer",
-          },
-        },
-        "required": [
-          "id",
-        ],
-        "type": "object",
-      },
-      "name": "read_item",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "item": {
-            "additionalProperties": {},
+          "window": {
+            "additionalProperties": false,
             "properties": {
-              "id": {
+              "from": {
                 "type": "string",
               },
-              "reviewed": {
-                "additionalProperties": false,
-                "description": "How a person reviewed the fact before agents got it: the day it was accepted, the role that accepted it, and the edition that first had it. It names a role, never a person.",
-                "properties": {
-                  "accepted_by": {
-                    "type": "string",
-                  },
-                  "accepted_on": {
-                    "type": "string",
-                  },
-                  "in_edition": {
-                    "type": "string",
-                  },
-                },
-                "required": [
-                  "accepted_on",
-                  "accepted_by",
-                  "in_edition",
-                ],
-                "type": "object",
-              },
-              "url": {
-                "description": "The fact's page, for the person: link it where you cite the fact.",
+              "to": {
                 "type": "string",
               },
             },
             "required": [
-              "id",
-              "url",
+              "from",
+              "to",
             ],
             "type": "object",
           },
+        },
+        "required": [
+          "question",
+        ],
+        "type": "object",
+      },
+      "name": "improve_question",
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {},
+        "properties": {
           "next": {
             "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
             "minLength": 1,
@@ -676,7 +968,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Read a fact",
+      "title": "Improve a question",
     },
     {
       "annotations": {
@@ -685,7 +977,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Deprecated: use report. It takes a question's scope and records a gap, as before.",
+      "description": "Tells the owners that an AI agent found nothing written down for a question. It doesn't record who asked. Report that nothing is written down for a question about metrics, markets and dates that are in the vocabulary (a gap). The question is used only in memory. Never put question text, personal data or secrets in the optional short note.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -761,7 +1053,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "type": "object",
       },
       "name": "report_gap",
-      "title": "Tell the owner",
+      "title": "Report something missing",
     },
     {
       "annotations": {
@@ -770,7 +1062,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Deprecated: use report. It takes a delivery_id and a verdict, as before.",
+      "description": "Records whether the facts in an answer helped. Say whether the facts in one reply helped, by its delivery_id. Never put question text, personal data or secrets in the optional short note.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -802,7 +1094,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "type": "object",
       },
       "name": "give_feedback",
-      "title": "Tell the owner",
+      "title": "Say if it helped",
     },
     {
       "annotations": {
@@ -811,7 +1103,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": false,
       },
-      "description": "Deprecated: use suggest_context. It saves a draft for the person and never sends it, as before.",
+      "description": "Saves a draft for you to check and send. Save a draft of a fact (a context item) for the signed-in person, when they ask to record something from this work. Only what can be worked out is filled in, and every field is marked; it never sends the draft for review. You may suggest the kind, title, summary, body, where it applies, when it applies, where it comes from and what not to conclude. The domain, owner, review date, references and definition marks are worked out for you, the cause, risk level and audience take their defaults, and the mentions, who stated the effect, the stated effect, replaces and conflicts are never filled from what you pass. Pass the words and names: they're matched to the vocabulary, so never invent a metric key or a link, and give a date the person is unsure of only with window.uncertain. Don't include names of customers or staff, personal data, secrets, question text or a transcript. If your agent can show forms, the person may be asked its open questions there before it saves; their answers are marked as confirmed. If it lists possible duplicates, ask the person, then call again with item_id or new_item. For a law or a regulation, draft an event: the window from the day it takes effect as its text says, evidence from the official text, and not_to_conclude saying that it is not legal advice and whether the measure is provisional. Show the person the questions and the link, and let them check the draft and send it for review in Heed. How to write a draft: The summary is what agents read first: at most 280 characters, in plain words, saying what happened, where and when, so that it stands alone. Detail, caveats and what the item does not mean go in the body and in what not to conclude, never in the summary. Claim no cause unless the source states one. Name metrics and markets as the person does: the product matches their names to its own, so never invent a key. When the person is unsure of the date or gives none, draft anyway with your best start date, flag the dates as uncertain and say what you assumed; ask only for what you cannot fill. One fact per item: two things that happened are two items.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,
@@ -874,7 +1166,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
           },
           "scope": {
             "additionalProperties": false,
-            "description": "Names, as in your last get_context call. They're matched to the vocabulary.",
+            "description": "Names, as in your last get_facts call. They're matched to the vocabulary.",
             "properties": {
               "dimension_filters": {
                 "description": "Dimensions and the values it applies to, such as market Norway. No values means every value.",
@@ -907,7 +1199,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
                 "type": "array",
               },
               "metrics": {
-                "description": "Metric names, as you used them with get_context.",
+                "description": "Metric names, as you used them with get_facts.",
                 "items": {
                   "maxLength": 160,
                   "minLength": 1,
@@ -1262,7 +1554,6 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
           },
           "status": {
             "enum": [
-              "suggestion_sent",
               "draft_saved",
               "needs_area",
               "possible_duplicate",
@@ -1271,6 +1562,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
             "type": "string",
           },
           "submitted": {
+            "const": false,
             "type": "boolean",
           },
           "title": {
@@ -1289,1205 +1581,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         ],
         "type": "object",
       },
-      "title": "Send a suggestion",
-    },
-  ],
-  "digest": "043de18c3033e8e439d0b653075e86e0a574ee091981775a56c0cf8dfbba37e0",
-  "tools": [
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-      },
-      "description": "The context that applies to a question, with one sentence to relay. Call get_context before answering a question about company data. Pass structured metrics, dimension_filters and inclusive UTC dates when known. Without window, the dates in the question are read (such as 2026, last quarter or 1 Jan to 30 Sep) and say says how; without any dates, the question is read at today and say says so. The member names you just queried in the data tool work as names, and a name that isn't known comes back with the closest that is. A dimension filter with no values names the dimension for every value, as in a breakdown by market. Returns status, the answer state; say, the sentence to relay, which starts with the answer line; asked, what was looked up; and context, each item that applies with its kind, when and where it applies, who checked it and when, its source, its not_to_conclude line, whether it may be out of date and which item it disagrees with; then reply_id, for report, and the edition. With response_format full, each item also has its body, every source and its links. A link neither widens where an item applies nor proves a cause. Read a linked item with read_context only when it helps answer the question.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "dimension_filters": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "dimension": {
-                  "description": "A dimension by its name, or the member name you queried (view.member).",
-                  "maxLength": 160,
-                  "minLength": 1,
-                  "type": "string",
-                },
-                "values": {
-                  "items": {
-                    "maxLength": 160,
-                    "minLength": 1,
-                    "type": "string",
-                  },
-                  "maxItems": 50,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "dimension",
-                "values",
-              ],
-              "type": "object",
-            },
-            "maxItems": 10,
-            "type": "array",
-          },
-          "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "max_bytes": {
-            "default": 100000,
-            "maximum": 100000,
-            "minimum": 1000,
-            "type": "integer",
-          },
-          "max_items": {
-            "default": 20,
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer",
-          },
-          "metrics": {
-            "description": "Metric names as people say them, their other names, or the member names you queried in the data tool (view.member, such as payments.orders).",
-            "items": {
-              "maxLength": 160,
-              "minLength": 1,
-              "type": "string",
-            },
-            "maxItems": 10,
-            "type": "array",
-          },
-          "question": {
-            "maxLength": 2000,
-            "type": "string",
-          },
-          "response_format": {
-            "default": "concise",
-            "description": "concise (the default): the answer line, say, what was asked, and each item that applies with its source and who checked it. full: also each item's body, every source, its links, and how the question was read (scope_used, dates_read, definitions, check_report). Ask for full when you will quote an item's text or follow its links.",
-            "enum": [
-              "concise",
-              "full",
-            ],
-            "type": "string",
-          },
-          "window": {
-            "additionalProperties": false,
-            "properties": {
-              "from": {
-                "type": "string",
-              },
-              "to": {
-                "type": "string",
-              },
-            },
-            "required": [
-              "from",
-              "to",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "question",
-        ],
-        "type": "object",
-      },
-      "name": "get_context",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "asked": {
-            "description": "What was looked up: the metrics, markets and dates, in words.",
-            "type": [
-              "string",
-              "null",
-            ],
-          },
-          "context": {
-            "items": {
-              "additionalProperties": {},
-              "properties": {
-                "checked": {
-                  "additionalProperties": false,
-                  "description": "Who checked it before agents got it, as a role (never a person), and on which day.",
-                  "properties": {
-                    "date": {
-                      "type": "string",
-                    },
-                    "role": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "role",
-                    "date",
-                  ],
-                  "type": "object",
-                },
-                "id": {
-                  "type": "string",
-                },
-                "kind": {
-                  "description": "event, warning, rule or guide.",
-                  "type": "string",
-                },
-                "title": {
-                  "type": "string",
-                },
-                "url": {
-                  "description": "The item's page, for the person: link it where you cite the item.",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "title",
-                "kind",
-                "url",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "edition": {
-            "type": "string",
-          },
-          "next": {
-            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "reply_id": {
-            "description": "The id of this reply, for report when the person says what was wrong or helped.",
-            "type": "string",
-          },
-          "say": {
-            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "status": {
-            "description": "The answer state: matched (Checked), partial (Partial), no_match (Not found), conflict (Conflict), stale (Outdated), check_failed (Not checked); need_more_detail when the question could not be read.",
-            "enum": [
-              "matched",
-              "partial",
-              "no_match",
-              "conflict",
-              "stale",
-              "check_failed",
-              "need_more_detail",
-            ],
-            "type": "string",
-          },
-        },
-        "required": [
-          "say",
-          "status",
-        ],
-        "type": "object",
-      },
-      "title": "Get context for a question",
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-      },
-      "description": "A word search over names, titles and summaries. Call get_context before answering a question about company data. Find what is written down about a few words, by the names people use: metrics and their other names (such as GMV), markets, domains, member names from the data tool (such as payments.orders), and words in an item's title, summary or text. Use it for "what do we know about", "what is" or "how is it defined", and when you don't know the exact names. Filter by domain (a name such as Sales) or kind (event, warning, rule or guide). Returns the matching items, titles and summaries only, and for each metric or dimension the words name: the definition its source gives and what this context adds. When no words match, it returns the items that apply to what the words name, on the dates the window or the words give, or else today, as say says; when nothing is found, why says what to try. Read an item in full with read_context.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "domain": {
-            "description": "A domain by its name, such as Sales (its id, such as area_sales, works too).",
-            "maxLength": 80,
-            "minLength": 1,
-            "type": "string",
-          },
-          "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "kind": {
-            "description": "Only items of this kind: event, warning, rule or guide.",
-            "enum": [
-              "event",
-              "warning",
-              "rule",
-              "guide",
-            ],
-            "type": "string",
-          },
-          "limit": {
-            "default": 10,
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer",
-          },
-          "max_bytes": {
-            "default": 100000,
-            "maximum": 100000,
-            "minimum": 1000,
-            "type": "integer",
-          },
-          "query": {
-            "description": "A few words or the question as asked: a metric, a market, a domain or a topic, such as "GMV Spain" or "what is net revenue".",
-            "maxLength": 2000,
-            "minLength": 1,
-            "type": "string",
-          },
-          "response_format": {
-            "default": "concise",
-            "description": "concise (the default): each definition without where its source keeps it. full: every source detail. Read an item in full with read_context.",
-            "enum": [
-              "concise",
-              "full",
-            ],
-            "type": "string",
-          },
-          "window": {
-            "additionalProperties": false,
-            "description": "Inclusive UTC dates, for the items that apply when no words match. Today when left out.",
-            "properties": {
-              "from": {
-                "type": "string",
-              },
-              "to": {
-                "type": "string",
-              },
-            },
-            "required": [
-              "from",
-              "to",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "query",
-        ],
-        "type": "object",
-      },
-      "name": "find_context",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "context": {
-            "items": {
-              "additionalProperties": {},
-              "properties": {
-                "checked": {
-                  "additionalProperties": false,
-                  "description": "Who checked it before agents got it, as a role (never a person), and on which day.",
-                  "properties": {
-                    "date": {
-                      "type": "string",
-                    },
-                    "role": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "role",
-                    "date",
-                  ],
-                  "type": "object",
-                },
-                "id": {
-                  "type": "string",
-                },
-                "kind": {
-                  "description": "event, warning, rule or guide.",
-                  "type": "string",
-                },
-                "title": {
-                  "type": "string",
-                },
-                "url": {
-                  "description": "The item's page, for the person: link it where you cite the item.",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "title",
-                "kind",
-                "url",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "next": {
-            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "say": {
-            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "status": {
-            "type": "string",
-          },
-        },
-        "required": [
-          "say",
-          "status",
-        ],
-        "type": "object",
-      },
-      "title": "Find context",
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-      },
-      "description": "One fact in full. Call get_context before answering a question about company data. Read one item you may see, by its id: its text, its sources with the sentence each one gives, who checked it and when, its not_to_conclude line and its outgoing links, plus a page of the items that link to it. An edition needs a service token with edition scope. A link proves neither that an item applies nor a cause.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "cursor": {
-            "maxLength": 2000,
-            "type": "string",
-          },
-          "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "id": {
-            "pattern": "^itm_[a-z0-9]{8,16}$",
-            "type": "string",
-          },
-          "max_bytes": {
-            "default": 100000,
-            "maximum": 100000,
-            "minimum": 1000,
-            "type": "integer",
-          },
-        },
-        "required": [
-          "id",
-        ],
-        "type": "object",
-      },
-      "name": "read_context",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "context": {
-            "additionalProperties": {},
-            "properties": {
-              "checked": {
-                "additionalProperties": false,
-                "description": "Who checked it before agents got it, as a role (never a person), and on which day.",
-                "properties": {
-                  "date": {
-                    "type": "string",
-                  },
-                  "role": {
-                    "type": "string",
-                  },
-                },
-                "required": [
-                  "role",
-                  "date",
-                ],
-                "type": "object",
-              },
-              "id": {
-                "type": "string",
-              },
-              "kind": {
-                "description": "event, warning, rule or guide.",
-                "type": "string",
-              },
-              "title": {
-                "type": "string",
-              },
-              "url": {
-                "description": "The item's page, for the person: link it where you cite the item.",
-                "type": "string",
-              },
-            },
-            "required": [
-              "id",
-              "title",
-              "kind",
-              "url",
-            ],
-            "type": "object",
-          },
-          "next": {
-            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "say": {
-            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "status": {
-            "type": "string",
-          },
-        },
-        "required": [
-          "say",
-          "status",
-        ],
-        "type": "object",
-      },
-      "title": "Read a fact",
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-      },
-      "description": "Tell the owner something is missing, wrong or unclear. Ask the person first. kind says what: missing, wrong, unclear, or helped. Pass the reply_id of the get_context reply it is about, and context_id when it is about one item; for something missing with no reply, pass the question's metrics, markets and dates instead. It records what was reported and where, so the owner of the domain sees it, and never who asked. The question is read in memory only. Never put question text, personal data or secrets in the optional short note.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "context_id": {
-            "description": "The id of the item it is about, when it is about one.",
-            "pattern": "^itm_[a-z0-9]{8,16}$",
-            "type": "string",
-          },
-          "dimension_filters": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "dimension": {
-                  "description": "A dimension by its name, or the member name you queried (view.member).",
-                  "maxLength": 160,
-                  "minLength": 1,
-                  "type": "string",
-                },
-                "values": {
-                  "items": {
-                    "maxLength": 160,
-                    "minLength": 1,
-                    "type": "string",
-                  },
-                  "maxItems": 50,
-                  "type": "array",
-                },
-              },
-              "required": [
-                "dimension",
-                "values",
-              ],
-              "type": "object",
-            },
-            "maxItems": 10,
-            "type": "array",
-          },
-          "kind": {
-            "description": "missing: something the person needs is not written down. wrong: an item says something that is not true. unclear: it is hard to read or to use. helped: it helped.",
-            "enum": [
-              "missing",
-              "wrong",
-              "unclear",
-              "helped",
-            ],
-            "type": "string",
-          },
-          "metrics": {
-            "description": "Metric names as people say them, their other names, or the member names you queried in the data tool (view.member, such as payments.orders).",
-            "items": {
-              "maxLength": 160,
-              "minLength": 1,
-              "type": "string",
-            },
-            "maxItems": 10,
-            "type": "array",
-          },
-          "note": {
-            "description": "A short note in the person's words, if they gave one. Never the question text, personal data or secrets.",
-            "maxLength": 500,
-            "minLength": 1,
-            "type": "string",
-          },
-          "question": {
-            "description": "For missing without a reply_id: the question, read in memory only for its metrics, markets and dates, never kept.",
-            "maxLength": 2000,
-            "type": "string",
-          },
-          "reply_id": {
-            "description": "The reply_id of the get_context reply it is about.",
-            "format": "uuid",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-            "type": "string",
-          },
-          "window": {
-            "additionalProperties": false,
-            "properties": {
-              "from": {
-                "type": "string",
-              },
-              "to": {
-                "type": "string",
-              },
-            },
-            "required": [
-              "from",
-              "to",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "kind",
-        ],
-        "type": "object",
-      },
-      "name": "report",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "next": {
-            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "recorded": {
-            "type": "boolean",
-          },
-          "say": {
-            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "status": {
-            "type": "string",
-          },
-          "to": {
-            "description": "Who will see it, as a role: the owner of a domain.",
-            "type": "string",
-          },
-        },
-        "required": [
-          "say",
-          "status",
-        ],
-        "type": "object",
-      },
-      "title": "Tell the owner",
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": false,
-        "openWorldHint": false,
-        "readOnlyHint": false,
-      },
-      "description": "Send a suggestion to the owner, after the person says yes. Call it only after the person says yes to sending it. It sends a suggestion, a new item or a change to one, as the signed-in person, to the owner of its domain, who checks it and publishes it: nothing changes until they do, and it never publishes. Only what can be worked out is filled in, and every field is marked for the owner. If the review checks find a problem, it is kept as the person's draft and the reply says why. You may suggest the kind, title, summary, body, where it applies, when it applies, where it comes from and what not to conclude. The domain, owner, review date, references and definition marks are worked out for you, the cause, risk level and audience take their defaults, and the mentions, who stated the effect, the stated effect, replaces and conflicts are never filled from what you pass. Pass the words and names: they're matched to the vocabulary, so never invent a metric key or a link, and give a date the person is unsure of only with window.uncertain. Don't include names of customers or staff, personal data, secrets, question text or a transcript. If your agent can show forms, the person may be asked its open questions there before it is sent; their answers are marked as confirmed. If it lists possible duplicates, ask the person, then call again with item_id or new_item. For a law or a regulation, suggest an event: the window from the day it takes effect as its text says, evidence from the official text, and not_to_conclude saying that it is not legal advice and whether the measure is provisional. Tell the person it waits for the owner, and give them the link. How to write a draft: The summary is what agents read first: at most 280 characters, in plain words, saying what happened, where and when, so that it stands alone. Detail, caveats and what the item does not mean go in the body and in what not to conclude, never in the summary. Claim no cause unless the source states one. Name metrics and markets as the person does: the product matches their names to its own, so never invent a key. When the person is unsure of the date or gives none, draft anyway with your best start date, flag the dates as uncertain and say what you assumed; ask only for what you cannot fill. One fact per item: two things that happened are two items.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "area": {
-            "description": "The domain, only when the person chose one after a reply asked.",
-            "maxLength": 100,
-            "minLength": 1,
-            "type": "string",
-          },
-          "evidence": {
-            "description": "Each source the person gave or you read: the address of the exact page, and one sentence copied character for character from that page in the page's own language, never a translation, a summary or a search snippet. Prefer the official text, such as a law on a government site, to a news report of it. Never invent one: if you only saw a summary of a page, leave it out and say so.",
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "quote": {
-                  "maxLength": 500,
-                  "minLength": 1,
-                  "type": "string",
-                },
-                "url": {
-                  "maxLength": 2000,
-                  "type": "string",
-                },
-              },
-              "required": [
-                "url",
-                "quote",
-              ],
-              "type": "object",
-            },
-            "maxItems": 5,
-            "type": "array",
-          },
-          "item_id": {
-            "description": "To suggest a change to an accepted item instead of a new one.",
-            "pattern": "^itm_[a-z0-9]{8,16}$",
-            "type": "string",
-          },
-          "kind": {
-            "description": "event: something that happened on a day. issue: a data problem that lasts a while. note: a lasting remark. guide: how to investigate. example: a checked answer to a question.",
-            "enum": [
-              "note",
-              "event",
-              "guide",
-              "example",
-              "issue",
-            ],
-            "type": "string",
-          },
-          "new_item": {
-            "description": "true when the person said it is new after a reply listed possible duplicates.",
-            "type": "boolean",
-          },
-          "not_to_conclude": {
-            "description": "What not to conclude from this, in the person's words, if they said. Otherwise "cause not proven" is used.",
-            "maxLength": 2000,
-            "minLength": 1,
-            "type": "string",
-          },
-          "scope": {
-            "additionalProperties": false,
-            "description": "Names, as in your last get_context call. They're matched to the vocabulary.",
-            "properties": {
-              "dimension_filters": {
-                "description": "Dimensions and the values it applies to, such as market Norway. No values means every value.",
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "dimension": {
-                      "description": "A dimension by its name, or the member name you queried (view.member).",
-                      "maxLength": 160,
-                      "minLength": 1,
-                      "type": "string",
-                    },
-                    "values": {
-                      "items": {
-                        "maxLength": 160,
-                        "minLength": 1,
-                        "type": "string",
-                      },
-                      "maxItems": 50,
-                      "type": "array",
-                    },
-                  },
-                  "required": [
-                    "dimension",
-                    "values",
-                  ],
-                  "type": "object",
-                },
-                "maxItems": 10,
-                "type": "array",
-              },
-              "metrics": {
-                "description": "Metric names, as you used them with get_context.",
-                "items": {
-                  "maxLength": 160,
-                  "minLength": 1,
-                  "type": "string",
-                },
-                "maxItems": 10,
-                "type": "array",
-              },
-            },
-            "type": "object",
-          },
-          "summary": {
-            "description": "One or two sentences an agent reads first, at most 280 characters. Do not claim a cause.",
-            "maxLength": 280,
-            "minLength": 1,
-            "type": "string",
-          },
-          "text": {
-            "description": "What the person wants recorded, in their words or a short summary of them: what happened, where and since when. Not a transcript.",
-            "maxLength": 2000,
-            "minLength": 1,
-            "type": "string",
-          },
-          "title": {
-            "description": "A short title, if you have one.",
-            "maxLength": 200,
-            "minLength": 1,
-            "type": "string",
-          },
-          "window": {
-            "additionalProperties": false,
-            "description": "Inclusive UTC dates the person named or that the source gives. When they are unsure, give your best start with uncertain: true. Leave out to when it is open.",
-            "properties": {
-              "from": {
-                "type": "string",
-              },
-              "to": {
-                "type": "string",
-              },
-              "uncertain": {
-                "description": "True when the person is unsure of the dates: from is your best guess, and the owner sees the dates flagged.",
-                "type": "boolean",
-              },
-            },
-            "required": [
-              "from",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "text",
-        ],
-        "type": "object",
-      },
-      "name": "suggest_context",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "answered": {
-            "items": {
-              "enum": [
-                "area",
-                "kind",
-                "scope",
-                "start",
-                "end",
-                "evidence",
-              ],
-              "type": "string",
-            },
-            "type": "array",
-          },
-          "areas": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "id": {
-                  "type": "string",
-                },
-                "name": {
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "name",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "draft_id": {
-            "type": "string",
-          },
-          "fields": {
-            "additionalProperties": {
-              "additionalProperties": false,
-              "properties": {
-                "mark": {
-                  "enum": [
-                    "derived",
-                    "default",
-                    "prefilled",
-                    "confirmed",
-                    "not_inferred",
-                  ],
-                  "type": "string",
-                },
-                "reason": {
-                  "type": "string",
-                },
-                "value": {},
-              },
-              "required": [
-                "value",
-                "mark",
-              ],
-              "type": "object",
-            },
-            "propertyNames": {
-              "enum": [
-                "kind",
-                "areaId",
-                "ownerId",
-                "title",
-                "summary",
-                "body",
-                "scope",
-                "validity",
-                "reviewDate",
-                "evidence",
-                "references",
-                "changeMarks",
-                "claimLevel",
-                "riskLevel",
-                "audience",
-                "notToConclude",
-                "replaces",
-                "conflicts",
-              ],
-              "type": "string",
-            },
-            "type": "object",
-          },
-          "findings": {
-            "items": {
-              "additionalProperties": {},
-              "propertyNames": {
-                "type": "string",
-              },
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "flags": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "code": {
-                  "enum": [
-                    "may_be_high_risk",
-                    "instruction_like_text",
-                    "uncertain_dates",
-                  ],
-                  "type": "string",
-                },
-                "field": {
-                  "enum": [
-                    "kind",
-                    "areaId",
-                    "ownerId",
-                    "title",
-                    "summary",
-                    "body",
-                    "scope",
-                    "validity",
-                    "reviewDate",
-                    "evidence",
-                    "references",
-                    "changeMarks",
-                    "claimLevel",
-                    "riskLevel",
-                    "audience",
-                    "notToConclude",
-                    "replaces",
-                    "conflicts",
-                  ],
-                  "type": "string",
-                },
-                "words": {
-                  "items": {
-                    "type": "string",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "code",
-                "field",
-                "words",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "instructions": {
-            "type": "string",
-          },
-          "message": {
-            "type": "string",
-          },
-          "not_in_vocabulary": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "name": {
-                  "type": "string",
-                },
-                "suggestions": {
-                  "items": {
-                    "type": "string",
-                  },
-                  "type": "array",
-                },
-              },
-              "required": [
-                "name",
-                "suggestions",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "number": {
-            "type": "number",
-          },
-          "overlaps": {
-            "additionalProperties": false,
-            "properties": {
-              "accepted": {
-                "items": {
-                  "additionalProperties": false,
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                    },
-                    "kind": {
-                      "type": "string",
-                    },
-                    "title": {
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "id",
-                    "title",
-                    "kind",
-                  ],
-                  "type": "object",
-                },
-                "type": "array",
-              },
-              "own_proposals": {
-                "items": {
-                  "additionalProperties": {},
-                  "propertyNames": {
-                    "type": "string",
-                  },
-                  "type": "object",
-                },
-                "type": "array",
-              },
-            },
-            "required": [
-              "accepted",
-              "own_proposals",
-            ],
-            "type": "object",
-          },
-          "possible_duplicates": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "id": {
-                  "type": "string",
-                },
-                "kind": {
-                  "type": "string",
-                },
-                "title": {
-                  "type": "string",
-                },
-              },
-              "required": [
-                "id",
-                "title",
-                "kind",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "questions": {
-            "items": {
-              "additionalProperties": false,
-              "properties": {
-                "field": {
-                  "enum": [
-                    "kind",
-                    "areaId",
-                    "ownerId",
-                    "title",
-                    "summary",
-                    "body",
-                    "scope",
-                    "validity",
-                    "reviewDate",
-                    "evidence",
-                    "references",
-                    "changeMarks",
-                    "claimLevel",
-                    "riskLevel",
-                    "audience",
-                    "notToConclude",
-                    "replaces",
-                    "conflicts",
-                  ],
-                  "type": "string",
-                },
-                "options": {
-                  "items": {
-                    "type": "string",
-                  },
-                  "type": "array",
-                },
-                "question": {
-                  "type": "string",
-                },
-              },
-              "required": [
-                "field",
-                "question",
-              ],
-              "type": "object",
-            },
-            "type": "array",
-          },
-          "saved": {
-            "type": "boolean",
-          },
-          "status": {
-            "enum": [
-              "suggestion_sent",
-              "draft_saved",
-              "needs_area",
-              "possible_duplicate",
-              "refused",
-            ],
-            "type": "string",
-          },
-          "submitted": {
-            "type": "boolean",
-          },
-          "title": {
-            "type": "string",
-          },
-          "url": {
-            "type": [
-              "string",
-              "null",
-            ],
-          },
-        },
-        "required": [
-          "status",
-          "saved",
-        ],
-        "type": "object",
-      },
-      "title": "Send a suggestion",
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-      },
-      "description": "Follow a link between facts, definitions and domains, one step at a time. Call get_context before answering a question about company data. Follow links from an item's id, a vocabulary key such as metric:orders, or a domain. Returns neighbours one or two steps away with their kind of link, never bodies. A link shows what a text refers to: it neither widens where an item applies nor proves a cause, and it never changes what get_context includes. Call it only when a link helps answer the question; read a neighbour with read_context. Follow next_cursor for another page.",
-      "inputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": false,
-        "properties": {
-          "cursor": {
-            "maxLength": 2000,
-            "type": "string",
-          },
-          "depth": {
-            "default": 1,
-            "maximum": 2,
-            "minimum": 1,
-            "type": "integer",
-          },
-          "edition": {
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$",
-            "type": "string",
-          },
-          "id": {
-            "maxLength": 160,
-            "minLength": 1,
-            "type": "string",
-          },
-          "max_bytes": {
-            "default": 100000,
-            "maximum": 100000,
-            "minimum": 1000,
-            "type": "integer",
-          },
-          "max_nodes": {
-            "default": 20,
-            "maximum": 50,
-            "minimum": 1,
-            "type": "integer",
-          },
-          "relations": {
-            "items": {
-              "enum": [
-                "replaces",
-                "replaced_by",
-                "conflicts_with",
-                "applies_to",
-                "mentions",
-                "mentioned_by",
-                "in_area",
-              ],
-              "type": "string",
-            },
-            "maxItems": 7,
-            "minItems": 1,
-            "type": "array",
-          },
-          "window": {
-            "additionalProperties": false,
-            "properties": {
-              "from": {
-                "type": "string",
-              },
-              "to": {
-                "type": "string",
-              },
-            },
-            "required": [
-              "from",
-              "to",
-            ],
-            "type": "object",
-          },
-        },
-        "required": [
-          "id",
-        ],
-        "type": "object",
-      },
-      "name": "get_related",
-      "outputSchema": {
-        "$schema": "https://json-schema.org/draft/2020-12/schema",
-        "additionalProperties": {},
-        "properties": {
-          "next": {
-            "description": "What to do next with this result: for you, not the person. When nothing was found, it says why that proves nothing and which call to make.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "say": {
-            "description": "What you may tell the person about this result, in these words: plain sentences on what was read and what was found.",
-            "minLength": 1,
-            "type": "string",
-          },
-          "status": {
-            "type": "string",
-          },
-        },
-        "required": [
-          "say",
-          "status",
-        ],
-        "type": "object",
-      },
-      "title": "Follow links",
+      "title": "Save a draft",
     },
   ],
 }

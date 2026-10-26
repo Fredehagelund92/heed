@@ -319,11 +319,7 @@ export function readQuestion(q: string) {
   const synonym = synonymIn(q)
   const alias =
     synonym && synonym.is.type !== 'term'
-      ? {
-          asked: synonym.asked,
-          is: synonym.is.name,
-          type: synonym.is.type as 'metric' | 'dimension',
-        }
+      ? { asked: synonym.asked, is: synonym.is.name, type: synonym.is.type }
       : undefined
   const named = metrics
     .flatMap((m) => [m.name, ...(m.otherNames ?? [])].map((n) => ({ n, metric: m.name })))

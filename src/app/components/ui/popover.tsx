@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { Popover as PopoverPrimitive } from '@base-ui/react/popover'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
@@ -33,12 +33,12 @@ function PopoverContent({
         side={side}
         sideOffset={sideOffset}
         anchor={anchor}
-        className="isolate z-50"
+        className="isolate z-overlay"
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            'z-50 flex w-72 origin-(--transform-origin) flex-col gap-2.5 rounded-frame bg-popover p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden pop-motion',
+            'z-overlay flex w-72 origin-(--transform-origin) pop-motion flex-col gap-2.5 rounded-frame bg-popover p-2.5 text-sm text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-hidden',
             className,
           )}
           {...props}

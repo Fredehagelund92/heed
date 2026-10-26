@@ -7,18 +7,12 @@ import {
   lenientInputSchema,
   problemOf,
 } from '../../../src/server/mcp/invalid-input.ts'
-import {
-  deprecatedToolAliases,
-  listedTool,
-  toolNames,
-  type ListedName,
-} from '../../../src/server/mcp/tools.ts'
+import { toolNames, tools } from '../../../src/server/mcp/tools.ts'
 
-it('shows each tool and each old id a call that its own schema accepts', () => {
-  const listed = [...toolNames, ...Object.keys(deprecatedToolAliases)] as ListedName[]
-  expect(Object.keys(exampleCalls).sort()).toEqual([...listed].sort())
-  for (const name of listed)
-    expect(listedTool(name).inputSchema.safeParse(exampleCalls[name]).success, name).toBe(true)
+it('shows each tool a call that its own schema accepts', () => {
+  expect(Object.keys(exampleCalls).sort()).toEqual([...toolNames].sort())
+  for (const name of toolNames)
+    expect(tools[name].inputSchema.safeParse(exampleCalls[name]).success, name).toBe(true)
 })
 
 it('lets arguments that fit through as they are, and marks the rest with their issues', async () => {

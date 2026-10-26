@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Command as CommandPrimitive } from 'cmdk'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 
 import {
   Dialog,
@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { SearchIcon, CheckIcon } from 'lucide-react'
+import { SearchIcon, CheckIcon } from '@/components/icons'
 
 function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
@@ -48,7 +48,7 @@ function CommandDialog({
         className={cn(
           // As the Heed app's search: 640 wide, in the upper part of the screen; full width with margins on a phone.
           // Opened from the keyboard, so it is there at once.
-          'top-[max(1rem,10vh)] max-w-[calc(100%-2rem)] translate-y-0 gap-0 transition-none overflow-hidden rounded-frame! p-0 sm:top-24 sm:max-w-[40rem]',
+          'top-palette max-w-inset translate-y-0 gap-0 overflow-hidden rounded-frame! p-0 transition-none sm:top-24 sm:max-w-160',
           className,
         )}
         showCloseButton={showCloseButton}
@@ -72,7 +72,7 @@ function CommandInput({
       <CommandPrimitive.Input
         data-slot="command-input"
         className={cn(
-          'h-full w-full bg-transparent text-[15px] outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 max-sm:text-base',
+          'h-full w-full bg-transparent text-reading outline-hidden placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 max-sm:text-base',
           className,
         )}
         {...props}
@@ -86,7 +86,7 @@ function CommandList({ className, ...props }: React.ComponentProps<typeof Comman
     <CommandPrimitive.List
       data-slot="command-list"
       className={cn(
-        'no-scrollbar max-h-[min(26rem,60svh)] scroll-py-1 overflow-x-hidden overflow-y-auto outline-none',
+        'no-scrollbar max-h-menu scroll-py-1 overflow-x-hidden overflow-y-auto outline-none',
         className,
       )}
       {...props}
@@ -145,7 +145,7 @@ function CommandItem({
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex min-h-10 cursor-default items-center gap-3 rounded-sm px-2 py-2 text-sm outline-hidden pointer-coarse:min-h-11 max-sm:min-h-11 select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+        "group/command-item relative flex min-h-10 cursor-default items-center gap-3 rounded-sm px-2 py-2 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 max-sm:min-h-11 pointer-coarse:min-h-11 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
         className,
       )}
       {...props}

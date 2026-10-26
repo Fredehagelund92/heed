@@ -43,7 +43,7 @@ export const RULES: Rule[] = [
     audience: 'owners',
     threshold: { value: '5', choices: ['3', '5', '10'], setting: 'gaps.no_item_threshold' },
     last: 'Today, Orders in Germany',
-    lastHref: '#/inbox?card=gap-germany',
+    lastHref: '/inbox?card=gap-germany',
     lastDomain: 'sales',
   },
   {
@@ -53,7 +53,7 @@ export const RULES: Rule[] = [
     then: 'A card to the owners of the domain',
     audience: 'owners',
     last: 'Today, 2 questions',
-    lastHref: '#/inbox?card=look-sales',
+    lastHref: '/inbox?card=look-sales',
     lastDomain: 'sales',
   },
   {
@@ -65,7 +65,7 @@ export const RULES: Rule[] = [
     isNew: true,
     threshold: { value: '3', choices: ['2', '3', '5'] },
     last: 'Tue 20 Oct',
-    lastHref: '#/observability/questions?dock=topic.net-revenue-norway',
+    lastHref: '/observability/questions?dock=topic.net-revenue-norway',
     lastDomain: 'sales',
   },
   {
@@ -105,7 +105,7 @@ export const RULES: Rule[] = [
     then: 'A card to admins and the owners',
     audience: 'both',
     last: 'Fri 9 Oct',
-    lastHref: '#/settings/integrations/cube',
+    lastHref: '/settings/integrations/cube',
   },
   {
     id: 'due',
@@ -114,9 +114,9 @@ export const RULES: Rule[] = [
     then: 'A reminder to the owner at 07:00',
     audience: 'owners',
     last: 'Today, 2 items',
-    lastHref: '#/inbox?card=check-returns',
+    lastHref: '/inbox?card=check-returns',
     lastDomain: 'sales',
-    lastIn: { marketing: { last: 'Fri 18 Sep, 1 item', href: '#/inbox?card=check-italy' } },
+    lastIn: { marketing: { last: 'Fri 18 Sep, 1 item', href: '/inbox?card=check-italy' } },
   },
 ]
 
@@ -139,7 +139,7 @@ export const RAISED: Raised[] = [
     line: 'One after Payment provider switched in Norway was archived, one after a check date passed. A card went to Jon Abara and Sofia Brandt.',
     when: 'Today, 09:41',
     domain: 'sales',
-    href: '#/inbox?card=look-sales',
+    href: '/inbox?card=look-sales',
   },
   {
     id: 'r-germany',
@@ -148,7 +148,7 @@ export const RAISED: Raised[] = [
     line: '3 calls about 30 October and 3 about 1 November, counted together. A Not found card went to Jon Abara and Sofia Brandt.',
     when: 'Today, 06:20',
     domain: 'sales',
-    href: '#/inbox?card=gap-germany',
+    href: '/inbox?card=gap-germany',
   },
   {
     id: 'r-spain',
@@ -157,7 +157,7 @@ export const RAISED: Raised[] = [
     line: 'A Not found card went to Jon Abara and Sofia Brandt.',
     when: 'Today, 06:05',
     domain: 'sales',
-    href: '#/inbox?card=gap-spain',
+    href: '/inbox?card=gap-spain',
   },
   {
     id: 'r-net-revenue',
@@ -166,7 +166,7 @@ export const RAISED: Raised[] = [
     line: 'A card went to Jon Abara and Sofia Brandt.',
     when: 'Tue 20 Oct',
     domain: 'sales',
-    href: '#/observability/questions?dock=topic.net-revenue-norway',
+    href: '/observability/questions?dock=topic.net-revenue-norway',
   },
   {
     id: 'r-cube',
@@ -174,7 +174,7 @@ export const RAISED: Raised[] = [
     title: `${DEFINITIONS_TOOL} did not sync`,
     line: 'A card went to the admins. It synced again at 06:00.',
     when: 'Fri 9 Oct',
-    href: '#/settings/integrations/cube',
+    href: '/settings/integrations/cube',
   },
   {
     id: 'r-italy',
@@ -183,7 +183,7 @@ export const RAISED: Raised[] = [
     line: 'A reminder went to Tomas Eriksen at 07:00.',
     when: 'Fri 18 Sep',
     domain: 'marketing',
-    href: '#/inbox?card=check-italy',
+    href: '/inbox?card=check-italy',
   },
 ]
 

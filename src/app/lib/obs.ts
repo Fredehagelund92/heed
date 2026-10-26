@@ -5,7 +5,7 @@ import {
   ListChecksIcon,
   MessageSquareWarningIcon,
   ScanSearchIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { RANGES, type ObsState, type Range, type View } from '@/data/observability'
 import type { DomainId } from '@/data/world'
 import { useRoute } from '@/lib/router'

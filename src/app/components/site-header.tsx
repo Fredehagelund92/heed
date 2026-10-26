@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ArrowLeftIcon, MonitorIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
+import { ArrowLeftIcon, MonitorIcon, MoonIcon, SearchIcon, SunIcon } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useTheme, type Theme } from '@/lib/theme-context'
-import { cn } from 'cn'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Kbd } from '@/components/ui/kbd'
@@ -133,7 +133,7 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          'relative z-20 flex h-bar shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6',
+          'relative z-header flex h-bar shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6',
           'bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50',
           className,
         )}

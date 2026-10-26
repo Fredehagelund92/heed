@@ -20,7 +20,7 @@ describe('asked this week', () => {
   it("offers a Not found row's waiting draft or suggestion, never a blank page", () => {
     const spain = w.rows.find((r) => r.topic.id === 'orders-spain')!
     expect(spain.state).toBe('missing')
-    expect(spain.next).toEqual({ label: 'Write it', href: '#/context/new?gap=gap-spain' })
+    expect(spain.next).toEqual({ label: 'Write it', href: '/context/new?gap=gap-spain' })
     for (const r of w.rows) if (r.next) expect(r.state).toBe('missing')
     expect(w.rows.find((r) => r.topic.id === 'orders-norway')!.next).toBeUndefined()
   })

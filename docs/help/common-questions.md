@@ -16,7 +16,7 @@ The questions people ask most, each with a short answer and a page to read next.
 
 ## Why didn't my agent use the facts?
 
-Your AI agent decides when to use a tool. Check that it shows under **Your connected agents**. Then add the line under **Ask first** to its instructions, name the metric and the dates in your question, or ask it to check the facts first. We tell agents to use Get context for a question before they answer, but each agent follows that in its own way. See [Set up an agent](connect-an-agent.md).
+Your AI agent decides when to use a tool. Check that it shows under **Your connected agents**. Then add the line under **Ask first** to its instructions, name the metric and the dates in your question, or ask it to check the facts first. We tell agents to use Get facts for a question before they answer, but each agent follows that in its own way. See [Set up an agent](connect-an-agent.md).
 
 ## Does it keep my questions?
 

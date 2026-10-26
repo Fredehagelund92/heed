@@ -46,10 +46,7 @@ describe('the app with another product name', () => {
   })
 
   it('says it in the lines an agent is given, and the update advice needs no name', () => {
-    // The line for an instructions file is the one the MCP server shares: it names the tool, as
-    // the Heed v1 mockup writes it, and no product. The line for a data tool names the product.
-    expect(askHeedFirst[0].text).toContain('get_context')
-    expect(askHeedFirst[1].text).toContain(other)
+    for (const line of askHeedFirst) expect(line.text).toContain(other)
     expect(askHeedFirst.map((line) => `${line.where} ${line.text}`).join(' ')).not.toMatch(old)
     expect(updateAdvice('page')).toBe(
       'The app was updated. Reload the page to use the new version.',

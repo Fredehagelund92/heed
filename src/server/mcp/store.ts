@@ -67,10 +67,10 @@ export function createAnonymousStore(pool: pg.Pool): AnonymousStore {
       )
       return row.rows[0]!.id
     },
-    async feedback(delivery, verdict, client, note, area) {
+    async feedback(delivery, verdict, client, note) {
       await pool.query(
-        'insert into feedback (delivery_id,verdict,client_label,note,area_id) values ($1,$2,$3,$4,$5)',
-        [delivery, verdict, client, note ?? null, area ?? null],
+        'insert into feedback (delivery_id,verdict,client_label,note) values ($1,$2,$3,$4)',
+        [delivery, verdict, client, note ?? null],
       )
     },
   }

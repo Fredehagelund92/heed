@@ -21,7 +21,7 @@ export const scopeWords: Record<ConnectionScope, { title: string; detail: string
     propose: {
       title: 'Suggest changes',
       detail:
-        'Send suggestions in your name, after you say yes. The owner of the domain checks each one before agents get it.',
+        'Suggest new facts and changes. The owner of the domain checks each one before agents get it.',
       short: 'Suggest changes',
     },
   }
