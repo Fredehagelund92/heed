@@ -1130,6 +1130,22 @@ describe('get_context', () => {
     expect(reply._meta).toMatchObject({ tool_schema_digest: toolSchemaDigest, overlay: '0' })
   })
 
+  it('is Partial when the question gave no dates, and get_facts keeps Checked', async () => {
+    const s = setup()
+    const dateless = 'Anything about orders in Norway?'
+    const out = (await s.call('get_context', { question: dateless })).structuredContent as {
+      status: string
+      say: string
+    }
+    expect(out.status).toBe('partial')
+    expect(out.say.startsWith('Partial. Only part of this is written down.')).toBe(true)
+    expect(out.say).toContain('I assumed today, 7 October 2026.')
+    const old = (await s.call('get_facts', { question: dateless })).structuredContent as {
+      status: string
+    }
+    expect(old.status).toBe('matched')
+  })
+
   it('says Outdated for an item whose check date passed, and marks the item', async () => {
     const s = setup()
     s.data.items[0]!.reviewDate = '2026-09-01'

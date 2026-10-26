@@ -961,6 +961,7 @@ export function createToolService(
                   unverified: item.freshness === 'unverified',
                 })),
                 uncovered: uncovered(),
+                assumed: !!assumed,
               })
             : resolution.status
         // FR-344: what the reply read and did not, as it stands after any cut.

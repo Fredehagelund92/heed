@@ -26,7 +26,8 @@
 # concise case reads the concise reply, the agent contract's default), and its status now carries
 # the answer state (src/domain/answer-state.ts): stale (Outdated) where an item that applies may be
 # out of date, and partial (Partial) where no item covers the whole question. 26 statuses in 23
-# cases change to that; every delivery, rank, version and phrase is the same. Two rubrics name
+# cases change to that; every delivery, rank, version and phrase is the same. A question read at
+# today (no dates given) is Partial, so two of those statuses are partial. Two rubrics name
 # get_context. The assistant's cases keep their tool names: the assistant keeps its tools.
 version: 17
 library:
@@ -496,7 +497,7 @@ cases:
         - dimension: dim:market
           values: [val:market/united_states]
     delivery:
-      status: stale
+      status: partial
       must_deliver: [itm_sq1l7j9x]
       text: ['I assumed today, 7 October 2026. Tell me if you meant a different period.']
     rubrics:
@@ -520,7 +521,7 @@ cases:
         - dimension: dim:market
           values: [val:market/spain]
     delivery:
-      status: stale
+      status: partial
       must_deliver: [itm_4gnkxqc0]
       rank_max: 8
       text: ['I assumed today, 7 October 2026. Tell me if you meant a different period.']

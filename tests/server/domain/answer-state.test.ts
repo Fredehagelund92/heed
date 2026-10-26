@@ -77,6 +77,13 @@ describe('a reply status', () => {
     expect(replyStatus({ status: 'matched', items: [exact, part] })).toBe('matched')
   })
 
+  it('is Partial when the dates were assumed, ahead of Outdated and Checked', () => {
+    expect(replyStatus({ status: 'matched', items: [exact], assumed: true })).toBe('partial')
+    expect(replyStatus({ status: 'matched', items: [old], assumed: true })).toBe('partial')
+    expect(replyStatus({ status: 'conflict', items: [exact], assumed: true })).toBe('conflict')
+    expect(replyStatus({ status: 'no_match', items: [], assumed: true })).toBe('no_match')
+  })
+
   it('is Outdated when an item may be out of date, after Partial, as the mockup orders them', () => {
     expect(replyStatus({ status: 'matched', items: [exact, old] })).toBe('stale')
     expect(replyStatus({ status: 'matched', items: [part, { ...part, unverified: true }] })).toBe(

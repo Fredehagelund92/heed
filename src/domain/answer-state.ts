@@ -125,13 +125,15 @@ export type StateInput = {
   items: readonly { match: 'exact' | 'partial'; unverified: boolean }[]
   /** A value the question asks about, such as one market of two, that no item given applies to. */
   uncovered?: boolean
+  /** The question gave no dates and no window, so the server read it at today. */
+  assumed?: boolean
 }
 
 /**
  * A reply's status, from what the resolver found and the items the reply gives. Nothing found is
  * Not found; two items that disagree are a Conflict; when part of the question has nothing
  * written for it (a market of two asked that no item applies to, or every item applies to only
- * part of the question) it is Partial; an item whose check date passed or whose source changed
+ * part of the question, or the question gave no dates and was read at today) it is Partial; an item whose check date passed or whose source changed
  * makes it Outdated; otherwise it is Checked. An item that covers part of the question beside one
  * that covers all of it adds to a Checked answer. The order is the mockup's (data/ask.ts), so the
  * label names what an owner must do first.
@@ -140,7 +142,7 @@ export function replyStatus(input: StateInput): ReplyStatus {
   if (input.status !== 'matched') return input.status
   if (
     input.items.length &&
-    (input.uncovered || input.items.every((item) => item.match === 'partial'))
+    (input.uncovered || input.assumed || input.items.every((item) => item.match === 'partial'))
   )
     return 'partial'
   if (input.items.some((item) => item.unverified)) return 'stale'
