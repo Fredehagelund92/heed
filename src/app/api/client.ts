@@ -12,10 +12,10 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
-import type { Definition, SynonymCheck } from '@/lib/definitions'
+import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
 import type { Answer, AskedWeek, AskInput, Example, Thread } from '@/model/ask'
 import type { Comments, MentionNote, Subject } from '@/model/comments'
-import type { DomainId, Fact, LogEntry, Metric, Sent } from '@/model/items'
+import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
@@ -86,6 +86,17 @@ export type Library = {
   viewed: Record<string, boolean>
   /** Changes made to many items at once, newest first. */
   log: LogEntry[]
+}
+
+/**
+ * What search everywhere (the command palette) finds for some words, grouped, each group best
+ * match first and a few long: context, definitions, domains and people.
+ */
+export type SearchHits = {
+  items: { id: string; title: string; kind: Kind; domain: DomainId }[]
+  definitions: { name: string; type: DefinitionType; sameAs?: string; sourceNames: string[] }[]
+  domains: { id: DomainId; name: string }[]
+  people: { name: string }[]
 }
 
 /* ---------- the Inbox and the review ---------- */
@@ -198,6 +209,8 @@ export interface HeedApi {
 
   // The library
   getLibrary: () => Promise<Library>
+  /** Search everywhere: what the words find, a few of each. Nothing for words that are only spaces. */
+  searchAll: (input: { q: string }) => Promise<SearchHits>
   /** The Context page's list: every item, drafts included. */
   contextPage: () => Promise<Fact[]>
   /** A context item's page; null for an unknown id. */
@@ -392,6 +405,7 @@ export const heedApiMethods = [
   'invite',
   'removePerson',
   'getLibrary',
+  'searchAll',
   'contextPage',
   'itemPage',
   'getItemHistory',

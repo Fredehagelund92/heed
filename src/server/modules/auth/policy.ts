@@ -118,6 +118,7 @@ export const policies = {
   'library.index': 'read',
   'library.freshness': 'read',
   'library.reviews': 'read',
+  'search.all': 'read',
   'bin.list': 'admin',
   'bin.get': 'admin',
   'bin.preview': 'admin',

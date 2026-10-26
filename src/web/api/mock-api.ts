@@ -1,5 +1,5 @@
-import type { ContextItem } from '@domain/item'
-import { addDays } from '@domain/status'
+import type { ContextItem, Vocabulary } from '@domain/item'
+import { addDays, itemTrust } from '@domain/status'
 import type {
   ContextApi,
   HistoryEntry,
@@ -79,7 +79,33 @@ const sorters: Record<ItemSort, (a: ContextItem, b: ContextItem) => number> = {
   start: (a, b) => b.validity.start.localeCompare(a.validity.start) || byId(a, b),
 }
 
-function toLibraryItem(item: ContextItem): LibraryItem {
+/** The scope's keys in the order the index names them: metrics, dimensions, values, each by key. */
+function scopeKeys(scope: ContextItem['scope']) {
+  const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+  return [
+    ...scope.metrics.map((id) => `metric:${id}`).sort(byKey),
+    ...scope.dimensions.map((id) => `dim:${id}`).sort(byKey),
+    ...scope.dimensionValues.map((v) => `val:${v.dimension}/${v.value}`).sort(byKey),
+  ]
+}
+
+/** Each vocabulary key's name, as the index names a scope. */
+function vocabularyNames(vocabulary: Vocabulary) {
+  return new Map<string, string>([
+    ...vocabulary.metrics.map((m) => [`metric:${m.id}`, m.name] as const),
+    ...vocabulary.dimensions.flatMap((d) => [
+      [`dim:${d.id}`, d.name] as const,
+      ...d.values.map((v) => [`val:${d.id}/${v.id}`, v.name] as const),
+    ]),
+  ])
+}
+
+function toLibraryItem(
+  item: ContextItem,
+  today: string,
+  lastChecked: LibraryItem['lastChecked'],
+  names: ReadonlyMap<string, string>,
+): LibraryItem {
   return {
     id: item.id,
     kind: item.kind,
@@ -96,6 +122,9 @@ function toLibraryItem(item: ContextItem): LibraryItem {
     ownerId: item.ownerId,
     proposerId: item.proposerId,
     updatedAt: item.updatedAt,
+    lastChecked,
+    trust: itemTrust(item, today),
+    chips: scopeKeys(item.scope).map((key) => names.get(key) ?? key.split(/[:/]/).at(-1)!),
   }
 }
 
@@ -286,7 +315,8 @@ export function createMockApi({
   }
   // The library as the live edition serves it: retiring, rechecking and going back change it.
   const served = async (items: readonly ContextItem[]) => (await workflow()).liveItems(items)
-  const reads = withGuard(readsApi(served), guard)
+  const checked = async (items: readonly ContextItem[]) => (await workflow()).lastChecked(items)
+  const reads = withGuard(readsApi(served, checked), guard)
   return {
     ...reads,
     getServedReviews: (ids) =>
@@ -716,6 +746,9 @@ function withGuard(methods: ReadMethods, guard: () => void): ReadMethods {
 /** The reads, over the fixture items as `served` changes them. */
 const readsApi = (
   served: (items: readonly ContextItem[]) => Promise<ContextItem[]>,
+  checked: (
+    items: readonly ContextItem[],
+  ) => Promise<ReadonlyMap<string, LibraryItem['lastChecked']>>,
 ): ReadMethods => ({
   async listItems(params: ListItemsParams = {}) {
     const { getFixtureItems, mentions: mentionsTarget } = await fixtures()
@@ -758,9 +791,13 @@ const readsApi = (
     if (scenario === 'error' || (scenario === 'refresh-fails' && libraryCalls > 1)) {
       throw new Error('The library service did not answer (request lib-7f3a)')
     }
-    const { FIXTURE_TODAY } = await fixtures()
+    const { FIXTURE_TODAY, vocabulary } = await fixtures()
+    const lastChecked = await checked(items)
+    const names = vocabularyNames(vocabulary)
     return {
-      items: items.map(toLibraryItem).sort(byId),
+      items: items
+        .map((item) => toLibraryItem(item, FIXTURE_TODAY, lastChecked.get(item.id) ?? null, names))
+        .sort(byId),
       loadedAt: new Date().toISOString(),
       today: FIXTURE_TODAY,
     }

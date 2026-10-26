@@ -85,7 +85,11 @@ export type EditionWorld = {
   /** The version of an item an edition serves, or null. */
   served: (edition: Edition, itemId: string) => ServedVersion | null
   /** Who made a version and why; `left` asks for its retirement rather than its acceptance. */
-  why: (itemId: string, version: ServedVersion, left: boolean) => ChangeWhy
+  why: (
+    itemId: string,
+    version: Pick<ServedVersion, 'version' | 'versionId'>,
+    left: boolean,
+  ) => ChangeWhy
   areaName: (id: string) => string
   personName: (id: string) => string | null
   /** An item exists at all, served or not. */

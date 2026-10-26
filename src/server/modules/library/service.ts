@@ -7,8 +7,9 @@ import type {
   LibraryIndex,
   LibraryItem,
   ListItemsParams,
+  SearchResults,
 } from '../../../contract/index.ts'
-import { INCOMING_LINKS_MAX } from '../../../contract/index.ts'
+import { INCOMING_LINKS_MAX, SEARCH_GROUP_MAX } from '../../../contract/index.ts'
 import type { ItemReview } from '../../../contract/review.ts'
 import type { ContextItem } from '../../../domain/item.ts'
 import type { Clock } from '../../clock.ts'
@@ -38,6 +39,11 @@ export interface LibraryService {
    * person may not read, and items the live edition does not serve, are left out.
    */
   getReviews(ids: readonly string[]): Promise<ItemReview[]>
+  /**
+   * Search everywhere (the command palette): items the person may read, definitions, domains and
+   * people whose names have the words, at most SEARCH_GROUP_MAX of each, best match first.
+   */
+  search(q: string): Promise<SearchResults>
 }
 
 const DEFAULT_LIMIT = 50
@@ -145,10 +151,37 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
     },
 
     async getIndex() {
+      const today = clock.today()
+      // Each row is the item's index entry with what the list's columns read from it: the last
+      // acceptance of its version (a recheck is one), its trust today by the rule
+      // library.freshness counts (itemTrust in src/domain/status.ts), and its scope by name.
       const [row] = await database.query<{ items: LibraryItem[] }>(
-        `select ${libraryIndexItems} as items`,
+        `with names as materialized (
+           select t.key, t.name from serving_vocabulary((select seq from live_edition)) t)
+         select coalesce(jsonb_agg(i.entry || jsonb_build_object(
+                  'lastChecked', case when r.accepted_on is null then null else jsonb_build_object(
+                    'on', to_char(r.accepted_on, 'YYYY-MM-DD'), 'personId', r.accepted_by::text) end,
+                  'trust', case when l.status = 'retired' or l.valid_until <= $1::date then 'ended'
+                                when i.entry->>'checkFlag' is not null or l.review_date < $1::date
+                                then 'needs_check' else 'current' end,
+                  'chips', (select coalesce(jsonb_agg(coalesce(n.name, k.id) order by k.part, k.key collate "C"), '[]')
+                              from (select 1 as part, m.metric_key as key, substr(m.metric_key, 8) as id
+                                      from item_version_metrics m where m.version_id = l.version_id
+                                    union all
+                                    select 2, d.dimension_key, substr(d.dimension_key, 5)
+                                      from item_version_dimensions d where d.version_id = l.version_id
+                                    union all
+                                    select 3, d.value_key, split_part(d.value_key, '/', 2)
+                                      from item_version_dimension_values d where d.version_id = l.version_id) k
+                              left join names n on n.key = k.key))
+                  order by i.id collate "C"), '[]') as items
+           from v_item_index i
+           join v_item_list l on l.id = i.id
+           cross join lateral cl_version_review(l.version_id) r
+          where cl_audience_allows(i.audience_groups)`,
+        [today],
       )
-      return { items: row?.items ?? [], loadedAt: clock.now().toISOString(), today: clock.today() }
+      return { items: row?.items ?? [], loadedAt: clock.now().toISOString(), today }
     },
 
     /**
@@ -262,6 +295,62 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
           order by s.item_id collate "C"`,
         [ids],
       )
+    },
+
+    async search(q) {
+      const words = q.trim()
+      if (!words) return { items: [], definitions: [], domains: [], people: [] }
+      // An item matches on its words (the title, summary and body search vector) or on part of a
+      // word in its title or summary, as people type; the rest match on part of a name. A name
+      // that starts with the words comes first in each group.
+      const [row] = await database.query<SearchResults>(
+        `with q as (select $1::text as anywhere, $2::text as start,
+                           websearch_to_tsquery('simple', $3) as words),
+         items as (
+           select a.id, a.kind::text as kind, a.area_id as "areaId", a.status::text as status,
+                  a.title, a.summary, a.title ilike q.start as starts, ts_rank(v.search, q.words) as rank
+             from v_item_list a join item_versions v on v.id = a.version_id cross join q
+            where cl_audience_allows(a.audience_groups)
+              and (v.search @@ q.words or a.title ilike q.anywhere or a.summary ilike q.anywhere)
+            order by starts desc, rank desc, a.title collate "en-x-icu", a.id collate "C"
+            limit $4),
+         definitions as (
+           select t.key, case t.kind when 'metric' then 'metric' else 'dimension' end as kind,
+                  t.name, coalesce(t.aliases, '{}') as aliases, t.name ilike q.start as starts
+             from serving_vocabulary((select seq from live_edition)) t cross join q
+            where t.kind in ('metric', 'dimension')
+              and (t.name ilike q.anywhere or exists (select 1 from unnest(t.aliases) x where x ilike q.anywhere))
+            order by starts desc, t.name collate "en-x-icu", t.key collate "C"
+            limit $4),
+         domains as (
+           select a.id, a.name, a.name ilike q.start as starts
+             from areas a cross join q
+            where a.archived_at is null and a.name ilike q.anywhere
+            order by starts desc, a.name collate "en-x-icu", a.id collate "C"
+            limit $4),
+         people as (
+           select p.id::text as id, p.display_name as name, p.display_name ilike q.start as starts
+             from people p cross join q
+            where p.deactivated_at is null and p.erased_at is null and p.display_name ilike q.anywhere
+            order by starts desc, p.display_name collate "en-x-icu", p.id
+            limit $4)
+         select
+           (select coalesce(json_agg(json_build_object('id', i.id, 'kind', i.kind, 'areaId', i."areaId",
+                     'status', i.status, 'title', i.title, 'summary', i.summary)
+                     order by i.starts desc, i.rank desc, i.title collate "en-x-icu", i.id collate "C"), '[]')
+              from items i) as items,
+           (select coalesce(json_agg(json_build_object('key', d.key, 'kind', d.kind, 'name', d.name,
+                     'aliases', d.aliases) order by d.starts desc, d.name collate "en-x-icu", d.key collate "C"), '[]')
+              from definitions d) as definitions,
+           (select coalesce(json_agg(json_build_object('id', d.id, 'name', d.name)
+                     order by d.starts desc, d.name collate "en-x-icu", d.id collate "C"), '[]')
+              from domains d) as domains,
+           (select coalesce(json_agg(json_build_object('id', p.id, 'name', p.name)
+                     order by p.starts desc, p.name collate "en-x-icu", p.id), '[]')
+              from people p) as people`,
+        [likePattern(words), `${likePattern(words).slice(1)}`, words, SEARCH_GROUP_MAX],
+      )
+      return row ?? { items: [], definitions: [], domains: [], people: [] }
     },
 
     async getLinks(id) {

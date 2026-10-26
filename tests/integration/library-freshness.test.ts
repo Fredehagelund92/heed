@@ -89,6 +89,12 @@ describe('the library’s freshness by week on PostgreSQL', () => {
       applying: shown.length,
       current: shown.filter((status) => !needsALook(status)).length,
     })
+    // Each row's trust is the same rule, so the list and the freshness agree.
+    expect(counts.days.at(-1)).toEqual({
+      day: today,
+      applying: index.items.filter((item) => item.trust !== 'ended').length,
+      current: index.items.filter((item) => item.trust === 'current').length,
+    })
     // Review dates pass as the days go by, so fewer are current two weeks on.
     expect(counts.days[0]!.current).toBeGreaterThan(counts.days[2]!.current)
   })

@@ -21,6 +21,7 @@ export const queryKeys = {
   vocabulary: ['getVocabulary'] as const,
   activity: (name: string) => ['getActivity', name] as const,
   library: ['getLibrary'] as const,
+  search: (q: string) => ['searchAll', q] as const,
   contextPage: ['contextPage'] as const,
   itemPage: (id: string) => ['itemPage', id] as const,
   itemPages: ['itemPage'] as const,
@@ -87,6 +88,17 @@ export const activityQuery = (name: string) =>
 /** Every context item the person may read, and what this visit did to them. */
 export const libraryQuery = () =>
   queryOptions({ queryKey: queryKeys.library, queryFn: () => api.getLibrary() })
+
+/**
+ * Search everywhere for some words. Each search reads afresh when it is shown again, so a change
+ * made since shows; nothing else needs to invalidate it.
+ */
+export const searchQuery = (q: string) =>
+  queryOptions({
+    queryKey: queryKeys.search(q),
+    queryFn: () => api.searchAll({ q }),
+    enabled: q.trim() !== '',
+  })
 
 export const contextPageQuery = () =>
   queryOptions({ queryKey: queryKeys.contextPage, queryFn: () => api.contextPage() })
@@ -267,6 +279,7 @@ type Read =
   | 'getVocabulary'
   | 'getActivity'
   | 'getLibrary'
+  | 'searchAll'
   | 'contextPage'
   | 'itemPage'
   | 'getItemHistory'

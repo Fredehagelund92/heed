@@ -48,6 +48,7 @@ import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { createSaved } from './saved'
 import { createScenario, type Address } from './scenario'
+import { searchWorld } from './search'
 import { factsOf, reduce, start, type Action, type State } from './store'
 import { createWorkspace } from './workspace'
 
@@ -230,6 +231,15 @@ export function createMockApi() {
         viewed: state.viewed,
         log: state.log,
       })),
+    searchAll: ({ q }) =>
+      now(() =>
+        searchWorld(q, {
+          facts: factsOf(state),
+          definitions: definitions.list(),
+          domains: workspace.domains(),
+          people: workspace.people(),
+        }),
+      ),
     contextPage: () => read('contextPage', '', () => factsOf(state)),
     itemPage: ({ id }) =>
       read('itemPage', id, () => {

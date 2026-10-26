@@ -1422,6 +1422,30 @@ export function createMockWorkflow(start: MockWorld) {
       })
   }
 
+  /**
+   * When each item's current version was last accepted (a recheck is one), as the library index
+   * says it: the newest accept of the version, retired or not.
+   */
+  function lastChecked(items: readonly ContextItem[]) {
+    const reads = editionWorld()
+    return new Map(
+      items.map((item) => {
+        const versionId =
+          versionNotes.get(noteKey(item.id, item.version))?.versionId ??
+          fixtureVersionId(item.id, item.version)
+        const accept = reads
+          .why(item.id, { version: item.version, versionId }, false)
+          .decisions.filter((d) => d.outcome === 'accept' && d.capacity !== 'approver')
+          .sort((a, b) => a.decidedAt.localeCompare(b.decidedAt))
+          .at(-1)
+        return [
+          item.id,
+          accept ? { on: accept.decidedAt.slice(0, 10), personId: accept.decidedBy } : null,
+        ] as const
+      }),
+    )
+  }
+
   function editionByLabel(label: string): Edition {
     const edition = editions.find((candidate) => candidate.label === label)
     return edition ?? refuse('not-found', refusals.notFound)
@@ -5389,7 +5413,7 @@ export function createMockWorkflow(start: MockWorld) {
       })
   }
 
-  return { as, liveItems, travelTo }
+  return { as, lastChecked, liveItems, travelTo }
 }
 
 /**
