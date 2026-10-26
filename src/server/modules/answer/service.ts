@@ -205,7 +205,7 @@ export async function askedThisWeek(
   return {
     week,
     rows: asked.topics.map((topic) => {
-      const scope = topicScope({ ...topic, month: topic.months[0]! })
+      const scope = topicScope({ ...topic, month: topic.month })
       const now = answer(bundle, { scope }, { today })
       return {
         title: topicWords(bundle, scope),

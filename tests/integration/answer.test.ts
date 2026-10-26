@@ -385,7 +385,7 @@ describe('Asked this week', () => {
     expect(asked).toMatchObject({ week, hidden: 7 })
     expect(asked.rows.map((r) => [r.title, r.count, r.atLeast, r.months])).toEqual([
       // 12 in October and 3 in September: a total would give the 3 away.
-      ['Orders in Norway', null, 12, ['2026-10-01', '2026-09-01']],
+      ['Orders in Norway', null, 12, ['2026-10-01']],
       ['Orders in Spain', 9, 9, ['2026-10-01']],
     ])
     for (const row of asked.rows) {

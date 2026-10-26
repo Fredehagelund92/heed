@@ -278,11 +278,20 @@ describe('Asked this week', () => {
       ],
       5,
     )
-    expect(topics.map((t) => [t.metrics, t.values, t.months, t.count, t.atLeast])).toEqual([
-      [['metric:orders'], ['val:market/norway'], ['2026-10-01', '2026-09-01'], 38, 38],
-      [['metric:revenue'], ['val:market/norway'], ['2026-10-01', '2026-09-01'], null, 13],
-      [['metric:orders'], ['val:market/spain'], ['2026-10-01', '2026-09-01'], 6, 0],
-    ])
+    expect(topics.map((t) => [t.metrics, t.values, t.months, t.month, t.count, t.atLeast])).toEqual(
+      [
+        [
+          ['metric:orders'],
+          ['val:market/norway'],
+          ['2026-10-01', '2026-09-01'],
+          '2026-10-01',
+          38,
+          38,
+        ],
+        [['metric:revenue'], ['val:market/norway'], ['2026-10-01'], '2026-10-01', null, 13],
+        [['metric:orders'], ['val:market/spain'], [], '2026-10-01', 6, 0],
+      ],
+    )
     expect(hidden).toBeNull()
     expect(
       askedTopics([topic('a', { calls: 2 }), topic('b', { values: [], calls: 3 })], 5),

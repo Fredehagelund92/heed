@@ -674,8 +674,8 @@ date; else `grounded`.
   with server-sent events: each step as it is done, then the answer. The question is read in
   memory and never stored or logged (FR-602), and nothing is recorded.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
-  to Sunday, UTC), one row per metric, market and dimension with its months joined, most asked
-  first, each with the state the engine gives its latest month now and how many items that gives.
+  to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
+  first, each with the state the engine gives its newest shown month now and how many items that gives.
   Counts only (FR-614): a month under `privacy.min_count` never shows on its own, a row's `count`
   is null when a total would give such a month away (its `atLeast` is what the shown months add up
   to), a row that shows under the minimum is not listed, and `hidden` counts the calls of the rows

@@ -511,8 +511,10 @@ export type AskedTopic = {
   metrics: string[]
   values: string[]
   dimensions: string[]
-  /** The months asked about, newest first. */
+  /** The months whose own calls are shown (at least the minimum), newest first. */
   months: string[]
+  /** The month the row is answered on: the newest shown month, else the newest month asked. */
+  month: string
   count: number | null
   atLeast: number
 }
@@ -521,8 +523,9 @@ export type AskedTopic = {
  * (as the mockup's Questions page groups them), most asked first. A month asked fewer than
  * `minimum` times is never shown on its own (FR-614): a row's count is shown only when no hidden
  * month could be worked out from it by subtraction (`visibleTotal`); otherwise `count` is null
- * and `atLeast` is what its shown months add up to ("13+"). A row that shows fewer than `minimum`
- * is not listed. `hidden` is what the rows not listed add up to, itself hidden under the minimum.
+ * and `atLeast` is what its shown months add up to ("13+"). Only shown months are listed in
+ * `months`, and the row is answered on the newest of them (`month`; on its newest month asked when
+ * none is shown). A row that shows fewer than `minimum` is not listed. `hidden` is what the rows not listed add up to, itself hidden under the minimum.
  */
 export function askedTopics(
   rows: readonly TopicCount[],
@@ -545,13 +548,17 @@ export function askedTopics(
       0,
     )
     const first = list[0]!
+    const newest = (rows: TopicCount[]) =>
+      [...new Set(rows.map((row) => row.month))].sort(compareIds).reverse()
+    const months = newest(list.filter((row) => visibleCount(row.calls, minimum) !== null))
     return {
       key,
       area: first.area,
       metrics: [...first.metrics].sort(compareIds),
       values: [...first.values].sort(compareIds),
       dimensions: [...first.dimensions].sort(compareIds),
-      months: [...new Set(list.map((row) => row.month))].sort(compareIds).reverse(),
+      months,
+      month: months[0] ?? newest(list)[0]!,
       count: list.length > 1 ? visibleTotal(total, atLeast, minimum) : visibleCount(total, minimum),
       atLeast,
       total,
