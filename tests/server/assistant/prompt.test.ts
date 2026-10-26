@@ -6,7 +6,7 @@ import { gfm } from 'micromark-extension-gfm'
 import { describe, expect, it } from 'vitest'
 import { productName } from '../../../src/server/brand.ts'
 import { draftingGuide } from '../../../src/domain/drafting-guide.ts'
-import { bannedWords, usesWord } from '../../../src/domain/words.ts'
+import { bannedWords, usesWord } from '../../../src/domain/words-v1.ts'
 import {
   assistantSystemPrompt,
   plainWordMap,
@@ -19,7 +19,7 @@ import { assistantToolNames } from '../../../src/server/modules/assistant/tools.
   (tests/integration/assistant.test.ts). These tests never pin their wording; they check what
   holds of the text whatever its words: the tools it tells a model to call exist, the Markdown it
   shows reads as Heed reads an answer (lib/answer-markdown.ts), it speaks the glossary's words
-  (src/domain/words.ts) so a model does not learn the specification's, and it stays the same
+  (src/domain/words-v1.ts) so a model does not learn the specification's, and it stays the same
   bytes for the prompt cache.
 */
 

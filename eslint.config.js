@@ -1,7 +1,13 @@
 import js from '@eslint/js'
 import betterTailwind from 'eslint-plugin-better-tailwindcss'
 import { boundaryConfigs, serverOnlyImports } from './eslint.boundaries.js'
-import { classRules, classRulesExcept } from './eslint.class-rules.js'
+import {
+  appClassRules,
+  appClassRulesExcept,
+  classRules,
+  classRulesExcept,
+} from './eslint.class-rules.js'
+import motion from './eslint.motion.js'
 import { plainWordsConfigs } from './eslint.plain-words.js'
 import productName from './eslint.product-name.js'
 import reactHooks from 'eslint-plugin-react-hooks'
@@ -28,6 +34,24 @@ const listFiles = [
   // What changed between two editions is a list page too: its rows and bars span the gutter.
   'src/web/components/editions/compare-list.tsx',
   'src/web/components/editions/compare-page.tsx',
+]
+
+/*
+  The new web app (src/app) follows design contract v2 until it replaces src/web. Its pages may
+  switch on the viewport; anything that can sit in the dock reads its container instead (contract
+  3.6). These are the dock's own parts, at the mockup's paths: the pull request that brings a file
+  in keeps its path here in step.
+*/
+const appFiles = ['src/app/**/*.{ts,tsx}']
+const appDockFiles = [
+  'src/app/components/heed/fact-peek.tsx',
+  'src/app/components/heed/definition-peek.tsx',
+  'src/app/components/heed/peek.tsx',
+  'src/app/components/heed/where-panel.tsx',
+  'src/app/components/heed/share-answer.tsx',
+  'src/app/components/heed/answer.tsx',
+  'src/app/components/obs/answer-panel.tsx',
+  'src/app/components/agent-preview.tsx',
 ]
 
 const bannedImports = [
@@ -160,6 +184,62 @@ export default tseslint.config(
     },
   },
   {
+    files: appFiles,
+    languageOptions: { globals: { ...globals.browser } },
+    plugins: { 'react-hooks': reactHooks },
+    rules: { ...reactHooks.configs.flat.recommended.rules },
+  },
+  {
+    files: appFiles,
+    plugins: { 'better-tailwindcss': betterTailwind, motion },
+    settings: {
+      'better-tailwindcss': {
+        entryPoint: 'src/app/styles/index.css',
+        cwd: import.meta.dirname,
+      },
+    },
+    rules: {
+      ...betterTailwind.configs['correctness-error']?.rules,
+      'better-tailwindcss/enforce-consistent-class-order': 'error',
+      'better-tailwindcss/no-duplicate-classes': 'error',
+      'better-tailwindcss/no-restricted-classes': [
+        'error',
+        { restrict: restrict(appClassRulesExcept('viewport-variant')) },
+      ],
+      'motion/animate-none': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            ...bannedImports,
+            {
+              group: ['lucide-react', 'lucide-react/*'],
+              message: 'Import icons from "@/components/icons" so there is one icon module.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: `JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property[key.name=${styleProperties}]`,
+          message: 'Spacing and colour come from tokens. Use utility classes, not inline style.',
+        },
+      ],
+    },
+  },
+  {
+    // The one place in the new app that may import the icon library.
+    files: ['src/app/components/icons.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: bannedImports }] },
+  },
+  {
+    files: appDockFiles,
+    rules: {
+      'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrict(appClassRules) }],
+    },
+  },
+  {
     // The one place that may import the icon library.
     files: ['src/web/components/icons.ts'],
     rules: { 'no-restricted-imports': 'off' },
@@ -257,7 +337,7 @@ export default tseslint.config(
   {
     // The product's name comes from one setting (docs/rename-checklist.md).
     files: [
-      ...['web', 'domain', 'contract', 'server', 'cli', 'connectors'].map(
+      ...['app', 'web', 'domain', 'contract', 'server', 'cli', 'connectors'].map(
         (dir) => `src/${dir}/**/*.{ts,tsx}`,
       ),
       'tests/lint/fixtures/product-name*.{ts,tsx}',
@@ -266,7 +346,8 @@ export default tseslint.config(
     plugins: { brand: productName },
     rules: { 'brand/no-product-name': 'error' },
   },
-  // The words people read come from the glossary (docs/design/voice.md, src/domain/words.ts).
+  // The words people read come from the glossary: src/domain/words.ts (v2, docs/design/copy.md) in
+  // src/app, src/domain/words-v1.ts (docs/design/voice.md) in the old front end and the server.
   ...plainWordsConfigs,
   ...boundaryConfigs,
 )

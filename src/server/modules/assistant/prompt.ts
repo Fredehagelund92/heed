@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
 import { draftingGuide } from '../../../domain/drafting-guide.ts'
-import { bannedWords } from '../../../domain/words.ts'
+import { bannedWords } from '../../../domain/words-v1.ts'
 import { productName } from '../../brand.ts'
 
 /**
  * The words tool results use, each with what to write instead, from the glossary
- * (src/domain/words.ts): one line per replacement, so the model reads the map once and the
+ * (src/domain/words-v1.ts): one line per replacement, so the model reads the map once and the
  * screens, the help pages and the assistant never disagree on a name.
  */
 export const plainWordMap = (() => {

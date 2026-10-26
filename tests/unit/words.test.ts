@@ -1,33 +1,45 @@
 import { describe, expect, it } from 'vitest'
 import {
+  answerLines,
+  backToApp,
+  bannedOn,
   bannedWords,
   concepts,
   currentWords,
+  draftAnswer,
   internalToPlain,
+  kinds,
   plainName,
+  roles,
   usesWord,
   wordsToChange,
   type Concept,
   type ConceptKey,
+  type Place,
 } from '@domain/words'
 
 /*
-  The glossary's own consistency (src/domain/words.ts, docs/design/voice.md): one concept per
-  name, one name per internal word, every banned word with something to write instead and a
-  concept that exists, and no name, definition, phrase or replacement that uses a banned word.
+  Glossary v2's own consistency (src/domain/words.ts, docs/design/copy.md, docs/product.md): one
+  concept per name, one name per internal word, every banned word with something to write instead
+  and a concept that exists, no name, definition, phrase or replacement that uses a banned word,
+  and the vocabularies in the words and lengths the approved mockup checks.
 */
 
 const entries = Object.entries(concepts) as [ConceptKey, Concept][]
+/** A contraction, which labels, state lines and hints never use (copy, plain English 5). */
+const contraction = /\w['’]\w/
 
-/** The banned words that `text`, written for `owner`, uses. A concept may use its own word. */
+/** The banned words that `text`, written for `owner`, uses everywhere. A concept may use its own. */
 function bannedIn(text: string, owner: ConceptKey | null): string[] {
-  return bannedWords
-    .filter((banned) => !(banned.concept !== null && banned.concept === owner && banned.allowedOn))
-    .filter((banned) => usesWord(text, banned.word))
-    .map((banned) => banned.word)
+  return wordsToChange(text, ['Integrations', 'Settings', 'the agent reply'])
+    .filter((change) => {
+      const banned = bannedWords.find((b) => usesWord(change.found, b.word))
+      return !(banned?.concept === owner && owner !== null)
+    })
+    .map((change) => change.found)
 }
 
-describe('the glossary', () => {
+describe('the glossary v2', () => {
   it('gives every concept its own name', () => {
     const names = entries.map(([, concept]) => concept.name.toLowerCase())
     expect(names.filter((name, index) => names.indexOf(name) !== index)).toEqual([])
@@ -46,36 +58,90 @@ describe('the glossary', () => {
     }
   })
 
-  it('keeps the renames the product owner decided on 18 October 2026', () => {
-    expect(plainName('context item')).toBe('fact')
-    expect(plainName('item')).toBe('fact')
-    expect(bannedWords.find((banned) => banned.word === 'steward')?.write).toBe('owner')
+  it('names one entry a context item, and maps the code words to the names on screen', () => {
+    expect(concepts.contextItem.name).toBe('context item')
+    expect(plainName('item')).toBe('context item')
+    expect(plainName('fact')).toBe('context item')
+    expect(plainName('proposal')).toBe('suggestion')
+    expect(plainName('accept')).toBe('publish')
     expect(plainName('retire')).toBe('archive')
-    expect(plainName('administrator')).toBe('admin')
     expect(plainName('area')).toBe('domain')
-    expect(concepts.edition.only).toMatch(/^the Editions page/)
-    expect(concepts.whatNotToConclude.name).toBe('What not to conclude')
+    expect(plainName('steward')).toBe('owner')
+    expect(plainName('gap')).toBe('Not found')
+    expect(plainName('flag')).toBe('Reported')
+    expect(plainName('users')).toBe('people')
+    expect(plainName('caveat')).toBe("Don't conclude")
+    expect(plainName('AI app')).toBe('agent')
+    expect(plainName('a word nobody uses')).toBeNull()
   })
 
-  it('maps the words of the specification to plain names', () => {
-    expect(plainName('scope')).toBe('where it applies')
-    expect(plainName('AI app')).toBe('agent')
-    expect(plainName('client')).toBe('agent')
-    expect(plainName('agent')).toBeNull()
-    expect(plainName('Delivery')).toBe('what agents get')
-    expect(plainName('review date')).toBe('check date')
-    expect(plainName('held-out')).toBe('hidden test question')
-    expect(plainName('a word nobody uses')).toBeNull()
+  it('keeps People, Member and Save question as the screens write them', () => {
+    expect(concepts.people.phrases).toContain('People')
+    expect(roles).toEqual({ admin: 'Admin', member: 'Member' })
+    expect([concepts.admin.name, concepts.member.name]).toEqual(['Admin', 'Member'])
+    expect(concepts.savedQuestion.phrases).toContain('Save question')
+    expect(backToApp).toBe('Back to app')
   })
 })
 
-describe('currentWords', () => {
-  it('reads the retired name, AI app, as agent, so a search for it still finds the page', () => {
-    expect(currentWords('connect my AI app')).toBe('connect my agent')
-    expect(currentWords('Which ai apps can connect?')).toBe('Which agents can connect?')
-    expect(currentWords('the OpenAI Apps SDK and AI applications')).toBe(
-      'the OpenAI Apps SDK and AI applications',
-    )
+describe('the four kinds', () => {
+  it('names them Event, Warning, Rule and Guide, by the value stored for each', () => {
+    expect(Object.fromEntries(Object.entries(kinds).map(([kind, w]) => [kind, w.label]))).toEqual({
+      event: 'Event',
+      issue: 'Warning',
+      note: 'Rule',
+      guide: 'Guide',
+    })
+  })
+
+  it('gives each a hint of fourteen words or fewer, with no contraction', () => {
+    for (const { label, hint } of Object.values(kinds)) {
+      expect(hint.split(' ').length, label).toBeLessThanOrEqual(14)
+      expect(hint, label).not.toMatch(contraction)
+    }
+  })
+})
+
+describe('the six answer lines', () => {
+  it('names them in one or two plain words, from one list', () => {
+    expect(
+      Object.fromEntries(Object.entries(answerLines).map(([state, l]) => [state, l.label])),
+    ).toEqual({
+      grounded: 'Checked',
+      partial: 'Partial',
+      missing: 'Not found',
+      conflict: 'Conflict',
+      stale: 'Outdated',
+      failed: 'Not checked',
+    })
+  })
+
+  it('keeps labels to two words and sentences to eight, with no contraction', () => {
+    for (const { label, sentence, long } of Object.values(answerLines)) {
+      expect(label.split(' ').length, label).toBeLessThanOrEqual(2)
+      expect(sentence.split(' ').length, sentence).toBeLessThanOrEqual(8)
+      for (const text of [label, sentence, long]) expect(text, text).not.toMatch(contraction)
+    }
+  })
+
+  it('bans the earlier labels as labels, which stay only as the long form', () => {
+    for (const { label, long } of Object.values(answerLines)) {
+      if (long === 'Could not check') continue
+      expect(
+        wordsToChange(long).map((c) => c.write),
+        long,
+      ).toEqual([label])
+    }
+    expect(wordsToChange("Couldn't check")).toEqual([
+      { found: "Couldn't check", write: 'Not checked' },
+    ])
+    expect(wordsToChange('Not covered')).toEqual([{ found: 'Not covered', write: 'Not found' }])
+    expect(wordsToChange('Some of it may be out of date, and nothing written down.')).toEqual([])
+  })
+
+  it('never calls a draft answer checked', () => {
+    expect(draftAnswer).toBe('Based on this draft')
+    expect(Object.values(answerLines).map((l) => l.label)).not.toContain(draftAnswer)
   })
 })
 
@@ -99,93 +165,92 @@ describe('the banned words', () => {
       expect(bannedIn(banned.write, banned.concept), banned.word).toEqual([])
   })
 
-  it('stay out of every name, definition and phrase', () => {
+  it('stay out of every name, definition, phrase and vocabulary', () => {
     for (const [key, concept] of entries) {
       const texts = [concept.name, concept.definition, ...(concept.phrases ?? [])]
       for (const text of texts) expect(bannedIn(text, key), `${key}: ${text}`).toEqual([])
     }
+    const vocabulary = [
+      ...Object.values(kinds).flatMap((k) => [k.label, k.hint]),
+      ...Object.values(answerLines).flatMap((l) => [l.label, l.sentence]),
+      ...Object.values(roles),
+      draftAnswer,
+      backToApp,
+    ]
+    for (const text of vocabulary) expect(bannedIn(text, null), text).toEqual([])
   })
 
-  it('allow a word only where its concept says it shows', () => {
-    for (const banned of bannedWords.filter((b) => b.allowedOn))
-      expect(banned.concept, banned.word).not.toBeNull()
-  })
-})
-
-describe('usesWord', () => {
-  it('matches a whole word or phrase, in any case, alone or plus "s"', () => {
-    expect(usesWord('Items appear here', 'item')).toBe(true)
-    expect(usesWord('the Steward of Commercial', 'steward')).toBe(true)
-    expect(usesWord('Which scope?', 'scope')).toBe(true)
-    expect(usesWord('the live edition today', 'live edition')).toBe(true)
-  })
-
-  it('leaves other words that contain it alone', () => {
-    expect(usesWord('itemised', 'item')).toBe(false)
-    expect(usesWord('stewardship', 'steward')).toBe(false)
-    expect(usesWord('a context-item key', 'item')).toBe(false)
-    expect(usesWord('telescope', 'scope')).toBe(false)
+  it('say where a word is allowed, or the only place it is banned, never both', () => {
+    for (const banned of bannedWords)
+      expect(Boolean(banned.allowedOn && banned.onlyOn), banned.word).toBe(false)
   })
 })
 
 describe('wordsToChange', () => {
-  const found = (text: string, allowed: string[] = []) =>
-    wordsToChange(text, allowed).map((change) => `${change.found} > ${change.write}`)
+  const found = (text: string, ...places: Place[]) =>
+    wordsToChange(text, places).map((change) => `${change.found} > ${change.write}`)
 
   it('names each banned word with what to write, in the order they come, plurals as plurals', () => {
-    expect(found('Retire the item, then tell the stewards.')).toEqual([
+    expect(found('Retire a fact, then tell the stewards.')).toEqual([
       'Retire > archive',
-      'item > fact',
+      'a fact > a context item',
       'stewards > owners',
     ])
-    expect(found('AI apps read it')).toEqual(['AI apps > agents'])
-  })
-
-  it('writes agent for the program that connects, and bans the retired AI app and a person as an agent', () => {
-    // 21 October 2026: agent is the word, always software outside the app and never a person.
-    expect(found('Agents get it. Connect an agent. An AI agent such as Claude.')).toEqual([])
-    expect(found('Connect an AI app.')).toEqual(['AI app > agent'])
-    expect(found('The AI apps read it.')).toEqual(['AI apps > agents'])
-    expect(found('Ask the support agent, not a human agent.')).toEqual([
-      'support agent > the role itself, such as the support team',
-      'human agent > the role itself, such as the support team',
-    ])
-    expect(found('The Claude app and the OpenAI Apps SDK are names.')).toEqual([])
-  })
-
-  it('tells a longer phrase once', () => {
-    expect(found('The live edition holds every context item.')).toEqual([
-      'live edition > what agents get today',
-      'context item > fact',
+    expect(found('Facts and proposals')).toEqual([
+      'Facts > Context item',
+      'proposals > suggestions',
     ])
   })
 
-  it('leaves a word where the glossary allows it', () => {
-    expect(found('Compare two editions', ['edition'])).toEqual([])
-    expect(found('The live edition', ['edition'])).toEqual(['live edition > what agents get today'])
-  })
-
-  it('says a negative short, keeping its capital, unless "not" carries the sentence', () => {
-    expect(found('Do not share it. It cannot load, and it will not wait.')).toEqual([
-      "Do not > Don't",
-      "cannot > can't",
-      "will not > won't",
-    ])
-    expect(found('This cannot be undone. What it is not.')).toEqual([])
-  })
-
-  it('asks for an unclear or stacked contraction in full', () => {
-    expect(found("We'd like it; it shouldn't've changed.")).toEqual([
-      "We'd > We would, or We had",
-      "shouldn't've > shouldn't have",
-    ])
-    expect(found("You'll see it. It's here, and it isn't late.")).toEqual([])
-  })
-
-  it('leaves code inside a sentence alone, but not a code word people read', () => {
+  it('leaves "fact" in its everyday sense, and the words the mockup uses', () => {
     expect(
-      found('Open /library/items, set item_id or call getItem(), or run `heed scope`.'),
+      found('A change after the fact shows. Every name, fact and number is mock data.'),
     ).toEqual([])
-    expect(found('It says no_match.')).toEqual(['no_match > nothing is written down for this'])
+    expect(found('3 context items. An item, a term and a Member.')).toEqual([])
+  })
+
+  it('reads Gap and Flag as card names only', () => {
+    expect(found('Gap')).toEqual(['Gap > Not found'])
+    expect(found('Flags')).toEqual(['Flags > Reported'])
+    expect(found('A gap in the data. Flag it for the owner.')).toEqual(['Flag > Reported'])
+  })
+
+  it('allows a word where the glossary allows it', () => {
+    expect(found('Editions are sealed.')).toEqual(['Editions > what agents get now'])
+    expect(found('Editions are sealed.', 'Settings')).toEqual([])
+    expect(found('Where metrics are defined in Cube', 'Integrations')).toEqual([])
+    expect(found('Where metrics are defined in Cube')).toEqual([
+      'Cube > your definitions source; the name only on its integration',
+    ])
+  })
+
+  it('keeps agent tools out of the review only', () => {
+    expect(found('An agent in Cursor suggested this.')).toEqual([])
+    expect(found('An agent in Cursor suggested this.', 'the review')).toEqual([
+      'Cursor > an agent; where a suggestion came from is source data',
+    ])
+    expect(bannedOn(['the review']).some((b) => b.word === 'Claude')).toBe(true)
+    expect(bannedOn([]).some((b) => b.word === 'Claude')).toBe(false)
+  })
+
+  it('finds an em dash wherever it stands', () => {
+    expect(found('Checked\u2014two items')).toEqual([
+      '\u2014 > a plain dash, a comma or a full stop',
+    ])
+    expect(found('Checked - two items')).toEqual([])
+  })
+
+  it('leaves code inside a sentence alone', () => {
+    expect(found('Open /library/facts, set fact_id or call getFact().')).toEqual([])
+  })
+})
+
+describe('currentWords', () => {
+  it('reads the retired name, AI app, as agent, so a search for it still finds the page', () => {
+    expect(currentWords('connect my AI app')).toBe('connect my agent')
+    expect(currentWords('Which ai apps can connect?')).toBe('Which agents can connect?')
+    expect(currentWords('the OpenAI Apps SDK and AI applications')).toBe(
+      'the OpenAI Apps SDK and AI applications',
+    )
   })
 })

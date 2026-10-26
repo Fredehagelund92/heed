@@ -5,7 +5,7 @@ import type { ResolvedScope, ScopeIssue } from './scope.ts'
 /*
   What a read result means, in two parts (FR-344). `say` is for the person: one or two plain
   sentences an AI agent may repeat as they stand, in the voice of docs/design/voice.md and with the
-  names of src/domain/words.ts, so an app that passes them on speaks as a colleague would. `next`
+  names of src/domain/words-v1.ts, so an app that passes them on speaks as a colleague would. `next`
   is for the AI agent: the step to take with this result, in the tool and field names it calls.
 
   Both come first in every result, so an app that drops the server instructions (FR-343) still

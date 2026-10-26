@@ -58,7 +58,7 @@ The kind decides the layout:
 1. Lead with the answer. The first 80 words answer the title's question.
 2. One idea per sentence, about 15 words. Plain words: "start", not "initiate".
 3. Explain every abbreviation the first time on each page, and link the glossary.
-4. One word per thing, the screen's word, from the glossary in `src/domain/words.ts`: "fact", "owner", "agent", "domain", "where it applies", and "edition" only for the Editions page and the review stamp. Write "AI agent" where the page first mentions the agent and "agent" after that, since a reader who meets the bare word may take it for a person (the docs check tests it). `docs/design/voice.md` says how to write with them. Name the product only where the sentence needs it.
+4. One word per thing, the screen's word, from the glossary in `src/domain/words-v1.ts`: "fact", "owner", "agent", "domain", "where it applies", and "edition" only for the Editions page and the review stamp. Write "AI agent" where the page first mentions the agent and "agent" after that, since a reader who meets the bare word may take it for a person (the docs check tests it). `docs/design/voice.md` says how to write with them. Name the product only where the sentence needs it.
 5. Use the demo data for every example: Norway, Orders, Sales, Jon the owner, Maria the contributor.
 6. Bold is only for the words of a screen, exactly as the screen writes them: **Send for review**. Use italics for any other emphasis.
 7. One action per step, where before what: "Under **Where it applies**, add Orders."

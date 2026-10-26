@@ -1,5 +1,5 @@
 import { dayWords } from './dates.ts'
-import { concepts } from './words.ts'
+import { concepts } from './words-v1.ts'
 
 /*
   Reviewed before served: how a fact an agent receives was reviewed (FR-326, amended 18 Oct

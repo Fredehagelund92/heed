@@ -34,9 +34,10 @@ mock data by default, or on the service with `npm run dev:http` (see
 ### Words on screen and words in code
 
 The screens, the help pages and the assistant name things as people say them. The code, the API,
-the database and the specification keep their own words. [src/domain/words.ts](../src/domain/words.ts)
-maps one to the other, and [docs/design/voice.md](design/voice.md) says how to write. The
-ones you meet most:
+the database and the specification keep their own words. [src/domain/words-v1.ts](../src/domain/words-v1.ts)
+maps one to the other for the old front end, and [docs/design/voice.md](design/voice.md) says how
+to write; the new web app uses glossary v2 in [src/domain/words.ts](../src/domain/words.ts) and
+[docs/design/copy.md](design/copy.md). The ones you meet most in the old front end:
 
 | On screen             | In code and the specification |
 | --------------------- | ----------------------------- |

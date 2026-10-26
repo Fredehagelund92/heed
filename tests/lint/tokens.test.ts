@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { contrast, luminance, oklabToRgb, oklchToOklab, type Rgb } from './contrast.ts'
 import {
   queueColumnIds,
   queueColumnSpecs,
@@ -45,8 +46,6 @@ const dark = { ...light, ...block('.dark') }
 const wide = { ...light, ...block('@media (width >= 768px) {\n  :root') }
 const themes = { light, dark } as const
 
-type Rgb = [number, number, number]
-
 function resolve(tokens: Record<string, string>, name: string, seen = new Set<string>()): string {
   const value = tokens[name]
   if (value === undefined) throw new Error(`Missing token ${name}`)
@@ -54,30 +53,6 @@ function resolve(tokens: Record<string, string>, name: string, seen = new Set<st
   seen.add(name)
   const alias = /^var\((--[a-z0-9-]+)\)$/.exec(value)
   return alias?.[1] ? resolve(tokens, alias[1], seen) : value
-}
-
-function oklchToOklab(value: string): [number, number, number] {
-  const match = /^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\)$/.exec(value)
-  if (!match) throw new Error(`Not an opaque oklch() value: ${value}`)
-  const [l, c, h] = [Number(match[1]), Number(match[2]), Number(match[3])]
-  const rad = (h * Math.PI) / 180
-  return [l, c * Math.cos(rad), c * Math.sin(rad)]
-}
-
-function oklabToRgb([l, a, b]: [number, number, number]): Rgb {
-  const l_ = (l + 0.3963377774 * a + 0.2158037573 * b) ** 3
-  const m_ = (l - 0.1055613458 * a - 0.0638541728 * b) ** 3
-  const s_ = (l - 0.0894841775 * a - 1.291485548 * b) ** 3
-  const linear = [
-    4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
-    -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
-    -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_,
-  ]
-  return linear.map((channel) => {
-    const clamped = Math.min(1, Math.max(0, channel))
-    const encoded = clamped <= 0.0031308 ? 12.92 * clamped : 1.055 * clamped ** (1 / 2.4) - 0.055
-    return Math.round(encoded * 255)
-  }) as Rgb
 }
 
 /** The 8 bit colour a browser paints for a token, including the one computed `--selected`. */
@@ -93,20 +68,6 @@ function paint(theme: keyof typeof themes, name: string): Rgb {
     return oklabToRgb([blend(l1, l2), blend(a1, a2), blend(b1, b2)])
   }
   return oklabToRgb(oklchToOklab(value))
-}
-
-function luminance([r, g, b]: Rgb): number {
-  const linear = (channel: number) => {
-    const c = channel / 255
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
-}
-
-function contrast(one: Rgb, two: Rgb): number {
-  const high = Math.max(luminance(one), luminance(two))
-  const low = Math.min(luminance(one), luminance(two))
-  return Math.floor(((high + 0.05) / (low + 0.05)) * 10) / 10
 }
 
 const kinds = ['event', 'note', 'guide', 'example'] as const

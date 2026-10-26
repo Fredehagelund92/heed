@@ -1,35 +1,29 @@
 /*
-  The words people read, in one place: one plain name for each concept, the sentence that
-  explains it, the words not to use on screen with what to write instead, and the map from the
-  specification's and the code's words to the names on screen. The voice guide
-  (docs/design/voice.md) says how to write; this file says which words. Screens, the assistant's
-  instructions, the MCP text people hear and the help pages all name things from here.
+  The words people read in the web app, in one place (glossary v2): one plain name for each
+  concept, the sentence that explains it, the fixed vocabularies screens draw from (the four
+  kinds, the six answer lines and the two roles), and the words not to write with what to write
+  instead. docs/design/copy.md says how to write; docs/product.md (section 15) lists the names;
+  this file holds them in code, so a screen, a help page and a check all read one list.
 
   Only what people read changes. The specification, code, database, API fields and addresses keep
-  their own words (item, edition, scope, area, retire), and `internal` below maps each of
-  them to the name on screen (requirements 2.1, "Name on screen"). Renames decided by the product
-  owner carry the date in `decided`, so a later change does not reopen them.
+  their own words (item, area, retire, edition, scope, proposal), and `internal` maps each of them
+  to the name on screen.
 
-  The program that connects over MCP is the agent (decided 21 October 2026). It is always software
-  outside this app, never a person and never the assistant, which is the helper inside it. Write
-  "AI agent" where a reader meets the word first (the README, the first mention on a help page,
-  the consent screen, what an agent says to a person, the assistant's replies) and "agent" after
-  that, on buttons, tabs, headers, toasts and table cells. "AI app" is the retired name: it stays
-  findable in search (the command palette, the help search and the assistant's question reader)
-  and is not written on a screen. A person who works as an agent is named by the role.
+  The new web app in src/app follows this glossary, checked by the lint rule heed/plain-words
+  (eslint.plain-words.js) with no baseline. The old front end in src/web, the server's sentences
+  and the help pages keep the earlier glossary (src/domain/words-v1.ts, docs/design/voice.md)
+  until the switch to the new app, which deletes it.
 
   tests/unit/words.test.ts keeps the list consistent: one concept per name, every banned word with
-  something to write instead, and no name, definition or replacement that uses a banned word.
-  `wordsToChange` reads a text against it, with the negatives people say short: the lint rule
-  heed/plain-words reads the screens with it and the docs check the help pages (voice guide, "The
-  guard rail").
+  something to write instead, no name, definition or replacement that uses a banned word, and the
+  vocabularies short enough for people who read English as a second language.
 */
 
 /** One concept as people read it. */
 export type Concept = {
   /** The one name on every surface, as it reads mid-sentence (a screen capitalises a label). */
   readonly name: string
-  /** One or two plain sentences people can read, in the voice of docs/design/voice.md. */
+  /** One or two plain sentences people can read, in the words of docs/design/copy.md. */
   readonly definition: string
   /** The words the specification, the code, the database and the API keep for it. */
   readonly internal: readonly string[]
@@ -37,342 +31,372 @@ export type Concept = {
   readonly only?: string
   /** Fixed phrases built on the name, written as screens write them. */
   readonly phrases?: readonly string[]
-  /** When the product owner decided the name. */
-  readonly decided?: string
 }
 
-const decided18Oct = '18 October 2026'
-const decided21Oct = '21 October 2026'
-
-/** The glossary: every concept people read about, by a stable key. */
+/** The glossary: every concept people read about, by a stable key (docs/product.md, section 15). */
 export const concepts = {
-  fact: {
-    name: 'fact',
+  context: {
+    name: 'context',
     definition:
-      'A short, checked statement about your numbers: what happened, where, when, and how we know.',
-    internal: ['context item', 'item', 'caveat'],
-    phrases: ['Add a fact', 'Archive fact'],
-    decided: decided18Oct,
+      'The area of the app, and everything agents read. People write it down, and owners check it.',
+    internal: ['library', 'context library'],
+    phrases: ['Context', 'Write context'],
+  },
+  contextItem: {
+    name: 'context item',
+    definition:
+      'One entry of context: an event, a warning, a rule or a guide, with a source and a check date.',
+    internal: ['item', 'fact'],
+    phrases: ['3 context items'],
   },
   kind: {
     name: 'kind',
-    definition: 'The type of a fact: an Event, a Note, a Guide, an Example or an Issue.',
+    definition: 'The type of a context item: an Event, a Warning, a Rule or a Guide.',
     internal: ['kind'],
   },
-  library: {
-    name: 'library',
-    definition: 'All the facts you can read.',
-    internal: ['context library'],
-    phrases: ['Library'],
+  definition: {
+    name: 'definition',
+    definition: 'A metric, a dimension or a term, and what it means here.',
+    internal: ['catalogue entry'],
+    phrases: ['Definitions'],
+  },
+  term: {
+    name: 'term',
+    definition: 'A word with its own meaning, written here, such as Peak season.',
+    internal: ['person-written definition'],
+  },
+  synonym: {
+    name: 'synonym',
+    definition:
+      'Another name for a metric or a dimension, such as GMV for Gross sales. Agents read it as that definition.',
+    internal: ['alias'],
+  },
+  domain: {
+    name: 'domain',
+    definition: 'An area of the business, such as Sales. Every context item belongs to one.',
+    internal: ['area', 'business area'],
+  },
+  owner: {
+    name: 'owner',
+    definition:
+      "A person who publishes and checks a domain's context. Ownership belongs to the domain, not to a role.",
+    internal: ['steward'],
+  },
+  admin: {
+    name: 'Admin',
+    definition: 'The role that can do everything: people, roles, domains, agents and integrations.',
+    internal: ['administrator'],
+  },
+  member: {
+    name: 'Member',
+    definition: 'The role that writes context, sends suggestions, asks and comments.',
+    internal: ['member'],
+  },
+  people: {
+    name: 'people',
+    definition: 'Everyone in the workspace, with their role and the domains they own.',
+    internal: ['users'],
+    phrases: ['People', 'Invite people', 'Remove from the workspace'],
+  },
+  suggestion: {
+    name: 'suggestion',
+    definition:
+      'A change sent to an owner, from the editor or by an agent. Nothing changes until the owner publishes it.',
+    internal: ['proposal'],
+  },
+  publish: {
+    name: 'publish',
+    definition: 'An owner makes context available to agents.',
+    internal: ['accept'],
+    phrases: ['Publish', 'Published. Agents now say'],
+  },
+  archive: {
+    name: 'archive',
+    definition: 'Take published context out of what agents get. Its history stays.',
+    internal: ['retire', 'retired'],
+    phrases: ['Archive', 'Archived'],
+  },
+  inbox: {
+    name: 'Inbox',
+    definition: 'What needs you, ordered by need.',
+    internal: ['notifications', 'queue'],
+  },
+  card: {
+    name: 'card',
+    definition: 'One row in the Inbox, such as Not found, Reported or a Suggestion.',
+    internal: ['inbox item'],
+  },
+  notFound: {
+    name: 'Not found',
+    definition:
+      'A question agents asked several times and found nothing written down for. Its card brings a draft.',
+    internal: ['gap', 'no_match'],
+  },
+  reported: {
+    name: 'Reported',
+    definition: 'Someone said a context item is wrong or unclear.',
+    internal: ['flag'],
+  },
+  dueForACheck: {
+    name: 'Due for a check',
+    definition: 'A context item whose check date has passed.',
+    internal: ['review due'],
+  },
+  savedQuestion: {
+    name: 'saved question',
+    definition:
+      'A question an owner or admin keeps. It is checked again after every change: Same, Changed or Needs a look.',
+    internal: ['saved view', 'test question'],
+    phrases: ['Save question', 'Same', 'Changed', 'Needs a look'],
+  },
+  tryIt: {
+    name: 'Try it',
+    definition:
+      'What agents would say for a question, on a draft or on live context, without asking an AI.',
+    internal: [],
+  },
+  ask: {
+    name: 'Ask',
+    definition: 'The page where a person asks and sees the same answer line an agent gets.',
+    internal: ['assistant'],
+  },
+  topic: {
+    name: 'topic',
+    definition: 'The exact scope agents asked about: domain, metric, market and the month.',
+    internal: ['topic'],
+  },
+  edition: {
+    name: 'edition',
+    definition: 'A sealed snapshot of what agents get.',
+    internal: ['edition', 'live edition'],
+    only: 'Settings, Advanced, and the agent reply; never in success copy',
+  },
+  dontConclude: {
+    name: "Don't conclude",
+    definition: 'A line on a context item that stops an agent from reading a cause into it.',
+    internal: ['caveat', 'what not to conclude', 'notToConclude'],
+  },
+  integration: {
+    name: 'integration',
+    definition:
+      'A connected tool: where definitions live, where documents live, where figures come from.',
+    internal: ['source', 'connector'],
   },
   agent: {
     name: 'agent',
     definition:
-      'An AI agent is a program outside this app, such as Claude, ChatGPT or Claude Code, that answers questions and uses tools. It can check these facts before it answers.',
-    internal: ['client', 'AI client', 'AI app'],
-    decided: decided21Oct,
+      'Software outside this app, such as Claude Code or Cursor, that reads context over MCP. Never a person.',
+    internal: ['AI app', 'client'],
   },
   whatAgentsGet: {
     name: 'what agents get',
-    definition: 'The facts an agent gets when it asks about a metric, a market or a period.',
-    internal: ['delivery', 'served', 'delivered', 'published'],
-    phrases: ['Agents get it', 'Agents get this fact from today', 'shared with agents'],
-  },
-  domain: {
-    name: 'domain',
-    definition: 'A part of the business, such as Sales, with its own owners.',
-    internal: ['area', 'business area'],
-    decided: decided18Oct,
-  },
-  owner: {
-    name: 'owner',
-    definition: 'The person who looks after a domain and accepts its facts.',
-    internal: ['owner'],
-    phrases: ['the owner of Sales', 'Jon Abara, who owns Sales'],
-    decided: decided18Oct,
-  },
-  approver: {
-    name: 'approver',
-    definition: 'The person who gives a second yes before agents get a high-risk fact.',
-    internal: ['approver'],
-  },
-  admin: {
-    name: 'admin',
-    definition: 'The person who sets up domains, people and which agents can connect.',
-    internal: ['administrator'],
-    decided: decided18Oct,
-  },
-  proposal: {
-    name: 'proposal',
-    definition:
-      'A new fact, or a change to one, that waits for the owner of its domain. Agents get it only once it is accepted.',
-    internal: ['proposal'],
-  },
-  draft: {
-    name: 'draft',
-    definition: 'A proposal that is still yours. Nobody else sees it until you send it.',
-    internal: ['draft'],
-    phrases: ['Send for review'],
-  },
-  whereItApplies: {
-    name: 'where it applies',
-    definition: 'The metrics and markets a fact is about.',
-    internal: ['scope', 'applicability'],
-    phrases: ['Where it applies', 'Agents get this fact when a question is about these.'],
-  },
-  whenItApplies: {
-    name: 'when it applies',
-    definition: 'From a date, until a date, or still going on.',
-    internal: ['validity'],
-    phrases: ['From 15 June 2026, still going on', 'From 4 August to 30 September 2026'],
-  },
-  checkDate: {
-    name: 'check date',
-    definition: 'The day by which the owner checks the fact again.',
-    internal: ['review date', 'next check'],
-    phrases: ['Check again by 31 January 2027'],
-  },
-  needsChecking: {
-    name: 'needs checking',
-    definition: 'The check date has passed, or the source the fact is based on changed.',
-    internal: ['stale', 'needs_check', 'source_missing', 'unverified'],
-    phrases: ['Needs checking', 'Check due', 'Agents are told this fact may be out of date.'],
-  },
-  whatNotToConclude: {
-    name: 'What not to conclude',
-    definition:
-      'A line on what someone might wrongly conclude from a fact, or who to ask first. Agents get it with the fact.',
-    internal: ['notToConclude'],
-    decided: decided18Oct,
-  },
-  archive: {
-    name: 'archive',
-    definition: 'Agents stop getting the fact. You can still read it and its history.',
-    internal: ['retire', 'retired'],
-    phrases: ['Archive fact', 'Archived', 'Fact archived. Agents no longer get it.'],
-    decided: decided18Oct,
-  },
-  edition: {
-    name: 'edition',
-    definition: 'A saved set of all accepted facts, with its date.',
-    internal: ['edition', 'live edition', 'candidate edition'],
-    only: 'the Editions page, and the review stamp next to the edition id; everywhere else, write "what agents get today"',
-    phrases: ['what agents get today', 'what agents will get'],
-    decided: decided18Oct,
-  },
-  gap: {
-    name: 'gap',
-    definition: 'A question agents asked that no fact could answer.',
-    internal: ['gap', 'no_match'],
-  },
-  checks: {
-    name: 'checks',
-    definition: 'The tests we run on a proposal before the owner accepts it.',
-    internal: ['gate', 'levels'],
-    phrases: ['Complete', 'Finds the right questions', 'Reaches agents', 'Answers stay right'],
-  },
-  testQuestion: {
-    name: 'test question',
-    definition: 'A question with a known right answer. We ask it to check that answers stay right.',
-    internal: ['test question', 'golden question', 'probe'],
-    phrases: ['All 5 test questions find it when they should.', 'No test answer got worse.'],
-  },
-  hiddenTestQuestion: {
-    name: 'hidden test question',
-    definition:
-      'A test question that the people who write facts, and the assistant, never see. It shows how good answers really are.',
-    internal: ['held-out test question', 'held-out', 'sealed'],
-  },
-  names: {
-    name: 'names',
-    definition:
-      'The metrics, markets and products we know by name. Write the name itself where you can: Orders, Norway.',
-    internal: ['vocabulary', 'term', 'member', 'dimension value'],
-  },
-  dimension: {
-    name: 'dimension',
-    definition:
-      'A way to split a number, such as market, product or brand. Elsewhere, write the dimension\'s own name: "the market".',
-    internal: ['dimension'],
-    only: 'the Catalogue and Administration',
-  },
-  definitionChanged: {
-    name: 'definition changed',
-    definition:
-      'What a metric or a market means changed at its source. Facts written before the change wait for a check.',
-    internal: [],
-    phrases: ['Definition changed', 'Changed in Cube, 7 Oct 2026'],
-  },
-  source: {
-    name: 'where this comes from',
-    definition: 'A link and one sentence copied from it, so the owner can check the fact.',
-    internal: ['evidence'],
-    phrases: ['Where this comes from', 'source'],
-  },
-  whoCanSeeIt: {
-    name: 'who can see it',
-    definition: 'Everyone, or only the groups named.',
-    internal: ['audience'],
-    phrases: ['Who can see it: Everyone'],
-  },
-  mcp: {
-    name: 'MCP',
-    definition: 'The connection AI agents use to check these facts. MCP is a standard for it.',
-    internal: ['MCP', 'MCP gateway'],
-    only: 'Connect and the help pages, always with "the connection AI agents use"',
-  },
-  accessKey: {
-    name: 'access key',
-    definition: "What an agent uses to connect when it can't sign in.",
-    internal: ['token'],
-  },
-  tryAQuestion: {
-    name: 'Try a question',
-    definition: 'See what an agent gets for a question, before anyone asks it.',
-    internal: ['Try it', 'agent view', 'What an agent would get'],
-  },
-  connectAnAgent: {
-    name: 'Connect an agent',
-    definition: 'Let Claude or another AI agent check these facts before it answers.',
-    internal: ['Connect your AI'],
-  },
-  assistant: {
-    name: 'assistant',
-    definition:
-      'The helper built into the app. It finds and explains facts, and drafts new ones for you to check and send.',
-    internal: ['assistant'],
-  },
-  dataTeam: {
-    name: 'data team',
-    definition: "The team that runs the company's data tools and answers data questions.",
-    internal: ['data platform team'],
+    definition: 'The text an agent receives for a context item or a question.',
+    internal: ['served', 'delivered'],
   },
 } as const satisfies Record<string, Concept>
 
 export type ConceptKey = keyof typeof concepts
 
-/** A word not to use where people read, with what to write instead. */
+/** A kind as people read it: a label in a tooltip and in Details, and a hint of 14 words or fewer. */
+export type KindWords = { readonly label: string; readonly hint: string }
+
+/**
+ * The four kinds, by the value stored for each (docs/product.md, section 7). A kind shows as a
+ * neutral icon; the label is in its tooltip and in Details. The earlier fifth kind, `example`,
+ * is no longer offered.
+ */
+export const kinds = {
+  event: { label: 'Event', hint: 'Something that happened on a date, like a stop or a new rule.' },
+  issue: {
+    label: 'Warning',
+    hint: 'A limit or problem agents should know, like late or missing data.',
+  },
+  note: {
+    label: 'Rule',
+    hint: 'A fixed way to read the numbers, like a definition or a house rule.',
+  },
+  guide: { label: 'Guide', hint: 'What to check before you explain a change.' },
+} as const satisfies Record<string, KindWords>
+
+export type Kind = keyof typeof kinds
+
+/**
+ * The words of one answer line: a label of one or two words, a sentence of eight words or fewer,
+ * and the long form for a tooltip and Help. None has a contraction.
+ */
+export type AnswerLineWords = {
+  readonly label: string
+  readonly sentence: string
+  readonly long: string
+}
+
+/**
+ * The six answer lines, by the state in the code (docs/product.md, section 6). The line shows the
+ * sentence under every label but Checked. A draft answer says `draftAnswer` and is never Checked.
+ * The long forms are the only place the earlier labels still show.
+ */
+export const answerLines = {
+  grounded: {
+    label: 'Checked',
+    sentence: 'This is written down and checked.',
+    long: 'Based on checked context',
+  },
+  partial: {
+    label: 'Partial',
+    sentence: 'Only part of this is written down.',
+    long: 'Covers part of it',
+  },
+  missing: {
+    label: 'Not found',
+    sentence: 'Nothing is written about this yet.',
+    long: 'Nothing written down',
+  },
+  conflict: {
+    label: 'Conflict',
+    sentence: 'Two items say different things.',
+    long: 'Context disagrees',
+  },
+  stale: { label: 'Outdated', sentence: 'Some of this may be old.', long: 'May be out of date' },
+  failed: { label: 'Not checked', sentence: 'The check did not run.', long: 'Could not check' },
+} as const satisfies Record<string, AnswerLineWords>
+
+export type AnswerState = keyof typeof answerLines
+
+/** What a draft answer says in place of an answer line's label. */
+export const draftAnswer = 'Based on this draft'
+
+/** The two roles (docs/product.md, section 11). Owning a domain is not a role. */
+export const roles = { admin: 'Admin', member: 'Member' } as const
+
+/** How Settings and Observability lead back: to the app, never to the workspace's name. */
+export const backToApp = 'Back to app'
+
+/** A place a banned word may show, or the only place it is banned: `appSurfaces` lists its files. */
+export type Place = 'Integrations' | 'Settings' | 'the agent reply' | 'the review'
+
+/** A word not to write where people read, with what to write instead. */
 export type BannedWord = {
   /**
-   * The word or phrase, matched as a whole word in any case. The plural that adds "s" is meant
-   * too, so the list holds base forms.
+   * The word or phrase, matched as a whole word, in any case unless `matchCase`. The plural that
+   * adds "s" is meant too, so the list holds base forms.
    */
   readonly word: string
   /** What to write instead: the words, or for a word to leave out, what to say in its place. */
   readonly write: string
   /** The concept whose name replaces it, or null for a word of style. */
   readonly concept: ConceptKey | null
-  /** Where the word may still show, when somewhere may. */
-  readonly allowedOn?: string
+  /** Only the word as written here, such as Gap as a card's name, not the word gap. */
+  readonly matchCase?: boolean
+  /** Where the word may still show. */
+  readonly allowedOn?: readonly Place[]
+  /** The only places the word is banned, when it is fine elsewhere. */
+  readonly onlyOn?: readonly Place[]
 }
 
 /**
- * Banned on screens, in the help pages, in the assistant's replies and in the sentence an MCP
- * reply gives people to read. Code names, the specification, Administration's technical fields
- * and the MCP text meant for models keep their words.
+ * Banned in the words people read in the web app (docs/design/copy.md, section 4, and the checks
+ * of the approved mockup). The product's name is checked by its own rule (brand/no-product-name).
  */
 export const bannedWords: readonly BannedWord[] = [
-  { word: 'context item', write: 'fact', concept: 'fact' },
-  { word: 'item', write: 'fact', concept: 'fact' },
-  { word: 'piece of context', write: 'fact', concept: 'fact' },
-  { word: 'caveat', write: 'fact', concept: 'fact' },
-  { word: 'context library', write: 'library', concept: 'library' },
-  // An AI agent is software; a person who works as an agent is named by the role (src/domain/words.ts, `agent`).
-  { word: 'AI app', write: 'agent', concept: 'agent' },
-  { word: 'client', write: 'agent', concept: 'agent' },
-  { word: 'human agent', write: 'the role itself, such as the support team', concept: 'agent' },
-  { word: 'support agent', write: 'the role itself, such as the support team', concept: 'agent' },
-  { word: 'sales agent', write: 'the role itself, such as the sales team', concept: 'agent' },
-  { word: 'service agent', write: 'the role itself, such as the service team', concept: 'agent' },
-  // Administration picks the AI model each feature uses, by the name its provider lists.
+  // "fact" for one entry; the word in its everyday sense ("after the fact") is a different word.
+  { word: 'Fact', write: 'Context item', concept: 'contextItem', matchCase: true },
+  { word: 'facts', write: 'context items', concept: 'contextItem' },
+  { word: 'a fact', write: 'a context item', concept: 'contextItem' },
+  { word: 'this fact', write: 'this context item', concept: 'contextItem' },
+  { word: 'piece of context', write: 'context item', concept: 'contextItem' },
+  { word: 'caveat', write: "Don't conclude", concept: 'dontConclude' },
+  // A connected tool is named only on its own integration; generic copy names what it does.
   {
-    word: 'model',
-    write: 'agent; the assistant says "I"',
-    concept: 'agent',
-    allowedOn: 'Administration',
+    word: 'Cube',
+    write: 'your definitions source; the name only on its integration',
+    concept: 'integration',
+    matchCase: true,
+    allowedOn: ['Integrations'],
   },
-  { word: 'served', write: 'agents get it', concept: 'whatAgentsGet' },
-  { word: 'delivered', write: 'agents get it', concept: 'whatAgentsGet' },
-  { word: 'delivery', write: 'what agents get', concept: 'whatAgentsGet' },
-  { word: 'published', write: 'shared with agents', concept: 'whatAgentsGet' },
-  { word: 'goes live', write: 'agents get it', concept: 'whatAgentsGet' },
-  { word: 'area', write: 'domain', concept: 'domain' },
-  { word: 'steward', write: 'owner', concept: 'owner' },
-  { word: 'deputy', write: 'owner', concept: 'owner' },
-  { word: 'reviewer', write: 'owner; approver for the second yes', concept: 'owner' },
-  { word: 'administrator', write: 'admin', concept: 'admin' },
-  { word: 'submission', write: 'proposal', concept: 'proposal' },
-  { word: 'change request', write: 'proposal', concept: 'proposal' },
-  { word: 'scope', write: 'where it applies', concept: 'whereItApplies' },
-  { word: 'applicability', write: 'where it applies', concept: 'whereItApplies' },
-  { word: 'validity', write: 'when it applies', concept: 'whenItApplies' },
-  { word: 'review date', write: 'check date; "Check again by"', concept: 'checkDate' },
-  { word: 'next check', write: '"Check again by"', concept: 'checkDate' },
-  { word: 're-check', write: 'check again; "Check due"', concept: 'checkDate' },
-  { word: 'valid until', write: '"Check again by"', concept: 'checkDate' },
-  { word: 'needs a look', write: 'needs checking', concept: 'needsChecking' },
-  { word: 'unverified', write: 'needs checking; "may be out of date"', concept: 'needsChecking' },
-  { word: 'verified', write: 'checked', concept: 'checks' },
-  { word: 'governed', write: 'checked', concept: 'checks' },
-  { word: 'gate', write: 'checks', concept: 'checks' },
-  { word: 'flip', write: 'the answer got worse (or better)', concept: 'testQuestion' },
-  { word: 'retire', write: 'archive', concept: 'archive' },
-  { word: 'retired', write: 'archived', concept: 'archive' },
-  { word: 'take out of service', write: 'archive', concept: 'archive' },
   {
     word: 'edition',
-    write: 'what agents get today',
+    write: 'what agents get now',
     concept: 'edition',
-    // The review stamp names the edition that served a fact: its id is the provenance link (FR-326).
-    allowedOn: 'the Editions page and the review stamp',
+    allowedOn: ['Settings', 'the agent reply'],
   },
-  { word: 'live edition', write: 'what agents get today', concept: 'edition' },
-  { word: 'missing context', write: 'gap; "nothing is written down"', concept: 'gap' },
-  { word: 'no_match', write: 'nothing is written down for this', concept: 'gap' },
-  { word: 'need_more_detail', write: 'I need the metric, the market or the dates', concept: null },
-  { word: 'matched', write: 'found', concept: null },
-  { word: 'probe', write: 'test question', concept: 'testQuestion' },
-  { word: 'impact set', write: 'the test questions it could change', concept: 'testQuestion' },
-  { word: 'golden question', write: 'test question', concept: 'testQuestion' },
-  { word: 'eval case', write: 'test question', concept: 'testQuestion' },
-  { word: 'rubric', write: 'what a right answer says', concept: 'testQuestion' },
-  { word: 'held-out', write: 'hidden test question', concept: 'hiddenTestQuestion' },
-  { word: 'sealed', write: 'hidden', concept: 'hiddenTestQuestion' },
-  { word: 'vocabulary', write: 'the names we know', concept: 'names' },
-  { word: 'term', write: 'the name itself: the metric, the market', concept: 'names' },
-  { word: 'member', write: 'the name itself: the market, the product', concept: 'names' },
-  { word: 'dimension value', write: 'the name itself: the market, the product', concept: 'names' },
-  {
-    word: 'dimension',
-    write: 'the dimension\'s own name: "the market", "the product"',
-    concept: 'dimension',
-    allowedOn: 'the Catalogue and Administration',
-  },
-  { word: 'evidence', write: 'where this comes from; source', concept: 'source' },
-  { word: 'source tool', write: "the tool's own name, such as Cube", concept: null },
-  { word: 'audience', write: 'who can see it', concept: 'whoCanSeeIt' },
-  { word: 'MCP gateway', write: 'MCP', concept: 'mcp', allowedOn: 'Administration' },
-  { word: 'token', write: 'access key', concept: 'accessKey', allowedOn: 'Administration' },
-  { word: 'Try it', write: 'Try a question', concept: 'tryAQuestion' },
-  { word: 'Connect your AI', write: 'Connect an agent', concept: 'connectAnAgent' },
-  { word: 'data platform team', write: 'data team', concept: 'dataTeam' },
-  { word: 'deterministic', write: 'the same every time', concept: null },
-  { word: 'language model', write: 'AI', concept: null },
-  { word: 'in plain words', write: 'leave it out, and write plainly', concept: null },
-  { word: 'initiate', write: 'start', concept: null },
+  // Nothing promises anonymity: say what is kept instead.
+  { word: 'anonymous', write: 'what is kept: scopes and counts', concept: null },
+  { word: 'nobody sees who', write: 'what is kept: scopes and counts', concept: null },
+  // Card names say what happened.
+  { word: 'Gap', write: 'Not found', concept: 'notFound', matchCase: true },
+  { word: 'Flag', write: 'Reported', concept: 'reported', matchCase: true },
+  // The earlier answer labels stay only as the long form, in `answerLines`. As labels they are
+  // capitalised; the same words inside a sentence are plain English.
+  ...[
+    ['Based on checked context', 'Checked'],
+    ['Covers part of it', 'Partial'],
+    ['Nothing written down', 'Not found'],
+    ['Context disagrees', 'Conflict'],
+    ['May be out of date', 'Outdated'],
+    ["Couldn't check", 'Not checked'],
+    ['Not covered', 'Not found'],
+  ].map(([word, write]): BannedWord => ({
+    word: word!,
+    write: write!,
+    concept: null,
+    matchCase: true,
+  })),
+  // The earlier kind names, as labels.
+  ...[
+    ['Something happened', 'Event'],
+    ['A problem with the data', 'Warning'],
+    ['Good to know', 'Rule'],
+    ['How to look into it', 'Guide'],
+  ].map(([word, write]): BannedWord => ({
+    word: word!,
+    write: write!,
+    concept: 'kind',
+    matchCase: true,
+  })),
+  { word: 'Users', write: 'People', concept: 'people', matchCase: true },
+  { word: 'administrator', write: 'Admin', concept: 'admin' },
+  { word: 'auditor', write: 'Admin', concept: 'admin' },
+  { word: 'approver', write: 'owner', concept: 'owner' },
+  { word: 'steward', write: 'owner', concept: 'owner' },
+  { word: 'AI app', write: 'agent', concept: 'agent' },
+  { word: 'client', write: 'agent', concept: 'agent' },
+  // An agent is software; a person who works as one is named by the role.
+  { word: 'human agent', write: 'the support team, someone on our team', concept: 'agent' },
+  { word: 'support agent', write: 'the support team, someone on our team', concept: 'agent' },
+  { word: 'sales agent', write: 'the sales team, someone on our team', concept: 'agent' },
+  // The review names what changed, never the tool an agent ran in.
+  ...['Claude', 'Cursor', 'ChatGPT', 'Codex'].map((word): BannedWord => ({
+    word,
+    write: 'an agent; where a suggestion came from is source data',
+    concept: 'agent',
+    matchCase: true,
+    onlyOn: ['the review'],
+  })),
+  { word: 'Try a question', write: 'Try it', concept: 'tryIt' },
+  { word: 'proposal', write: 'suggestion', concept: 'suggestion' },
+  { word: 'accept', write: 'publish', concept: 'publish' },
+  { word: 'retire', write: 'archive', concept: 'archive' },
+  { word: 'retired', write: 'archived', concept: 'archive' },
+  { word: 'Back to your workspace', write: backToApp, concept: null },
+  { word: 'Back to Larchwood', write: backToApp, concept: null },
+  { word: '\u2014', write: 'a plain dash, a comma or a full stop', concept: null },
+  // Plain English for people who read it as a second language: short words, no idioms.
   { word: 'utilise', write: 'use', concept: null },
-  { word: 'ensure', write: 'make sure', concept: null },
+  { word: 'initiate', write: 'start', concept: null },
   { word: 'leverage', write: 'use', concept: null },
   { word: 'facilitate', write: 'help', concept: null },
+  { word: 'ensure', write: 'make sure', concept: null },
+  { word: 'ballpark', write: 'about', concept: null },
+  { word: 'in the loop', write: 'say who is told', concept: null },
+  { word: 'heads up', write: 'say the thing itself', concept: null },
+  { word: 'reach out', write: 'write to, or ask', concept: null },
   { word: 'oops', write: 'leave it out, and say what happened', concept: null },
-  { word: 'sorry', write: 'leave it out, and say what happened and what to do', concept: null },
   { word: 'please note', write: 'leave it out, and say the thing itself', concept: null },
-  { word: 'it is important to', write: 'leave it out, and say the thing itself', concept: null },
 ]
 
 /**
- * The specification's and the code's words, each mapped to the name people read: "area" to
- * "domain", "scope" to "where it applies". Built from `internal`, so it never disagrees with it.
+ * The specification's and the code's words, each mapped to the name people read: "item" to
+ * "context item", "area" to "domain". Built from `internal`, so it never disagrees with it.
  */
 export const internalToPlain: ReadonlyMap<string, string> = new Map(
   Object.values(concepts).flatMap((concept: Concept) =>
@@ -385,12 +409,18 @@ export function plainName(internal: string): string | null {
   return internalToPlain.get(internal.toLowerCase()) ?? null
 }
 
-/** The pattern of `word` as a whole word or phrase, in any case: alone, or plus "s" when `plural`. */
-function wordPattern(word: string, plural = true): RegExp {
+/**
+ * The pattern of `word` as a whole word or phrase: alone, or plus "s" when `plural`; in any case
+ * unless `matchCase`.
+ */
+export function wordPattern(word: string, plural = true, matchCase = false): RegExp {
   const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  // A mark such as the em dash is wrong wherever it stands, even between two words.
+  const starts = /^[\p{L}\p{N}]/u.test(word) ? '(?<![\\p{L}\\p{N}_-])' : ''
+  const ends = /[\p{L}\p{N}]$/u.test(word)
   return new RegExp(
-    `(?<![\\p{L}\\p{N}_-])${escaped}${plural ? 's?' : ''}(?![\\p{L}\\p{N}_-])`,
-    'giu',
+    `${starts}${escaped}${ends ? `${plural ? 's?' : ''}(?![\\p{L}\\p{N}_-])` : ''}`,
+    matchCase ? 'gu' : 'giu',
   )
 }
 
@@ -401,8 +431,8 @@ export function usesWord(text: string, word: string): boolean {
 
 /**
  * A search query with the retired names read as the words that replaced them: "AI app" is
- * "agent". The command palette, the help search and the assistant's question reader (src/domain/
- * assistant-meta.ts) keep the old name findable, since people still type it; no screen writes it.
+ * "agent". The command palette, the help search and the assistant's question reader keep the old
+ * name findable, since people still type it; no screen writes it.
  */
 export function currentWords(query: string): string {
   return query.replace(/(?<![\p{L}\p{N}_-])AI apps?(?![\p{L}\p{N}_-])/giu, (name) =>
@@ -410,146 +440,89 @@ export function currentWords(query: string): string {
   )
 }
 
-/** A negative written in full, and how people say it. */
-export type Contraction = { readonly full: string; readonly short: string }
-
-/**
- * The negatives people say short, as Notion writes them (decided 18 October 2026, voice guide
- * principle 5). Matched as whole words in any case; the short form takes the text's first capital.
- */
-export const contractions: readonly Contraction[] = [
-  { full: 'cannot', short: "can't" },
-  { full: 'can not', short: "can't" },
-  { full: 'do not', short: "don't" },
-  { full: 'does not', short: "doesn't" },
-  { full: 'did not', short: "didn't" },
-  { full: 'is not', short: "isn't" },
-  { full: 'are not', short: "aren't" },
-  { full: 'was not', short: "wasn't" },
-  { full: 'were not', short: "weren't" },
-  { full: 'has not', short: "hasn't" },
-  { full: 'have not', short: "haven't" },
-  { full: 'had not', short: "hadn't" },
-  { full: 'could not', short: "couldn't" },
-  { full: 'would not', short: "wouldn't" },
-  { full: 'should not', short: "shouldn't" },
-  { full: 'will not', short: "won't" },
-]
-
-/**
- * The phrases that keep "not" in full, because it carries the weight of the sentence and nobody
- * may misread it (principle 5). A new one is added here, in a reviewed pull request.
- */
-export const fullNegatives: readonly string[] = [
-  'cannot be undone',
-  // The heading every concept page of the help has (docs/help/README.md).
-  'what it is not',
-]
-
-/** One thing to change in words people read: the words as written, and what to write instead. */
-export type WordToChange = {
-  /** The words as the text has them, in their case. */
-  readonly found: string
-  /** What to write instead. */
-  readonly write: string
-  /**
-   * `glossary`: a banned word (`bannedWords`). `contraction`: a negative people say short.
-   * `unclear`: a contraction to write in full, such as "you'd" or "wouldn't've".
-   */
-  readonly rule: 'glossary' | 'contraction' | 'unclear'
-}
-
 /** A word that holds code's marks: a path, an address, a key, an id, a flag, a code name. */
-const codeMarks = /[/\\_=<>{}[\]@#$|~^*`]|\p{Ll}\p{Lu}|\w[.:]\w|^-{1,2}\p{L}/u
+export const codeMarks = /[/\\_=<>{}[\]@#$|~^*`]|\p{Ll}\p{Lu}|\w[.:]\w|^-{1,2}\p{L}/u
 /** Sentence marks and quotes around a word, which are not part of it. */
 const around = /^["'“”‘’(]+|["'“”‘’),.;:!?]+$/gu
-/** The banned words that are themselves codes, such as `no_match`: wrong in a sentence too. */
-const bannedCodes = new Set(
-  bannedWords.filter((banned) => codeMarks.test(banned.word)).map((b) => b.word.toLowerCase()),
-)
 /** Stands in for what is not words, so a phrase never runs across it. */
 const gap = '·'
 
 /**
  * The words of `text` a person reads as words: spaces evened out, and each code span and each
- * word made of code's marks (`/library`, `item_id`, `getContext`, `--flag`, `{"key":`) replaced.
+ * word made of code's marks (`/library`, `item_id`, `getContext`, `--flag`) replaced. A word in
+ * `codes`, such as `no_match`, is a banned word made of code's marks, so it stays.
  */
-function readable(text: string): string {
+export function readableWords(text: string, codes: ReadonlySet<string> = new Set()): string {
   return text
     .replace(/`[^`]*`/g, gap)
     .split(/\s+/)
     .map((word) => {
       const core = word.replace(around, '')
-      return codeMarks.test(core) && !bannedCodes.has(core.toLowerCase()) ? gap : word
+      return codeMarks.test(core) && !codes.has(core.toLowerCase()) ? gap : word
     })
     .join(' ')
 }
 
-/** Contractions to write in full: "you'd" (would or had?) and stacked ones ("wouldn't've"). */
-const unclearContractions: readonly { pattern: RegExp; write: (stem: string) => string }[] = [
-  {
-    pattern: /(?<![\p{L}\p{N}_-])(\p{L}+n['’]t)['’]ve(?![\p{L}\p{N}_-])/giu,
-    write: (stem) => `${stem} have`,
-  },
-  {
-    pattern: /(?<![\p{L}\p{N}_-])(\p{L}+)['’]d(?![\p{L}\p{N}_-])/giu,
-    write: (stem) => `${stem} would, or ${stem} had`,
-  },
-]
+/**
+ * A replacement for a plural: "owners" for "stewards". A label ("Reported"), a phrase or an
+ * instruction stays as written.
+ */
+export const pluralOf = (write: string) =>
+  /^\p{Ll}+$/u.test(write) && !write.endsWith('s') ? `${write}s` : write
 
-/** A replacement for a plural: "facts" for "items". A phrase or an instruction stays as written. */
-const plural = (write: string) =>
-  /^\p{L}+$/u.test(write) && !write.endsWith('s') ? `${write}s` : write
+/** One banned word found in a text: the words as written, and what to write instead. */
+export type WordToChange = { readonly found: string; readonly write: string }
 
-/** `short` with the first capital of `full`, so "Do not" becomes "Don't". */
-const sameCase = (full: string, short: string) =>
-  /^\p{Lu}/u.test(full) ? short[0]!.toUpperCase() + short.slice(1) : short
+/** One match of a banned word, with where it starts. */
+type WordMatch = WordToChange & { readonly at: number }
 
 /**
- * What to change in `text`, a text people read, before it matches the voice guide: every banned
- * word but those `allowed` where the text shows, every negative people say short, and every
- * unclear contraction, in the order they come. Words of code inside the text are left alone, and
- * a word inside a longer banned phrase is told once ("live edition", not also "edition").
+ * Every match of `banned` in `words` (text already through `readableWords`), a plural told as a
+ * plural, with a word inside a longer match told once ("live edition", not also "edition") and
+ * a word two entries match told once, in the order they come.
  */
-export function wordsToChange(text: string, allowed: readonly string[] = []): WordToChange[] {
-  const words = readable(text)
-  const ok = new Set(allowed.map((word) => word.toLowerCase()))
-  const found: (WordToChange & { at: number })[] = []
-  for (const banned of bannedWords) {
-    if (ok.has(banned.word.toLowerCase())) continue
-    for (const match of words.matchAll(wordPattern(banned.word)))
+function matchWords(
+  words: string,
+  banned: readonly Pick<BannedWord, 'word' | 'write' | 'matchCase'>[],
+): WordMatch[] {
+  const found: WordMatch[] = []
+  for (const { word, write, matchCase } of banned)
+    for (const match of words.matchAll(wordPattern(word, true, matchCase)))
       found.push({
         found: match[0],
-        write: match[0].length > banned.word.length ? plural(banned.write) : banned.write,
-        rule: 'glossary',
+        write: match[0].length > word.length ? pluralOf(write) : write,
         at: match.index,
       })
-  }
-  let said = words
-  for (const phrase of fullNegatives)
-    said = said.replace(wordPattern(phrase, false), (match) => gap.repeat(match.length))
-  for (const { full, short } of contractions)
-    for (const match of said.matchAll(wordPattern(full, false)))
-      found.push({
-        found: match[0],
-        write: sameCase(match[0], short),
-        rule: 'contraction',
-        at: match.index,
-      })
-  for (const { pattern, write } of unclearContractions)
-    for (const match of said.matchAll(pattern))
-      found.push({ found: match[0], write: write(match[1]!), rule: 'unclear', at: match.index })
-  const end = (change: { found: string; at: number }) => change.at + change.found.length
+  const end = (change: WordMatch) => change.at + change.found.length
   return found
     .filter(
-      (change) =>
+      (change, index) =>
         !found.some(
-          (longer) =>
-            longer.found.length > change.found.length &&
-            longer.at <= change.at &&
-            end(longer) >= end(change),
+          (other, at) =>
+            other.at <= change.at &&
+            end(other) >= end(change) &&
+            (other.found.length > change.found.length || (other.at === change.at && at < index)),
         ),
     )
     .sort((a, b) => a.at - b.at)
-    .map(({ found: words, write, rule }) => ({ found: words, write, rule }))
+}
+
+/** The banned words that apply on `places`: the ones not allowed there, and those banned only there. */
+export function bannedOn(places: readonly Place[]): readonly BannedWord[] {
+  return bannedWords.filter(
+    (banned) =>
+      !banned.allowedOn?.some((place) => places.includes(place)) &&
+      (!banned.onlyOn || banned.onlyOn.some((place) => places.includes(place))),
+  )
+}
+
+/**
+ * What to change in `text`, a text people read in the web app, shown on `places`: every banned
+ * word that applies there, in the order they come. Words of code inside the text are left alone.
+ */
+export function wordsToChange(text: string, places: readonly Place[] = []): WordToChange[] {
+  return matchWords(readableWords(text), bannedOn(places)).map(({ found, write }) => ({
+    found,
+    write,
+  }))
 }

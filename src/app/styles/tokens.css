@@ -1,0 +1,309 @@
+/*
+  The design tokens of the new web app (design contract v2, section 2, and docs/design/motion.md).
+  The values are the approved mockup's (mockup/src/index.css at the reference commit), with one
+  contrast fix: the dark --mark-fmt-line. A component depends on a name here, never on a value.
+  This is the one file in src/app that may write a raw colour, length or time.
+
+  tests/lint/app-tokens.test.ts checks that every token exists in light and dark and recomputes
+  every contrast pair from this file: text 4.5:1, controls, field borders, marks and meaningful
+  icons 3:1. The old front end keeps src/web/styles/tokens.css until the switch.
+*/
+
+/* Motion: the curves and the defaults every transition-* class without its own duration uses.
+   Linear is for spinners, shimmer, progress and countdowns, never for movement. */
+@theme {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
+  --default-transition-duration: var(--dur-2);
+  --default-transition-timing-function: var(--ease-out);
+}
+
+/* Heed's theme: shadcn neutral, with Heed blue as the one primary. Two changes for contrast:
+   muted text at 4.5:1 on the muted surface, and input borders at 3:1 on the page. */
+:root {
+  color-scheme: light;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #2c5dbd;
+  --primary-foreground: #fff;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: #666;
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: #8f8f8f;
+  --ring: #2c5dbd;
+
+  /* Review marks: a soft fill for the words and a stronger line for the underline or strike. */
+  --mark-add: oklch(0.94 0.06 150);
+  --mark-add-line: oklch(0.55 0.15 150);
+  --mark-del: oklch(0.94 0.04 25);
+  --mark-del-line: oklch(0.56 0.19 25);
+  --mark-fmt: oklch(0.95 0.04 300);
+  --mark-fmt-line: oklch(0.5 0.2 295);
+  --mark-link: oklch(0.95 0.07 85);
+  --mark-link-line: oklch(0.62 0.15 70);
+  --mark-move: oklch(0.96 0.01 250);
+  --mark-move-line: oklch(0.55 0.03 250);
+
+  /* Freshness and the list's trust ring. */
+  --ok: oklch(0.5 0.14 150);
+  --warn: oklch(0.55 0.15 60);
+  --idle: oklch(0.58 0 0);
+
+  /* Charts: the same greys in both themes. */
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #2c5dbd;
+  --sidebar-primary-foreground: #fff;
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: #2c5dbd;
+
+  /* Chips: one tint per kind of thing a chip names, and one per domain (a domain's hue is its
+     data). A chip sets --chip-h to a hue; bg-chip and text-chip-foreground draw it. Colour is
+     never the only sign: every chip also has its type's icon and its words. */
+  --chip-h-metric: 255;
+  --chip-h-dimension: 210;
+  --chip-h-market: 165;
+  --chip-h-term: 300;
+  --chip-h-warn: 70;
+  --chip-l: 0.955;
+  --chip-c: 0.025;
+  --chip-ink-l: 0.36;
+  --chip-ink-c: 0.07;
+
+  /* Radius: containers square, conversational surfaces soft, small controls round. */
+  --radius: 0.625rem;
+
+  /* Motion (docs/design/motion.md). Three tiers: instant for the keyboard and anything frequent,
+     an explained change at 90 to 220ms, staged work only where an agent really works. An exit is
+     one step shorter than its entrance. */
+  --dur-0: 0ms; /* the keyboard, J and K, selection, the palette */
+  --dur-1: 90ms; /* press, hover colour, icon swap, a menu leaving, a tooltip */
+  --dur-2: 150ms; /* a popover or menu entering, a row leaving, skeleton to content, a banner */
+  --dur-3: 220ms; /* dock, sheet, a row entering, collapse and expand, a toast */
+  --dur-4: 320ms; /* arrival only: chart bars, the settle after a staged answer */
+  --dur-highlight: 600ms; /* a changed value's tint fading out; it comes in at once */
+  --dur-fade: 150ms; /* the one fade that explains a change: content arriving after a wait */
+  --stagger: 30ms; /* arrival after a wait only, at most 6 items */
+  --dist-1: 4px;
+  --dist-2: 8px;
+  --dist-3: 16px;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #7aa2f0;
+  --primary-foreground: #0a0a0a;
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: #a3a3a3;
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: #6b6b6b;
+  --ring: #7aa2f0;
+  --mark-add: oklch(0.34 0.07 150);
+  --mark-add-line: oklch(0.72 0.15 150);
+  --mark-del: oklch(0.34 0.07 25);
+  --mark-del-line: oklch(0.7 0.17 25);
+  --mark-fmt: oklch(0.33 0.07 300);
+
+  /* Lifted from the mockup's oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
+     fix, not a design change (design contract 2.1). */
+  --mark-fmt-line: oklch(0.72 0.14 295);
+  --mark-link: oklch(0.36 0.07 80);
+  --mark-link-line: oklch(0.78 0.14 80);
+  --mark-move: oklch(0.3 0.015 250);
+  --mark-move-line: oklch(0.7 0.03 250);
+  --ok: oklch(0.78 0.15 150);
+  --warn: oklch(0.78 0.14 70);
+  --idle: #8a8a8a;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: #7aa2f0;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: #7aa2f0;
+  --chip-l: 0.3;
+  --chip-c: 0.045;
+  --chip-ink-l: 0.9;
+  --chip-ink-c: 0.04;
+}
+
+/* Reduced motion: movement goes, nothing staggers, nothing loops outside loading, and the fade
+   that explains a change stays at 90ms. The tokens carry the rule, so components need no
+   overrides of their own. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-1: 0ms;
+    --dur-2: 0ms;
+    --dur-3: 0ms;
+    --dur-4: 0ms;
+    --dur-highlight: 0ms;
+    --dur-fade: 90ms;
+    --stagger: 0ms;
+    --dist-1: 0px;
+    --dist-2: 0px;
+    --dist-3: 0px;
+  }
+
+  /* tw-animate's enter and exit keyframes read a variable that does not inherit: set it where
+     they run. */
+  [class*='animate-in'],
+  [class*='animate-out'] {
+    --tw-animation-duration: 0ms;
+  }
+
+  /* A loading loop stands still; its words say it is still working. */
+  .animate-spin,
+  .animate-pulse,
+  .animate-ping {
+    animation: none;
+  }
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Nunito Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-mark-add: var(--mark-add);
+  --color-mark-add-line: var(--mark-add-line);
+  --color-mark-del: var(--mark-del);
+  --color-mark-del-line: var(--mark-del-line);
+  --color-mark-fmt: var(--mark-fmt);
+  --color-mark-fmt-line: var(--mark-fmt-line);
+  --color-mark-link: var(--mark-link);
+  --color-mark-link-line: var(--mark-link-line);
+  --color-mark-move: var(--mark-move);
+  --color-mark-move-line: var(--mark-move-line);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-idle: var(--idle);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Written on the chip itself, so its own --chip-h decides the hue. */
+  --color-chip: oklch(var(--chip-l) var(--chip-c) var(--chip-h));
+  --color-chip-foreground: oklch(var(--chip-ink-l) var(--chip-ink-c) var(--chip-h));
+
+  /* Small controls on shadcn's scale: sm 6, md 8, lg 10, xl 14 px. */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Containers are square: cards, panels, dialogs, sheets, popovers, tables, editors, callouts
+     and empty states. One token, so the whole app can go back to a soft corner in one line. */
+  --radius-frame: 0px;
+
+  /* Conversational input surfaces are soft: the comment box, the Ask composer, a question and a
+     suggestion to ask. */
+  --radius-surface: var(--radius);
+
+  /* One bar height: the page header, the sidebar's logo row and user block, and every bottom
+     bar, so their hairlines line up. The editor's toolbar is a slimmer fixed row under the
+     header. */
+  --spacing-bar: 3rem;
+  --spacing-tool: 2.5rem;
+
+  /* Widths: prose keeps a reading measure inside a fixed document sheet; tables, lists and
+     settings use the wide frame. The sheet never grows with the window. */
+  --container-reading: 60ch;
+  --container-sheet: 56rem;
+  --container-wide: 80rem;
+}
+
+/* Layers, lowest first. A class names its layer, never a number (design contract 2.5). The
+   values are the mockup's, so a page stacks exactly as it does there. */
+@utility z-base {
+  z-index: 0;
+}
+
+/* A sticky table header or total row, a control raised over its row, a focused cell. */
+@utility z-raised {
+  z-index: 10;
+}
+
+/* The page header, and the handles that resize a pane. */
+@utility z-header {
+  z-index: 20;
+}
+
+/* The docs site's own sticky header. */
+@utility z-site-header {
+  z-index: 30;
+}
+
+/* The dock when it fills a phone's screen. */
+@utility z-dock {
+  z-index: 40;
+}
+
+/* Dialogs, sheets, popovers, menus and tooltips. */
+@utility z-overlay {
+  z-index: 50;
+}
+
+/* The skip link, over everything. */
+@utility z-skip {
+  z-index: 60;
+}

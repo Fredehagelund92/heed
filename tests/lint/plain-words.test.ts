@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { Linter } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { describe, expect, it } from 'vitest'
-import { bannedWords } from '../../src/domain/words.ts'
+import { bannedWords } from '../../src/domain/words-v1.ts'
 import plainWords, { allowedIn, surfaces } from '../../eslint.plain-words.js'
 
 /**
@@ -40,7 +40,7 @@ function said(code: string, file = 'src/web/components/library/example.tsx', err
 const write = (found: string, instead: string) =>
   `Instead of "${found}", write: ${instead}. See docs/design/voice.md.`
 const sayShort = (found: string, short: string) =>
-  `Instead of "${found}", write "${short}", as people say it. Keep "not" in full only where it carries the sentence (fullNegatives in src/domain/words.ts).`
+  `Instead of "${found}", write "${short}", as people say it. Keep "not" in full only where it carries the sentence (fullNegatives in src/domain/words-v1.ts).`
 
 describe('heed/plain-words reports the old voice in text people read', () => {
   it('names the five renames: fact, owner, archive, admin, and edition only on the Editions page', () => {

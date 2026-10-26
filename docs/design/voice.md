@@ -2,7 +2,7 @@
 
 > **Superseded for the new web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the code, the plain-words lint and the old front end still point to it, and it still governs the old front end until the switch to the new one. Where the two differ, Copy wins.
 
-This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
+This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
 
@@ -17,7 +17,7 @@ People in finance, marketing, operations and management. Many read English as a 
 3. **One idea per sentence.** About 15 words, never over 25. Keep the small words (the, a, that, then) that make a sentence easy to read and to translate.
 4. **Say it positively.** Say what is true and what to do. Use one negative sentence at most, and only where it carries weight.
 5. **Everyday contractions,** as Notion writes them: "you'll", "it's", "don't", "can't", "isn't" (decided 18 October 2026). Write "not" in full where it carries the weight of the sentence, so nobody misreads it: "This cannot be undone." Avoid unclear contractions ("'d", "'s" for "has") and stacked ones ("wouldn't've").
-6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words.ts`. Never a synonym for variety. The program that connects over MCP is the **agent**: always software outside the app, never a person and never the assistant, which is the helper inside it. Write **AI agent** where a reader meets the word cold (the README, the first mention on a help page, the consent screen, what an agent says to a person, the assistant's replies, the tool titles) and **agent** after that, on buttons, tabs, headers, toasts and table cells. A person who works as an agent is named by the role: the support team, never "support agent".
+6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words-v1.ts`. Never a synonym for variety. The program that connects over MCP is the **agent**: always software outside the app, never a person and never the assistant, which is the helper inside it. Write **AI agent** where a reader meets the word cold (the README, the first mention on a help page, the consent screen, what an agent says to a person, the assistant's replies, the tool titles) and **agent** after that, on buttons, tabs, headers, toasts and table cells. A person who works as an agent is named by the role: the support team, never "support agent".
 7. **Outcome before mechanism.** "Agents get this fact when a question is about Orders in Norway." Not how matching, editions or delivery work: that belongs in help.
 8. **Human values.** "15 June 2026", "1 to 30 September 2026", "3 facts", a person's name, a domain's name. No ISO dates, ids, edition labels, field keys or zero counts on a contributor's screen.
 9. **Calm and honest, never cute.** No jokes, no exclamation marks, no "Oops", no praise. No "Sorry", except for an outage we caused.
@@ -39,7 +39,7 @@ People in finance, marketing, operations and management. Many read English as a 
 
 ## The words
 
-`src/domain/words.ts` holds, for every concept, the name people read, a plain definition, the specification's and the code's words it replaces (`internal`), and the words not to use with what to write instead (`bannedWords`). Its unit test, `tests/unit/words.test.ts`, keeps it consistent. Add or change a name there, in a reviewed pull request, before a screen uses it.
+`src/domain/words-v1.ts` holds, for every concept, the name people read, a plain definition, the specification's and the code's words it replaces (`internal`), and the words not to use with what to write instead (`bannedWords`). Its unit test, `tests/unit/words-v1.test.ts`, keeps it consistent. Add or change a name there, in a reviewed pull request, before a screen uses it.
 
 The names that change most often today:
 
@@ -74,7 +74,7 @@ The rename covers only what people read. Code, API fields, the database, address
 
 ## The guard rail
 
-Two checks hold every text to the glossary, and both read `src/domain/words.ts`:
+Two checks hold every text to the glossary, and both read `src/domain/words-v1.ts`:
 
 - **The lint rule `heed/plain-words`** (`eslint.plain-words.js`) reads the strings, template text and JSX text people read in `src/web`. On the server it reads the notifications and the message of every error the service answers with. The `say` sentence (`src/domain/say.ts`) is checked against the glossary by `tests/server/mcp/say.test.ts`. The text the MCP gives models (instructions, tool descriptions and `next`) keeps its words.
 - **The docs check** (`tests/unit/docs.test.ts`) reads the help pages the same way: titles, summaries and every line, without code.
@@ -87,7 +87,7 @@ Each reports three things, with what to write instead:
 
 Code is never reported. That covers imports, keys, types, comparisons, class names, test ids, addresses, ids and search keywords. It also covers code samples, words made of code's marks (`item_id`, `/library`, `getItem`) and a single lowercase word such as `'item'`, which is a key.
 
-A word the glossary allows somewhere (`allowedOn`) is allowed there: "edition" on the Editions page, "dimension" in the Catalogue and in Administration, "token" and "model" (the AI model a feature uses) in Administration. The one exception outside a page is the review stamp under a served fact: it says "Edition" next to the edition id, because that id is the only link from the fact to what agents got (FR-326). `surfaces` in `eslint.plain-words.js` lists the files of each place. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
+A word the glossary allows somewhere (`allowedOn`) is allowed there: "edition" on the Editions page, "dimension" in the Catalogue and in Administration, "token" and "model" (the AI model a feature uses) in Administration. The one exception outside a page is the review stamp under a served fact: it says "Edition" next to the edition id, because that id is the only link from the fact to what agents got (FR-326). `surfaces` in `eslint.plain-words.js` lists the files of each place. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words-v1.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
 
 ### The baseline
 
@@ -100,7 +100,7 @@ To read the baseline, run `npm run lint:words -- --list`. It prints every word t
 
 ## Before you ask for review
 
-1. Every name comes from `src/domain/words.ts`.
+1. Every name comes from `src/domain/words-v1.ts`.
 2. "You" and the outcome come first.
 3. At most one negative sentence.
 4. No ids, ISO dates or edition labels on a contributor's screen.

@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { headingSlug } from '@domain/heading-anchors'
-import { bannedWords, concepts, usesWord, type Concept, type ConceptKey } from '@domain/words'
+import { bannedWords, concepts, usesWord, type Concept, type ConceptKey } from '@domain/words-v1'
 import { splitPage } from '@/lib/docs'
 
 /*
-  The help glossary (docs/help/glossary.md) against the words people read (src/domain/words.ts):
+  The help glossary (docs/help/glossary.md) against the words people read (src/domain/words-v1.ts):
   every concept has its entry, under the name on screen; the entries say it in those words; and
   the old words keep their entries at the end, so every link and search that names one still
   lands on a heading that says what we call it now.

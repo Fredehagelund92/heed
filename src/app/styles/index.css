@@ -1,0 +1,13 @@
+/*
+  The stylesheet of the new web app: Tailwind, the shadcn theme layer, the font and the tokens.
+  ESLint reads it to know which classes exist (better-tailwindcss in eslint.config.js), so a class
+  the tokens do not define is reported as unknown. The pull request that brings in the app's
+  screens adds its base layer and its motion utilities here.
+*/
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/nunito-sans';
+@import './tokens.css';
+
+@custom-variant dark (&:is(.dark *));
