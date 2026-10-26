@@ -298,10 +298,10 @@ file is committed. Read the date as 7 October 2026.
 | Vite / plugin-react           | 8.3.3 / 6.1.2        | The recommended build tool; no server coupling. 8.3.3 is the newest release (6 October 2026).                                     |
 | React                         | 19.3.0               | The current release (9 September 2026). Pinned exactly so an update is a decision.                                                |
 | Tailwind CSS                  | 4.3.3                | Semantic tokens in CSS variables; spacing is computed, so the lint rules matter.                                                  |
-| shadcn CLI / style            | 4.21.3 / `base-nova` | Copy-in components on Base UI.                                                                                                    |
+| shadcn CLI / style            | 4.22.1 / `base-nova` | Copy-in components on Base UI.                                                                                                    |
 | Base UI                       | 1.8.0                | The component base shadcn defaults to.                                                                                            |
 | TanStack Router / Query       | 1.170.41 / 5.104.1   | Typed search params and intent preloading; server state cache.                                                                    |
-| zod                           | 4.6.5                | Used as `zod/mini` in the front end and domain to keep the browser bundle small. The service uses full `zod`.                     |
+| zod                           | 4.6.6                | Used as `zod/mini` in the front end and domain to keep the browser bundle small. The service uses full `zod`.                     |
 | Storybook                     | 10.6.1               | Component states as the review surface.                                                                                           |
 | Playwright / axe              | 1.63.0 / 4.13.0      | Layout, accessibility and screenshot tests.                                                                                       |
 | Vitest / jsdom                | 5.0.3 / 30.1.2       | Unit tests.                                                                                                                       |
@@ -326,10 +326,9 @@ file is committed. Read the date as 7 October 2026.
   repository.
 - The design preview route is development only. It exists in `npm run dev` and in the build
   Playwright uses (`VITE_DESIGN_PREVIEW=true`); in a normal production build it is a 404.
-- Dependency scanning (OSV-Scanner) passes with three reviewed exceptions, listed with their
-  reasons and an expiry date in `osv-scanner.toml`: `braces`, reached only through Stylelint, the
-  boundary lint rule and the shadcn CLI, and two in `extract-zip`, which the Cube compiler loads
-  but never calls. None has a fixed version. `npm audit` shows the same findings; `.npmrc` turns
-  off the audit on install, so look at it on purpose.
+- Dependency scanning (OSV-Scanner) passes with two reviewed exceptions, both in `extract-zip`,
+  which the Cube compiler loads but never calls. They are listed with their reasons and an expiry
+  date in `osv-scanner.toml`. Neither has a fixed version. `npm audit` shows the same findings;
+  `.npmrc` turns off the audit on install, so look at it on purpose.
 - Several pages are only as accessible as the stubs. axe passes, but it does not replace a
   keyboard and screen reader review of the real screens.
