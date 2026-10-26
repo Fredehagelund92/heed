@@ -59,6 +59,8 @@ export default tseslint.config(
       'tests/lint/fixtures/**',
       // The private overlay is never committed (.gitignore).
       'overlay/**',
+      // The clickable mockup is its own package with its own lint, oxlint (apps/mockup/README.md).
+      'apps/mockup/**',
     ],
   },
   js.configs.recommended,
