@@ -153,32 +153,50 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
     async getIndex() {
       const today = clock.today()
       // Each row is the item's index entry with what the list's columns read from it: the last
-      // acceptance of its version (a recheck is one), its trust today by the rule
-      // library.freshness counts (itemTrust in src/domain/status.ts), and its scope by name.
+      // acceptance of its version (a recheck is one; the rule of cl_version_review), its trust
+      // today by the rule library.freshness counts (itemTrust in src/domain/status.ts), and its
+      // scope by name. Each is read in one pass over its table, joined by version.
       const [row] = await database.query<{ items: LibraryItem[] }>(
-        `with names as materialized (
-           select t.key, t.name from serving_vocabulary((select seq from live_edition)) t)
-         select coalesce(jsonb_agg(i.entry || jsonb_build_object(
-                  'lastChecked', case when r.accepted_on is null then null else jsonb_build_object(
-                    'on', to_char(r.accepted_on, 'YYYY-MM-DD'), 'personId', r.accepted_by::text) end,
-                  'trust', case when l.status = 'retired' or l.valid_until <= $1::date then 'ended'
-                                when i.entry->>'checkFlag' is not null or l.review_date < $1::date
-                                then 'needs_check' else 'current' end,
-                  'chips', (select coalesce(jsonb_agg(coalesce(n.name, k.id) order by k.part, k.key collate "C"), '[]')
-                              from (select 1 as part, m.metric_key as key, substr(m.metric_key, 8) as id
-                                      from item_version_metrics m where m.version_id = l.version_id
-                                    union all
-                                    select 2, d.dimension_key, substr(d.dimension_key, 5)
-                                      from item_version_dimensions d where d.version_id = l.version_id
-                                    union all
-                                    select 3, d.value_key, split_part(d.value_key, '/', 2)
-                                      from item_version_dimension_values d where d.version_id = l.version_id) k
-                              left join names n on n.key = k.key))
-                  order by i.id collate "C"), '[]') as items
-           from v_item_index i
-           join v_item_list l on l.id = i.id
-           cross join lateral cl_version_review(l.version_id) r
-          where cl_audience_allows(i.audience_groups)`,
+        `with listed as materialized (
+           select i.id, i.entry, v.id as version_id
+             from v_item_index i
+             join item_versions v on v.item_id = i.id and v.version_no = (i.entry->>'version')::int
+            where cl_audience_allows(i.audience_groups)),
+         checked as (
+           select distinct on (d.item_version_id) d.item_version_id as version_id,
+                  (d.decided_at at time zone 'UTC')::date as day, d.decided_by
+             from decisions d join listed on listed.version_id = d.item_version_id
+            where d.outcome = 'accept' and d.capacity <> 'approver'
+            order by d.item_version_id, d.decided_at desc, d.id desc),
+         names as materialized (
+           select t.key, t.name from serving_vocabulary((select seq from live_edition)) t),
+         keys as (
+           select 1 as part, m.version_id, m.metric_key as key, substr(m.metric_key, 8) as id
+             from item_version_metrics m join listed using (version_id)
+           union all
+           select 2, d.version_id, d.dimension_key, substr(d.dimension_key, 5)
+             from item_version_dimensions d join listed using (version_id)
+           union all
+           select 3, d.version_id, d.value_key, split_part(d.value_key, '/', 2)
+             from item_version_dimension_values d join listed using (version_id)),
+         chips as (
+           select k.version_id,
+                  jsonb_agg(coalesce(n.name, k.id) order by k.part, k.key collate "C") as names
+             from keys k left join names n on n.key = k.key
+            group by k.version_id)
+         select coalesce(jsonb_agg(l.entry || jsonb_build_object(
+                  'lastChecked', case when c.version_id is null then null else jsonb_build_object(
+                    'on', to_char(c.day, 'YYYY-MM-DD'), 'personId', c.decided_by::text) end,
+                  'trust', case when l.entry->>'status' = 'retired'
+                                  or (l.entry->'validity'->>'end')::date <= $1::date then 'ended'
+                                when l.entry->>'checkFlag' is not null
+                                  or (l.entry->>'reviewDate')::date < $1::date then 'needs_check'
+                                else 'current' end,
+                  'chips', coalesce(ch.names, '[]'))
+                  order by l.id collate "C"), '[]') as items
+           from listed l
+           left join checked c on c.version_id = l.version_id
+           left join chips ch on ch.version_id = l.version_id`,
         [today],
       )
       return { items: row?.items ?? [], loadedAt: clock.now().toISOString(), today }
