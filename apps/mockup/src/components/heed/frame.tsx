@@ -145,10 +145,37 @@ export function FrameNumbers({ items }: { items: { label: string; value: string;
 /** A column: `className` goes on the header and the cells (widths, hiding), `cell` on the cells only. */
 export type FrameColumn = { label: React.ReactNode; className?: string; cell?: string; align?: "left" | "right"; srOnly?: boolean }
 
+/**
+ * A table's scroller under a section's header row. While the table is wider than the page it scrolls
+ * sideways, and takes a tab stop so the keys can scroll it too (WCAG 2.1.1).
+ */
+export function FrameScroll({ children }: { children: React.ReactNode }) {
+  const [el, setEl] = React.useState<HTMLDivElement | null>(null)
+  const [scrolls, setScrolls] = React.useState(false)
+  React.useLayoutEffect(() => {
+    if (!el) return
+    const measure = () => setScrolls(el.scrollWidth > el.clientWidth)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    for (const child of el.children) ro.observe(child)
+    return () => ro.disconnect()
+  }, [el])
+  return (
+    <div
+      ref={setEl}
+      tabIndex={scrolls ? 0 : undefined}
+      className="overflow-x-auto border-t outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+    >
+      {children}
+    </div>
+  )
+}
+
 /** A table that runs edge to edge under a section's header row, with the lists' thin header band. */
 export function FrameTable({ columns, rows, label }: { columns: FrameColumn[]; rows: React.ReactNode[][]; label?: string }) {
   return (
-    <div className="overflow-x-auto border-t">
+    <FrameScroll>
       <table className="w-full text-sm" aria-label={label}>
         <thead>
           <tr className="bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
@@ -182,7 +209,7 @@ export function FrameTable({ columns, rows, label }: { columns: FrameColumn[]; r
           ))}
         </tbody>
       </table>
-    </div>
+    </FrameScroll>
   )
 }
 

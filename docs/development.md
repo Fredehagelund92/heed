@@ -221,7 +221,7 @@ tests/
   e2e/            Playwright: layout, shell, axe, screenshots
   e2e-api/        Playwright: the front end in http mode against the service
   app/            Vitest, the new web app (src/app)
-  e2e-app/        Playwright: the new web app's golden job specs, on its mock build
+  e2e-app/        Playwright: the new web app's golden job specs and axe, on its mock build
   conformance/    the ContextApi suite that both API bindings pass
 docs/help/        the help pages, Markdown with SVG pictures, shown at /docs and on GitHub (its README)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
@@ -267,7 +267,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run test:integration`                      | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
 | `npm run storybook` / `npm run build-storybook` | Storybook at http://localhost:6006 / a static build                                                                                                                                                                                   |
 | `npm run test:e2e`                              | Playwright against a production build made for tests (layout, shell, axe; screenshots only if baselines exist, on Linux)                                                                                                              |
-| `npm run test:e2e:app`                          | Playwright: the new web app's golden job specs (`tests/e2e-app`) against its production build, the motion journey also with reduced motion                                                                                            |
+| `npm run test:e2e:app`                          | Playwright: the new web app's golden job specs (`tests/e2e-app`) against its production build, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                                  |
 | `npm run test:e2e:api`                          | Playwright against an http mode build and the service (needs a seeded database, `E2E_DATABASE_URL`)                                                                                                                                   |
 | `npm run registry:build` / `registry:validate`  | Build or validate `registry.json`                                                                                                                                                                                                     |
 | `npm run check`                                 | typecheck, lint, format check and unit tests                                                                                                                                                                                          |

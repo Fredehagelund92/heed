@@ -27,7 +27,7 @@ export type StaticRendererProps = Omit<HTMLAttributes<HTMLElement>, "content" | 
   extensions?: Extensions
   // Editor-level options applied while rendering JSON.
   staticEditorOptions?: StaticEditorOptions
-  // renderToReactElement options — nodeMapping/markMapping for custom nodes.
+  // renderToReactElement options: nodeMapping/markMapping for custom nodes.
   options?: Partial<TiptapStaticRendererOptions<ReactNode, Mark, Node>>
 }
 

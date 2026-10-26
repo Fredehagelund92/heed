@@ -84,7 +84,7 @@ import { navigate, setQuery, useRoute } from '@/lib/router'
 import { useStore } from '@/lib/store'
 import { SettingsCrumbs } from '@/pages/settings'
 import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
-import { Frame, FrameNumbers, FramePage, FrameSection } from '@/components/heed/frame'
+import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/components/heed/frame'
 
 // Settings > Integrations: the tools Heed reads. Connected tools as rows (is it healthy, when did
 // it last read, what is waiting), available tools as Efferd hairline cells below in two groups,
@@ -155,7 +155,7 @@ function DataTable({
   align?: ('left' | 'right')[]
 }) {
   return (
-    <div className="overflow-x-auto border-t">
+    <FrameScroll>
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-band text-xs text-muted-foreground">
@@ -190,7 +190,7 @@ function DataTable({
           ))}
         </tbody>
       </table>
-    </div>
+    </FrameScroll>
   )
 }
 
