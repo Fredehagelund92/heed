@@ -187,3 +187,4 @@ invented stops of online sales to those two markets on other days, are left out
 (`db/seed/norway.ts`). On the plain demo seed, Try it finds general notes on orders for both
 markets, and a search by words finds stops that contradict Maria's. Everything else is the
 same: 1,482 items, the quality history, Health and the gaps.
+
