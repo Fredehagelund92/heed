@@ -1,25 +1,25 @@
-import * as React from "react";
+import * as React from 'react'
 
 export interface RteColorSwatchProps {
-  color: string;
-  label: string;
-  variant: "text" | "highlight";
-  active?: boolean;
-  onSelect: (color: string) => void;
+  color: string
+  label: string
+  variant: 'text' | 'highlight'
+  active?: boolean
+  onSelect: (color: string) => void
 }
 
 const getCheckColor = (hex: string): string => {
-  const value = hex.replace("#", "");
-  const r = Number.parseInt(value.slice(0, 2), 16) / 255;
-  const g = Number.parseInt(value.slice(2, 4), 16) / 255;
-  const b = Number.parseInt(value.slice(4, 6), 16) / 255;
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.5 ? "#18181b" : "#ffffff";
-};
+  const value = hex.replace('#', '')
+  const r = Number.parseInt(value.slice(0, 2), 16) / 255
+  const g = Number.parseInt(value.slice(2, 4), 16) / 255
+  const b = Number.parseInt(value.slice(4, 6), 16) / 255
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  return luminance > 0.5 ? '#18181b' : '#ffffff'
+}
 
 const RteColorSwatch = React.forwardRef<HTMLButtonElement, RteColorSwatchProps>(
   ({ color, label, variant, active = false, onSelect }, ref) => {
-    const checkColor = getCheckColor(color);
+    const checkColor = getCheckColor(color)
 
     return (
       <button
@@ -29,24 +29,24 @@ const RteColorSwatch = React.forwardRef<HTMLButtonElement, RteColorSwatchProps>(
         aria-label={label}
         title={label}
         className={[
-          "rte-bubble-color-swatch",
-          variant === "text"
-            ? "rte-bubble-color-swatch--text"
-            : "rte-bubble-color-swatch--highlight",
-          active ? "rte-bubble-color-swatch--active" : "",
+          'rte-bubble-color-swatch',
+          variant === 'text'
+            ? 'rte-bubble-color-swatch--text'
+            : 'rte-bubble-color-swatch--highlight',
+          active ? 'rte-bubble-color-swatch--active' : '',
         ]
           .filter(Boolean)
-          .join(" ")}
+          .join(' ')}
         style={
           {
-            "--swatch-check": checkColor,
-            "--swatch-color": color,
+            '--swatch-check': checkColor,
+            '--swatch-color': color,
           } as React.CSSProperties
         }
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => onSelect(color)}
       >
-        {variant === "text" && !active ? (
+        {variant === 'text' && !active ? (
           <span className="rte-bubble-color-glyph" aria-hidden="true">
             A
           </span>
@@ -67,9 +67,9 @@ const RteColorSwatch = React.forwardRef<HTMLButtonElement, RteColorSwatchProps>(
           </span>
         ) : null}
       </button>
-    );
-  }
-);
-RteColorSwatch.displayName = "RteColorSwatch";
+    )
+  },
+)
+RteColorSwatch.displayName = 'RteColorSwatch'
 
-export { RteColorSwatch };
+export { RteColorSwatch }

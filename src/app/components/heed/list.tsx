@@ -1,14 +1,29 @@
-import * as React from "react"
-import { ChevronDownIcon, ChevronRightIcon, ChevronUpIcon, EllipsisIcon, LinkIcon, PlusIcon, SearchIcon, SquareArrowOutUpRightIcon, XIcon } from "lucide-react"
-import { toast } from "sonner"
-import { useListOrder, words } from "@/lib/list"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Kbd } from "@/components/ui/kbd"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Status } from "@/data/world"
+import * as React from 'react'
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronUpIcon,
+  EllipsisIcon,
+  LinkIcon,
+  PlusIcon,
+  SearchIcon,
+  SquareArrowOutUpRightIcon,
+  XIcon,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { useListOrder, words } from '@/lib/list'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { Kbd } from '@/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { Status } from '@/data/world'
 
 // The parts the Context and Definitions lists share, drawn the way the Heed app draws its list and
 // Efferd its tables: a quiet filter bar, a thin header row, rows of one line at one density, plain
@@ -16,7 +31,11 @@ import type { Status } from "@/data/world"
 
 /** The filter bar: 40 high, 28px controls in muted text, wrapping on a phone. */
 export function ListBar({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b px-4 py-1.5 md:px-6">{children}</div>
+  return (
+    <div className="flex min-h-10 shrink-0 flex-wrap items-center gap-1 border-b px-4 py-1.5 md:px-6">
+      {children}
+    </div>
+  )
 }
 
 /** A control in the bar. */
@@ -24,39 +43,54 @@ export const barButton =
   "h-7 gap-1.5 px-2 text-[0.8125rem] font-normal text-muted-foreground hover:text-foreground aria-expanded:text-foreground [&_svg:not([class*='size-'])]:size-3.5"
 
 export function BarSpacer({ children }: { children?: React.ReactNode }) {
-  return <div className="flex min-w-0 flex-1 items-center justify-end gap-2 @max-2xl/main:order-last @max-2xl/main:basis-full">{children}</div>
+  return (
+    <div className="flex min-w-0 flex-1 items-center justify-end gap-2 @max-2xl/main:order-last @max-2xl/main:basis-full">
+      {children}
+    </div>
+  )
 }
 
-export function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+export function SearchField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder: string
+}) {
   const ref = React.useRef<HTMLInputElement>(null)
   // "/" jumps to the search field, as in the Heed app.
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (e.key === "/" && !t.closest("input, textarea, [contenteditable=true]")) {
+      if (e.key === '/' && !t.closest('input, textarea, [contenteditable=true]')) {
         e.preventDefault()
         ref.current?.focus()
       }
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
   return (
     <div className="relative w-full max-w-80 min-w-0 @max-2xl/main:max-w-none">
-      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <SearchIcon
+        className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
       <Input
         ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           // Escape clears the field, then leaves it; Down goes to the first row.
-          if (e.key === "Escape") {
+          if (e.key === 'Escape') {
             e.stopPropagation()
-            if (value) onChange("")
+            if (value) onChange('')
             else e.currentTarget.blur()
           }
-          if (e.key === "ArrowDown") {
-            const first = document.querySelector<HTMLElement>("[data-row-open]")
+          if (e.key === 'ArrowDown') {
+            const first = document.querySelector<HTMLElement>('[data-row-open]')
             if (first) {
               e.preventDefault()
               first.focus()
@@ -67,30 +101,43 @@ export function SearchField({ value, onChange, placeholder }: { value: string; o
         aria-label={placeholder}
         className="h-7 pr-8 pl-8 text-[0.8125rem] md:text-[0.8125rem] @max-2xl/main:h-11 @max-2xl/main:text-base pointer-coarse:h-11"
       />
-      <Kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 max-md:hidden">/</Kbd>
+      <Kbd className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 max-md:hidden">
+        /
+      </Kbd>
     </div>
   )
 }
 
 export function Count({ children }: { children: React.ReactNode }) {
   return (
-    <span aria-live="polite" className="w-30 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums @max-5xl/main:sr-only">
+    <span
+      aria-live="polite"
+      className="w-30 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums @max-5xl/main:sr-only"
+    >
       {children}
     </span>
   )
 }
 
 /** A filter that is on, read as a sentence: "Domain is Sales", "Status is any of Live, Archived +1". */
-export function FilterChip({ field, values, onRemove }: { field: string; values: string[]; onRemove: () => void }) {
-  const shown = values.slice(0, 2).join(", ")
+export function FilterChip({
+  field,
+  values,
+  onRemove,
+}: {
+  field: string
+  values: string[]
+  onRemove: () => void
+}) {
+  const shown = values.slice(0, 2).join(', ')
   const rest = values.length - 2
-  const label = `${field} ${values.length > 1 ? "is any of" : "is"} ${values.join(", ")}`
+  const label = `${field} ${values.length > 1 ? 'is any of' : 'is'} ${values.join(', ')}`
   return (
     <span className="inline-flex h-6 max-w-full items-center gap-1 rounded-md border bg-background pr-0.5 pl-2 text-xs">
       <span className="truncate">
         <span className="text-muted-foreground">
-          {field} {values.length > 1 ? "is any of" : "is"}
-        </span>{" "}
+          {field} {values.length > 1 ? 'is any of' : 'is'}
+        </span>{' '}
         {shown}
         {rest > 0 && <span className="text-muted-foreground"> +{rest}</span>}
       </span>
@@ -117,13 +164,26 @@ export function FilterValue({ children, count }: { children: React.ReactNode; co
 }
 
 /** The row of filters that are on, under the bar, with Clear all from two. */
-export function FilterRow({ children, count, onClear }: { children: React.ReactNode; count: number; onClear: () => void }) {
+export function FilterRow({
+  children,
+  count,
+  onClear,
+}: {
+  children: React.ReactNode
+  count: number
+  onClear: () => void
+}) {
   if (!count) return null
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b px-4 py-1.5 md:px-6">
       {children}
       {count > 1 && (
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs font-normal text-muted-foreground" onClick={onClear}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs font-normal text-muted-foreground"
+          onClick={onClear}
+        >
           Clear all
         </Button>
       )}
@@ -135,7 +195,10 @@ export function FilterRow({ children, count, onClear }: { children: React.ReactN
 export function Highlight({ text, query }: { text: string; query: string }) {
   const ws = words(query)
   if (!ws.length) return <>{text}</>
-  const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${ws.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "giu")
+  const re = new RegExp(
+    `(^|[^\\p{L}\\p{N}])(${ws.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`,
+    'giu',
+  )
   const parts: React.ReactNode[] = []
   let last = 0
   for (const m of text.matchAll(re)) {
@@ -144,7 +207,7 @@ export function Highlight({ text, query }: { text: string; query: string }) {
       text.slice(last, start),
       <mark key={start} className="bg-transparent font-bold text-inherit">
         {m[2]}
-      </mark>
+      </mark>,
     )
     last = start + m[2].length
   }
@@ -153,7 +216,19 @@ export function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /** A group's header row: collapsible, with its count. */
-export function GroupRow({ label, detail, open, onToggle, colSpan }: { label: string; detail: string; open: boolean; onToggle: () => void; colSpan: number }) {
+export function GroupRow({
+  label,
+  detail,
+  open,
+  onToggle,
+  colSpan,
+}: {
+  label: string
+  detail: string
+  open: boolean
+  onToggle: () => void
+  colSpan: number
+}) {
   return (
     <tr className="border-b bg-muted/40">
       <td colSpan={colSpan} className="h-8 p-0">
@@ -217,7 +292,7 @@ export function RowMenu({
         <DropdownMenuItem
           onClick={() => {
             navigator.clipboard?.writeText(link).catch(() => undefined)
-            toast("Link copied")
+            toast('Link copied')
           }}
         >
           <LinkIcon />
@@ -229,7 +304,15 @@ export function RowMenu({
 }
 
 /** The quiet last row that adds one more. */
-export function AddRow({ label, onClick, colSpan }: { label: string; onClick: () => void; colSpan: number }) {
+export function AddRow({
+  label,
+  onClick,
+  colSpan,
+}: {
+  label: string
+  onClick: () => void
+  colSpan: number
+}) {
   return (
     <tr className="border-b">
       <td colSpan={colSpan} className="p-0">
@@ -247,7 +330,15 @@ export function AddRow({ label, onClick, colSpan }: { label: string; onClick: ()
 }
 
 /** "3 of 17" with Previous and Next, in the peek's header, while its list is on screen. */
-export function DockStepper({ list, id, onGo }: { list: string; id: string; onGo: (id: string) => void }) {
+export function DockStepper({
+  list,
+  id,
+  onGo,
+}: {
+  list: string
+  id: string
+  onGo: (id: string) => void
+}) {
   const order = useListOrder(list)
   const at = order?.indexOf(id) ?? -1
   const ref = React.useRef<HTMLSpanElement>(null)
@@ -256,21 +347,35 @@ export function DockStepper({ list, id, onGo }: { list: string; id: string; onGo
     if (!order || at < 0) return
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.closest("input, textarea, [contenteditable=true]") || !ref.current?.closest("section")?.contains(t)) return
-      const next = e.key === "j" ? order[at + 1] : e.key === "k" ? order[at - 1] : undefined
+      if (
+        t.closest('input, textarea, [contenteditable=true]') ||
+        !ref.current?.closest('section')?.contains(t)
+      )
+        return
+      const next = e.key === 'j' ? order[at + 1] : e.key === 'k' ? order[at - 1] : undefined
       if (next) {
         e.preventDefault()
         onGo(next)
       }
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [order, at, onGo])
   if (!order || at < 0) return null
   return (
     <span ref={ref} className="flex items-center gap-0.5">
       <Tooltip>
-        <TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Previous" disabled={at === 0} onClick={() => onGo(order[at - 1])} />}>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Previous"
+              disabled={at === 0}
+              onClick={() => onGo(order[at - 1])}
+            />
+          }
+        >
           <ChevronUpIcon />
         </TooltipTrigger>
         <TooltipContent>
@@ -278,7 +383,17 @@ export function DockStepper({ list, id, onGo }: { list: string; id: string; onGo
         </TooltipContent>
       </Tooltip>
       <Tooltip>
-        <TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Next" disabled={at === order.length - 1} onClick={() => onGo(order[at + 1])} />}>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Next"
+              disabled={at === order.length - 1}
+              onClick={() => onGo(order[at + 1])}
+            />
+          }
+        >
           <ChevronDownIcon />
         </TooltipTrigger>
         <TooltipContent>
@@ -295,7 +410,7 @@ export function DockStepper({ list, id, onGo }: { list: string; id: string; onGo
  * when the header sticks while scrolling (a collapsed border would not).
  */
 export const thClass =
-  "h-9 bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground shadow-[inset_0_-1px_0_color-mix(in_oklab,var(--border),var(--foreground)_14%)]"
+  'h-9 bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground shadow-[inset_0_-1px_0_color-mix(in_oklab,var(--border),var(--foreground)_14%)]'
 
 /** A header cell. */
 export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
@@ -303,37 +418,57 @@ export function Th({ children, className }: { children?: React.ReactNode; classN
 }
 
 const dot: Record<Status, string> = {
-  Draft: "bg-transparent ring-1 ring-inset ring-[oklch(0.62_0_0)]",
-  Live: "bg-[oklch(0.62_0.15_150)]",
-  "Needs checking": "bg-[oklch(0.68_0.16_65)]",
-  Archived: "bg-[oklch(0.62_0_0)]",
+  Draft: 'bg-transparent ring-1 ring-inset ring-[oklch(0.62_0_0)]',
+  Live: 'bg-[oklch(0.62_0.15_150)]',
+  'Needs checking': 'bg-[oklch(0.68_0.16_65)]',
+  Archived: 'bg-[oklch(0.62_0_0)]',
 }
 
 const statusHint: Record<Status, string> = {
-  Draft: "Draft: written, not shared with agents yet",
-  Live: "Live: agents get it",
-  "Needs checking": "Needs checking: its check date passed or a definition changed",
-  Archived: "Archived: agents no longer get it",
+  Draft: 'Draft: written, not shared with agents yet',
+  Live: 'Live: agents get it',
+  'Needs checking': 'Needs checking: its check date passed or a definition changed',
+  Archived: 'Archived: agents no longer get it',
 }
 
 /**
  * A status as a small dot. As in the Heed app, a calm status is the dot alone with its name in a
  * tooltip; one that asks for a look says it in words too.
  */
-export function StatusDot({ status, label, className }: { status: Status; label?: boolean; className?: string }) {
-  const calm = status === "Live" && !label
+export function StatusDot({
+  status,
+  label,
+  className,
+}: {
+  status: Status
+  label?: boolean
+  className?: string
+}) {
+  const calm = status === 'Live' && !label
   return (
     <span
       title={statusHint[status]}
-      className={cn("inline-flex items-center gap-1.5 whitespace-nowrap", status === "Needs checking" ? "text-foreground" : "text-muted-foreground", className)}
+      className={cn(
+        'inline-flex items-center gap-1.5 whitespace-nowrap',
+        status === 'Needs checking' ? 'text-foreground' : 'text-muted-foreground',
+        className,
+      )}
     >
-      <span aria-hidden className={cn("size-2 shrink-0 rounded-full", dot[status])} />
-      <span className={cn(calm && "sr-only")}>{status}</span>
+      <span aria-hidden className={cn('size-2 shrink-0 rounded-full', dot[status])} />
+      <span className={cn(calm && 'sr-only')}>{status}</span>
     </span>
   )
 }
 
 /** The note dot for a definition Cube changed. */
 export function ChangedDot() {
-  return <span aria-hidden className={cn("inline-block size-1.5 shrink-0 rounded-full align-middle", dot["Needs checking"])} />
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'inline-block size-1.5 shrink-0 rounded-full align-middle',
+        dot['Needs checking'],
+      )}
+    />
+  )
 }

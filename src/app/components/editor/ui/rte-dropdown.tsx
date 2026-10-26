@@ -1,78 +1,71 @@
-import * as React from "react";
-import { useCallback, useRef, useState } from "react";
+import * as React from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 export interface RteDropdownProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "language" | "color";
+  variant?: 'default' | 'language' | 'color'
 }
 
 const variantClass: Record<string, string> = {
-  color: "rte-bubble-dropdown--color",
-  default: "",
-  language: "rte-bubble-dropdown--language",
-};
+  color: 'rte-bubble-dropdown--color',
+  default: '',
+  language: 'rte-bubble-dropdown--language',
+}
 
 const RteDropdown = React.forwardRef<HTMLDivElement, RteDropdownProps>(
-  (
-    { className = "", variant = "default", children, onMouseLeave, ...props },
-    ref
-  ) => {
-    const containerRef = useRef<HTMLDivElement | null>(null);
+  ({ className = '', variant = 'default', children, onMouseLeave, ...props }, ref) => {
+    const containerRef = useRef<HTMLDivElement | null>(null)
     const [pill, setPill] = useState<{
-      height: number;
-      left: number;
-      top: number;
-      width: number;
-    } | null>(null);
+      height: number
+      left: number
+      top: number
+      width: number
+    } | null>(null)
 
     const handleItemEnter = useCallback((target: EventTarget | null) => {
-      const item = (target as HTMLElement).closest<HTMLElement>(
-        "[data-dropdown-item]"
-      );
+      const item = (target as HTMLElement).closest<HTMLElement>('[data-dropdown-item]')
       if (!item) {
-        return;
+        return
       }
       setPill({
         height: item.offsetHeight,
         left: item.offsetLeft,
         top: item.offsetTop,
         width: item.offsetWidth,
-      });
-    }, []);
+      })
+    }, [])
 
     const handleMouseOver = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
-        handleItemEnter(event.target);
+        handleItemEnter(event.target)
       },
-      [handleItemEnter]
-    );
+      [handleItemEnter],
+    )
 
     const handleFocus = useCallback(
       (event: React.FocusEvent<HTMLDivElement>) => {
-        handleItemEnter(event.target);
+        handleItemEnter(event.target)
       },
-      [handleItemEnter]
-    );
+      [handleItemEnter],
+    )
 
     const handleMouseLeaveFn = useCallback(
       (event: React.MouseEvent<HTMLDivElement>) => {
-        setPill(null);
-        onMouseLeave?.(event);
+        setPill(null)
+        onMouseLeave?.(event)
       },
-      [onMouseLeave]
-    );
+      [onMouseLeave],
+    )
 
-    const cls = ["rte-bubble-dropdown", variantClass[variant], className]
-      .filter(Boolean)
-      .join(" ");
+    const cls = ['rte-bubble-dropdown', variantClass[variant], className].filter(Boolean).join(' ')
 
     return (
       <div
         ref={(node) => {
-          containerRef.current = node;
-          if (typeof ref === "function") {
-            ref(node);
+          containerRef.current = node
+          if (typeof ref === 'function') {
+            ref(node)
           } else if (ref) {
-            ref.current = node;
+            ref.current = node
           }
         }}
         className={cls}
@@ -83,12 +76,9 @@ const RteDropdown = React.forwardRef<HTMLDivElement, RteDropdownProps>(
       >
         <div
           aria-hidden="true"
-          className={[
-            "rte-bubble-dropdown-pill",
-            pill ? "rte-bubble-dropdown-pill--visible" : "",
-          ]
+          className={['rte-bubble-dropdown-pill', pill ? 'rte-bubble-dropdown-pill--visible' : '']
             .filter(Boolean)
-            .join(" ")}
+            .join(' ')}
           style={
             pill
               ? {
@@ -102,9 +92,9 @@ const RteDropdown = React.forwardRef<HTMLDivElement, RteDropdownProps>(
         />
         {children}
       </div>
-    );
-  }
-);
-RteDropdown.displayName = "RteDropdown";
+    )
+  },
+)
+RteDropdown.displayName = 'RteDropdown'
 
-export { RteDropdown };
+export { RteDropdown }

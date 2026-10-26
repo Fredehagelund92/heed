@@ -6,10 +6,10 @@
 /** When a context item applies: ISO dates, either open. `ongoing` says an open end is still going on. */
 export type Validity = { from?: string; until?: string; ongoing?: boolean }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const parts = (iso: string) => {
-  const [y, m, d] = iso.split("-").map(Number)
+  const [y, m, d] = iso.split('-').map(Number)
   return { d, m: MONTHS[m - 1], y }
 }
 
@@ -29,9 +29,9 @@ export function whenLabel(v: Validity): string {
     if (a.m !== b.m) return `${a.d} ${a.m} to ${b.d} ${b.m} ${b.y}`
     return `${a.d} to ${b.d} ${b.m} ${b.y}`
   }
-  if (v.from) return `From ${dateLabel(v.from)}${v.ongoing ? ", still going on" : ""}`
+  if (v.from) return `From ${dateLabel(v.from)}${v.ongoing ? ', still going on' : ''}`
   if (v.until) return `Until ${dateLabel(v.until)}`
-  return v.ongoing ? "Still going on" : "Always"
+  return v.ongoing ? 'Still going on' : 'Always'
 }
 
 /** Whether a check date has passed: an item past it reads "Needs checking". */

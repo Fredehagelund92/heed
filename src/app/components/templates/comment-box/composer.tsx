@@ -1,16 +1,16 @@
-import * as React from "react"
-import type { JSONContent } from "@tiptap/core"
-import Placeholder from "@tiptap/extension-placeholder"
-import { useEditor, useEditorState } from "@tiptap/react"
-import { cn } from "cn"
-import { RichTextEditor } from "@/components/editor"
-import { PersonAvatar } from "@/components/heed/bits"
-import { Button } from "@/components/ui/button"
-import { Kbd, KbdGroup } from "@/components/ui/kbd"
-import { inputSurface } from "@/lib/surfaces"
-import { emojiExtension, mentionExtension, mentionOpen } from "@/lib/mention-extension"
-import { PEOPLE_KINDS } from "@/lib/mentions"
-import { TEXT_EXTENSIONS } from "./extensions"
+import * as React from 'react'
+import type { JSONContent } from '@tiptap/core'
+import Placeholder from '@tiptap/extension-placeholder'
+import { useEditor, useEditorState } from '@tiptap/react'
+import { cn } from 'cn'
+import { RichTextEditor } from '@/components/editor'
+import { PersonAvatar } from '@/components/heed/bits'
+import { Button } from '@/components/ui/button'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { inputSurface } from '@/lib/surfaces'
+import { emojiExtension, mentionExtension, mentionOpen } from '@/lib/mention-extension'
+import { PEOPLE_KINDS } from '@/lib/mentions'
+import { TEXT_EXTENSIONS } from './extensions'
 
 // From the editorcn Comment Box's composer, adapted to the trimmed editor and the flat style: one
 // quiet line until it is used, then four controls (bold, italic, code, a list) and the keys. The
@@ -20,7 +20,7 @@ export function Composer({
   author,
   label,
   placeholder,
-  submitLabel = "Comment",
+  submitLabel = 'Comment',
   initialContent,
   autoFocus = false,
   avatar = true,
@@ -56,18 +56,18 @@ export function Composer({
   }, [onDraft])
   const handlers = React.useRef<{ cancel?: () => void; post: () => void } | null>(null)
   const editor = useEditor({
-    autofocus: autoFocus ? "end" : false,
-    content: initialContent ?? "",
+    autofocus: autoFocus ? 'end' : false,
+    content: initialContent ?? '',
     editorProps: {
-      attributes: { "aria-label": label, "aria-multiline": "true", role: "textbox" },
+      attributes: { 'aria-label': label, 'aria-multiline': 'true', role: 'textbox' },
       handleKeyDown: (view, event) => {
         // An open '@' list takes its keys first.
         if (mentionOpen(view.state)) return false
-        if (event.key === "Escape" && handlers.current?.cancel) {
+        if (event.key === 'Escape' && handlers.current?.cancel) {
           handlers.current.cancel()
           return true
         }
-        if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+        if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
           handlers.current?.post()
           return true
         }
@@ -76,7 +76,10 @@ export function Composer({
     },
     extensions: [
       ...TEXT_EXTENSIONS,
-      mentionExtension({ kinds: PEOPLE_KINDS, empty: "Mention anyone signed in to the workspace." }),
+      mentionExtension({
+        kinds: PEOPLE_KINDS,
+        empty: 'Mention anyone signed in to the workspace.',
+      }),
       // People talking to each other: ':' and two letters offers emoji.
       emojiExtension(),
       Placeholder.configure({ placeholder }),
@@ -94,22 +97,35 @@ export function Composer({
     if (clearOnPost) editor.commands.clearContent()
   }, [editor, onPost, clearOnPost, postDisabled])
   const cancel = React.useMemo(
-    () => (onCancel ? () => onCancel(editor && !editor.isDestroyed && !editor.isEmpty ? editor.getJSON() : null) : undefined),
-    [onCancel, editor]
+    () =>
+      onCancel
+        ? () => onCancel(editor && !editor.isDestroyed && !editor.isEmpty ? editor.getJSON() : null)
+        : undefined,
+    [onCancel, editor],
   )
   React.useEffect(() => {
     handlers.current = { cancel, post }
   }, [cancel, post])
 
-  const mod = /Mac|iPhone|iPad/.test(globalThis.navigator?.userAgent ?? "") ? "⌘" : "Ctrl"
+  const mod = /Mac|iPhone|iPad/.test(globalThis.navigator?.userAgent ?? '') ? '⌘' : 'Ctrl'
   // Open while it has focus, holds words, or is an edit or a reply (they have a Cancel).
   const open = focused || !empty || !!onCancel
 
   return (
-    <div className={cn("flex gap-3", className)}>
+    <div className={cn('flex gap-3', className)}>
       {avatar && <PersonAvatar name={author} className="mt-1 hidden shrink-0 sm:flex" />}
-      <RichTextEditor editor={editor} variant="compact" className={cn("min-w-0 flex-1 shadow-none!", inputSurface)}>
-        <div onFocus={() => setFocused(true)} onBlur={(e) => !e.currentTarget.parentElement?.contains(e.relatedTarget as Node | null) && setFocused(false)}>
+      <RichTextEditor
+        editor={editor}
+        variant="compact"
+        className={cn('min-w-0 flex-1 shadow-none!', inputSurface)}
+      >
+        <div
+          onFocus={() => setFocused(true)}
+          onBlur={(e) =>
+            !e.currentTarget.parentElement?.contains(e.relatedTarget as Node | null) &&
+            setFocused(false)
+          }
+        >
           <RichTextEditor.Content className="[&_.ProseMirror]:min-h-9! [&_.ProseMirror]:px-3! [&_.ProseMirror]:py-2! [&_.ProseMirror]:text-base sm:[&_.ProseMirror]:text-sm" />
         </div>
         {open && (

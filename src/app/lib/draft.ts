@@ -1,5 +1,5 @@
-import * as React from "react"
-import type { Fact } from "@/data/world"
+import * as React from 'react'
+import type { Fact } from '@/data/world'
 
 // The context item being written in the editor, so Try it in the dock can ask against it.
 
@@ -17,6 +17,6 @@ export function useDraft() {
       listeners.add(l)
       return () => listeners.delete(l)
     },
-    () => current
+    () => current,
   )
 }

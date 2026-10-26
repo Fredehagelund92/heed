@@ -1,16 +1,16 @@
-import * as React from "react"
-import { MessageSquarePlusIcon } from "lucide-react"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { commentActions, useComments, useSubjectReactions } from "@/lib/comments"
-import type { Subject } from "@/data/comments"
-import { Composer } from "./composer"
-import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from "./thread"
-import { countComments } from "./utils"
-import { ShowMoreButton } from "@/components/heed/show-more"
-import { useShowMore } from "@/hooks/use-show-more"
-import "@/components/editor/style.css"
-import "@/components/static-renderer/style.css"
+import * as React from 'react'
+import { MessageSquarePlusIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { commentActions, useComments, useSubjectReactions } from '@/lib/comments'
+import type { Subject } from '@/data/comments'
+import { Composer } from './composer'
+import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from './thread'
+import { countComments } from './utils'
+import { ShowMoreButton } from '@/components/heed/show-more'
+import { useShowMore } from '@/hooks/use-show-more'
+import '@/components/editor/style.css'
+import '@/components/static-renderer/style.css'
 
 // The Comments box: the editorcn Comment Box's anatomy (a heading, the threads, a composer) laid
 // out flat in the Efferd style, with no card around it. Reactions to the thing itself sit on the
@@ -53,15 +53,30 @@ export function CommentBox({
   }
 
   return (
-    <section aria-labelledby={`comments-${subject}`} className={cn("flex flex-col", className)}>
+    <section aria-labelledby={`comments-${subject}`} className={cn('flex flex-col', className)}>
       <div className="pb-4">
         <div className="flex min-h-7 items-center justify-between gap-3">
-          <h2 id={`comments-${subject}`} className="flex items-baseline gap-2 text-base leading-snug font-medium">
+          <h2
+            id={`comments-${subject}`}
+            className="flex items-baseline gap-2 text-base leading-snug font-medium"
+          >
             Comments
-            {total > 0 && <span className="text-sm font-normal text-muted-foreground tabular-nums">{total}</span>}
+            {total > 0 && (
+              <span className="text-sm font-normal text-muted-foreground tabular-nums">
+                {total}
+              </span>
+            )}
           </h2>
-          <div className="flex flex-wrap items-center justify-end gap-1" aria-label="Reactions" role="group">
-            <ReactionChips reactions={reactions} me={me} onReact={(e) => commentActions.reactToSubject(subject, e, me)} />
+          <div
+            className="flex flex-wrap items-center justify-end gap-1"
+            aria-label="Reactions"
+            role="group"
+          >
+            <ReactionChips
+              reactions={reactions}
+              me={me}
+              onReact={(e) => commentActions.reactToSubject(subject, e, me)}
+            />
             <ReactionPicker onPick={(e) => commentActions.reactToSubject(subject, e, me)} />
             {!open && (
               <Button variant="outline" size="sm" className="ml-1" onClick={() => setAdding(true)}>
@@ -71,7 +86,9 @@ export function CommentBox({
             )}
           </div>
         </div>
-        <p className="mt-0.5 text-sm text-muted-foreground">Comments are not part of what agents get.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Comments are not part of what agents get.
+        </p>
         {note && <p className="mt-0.5 text-sm text-pretty text-muted-foreground">{note}</p>}
       </div>
       {more > 0 && (

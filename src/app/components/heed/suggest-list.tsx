@@ -1,8 +1,14 @@
-import * as React from "react"
-import type { Editor } from "@tiptap/react"
-import { cn } from "cn"
-import { Command, CommandFooter, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
-import { Kbd } from "@/components/ui/kbd"
+import * as React from 'react'
+import type { Editor } from '@tiptap/react'
+import { cn } from 'cn'
+import {
+  Command,
+  CommandFooter,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Kbd } from '@/components/ui/kbd'
 
 // The one list a text box offers while typing: shadcn's Command list under the caret (a bottom sheet
 // on a phone), in groups, filtered as you type. '@' lists what can be mentioned; ':' and two letters
@@ -44,13 +50,13 @@ export const SuggestList = React.forwardRef<
 
   React.useImperativeHandle(ref, () => ({
     onKeyDown(e) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         if (!flat.length) return true
-        const step = e.key === "ArrowDown" ? 1 : -1
+        const step = e.key === 'ArrowDown' ? 1 : -1
         setSel({ query, index: (index + step + flat.length) % flat.length })
         return true
       }
-      if ((e.key === "Enter" || e.key === "Tab") && active) {
+      if ((e.key === 'Enter' || e.key === 'Tab') && active) {
         onPick(active)
         return true
       }
@@ -66,34 +72,43 @@ export const SuggestList = React.forwardRef<
   // The text box keeps focus, so it names the list and the active option for screen readers.
   React.useEffect(() => {
     const dom = editor.view.dom
-    const option = active && list.current?.querySelector<HTMLElement>(`[data-suggest="${CSS.escape(active.id)}"]`)
-    option?.scrollIntoView({ block: "nearest" })
-    if (list.current?.id) dom.setAttribute("aria-controls", list.current.id)
-    dom.setAttribute("aria-autocomplete", "list")
-    if (option?.id) dom.setAttribute("aria-activedescendant", option.id)
-    else dom.removeAttribute("aria-activedescendant")
+    const option =
+      active &&
+      list.current?.querySelector<HTMLElement>(`[data-suggest="${CSS.escape(active.id)}"]`)
+    option?.scrollIntoView({ block: 'nearest' })
+    if (list.current?.id) dom.setAttribute('aria-controls', list.current.id)
+    dom.setAttribute('aria-autocomplete', 'list')
+    if (option?.id) dom.setAttribute('aria-activedescendant', option.id)
+    else dom.removeAttribute('aria-activedescendant')
   }, [active, editor])
   React.useEffect(() => {
     const dom = editor.view.dom
-    return () => ["aria-controls", "aria-autocomplete", "aria-activedescendant"].forEach((a) => dom.removeAttribute(a))
+    return () =>
+      ['aria-controls', 'aria-autocomplete', 'aria-activedescendant'].forEach((a) =>
+        dom.removeAttribute(a),
+      )
   }, [editor])
 
   return (
     <Command
       shouldFilter={false}
-      value={active?.id ?? ""}
+      value={active?.id ?? ''}
       loop
       label={label}
       // Keeps the caret in the box when a row is clicked.
       onMouseDown={(e) => e.preventDefault()}
       className={cn(
-        "rounded-[10px]! border bg-popover p-0 shadow-md",
-        "animate-in duration-(--dur-2) fade-in-0 slide-in-from-top-1",
-        "max-sm:rounded-b-none! max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.25)] max-sm:slide-in-from-bottom-4 sm:w-[26rem]",
-        className
+        'rounded-[10px]! border bg-popover p-0 shadow-md',
+        'animate-in duration-(--dur-2) fade-in-0 slide-in-from-top-1',
+        'max-sm:rounded-b-none! max-sm:border-x-0 max-sm:border-b-0 max-sm:pb-[env(safe-area-inset-bottom)] max-sm:shadow-[0_-8px_24px_-12px_rgb(0_0_0/0.25)] max-sm:slide-in-from-bottom-4 sm:w-[26rem]',
+        className,
       )}
     >
-      <CommandList ref={list} label={label} className="max-h-72 p-1 max-sm:max-h-[min(50svh,var(--sheet-max,50svh))]">
+      <CommandList
+        ref={list}
+        label={label}
+        className="max-h-72 p-1 max-sm:max-h-[min(50svh,var(--sheet-max,50svh))]"
+      >
         {flat.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm">
             <p className="font-medium">{empty.title}</p>
@@ -114,7 +129,11 @@ export const SuggestList = React.forwardRef<
                   <span className="min-w-0 flex-1 truncate" title={m.label}>
                     {m.label}
                   </span>
-                  {m.hint && <span className="max-w-[40%] shrink-0 truncate text-xs text-muted-foreground">{m.hint}</span>}
+                  {m.hint && (
+                    <span className="max-w-[40%] shrink-0 truncate text-xs text-muted-foreground">
+                      {m.hint}
+                    </span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

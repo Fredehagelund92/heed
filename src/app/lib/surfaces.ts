@@ -4,4 +4,4 @@
 // the ring colour on the border plus a faint 3px ring, never an ink outline. Marked important, since
 // the editor's own stylesheet sets a border and radius on its root outside Tailwind's layers.
 export const inputSurface =
-  "rounded-surface! border! border-input! bg-background transition-[border-color,box-shadow] hover:border-foreground/45! focus-within:border-ring! focus-within:ring-3 focus-within:ring-ring/25"
+  'rounded-surface! border! border-input! bg-background transition-[border-color,box-shadow] hover:border-foreground/45! focus-within:border-ring! focus-within:ring-3 focus-within:ring-ring/25'

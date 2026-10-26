@@ -1,28 +1,42 @@
-import * as React from "react"
-import { cn } from "cn"
-import { ArrowUpRightIcon, EyeOffIcon, HandHelpingIcon, MessageSquareTextIcon, PenLineIcon, SearchIcon, XIcon } from "lucide-react"
-import { StateLine } from "@/components/heed/bits"
-import { Frame, FrameFooter, FramePage, FrameSection } from "@/components/heed/frame"
-import { Switch } from "@/components/ui/switch"
-import { setSlowNetwork, useSlowNetwork } from "@/lib/loading"
-import { Page } from "@/components/site-header"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Kbd } from "@/components/ui/kbd"
-import { open } from "@/lib/events"
-import { pageKey } from "@/lib/keys"
-import { ANSWER_LINES, DOC_PAGES, DOCS_HOME, SUPPORT_EMAIL, WORDS } from "@/lib/help-content"
-import { setQuery, useRoute } from "@/lib/router"
+import * as React from 'react'
+import { cn } from 'cn'
+import {
+  ArrowUpRightIcon,
+  EyeOffIcon,
+  HandHelpingIcon,
+  MessageSquareTextIcon,
+  PenLineIcon,
+  SearchIcon,
+  XIcon,
+} from 'lucide-react'
+import { StateLine } from '@/components/heed/bits'
+import { Frame, FrameFooter, FramePage, FrameSection } from '@/components/heed/frame'
+import { Switch } from '@/components/ui/switch'
+import { setSlowNetwork, useSlowNetwork } from '@/lib/loading'
+import { Page } from '@/components/site-header'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { open } from '@/lib/events'
+import { pageKey } from '@/lib/keys'
+import { ANSWER_LINES, DOC_PAGES, DOCS_HOME, SUPPORT_EMAIL, WORDS } from '@/lib/help-content'
+import { setQuery, useRoute } from '@/lib/router'
 
 // Help: the product's own words, short enough to read in a minute: the six answer lines, ten words
 // and four facts on how agents use what people write. Everything comes from one list
 // (lib/help-content.ts) that the answer line's card and the documentation draw from too. A "how do
 // I" goes to the documentation, which opens as its own site.
 
-const match = (q: string, ...parts: string[]) => !q || parts.join(" ").toLowerCase().includes(q.toLowerCase())
+const match = (q: string, ...parts: string[]) =>
+  !q || parts.join(' ').toLowerCase().includes(q.toLowerCase())
 
 function Ext({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline">
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-1 font-medium text-primary underline-offset-4 hover:underline"
+    >
       {children}
       <ArrowUpRightIcon className="size-3.5" aria-hidden />
       <span className="sr-only"> (opens in a new tab)</span>
@@ -34,22 +48,25 @@ function HelpSearch({ q, onChange }: { q: string; onChange: (q: string) => void 
   const input = React.useRef<HTMLInputElement>(null)
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "/" || !pageKey(e)) return
+      if (e.key !== '/' || !pageKey(e)) return
       e.preventDefault()
       input.current?.focus()
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [])
   return (
     <div className="relative">
-      <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+      <SearchIcon
+        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        aria-hidden
+      />
       <input
         ref={input}
         type="search"
         value={q}
         onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => e.key === "Escape" && q && (e.stopPropagation(), onChange(""))}
+        onKeyDown={(e) => e.key === 'Escape' && q && (e.stopPropagation(), onChange(''))}
         placeholder="Search help"
         aria-label="Search help"
         className="h-10 w-full rounded-md border border-input bg-background pr-16 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-search-cancel-button]:hidden"
@@ -58,7 +75,7 @@ function HelpSearch({ q, onChange }: { q: string; onChange: (q: string) => void 
         <button
           type="button"
           aria-label="Clear the search"
-          onClick={() => onChange("")}
+          onClick={() => onChange('')}
           className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <XIcon className="size-4" />
@@ -74,7 +91,10 @@ function AnswerLines({ q }: { q: string }) {
   const rows = ANSWER_LINES.filter((a) => match(q, a.label, a.long, a.sentence, a.means, a.todo))
   if (!rows.length) return null
   return (
-    <FrameSection title="What an answer line means" description="Every answer, in Ask and in your own agent, starts with one of these.">
+    <FrameSection
+      title="What an answer line means"
+      description="Every answer, in Ask and in your own agent, starts with one of these."
+    >
       <div className="border-t" role="table" aria-label="Answer lines">
         <div
           role="row"
@@ -128,37 +148,41 @@ function Words({ q }: { q: string }) {
 const HOW = [
   {
     icon: PenLineIcon,
-    lead: "You write, an owner publishes.",
-    rest: "Agents read only what the owner of a domain has published. A suggestion changes nothing until it is published.",
+    lead: 'You write, an owner publishes.',
+    rest: 'Agents read only what the owner of a domain has published. A suggestion changes nothing until it is published.',
   },
   {
     icon: MessageSquareTextIcon,
-    lead: "Every answer starts with an answer line.",
-    rest: "It says what the answer rests on, in Ask and in your own agent.",
+    lead: 'Every answer starts with an answer line.',
+    rest: 'It says what the answer rests on, in Ask and in your own agent.',
   },
   {
     icon: HandHelpingIcon,
-    lead: "Agents offer, people decide.",
-    rest: "When something is missing or wrong, an agent offers to tell the owner. It sends only after the person says yes.",
+    lead: 'Agents offer, people decide.',
+    rest: 'When something is missing or wrong, an agent offers to tell the owner. It sends only after the person says yes.',
   },
   {
     icon: EyeOffIcon,
-    lead: "What is kept about questions.",
-    rest: "How often a topic was asked about, never the words or who asked. Words are kept only when someone sends a suggestion or a report, with their name.",
+    lead: 'What is kept about questions.',
+    rest: 'How often a topic was asked about, never the words or who asked. Words are kept only when someone sends a suggestion or a report, with their name.',
   },
 ]
 
 function HowAgentsUseIt({ q }: { q: string }) {
-  const rows = HOW.filter((h) => match(q, h.lead, h.rest, "agents privacy kept"))
+  const rows = HOW.filter((h) => match(q, h.lead, h.rest, 'agents privacy kept'))
   if (!rows.length) return null
   return (
-    <FrameSection title="How agents use it" description="Four things worth knowing before you write the first line.">
+    <FrameSection
+      title="How agents use it"
+      description="Four things worth knowing before you write the first line."
+    >
       <ul className="border-t">
         {rows.map((h) => (
           <li key={h.lead} className="flex gap-3 border-t px-4 py-3.5 first:border-t-0 md:px-5">
             <h.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
             <p className="text-sm text-pretty">
-              <span className="font-medium">{h.lead}</span> <span className="text-muted-foreground">{h.rest}</span>
+              <span className="font-medium">{h.lead}</span>{' '}
+              <span className="text-muted-foreground">{h.rest}</span>
             </p>
           </li>
         ))}
@@ -182,20 +206,32 @@ function Nothing({ q, onTry }: { q: string; onTry: (q: string) => void }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-center">
-          <a href={`${DOCS_HOME}?q=${encodeURIComponent(q)}`} target="_blank" rel="noreferrer" className={cn(buttonVariants())}>
+          <a
+            href={`${DOCS_HOME}?q=${encodeURIComponent(q)}`}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(buttonVariants())}
+          >
             Search the documentation
             <ArrowUpRightIcon />
           </a>
-          <a href={`mailto:${SUPPORT_EMAIL}`} className={cn(buttonVariants({ variant: "outline" }))}>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            className={cn(buttonVariants({ variant: 'outline' }))}
+          >
             Contact support
           </a>
         </div>
         <p className="text-sm text-muted-foreground">
-          Or try{" "}
-          {["owner", "out of date", "shortcuts"].map((t, i) => (
+          Or try{' '}
+          {['owner', 'out of date', 'shortcuts'].map((t, i) => (
             <React.Fragment key={t}>
-              {i > 0 && ", "}
-              <button type="button" className="underline underline-offset-4 hover:text-foreground" onClick={() => onTry(t)}>
+              {i > 0 && ', '}
+              <button
+                type="button"
+                className="underline underline-offset-4 hover:text-foreground"
+                onClick={() => onTry(t)}
+              >
                 {t}
               </button>
             </React.Fragment>
@@ -217,10 +253,16 @@ function SlowNetwork() {
             Slow network
           </label>
           <p className="mt-0.5 text-sm text-pretty text-muted-foreground">
-            Each page waits the first time you open it, and saving takes longer, as on a slow connection, so you can see how loading looks. Off by default.
+            Each page waits the first time you open it, and saving takes longer, as on a slow
+            connection, so you can see how loading looks. Off by default.
           </p>
         </div>
-        <Switch id="slow-network" checked={on} onCheckedChange={(v) => setSlowNetwork(v)} className="mt-0.5" />
+        <Switch
+          id="slow-network"
+          checked={on}
+          onCheckedChange={(v) => setSlowNetwork(v)}
+          className="mt-0.5"
+        />
       </div>
     </Frame>
   )
@@ -228,13 +270,13 @@ function SlowNetwork() {
 
 export function HelpPage() {
   const { query } = useRoute()
-  const [q, setQ] = React.useState(query.get("q") ?? "")
+  const [q, setQ] = React.useState(query.get('q') ?? '')
   const nothing =
     q &&
     ![
       ANSWER_LINES.some((a) => match(q, a.label, a.long, a.sentence, a.means, a.todo)),
       WORDS.some(([w, d]) => match(q, w, d)),
-      HOW.some((h) => match(q, h.lead, h.rest, "agents privacy kept")),
+      HOW.some((h) => match(q, h.lead, h.rest, 'agents privacy kept')),
       DOC_PAGES.some((p) => match(q, p.title, p.line)),
     ].some(Boolean)
   return (
@@ -252,19 +294,29 @@ export function HelpPage() {
               {q ? (
                 <FrameFooter className="justify-between">
                   <span className="text-sm text-muted-foreground">Not what you were after?</span>
-                  <Ext href={`${DOCS_HOME}?q=${encodeURIComponent(q)}`}>Search the documentation</Ext>
+                  <Ext href={`${DOCS_HOME}?q=${encodeURIComponent(q)}`}>
+                    Search the documentation
+                  </Ext>
                 </FrameFooter>
               ) : (
                 <FrameFooter className="justify-between">
                   <span className="text-sm text-muted-foreground">Can't find it?</span>
                   <span className="flex flex-wrap items-center gap-2">
-                    <a href={`mailto:${SUPPORT_EMAIL}`} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                    <a
+                      href={`mailto:${SUPPORT_EMAIL}`}
+                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    >
                       Contact support
                     </a>
-                    <Button variant="outline" size="sm" onClick={() => open("report")}>
+                    <Button variant="outline" size="sm" onClick={() => open('report')}>
                       Report a problem
                     </Button>
-                    <a href={DOCS_HOME} target="_blank" rel="noreferrer" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                    <a
+                      href={DOCS_HOME}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+                    >
                       Documentation
                       <ArrowUpRightIcon />
                       <span className="sr-only"> (opens in a new tab)</span>

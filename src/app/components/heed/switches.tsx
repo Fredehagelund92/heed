@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import * as React from 'react'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // The three ways the mockup lets someone pick between things, one component each, so a later
 // change is one edit (segmented/segmented-controls.md has the inventory and the reason per place):
@@ -34,7 +34,7 @@ export function ViewToggle({
         render={
           <Button
             variant="outline"
-            size={text ? "sm" : "icon-sm"}
+            size={text ? 'sm' : 'icon-sm'}
             aria-label={on}
             aria-pressed={pressed}
             onClick={() => onPressedChange(!pressed)}
@@ -50,12 +50,22 @@ export function ViewToggle({
   )
 }
 
-export type TextOption<T extends string> = { value: T; label: React.ReactNode; count?: number; icon?: React.ReactNode }
+export type TextOption<T extends string> = {
+  value: T
+  label: React.ReactNode
+  count?: number
+  icon?: React.ReactNode
+}
 
 /** Move the choice with the arrow keys, as a radio group does. */
 function useArrows<T extends string>(values: T[], value: T, onChange: (v: T) => void) {
   return (e: React.KeyboardEvent<HTMLElement>) => {
-    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0
+    const step =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0
     if (!step) return
     e.preventDefault()
     const next = values[(values.indexOf(value) + step + values.length) % values.length]
@@ -92,20 +102,37 @@ export function TextSwitch<T extends string>({
 }) {
   const wrap = React.useRef<HTMLDivElement>(null)
   // The underline slides only when the choice changes; a label growing (a count) just moves it.
-  const [bar, setBar] = React.useState<{ left: number; width: number; of: T; slide: boolean } | null>(null)
+  const [bar, setBar] = React.useState<{
+    left: number
+    width: number
+    of: T
+    slide: boolean
+  } | null>(null)
   React.useLayoutEffect(() => {
     const el = wrap.current?.querySelector<HTMLElement>(`[data-value="${value}"]`)
-    if (el) setBar((b) => ({ left: el.offsetLeft, width: el.offsetWidth, of: value, slide: !!b && b.of !== value }))
+    if (el)
+      setBar((b) => ({
+        left: el.offsetLeft,
+        width: el.offsetWidth,
+        of: value,
+        slide: !!b && b.of !== value,
+      }))
   }, [value, options])
   const onKeyDown = useArrows(
     options.map((o) => o.value),
     value,
-    onChange
+    onChange,
   )
   return (
-    <div className={cn("flex items-center gap-2 text-sm", className)}>
+    <div className={cn('flex items-center gap-2 text-sm', className)}>
       {lead && <span className="text-muted-foreground">{lead}</span>}
-      <div ref={wrap} role="radiogroup" aria-label={label} onKeyDown={onKeyDown} className="relative flex items-center gap-3">
+      <div
+        ref={wrap}
+        role="radiogroup"
+        aria-label={label}
+        onKeyDown={onKeyDown}
+        className="relative flex items-center gap-3"
+      >
         {options.map((o, i) => {
           const on = o.value === value
           return (
@@ -123,13 +150,17 @@ export function TextSwitch<T extends string>({
                 data-value={o.value}
                 onClick={() => onChange(o.value)}
                 className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-3.5",
-                  on ? "font-medium text-foreground" : "text-muted-foreground hover:text-foreground"
+                  'inline-flex h-7 items-center gap-1.5 rounded-sm whitespace-nowrap outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-3.5',
+                  on
+                    ? 'font-medium text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 {o.icon}
                 {o.label}
-                {o.count !== undefined && <span className="text-xs text-muted-foreground tabular-nums">{o.count}</span>}
+                {o.count !== undefined && (
+                  <span className="text-xs text-muted-foreground tabular-nums">{o.count}</span>
+                )}
               </button>
             </React.Fragment>
           )
@@ -137,7 +168,10 @@ export function TextSwitch<T extends string>({
         {bar && (
           <span
             aria-hidden
-            className={cn("pointer-events-none absolute -bottom-px h-0.5 rounded-full bg-foreground", bar.slide && "transition-[left,width] duration-(--dur-3) ease-out")}
+            className={cn(
+              'pointer-events-none absolute -bottom-px h-0.5 rounded-full bg-foreground',
+              bar.slide && 'transition-[left,width] duration-(--dur-3) ease-out',
+            )}
             style={{ left: bar.left, width: bar.width }}
           />
         )}
@@ -163,10 +197,15 @@ export function ChoiceGroup<T extends string>({
   const onKeyDown = useArrows(
     options.map((o) => o.value),
     value ?? options[0].value,
-    onChange
+    onChange,
   )
   return (
-    <div role="radiogroup" aria-label={label} onKeyDown={onKeyDown} className={cn("flex flex-wrap gap-2", className)}>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className={cn('flex flex-wrap gap-2', className)}
+    >
       {options.map((o, i) => {
         const on = o.value === value
         return (
@@ -180,7 +219,10 @@ export function ChoiceGroup<T extends string>({
             variant="outline"
             size="sm"
             onClick={() => onChange(o.value)}
-            className={cn("h-8 px-3", on && "border-foreground/60 bg-muted text-foreground hover:bg-muted")}
+            className={cn(
+              'h-8 px-3',
+              on && 'border-foreground/60 bg-muted text-foreground hover:bg-muted',
+            )}
           >
             {o.label}
           </Button>

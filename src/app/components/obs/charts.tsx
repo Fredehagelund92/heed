@@ -1,7 +1,7 @@
-import * as React from "react"
-import { cn } from "cn"
-import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from "@/data/observability"
-import { ArrivedAfterWait } from "@/lib/loading"
+import * as React from 'react'
+import { cn } from 'cn'
+import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from '@/data/observability'
+import { ArrivedAfterWait } from '@/lib/loading'
 
 // Observability's charts, small SVG on the app's own tokens. One rule for colour: blue is the one
 // colour for checked context, amber for what to look at, greys for the rest, and a hatch for
@@ -11,21 +11,27 @@ import { ArrivedAfterWait } from "@/lib/loading"
 /** How each state fills a bar; "nothing written down" is the hatch, by its pattern's id. */
 const fillOf = (state: Shown, hatch: string) =>
   ({
-    grounded: "var(--primary)",
-    partial: "var(--chart-1)",
-    conflict: "var(--warn)",
-    stale: "color-mix(in oklab, var(--warn) 45%, var(--background))",
+    grounded: 'var(--primary)',
+    partial: 'var(--chart-1)',
+    conflict: 'var(--warn)',
+    stale: 'color-mix(in oklab, var(--warn) 45%, var(--background))',
     missing: `url(#${hatch})`,
   })[state]
 
 /** A pattern id unique on the page: useId's colons aren't allowed in url(#...). */
-const useHatchId = () => `obs-hatch-${React.useId().replace(/[^a-zA-Z0-9-]/g, "")}`
+const useHatchId = () => `obs-hatch-${React.useId().replace(/[^a-zA-Z0-9-]/g, '')}`
 
 /** The diagonal hatch "nothing written down" is drawn with, defined once per chart. */
 function Hatch({ id }: { id: string }) {
   return (
     <defs>
-      <pattern id={id} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <pattern
+        id={id}
+        width="5"
+        height="5"
+        patternUnits="userSpaceOnUse"
+        patternTransform="rotate(45)"
+      >
         <rect width="5" height="5" fill="var(--muted)" />
         <line x1="0" y1="0" x2="0" y2="5" stroke="var(--chart-2)" strokeWidth="1.6" />
       </pattern>
@@ -37,8 +43,8 @@ function Hatch({ id }: { id: string }) {
 export function Swatch({ state, className }: { state: Shown; className?: string }) {
   const id = useHatchId()
   return (
-    <svg aria-hidden width="10" height="10" className={cn("shrink-0", className)}>
-      {state === "missing" && <Hatch id={id} />}
+    <svg aria-hidden width="10" height="10" className={cn('shrink-0', className)}>
+      {state === 'missing' && <Hatch id={id} />}
       <rect width="10" height="10" fill={fillOf(state, id)} />
     </svg>
   )
@@ -46,7 +52,7 @@ export function Swatch({ state, className }: { state: Shown; className?: string 
 
 export function Legend({ states = SHOWN, className }: { states?: Shown[]; className?: string }) {
   return (
-    <ul className={cn("flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground", className)}>
+    <ul className={cn('flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground', className)}>
       {states.map((s) => (
         <li key={s} className="flex items-center gap-1.5">
           <Swatch state={s} />
@@ -123,12 +129,29 @@ export function StackedBars({
   const tip = hover !== null ? bars[hover] : null
   return (
     <figure ref={box as React.RefObject<HTMLElement>} className="relative m-0">
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden onMouseLeave={() => setHover(null)}>
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="block h-auto w-full"
+        aria-hidden
+        onMouseLeave={() => setHover(null)}
+      >
         <Hatch id={hatch} />
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
           <g key={f}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(max * f)} y2={y(max * f)} stroke="var(--border)" strokeDasharray={f === 0 ? undefined : "2 3"} />
-            <text x={pad.l - 6} y={y(max * f) + 3} textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">
+            <line
+              x1={pad.l}
+              x2={W - pad.r}
+              y1={y(max * f)}
+              y2={y(max * f)}
+              stroke="var(--border)"
+              strokeDasharray={f === 0 ? undefined : '2 3'}
+            />
+            <text
+              x={pad.l - 6}
+              y={y(max * f) + 3}
+              textAnchor="end"
+              className="fill-muted-foreground text-[10px] tabular-nums"
+            >
               {Math.round(max * f)}
             </text>
           </g>
@@ -139,7 +162,12 @@ export function StackedBars({
           return (
             <g key={i} onMouseEnter={() => setHover(i)}>
               <rect x={pad.l + slot * i} y={pad.t} width={slot} height={plotH} fill="transparent" />
-              <g className={cn(grow && "bar-grow")} style={grow ? { animationDelay: `calc(var(--stagger) * ${Math.min(i, 6)})` } : undefined}>
+              <g
+                className={cn(grow && 'bar-grow')}
+                style={
+                  grow ? { animationDelay: `calc(var(--stagger) * ${Math.min(i, 6)})` } : undefined
+                }
+              >
                 {SHOWN.map((s) => {
                   const v = b.counts[s]
                   if (!v) return null
@@ -147,12 +175,25 @@ export function StackedBars({
                   const h = y(acc) - top
                   acc += v
                   return (
-                    <rect key={s} x={x} y={top} width={bw} height={Math.max(0, h - 0.5)} fill={fillOf(s, hatch)} opacity={hover !== null && hover !== i ? 0.55 : 1} />
+                    <rect
+                      key={s}
+                      x={x}
+                      y={top}
+                      width={bw}
+                      height={Math.max(0, h - 0.5)}
+                      fill={fillOf(s, hatch)}
+                      opacity={hover !== null && hover !== i ? 0.55 : 1}
+                    />
                   )
                 })}
               </g>
               {i % every === 0 && (
-                <text x={x + bw / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+                <text
+                  x={x + bw / 2}
+                  y={H - 6}
+                  textAnchor="middle"
+                  className="fill-muted-foreground text-[10px]"
+                >
                   {b.label}
                 </text>
               )}
@@ -163,7 +204,15 @@ export function StackedBars({
           const x = pad.l + slot * m.index
           return (
             <g key={m.index}>
-              <line x1={x} x2={x} y1={pad.t - 6} y2={pad.t + plotH} stroke="var(--foreground)" strokeDasharray="2 2" strokeWidth="1" />
+              <line
+                x1={x}
+                x2={x}
+                y1={pad.t - 6}
+                y2={pad.t + plotH}
+                stroke="var(--foreground)"
+                strokeDasharray="2 2"
+                strokeWidth="1"
+              />
               <text x={x + 4} y={pad.t - 8} className="fill-foreground text-[10px]">
                 Published
               </text>
@@ -185,7 +234,11 @@ export function StackedBars({
               </li>
             ))}
           </ul>
-          {marks.find((m) => m.index === hover) && <p className="mt-1.5 border-t pt-1.5">Published: {marks.find((m) => m.index === hover)!.title}</p>}
+          {marks.find((m) => m.index === hover) && (
+            <p className="mt-1.5 border-t pt-1.5">
+              Published: {marks.find((m) => m.index === hover)!.title}
+            </p>
+          )}
         </div>
       )}
       <table className="sr-only">
@@ -205,7 +258,7 @@ export function StackedBars({
             <tr key={i}>
               <th scope="row">
                 {b.label}
-                {marks.some((m) => m.index === i) ? ", published" : ""}
+                {marks.some((m) => m.index === i) ? ', published' : ''}
               </th>
               {SHOWN.map((s) => (
                 <td key={s}>{b.counts[s]}</td>
@@ -224,7 +277,16 @@ export function BarRows({
   caption,
   quiet,
 }: {
-  rows: { key: string; name: React.ReactNode; label: string; value: number; display?: string; hatch?: number; href?: string; onClick?: () => void }[]
+  rows: {
+    key: string
+    name: React.ReactNode
+    label: string
+    value: number
+    display?: string
+    hatch?: number
+    href?: string
+    onClick?: () => void
+  }[]
   caption: string
   /** Grey bars, all but the first: for counts that are no state (kinds of agent). */
   quiet?: boolean
@@ -238,20 +300,40 @@ export function BarRows({
           const w = (r.value / max) * 100
           const inner = (
             <>
-              <span className="w-36 min-w-0 shrink-0 truncate text-[13px] @max-md/main:w-28" title={r.label}>
+              <span
+                className="w-36 min-w-0 shrink-0 truncate text-[13px] @max-md/main:w-28"
+                title={r.label}
+              >
                 {r.name}
               </span>
-              <span aria-hidden className="relative h-2.5 min-w-0 flex-1 overflow-hidden bg-muted/70">
-                <span className="absolute inset-y-0 left-0" style={{ width: `${w}%`, background: quiet && i > 0 ? "var(--chart-2)" : "var(--primary)" }} />
+              <span
+                aria-hidden
+                className="relative h-2.5 min-w-0 flex-1 overflow-hidden bg-muted/70"
+              >
+                <span
+                  className="absolute inset-y-0 left-0"
+                  style={{
+                    width: `${w}%`,
+                    background: quiet && i > 0 ? 'var(--chart-2)' : 'var(--primary)',
+                  }}
+                />
                 {!!r.hatch && (
-                  <svg className="absolute inset-y-0 left-0 h-full" style={{ width: `${w * r.hatch}%` }} preserveAspectRatio="none">
+                  <svg
+                    className="absolute inset-y-0 left-0 h-full"
+                    style={{ width: `${w * r.hatch}%` }}
+                    preserveAspectRatio="none"
+                  >
                     <Hatch id={`${hatch}-${r.key}`} />
                     <rect width="100%" height="100%" fill={`url(#${hatch}-${r.key})`} />
                   </svg>
                 )}
               </span>
-              <span className="min-w-10 shrink-0 text-right text-[13px] whitespace-nowrap text-muted-foreground tabular-nums">{r.display ?? r.value}</span>
-              {!!r.hatch && <span className="sr-only">, {Math.round(r.hatch * 100)} in 100 not found</span>}
+              <span className="min-w-10 shrink-0 text-right text-[13px] whitespace-nowrap text-muted-foreground tabular-nums">
+                {r.display ?? r.value}
+              </span>
+              {!!r.hatch && (
+                <span className="sr-only">, {Math.round(r.hatch * 100)} in 100 not found</span>
+              )}
             </>
           )
           return (
@@ -296,10 +378,21 @@ export function Sparkline({ values, className }: { values: number[]; className?:
   const W = 64
   const H = 18
   const max = Math.max(...values, 1)
-  const pts = values.map((v, i) => `${(i / Math.max(1, values.length - 1)) * (W - 2) + 1},${H - 1 - (v / max) * (H - 2)}`).join(" ")
+  const pts = values
+    .map(
+      (v, i) =>
+        `${(i / Math.max(1, values.length - 1)) * (W - 2) + 1},${H - 1 - (v / max) * (H - 2)}`,
+    )
+    .join(' ')
   return (
     <svg aria-hidden width={W} height={H} viewBox={`0 0 ${W} ${H}`} className={className}>
-      <polyline points={pts} fill="none" stroke="var(--chart-2)" strokeWidth="1.25" strokeLinejoin="round" />
+      <polyline
+        points={pts}
+        fill="none"
+        stroke="var(--chart-2)"
+        strokeWidth="1.25"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -309,13 +402,27 @@ export function MixBar({ counts, className }: { counts: Counts; className?: stri
   const n = total(counts) || 1
   const hatch = useHatchId()
   return (
-    <svg aria-hidden className={cn("block h-2 w-full", className)} preserveAspectRatio="none" viewBox="0 0 100 8">
+    <svg
+      aria-hidden
+      className={cn('block h-2 w-full', className)}
+      preserveAspectRatio="none"
+      viewBox="0 0 100 8"
+    >
       <Hatch id={hatch} />
       {SHOWN.map((st, i) => {
         // Where this state starts: the share of the ones before it.
         const x = SHOWN.slice(0, i).reduce((acc, k) => acc + (counts[k] / n) * 100, 0)
         const w = (counts[st] / n) * 100
-        return <rect key={st} x={x} y={0} width={Math.max(0, w - 0.4)} height={8} fill={fillOf(st, hatch)} />
+        return (
+          <rect
+            key={st}
+            x={x}
+            y={0}
+            width={Math.max(0, w - 0.4)}
+            height={8}
+            fill={fillOf(st, hatch)}
+          />
+        )
       })}
     </svg>
   )
@@ -352,28 +459,65 @@ export function LineChart({
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden>
         {[0, 1 / 3, 2 / 3, 1].map((f) => (
           <g key={f}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(max * f)} y2={y(max * f)} stroke="var(--border)" strokeDasharray={f === 0 ? undefined : "2 3"} />
-            <text x={pad.l - 6} y={y(max * f) + 3} textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">
+            <line
+              x1={pad.l}
+              x2={W - pad.r}
+              y1={y(max * f)}
+              y2={y(max * f)}
+              stroke="var(--border)"
+              strokeDasharray={f === 0 ? undefined : '2 3'}
+            />
+            <text
+              x={pad.l - 6}
+              y={y(max * f) + 3}
+              textAnchor="end"
+              className="fill-muted-foreground text-[10px] tabular-nums"
+            >
               {format(Math.round(max * f))}
             </text>
           </g>
         ))}
         {series.map((s) => {
-          const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ")
+          const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')
           return (
             <g key={s.name}>
-              {s.fill && <polygon points={`${x(0)},${y(0)} ${pts} ${x(s.values.length - 1)},${y(0)}`} fill={s.color} opacity={0.12} />}
-              <polyline points={pts} fill="none" stroke={s.color} strokeWidth="1.75" strokeLinejoin="round" />
-              <circle cx={x(s.values.length - 1)} cy={y(s.values.at(-1)!)} r="3" fill="var(--background)" stroke={s.color} strokeWidth="1.5" />
+              {s.fill && (
+                <polygon
+                  points={`${x(0)},${y(0)} ${pts} ${x(s.values.length - 1)},${y(0)}`}
+                  fill={s.color}
+                  opacity={0.12}
+                />
+              )}
+              <polyline
+                points={pts}
+                fill="none"
+                stroke={s.color}
+                strokeWidth="1.75"
+                strokeLinejoin="round"
+              />
+              <circle
+                cx={x(s.values.length - 1)}
+                cy={y(s.values.at(-1)!)}
+                r="3"
+                fill="var(--background)"
+                stroke={s.color}
+                strokeWidth="1.5"
+              />
             </g>
           )
         })}
         {labels.map((l, i) =>
           i % every && i !== labels.length - 1 ? null : (
-            <text key={l} x={x(i)} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+            <text
+              key={l}
+              x={x(i)}
+              y={H - 6}
+              textAnchor="middle"
+              className="fill-muted-foreground text-[10px]"
+            >
               {l}
             </text>
-          )
+          ),
         )}
       </svg>
       <table className="sr-only">
@@ -404,7 +548,17 @@ export function LineChart({
 }
 
 /** One series as bars: a count a week. */
-export function Bars({ values, labels, caption, height = 170 }: { values: number[]; labels: string[]; caption: string; height?: number }) {
+export function Bars({
+  values,
+  labels,
+  caption,
+  height = 170,
+}: {
+  values: number[]
+  labels: string[]
+  caption: string
+  height?: number
+}) {
   const [box, W] = useWidth(520)
   const H = height
   const pad = { l: 28, r: 6, t: 10, b: 22 }
@@ -420,17 +574,40 @@ export function Bars({ values, labels, caption, height = 170 }: { values: number
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" aria-hidden>
         {[0, 0.5, 1].map((f) => (
           <g key={f}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(max * f)} y2={y(max * f)} stroke="var(--border)" strokeDasharray={f === 0 ? undefined : "2 3"} />
-            <text x={pad.l - 6} y={y(max * f) + 3} textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">
+            <line
+              x1={pad.l}
+              x2={W - pad.r}
+              y1={y(max * f)}
+              y2={y(max * f)}
+              stroke="var(--border)"
+              strokeDasharray={f === 0 ? undefined : '2 3'}
+            />
+            <text
+              x={pad.l - 6}
+              y={y(max * f) + 3}
+              textAnchor="end"
+              className="fill-muted-foreground text-[10px] tabular-nums"
+            >
               {Math.round(max * f)}
             </text>
           </g>
         ))}
         {values.map((v, i) => (
           <g key={i}>
-            <rect x={pad.l + slot * i + (slot - bw) / 2} y={y(v)} width={bw} height={y(0) - y(v)} fill={i === values.length - 1 ? "var(--primary)" : "var(--chart-2)"} />
+            <rect
+              x={pad.l + slot * i + (slot - bw) / 2}
+              y={y(v)}
+              width={bw}
+              height={y(0) - y(v)}
+              fill={i === values.length - 1 ? 'var(--primary)' : 'var(--chart-2)'}
+            />
             {(i % every === 0 || i === values.length - 1) && (
-              <text x={pad.l + slot * i + slot / 2} y={H - 6} textAnchor="middle" className="fill-muted-foreground text-[10px]">
+              <text
+                x={pad.l + slot * i + slot / 2}
+                y={H - 6}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px]"
+              >
                 {labels[i]}
               </text>
             )}

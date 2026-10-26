@@ -27,16 +27,16 @@ import {
   TextQuote,
   Underline,
   Undo2,
-} from "lucide-react";
-import React from "react";
+} from 'lucide-react'
+import React from 'react'
 
-import type { RichTextEditorIcons } from "./icon-types";
+import type { RichTextEditorIcons } from './icon-types'
 
 // ---------------------------------------------------------------------------
 // Embed toolbar icons (used by ResizableNodeView / EmbedToolbar)
 // ---------------------------------------------------------------------------
 
-type AlignDir = "left" | "center" | "right";
+type AlignDir = 'left' | 'center' | 'right'
 
 export const ALIGN_PATHS: Record<AlignDir, React.ReactNode> = {
   center: (
@@ -60,9 +60,9 @@ export const ALIGN_PATHS: Record<AlignDir, React.ReactNode> = {
       <line x1="21" y1="18" x2="7" y2="18" />
     </>
   ),
-};
+}
 
-export type { AlignDir };
+export type { AlignDir }
 
 export const AlignIcon = ({ dir }: { dir: AlignDir }) => (
   <svg
@@ -77,7 +77,7 @@ export const AlignIcon = ({ dir }: { dir: AlignDir }) => (
   >
     {ALIGN_PATHS[dir]}
   </svg>
-);
+)
 
 export const EditUrlIcon = () => (
   <svg
@@ -93,7 +93,7 @@ export const EditUrlIcon = () => (
     <path d="M12 20h9" />
     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
   </svg>
-);
+)
 
 export const OpenInYouTubeIcon = () => (
   <svg
@@ -110,7 +110,7 @@ export const OpenInYouTubeIcon = () => (
     <polyline points="15 3 21 3 21 9" />
     <line x1="10" y1="14" x2="21" y2="3" />
   </svg>
-);
+)
 
 export const DeleteEmbedIcon = () => (
   <svg
@@ -126,9 +126,9 @@ export const DeleteEmbedIcon = () => (
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
-);
+)
 
-const iconProps = { className: "rte-editor-icon" };
+const iconProps = { className: 'rte-editor-icon' }
 
 export const DEFAULT_ICONS: RichTextEditorIcons = {
   alignCenterControlIcon: <TextAlignCenter {...iconProps} />,
@@ -160,4 +160,4 @@ export const DEFAULT_ICONS: RichTextEditorIcons = {
   underlineControlIcon: <Underline {...iconProps} />,
   undoControlIcon: <Undo2 {...iconProps} />,
   unlinkControlIcon: <Link2Off {...iconProps} />,
-};
+}

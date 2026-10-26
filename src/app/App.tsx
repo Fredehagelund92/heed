@@ -1,53 +1,58 @@
-import * as React from "react"
-import { commentActions } from "@/lib/comments"
-import { AppSidebar } from "@/components/app-sidebar"
-import { CommandPalette } from "@/components/command-palette"
-import { ConnectAgentDialog } from "@/components/connect-agent"
-import { ShortcutsDialog } from "@/components/shortcuts-dialog"
-import { ReportDialog } from "@/components/report-dialog"
-import { ErrorBoundary } from "@/components/error-boundary"
-import { useDock } from "@/lib/dock"
-import { useAfter } from "@/lib/loading"
-import { FactPeek } from "@/components/heed/fact-peek"
-import { DefinitionPeek } from "@/components/heed/definition-peek"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { Toaster } from "@/components/ui/sonner"
-import { ObservabilityPage } from "@/pages/observability"
-import { AnswerPanel } from "@/components/obs/answer-panel"
-import { SharePanel } from "@/components/heed/share-answer"
-import { WherePanel } from "@/components/heed/where-panel"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { open } from "@/lib/events"
-import { clamp, readWidth, saveWidth } from "@/lib/pane-width"
-import { navigate, useRoute } from "@/lib/router"
-import { useStore } from "@/lib/store"
-import { StoreProvider } from "@/lib/store-provider"
-import { ThemeProvider } from "@/lib/theme"
-import { AskDock, AskPage, TryIt } from "@/pages/ask"
-import { FactPage } from "@/pages/fact"
-import { HelpPage } from "@/pages/help"
-import { DocsSite } from "@/pages/docs"
-import { InboxPage } from "@/pages/inbox"
-import { ContextPage } from "@/pages/context"
-import { DefinitionPage } from "@/pages/definition-page"
-import { DefinitionsPage } from "@/pages/definitions"
-import { ReviewSheet } from "@/pages/review"
-import { SettingsPage } from "@/pages/settings"
-import { SignInPage } from "@/pages/signin"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useDomains } from "@/lib/domains"
+import * as React from 'react'
+import { commentActions } from '@/lib/comments'
+import { AppSidebar } from '@/components/app-sidebar'
+import { CommandPalette } from '@/components/command-palette'
+import { ConnectAgentDialog } from '@/components/connect-agent'
+import { ShortcutsDialog } from '@/components/shortcuts-dialog'
+import { ReportDialog } from '@/components/report-dialog'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { useDock } from '@/lib/dock'
+import { useAfter } from '@/lib/loading'
+import { FactPeek } from '@/components/heed/fact-peek'
+import { DefinitionPeek } from '@/components/heed/definition-peek'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/sonner'
+import { ObservabilityPage } from '@/pages/observability'
+import { AnswerPanel } from '@/components/obs/answer-panel'
+import { SharePanel } from '@/components/heed/share-answer'
+import { WherePanel } from '@/components/heed/where-panel'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { open } from '@/lib/events'
+import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
+import { navigate, useRoute } from '@/lib/router'
+import { useStore } from '@/lib/store'
+import { StoreProvider } from '@/lib/store-provider'
+import { ThemeProvider } from '@/lib/theme'
+import { AskDock, AskPage, TryIt } from '@/pages/ask'
+import { FactPage } from '@/pages/fact'
+import { HelpPage } from '@/pages/help'
+import { DocsSite } from '@/pages/docs'
+import { InboxPage } from '@/pages/inbox'
+import { ContextPage } from '@/pages/context'
+import { DefinitionPage } from '@/pages/definition-page'
+import { DefinitionsPage } from '@/pages/definitions'
+import { ReviewSheet } from '@/pages/review'
+import { SettingsPage } from '@/pages/settings'
+import { SignInPage } from '@/pages/signin'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useDomains } from '@/lib/domains'
 
 // The editor carries Tiptap, so it loads on its own; the full-screen review is a place of its own.
 // Both are fetched once the browser is idle after the first page, so opening them rarely waits.
-const loadEditor = () => import("@/pages/editor")
-const loadReview = () => import("@/pages/review-page")
-const loadTermEditor = () => import("@/pages/definition-editor")
+const loadEditor = () => import('@/pages/editor')
+const loadReview = () => import('@/pages/review-page')
+const loadTermEditor = () => import('@/pages/definition-editor')
 const FactEditor = React.lazy(() => loadEditor().then((m) => ({ default: m.FactEditor })))
 const ReviewPage = React.lazy(() => loadReview().then((m) => ({ default: m.ReviewPage })))
-const DefinitionEditor = React.lazy(() => loadTermEditor().then((m) => ({ default: m.DefinitionEditor })))
-const idle = (fn: () => void) => (typeof window.requestIdleCallback === "function" ? window.requestIdleCallback(fn, { timeout: 3000 }) : setTimeout(fn, 1500))
+const DefinitionEditor = React.lazy(() =>
+  loadTermEditor().then((m) => ({ default: m.DefinitionEditor })),
+)
+const idle = (fn: () => void) =>
+  typeof window.requestIdleCallback === 'function'
+    ? window.requestIdleCallback(fn, { timeout: 3000 })
+    : setTimeout(fn, 1500)
 idle(() => {
   void loadReview()
   void loadEditor()
@@ -59,12 +64,17 @@ idle(() => {
  * flashes a skeleton. The review: its list, the document and the side panel. An editor: the
  * toolbar row and the sheet on its canvas.
  */
-function Loading({ shape }: { shape: "review" | "editor" }) {
+function Loading({ shape }: { shape: 'review' | 'editor' }) {
   const shown = useAfter(true)
   if (!shown) return null
-  if (shape === "review")
+  if (shape === 'review')
     return (
-      <div role="status" aria-busy="true" aria-label="Loading" className="flex h-full min-h-0 flex-col">
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label="Loading"
+        className="flex h-full min-h-0 flex-col"
+      >
         <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4">
           <Skeleton className="h-4 w-40" />
           <Skeleton className="ml-auto h-7 w-24" />
@@ -94,7 +104,12 @@ function Loading({ shape }: { shape: "review" | "editor" }) {
       </div>
     )
   return (
-    <div role="status" aria-busy="true" aria-label="Loading" className="flex h-full min-h-0 flex-col">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+      className="flex h-full min-h-0 flex-col"
+    >
       <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4">
         <Skeleton className="h-4 w-48" />
         <Skeleton className="ml-auto h-7 w-20" />
@@ -127,39 +142,48 @@ function Screen() {
   const { parts, query } = useRoute()
   const [place, a, b] = parts
   // The editor starts from its address: the same path with another draft, gap or metric is a new start.
-  const start = ["draft", "gap", "metric", "market", "setup"].map((k) => query.get(k) ?? "").join("|")
-  if (place === "ask") return <AskPage />
+  const start = ['draft', 'gap', 'metric', 'market', 'setup']
+    .map((k) => query.get(k) ?? '')
+    .join('|')
+  if (place === 'ask') return <AskPage />
   // The review is a place to work, inside the shell with the sidebar as its icon rail. Esc goes back to the Inbox.
-  if (place === "inbox" && b === "review")
+  if (place === 'inbox' && b === 'review')
     return (
       <React.Suspense fallback={<Loading shape="review" />}>
         <ReviewPage key={a} id={a} />
       </React.Suspense>
     )
-  if (place === "context") {
-    const mode = a === "new" ? "new" : a && (b === "edit" || b === "suggest") ? b : null
+  if (place === 'context') {
+    const mode = a === 'new' ? 'new' : a && (b === 'edit' || b === 'suggest') ? b : null
     if (mode)
       return (
         <React.Suspense fallback={<Loading shape="editor" />}>
-          <FactEditor key={`${parts.join("/")}?${start}`} mode={mode} factId={a === "new" ? undefined : a} />
+          <FactEditor
+            key={`${parts.join('/')}?${start}`}
+            mode={mode}
+            factId={a === 'new' ? undefined : a}
+          />
         </React.Suspense>
       )
     if (a) return <FactPage id={a} />
     return <ContextPage />
   }
-  if (place === "definitions") {
-    if (a === "new" || b === "edit")
+  if (place === 'definitions') {
+    if (a === 'new' || b === 'edit')
       return (
         <React.Suspense fallback={<Loading shape="editor" />}>
-          <DefinitionEditor key={`${parts.join("/")}?${query.get("sameAs") ?? ""}`} name={a === "new" ? undefined : decodeURIComponent(a)} />
+          <DefinitionEditor
+            key={`${parts.join('/')}?${query.get('sameAs') ?? ''}`}
+            name={a === 'new' ? undefined : decodeURIComponent(a)}
+          />
         </React.Suspense>
       )
     if (a) return <DefinitionPage name={decodeURIComponent(a)} />
     return <DefinitionsPage />
   }
-  if (place === "settings") return <SettingsPage section={a} sub={b} step={parts[3]} />
-  if (place === "observability") return <ObservabilityPage section={a} />
-  if (place === "help") return <HelpPage />
+  if (place === 'settings') return <SettingsPage section={a} sub={b} step={parts[3]} />
+  if (place === 'observability') return <ObservabilityPage section={a} />
+  if (place === 'help') return <HelpPage />
   return <InboxPage />
 }
 
@@ -188,21 +212,21 @@ function DockContent() {
   const dock = useDock()
   if (!dock) return null
   switch (dock.kind) {
-    case "review":
+    case 'review':
       return <ReviewSheet cardId={dock.id!} />
-    case "context":
+    case 'context':
       return <FactPeek id={dock.id!} />
-    case "def":
+    case 'def':
       return <DefinitionPeek name={dock.id!} />
-    case "ask":
+    case 'ask':
       return <AskDock />
-    case "try":
+    case 'try':
       return <TryIt cardId={dock.id} />
-    case "topic":
+    case 'topic':
       return <AnswerPanel id={dock.id!} />
-    case "share":
+    case 'share':
       return <SharePanel id={dock.id!} />
-    case "where":
+    case 'where':
       return <WherePanel id={dock.id!} />
   }
 }
@@ -215,10 +239,12 @@ function Shell() {
   const { parts } = useRoute()
   // The sidebar folds to its rail while the dock is open or a review is on screen, and comes back
   // when they close. A page that loads that way starts folded, so nothing jumps after the first paint.
-  const hasDock = !!dock || (parts[0] === "inbox" && parts[2] === "review")
+  const hasDock = !!dock || (parts[0] === 'inbox' && parts[2] === 'review')
   const [open, setOpen] = React.useState(!hasDock)
   // The left navigation's width, dragged on its rail, kept for the session.
-  const [sidebarWidth, setSidebarWidth] = React.useState(() => clamp(readWidth("sidebar", 256), 200, 360))
+  const [sidebarWidth, setSidebarWidth] = React.useState(() =>
+    clamp(readWidth('sidebar', 256), 200, 360),
+  )
   // The fold follows the dock in the same render as the dock itself, so the page reflows once, in one
   // frame, and that fold is instant (data-fold="auto"). Only a person's own fold animates.
   const [had, setHad] = React.useState(hasDock)
@@ -244,9 +270,9 @@ function Shell() {
         setAuto(false)
         setOpen(o)
       }}
-      data-fold={auto ? "auto" : undefined}
+      data-fold={auto ? 'auto' : undefined}
       className="h-svh overflow-hidden"
-      style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}
+      style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
     >
       {/* The first stop for the keyboard: past the sidebar, straight to the page. A button, since a #link would change the address. */}
       <button
@@ -254,10 +280,10 @@ function Shell() {
         className="sr-only fixed top-3 left-3 z-[60] rounded-md bg-background px-3 py-2 text-sm font-medium shadow-md ring-3 ring-ring/50 focus-visible:not-sr-only"
         onClick={() => {
           // A page can name where it starts (Ask: the box to ask in); otherwise the page itself.
-          const target = document.querySelector<HTMLElement>("[data-skip-target]")
+          const target = document.querySelector<HTMLElement>('[data-skip-target]')
           if (target) return target.focus()
-          const main = document.querySelector<HTMLElement>("[data-slot=sidebar-inset]")
-          main?.setAttribute("tabindex", "-1")
+          const main = document.querySelector<HTMLElement>('[data-slot=sidebar-inset]')
+          main?.setAttribute('tabindex', '-1')
           main?.focus()
         }}
       >
@@ -267,7 +293,7 @@ function Shell() {
         onWidth={(w, done) => {
           const next = clamp(w, 200, 360)
           setSidebarWidth(next)
-          if (done) saveWidth("sidebar", next)
+          if (done) saveWidth('sidebar', next)
         }}
       />
       <SidebarInset className="min-w-0 overflow-hidden">
@@ -314,22 +340,30 @@ function Shell() {
 function Gate() {
   const { state, dispatch } = useStore()
   const route = useRoute()
-  const demo = route.query.get("demo")
+  const demo = route.query.get('demo')
   React.useEffect(() => {
-    if (demo === "setup" || demo === "done" || demo === "week" || demo === "last") dispatch({ type: "demo", mode: demo })
-    if ((demo === "done" || demo === "week") && state.user) commentActions.scenario(demo, state.user)
+    if (demo === 'setup' || demo === 'done' || demo === 'week' || demo === 'last')
+      dispatch({ type: 'demo', mode: demo })
+    if ((demo === 'done' || demo === 'week') && state.user)
+      commentActions.scenario(demo, state.user)
   }, [demo, dispatch, state.user])
   React.useEffect(() => {
     // The documentation is a public site: it needs nobody signed in.
-    if (!state.user && route.parts[0] !== "signin" && route.parts[0] !== "docs") navigate("/signin")
+    if (!state.user && route.parts[0] !== 'signin' && route.parts[0] !== 'docs') navigate('/signin')
   }, [state.user, route.parts])
   // ?open=palette, connect, shortcuts or report opens that overlay, so every state has a link.
-  const overlay = route.query.get("open")
+  const overlay = route.query.get('open')
   React.useEffect(() => {
-    if (overlay === "palette" || overlay === "connect" || overlay === "shortcuts" || overlay === "report") setTimeout(() => open(overlay), 0)
+    if (
+      overlay === 'palette' ||
+      overlay === 'connect' ||
+      overlay === 'shortcuts' ||
+      overlay === 'report'
+    )
+      setTimeout(() => open(overlay), 0)
   }, [overlay])
-  if (route.parts[0] === "docs") return <DocsSite />
-  if (route.parts[0] === "signin" || !state.user) return <SignInPage />
+  if (route.parts[0] === 'docs') return <DocsSite />
+  if (route.parts[0] === 'signin' || !state.user) return <SignInPage />
   return <Shell />
 }
 
@@ -340,16 +374,16 @@ function Gate() {
  */
 function AppToaster() {
   const { parts, query } = useRoute()
-  const ask = parts[0] === "ask" || /^(ask|try)/.test(query.get("dock") ?? "")
-  const review = parts[0] === "inbox" && parts[2] === "review"
+  const ask = parts[0] === 'ask' || /^(ask|try)/.test(query.get('dock') ?? '')
+  const review = parts[0] === 'inbox' && parts[2] === 'review'
   // A list's selection bar sits in a band at its foot: a toast about what the bar did sits above it and its line.
-  const list = ["context", "definitions", "inbox"].includes(parts[0]) && !parts[1]
+  const list = ['context', 'definitions', 'inbox'].includes(parts[0]) && !parts[1]
   return (
     <Toaster
       position="bottom-right"
       offset={{ bottom: ask ? 152 : list ? 112 : review ? 300 : 64, right: 24 }}
       // In the review a narrower toast stays inside the decision's column, clear of the change.
-      style={review ? ({ "--width": "300px" } as React.CSSProperties) : undefined}
+      style={review ? ({ '--width': '300px' } as React.CSSProperties) : undefined}
       mobileOffset={{ bottom: ask ? 168 : review ? 148 : list ? 124 : 64 }}
     />
   )

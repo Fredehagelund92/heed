@@ -1,5 +1,5 @@
-import * as React from "react"
-import { useRoute } from "@/lib/router"
+import * as React from 'react'
+import { useRoute } from '@/lib/router'
 
 // The switch "Let agents follow links" in Settings, Tools and access keys: on in the demo. The
 // review flag ?links=on|off sets it from the address, so both states have a link.
@@ -19,8 +19,8 @@ export function useLinksEnabled() {
       listeners.add(l)
       return () => listeners.delete(l)
     },
-    () => on
+    () => on,
   )
-  const flag = useRoute().query.get("links")
-  return flag === "on" ? true : flag === "off" ? false : stored
+  const flag = useRoute().query.get('links')
+  return flag === 'on' ? true : flag === 'off' ? false : stored
 }

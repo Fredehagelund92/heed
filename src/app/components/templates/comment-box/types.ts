@@ -1,9 +1,9 @@
-import type { JSONContent } from "@tiptap/core"
+import type { JSONContent } from '@tiptap/core'
 
 // From the editorcn Comment Box (registry `comment-box`, MIT), adapted: a reaction lists who gave
 // it, a comment can be a return with a note, edited or deleted, and authors are people's names.
 
-export type ReactionEmoji = "👍" | "👀" | "✅" | "🤔" | "🙏"
+export type ReactionEmoji = '👍' | '👀' | '✅' | '🤔' | '🙏'
 
 export interface CommentReaction {
   emoji: ReactionEmoji

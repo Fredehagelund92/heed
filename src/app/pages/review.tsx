@@ -1,14 +1,14 @@
-import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from "lucide-react"
-import { cn } from "cn"
-import { DockFrame, DockMissing } from "@/components/dock"
-import { AgentAvatar, PersonAvatar } from "@/components/heed/bits"
-import { ChangeBlock, KindLabel } from "@/components/heed/review-parts"
-import { ToolLogo } from "@/components/heed/tool-logo"
-import { connectorById } from "@/data/integrations"
-import { Button } from "@/components/ui/button"
-import { careLine, reviewFor, type Review } from "@/data/review"
-import { navigate } from "@/lib/router"
-import { useStore } from "@/lib/store"
+import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { DockFrame, DockMissing } from '@/components/dock'
+import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
+import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
+import { ToolLogo } from '@/components/heed/tool-logo'
+import { connectorById } from '@/data/integrations'
+import { Button } from '@/components/ui/button'
+import { careLine, reviewFor, type Review } from '@/data/review'
+import { navigate } from '@/lib/router'
+import { useStore } from '@/lib/store'
 
 // Reviewing a suggestion, in two places. The quick view (in the Inbox pane and the dock) says what
 // changes and opens the review; it never publishes. The full-screen review is where you work: the
@@ -21,22 +21,26 @@ export function Sender({ r, when }: { r: Review; when?: string }) {
   if (r.drafted)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span aria-hidden className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/60">
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/60"
+        >
           <CircleDashedIcon className="size-3.5" />
         </span>
         <span>
-          <span className="font-medium text-foreground">A draft</span> from {r.drafted.questions} questions agents asked this week and {r.drafted.from}. Nobody has
-          checked it yet.
+          <span className="font-medium text-foreground">A draft</span> from {r.drafted.questions}{' '}
+          questions agents asked this week and {r.drafted.from}. Nobody has checked it yet.
         </span>
       </p>
     )
   if (r.synced)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ToolLogo c={connectorById("google-drive")!} size="sm" />
+        <ToolLogo c={connectorById('google-drive')!} size="sm" />
         <span>
-          From <span className="font-medium text-foreground">{r.synced.tool}</span>, {r.synced.folder}, read {(when ?? r.synced.read).toLowerCase()}. Created by the read,
-          not by a person.
+          From <span className="font-medium text-foreground">{r.synced.tool}</span>,{' '}
+          {r.synced.folder}, read {(when ?? r.synced.read).toLowerCase()}. Created by the read, not
+          by a person.
         </span>
       </p>
     )
@@ -46,11 +50,13 @@ export function Sender({ r, when }: { r: Review; when?: string }) {
       <span>
         {r.agent ? (
           <>
-            An agent, with <span className="font-medium text-foreground">{r.from}</span>'s OK, {when ?? r.on}
+            An agent, with <span className="font-medium text-foreground">{r.from}</span>'s OK,{' '}
+            {when ?? r.on}
           </>
         ) : (
           <>
-            <span className="font-medium text-foreground">{r.from}</span>, {r.via === "editor" ? "in the editor" : `from ${r.via}`}, {when ?? r.on}
+            <span className="font-medium text-foreground">{r.from}</span>,{' '}
+            {r.via === 'editor' ? 'in the editor' : `from ${r.via}`}, {when ?? r.on}
           </>
         )}
       </span>
@@ -64,11 +70,16 @@ function Moved({ r }: { r: Review }) {
   return (
     <ul aria-label="What moved" className="flex flex-wrap gap-2">
       {r.moved.map((m) => (
-        <li key={m.label} className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-sm">
+        <li
+          key={m.label}
+          className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2 text-sm"
+        >
           <span className="text-xs text-muted-foreground">{m.label}</span>
           {m.before && (
             <>
-              <del className="text-muted-foreground decoration-[var(--mark-del-line)]">{m.before}</del>
+              <del className="text-muted-foreground decoration-[var(--mark-del-line)]">
+                {m.before}
+              </del>
               <ArrowRightIcon aria-label="to" className="size-3 text-muted-foreground" />
             </>
           )}
@@ -79,16 +90,19 @@ function Moved({ r }: { r: Review }) {
   )
 }
 
-export function Summary({ r, size = "lg" }: { r: Review; size?: "lg" | "md" }) {
+export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
   const changed = r.counts.reduce((n, c) => n + c.n, 0)
   return (
     <div className="flex flex-col gap-4">
       <Sender r={r} />
       {/* The full review moves focus here after J, K or a decision, so the next Tab starts at the change. */}
       <h2
-        id={size === "lg" ? "change-heading" : undefined}
-        tabIndex={size === "lg" ? -1 : undefined}
-        className={cn("leading-snug font-semibold tracking-tight text-balance outline-none", size === "lg" ? "text-xl sm:text-2xl" : "text-lg")}
+        id={size === 'lg' ? 'change-heading' : undefined}
+        tabIndex={size === 'lg' ? -1 : undefined}
+        className={cn(
+          'leading-snug font-semibold tracking-tight text-balance outline-none',
+          size === 'lg' ? 'text-xl sm:text-2xl' : 'text-lg',
+        )}
       >
         {r.summary}
       </h2>
@@ -96,17 +110,27 @@ export function Summary({ r, size = "lg" }: { r: Review; size?: "lg" | "md" }) {
         {r.counts.map((c) => (
           <KindLabel key={c.kind} kind={c.kind} n={c.n} />
         ))}
-        {r.unchanged.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{r.unchanged.length} fields unchanged</span>}
+        {r.unchanged.length > 0 && (
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {r.unchanged.length} fields unchanged
+          </span>
+        )}
         <span className="sr-only">{changed} changed</span>
       </div>
       {r.formattingOnly && (
         <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
-          <span className="font-medium">Formatting only. The words are the same.</span>{" "}
-          <span className="text-muted-foreground">{r.counts[0].n} formatting changes, no words or links changed.</span>
+          <span className="font-medium">Formatting only. The words are the same.</span>{' '}
+          <span className="text-muted-foreground">
+            {r.counts[0].n} formatting changes, no words or links changed.
+          </span>
         </p>
       )}
       {/* The values that moved are not repeated here: the change blocks below mark each one. */}
-      {r.note && <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">“{r.note}”</blockquote>}
+      {r.note && (
+        <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">
+          “{r.note}”
+        </blockquote>
+      )}
     </div>
   )
 }
@@ -127,9 +151,14 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
       {/* What needs care shows before Review, never only inside it. */}
       {care && (
         <p className="flex items-center gap-2 text-sm font-medium">
-          <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
+          <TriangleAlertIcon
+            aria-hidden
+            className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
+          />
           {care}
-          <span className="font-normal text-muted-foreground">{r.claims ? "before publishing" : r.clash ? `: ${r.clash.title}` : ""}</span>
+          <span className="font-normal text-muted-foreground">
+            {r.claims ? 'before publishing' : r.clash ? `: ${r.clash.title}` : ''}
+          </span>
         </p>
       )}
       <p className="text-[15px] leading-relaxed text-pretty">{r.summary}</p>
@@ -139,12 +168,18 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
         </p>
       )}
       <Moved r={r} />
-      {r.note && <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">“{r.note}”</blockquote>}
+      {r.note && (
+        <blockquote className="border-l-2 pl-3 text-sm text-muted-foreground italic">
+          “{r.note}”
+        </blockquote>
+      )}
       <div className="border-t pt-1">
         {first ? (
           <ChangeBlock block={first} index={0} total={r.blocks.length} />
         ) : r.rewrite ? (
-          <p className="py-4 text-sm text-muted-foreground">{r.rewrite.changes} changes across the text. The review shows them side by side.</p>
+          <p className="py-4 text-sm text-muted-foreground">
+            {r.rewrite.changes} changes across the text. The review shows them side by side.
+          </p>
         ) : r.retire ? (
           <p className="py-4 text-sm text-muted-foreground">{r.retire.reason}</p>
         ) : null}

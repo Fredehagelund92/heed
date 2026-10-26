@@ -1,14 +1,14 @@
-import * as React from "react"
-import { ArrowUpRightIcon, ListChecksIcon } from "lucide-react"
-import { cn } from "cn"
-import { buttonVariants } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
-import { WordDiff } from "@/components/heed/bits"
-import { ResultIcon } from "@/components/obs/result"
-import type { Review } from "@/data/review"
-import { useSavedQuestions } from "@/data/saved-questions"
-import { checkDraft, draftLine, savesQuestion, setSavesQuestion } from "@/lib/saved-check"
-import { href } from "@/lib/router"
+import * as React from 'react'
+import { ArrowUpRightIcon, ListChecksIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { buttonVariants } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { WordDiff } from '@/components/heed/bits'
+import { ResultIcon } from '@/components/obs/result'
+import type { Review } from '@/data/review'
+import { useSavedQuestions } from '@/data/saved-questions'
+import { checkDraft, draftLine, savesQuestion, setSavesQuestion } from '@/lib/saved-check'
+import { href } from '@/lib/router'
 
 // In the review, under what agents will say: the saved questions that answer from this item, checked
 // against the draft ("1 of 1 still answers the same"). One that moves opens before and now in place,
@@ -33,11 +33,16 @@ export function SavedLine({ r, domain }: { r: Review; domain: string }) {
         />
         <span>
           Also save this question
-          <span className="block text-xs text-muted-foreground">“What happened to {r.drafted.scope}?” is checked after every change, in Quality.</span>
+          <span className="block text-xs text-muted-foreground">
+            “What happened to {r.drafted.scope}?” is checked after every change, in Quality.
+          </span>
         </span>
       </label>
     )
-  if (!check) return <p className="text-xs text-muted-foreground">No saved question answers from this item.</p>
+  if (!check)
+    return (
+      <p className="text-xs text-muted-foreground">No saved question answers from this item.</p>
+    )
   return (
     <div className="flex flex-col gap-2 rounded-frame border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -47,13 +52,16 @@ export function SavedLine({ r, domain }: { r: Review; domain: string }) {
             <span className="font-medium">Saved questions.</span> {draftLine(check)}
           </span>
         </p>
-        <a href={href("/observability/quality", { domain })} className={cn(buttonVariants({ variant: "ghost", size: "xs" }), "text-muted-foreground")}>
+        <a
+          href={href('/observability/quality', { domain })}
+          className={cn(buttonVariants({ variant: 'ghost', size: 'xs' }), 'text-muted-foreground')}
+        >
           <ArrowUpRightIcon />
           Open in Quality
         </a>
       </div>
       {check.results
-        .filter((x) => x.result !== "same")
+        .filter((x) => x.result !== 'same')
         .map((x) => (
           <div key={x.q.id} className="border-t pt-2">
             <button
@@ -67,7 +75,9 @@ export function SavedLine({ r, domain }: { r: Review; domain: string }) {
                 <span className="font-medium">{x.q.question}</span>
                 <span className="block text-xs text-muted-foreground">{x.why}</span>
               </span>
-              <span className="shrink-0 text-xs text-muted-foreground underline underline-offset-4">{open === x.q.id ? "Hide" : "Before and now"}</span>
+              <span className="shrink-0 text-xs text-muted-foreground underline underline-offset-4">
+                {open === x.q.id ? 'Hide' : 'Before and now'}
+              </span>
             </button>
             {open === x.q.id && (
               <div className="mt-2 rounded-md bg-muted/40 px-3 py-2">

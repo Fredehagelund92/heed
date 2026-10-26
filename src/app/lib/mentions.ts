@@ -1,8 +1,16 @@
-import * as React from "react"
-import { domainIds, domains, markets, people, servedToAgents, type Fact, type Kind } from "@/data/world"
-import { useDefinitions, type Definition } from "@/lib/definitions"
-import { useFacts } from "@/lib/store"
-import { useDomains } from "@/lib/domains"
+import * as React from 'react'
+import {
+  domainIds,
+  domains,
+  markets,
+  people,
+  servedToAgents,
+  type Fact,
+  type Kind,
+} from '@/data/world'
+import { useDefinitions, type Definition } from '@/lib/definitions'
+import { useFacts } from '@/lib/store'
+import { useDomains } from '@/lib/domains'
 
 // What an '@' can point at, kept free of the editor so lists, pages and the Inbox can read
 // mentions without loading it. A mention is stored as `kind:key` with the words the author saw
@@ -10,7 +18,8 @@ import { useDomains } from "@/lib/domains"
 // own token, [@ id="..." label="..."]. A mention is navigation only: agents read the label as
 // plain words and never follow it, and it never changes who can see what.
 
-export type MentionKind = "domain" | "metric" | "dimension" | "term" | "context" | "market" | "person"
+export type MentionKind =
+  'domain' | 'metric' | 'dimension' | 'term' | 'context' | 'market' | 'person'
 
 export type Mentionable = {
   /** `kind:key`, as stored. */
@@ -29,21 +38,28 @@ export type MentionRef = { id: string; label: string }
 
 /** The picker's groups, in this order, each with the kinds it holds. */
 export const GROUPS: { label: string; kinds: MentionKind[] }[] = [
-  { label: "Domains", kinds: ["domain"] },
-  { label: "Definitions", kinds: ["metric", "dimension", "term"] },
-  { label: "Context items", kinds: ["context"] },
-  { label: "Markets", kinds: ["market"] },
-  { label: "People", kinds: ["person"] },
+  { label: 'Domains', kinds: ['domain'] },
+  { label: 'Definitions', kinds: ['metric', 'dimension', 'term'] },
+  { label: 'Context items', kinds: ['context'] },
+  { label: 'Markets', kinds: ['market'] },
+  { label: 'People', kinds: ['person'] },
 ]
 
 /** What each place lets you mention. */
-export const SCOPE_KINDS: MentionKind[] = ["domain", "metric", "dimension", "term", "context", "market"]
-export const LINK_KINDS: MentionKind[] = ["domain", "metric", "dimension", "term", "context"]
-export const PEOPLE_KINDS: MentionKind[] = ["person"]
+export const SCOPE_KINDS: MentionKind[] = [
+  'domain',
+  'metric',
+  'dimension',
+  'term',
+  'context',
+  'market',
+]
+export const LINK_KINDS: MentionKind[] = ['domain', 'metric', 'dimension', 'term', 'context']
+export const PEOPLE_KINDS: MentionKind[] = ['person']
 
 export const mentionId = (kind: MentionKind, key: string) => `${kind}:${key}`
 export function parseMentionId(id: string): { kind: MentionKind; key: string } {
-  const i = id.indexOf(":")
+  const i = id.indexOf(':')
   return { kind: id.slice(0, i) as MentionKind, key: id.slice(i + 1) }
 }
 
@@ -54,19 +70,46 @@ function build(facts: Fact[], definitions: Definition[], version = 0): Mentionab
   void version
   return [
     // A domain's row says what it covers, in its owners' words.
-    ...domainIds.map((d) => ({ id: mentionId("domain", d), kind: "domain" as const, label: domains[d].name, hint: domains[d].covers || "Domain" })),
+    ...domainIds.map((d) => ({
+      id: mentionId('domain', d),
+      kind: 'domain' as const,
+      label: domains[d].name,
+      hint: domains[d].covers || 'Domain',
+    })),
     ...definitions.map((d) => ({
       id: mentionId(d.type, d.name),
       kind: d.type,
       label: d.name,
-      hint: d.sameAs ? `Another name for ${d.sameAs}` : d.domain ? domains[d.domain].name : undefined,
+      hint: d.sameAs
+        ? `Another name for ${d.sameAs}`
+        : d.domain
+          ? domains[d.domain].name
+          : undefined,
       synonym: !!d.sameAs,
     })),
     ...facts
       .filter(servedToAgents)
-      .map((f) => ({ id: mentionId("context", f.id), kind: "context" as const, label: f.title, hint: domains[f.domain].name, contextKind: f.kind })),
-    ...markets.map((m) => ({ id: mentionId("market", m), kind: "market" as const, label: m, hint: "Market" })),
-    ...people.filter((p) => !p.invited).map((p) => ({ id: mentionId("person", p.name), kind: "person" as const, label: p.name, hint: p.role })),
+      .map((f) => ({
+        id: mentionId('context', f.id),
+        kind: 'context' as const,
+        label: f.title,
+        hint: domains[f.domain].name,
+        contextKind: f.kind,
+      })),
+    ...markets.map((m) => ({
+      id: mentionId('market', m),
+      kind: 'market' as const,
+      label: m,
+      hint: 'Market',
+    })),
+    ...people
+      .filter((p) => !p.invited)
+      .map((p) => ({
+        id: mentionId('person', p.name),
+        kind: 'person' as const,
+        label: p.name,
+        hint: p.role,
+      })),
   ]
 }
 
@@ -76,7 +119,10 @@ export function useMentionables(): Mentionable[] {
   const definitions = useDefinitions()
   // A renamed or new domain changes what can be mentioned.
   const domainsVersion = useDomains()
-  return React.useMemo(() => build(facts, definitions, domainsVersion), [facts, definitions, domainsVersion])
+  return React.useMemo(
+    () => build(facts, definitions, domainsVersion),
+    [facts, definitions, domainsVersion],
+  )
 }
 
 /** The current target of a mention, or undefined when it was deleted, archived or renamed away. */
@@ -87,10 +133,10 @@ export function useMentionTarget(id: string): Mentionable | undefined {
 
 /* ---------- recent first ---------- */
 
-const RECENT_KEY = "mention-recent"
+const RECENT_KEY = 'mention-recent'
 let recent: string[] = (() => {
   try {
-    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]") as string[]
+    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as string[]
   } catch {
     return []
   }
@@ -125,7 +171,11 @@ function rank(label: string, q: string) {
  * the label and keeps the best matches (and the recent ones) at the top of each group. With
  * nothing typed, each group shows its first few; typing shows every match, and the list scrolls.
  */
-export function searchMentions(all: Mentionable[], kinds: MentionKind[], query: string): MentionGroup[] {
+export function searchMentions(
+  all: Mentionable[],
+  kinds: MentionKind[],
+  query: string,
+): MentionGroup[] {
   const q = query.trim().toLowerCase()
   const allowed = all.filter((m) => kinds.includes(m.kind))
   const isRecent = (m: Mentionable) => recent.indexOf(m.id)
@@ -134,8 +184,11 @@ export function searchMentions(all: Mentionable[], kinds: MentionKind[], query: 
       .map((id) => allowed.find((m) => m.id === id))
       .filter(Boolean)
       .slice(0, 4) as Mentionable[]
-    const groups = GROUPS.map((g) => ({ label: g.label, items: allowed.filter((m) => g.kinds.includes(m.kind) && !rec.includes(m)).slice(0, 5) }))
-    return [{ label: "Recent", items: rec }, ...groups].filter((g) => g.items.length)
+    const groups = GROUPS.map((g) => ({
+      label: g.label,
+      items: allowed.filter((m) => g.kinds.includes(m.kind) && !rec.includes(m)).slice(0, 5),
+    }))
+    return [{ label: 'Recent', items: rec }, ...groups].filter((g) => g.items.length)
   }
   // Best match first: the start of the label, then recent, then the shorter label ("Norway" before
   // "Norway launch campaign..."). Groups keep their items together, the group with the best match on top.
@@ -147,7 +200,9 @@ export function searchMentions(all: Mentionable[], kinds: MentionKind[], query: 
   }
   return GROUPS.map((g) => ({
     label: g.label,
-    items: allowed.filter((m) => g.kinds.includes(m.kind) && score(m) >= 0).sort((a, b) => score(a) - score(b) || a.label.localeCompare(b.label)),
+    items: allowed
+      .filter((m) => g.kinds.includes(m.kind) && score(m) >= 0)
+      .sort((a, b) => score(a) - score(b) || a.label.localeCompare(b.label)),
   }))
     .filter((g) => g.items.length)
     .sort((a, b) => score(a.items[0]) - score(b.items[0]))
@@ -158,8 +213,8 @@ export function searchMentions(all: Mentionable[], kinds: MentionKind[], query: 
 const TOKEN = /\[@ ([^\]]*)\]/g
 
 function attrs(s: string): MentionRef {
-  const get = (k: string) => s.match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`))?.[1] ?? ""
-  return { id: get("id"), label: get("label") }
+  const get = (k: string) => s.match(new RegExp(`(?:^|\\s)${k}="([^"]*)"`))?.[1] ?? ''
+  return { id: get('id'), label: get('label') }
 }
 
 /** The token the editor writes for a mention. */
@@ -179,7 +234,8 @@ export function mentionParts(md: string): (string | MentionRef)[] {
 }
 
 /** Every mention in stored text. */
-export const mentionsIn = (md: string | undefined) => (md ? (mentionParts(md).filter((p) => typeof p !== "string") as MentionRef[]) : [])
+export const mentionsIn = (md: string | undefined) =>
+  md ? (mentionParts(md).filter((p) => typeof p !== 'string') as MentionRef[]) : []
 
 /** The words an agent reads: each mention becomes the label its author saw, nothing more. */
 export const plainText = (md: string) => md.replace(TOKEN, (_, a: string) => attrs(a).label)

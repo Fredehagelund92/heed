@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 import {
   ArchiveIcon,
   CalendarIcon,
@@ -14,14 +14,27 @@ import {
   TypeIcon,
   UsersIcon,
   type LucideIcon,
-} from "lucide-react"
-import { toast } from "sonner"
-import { FieldDiff, PersonAvatar } from "@/components/heed/bits"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { monthOf, relativeDate, restorable, VERB, type Version, type VersionKind } from "@/data/history"
-import { useShowMore } from "@/hooks/use-show-more"
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { FieldDiff, PersonAvatar } from '@/components/heed/bits'
+import { Button } from '@/components/ui/button'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  monthOf,
+  relativeDate,
+  restorable,
+  VERB,
+  type Version,
+  type VersionKind,
+} from '@/data/history'
+import { useShowMore } from '@/hooks/use-show-more'
 
 // A history that stays small however long it gets: one line until opened ("12 changes - last
 // edited by Jon Abara, 3 Oct"), then compact rows grouped by month, the newest five first and
@@ -60,10 +73,13 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
         >
           <PersonAvatar name={version.who} size={20} className="shrink-0" />
           <span className="min-w-0 flex-1 truncate">
-            <span className="font-medium">{version.who.split(" ")[0]}</span> <span className="text-muted-foreground">{VERB[version.kind]}</span>
+            <span className="font-medium">{version.who.split(' ')[0]}</span>{' '}
+            <span className="text-muted-foreground">{VERB[version.kind]}</span>
           </span>
           <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="w-16 shrink-0 text-right text-xs text-muted-foreground tabular-nums">{relativeDate(version.on)}</span>
+          <span className="w-16 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+            {relativeDate(version.on)}
+          </span>
         </TooltipTrigger>
         <TooltipContent side="left" className="max-w-64">
           Version {version.v}: {version.summary}
@@ -74,7 +90,13 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
 }
 
 /** The versions of an item, newest first. `current` says which one agents get. */
-export function VersionHistory({ versions, canRestore }: { versions: Version[]; canRestore: boolean }) {
+export function VersionHistory({
+  versions,
+  canRestore,
+}: {
+  versions: Version[]
+  canRestore: boolean
+}) {
   const [open, setOpen] = React.useState(false)
   const [viewing, setViewing] = React.useState<Version | null>(null)
   const { shown, more, next, showMore, showFewer } = useShowMore(versions, 5, 10)
@@ -100,19 +122,26 @@ export function VersionHistory({ versions, canRestore }: { versions: Version[]; 
         onClick={() => setOpen((o) => !o)}
         className="group/history -mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <ChevronRightIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/history:rotate-90" />
+        <ChevronRightIcon
+          aria-hidden
+          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/history:rotate-90"
+        />
         <span className="min-w-0 flex-1">
           <span className="font-medium tabular-nums">
-            {versions.length} {versions.length === 1 ? "change" : "changes"}
+            {versions.length} {versions.length === 1 ? 'change' : 'changes'}
           </span>
           <span className="text-muted-foreground">
-            {" "}
-            - last {latest.kind === "checked" ? "checked" : "edited"} by {latest.who}, {relativeDate(latest.on)}
+            {' '}
+            - last {latest.kind === 'checked' ? 'checked' : 'edited'} by {latest.who},{' '}
+            {relativeDate(latest.on)}
           </span>
         </span>
       </button>
       {open && (
-        <div id={listId} className="mt-1 flex animate-in flex-col duration-(--dur-3) fade-in-0 slide-in-from-top-1">
+        <div
+          id={listId}
+          className="mt-1 flex animate-in flex-col duration-(--dur-3) fade-in-0 slide-in-from-top-1"
+        >
           {months.map((m) => (
             <section key={m.month} aria-label={m.month}>
               <h3 className="px-1.5 pt-2 pb-1 text-xs text-muted-foreground">{m.month}</h3>
@@ -131,7 +160,12 @@ export function VersionHistory({ versions, canRestore }: { versions: Version[]; 
               </Button>
             )}
             {showFewer && (
-              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={showFewer}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-muted-foreground"
+                onClick={showFewer}
+              >
                 Show fewer
               </Button>
             )}
@@ -145,7 +179,12 @@ export function VersionHistory({ versions, canRestore }: { versions: Version[]; 
               <SheetHeader className="border-b">
                 <SheetTitle>
                   Version {viewing.v}
-                  {viewing.v === latest.v && <span className="font-normal text-muted-foreground"> (what agents get now)</span>}
+                  {viewing.v === latest.v && (
+                    <span className="font-normal text-muted-foreground">
+                      {' '}
+                      (what agents get now)
+                    </span>
+                  )}
                 </SheetTitle>
                 <SheetDescription>
                   {viewing.who} {VERB[viewing.kind]}, {relativeDate(viewing.on)}. {viewing.summary}
@@ -159,7 +198,9 @@ export function VersionHistory({ versions, canRestore }: { versions: Version[]; 
                     size="sm"
                     className="w-fit"
                     onClick={() => {
-                      toast(`Version ${viewing.v} restored as a draft`, { description: "Publish it to make it what agents get." })
+                      toast(`Version ${viewing.v} restored as a draft`, {
+                        description: 'Publish it to make it what agents get.',
+                      })
                       setViewing(null)
                     }}
                   >
@@ -173,7 +214,7 @@ export function VersionHistory({ versions, canRestore }: { versions: Version[]; 
         </SheetContent>
       </Sheet>
       <span className="sr-only" aria-live="polite">
-        {open ? `${shown.length} of ${versions.length} versions shown` : ""}
+        {open ? `${shown.length} of ${versions.length} versions shown` : ''}
       </span>
     </div>
   )

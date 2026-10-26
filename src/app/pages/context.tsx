@@ -1,8 +1,18 @@
-import * as React from "react"
-import { ArrowDownIcon, ArrowUpDownIcon, ArrowUpIcon, EyeIcon, ListChecksIcon, ListFilterIcon, ListTreeIcon, NotebookTextIcon, PlusIcon } from "lucide-react"
-import { cn } from "cn"
-import { ToolLogo } from "@/components/heed/tool-logo"
-import { connectorById } from "@/data/integrations"
+import * as React from 'react'
+import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
+  EyeIcon,
+  ListChecksIcon,
+  ListFilterIcon,
+  ListTreeIcon,
+  NotebookTextIcon,
+  PlusIcon,
+} from 'lucide-react'
+import { cn } from 'cn'
+import { ToolLogo } from '@/components/heed/tool-logo'
+import { connectorById } from '@/data/integrations'
 import {
   AddRow,
   BarSpacer,
@@ -19,10 +29,10 @@ import {
   StatusDot,
   Th,
   thClass,
-} from "@/components/heed/list"
-import { SiteHeader } from "@/components/site-header"
-import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
+} from '@/components/heed/list'
+import { SiteHeader } from '@/components/site-header'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -33,24 +43,41 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { domainIds, domains, kindLabel, metrics, servedToAgents, type DomainId, type Fact, type Kind, type Status } from "@/data/world"
-import { closeDock, openDock, useDock } from "@/lib/dock"
-import { matches, usePublishOrder, useRowKeys, words } from "@/lib/list"
-import { inForce, parseWhen, timeShort, trustOf } from "@/lib/timeframe"
-import { FreshDot, KindIcon, StatusIcon, TimeGlyph } from "@/components/heed/columns"
-import { href, navigate } from "@/lib/router"
-import { useFacts } from "@/lib/store"
-import { APP_URL } from "@/lib/brand"
-import { TruncatedText } from "@/components/heed/truncated"
-import { plainText } from "@/lib/mentions"
-import { Loadable, TableSkeleton } from "@/components/heed/load-state"
-import { useLeavingRows } from "@/lib/presence"
-import { WhereChip } from "@/components/heed/tag-chip"
-import { useRoute } from "@/lib/router"
-import { useSelection } from "@/hooks/use-selection"
-import { ContextBulk } from "@/components/heed/context-bulk"
+} from '@/components/ui/dropdown-menu'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import {
+  domainIds,
+  domains,
+  kindLabel,
+  metrics,
+  servedToAgents,
+  type DomainId,
+  type Fact,
+  type Kind,
+  type Status,
+} from '@/data/world'
+import { closeDock, openDock, useDock } from '@/lib/dock'
+import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
+import { inForce, parseWhen, timeShort, trustOf } from '@/lib/timeframe'
+import { FreshDot, KindIcon, StatusIcon, TimeGlyph } from '@/components/heed/columns'
+import { href, navigate } from '@/lib/router'
+import { useFacts } from '@/lib/store'
+import { APP_URL } from '@/lib/brand'
+import { TruncatedText } from '@/components/heed/truncated'
+import { plainText } from '@/lib/mentions'
+import { Loadable, TableSkeleton } from '@/components/heed/load-state'
+import { useLeavingRows } from '@/lib/presence'
+import { WhereChip } from '@/components/heed/tag-chip'
+import { useRoute } from '@/lib/router'
+import { useSelection } from '@/hooks/use-selection'
+import { ContextBulk } from '@/components/heed/context-bulk'
 
 // Context: what agents should know, as a compact list like the Heed app's. One quiet bar (Filter,
 // Sort, Group, the archived note, search, count), the filters that are on as sentences under it, a
@@ -58,76 +85,84 @@ import { ContextBulk } from "@/components/heed/context-bulk"
 // as an icon before the title, the scope in its own column at wide widths, the status as a circle
 // icon, the time frame as a glyph and a short date, and how fresh the check is as one dot.
 
-const STATUSES: Status[] = ["Draft", "Live", "Needs checking", "Archived"]
+const STATUSES: Status[] = ['Draft', 'Live', 'Needs checking', 'Archived']
 const KINDS = Object.keys(kindLabel) as Kind[]
 const METRIC_NAMES = new Set(metrics.map((m) => m.name))
-const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
+const toggle = <T,>(list: T[], v: T) =>
+  list.includes(v) ? list.filter((x) => x !== v) : [...list, v]
 
 /** The sorts, each with its direction in words, as the Heed app says them. */
 const SORTS = {
-  checked: { label: "Last checked", way: "Newest first" },
-  title: { label: "Title", way: "A to Z" },
-  domain: { label: "Domain", way: "A to Z" },
-  best: { label: "Best match", way: "Closest first" },
+  checked: { label: 'Last checked', way: 'Newest first' },
+  title: { label: 'Title', way: 'A to Z' },
+  domain: { label: 'Domain', way: 'A to Z' },
+  best: { label: 'Best match', way: 'Closest first' },
 } as const
 type Sort = keyof typeof SORTS
-type Group = "none" | "domain" | "metric"
-const GROUPS: Record<Group, string> = { none: "No grouping", domain: "Domain", metric: "Metric" }
+type Group = 'none' | 'domain' | 'metric'
+const GROUPS: Record<Group, string> = { none: 'No grouping', domain: 'Domain', metric: 'Metric' }
 
 /** When it was last checked; a draft was never checked, so it sorts last. */
 const checked = (f: Fact) => (f.checkedOn ? Date.parse(f.checkedOn) : 0)
-const items = (n: number) => `${n.toLocaleString("en-GB")} context ${n === 1 ? "item" : "items"}`
-const metricOf = (f: Fact) => f.where.find((w) => METRIC_NAMES.has(w)) ?? "No metric"
+const items = (n: number) => `${n.toLocaleString('en-GB')} context ${n === 1 ? 'item' : 'items'}`
+const metricOf = (f: Fact) => f.where.find((w) => METRIC_NAMES.has(w)) ?? 'No metric'
 const COLS = 8
 
 export function ContextPage() {
   const facts = useFacts()
   const dock = useDock()
-  const [text, setText] = React.useState("")
+  const [text, setText] = React.useState('')
   // A domain page links here filtered to its domain (and to what is due for a check).
   const { query } = useRoute()
-  const [domain, setDomain] = React.useState<DomainId[]>(() => (query.get("domain") ? [query.get("domain") as DomainId] : []))
-  const [status, setStatus] = React.useState<Status[]>(() => (query.get("due") ? ["Needs checking"] : []))
+  const [domain, setDomain] = React.useState<DomainId[]>(() =>
+    query.get('domain') ? [query.get('domain') as DomainId] : [],
+  )
+  const [status, setStatus] = React.useState<Status[]>(() =>
+    query.get('due') ? ['Needs checking'] : [],
+  )
   const [kind, setKind] = React.useState<Kind[]>([])
   const [chosenSort, setSort] = React.useState<Sort | null>(null)
-  const [group, setGroup] = React.useState<Group>("none")
+  const [group, setGroup] = React.useState<Group>('none')
   const [folded, setFolded] = React.useState<string[]>([])
   const [showArchived, setShowArchived] = React.useState(false)
 
   // While a search runs and no sort was chosen, the closest matches come first.
-  const sort: Sort = chosenSort ?? (text.trim() ? "best" : "checked")
-  const archived = facts.filter((f) => f.status === "Archived").length
-  const haystack = (f: Fact) => `${f.title} ${plainText(f.summary)} ${f.where.join(" ")} ${domains[f.domain].name} ${f.checkedBy}`
+  const sort: Sort = chosenSort ?? (text.trim() ? 'best' : 'checked')
+  const archived = facts.filter((f) => f.status === 'Archived').length
+  const haystack = (f: Fact) =>
+    `${f.title} ${plainText(f.summary)} ${f.where.join(' ')} ${domains[f.domain].name} ${f.checkedBy}`
   // The rows a value would show if it were ticked: everything the other filters and the search let through.
-  const pass = (f: Fact, skip?: "domain" | "status" | "kind") =>
-    (showArchived || status.includes("Archived") || skip === "status" || f.status !== "Archived") &&
-    (skip === "domain" || !domain.length || domain.includes(f.domain)) &&
-    (skip === "status" || !status.length || status.includes(f.status)) &&
-    (skip === "kind" || !kind.length || kind.includes(f.kind)) &&
+  const pass = (f: Fact, skip?: 'domain' | 'status' | 'kind') =>
+    (showArchived || status.includes('Archived') || skip === 'status' || f.status !== 'Archived') &&
+    (skip === 'domain' || !domain.length || domain.includes(f.domain)) &&
+    (skip === 'status' || !status.length || status.includes(f.status)) &&
+    (skip === 'kind' || !kind.length || kind.includes(f.kind)) &&
     matches(text, haystack(f))
   const titleHits = (f: Fact) => words(text).filter((w) => f.title.toLowerCase().includes(w)).length
   const filtered = facts
     .filter((f) => pass(f))
     .sort((a, b) =>
-      sort === "title"
+      sort === 'title'
         ? a.title.localeCompare(b.title)
-        : sort === "domain"
+        : sort === 'domain'
           ? domains[a.domain].name.localeCompare(domains[b.domain].name)
-          : sort === "best"
+          : sort === 'best'
             ? titleHits(b) - titleHits(a) || checked(b) - checked(a)
-            : checked(b) - checked(a)
+            : checked(b) - checked(a),
     )
   const groups: { key: string; rows: Fact[] }[] =
-    group === "domain"
-      ? domainIds.map((d) => ({ key: domains[d].name, rows: filtered.filter((f) => f.domain === d) })).filter((g) => g.rows.length)
-      : group === "metric"
+    group === 'domain'
+      ? domainIds
+          .map((d) => ({ key: domains[d].name, rows: filtered.filter((f) => f.domain === d) }))
+          .filter((g) => g.rows.length)
+      : group === 'metric'
         ? [...new Set(filtered.map(metricOf))]
-            .sort((a, b) => (a === "No metric" ? 1 : b === "No metric" ? -1 : a.localeCompare(b)))
+            .sort((a, b) => (a === 'No metric' ? 1 : b === 'No metric' ? -1 : a.localeCompare(b)))
             .map((m) => ({ key: m, rows: filtered.filter((f) => metricOf(f) === m) }))
-        : [{ key: "", rows: filtered }]
+        : [{ key: '', rows: filtered }]
   const visible = groups.flatMap((g) => (folded.includes(g.key) ? [] : g.rows))
   const order = visible.map((f) => f.id)
-  usePublishOrder("context", order)
+  usePublishOrder('context', order)
   const table = React.useRef<HTMLTableElement>(null)
   const [deleting, setDeleting] = React.useState(false)
   const sel = useSelection(order, { scope: table, onDeleteKey: () => setDeleting(true) })
@@ -135,9 +170,9 @@ export function ContextPage() {
   const boxes = sel.picking || sel.count > 0
 
   const filters = domain.length + status.length + kind.length
-  const peeked = dock?.kind === "context" ? dock.id : undefined
+  const peeked = dock?.kind === 'context' ? dock.id : undefined
   const rowKeys = useRowKeys({
-    onMove: (id) => peeked && openDock("context", id),
+    onMove: (id) => peeked && openDock('context', id),
     // Escape closes the peek first, then clears the selection, as in the Heed app.
     onEscape: () => {
       if (peeked) closeDock()
@@ -151,43 +186,55 @@ export function ContextPage() {
     setDomain([])
     setStatus([])
     setKind([])
-    setText("")
+    setText('')
   }
   const on = [
-    domain.length && `Domain is ${domain.map((d) => domains[d].name).join(" or ")}`,
-    status.length && `Status is ${status.join(" or ")}`,
-    kind.length && `Kind is ${kind.map((k) => kindLabel[k]).join(" or ")}`,
+    domain.length && `Domain is ${domain.map((d) => domains[d].name).join(' or ')}`,
+    status.length && `Status is ${status.join(' or ')}`,
+    kind.length && `Kind is ${kind.map((k) => kindLabel[k]).join(' or ')}`,
   ].filter(Boolean)
 
   // Rows that leave (archived or deleted in bulk) fade out first.
   const leaving = useLeavingRows()
   const row = (f: Fact) => {
     const isSel = sel.isSelected(f.id)
-    const where = f.where.length > 2 ? `${f.where.slice(0, 2).join(", ")} +${f.where.length - 2}` : f.where.join(", ")
+    const where =
+      f.where.length > 2
+        ? `${f.where.slice(0, 2).join(', ')} +${f.where.length - 2}`
+        : f.where.join(', ')
     const time = parseWhen(f.when)
     return (
       <tr
         key={f.id}
         aria-selected={isSel}
-        data-state={isSel ? "selected" : undefined}
+        data-state={isSel ? 'selected' : undefined}
         data-peeked={peeked === f.id || undefined}
         data-leaving={leaving.has(f.id) || undefined}
         className="group/row row-fade h-9 cursor-pointer border-b text-sm hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-[state=selected]:bg-muted data-peeked:bg-muted data-peeked:shadow-[inset_2px_0_0_var(--foreground)] @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
-        onClick={(e) => sel.rowClick(f.id, e) || openDock("context", f.id)}
+        onClick={(e) => sel.rowClick(f.id, e) || openDock('context', f.id)}
       >
-        <td className={cn("hidden w-[38px] pr-0 pl-4 align-middle md:w-[46px] md:pl-6 @xl/main:table-cell", boxes && "table-cell")} onClick={(e) => e.stopPropagation()}>
+        <td
+          className={cn(
+            'hidden w-[38px] pr-0 pl-4 align-middle md:w-[46px] md:pl-6 @xl/main:table-cell',
+            boxes && 'table-cell',
+          )}
+          onClick={(e) => e.stopPropagation()}
+        >
           <Checkbox
             aria-label={`Select ${f.title}`}
             {...sel.checkbox(f.id)}
-            className={cn("transition-opacity group-hover/row:opacity-100", !sel.count && !isSel && "opacity-0 focus-visible:opacity-100")}
+            className={cn(
+              'transition-opacity group-hover/row:opacity-100',
+              !sel.count && !isSel && 'opacity-0 focus-visible:opacity-100',
+            )}
           />
         </td>
         {/* The kind leads the row; on a phone the status takes its place, as the board draws it. */}
         <td
           className={cn(
-            "w-8 px-1.5 align-middle @max-xl/main:w-9 @max-xl/main:pt-2.5 @max-xl/main:pr-0 @max-xl/main:pl-4 @max-xl/main:align-top",
-            boxes && "@max-xl/main:pl-2"
+            'w-8 px-1.5 align-middle @max-xl/main:w-9 @max-xl/main:pt-2.5 @max-xl/main:pr-0 @max-xl/main:pl-4 @max-xl/main:align-top',
+            boxes && '@max-xl/main:pl-2',
           )}
         >
           <KindIcon kind={f.kind} className="@max-xl/main:hidden" />
@@ -198,19 +245,32 @@ export function ContextPage() {
             <button
               type="button"
               data-row-open={f.id}
-              className={cn("flex min-w-0 text-left outline-none hover:underline", f.status === "Archived" && "text-muted-foreground")}
+              className={cn(
+                'flex min-w-0 text-left outline-none hover:underline',
+                f.status === 'Archived' && 'text-muted-foreground',
+              )}
               onClick={(e) => {
                 e.stopPropagation()
-                if (!sel.titleClick(f.id, e)) openDock("context", f.id)
+                if (!sel.titleClick(f.id, e)) openDock('context', f.id)
               }}
             >
-              <TruncatedText text={f.title} className="@max-xl/main:line-clamp-2 @max-xl/main:whitespace-normal">
+              <TruncatedText
+                text={f.title}
+                className="@max-xl/main:line-clamp-2 @max-xl/main:whitespace-normal"
+              >
                 <Highlight text={f.title} query={text} />
               </TruncatedText>
             </button>
             {f.origin && (
-              <span title={`From ${f.origin.tool}: ${f.origin.doc}`} className="inline-flex shrink-0">
-                <ToolLogo c={connectorById("google-drive")!} size="sm" className="size-4 rounded-[4px] p-[2px]" />
+              <span
+                title={`From ${f.origin.tool}: ${f.origin.doc}`}
+                className="inline-flex shrink-0"
+              >
+                <ToolLogo
+                  c={connectorById('google-drive')!}
+                  size="sm"
+                  className="size-4 rounded-[4px] p-[2px]"
+                />
                 <span className="sr-only">From {f.origin.tool}</span>
               </span>
             )}
@@ -229,7 +289,9 @@ export function ContextPage() {
             {f.where.slice(0, 2).map((w) => (
               <WhereChip key={w} w={w} label={<Highlight text={w} query={text} />} />
             ))}
-            {f.where.length > 2 && <span className="shrink-0 text-xs tabular-nums">+{f.where.length - 2}</span>}
+            {f.where.length > 2 && (
+              <span className="shrink-0 text-xs tabular-nums">+{f.where.length - 2}</span>
+            )}
           </span>
         </td>
         <td className="hidden w-[72px] min-w-[72px] px-1.5 align-middle @xl/main:table-cell">
@@ -241,30 +303,48 @@ export function ContextPage() {
         <td className="w-[76px] min-w-[76px] px-1.5 text-center align-middle @max-xl/main:w-10 @max-xl/main:min-w-10 @max-xl/main:pr-4 @max-xl/main:pl-0">
           <FreshDot fact={f} />
         </td>
-        <td className="w-10 pr-2 align-middle md:pr-4 @max-xl/main:hidden" onClick={(e) => e.stopPropagation()}>
-          <RowMenu title={f.title} page={href(`/context/${f.id}`)} link={`${APP_URL}/context/${f.id}`} />
+        <td
+          className="w-10 pr-2 align-middle md:pr-4 @max-xl/main:hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <RowMenu
+            title={f.title}
+            page={href(`/context/${f.id}`)}
+            link={`${APP_URL}/context/${f.id}`}
+          />
         </td>
       </tr>
     )
   }
 
   /** A header that sorts: the arrow shows on the column the list is sorted by, as the board draws it. */
-  const sortTh = (key: "title" | "checked", label: string, className: string, tip?: string) => {
+  const sortTh = (key: 'title' | 'checked', label: string, className: string, tip?: string) => {
     const on = sort === key
-    const Arrow = key === "title" ? ArrowUpIcon : ArrowDownIcon
+    const Arrow = key === 'title' ? ArrowUpIcon : ArrowDownIcon
     return (
-      <th className={cn(thClass, className)} aria-sort={on ? (key === "title" ? "ascending" : "descending") : undefined}>
+      <th
+        className={cn(thClass, className)}
+        aria-sort={on ? (key === 'title' ? 'ascending' : 'descending') : undefined}
+      >
         <button
           type="button"
           title={tip}
           onClick={() => setSort(key)}
           className={cn(
-            "group/sort -mx-1.5 inline-flex h-6 items-center gap-1 rounded-md px-1.5 outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
-            on && "text-foreground"
+            'group/sort -mx-1.5 inline-flex h-6 items-center gap-1 rounded-md px-1.5 outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+            on && 'text-foreground',
           )}
         >
           {label}
-          <Arrow aria-hidden className={cn("size-3", on ? "opacity-90" : "opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60")} />
+          <Arrow
+            aria-hidden
+            className={cn(
+              'size-3',
+              on
+                ? 'opacity-90'
+                : 'opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60',
+            )}
+          />
         </button>
       </th>
     )
@@ -273,7 +353,7 @@ export function ContextPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <SiteHeader title="Context" icon={<NotebookTextIcon />}>
-        <Button size="sm" onClick={() => navigate("/context/new")}>
+        <Button size="sm" onClick={() => navigate('/context/new')}>
           <PlusIcon data-icon="inline-start" />
           New context
         </Button>
@@ -289,10 +369,13 @@ export function ContextPage() {
                     <NotebookTextIcon />
                   </EmptyMedia>
                   <EmptyTitle>No context yet</EmptyTitle>
-                  <EmptyDescription>Until there is some, agents hear “Nothing is written down for this.” That is the honest answer, not an error.</EmptyDescription>
+                  <EmptyDescription>
+                    Until there is some, agents hear “Nothing is written down for this.” That is the
+                    honest answer, not an error.
+                  </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
-                  <Button variant="outline" onClick={() => navigate("/context/new")}>
+                  <Button variant="outline" onClick={() => navigate('/context/new')}>
                     Write the first context item
                   </Button>
                 </EmptyContent>
@@ -302,7 +385,15 @@ export function ContextPage() {
             <>
               <ListBar>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={cn(barButton, filters > 0 && "bg-muted text-foreground")} />}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(barButton, filters > 0 && 'bg-muted text-foreground')}
+                      />
+                    }
+                  >
                     <ListFilterIcon />
                     Filter
                     {filters > 0 && <span className="tabular-nums">{filters}</span>}
@@ -311,8 +402,16 @@ export function ContextPage() {
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>Domain</DropdownMenuLabel>
                       {domainIds.map((d) => (
-                        <DropdownMenuCheckboxItem key={d} checked={domain.includes(d)} onCheckedChange={() => setDomain((x) => toggle(x, d))}>
-                          <FilterValue count={facts.filter((f) => f.domain === d && pass(f, "domain")).length}>{domains[d].name}</FilterValue>
+                        <DropdownMenuCheckboxItem
+                          key={d}
+                          checked={domain.includes(d)}
+                          onCheckedChange={() => setDomain((x) => toggle(x, d))}
+                        >
+                          <FilterValue
+                            count={facts.filter((f) => f.domain === d && pass(f, 'domain')).length}
+                          >
+                            {domains[d].name}
+                          </FilterValue>
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuGroup>
@@ -320,8 +419,14 @@ export function ContextPage() {
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>Status</DropdownMenuLabel>
                       {STATUSES.map((st) => (
-                        <DropdownMenuCheckboxItem key={st} checked={status.includes(st)} onCheckedChange={() => setStatus((x) => toggle(x, st))}>
-                          <FilterValue count={facts.filter((f) => f.status === st && pass(f, "status")).length}>
+                        <DropdownMenuCheckboxItem
+                          key={st}
+                          checked={status.includes(st)}
+                          onCheckedChange={() => setStatus((x) => toggle(x, st))}
+                        >
+                          <FilterValue
+                            count={facts.filter((f) => f.status === st && pass(f, 'status')).length}
+                          >
                             <StatusDot status={st} label />
                           </FilterValue>
                         </DropdownMenuCheckboxItem>
@@ -331,23 +436,35 @@ export function ContextPage() {
                     <DropdownMenuGroup>
                       <DropdownMenuLabel>Kind</DropdownMenuLabel>
                       {KINDS.map((k) => (
-                        <DropdownMenuCheckboxItem key={k} checked={kind.includes(k)} onCheckedChange={() => setKind((x) => toggle(x, k))}>
-                          <FilterValue count={facts.filter((f) => f.kind === k && pass(f, "kind")).length}>{kindLabel[k]}</FilterValue>
+                        <DropdownMenuCheckboxItem
+                          key={k}
+                          checked={kind.includes(k)}
+                          onCheckedChange={() => setKind((x) => toggle(x, k))}
+                        >
+                          <FilterValue
+                            count={facts.filter((f) => f.kind === k && pass(f, 'kind')).length}
+                          >
+                            {kindLabel[k]}
+                          </FilterValue>
                         </DropdownMenuCheckboxItem>
                       ))}
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={barButton} />}>
+                  <DropdownMenuTrigger
+                    render={<Button variant="ghost" size="sm" className={barButton} />}
+                  >
                     <ArrowUpDownIcon />
                     <span className="@max-3xl/main:sr-only">Sort</span>
-                    <span className="text-foreground @max-3xl/main:sr-only">{SORTS[sort].label}</span>
+                    <span className="text-foreground @max-3xl/main:sr-only">
+                      {SORTS[sort].label}
+                    </span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-60">
                     <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSort(v as Sort)}>
                       {(Object.keys(SORTS) as Sort[])
-                        .filter((k) => k !== "best" || text.trim())
+                        .filter((k) => k !== 'best' || text.trim())
                         .map((k) => (
                           <DropdownMenuRadioItem key={k} value={k}>
                             <span className="flex w-full justify-between gap-3">
@@ -360,9 +477,19 @@ export function ContextPage() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={cn(barButton, group !== "none" && "bg-muted text-foreground")} />}>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={cn(barButton, group !== 'none' && 'bg-muted text-foreground')}
+                      />
+                    }
+                  >
                     <ListTreeIcon />
-                    <span className={cn(group === "none" ? "sr-only" : "@max-3xl/main:sr-only")}>{group === "none" ? "Group" : GROUPS[group]}</span>
+                    <span className={cn(group === 'none' ? 'sr-only' : '@max-3xl/main:sr-only')}>
+                      {group === 'none' ? 'Group' : GROUPS[group]}
+                    </span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="w-44">
                     <DropdownMenuGroup>
@@ -387,19 +514,23 @@ export function ContextPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={cn(barButton, "@xl/main:hidden", boxes && "bg-muted text-foreground")}
+                  className={cn(barButton, '@xl/main:hidden', boxes && 'bg-muted text-foreground')}
                   onClick={() => (boxes ? sel.clear() : sel.setPicking(true))}
                 >
                   <ListChecksIcon />
-                  {boxes ? "Done" : "Select"}
+                  {boxes ? 'Done' : 'Select'}
                 </Button>
                 <BarSpacer>
-                  {archived > 0 && !status.includes("Archived") && (
+                  {archived > 0 && !status.includes('Archived') && (
                     <span className="flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground @max-5xl/main:hidden">
                       <EyeIcon className="size-3.5" aria-hidden />
-                      {archived} archived {showArchived ? "shown" : "hidden"}
-                      <button type="button" className="font-medium text-foreground underline underline-offset-4" onClick={() => setShowArchived((s) => !s)}>
-                        {showArchived ? "Hide" : "Show"}
+                      {archived} archived {showArchived ? 'shown' : 'hidden'}
+                      <button
+                        type="button"
+                        className="font-medium text-foreground underline underline-offset-4"
+                        onClick={() => setShowArchived((s) => !s)}
+                      >
+                        {showArchived ? 'Hide' : 'Show'}
                       </button>
                     </span>
                   )}
@@ -410,22 +541,44 @@ export function ContextPage() {
                     items(facts.length)
                   ) : (
                     <>
-                      <span className="font-semibold text-foreground">{filtered.length}</span> of {items(facts.length)}
+                      <span className="font-semibold text-foreground">{filtered.length}</span> of{' '}
+                      {items(facts.length)}
                     </>
                   )}
                 </Count>
               </ListBar>
-              <FilterRow count={filters} onClear={() => (setDomain([]), setStatus([]), setKind([]))}>
-                {domain.length > 0 && <FilterChip field="Domain" values={domain.map((d) => domains[d].name)} onRemove={() => setDomain([])} />}
-                {status.length > 0 && <FilterChip field="Status" values={status} onRemove={() => setStatus([])} />}
-                {kind.length > 0 && <FilterChip field="Kind" values={kind.map((k) => kindLabel[k])} onRemove={() => setKind([])} />}
+              <FilterRow
+                count={filters}
+                onClear={() => (setDomain([]), setStatus([]), setKind([]))}
+              >
+                {domain.length > 0 && (
+                  <FilterChip
+                    field="Domain"
+                    values={domain.map((d) => domains[d].name)}
+                    onRemove={() => setDomain([])}
+                  />
+                )}
+                {status.length > 0 && (
+                  <FilterChip field="Status" values={status} onRemove={() => setStatus([])} />
+                )}
+                {kind.length > 0 && (
+                  <FilterChip
+                    field="Kind"
+                    values={kind.map((k) => kindLabel[k])}
+                    onRemove={() => setKind([])}
+                  />
+                )}
               </FilterRow>
               <div className="min-w-0 shrink-0">
                 <table ref={table} className="w-full border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr>
                       <th
-                        className={cn(thClass, "hidden w-[38px] min-w-[38px] pr-0 pl-4 md:w-[46px] md:min-w-[46px] md:pl-6 @xl/main:table-cell", boxes && "table-cell")}
+                        className={cn(
+                          thClass,
+                          'hidden w-[38px] min-w-[38px] pr-0 pl-4 md:w-[46px] md:min-w-[46px] md:pl-6 @xl/main:table-cell',
+                          boxes && 'table-cell',
+                        )}
                       >
                         <Checkbox
                           aria-label="Select all context shown"
@@ -437,15 +590,21 @@ export function ContextPage() {
                       <Th className="w-8 min-w-8 px-1.5 @max-xl/main:w-9 @max-xl/main:min-w-9 @max-xl/main:pr-0 @max-xl/main:pl-4">
                         <span className="sr-only">Kind</span>
                       </Th>
-                      {sortTh("title", "Context", "w-full px-1.5 @max-xl/main:px-3")}
-                      <Th className="hidden w-[202px] min-w-[202px] px-1.5 @min-[60rem]/main:table-cell">Scope</Th>
-                      <Th className="hidden w-[72px] min-w-[72px] px-1.5 @xl/main:table-cell">Status</Th>
-                      <Th className="hidden w-[156px] min-w-[156px] px-1.5 @xl/main:table-cell">When</Th>
+                      {sortTh('title', 'Context', 'w-full px-1.5 @max-xl/main:px-3')}
+                      <Th className="hidden w-[202px] min-w-[202px] px-1.5 @min-[60rem]/main:table-cell">
+                        Scope
+                      </Th>
+                      <Th className="hidden w-[72px] min-w-[72px] px-1.5 @xl/main:table-cell">
+                        Status
+                      </Th>
+                      <Th className="hidden w-[156px] min-w-[156px] px-1.5 @xl/main:table-cell">
+                        When
+                      </Th>
                       {sortTh(
-                        "checked",
-                        "Checked",
-                        "w-[76px] min-w-[76px] px-1.5 text-center @max-xl/main:hidden",
-                        "Checked: fresh up to 30 days, ageing up to 90, then overdue"
+                        'checked',
+                        'Checked',
+                        'w-[76px] min-w-[76px] px-1.5 text-center @max-xl/main:hidden',
+                        'Checked: fresh up to 30 days, ageing up to 90, then overdue',
                       )}
                       <Th className="hidden w-10 @max-xl/main:table-cell @max-xl/main:pr-4">
                         <span className="sr-only">Checked</span>
@@ -465,7 +624,12 @@ export function ContextPage() {
                       <tr>
                         <td colSpan={COLS} className="px-6 py-10 text-center text-sm">
                           <p className="font-medium">No context matches</p>
-                          <p className="mt-1 text-muted-foreground">{[text.trim() && `Searching for “${text.trim()}”`, ...on].filter(Boolean).join(", ")}.</p>
+                          <p className="mt-1 text-muted-foreground">
+                            {[text.trim() && `Searching for “${text.trim()}”`, ...on]
+                              .filter(Boolean)
+                              .join(', ')}
+                            .
+                          </p>
                           <Button variant="outline" size="sm" className="mt-3" onClick={clearAll}>
                             Clear search and filters
                           </Button>
@@ -475,28 +639,42 @@ export function ContextPage() {
                     {groups.map((g) => {
                       const open = !folded.includes(g.key)
                       return (
-                        <React.Fragment key={g.key || "all"}>
+                        <React.Fragment key={g.key || 'all'}>
                           {g.key && (
-                            <GroupRow label={g.key} detail={String(g.rows.length)} open={open} colSpan={COLS} onToggle={() => setFolded((x) => toggle(x, g.key))} />
+                            <GroupRow
+                              label={g.key}
+                              detail={String(g.rows.length)}
+                              open={open}
+                              colSpan={COLS}
+                              onToggle={() => setFolded((x) => toggle(x, g.key))}
+                            />
                           )}
                           {open && g.rows.map(row)}
                         </React.Fragment>
                       )
                     })}
-                    <AddRow label="Write context" colSpan={COLS} onClick={() => navigate("/context/new")} />
+                    <AddRow
+                      label="Write context"
+                      colSpan={COLS}
+                      onClick={() => navigate('/context/new')}
+                    />
                   </tbody>
                   {/* While rows are picked the bar's band holds the foot, so the totals stop sticking over the last rows. */}
-                  <tfoot className={cn("z-10 bg-background", !sel.count && "sticky bottom-0")}>
+                  <tfoot className={cn('z-10 bg-background', !sel.count && 'sticky bottom-0')}>
                     <tr className="text-xs whitespace-nowrap text-muted-foreground tabular-nums shadow-[inset_0_1px_0_var(--border)]">
-                      <td className={cn("hidden @xl/main:table-cell", boxes && "table-cell")} />
+                      <td className={cn('hidden @xl/main:table-cell', boxes && 'table-cell')} />
                       <td />
                       <td className="h-bar px-1.5 @max-xl/main:px-3">{items(filtered.length)}</td>
                       <td className="hidden px-1.5 @min-[60rem]/main:table-cell" />
                       <td colSpan={2} className="hidden px-1.5 @xl/main:table-cell">
-                        {filtered.filter((f) => servedToAgents(f) && inForce(parseWhen(f.when))).length} in force now
+                        {
+                          filtered.filter((f) => servedToAgents(f) && inForce(parseWhen(f.when)))
+                            .length
+                        }{' '}
+                        in force now
                       </td>
                       <td colSpan={2} className="px-1.5 @max-xl/main:pr-4 @max-xl/main:text-right">
-                        {filtered.filter((f) => trustOf(f) === "due").length} to check
+                        {filtered.filter((f) => trustOf(f) === 'due').length} to check
                       </td>
                     </tr>
                   </tfoot>
@@ -507,7 +685,13 @@ export function ContextPage() {
         </Loadable>
       </div>
       {/* Picked rows get their bar in a band of its own under the list, never over a row. */}
-      <ContextBulk sel={sel} facts={facts} matching={filtered.map((f) => f.id)} deleting={deleting} setDeleting={setDeleting} />
+      <ContextBulk
+        sel={sel}
+        facts={facts}
+        matching={filtered.map((f) => f.id)}
+        deleting={deleting}
+        setDeleting={setDeleting}
+      />
     </div>
   )
 }

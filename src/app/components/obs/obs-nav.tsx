@@ -1,4 +1,4 @@
-import { ArrowLeftIcon } from "lucide-react"
+import { ArrowLeftIcon } from 'lucide-react'
 import {
   SidebarContent,
   SidebarGroup,
@@ -9,11 +9,11 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import { savedCounts, useSavedQuestions } from "@/data/saved-questions"
-import { BACK_TO_APP } from "@/lib/brand"
-import { OBS_SECTIONS } from "@/lib/obs"
-import { useMe } from "@/lib/store"
+} from '@/components/ui/sidebar'
+import { savedCounts, useSavedQuestions } from '@/data/saved-questions'
+import { BACK_TO_APP } from '@/lib/brand'
+import { OBS_SECTIONS } from '@/lib/obs'
+import { useMe } from '@/lib/store'
 
 // Inside Observability the app sidebar gives way to its own menu, as it does in Settings: the way
 // back to the app on top, then six pages in three small groups. Usage is for admins.
@@ -22,8 +22,13 @@ export function ObservabilityNav({ section, close }: { section: string; close: (
   const me = useMe()
   const saved = useSavedQuestions()
   // The badge counts what needs a look in the domains this person sees.
-  const look = me.admin ? savedCounts(saved).look : saved.filter((q) => me.owns.includes(q.domain) && q.result === "look").length
-  const groups = OBS_SECTIONS.map((g) => ({ ...g, items: g.items.filter((i) => i.id !== "usage" || me.admin) }))
+  const look = me.admin
+    ? savedCounts(saved).look
+    : saved.filter((q) => me.owns.includes(q.domain) && q.result === 'look').length
+  const groups = OBS_SECTIONS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => i.id !== 'usage' || me.admin),
+  }))
   return (
     <>
       <SidebarHeader className="h-bar justify-center border-b px-2">
@@ -44,11 +49,15 @@ export function ObservabilityNav({ section, close }: { section: string; close: (
               <SidebarMenu>
                 {g.items.map((item) => (
                   <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton tooltip={item.title} isActive={section === item.id} render={<a href={`#/observability/${item.id}`} onClick={close} />}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={section === item.id}
+                      render={<a href={`#/observability/${item.id}`} onClick={close} />}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
-                    {item.id === "quality" && look > 0 && (
+                    {item.id === 'quality' && look > 0 && (
                       <SidebarMenuBadge>
                         {look}
                         <span className="sr-only"> need a look</span>

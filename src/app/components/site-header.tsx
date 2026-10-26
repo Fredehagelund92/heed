@@ -1,28 +1,38 @@
-import type { ReactNode } from "react"
-import { ArrowLeftIcon, MonitorIcon, MoonIcon, SearchIcon, SunIcon } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useTheme, type Theme } from "@/lib/theme-context"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Kbd } from "@/components/ui/kbd"
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { open } from "@/lib/events"
-import { TruncatedText } from "@/components/heed/truncated"
-import { OfflineBanner } from "@/components/heed/load-state"
+import type { ReactNode } from 'react'
+import { ArrowLeftIcon, MonitorIcon, MoonIcon, SearchIcon, SunIcon } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useTheme, type Theme } from '@/lib/theme-context'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { Separator } from '@/components/ui/separator'
+import { Kbd } from '@/components/ui/kbd'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { open } from '@/lib/events'
+import { TruncatedText } from '@/components/heed/truncated'
+import { OfflineBanner } from '@/components/heed/load-state'
 
 /** The nav's toggle, always in the same spot, saying what it will do and its shortcut. */
 function NavToggle() {
   const { state, isMobile } = useSidebar()
-  const label = isMobile ? "Open the menu" : state === "expanded" ? "Collapse the sidebar" : "Expand the sidebar"
+  const label = isMobile
+    ? 'Open the menu'
+    : state === 'expanded'
+      ? 'Collapse the sidebar'
+      : 'Expand the sidebar'
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <SidebarTrigger
             aria-label={label}
-            aria-expanded={isMobile ? undefined : state === "expanded"}
+            aria-expanded={isMobile ? undefined : state === 'expanded'}
             className="aria-expanded:bg-transparent aria-expanded:hover:bg-muted"
           />
         }
@@ -41,7 +51,7 @@ export function ThemeChoices() {
   const { theme, setTheme } = useTheme()
   return (
     <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
-      {(["light", "dark", "system"] as Theme[]).map((t) => {
+      {(['light', 'dark', 'system'] as Theme[]).map((t) => {
         const I = themeIcon[t]
         return (
           <DropdownMenuRadioItem key={t} value={t}>
@@ -65,7 +75,17 @@ function ThemeMenu() {
     <DropdownMenu>
       <Tooltip>
         <TooltipTrigger
-          render={<DropdownMenuTrigger render={<Button variant="outline" size="icon-sm" aria-label={`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`} />} />}
+          render={
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label={`Theme: ${theme[0].toUpperCase()}${theme.slice(1)}`}
+                />
+              }
+            />
+          }
         >
           <Icon />
         </TooltipTrigger>
@@ -73,7 +93,7 @@ function ThemeMenu() {
       </Tooltip>
       <DropdownMenuContent align="end" className="w-36">
         <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as Theme)}>
-          {(["light", "dark", "system"] as Theme[]).map((t) => {
+          {(['light', 'dark', 'system'] as Theme[]).map((t) => {
             const I = themeIcon[t]
             return (
               <DropdownMenuRadioItem key={t} value={t}>
@@ -113,17 +133,30 @@ export function SiteHeader({
     <>
       <header
         className={cn(
-          "relative z-20 flex h-bar shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6",
-          "bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50",
-          className
+          'relative z-20 flex h-bar shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6',
+          'bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50',
+          className,
         )}
       >
         <div className="flex min-w-0 items-center gap-3">
           <NavToggle />
-          <Separator orientation="vertical" className={cn("h-4 data-vertical:self-center", back ? "max-sm:hidden" : "mr-2")} />
+          <Separator
+            orientation="vertical"
+            className={cn('h-4 data-vertical:self-center', back ? 'max-sm:hidden' : 'mr-2')}
+          />
           {back && (
             <Tooltip>
-              <TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label={back.label} nativeButton={false} render={<a href={back.href} />} />}>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={back.label}
+                    nativeButton={false}
+                    render={<a href={back.href} />}
+                  />
+                }
+              >
                 <ArrowLeftIcon />
               </TooltipTrigger>
               <TooltipContent>{back.label}</TooltipContent>
@@ -132,13 +165,22 @@ export function SiteHeader({
           <h1 className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
             {icon}
             {/* A long title is cut with an ellipsis and shown in full on hover or focus. */}
-            {typeof title === "string" ? <TruncatedText text={title} className="min-w-0" /> : <span className="min-w-0 truncate">{title}</span>}
+            {typeof title === 'string' ? (
+              <TruncatedText text={title} className="min-w-0" />
+            ) : (
+              <span className="min-w-0 truncate">{title}</span>
+            )}
           </h1>
         </div>
         <div data-header-actions className="flex shrink-0 items-center gap-2 sm:gap-3">
           {/* On a phone the sidebar is a sheet, so search lives here, as a magnifier. */}
           {isMobile && !bare && (
-            <Button variant="outline" size="icon-sm" aria-label="Search" onClick={() => open("palette")}>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Search"
+              onClick={() => open('palette')}
+            >
               <SearchIcon />
             </Button>
           )}
@@ -174,7 +216,10 @@ export function Page({
       <SiteHeader title={title} icon={icon}>
         {actions}
       </SiteHeader>
-      <div ref={bodyRef} className={cn("@container/main min-h-0 flex-1 overflow-y-auto", className)}>
+      <div
+        ref={bodyRef}
+        className={cn('@container/main min-h-0 flex-1 overflow-y-auto', className)}
+      >
         {children}
       </div>
     </div>

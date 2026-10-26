@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 
 /**
  * Whether a container is wide enough for a side panel beside the page (64rem by default), measured

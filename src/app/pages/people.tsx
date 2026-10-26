@@ -1,27 +1,51 @@
-import * as React from "react"
-import { MailIcon, SearchIcon, UserPlusIcon } from "lucide-react"
-import { toast } from "sonner"
-import { cn } from "cn"
-import { PersonAvatar } from "@/components/heed/bits"
-import { Frame, FrameSection } from "@/components/heed/frame"
-import { DomainDot, TagChip } from "@/components/heed/tag-chip"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Switch } from "@/components/ui/switch"
-import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { domainIds, domains, people, type DomainId, type Person } from "@/data/world"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { domainHue } from "@/lib/tones"
-import { useDomains } from "@/lib/domains"
-import { arriveRef, leaveThen, useLeavingRows } from "@/lib/presence"
-import { activityOf, emailOf, invite, lastActiveOf, removePerson, restorePerson, setAdmin, setOwner, soleOwnerOf } from "@/lib/people"
-import { href } from "@/lib/router"
-import { useMe, useStore } from "@/lib/store"
+import * as React from 'react'
+import { MailIcon, SearchIcon, UserPlusIcon } from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from 'cn'
+import { PersonAvatar } from '@/components/heed/bits'
+import { Frame, FrameSection } from '@/components/heed/frame'
+import { DomainDot, TagChip } from '@/components/heed/tag-chip'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Switch } from '@/components/ui/switch'
+import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { domainIds, domains, people, type DomainId, type Person } from '@/data/world'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { domainHue } from '@/lib/tones'
+import { useDomains } from '@/lib/domains'
+import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
+import {
+  activityOf,
+  emailOf,
+  invite,
+  lastActiveOf,
+  removePerson,
+  restorePerson,
+  setAdmin,
+  setOwner,
+  soleOwnerOf,
+} from '@/lib/people'
+import { href } from '@/lib/router'
+import { useMe, useStore } from '@/lib/store'
 
 // Settings > People: everyone in the workspace, as v1 has them. Two roles (admin, member); owning a
 // domain is not a role but a domain chip, and it lives on the domain, so the People page and a
@@ -30,7 +54,7 @@ import { useMe, useStore } from "@/lib/store"
 
 /** Admin or member, as a quiet chip. */
 function RoleChip({ admin }: { admin: boolean }) {
-  return <TagChip tone={admin ? "term" : "neutral"}>{admin ? "Admin" : "Member"}</TagChip>
+  return <TagChip tone={admin ? 'term' : 'neutral'}>{admin ? 'Admin' : 'Member'}</TagChip>
 }
 
 /** The domains someone owns, as domain chips. */
@@ -40,7 +64,12 @@ function OwnedChips({ p }: { p: Person }) {
   return (
     <span className="flex flex-wrap gap-1">
       {owned.map((d) => (
-        <TagChip key={d} tone="domain" hue={domainHue[d] ?? null} icon={<DomainDot id={d} className="size-2" />}>
+        <TagChip
+          key={d}
+          tone="domain"
+          hue={domainHue[d] ?? null}
+          icon={<DomainDot id={d} className="size-2" />}
+        >
           {domains[d].name}
         </TagChip>
       ))}
@@ -53,7 +82,14 @@ function Locked({ reason, children }: { reason?: string; children: React.ReactEl
   if (!reason) return children
   return (
     <Tooltip>
-      <TooltipTrigger render={<span tabIndex={0} className="inline-flex rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/40" />}>
+      <TooltipTrigger
+        render={
+          <span
+            tabIndex={0}
+            className="inline-flex rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+          />
+        }
+      >
         {children}
       </TooltipTrigger>
       <TooltipContent>{reason}</TooltipContent>
@@ -64,9 +100,17 @@ function Locked({ reason, children }: { reason?: string; children: React.ReactEl
 const valid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
 
 /** Invite people: their addresses, a role, and the domains they own from the start. */
-export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; onOpenChange: (o: boolean) => void; preset?: DomainId }) {
+export function InviteDialog({
+  open,
+  onOpenChange,
+  preset,
+}: {
+  open: boolean
+  onOpenChange: (o: boolean) => void
+  preset?: DomainId
+}) {
   const me = useMe()
-  const [text, setText] = React.useState("")
+  const [text, setText] = React.useState('')
   const [admin, setAdminRole] = React.useState(false)
   const [owns, setOwns] = React.useState<DomainId[]>(preset ? [preset] : [])
   const emails = text
@@ -79,7 +123,10 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Invite people</DialogTitle>
-          <DialogDescription>They can read, ask, flag and suggest from the start. Owners publish and check their domain's context.</DialogDescription>
+          <DialogDescription>
+            They can read, ask, flag and suggest from the start. Owners publish and check their
+            domain's context.
+          </DialogDescription>
         </DialogHeader>
         <form
           id="invite-form"
@@ -88,8 +135,10 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
             e.preventDefault()
             if (!emails.length || bad.length) return
             invite(emails, admin, owns)
-            toast(emails.length === 1 ? "Invited" : `Invited ${emails.length} people`, { description: "They get an email with a link to sign in." })
-            setText("")
+            toast(emails.length === 1 ? 'Invited' : `Invited ${emails.length} people`, {
+              description: 'They get an email with a link to sign in.',
+            })
+            setText('')
             onOpenChange(false)
           }}
         >
@@ -103,18 +152,26 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
               aria-invalid={bad.length > 0}
               className="min-h-20"
             />
-            <FieldDescription>{bad.length ? `Not an address: ${bad.join(", ")}` : "Separate several with commas or new lines."}</FieldDescription>
+            <FieldDescription>
+              {bad.length
+                ? `Not an address: ${bad.join(', ')}`
+                : 'Separate several with commas or new lines.'}
+            </FieldDescription>
           </Field>
           <FieldSet>
             <FieldLegend variant="label">Role</FieldLegend>
-            <RadioGroup value={admin ? "admin" : "member"} onValueChange={(v) => setAdminRole(v === "admin")} className="gap-2">
+            <RadioGroup
+              value={admin ? 'admin' : 'member'}
+              onValueChange={(v) => setAdminRole(v === 'admin')}
+              className="gap-2"
+            >
               <Field orientation="horizontal">
                 <RadioGroupItem value="member" id="invite-member" />
                 <FieldLabel htmlFor="invite-member" className="font-normal">
                   Member
                 </FieldLabel>
               </Field>
-              <Locked reason={me.admin ? undefined : "Only an admin can invite an admin"}>
+              <Locked reason={me.admin ? undefined : 'Only an admin can invite an admin'}>
                 <Field orientation="horizontal">
                   <RadioGroupItem value="admin" id="invite-admin" disabled={!me.admin} />
                   <FieldLabel htmlFor="invite-admin" className="font-normal">
@@ -136,7 +193,7 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
                     type="button"
                     aria-pressed={on}
                     disabled={!allowed}
-                    title={allowed ? undefined : "Only its owners and admins add owners"}
+                    title={allowed ? undefined : 'Only its owners and admins add owners'}
                     onClick={() => setOwns(on ? owns.filter((x) => x !== d) : [...owns, d])}
                     className="inline-flex h-8 items-center gap-1.5 rounded-[6px] border px-2 text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50 aria-pressed:border-ring aria-pressed:bg-muted"
                   >
@@ -151,7 +208,7 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button type="submit" form="invite-form" disabled={!emails.length || bad.length > 0}>
-            {emails.length > 1 ? `Invite ${emails.length} people` : "Invite"}
+            {emails.length > 1 ? `Invite ${emails.length} people` : 'Invite'}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -160,7 +217,13 @@ export function InviteDialog({ open, onOpenChange, preset }: { open: boolean; on
 }
 
 /** One person, from a row: role, the domains they own (a switch each), what they did lately, and leaving. */
-function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: boolean) => void }) {
+function PersonSheet({
+  p,
+  onOpenChange,
+}: {
+  p: Person | null
+  onOpenChange: (o: boolean) => void
+}) {
   const me = useMe()
   const mobile = useIsMobile()
   const [removing, setRemoving] = React.useState(false)
@@ -169,7 +232,10 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
   const recent = activityOf(p.name)
   return (
     <Sheet open={!!p} onOpenChange={onOpenChange}>
-      <SheetContent side={mobile ? "bottom" : "right"} className="gap-0 data-[side=bottom]:max-h-[90svh] data-[side=right]:sm:max-w-md">
+      <SheetContent
+        side={mobile ? 'bottom' : 'right'}
+        className="gap-0 data-[side=bottom]:max-h-[90svh] data-[side=right]:sm:max-w-md"
+      >
         <SheetHeader className="flex-row items-center gap-3 border-b pr-12">
           <PersonAvatar name={p.name} size={32} />
           <div className="min-w-0">
@@ -182,7 +248,11 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
             <section className="flex flex-wrap items-center gap-2 border-b p-4 text-sm">
               <MailIcon aria-hidden className="size-4 text-muted-foreground" />
               <span className="flex-1">Invited, not signed in yet.</span>
-              <Button variant="outline" size="sm" onClick={() => toast("Invite sent again", { description: emailOf(p) })}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toast('Invite sent again', { description: emailOf(p) })}
+              >
                 Resend
               </Button>
             </section>
@@ -190,12 +260,24 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
           <section className="flex items-center justify-between gap-3 border-b p-4">
             <div>
               <p className="text-sm font-medium">Role</p>
-              <p className="text-xs text-muted-foreground">{p.admin ? "Admins change Settings, invite and remove people." : "Members read, ask, flag and suggest."}</p>
+              <p className="text-xs text-muted-foreground">
+                {p.admin
+                  ? 'Admins change Settings, invite and remove people.'
+                  : 'Members read, ask, flag and suggest.'}
+              </p>
             </div>
-            <Locked reason={me.admin ? (p.name === me.name ? "You can't change your own role" : undefined) : "Only an admin changes roles"}>
+            <Locked
+              reason={
+                me.admin
+                  ? p.name === me.name
+                    ? "You can't change your own role"
+                    : undefined
+                  : 'Only an admin changes roles'
+              }
+            >
               <div className="flex rounded-md border p-0.5" role="radiogroup" aria-label="Role">
-                {(["Member", "Admin"] as const).map((r) => {
-                  const on = (r === "Admin") === p.admin
+                {(['Member', 'Admin'] as const).map((r) => {
+                  const on = (r === 'Admin') === p.admin
                   return (
                     <button
                       key={r}
@@ -204,8 +286,8 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
                       aria-checked={on}
                       disabled={!me.admin || p.name === me.name}
                       onClick={() => {
-                        setAdmin(p.name, r === "Admin")
-                        toast(`${p.name} is ${r === "Admin" ? "an admin" : "a member"} now`)
+                        setAdmin(p.name, r === 'Admin')
+                        toast(`${p.name} is ${r === 'Admin' ? 'an admin' : 'a member'} now`)
                       }}
                       className="h-7 rounded-[5px] px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:cursor-not-allowed aria-checked:bg-muted aria-checked:font-medium"
                     >
@@ -218,7 +300,9 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
           </section>
           <section className="border-b p-4">
             <p className="text-sm font-medium">Owner of</p>
-            <p className="mb-2 text-xs text-muted-foreground">An owner publishes and checks the context in their domain.</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              An owner publishes and checks the context in their domain.
+            </p>
             <ul className="flex flex-col">
               {domainIds.map((d) => {
                 const owns = domains[d].owners.includes(p.name)
@@ -230,14 +314,16 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
                     <label htmlFor={id} className="flex-1 text-sm">
                       {domains[d].name}
                     </label>
-                    <Locked reason={allowed ? undefined : "Only its owners and admins add owners"}>
+                    <Locked reason={allowed ? undefined : 'Only its owners and admins add owners'}>
                       <Switch
                         id={id}
                         checked={owns}
                         disabled={!allowed}
                         onCheckedChange={(v) => {
-                          if (setOwner(p.name, d, v) === "last")
-                            toast(`${domains[d].name} needs an owner`, { description: "Add another owner first, then take this one off." })
+                          if (setOwner(p.name, d, v) === 'last')
+                            toast(`${domains[d].name} needs an owner`, {
+                              description: 'Add another owner first, then take this one off.',
+                            })
                         }}
                       />
                     </Locked>
@@ -258,14 +344,30 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
                 ))}
               </ul>
             ) : (
-              <p className="mt-1 text-sm text-muted-foreground">{p.invited ? "Nothing yet." : `Last active ${lastActiveOf(p).toLowerCase()}.`}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {p.invited ? 'Nothing yet.' : `Last active ${lastActiveOf(p).toLowerCase()}.`}
+              </p>
             )}
           </section>
         </div>
         <div className="flex shrink-0 items-center justify-between gap-2 border-t p-4">
-          <Locked reason={me.admin ? (p.name === me.name ? "You can't remove yourself" : undefined) : "Only an admin removes people"}>
-            <Button variant="outline" size="sm" className="text-destructive" disabled={!me.admin || p.name === me.name} onClick={() => setRemoving(true)}>
-              {p.invited ? "Revoke the invite" : "Remove from the workspace"}
+          <Locked
+            reason={
+              me.admin
+                ? p.name === me.name
+                  ? "You can't remove yourself"
+                  : undefined
+                : 'Only an admin removes people'
+            }
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive"
+              disabled={!me.admin || p.name === me.name}
+              onClick={() => setRemoving(true)}
+            >
+              {p.invited ? 'Revoke the invite' : 'Remove from the workspace'}
             </Button>
           </Locked>
         </div>
@@ -276,12 +378,16 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
                 <DialogHeader>
                   <DialogTitle>Hand over first</DialogTitle>
                   <DialogDescription>
-                    {p.name} is the only owner of {alone.map((d) => domains[d].name).join(" and ")}. Add another owner there, then remove them.
+                    {p.name} is the only owner of {alone.map((d) => domains[d].name).join(' and ')}.
+                    Add another owner there, then remove them.
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
                   <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-                  <Button nativeButton={false} render={<a href={href(`/settings/domains/${alone[0]}`)} />}>
+                  <Button
+                    nativeButton={false}
+                    render={<a href={href(`/settings/domains/${alone[0]}`)} />}
+                  >
                     Open {domains[alone[0]].name}
                   </Button>
                 </DialogFooter>
@@ -289,11 +395,13 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
             ) : (
               <>
                 <DialogHeader>
-                  <DialogTitle>{p.invited ? `Revoke the invite to ${p.name}?` : `Remove ${p.name}?`}</DialogTitle>
+                  <DialogTitle>
+                    {p.invited ? `Revoke the invite to ${p.name}?` : `Remove ${p.name}?`}
+                  </DialogTitle>
                   <DialogDescription>
                     {p.invited
-                      ? "The link in their email stops working."
-                      : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d].name).join(" and ")} carry on` : ""}.`}
+                      ? 'The link in their email stops working.'
+                      : `They can't sign in any more. What they published stays, signed with their name${p.owns.length ? `, and the other owners of ${p.owns.map((d) => domains[d].name).join(' and ')} carry on` : ''}.`}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -307,10 +415,13 @@ function PersonSheet({ p, onOpenChange }: { p: Person | null; onOpenChange: (o: 
                       onOpenChange(false)
                       // The row goes as it leaves the list; Undo brings it back in.
                       leaveThen(p.name, () => removePerson(p.name))
-                      toast(p.invited ? "Invite revoked" : "Removed", { description: p.name, action: { label: "Undo", onClick: () => restorePerson(p, owned, at) } })
+                      toast(p.invited ? 'Invite revoked' : 'Removed', {
+                        description: p.name,
+                        action: { label: 'Undo', onClick: () => restorePerson(p, owned, at) },
+                      })
                     }}
                   >
-                    {p.invited ? "Revoke" : "Remove"}
+                    {p.invited ? 'Revoke' : 'Remove'}
                   </Button>
                 </DialogFooter>
               </>
@@ -326,12 +437,14 @@ export function People() {
   useDomains()
   const me = useMe()
   const { state } = useStore()
-  const [q, setQ] = React.useState("")
+  const [q, setQ] = React.useState('')
   const [inviting, setInviting] = React.useState(false)
   const [open, setOpen] = React.useState<string | null>(null)
   // A new install has only the person who set it up.
   const everyone = state.fresh ? people.filter((p) => p.name === me.name) : people
-  const shown = everyone.filter((p) => `${p.name} ${emailOf(p)}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const shown = everyone.filter((p) =>
+    `${p.name} ${emailOf(p)}`.toLowerCase().includes(q.trim().toLowerCase()),
+  )
   const invited = shown.filter((p) => p.invited)
   const active = shown.filter((p) => !p.invited)
   const current = people.find((p) => p.name === open) ?? null
@@ -348,7 +461,9 @@ export function People() {
         <span className="min-w-0">
           <span className="block truncate text-sm font-medium">
             {p.name}
-            {p.name === me.name && <span className="font-normal text-muted-foreground"> (you)</span>}
+            {p.name === me.name && (
+              <span className="font-normal text-muted-foreground"> (you)</span>
+            )}
           </span>
           <span className="block truncate text-xs text-muted-foreground">{emailOf(p)}</span>
         </span>
@@ -372,7 +487,7 @@ export function People() {
         title="People"
         description="Everyone here can read, ask, flag and suggest. Owners publish and check their domain's context; admins change Settings."
         action={
-          <Locked reason={me.admin ? undefined : "Only an admin invites people"}>
+          <Locked reason={me.admin ? undefined : 'Only an admin invites people'}>
             <Button size="sm" disabled={!me.admin} onClick={() => setInviting(true)}>
               <UserPlusIcon data-icon="inline-start" />
               Invite people
@@ -382,8 +497,17 @@ export function People() {
       >
         {everyone.length > 8 && (
           <div className="relative border-t px-4 py-3 md:px-5">
-            <SearchIcon aria-hidden className="pointer-events-none absolute top-1/2 left-6.5 size-3.5 -translate-y-1/2 text-muted-foreground md:left-7.5" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people" aria-label="Search people" className="h-8 max-w-xs pl-8" />
+            <SearchIcon
+              aria-hidden
+              className="pointer-events-none absolute top-1/2 left-6.5 size-3.5 -translate-y-1/2 text-muted-foreground md:left-7.5"
+            />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search people"
+              aria-label="Search people"
+              className="h-8 max-w-xs pl-8"
+            />
           </div>
         )}
         <div className="hidden grid-cols-[auto_minmax(0,1.4fr)_5.5rem_minmax(0,1.6fr)_7rem] gap-x-3 border-t px-4 py-2 text-xs text-muted-foreground md:px-5 @3xl/main:grid">
@@ -398,16 +522,27 @@ export function People() {
         </ul>
         {invited.length > 0 && (
           <>
-            <p className={cn("border-t px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground md:px-5")}>Invited {invited.length}</p>
+            <p
+              className={cn(
+                'border-t px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground md:px-5',
+              )}
+            >
+              Invited {invited.length}
+            </p>
             <ul ref={arriveRef} aria-label="Invited">
               {invited.map(row)}
             </ul>
           </>
         )}
-        {!shown.length && <p className="border-t p-4 text-sm text-muted-foreground md:px-5">Nobody matches “{q.trim()}”.</p>}
+        {!shown.length && (
+          <p className="border-t p-4 text-sm text-muted-foreground md:px-5">
+            Nobody matches “{q.trim()}”.
+          </p>
+        )}
         {state.fresh && (
           <p className="border-t p-4 text-sm text-muted-foreground md:px-5">
-            Just you so far. Invite the people who own a part of the business, so they can publish its context.
+            Just you so far. Invite the people who own a part of the business, so they can publish
+            its context.
           </p>
         )}
       </FrameSection>

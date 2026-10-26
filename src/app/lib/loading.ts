@@ -1,5 +1,5 @@
-import * as React from "react"
-import { useRoute } from "@/lib/router"
+import * as React from 'react'
+import { useRoute } from '@/lib/router'
 
 // Loading, by the motion rules (docs/motion.md): nothing for a fast load; a skeleton of the page's
 // own shape only after 150ms, then held at least 300ms so it never flashes; a button's spinner
@@ -44,7 +44,10 @@ export function useDelayedBusy(busy: boolean, after = SHOW_AFTER, hold = HOLD_AT
     }
     if (!busy && shown) {
       const left = hold - (performance.now() - since.current)
-      const t = window.setTimeout(() => React.startTransition(() => setShown(false)), Math.max(0, left))
+      const t = window.setTimeout(
+        () => React.startTransition(() => setShown(false)),
+        Math.max(0, left),
+      )
       return () => window.clearTimeout(t)
     }
   }, [busy, shown, after, hold])
@@ -59,10 +62,10 @@ export const ArrivedAfterWait = React.createContext(false)
 
 /* ---------- Slow network: a switch in Help, or ?slow=1 in the address ---------- */
 
-const KEY = "heed-slow-network"
+const KEY = 'heed-slow-network'
 const read = () => {
   try {
-    return localStorage.getItem(KEY) === "1"
+    return localStorage.getItem(KEY) === '1'
   } catch {
     return false
   }
@@ -76,7 +79,7 @@ export function setSlowNetwork(on: boolean) {
   slow = on
   loaded.clear()
   try {
-    localStorage.setItem(KEY, on ? "1" : "0")
+    localStorage.setItem(KEY, on ? '1' : '0')
   } catch {
     // Private windows can refuse storage; the switch still works for this visit.
   }
@@ -90,9 +93,9 @@ export function useSlowNetwork() {
       listeners.add(l)
       return () => listeners.delete(l)
     },
-    () => slow
+    () => slow,
   )
-  return stored || query.get("slow") === "1"
+  return stored || query.get('slow') === '1'
 }
 
 /** With Slow network on, a page's first visit waits; later visits show what is there at once. */

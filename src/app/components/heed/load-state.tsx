@@ -1,12 +1,12 @@
-import * as React from "react"
-import { ViewTransition } from "react"
-import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from "lucide-react"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
-import { setQuery } from "@/lib/router"
-import { ArrivedAfterWait, useDelayedBusy, useFirstLoad } from "@/lib/loading"
-import { useOnline, useScenario } from "@/lib/scenario"
+import * as React from 'react'
+import { ViewTransition } from 'react'
+import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { setQuery } from '@/lib/router'
+import { ArrivedAfterWait, useDelayedBusy, useFirstLoad } from '@/lib/loading'
+import { useOnline, useScenario } from '@/lib/scenario'
 
 // Loading, a failed load and being offline, said calmly in the page's own shape: skeleton rows
 // where the rows go, a sheet where the document goes, and one line with Retry when a load fails.
@@ -14,7 +14,12 @@ import { useOnline, useScenario } from "@/lib/scenario"
 /** Rows of a list while it loads: hairline rows at the list's own height. */
 export function ListSkeleton({ rows = 8, className }: { rows?: number; className?: string }) {
   return (
-    <div role="status" aria-busy="true" aria-label="Loading" className={cn("flex flex-col", className)}>
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+      className={cn('flex flex-col', className)}
+    >
       <div className="flex h-11 items-center gap-3 border-b px-4">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="ml-auto h-7 w-56 max-w-[40%]" />
@@ -32,9 +37,22 @@ export function ListSkeleton({ rows = 8, className }: { rows?: number; className
 }
 
 /** A table while it loads: the header band and rows at the table's own height, the title column widest. */
-export function TableSkeleton({ rows = 14, lead = [41], className }: { rows?: number; lead?: number[]; className?: string }) {
+export function TableSkeleton({
+  rows = 14,
+  lead = [41],
+  className,
+}: {
+  rows?: number
+  lead?: number[]
+  className?: string
+}) {
   return (
-    <div role="status" aria-busy="true" aria-label="Loading" className={cn("flex flex-col", className)}>
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading"
+      className={cn('flex flex-col', className)}
+    >
       {/* The bars above the table (filters, views, a coverage line) at their own heights. */}
       {lead.map((h, i) => (
         <div key={i} className="flex items-center gap-3 border-b px-4" style={{ height: h }}>
@@ -130,7 +148,10 @@ export function RowsSkeleton({ rows = 6, tall }: { rows?: number; tall?: boolean
   return (
     <div className="flex flex-col">
       {Array.from({ length: rows }, (_, i) => (
-        <div key={i} className={cn("flex items-center gap-3 border-t px-4 md:px-5", tall ? "h-16" : "h-12")}>
+        <div
+          key={i}
+          className={cn('flex items-center gap-3 border-t px-4 md:px-5', tall ? 'h-16' : 'h-12')}
+        >
           <Skeleton className="size-4 shrink-0 rounded-full" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <Skeleton className="h-3.5" style={{ width: `${35 + ((i * 17) % 30)}%` }} />
@@ -144,13 +165,29 @@ export function RowsSkeleton({ rows = 6, tall }: { rows?: number; tall?: boolean
 }
 
 /** A load that failed: what didn't load, that nothing is lost, and Retry. */
-export function LoadError({ what, onRetry, className }: { what: string; onRetry: () => void; className?: string }) {
+export function LoadError({
+  what,
+  onRetry,
+  className,
+}: {
+  what: string
+  onRetry: () => void
+  className?: string
+}) {
   return (
-    <div role="alert" className={cn("flex animate-in flex-col items-start gap-3 p-4 duration-(--dur-2) fade-in-0 sm:flex-row sm:items-center", className)}>
+    <div
+      role="alert"
+      className={cn(
+        'flex animate-in flex-col items-start gap-3 p-4 duration-(--dur-2) fade-in-0 sm:flex-row sm:items-center',
+        className,
+      )}
+    >
       <CloudAlertIcon aria-hidden className="size-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1 text-sm">
         <p className="font-medium">Couldn't load {what}.</p>
-        <p className="text-muted-foreground">Nothing is lost. Check the connection and try again.</p>
+        <p className="text-muted-foreground">
+          Nothing is lost. Check the connection and try again.
+        </p>
       </div>
       <Button variant="outline" size="sm" onClick={onRetry}>
         <RefreshCwIcon data-icon="inline-start" />
@@ -184,7 +221,7 @@ export function Loadable({
   const [retrying, setRetrying] = React.useState(false)
   const timer = React.useRef(0)
   React.useEffect(() => () => window.clearTimeout(timer.current), [])
-  const busy = retrying || scenario === "loading" || waiting
+  const busy = retrying || scenario === 'loading' || waiting
   const shown = useDelayedBusy(busy)
   // Whether the person saw the skeleton: what arrives after it may grow in, once.
   const [waited, setWaited] = React.useState(false)
@@ -197,7 +234,7 @@ export function Loadable({
     )
   // Under 150ms: nothing yet, so a fast load never flashes a skeleton.
   if (busy) return <div role="status" aria-busy="true" aria-label="Loading" className="min-h-24" />
-  if (scenario === "failed")
+  if (scenario === 'failed')
     return quiet ? null : (
       <LoadError
         what={what}
@@ -223,11 +260,16 @@ export function OfflineBanner() {
   const online = useOnline()
   if (online) return null
   return (
-    <div role="status" className="flex min-h-9 shrink-0 items-center gap-2 border-b bg-muted px-4 py-1.5 text-sm md:px-6">
+    <div
+      role="status"
+      className="flex min-h-9 shrink-0 items-center gap-2 border-b bg-muted px-4 py-1.5 text-sm md:px-6"
+    >
       <WifiOffIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
       <span>
-        <span className="font-medium">You're offline.</span>{" "}
-        <span className="text-muted-foreground">What you write stays on this device; publishing waits until you're back.</span>
+        <span className="font-medium">You're offline.</span>{' '}
+        <span className="text-muted-foreground">
+          What you write stays on this device; publishing waits until you're back.
+        </span>
       </span>
     </div>
   )

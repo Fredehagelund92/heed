@@ -9,4 +9,5 @@ export function isTyping(target: EventTarget | null) {
 }
 
 /** A plain key press for a page shortcut: nothing typed into, no modifier held. */
-export const pageKey = (e: KeyboardEvent) => !isTyping(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey
+export const pageKey = (e: KeyboardEvent) =>
+  !isTyping(e.target) && !e.metaKey && !e.ctrlKey && !e.altKey

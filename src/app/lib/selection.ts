@@ -42,7 +42,9 @@ export function toggle(s: Selection, id: string): Selection {
 export function extend(s: Selection, order: string[], id: string): Selection {
   if (!s.anchor || !order.includes(s.anchor) || !order.includes(id)) return toggle(s, id)
   const range = between(order, s.anchor, id)
-  const ids = s.anchorOn ? [...s.base, ...range.filter((x) => !s.base.includes(x))] : s.base.filter((x) => !range.includes(x))
+  const ids = s.anchorOn
+    ? [...s.base, ...range.filter((x) => !s.base.includes(x))]
+    : s.base.filter((x) => !range.includes(x))
   return { ...s, ids, head: id }
 }
 
@@ -62,4 +64,4 @@ export function all(order: string[]): Selection {
 }
 
 /** What a screen reader hears when the count changes. */
-export const countLine = (n: number) => (n ? `${n} selected` : "Selection cleared")
+export const countLine = (n: number) => (n ? `${n} selected` : 'Selection cleared')

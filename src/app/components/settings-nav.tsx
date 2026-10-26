@@ -1,4 +1,12 @@
-import { ArrowLeftIcon, BotIcon, LayersIcon, PlugIcon, SlidersHorizontalIcon, UsersIcon, WrenchIcon } from "lucide-react"
+import {
+  ArrowLeftIcon,
+  BotIcon,
+  LayersIcon,
+  PlugIcon,
+  SlidersHorizontalIcon,
+  UsersIcon,
+  WrenchIcon,
+} from 'lucide-react'
 import {
   SidebarContent,
   SidebarGroup,
@@ -9,31 +17,31 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import { useConnected } from "@/lib/integrations"
-import { BACK_TO_APP } from "@/lib/brand"
-import { useMe } from "@/lib/store"
+} from '@/components/ui/sidebar'
+import { useConnected } from '@/lib/integrations'
+import { BACK_TO_APP } from '@/lib/brand'
+import { useMe } from '@/lib/store'
 
 // Inside Settings the app sidebar gives way to the settings navigation, as Linear's does: a way
 // back to Heed on top, then five sections in three groups. No tabs anywhere in Settings.
 
 const settingsSections = [
   {
-    group: "Workspace",
+    group: 'Workspace',
     items: [
-      { id: "general", title: "General", icon: SlidersHorizontalIcon },
-      { id: "domains", title: "Domains and owners", icon: LayersIcon },
-      { id: "people", title: "People", icon: UsersIcon },
+      { id: 'general', title: 'General', icon: SlidersHorizontalIcon },
+      { id: 'domains', title: 'Domains and owners', icon: LayersIcon },
+      { id: 'people', title: 'People', icon: UsersIcon },
     ],
   },
   {
-    group: "Connections",
+    group: 'Connections',
     items: [
-      { id: "agents", title: "Agents and access", icon: BotIcon },
-      { id: "integrations", title: "Integrations", icon: PlugIcon },
+      { id: 'agents', title: 'Agents and access', icon: BotIcon },
+      { id: 'integrations', title: 'Integrations', icon: PlugIcon },
     ],
   },
-  { group: "System", items: [{ id: "advanced", title: "Advanced", icon: WrenchIcon }] },
+  { group: 'System', items: [{ id: 'advanced', title: 'Advanced', icon: WrenchIcon }] },
 ] as const
 
 export function SettingsNav({ section, close }: { section: string; close: () => void }) {
@@ -42,7 +50,12 @@ export function SettingsNav({ section, close }: { section: string; close: () => 
   // An owner who isn't an admin sees the two places they can use: domains and people.
   const sections = me.admin
     ? settingsSections
-    : settingsSections.map((g) => ({ ...g, items: g.items.filter((i) => i.id === "domains" || i.id === "people") })).filter((g) => g.items.length)
+    : settingsSections
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((i) => i.id === 'domains' || i.id === 'people'),
+        }))
+        .filter((g) => g.items.length)
   return (
     <>
       <SidebarHeader className="h-bar justify-center border-b px-2">
@@ -63,11 +76,17 @@ export function SettingsNav({ section, close }: { section: string; close: () => 
               <SidebarMenu>
                 {g.items.map((item) => (
                   <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton tooltip={item.title} isActive={section === item.id} render={<a href={`#/settings/${item.id}`} onClick={close} />}>
+                    <SidebarMenuButton
+                      tooltip={item.title}
+                      isActive={section === item.id}
+                      render={<a href={`#/settings/${item.id}`} onClick={close} />}
+                    >
                       <item.icon />
                       <span>{item.title}</span>
                     </SidebarMenuButton>
-                    {item.id === "integrations" && connected.length > 0 && <SidebarMenuBadge>{connected.length}</SidebarMenuBadge>}
+                    {item.id === 'integrations' && connected.length > 0 && (
+                      <SidebarMenuBadge>{connected.length}</SidebarMenuBadge>
+                    )}
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>

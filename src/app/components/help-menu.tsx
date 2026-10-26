@@ -1,14 +1,31 @@
-import { ArrowUpRightIcon, BookOpenIcon, BugIcon, CircleHelpIcon, KeyboardIcon, LifeBuoyIcon, ListChecksIcon, SparklesIcon, TextQuoteIcon } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Kbd } from "@/components/ui/kbd"
-import { SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
-import { DOCS_HOME, SUPPORT_EMAIL } from "@/lib/help-content"
-import { open } from "@/lib/events"
-import { navigate, useRoute } from "@/lib/router"
-import { setupSteps } from "@/data/inbox"
-import { useStore } from "@/lib/store"
+import {
+  ArrowUpRightIcon,
+  BookOpenIcon,
+  BugIcon,
+  CircleHelpIcon,
+  KeyboardIcon,
+  LifeBuoyIcon,
+  ListChecksIcon,
+  SparklesIcon,
+  TextQuoteIcon,
+} from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Kbd } from '@/components/ui/kbd'
+import { SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
+import { DOCS_HOME, SUPPORT_EMAIL } from '@/lib/help-content'
+import { open } from '@/lib/events'
+import { navigate, useRoute } from '@/lib/router'
+import { setupSteps } from '@/data/inbox'
+import { useStore } from '@/lib/store'
 
-const note = "ml-auto text-xs text-muted-foreground"
+const note = 'ml-auto text-xs text-muted-foreground'
 
 /**
  * Help as a small menu, not a page: a few links, set apart. It opens beside the sidebar's foot, from the row
@@ -18,24 +35,31 @@ export function HelpMenu({ place }: { place: string }) {
   const { isMobile, setOpenMobile } = useSidebar()
   const { state } = useStore()
   const { query } = useRoute()
-  const done = Number(query.get("done") ?? setupSteps.filter((s) => state.setup[s.id]).length)
-  const start = state.install === "new" && done < setupSteps.length
+  const done = Number(query.get('done') ?? setupSteps.filter((s) => state.setup[s.id]).length)
+  const start = state.install === 'new' && done < setupSteps.length
   const close = () => setOpenMobile(false)
   return (
     <SidebarMenuItem>
-      <DropdownMenu defaultOpen={query.get("menu") === "help"}>
-        <DropdownMenuTrigger render={<SidebarMenuButton tooltip="Help" isActive={place === "help"} />}>
+      <DropdownMenu defaultOpen={query.get('menu') === 'help'}>
+        <DropdownMenuTrigger
+          render={<SidebarMenuButton tooltip="Help" isActive={place === 'help'} />}
+        >
           <CircleHelpIcon />
           <span>Help</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-72" side={isMobile ? "top" : "right"} align="end" sideOffset={8}>
+        <DropdownMenuContent
+          className="w-72"
+          side={isMobile ? 'top' : 'right'}
+          align="end"
+          sideOffset={8}
+        >
           {start && (
             <>
               <DropdownMenuGroup>
                 <DropdownMenuItem
                   onClick={() => {
                     close()
-                    navigate("/inbox")
+                    navigate('/inbox')
                   }}
                 >
                   <ListChecksIcon />
@@ -52,7 +76,7 @@ export function HelpMenu({ place }: { place: string }) {
             <DropdownMenuItem
               onClick={() => {
                 close()
-                navigate("/help")
+                navigate('/help')
               }}
             >
               <TextQuoteIcon />
@@ -61,7 +85,7 @@ export function HelpMenu({ place }: { place: string }) {
             <DropdownMenuItem
               onClick={() => {
                 close()
-                open("shortcuts")
+                open('shortcuts')
               }}
             >
               <KeyboardIcon />
@@ -76,7 +100,9 @@ export function HelpMenu({ place }: { place: string }) {
               Documentation
               <ArrowUpRightIcon className="ml-auto text-muted-foreground" />
             </DropdownMenuItem>
-            <DropdownMenuItem render={<a href={`${DOCS_HOME}/changelog`} target="_blank" rel="noreferrer" />}>
+            <DropdownMenuItem
+              render={<a href={`${DOCS_HOME}/changelog`} target="_blank" rel="noreferrer" />}
+            >
               <SparklesIcon />
               What's new
               <ArrowUpRightIcon className="ml-auto text-muted-foreground" />
@@ -91,7 +117,7 @@ export function HelpMenu({ place }: { place: string }) {
             <DropdownMenuItem
               onClick={() => {
                 close()
-                open("report")
+                open('report')
               }}
             >
               <BugIcon />

@@ -8,14 +8,14 @@ export type Sentence = { text: string; cites: number[] }
 /** The answer as sentences, each with its [n] markers taken off and kept as numbers. */
 export function sentencesOf(text: string): Sentence[] {
   const normal = text
-    .replace(/\s+(\[\d+\])/g, "$1")
-    .replace(/(\[\d+\])([.,;:])/g, "$2$1")
+    .replace(/\s+(\[\d+\])/g, '$1')
+    .replace(/(\[\d+\])([.,;:])/g, '$2$1')
     .trim()
   if (!normal) return []
   return normal
     .split(/(?<=[.!?](?:\[\d+\])*)\s+/)
     .map((chunk) => ({
-      text: chunk.replace(/\[\d+\]/g, "").trim(),
+      text: chunk.replace(/\[\d+\]/g, '').trim(),
       cites: [...chunk.matchAll(/\[(\d+)\]/g)].map((m) => Number(m[1])),
     }))
     .filter((s) => s.text)
@@ -24,7 +24,11 @@ export function sentencesOf(text: string): Sentence[] {
 type Word = { word: string; start: number; end: number }
 
 const wordsOf = (text: string): Word[] =>
-  [...text.matchAll(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu)].map((m) => ({ word: m[0].toLowerCase().replace(/’/g, "'"), start: m.index!, end: m.index! + m[0].length }))
+  [...text.matchAll(/[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu)].map((m) => ({
+    word: m[0].toLowerCase().replace(/’/g, "'"),
+    start: m.index!,
+    end: m.index! + m[0].length,
+  }))
 
 /** Which words of `text` sit in a run of at least `min` words that also appears, word for word, in one of `others`. */
 function sharedWords(text: string, others: string[], min: number) {
@@ -69,4 +73,5 @@ export function markShared(text: string, others: string[], min = 3): Segment[] {
 }
 
 /** The marked phrases alone, for a sentence that says which words matched. */
-export const markedPhrases = (segments: Segment[]) => segments.filter((s) => s.marked).map((s) => s.text)
+export const markedPhrases = (segments: Segment[]) =>
+  segments.filter((s) => s.marked).map((s) => s.text)

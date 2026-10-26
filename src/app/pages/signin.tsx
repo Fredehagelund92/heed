@@ -1,15 +1,30 @@
-import * as React from "react"
-import { ChevronRightIcon } from "lucide-react"
-import { PersonAvatar } from "@/components/heed/bits"
-import { Logo } from "@/components/heed/logo"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
-import { Switch } from "@/components/ui/switch"
-import { person, signInPeople } from "@/data/world"
-import { navigate } from "@/lib/router"
-import { useStore } from "@/lib/store"
-import { PRODUCT } from "@/lib/brand"
+import * as React from 'react'
+import { ChevronRightIcon } from 'lucide-react'
+import { PersonAvatar } from '@/components/heed/bits'
+import { Logo } from '@/components/heed/logo'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from '@/components/ui/field'
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from '@/components/ui/item'
+import { Switch } from '@/components/ui/switch'
+import { person, signInPeople } from '@/data/world'
+import { navigate } from '@/lib/router'
+import { useStore } from '@/lib/store'
+import { PRODUCT } from '@/lib/brand'
 
 // Sign-in as the login-03 block lays it out: the demo person picker. Company sign-in is outside v1's
 // route and comes before Heed ships to a team.
@@ -39,8 +54,8 @@ export function SignInPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              dispatch({ type: "signIn", name, fresh })
-                              navigate("/inbox")
+                              dispatch({ type: 'signIn', name, fresh })
+                              navigate('/inbox')
                             }}
                           />
                         }
@@ -61,11 +76,15 @@ export function SignInPage() {
                   )
                 })}
               </ItemGroup>
-              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">Or</FieldSeparator>
+              <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
+                Or
+              </FieldSeparator>
               <Field orientation="horizontal">
                 <FieldContent>
                   <FieldLabel htmlFor="fresh">Start as a new install</FieldLabel>
-                  <FieldDescription>A workspace with no context yet, and the setup checklist in the Inbox.</FieldDescription>
+                  <FieldDescription>
+                    A workspace with no context yet, and the setup checklist in the Inbox.
+                  </FieldDescription>
                 </FieldContent>
                 <Switch id="fresh" checked={fresh} onCheckedChange={setFresh} />
               </Field>

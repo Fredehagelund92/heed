@@ -1,5 +1,5 @@
-import { ChevronsUpDownIcon, LogOutIcon, PlugIcon } from "lucide-react"
-import { PersonAvatar } from "@/components/heed/bits"
+import { ChevronsUpDownIcon, LogOutIcon, PlugIcon } from 'lucide-react'
+import { PersonAvatar } from '@/components/heed/bits'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,11 +8,16 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
-import { open } from "@/lib/events"
-import { navigate } from "@/lib/router"
-import { useMe, useStore } from "@/lib/store"
+} from '@/components/ui/dropdown-menu'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
+import { open } from '@/lib/events'
+import { navigate } from '@/lib/router'
+import { useMe, useStore } from '@/lib/store'
 
 // The sidebar block's user menu: Connect an agent and Sign out. Help sits in the sidebar's foot, the theme in the header.
 export function NavUser() {
@@ -24,7 +29,9 @@ export function NavUser() {
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger render={<SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />}>
+          <DropdownMenuTrigger
+            render={<SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />}
+          >
             <PersonAvatar name={me.name} size={32} />
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{me.name}</span>
@@ -32,7 +39,12 @@ export function NavUser() {
             </div>
             <ChevronsUpDownIcon className="ml-auto size-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-60" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
+          <DropdownMenuContent
+            className="w-60"
+            side={isMobile ? 'bottom' : 'right'}
+            align="end"
+            sideOffset={4}
+          >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
@@ -49,7 +61,7 @@ export function NavUser() {
               <DropdownMenuItem
                 onClick={() => {
                   setOpenMobile(false)
-                  open("connect")
+                  open('connect')
                 }}
               >
                 <PlugIcon />
@@ -59,8 +71,8 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                dispatch({ type: "signOut" })
-                navigate("/signin")
+                dispatch({ type: 'signOut' })
+                navigate('/signin')
               }}
             >
               <LogOutIcon />

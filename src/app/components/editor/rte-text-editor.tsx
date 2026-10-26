@@ -1,17 +1,17 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect } from 'react'
 
-import { RichTextEditorControl } from "./controls/rte-control";
-import * as controls from "./controls/rte-controls";
-import { LinkControl } from "./controls/rte-link-control";
-import { DEFAULT_ICONS } from "./icons";
-import { DEFAULT_LABELS } from "./labels";
-import { Content } from "./rte-content";
-import { RichTextEditorContext } from "./rte-context";
-import { ControlsGroup } from "./rte-controls-group";
-import { Footer } from "./rte-footer";
-import { Toolbar } from "./rte-toolbar";
-import type { RichTextEditorProps } from "./types";
-import { cn } from "./ui/utils";
+import { RichTextEditorControl } from './controls/rte-control'
+import * as controls from './controls/rte-controls'
+import { LinkControl } from './controls/rte-link-control'
+import { DEFAULT_ICONS } from './icons'
+import { DEFAULT_LABELS } from './labels'
+import { Content } from './rte-content'
+import { RichTextEditorContext } from './rte-context'
+import { ControlsGroup } from './rte-controls-group'
+import { Footer } from './rte-footer'
+import { Toolbar } from './rte-toolbar'
+import type { RichTextEditorProps } from './types'
+import { cn } from './ui/utils'
 
 const RichTextEditorRoot = ({
   editor,
@@ -19,21 +19,18 @@ const RichTextEditorRoot = ({
   className,
   labels,
   icons,
-  variant = "default",
+  variant = 'default',
   editable = true,
 }: RichTextEditorProps) => {
-  const mergedLabels = useMemo(
-    () => ({ ...DEFAULT_LABELS, ...labels }),
-    [labels]
-  );
+  const mergedLabels = useMemo(() => ({ ...DEFAULT_LABELS, ...labels }), [labels])
 
-  const mergedIcons = useMemo(() => ({ ...DEFAULT_ICONS, ...icons }), [icons]);
+  const mergedIcons = useMemo(() => ({ ...DEFAULT_ICONS, ...icons }), [icons])
 
   useEffect(() => {
     if (editor && editor.isEditable !== editable) {
-      editor.setEditable(editable);
+      editor.setEditable(editable)
     }
-  }, [editor, editable]);
+  }, [editor, editable])
 
   return (
     <RichTextEditorContext.Provider
@@ -46,18 +43,14 @@ const RichTextEditorRoot = ({
       }}
     >
       <div
-        className={cn(
-          "rte-root",
-          variant !== "default" && `rte-root--${variant}`,
-          className
-        )}
+        className={cn('rte-root', variant !== 'default' && `rte-root--${variant}`, className)}
         data-variant={variant}
       >
         {children}
       </div>
     </RichTextEditorContext.Provider>
-  );
-};
+  )
+}
 
 export const RichTextEditor = Object.assign(RichTextEditorRoot, {
   AlignCenter: controls.AlignCenterControl,
@@ -93,4 +86,4 @@ export const RichTextEditor = Object.assign(RichTextEditorRoot, {
   Underline: controls.UnderlineControl,
   Undo: controls.UndoControl,
   Unlink: controls.UnlinkControl,
-});
+})

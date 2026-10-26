@@ -1,13 +1,21 @@
-import * as React from "react"
-import { Changed } from "@/components/heed/changed"
-import { cn } from "cn"
-import { ActivityIcon, BookAIcon, InboxIcon, MessageSquareIcon, NotebookTextIcon, SearchIcon, SettingsIcon } from "lucide-react"
-import { Logo, LogoSymbol } from "@/components/heed/logo"
-import { NavUser } from "@/components/nav-user"
-import { SettingsNav } from "@/components/settings-nav"
-import { ObservabilityNav } from "@/components/obs/obs-nav"
-import { seesObservability } from "@/lib/obs"
-import { Kbd } from "@/components/ui/kbd"
+import * as React from 'react'
+import { Changed } from '@/components/heed/changed'
+import { cn } from 'cn'
+import {
+  ActivityIcon,
+  BookAIcon,
+  InboxIcon,
+  MessageSquareIcon,
+  NotebookTextIcon,
+  SearchIcon,
+  SettingsIcon,
+} from 'lucide-react'
+import { Logo, LogoSymbol } from '@/components/heed/logo'
+import { NavUser } from '@/components/nav-user'
+import { SettingsNav } from '@/components/settings-nav'
+import { ObservabilityNav } from '@/components/obs/obs-nav'
+import { seesObservability } from '@/lib/obs'
+import { Kbd } from '@/components/ui/kbd'
 import {
   Sidebar,
   SidebarContent,
@@ -21,13 +29,13 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar"
-import { open } from "@/lib/events"
-import { useRoute } from "@/lib/router"
-import { useInboxRows } from "@/lib/inbox-rows"
-import { useMe, useStore } from "@/lib/store"
-import { PRODUCT } from "@/lib/brand"
-import { HelpMenu } from "@/components/help-menu"
+} from '@/components/ui/sidebar'
+import { open } from '@/lib/events'
+import { useRoute } from '@/lib/router'
+import { useInboxRows } from '@/lib/inbox-rows'
+import { useMe, useStore } from '@/lib/store'
+import { PRODUCT } from '@/lib/brand'
+import { HelpMenu } from '@/components/help-menu'
 
 // The sidebar-07 block (collapsible to icons), with Heed's three places, Settings for admins,
 // and the user menu in the footer. Dressed as Efferd's app shell: the page background with a
@@ -43,12 +51,14 @@ function ResizeRail({ onWidth }: { onWidth: (width: number, done: boolean) => vo
   const end = () => delete document.documentElement.dataset.resizing
   return (
     <SidebarRail
-      aria-label={state === "expanded" ? "Resize or collapse the sidebar" : "Expand the sidebar"}
-      title={state === "expanded" ? "Drag to resize, click to collapse" : "Click or drag to expand"}
+      aria-label={state === 'expanded' ? 'Resize or collapse the sidebar' : 'Expand the sidebar'}
+      title={state === 'expanded' ? 'Drag to resize, click to collapse' : 'Click or drag to expand'}
       className="touch-none"
       onPointerDown={(e) => {
         e.currentTarget.setPointerCapture(e.pointerId)
-        const width = document.querySelector('[data-slot="sidebar-container"]')?.getBoundingClientRect().width ?? 256
+        const width =
+          document.querySelector('[data-slot="sidebar-container"]')?.getBoundingClientRect()
+            .width ?? 256
         drag.current = { x: e.clientX, width, moved: false }
       }}
       onPointerMove={(e) => {
@@ -57,16 +67,16 @@ function ResizeRail({ onWidth }: { onWidth: (width: number, done: boolean) => vo
         const dx = e.clientX - d.x
         if (!d.moved && Math.abs(dx) < 4) return
         d.moved = true
-        if (state === "collapsed") {
+        if (state === 'collapsed') {
           if (dx > 48) setOpen(true)
           return
         }
-        document.documentElement.dataset.resizing = "1"
+        document.documentElement.dataset.resizing = '1'
         onWidth(d.width + dx, false)
       }}
       onPointerUp={(e) => {
         const d = drag.current
-        if (d?.moved && state === "expanded") onWidth(d.width + (e.clientX - d.x), true)
+        if (d?.moved && state === 'expanded') onWidth(d.width + (e.clientX - d.x), true)
         end()
       }}
       onPointerCancel={() => {
@@ -82,43 +92,48 @@ function ResizeRail({ onWidth }: { onWidth: (width: number, done: boolean) => vo
   )
 }
 
-export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Sidebar> & { onWidth: (width: number, done: boolean) => void }) {
+export function AppSidebar({
+  onWidth,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { onWidth: (width: number, done: boolean) => void }) {
   const route = useRoute()
   const me = useMe()
   const { state } = useStore()
   const { isMobile, setOpenMobile } = useSidebar()
-  const place = route.parts[0] ?? "inbox"
+  const place = route.parts[0] ?? 'inbox'
   const { needing } = useInboxRows()
-  const count = state.install === "new" ? 0 : needing.length
+  const count = state.install === 'new' ? 0 : needing.length
   const close = () => isMobile && setOpenMobile(false)
 
   const items = [
-    { id: "inbox", title: "Inbox", icon: InboxIcon, badge: count || undefined },
-    { id: "ask", title: "Ask", icon: MessageSquareIcon },
-    { id: "context", title: "Context", icon: NotebookTextIcon },
-    { id: "definitions", title: "Definitions", icon: BookAIcon },
+    { id: 'inbox', title: 'Inbox', icon: InboxIcon, badge: count || undefined },
+    { id: 'ask', title: 'Ask', icon: MessageSquareIcon },
+    { id: 'context', title: 'Context', icon: NotebookTextIcon },
+    { id: 'definitions', title: 'Definitions', icon: BookAIcon },
   ]
 
   return (
     <Sidebar
       collapsible="icon"
       className={cn(
-        "*:data-[slot=sidebar-inner]:bg-background",
-        "*:data-[slot=sidebar-inner]:dark:bg-[radial-gradient(60%_18%_at_10%_0%,--theme(--color-foreground/.08),transparent)]",
-        "**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75"
+        '*:data-[slot=sidebar-inner]:bg-background',
+        '*:data-[slot=sidebar-inner]:dark:bg-[radial-gradient(60%_18%_at_10%_0%,--theme(--color-foreground/.08),transparent)]',
+        '**:data-[slot=sidebar-menu-button]:[&>span]:text-foreground/75',
       )}
       {...props}
     >
-      {place === "settings" ? (
-        <SettingsNav section={route.parts[1] ?? "general"} close={close} />
-      ) : place === "observability" && seesObservability(me) ? (
-        <ObservabilityNav section={route.parts[1] ?? "overview"} close={close} />
+      {place === 'settings' ? (
+        <SettingsNav section={route.parts[1] ?? 'general'} close={close} />
+      ) : place === 'observability' && seesObservability(me) ? (
+        <ObservabilityNav section={route.parts[1] ?? 'overview'} close={close} />
       ) : (
         <>
           <SidebarHeader className="h-bar justify-center border-b px-2">
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton render={<a href="#/inbox" aria-label={PRODUCT} onClick={close} />}>
+                <SidebarMenuButton
+                  render={<a href="#/inbox" aria-label={PRODUCT} onClick={close} />}
+                >
                   <Logo className="h-5! w-auto! group-data-[collapsible=icon]:hidden" aria-hidden />
                   <LogoSymbol className="mx-auto hidden h-5! w-auto! group-data-[collapsible=icon]:block" />
                 </SidebarMenuButton>
@@ -133,7 +148,7 @@ export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Si
                 type="button"
                 onClick={() => {
                   close()
-                  open("palette")
+                  open('palette')
                 }}
                 className="flex h-8 w-full items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground transition-colors outline-none hover:border-foreground/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 group-data-[collapsible=icon]:hidden"
               >
@@ -147,7 +162,7 @@ export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Si
                     tooltip="Search"
                     onClick={() => {
                       close()
-                      open("palette")
+                      open('palette')
                     }}
                   >
                     <SearchIcon />
@@ -161,7 +176,11 @@ export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Si
                 <SidebarMenu>
                   {items.map((item) => (
                     <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton tooltip={item.title} isActive={place === item.id} render={<a href={`#/${item.id}`} onClick={close} />}>
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        isActive={place === item.id}
+                        render={<a href={`#/${item.id}`} onClick={close} />}
+                      >
                         <item.icon />
                         <span>{item.title}</span>
                       </SidebarMenuButton>
@@ -185,7 +204,11 @@ export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Si
                   {/* What agents asked and got, for the same people as Settings. */}
                   {seesObservability(me) && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton tooltip="Observability" isActive={place === "observability"} render={<a href="#/observability" onClick={close} />}>
+                      <SidebarMenuButton
+                        tooltip="Observability"
+                        isActive={place === 'observability'}
+                        render={<a href="#/observability" onClick={close} />}
+                      >
                         <ActivityIcon />
                         <span>Observability</span>
                       </SidebarMenuButton>
@@ -196,8 +219,13 @@ export function AppSidebar({ onWidth, ...props }: React.ComponentProps<typeof Si
                     <SidebarMenuItem>
                       <SidebarMenuButton
                         tooltip="Settings"
-                        isActive={place === "settings"}
-                        render={<a href={me.admin ? "#/settings" : "#/settings/domains"} onClick={close} />}
+                        isActive={place === 'settings'}
+                        render={
+                          <a
+                            href={me.admin ? '#/settings' : '#/settings/domains'}
+                            onClick={close}
+                          />
+                        }
                       >
                         <SettingsIcon />
                         <span>Settings</span>

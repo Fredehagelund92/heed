@@ -1,6 +1,6 @@
-import { ArrowUpRightIcon } from "lucide-react"
-import { cn } from "cn"
-import { DOC_PAGES, DOCS_HOME } from "@/lib/help-content"
+import { ArrowUpRightIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { DOC_PAGES, DOCS_HOME } from '@/lib/help-content'
 
 /** Under an aside's help: one quiet link to its guide in the documentation, which opens as its own site. */
 export function GuideLink({ slug, className }: { slug: string; className?: string }) {
@@ -12,8 +12,8 @@ export function GuideLink({ slug, className }: { slug: string; className?: strin
       target="_blank"
       rel="noreferrer"
       className={cn(
-        "inline-flex min-h-6 w-fit items-center gap-1 text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline",
-        className
+        'inline-flex min-h-6 w-fit items-center gap-1 text-sm font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:underline',
+        className,
       )}
     >
       Read the guide

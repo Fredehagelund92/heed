@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -19,50 +19,81 @@ import {
   PencilIcon,
   SearchIcon,
   TriangleAlertIcon,
-} from "lucide-react"
-import { toast } from "sonner"
-import { cn } from "cn"
-import { DomainBadge, FieldDiff } from "@/components/heed/bits"
-import { ToolLogo } from "@/components/heed/tool-logo"
-import { connectorById } from "@/data/integrations"
-import { careLine, countWord, reviewFor } from "@/data/review"
-import { QuickReview, Sender } from "@/pages/review"
-import { TOUCH } from "@/lib/touch"
-import { SiteHeader } from "@/components/site-header"
-import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { Input } from "@/components/ui/input"
-import { Kbd } from "@/components/ui/kbd"
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { TextSwitch } from "@/components/heed/switches"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { readQuestion, scopeText } from "@/data/ask"
-import { cards, cardTypeLabel, setupSteps, week, type CardType, type InboxCard, type Waiting } from "@/data/inbox"
-import { domains, factById, type DomainId, type Fact } from "@/data/world"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { openDock, useDock } from "@/lib/dock"
-import { open } from "@/lib/events"
-import { navigate, setQuery, useRoute } from "@/lib/router"
-import { useMe, useStore, type Outcome } from "@/lib/store"
-import { commentActions, useNewReply, type MentionNote } from "@/lib/comments"
-import { groupOf, INBOX_GROUPS, needs, rowId, rowTitle, useInboxRows, type InboxRow } from "@/lib/inbox-rows"
-import { suggestionIcon } from "@/components/heed/change-icons"
-import type { Subject } from "@/data/comments"
-import { TruncatedText } from "@/components/heed/truncated"
-import { plainText } from "@/lib/mentions"
-import { DEFINITIONS_TOOL } from "@/data/integrations"
-import { ListSkeleton, Loadable } from "@/components/heed/load-state"
-import { BulkBar, BulkButton } from "@/components/heed/bulk-bar"
-import { useOnline } from "@/lib/scenario"
-import { Checkbox } from "@/components/ui/checkbox"
-import { useSelection, type RowSelection } from "@/hooks/use-selection"
-import { pageKey } from "@/lib/keys"
-import { ResultIcon } from "@/components/obs/result"
-import { useSavedQuestions } from "@/data/saved-questions"
-import { useScenario } from "@/lib/scenario"
-import { sendTime, useSlowNetwork } from "@/lib/loading"
-import { arriveRef, leaveThen, useLeavingRows } from "@/lib/presence"
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from 'cn'
+import { DomainBadge, FieldDiff } from '@/components/heed/bits'
+import { ToolLogo } from '@/components/heed/tool-logo'
+import { connectorById } from '@/data/integrations'
+import { careLine, countWord, reviewFor } from '@/data/review'
+import { QuickReview, Sender } from '@/pages/review'
+import { TOUCH } from '@/lib/touch'
+import { SiteHeader } from '@/components/site-header'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { Input } from '@/components/ui/input'
+import { Kbd } from '@/components/ui/kbd'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { TextSwitch } from '@/components/heed/switches'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { readQuestion, scopeText } from '@/data/ask'
+import {
+  cards,
+  cardTypeLabel,
+  setupSteps,
+  week,
+  type CardType,
+  type InboxCard,
+  type Waiting,
+} from '@/data/inbox'
+import { domains, factById, type DomainId, type Fact } from '@/data/world'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { openDock, useDock } from '@/lib/dock'
+import { open } from '@/lib/events'
+import { navigate, setQuery, useRoute } from '@/lib/router'
+import { useMe, useStore, type Outcome } from '@/lib/store'
+import { commentActions, useNewReply, type MentionNote } from '@/lib/comments'
+import {
+  groupOf,
+  INBOX_GROUPS,
+  needs,
+  rowId,
+  rowTitle,
+  useInboxRows,
+  type InboxRow,
+} from '@/lib/inbox-rows'
+import { suggestionIcon } from '@/components/heed/change-icons'
+import type { Subject } from '@/data/comments'
+import { TruncatedText } from '@/components/heed/truncated'
+import { plainText } from '@/lib/mentions'
+import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { ListSkeleton, Loadable } from '@/components/heed/load-state'
+import { BulkBar, BulkButton } from '@/components/heed/bulk-bar'
+import { useOnline } from '@/lib/scenario'
+import { Checkbox } from '@/components/ui/checkbox'
+import { useSelection, type RowSelection } from '@/hooks/use-selection'
+import { pageKey } from '@/lib/keys'
+import { ResultIcon } from '@/components/obs/result'
+import { useSavedQuestions } from '@/data/saved-questions'
+import { useScenario } from '@/lib/scenario'
+import { sendTime, useSlowNetwork } from '@/lib/loading'
+import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 
 // The Inbox, built like shadcn's Mail example (a list with All and Needs me and a search field, and
 // a detail pane with the selected card's one primary action) and dressed as Efferd's dashboard 2:
@@ -71,7 +102,9 @@ import { arriveRef, leaveThen, useLeavingRows } from "@/lib/presence"
 
 /** Efferd's dashboard card: a shadcn Card made flat, so the frame's hairlines are its only edges. */
 function Cell({ className, ...props }: React.ComponentProps<typeof Card>) {
-  return <Card className={cn("rounded-none bg-background shadow-none ring-0", className)} {...props} />
+  return (
+    <Card className={cn('rounded-none bg-background shadow-none ring-0', className)} {...props} />
+  )
 }
 
 const typeIcon: Record<CardType, typeof FlagIcon> = {
@@ -87,25 +120,39 @@ const typeIcon: Record<CardType, typeof FlagIcon> = {
 /** How big a suggestion is, from its review: "2 wording, 1 link - 12 questions". */
 function evidence(id: string) {
   const r = reviewFor(id)
-  if (!r) return ""
-  const size = r.mode === "new" ? "New item" : r.mode === "retire" ? "Retires an item" : r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(", ")
+  if (!r) return ''
+  const size =
+    r.mode === 'new'
+      ? 'New item'
+      : r.mode === 'retire'
+        ? 'Retires an item'
+        : r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(', ')
   const care = careLine(r)
-  return [care, size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? "question" : "questions"}`].filter(Boolean).join(" - ")
+  return [care, size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? 'question' : 'questions'}`]
+    .filter(Boolean)
+    .join(' - ')
 }
 
 /** The row's second line: who it is from and what it is worth, so the list can be read without opening. */
 function meta(row: InboxRow) {
-  if (row.kind === "mention") return `Mentioned by ${row.note.from}`
-  if (row.kind === "waiting") return `Waiting for ${row.item.waitingFor.split(",")[0]}`
+  if (row.kind === 'mention') return `Mentioned by ${row.note.from}`
+  if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
   if (done) return `${done.label}, ${done.at.toLowerCase()}`
   const s = card.suggestion
-  const from = card.source ? `${card.source.tool}, ${card.source.folder}` : s ? (s.agent ? `An agent, with ${s.from}'s OK` : s.from) : ""
-  if (s || card.source) return [from, evidence(card.id)].filter(Boolean).join(" - ")
-  if (card.gap) return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ", across a month edge" : ""}`
+  const from = card.source
+    ? `${card.source.tool}, ${card.source.folder}`
+    : s
+      ? s.agent
+        ? `An agent, with ${s.from}'s OK`
+        : s.from
+      : ''
+  if (s || card.source) return [from, evidence(card.id)].filter(Boolean).join(' - ')
+  if (card.gap)
+    return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ', across a month edge' : ''}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
-  if (card.look) return "Raised by an alert: saved questions answer worse"
-  return card.line.startsWith(DEFINITIONS_TOOL) ? "A definition changed" : "Its check date passed"
+  if (card.look) return 'Raised by an alert: saved questions answer worse'
+  return card.line.startsWith(DEFINITIONS_TOOL) ? 'A definition changed' : 'Its check date passed'
 }
 
 /** The row's second line; a mention of you, or a reply in a suggestion's comments, takes its place, quietly. */
@@ -118,7 +165,7 @@ function RowMeta({ row }: { row: InboxRow }) {
         Mentioned by {row.note.from}
       </span>
     )
-  if (reply && row.kind === "card" && !row.done)
+  if (reply && row.kind === 'card' && !row.done)
     return (
       <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-foreground/80">
         <MessageSquareTextIcon className="size-3 shrink-0" aria-hidden />
@@ -139,7 +186,10 @@ function NewReply({ id }: { id: string }) {
         New reply from {reply.from}, {reply.when.toLowerCase()}
       </p>
       <p className="line-clamp-3 text-muted-foreground">{reply.excerpt}</p>
-      <a href={`#/inbox/${id}/review`} className="w-fit text-primary underline-offset-4 hover:underline">
+      <a
+        href={`#/inbox/${id}/review`}
+        className="w-fit text-primary underline-offset-4 hover:underline"
+      >
         Read the comments
       </a>
     </div>
@@ -165,27 +215,45 @@ function InboxList({
   React.useEffect(() => arriveRef(list.current), [list])
   // The selected row stays in sight: on a click, on J and K, and on a link straight to a card.
   React.useEffect(() => {
-    list.current?.querySelector<HTMLElement>(`[data-row="${CSS.escape(selected ?? "")}"]`)?.scrollIntoView({ block: "nearest" })
+    list.current
+      ?.querySelector<HTMLElement>(`[data-row="${CSS.escape(selected ?? '')}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
   }, [list, selected])
   return (
-    <ul ref={list} className="flex flex-col divide-y divide-border border-b" onKeyDown={sel.onKeyDown}>
+    <ul
+      ref={list}
+      className="flex flex-col divide-y divide-border border-b"
+      onKeyDown={sel.onKeyDown}
+    >
       {rows.map((row, i) => {
         const id = rowId(row)
-        const review = row.kind === "card" && row.card.type === "suggestion" ? reviewFor(row.card.id) : undefined
-        const Icon = review ? suggestionIcon(review) : row.kind === "card" ? typeIcon[row.card.type] : row.kind === "mention" || row.note ? AtSignIcon : ClockIcon
+        const review =
+          row.kind === 'card' && row.card.type === 'suggestion' ? reviewFor(row.card.id) : undefined
+        const Icon = review
+          ? suggestionIcon(review)
+          : row.kind === 'card'
+            ? typeIcon[row.card.type]
+            : row.kind === 'mention' || row.note
+              ? AtSignIcon
+              : ClockIcon
         // A suggestion that needs care says so on its row, before it is opened.
-        const care = review && row.kind === "card" && !row.done ? careLine(review) : undefined
+        const care = review && row.kind === 'card' && !row.done ? careLine(review) : undefined
         const group = groupOf(row)
         const firstOfGroup = i === 0 || groupOf(rows[i - 1]) !== group
         const inGroup = rows.filter((r) => groupOf(r) === group).length
-        const source = row.kind === "card" ? row.card.source : undefined
+        const source = row.kind === 'card' ? row.card.source : undefined
         const prev = rows[i - 1]
         // Suggestions from one sync read sit under one header: "From Google Drive, today 06:00".
-        const firstOfRead = source && !(prev?.kind === "card" && prev.card.source?.read === source.read)
-        const fromRead = source ? rows.filter((r) => r.kind === "card" && r.card.source?.read === source.read).length : 0
-        const done = row.kind === "card" && !!row.done && !row.note
+        const firstOfRead =
+          source && !(prev?.kind === 'card' && prev.card.source?.read === source.read)
+        const fromRead = source
+          ? rows.filter((r) => r.kind === 'card' && r.card.source?.read === source.read).length
+          : 0
+        const done = row.kind === 'card' && !!row.done && !row.note
         // The dot is "not opened yet": it goes once the card was opened here or in the review.
-        const unread = row.note ? true : row.kind === "card" && !row.done && !state.opened[row.card.id]
+        const unread = row.note
+          ? true
+          : row.kind === 'card' && !row.done && !state.opened[row.card.id]
         const isSelected = selected === id
         const ticked = sel.isSelected(id)
         return (
@@ -198,12 +266,12 @@ function InboxList({
             )}
             {firstOfRead && (
               <li className="flex h-10 items-center gap-2 bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] px-4 text-xs @md:px-6">
-                <ToolLogo c={connectorById("google-drive")!} size="sm" />
+                <ToolLogo c={connectorById('google-drive')!} size="sm" />
                 <span className="truncate font-medium">
                   From {source.tool}, {source.read.toLowerCase()}
                 </span>
                 <span className="shrink-0 text-muted-foreground @max-md:hidden">
-                  {fromRead} new {fromRead === 1 ? "suggestion" : "suggestions"}
+                  {fromRead} new {fromRead === 1 ? 'suggestion' : 'suggestions'}
                 </span>
                 <a
                   href="#/settings/integrations/google-drive?state=suggestions"
@@ -218,9 +286,10 @@ function InboxList({
               data-leaving={leaving.has(id) || undefined}
               onMouseDown={sel.onMouseDown}
               className={cn(
-                "group/row row-presence hover:bg-muted/50 has-[[data-row-open]:active]:bg-muted has-[[data-row-open]:focus-visible]:bg-muted/50 has-[[data-row-open]:focus-visible]:ring-3 has-[[data-row-open]:focus-visible]:ring-ring/50 has-[[data-row-open]:focus-visible]:ring-inset",
-                ticked && "bg-primary/[0.06] hover:bg-primary/10 dark:bg-primary/12 dark:hover:bg-primary/16",
-                isSelected && "bg-muted hover:bg-muted"
+                'group/row row-presence hover:bg-muted/50 has-[[data-row-open]:active]:bg-muted has-[[data-row-open]:focus-visible]:bg-muted/50 has-[[data-row-open]:focus-visible]:ring-3 has-[[data-row-open]:focus-visible]:ring-ring/50 has-[[data-row-open]:focus-visible]:ring-inset',
+                ticked &&
+                  'bg-primary/[0.06] hover:bg-primary/10 dark:bg-primary/12 dark:hover:bg-primary/16',
+                isSelected && 'bg-muted hover:bg-muted',
               )}
             >
               <div className="flex">
@@ -229,7 +298,10 @@ function InboxList({
                   <Checkbox
                     aria-label={`Select ${rowTitle(row)}`}
                     {...sel.checkbox(id)}
-                    className={cn("transition-opacity group-hover/row:opacity-100", !sel.count && !ticked && "opacity-0 focus-visible:opacity-100")}
+                    className={cn(
+                      'transition-opacity group-hover/row:opacity-100',
+                      !sel.count && !ticked && 'opacity-0 focus-visible:opacity-100',
+                    )}
                   />
                 </span>
                 <button
@@ -239,32 +311,54 @@ function InboxList({
                   onClick={(e) => sel.rowClick(id, e) || onSelect(id)}
                   className="flex h-16 min-w-0 flex-1 items-center gap-3 px-4 text-left outline-none @md:pr-6 @md:pl-0"
                 >
-                  <span aria-hidden={!care} className={cn("flex size-10 shrink-0 items-center justify-center [&_svg]:size-4", done && "text-muted-foreground")}>
+                  <span
+                    aria-hidden={!care}
+                    className={cn(
+                      'flex size-10 shrink-0 items-center justify-center [&_svg]:size-4',
+                      done && 'text-muted-foreground',
+                    )}
+                  >
                     {care ? (
-                      <TriangleAlertIcon aria-label={care} className="text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
+                      <TriangleAlertIcon
+                        aria-label={care}
+                        className="text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
+                      />
                     ) : source ? (
-                      <ToolLogo c={connectorById("google-drive")!} size="sm" />
+                      <ToolLogo c={connectorById('google-drive')!} size="sm" />
                     ) : (
                       <Icon />
                     )}
                   </span>
                   <span className="min-w-0 flex-1 space-y-1">
-                    <TruncatedText text={rowTitle(row)} className={cn("text-sm leading-snug", done ? "text-muted-foreground" : "text-foreground")} />
+                    <TruncatedText
+                      text={rowTitle(row)}
+                      className={cn(
+                        'text-sm leading-snug',
+                        done ? 'text-muted-foreground' : 'text-foreground',
+                      )}
+                    />
                     <RowMeta row={row} />
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1.5 self-center">
                     <span className="text-xs text-muted-foreground tabular-nums">
                       {row.note
-                        ? row.note.when.replace(/^Today, /, "")
-                        : row.kind === "card"
+                        ? row.note.when.replace(/^Today, /, '')
+                        : row.kind === 'card'
                           ? row.done
-                            ? ""
+                            ? ''
                             : row.card.when
-                          : row.kind === "waiting"
+                          : row.kind === 'waiting'
                             ? row.item.sent
-                            : ""}
+                            : ''}
                     </span>
-                    {unread ? <span className="size-1.5 rounded-full bg-primary" aria-label="Not opened yet" /> : <span className="size-1.5" />}
+                    {unread ? (
+                      <span
+                        className="size-1.5 rounded-full bg-primary"
+                        aria-label="Not opened yet"
+                      />
+                    ) : (
+                      <span className="size-1.5" />
+                    )}
                   </span>
                 </button>
               </div>
@@ -294,7 +388,9 @@ function IconAction({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger render={<Button variant="outline" size="icon-sm" disabled={disabled} onClick={onClick} />}>
+      <TooltipTrigger
+        render={<Button variant="outline" size="icon-sm" disabled={disabled} onClick={onClick} />}
+      >
         <Icon />
         <span className="sr-only">{label}</span>
       </TooltipTrigger>
@@ -317,32 +413,55 @@ function useActions(card: InboxCard) {
   const run = (d: Decision) => decide(card, d)
   const primary = () => {
     switch (card.type) {
-      case "suggestion":
+      case 'suggestion':
         return navigate(`/inbox/${card.id}/review`)
-      case "gap":
+      case 'gap':
         // A draft waits: the same review as any suggestion. With none yet, the editor opens on the scope.
-        return card.gap?.draft ? navigate(`/inbox/${card.id}/review`) : navigate("/context/new", { metric: card.gap?.scope[0], market: card.gap?.scope[1] })
-      case "flag":
-        return openDock("context", card.factId, { flag: card.id })
-      case "look":
+        return card.gap?.draft
+          ? navigate(`/inbox/${card.id}/review`)
+          : navigate('/context/new', { metric: card.gap?.scope[0], market: card.gap?.scope[1] })
+      case 'flag':
+        return openDock('context', card.factId, { flag: card.id })
+      case 'look':
         return navigate(`/observability/quality?domain=${card.domain}`)
-      case "check":
+      case 'check':
         return run({
-          outcome: "Checked",
-          message: "Checked: still true",
-          description: "The next check is due on 20 Jan 2027.",
-          patch: { status: "Live", outOfDate: undefined, checkedBy: me.name, checkedOn: "22 Oct 2026" },
+          outcome: 'Checked',
+          message: 'Checked: still true',
+          description: 'The next check is due on 20 Jan 2027.',
+          patch: {
+            status: 'Live',
+            outOfDate: undefined,
+            checkedBy: me.name,
+            checkedOn: '22 Oct 2026',
+          },
         })
     }
   }
   const secondary: Record<string, () => void> = {
-    "Not something we write down": () => run({ outcome: "Closed", message: "Closed", description: "Agents keep saying honestly that nothing is written down." }),
-    "Not a problem": () => run({ outcome: "Not a problem", message: "Report closed", description: "The context item stays as it is." }),
+    'Not something we write down': () =>
+      run({
+        outcome: 'Closed',
+        message: 'Closed',
+        description: 'Agents keep saying honestly that nothing is written down.',
+      }),
+    'Not a problem': () =>
+      run({
+        outcome: 'Not a problem',
+        message: 'Report closed',
+        description: 'The context item stays as it is.',
+      }),
     Edit: () => navigate(`/context/${card.factId}/edit`),
-    Archive: () => run({ outcome: "Archived", message: "Archived", description: "Agents stop getting it from the next question.", patch: { status: "Archived" } }),
+    Archive: () =>
+      run({
+        outcome: 'Archived',
+        message: 'Archived',
+        description: 'Agents stop getting it from the next question.',
+        patch: { status: 'Archived' },
+      }),
   }
   // Only what writes needs the connection; Review and Edit only open a page.
-  const writes = card.type === "check"
+  const writes = card.type === 'check'
   return { primary, secondary, online, writes }
 }
 
@@ -351,22 +470,35 @@ type Decision = { outcome: string; message: string; description?: string; patch?
 const Decide = React.createContext<(card: InboxCard, d: Decision) => void>(() => {})
 
 const secondaryIcon: Record<string, typeof FlagIcon> = {
-  "Not something we write down": BanIcon,
-  "Not a problem": BanIcon,
+  'Not something we write down': BanIcon,
+  'Not a problem': BanIcon,
   Edit: PencilIcon,
   Archive: ArchiveIcon,
 }
 
 function from(card: InboxCard) {
-  if (card.source) return `From ${card.source.tool}, ${card.source.folder}: created by a read, not by a person.`
+  if (card.source)
+    return `From ${card.source.tool}, ${card.source.folder}: created by a read, not by a person.`
   const s = card.suggestion
-  if (s) return s.agent ? `From an agent, sent with ${s.from}'s OK.` : `From ${s.from}, ${s.via === "editor" ? "written in the editor" : `from ${s.via}`}.`
-  if (card.flag) return `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
-  if (card.look) return "From an alert, after the check that runs after every change."
-  return "From an automatic check."
+  if (s)
+    return s.agent
+      ? `From an agent, sent with ${s.from}'s OK.`
+      : `From ${s.from}, ${s.via === 'editor' ? 'written in the editor' : `from ${s.via}`}.`
+  if (card.flag)
+    return `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
+  if (card.look) return 'From an alert, after the check that runs after every change.'
+  return 'From an automatic check.'
 }
 
-function Toolbar({ children, onStep, onBack }: { children?: React.ReactNode; onStep: (d: 1 | -1) => void; onBack?: () => void }) {
+function Toolbar({
+  children,
+  onStep,
+  onBack,
+}: {
+  children?: React.ReactNode
+  onStep: (d: 1 | -1) => void
+  onBack?: () => void
+}) {
   return (
     <CardAction className="flex items-center gap-2">
       {onBack && (
@@ -399,7 +531,7 @@ function CardDetail({
   const { primary, secondary, online, writes } = useActions(card)
   // Opening a card in the quick view is reading it: its unread dot goes.
   const { dispatch } = useStore()
-  React.useEffect(() => dispatch({ type: "opened", card: card.id }), [card.id, dispatch])
+  React.useEffect(() => dispatch({ type: 'opened', card: card.id }), [card.id, dispatch])
   const waits = !online
   const fact = card.factId ? factById(card.factId) : undefined
   const s = card.suggestion
@@ -423,7 +555,13 @@ function CardDetail({
         )}
         <Toolbar onStep={onStep} onBack={onBack}>
           {card.secondary.map((label) => (
-            <IconAction key={label} label={label} icon={secondaryIcon[label]} disabled={!!done || (label !== "Edit" && waits)} onClick={secondary[label]} />
+            <IconAction
+              key={label}
+              label={label}
+              icon={secondaryIcon[label]}
+              disabled={!!done || (label !== 'Edit' && waits)}
+              onClick={secondary[label]}
+            />
           ))}
         </Toolbar>
       </CardHeader>
@@ -442,10 +580,19 @@ function CardDetail({
             </div>
             <p>{card.line}</p>
             <p className="text-muted-foreground">{card.detail}</p>
-            {s?.note && <blockquote className="border-l-2 pl-3 text-muted-foreground italic">“{s.note}”</blockquote>}
+            {s?.note && (
+              <blockquote className="border-l-2 pl-3 text-muted-foreground italic">
+                “{s.note}”
+              </blockquote>
+            )}
             {s && (
               <div className="border-y py-3">
-                {(s.factId ? changed : s.changes.filter((c) => ["What agents should know", "Where", "When"].includes(c.label))).map((c) => (
+                {(s.factId
+                  ? changed
+                  : s.changes.filter((c) =>
+                      ['What agents should know', 'Where', 'When'].includes(c.label),
+                    )
+                ).map((c) => (
                   <FieldDiff key={c.label} {...c} />
                 ))}
               </div>
@@ -454,14 +601,15 @@ function CardDetail({
             {card.gap && (
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground">
-                  Agents asked about {card.gap.scope.join(", ")}, {card.gap.times} times this week.
+                  Agents asked about {card.gap.scope.join(', ')}, {card.gap.times} times this week.
                 </p>
                 <p>
-                  <span className="font-medium">Where the fix probably belongs:</span> {card.gap.belongs}.
+                  <span className="font-medium">Where the fix probably belongs:</span>{' '}
+                  {card.gap.belongs}.
                 </p>
               </div>
             )}
-            {fact && card.type !== "suggestion" && (
+            {fact && card.type !== 'suggestion' && (
               <div className="flex flex-col gap-1 border-y py-3">
                 <div className="font-medium">{fact.title}</div>
                 <p className="text-muted-foreground">{plainText(fact.summary)}</p>
@@ -474,20 +622,29 @@ function CardDetail({
         {done ? (
           <>
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}.
+              <CircleCheckIcon className="size-4" aria-hidden /> {done.label},{' '}
+              {done.at.toLowerCase()}.
             </p>
             {note && <MentionDone subject={note.subject} next={next} />}
           </>
         ) : (
           <>
-            {!online && (writes || card.secondary.some((l) => l !== "Edit")) ? (
-              <p className="truncate text-sm text-muted-foreground">Offline: changes wait until you're back.</p>
+            {!online && (writes || card.secondary.some((l) => l !== 'Edit')) ? (
+              <p className="truncate text-sm text-muted-foreground">
+                Offline: changes wait until you're back.
+              </p>
             ) : null}
             {/* The key, only while the pointer is on the pane: it is for people who already work with the keyboard. */}
             <span className="hidden text-xs text-muted-foreground opacity-0 transition-opacity group-hover/pane:opacity-100 pointer-coarse:hidden md:inline">
               <Kbd>Enter</Kbd> to {card.primary.toLowerCase()}
             </span>
-            <Button size="sm" className="ml-auto max-sm:flex-1" data-primary disabled={writes && !online} onClick={primary}>
+            <Button
+              size="sm"
+              className="ml-auto max-sm:flex-1"
+              data-primary
+              disabled={writes && !online}
+              onClick={primary}
+            >
               {card.primary}
             </Button>
           </>
@@ -517,7 +674,15 @@ function LookList({ ids }: { ids: string[] }) {
 }
 
 /** Who mentioned you, when, and what they wrote, with the way to the thread. */
-function MentionBlock({ note, href, link = "Read the comments" }: { note: MentionNote; href?: string; link?: string }) {
+function MentionBlock({
+  note,
+  href,
+  link = 'Read the comments',
+}: {
+  note: MentionNote
+  href?: string
+  link?: string
+}) {
   return (
     <div className="mb-5 flex flex-col gap-1.5 border-l-2 border-primary/60 py-0.5 pl-3 text-sm">
       <p className="flex items-center gap-1.5 font-medium">
@@ -544,7 +709,7 @@ function MentionDone({ subject, next }: { subject: Subject; next: () => void }) 
       data-primary
       onClick={() => {
         commentActions.seenMention(subject, me.name)
-        toast("Done", { description: "The comment stays in the thread." })
+        toast('Done', { description: 'The comment stays in the thread.' })
         next()
       }}
     >
@@ -553,24 +718,45 @@ function MentionDone({ subject, next }: { subject: Subject; next: () => void }) 
   )
 }
 
-const CommentBox = React.lazy(() => import("@/components/templates/comment-box").then((m) => ({ default: m.CommentBox })))
+const CommentBox = React.lazy(() =>
+  import('@/components/templates/comment-box').then((m) => ({ default: m.CommentBox })),
+)
 
 /** The thread itself, to read and answer without leaving the Inbox. */
 function Thread({ subject, domain }: { subject: Subject; domain: DomainId }) {
   const me = useMe()
   return (
     <React.Suspense fallback={null}>
-      <CommentBox subject={subject} me={me.name} owners={domains[domain].owners} className="border-t pt-5" />
+      <CommentBox
+        subject={subject}
+        me={me.name}
+        owners={domains[domain].owners}
+        className="border-t pt-5"
+      />
     </React.Suspense>
   )
 }
 
-function WaitingDetail({ item, note, onStep, onBack, next }: { item: Waiting; note?: MentionNote; onStep: (d: 1 | -1) => void; onBack?: () => void; next: () => void }) {
+function WaitingDetail({
+  item,
+  note,
+  onStep,
+  onBack,
+  next,
+}: {
+  item: Waiting
+  note?: MentionNote
+  onStep: (d: 1 | -1) => void
+  onBack?: () => void
+  next: () => void
+}) {
   return (
     <Cell className="h-full gap-0 py-0">
       <CardHeader className="border-b px-4 py-4">
         <CardTitle className="text-base">{item.title}</CardTitle>
-        <CardDescription>Your suggestion, sent {item.sent.toLowerCase() === "today" ? "today" : `on ${item.sent}`}.</CardDescription>
+        <CardDescription>
+          Your suggestion, sent {item.sent.toLowerCase() === 'today' ? 'today' : `on ${item.sent}`}.
+        </CardDescription>
         <Toolbar onStep={onStep} onBack={onBack} />
       </CardHeader>
       <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5 text-sm">
@@ -579,7 +765,9 @@ function WaitingDetail({ item, note, onStep, onBack, next }: { item: Waiting; no
           <div>
             <DomainBadge id={item.domain} />
           </div>
-          <p className="text-muted-foreground">Waiting for {item.waitingFor}. You'll see here when it is published or returned.</p>
+          <p className="text-muted-foreground">
+            Waiting for {item.waitingFor}. You'll see here when it is published or returned.
+          </p>
           <Thread subject={`review:${item.card}`} domain={item.domain} />
         </div>
       </CardContent>
@@ -608,27 +796,34 @@ function MentionDetail({
   onBack?: () => void
   next: () => void
 }) {
-  const [kind, id] = subject.split(":")
-  const fact = kind === "context" ? factById(id) : undefined
-  const card = kind === "review" ? cards.find((c) => c.id === id) : undefined
-  const domain = fact?.domain ?? card?.domain ?? "sales"
+  const [kind, id] = subject.split(':')
+  const fact = kind === 'context' ? factById(id) : undefined
+  const card = kind === 'review' ? cards.find((c) => c.id === id) : undefined
+  const domain = fact?.domain ?? card?.domain ?? 'sales'
   return (
     <Cell className="h-full gap-0 py-0">
       <CardHeader className="border-b px-4 py-4">
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>
-          A comment on {fact ? "a context item" : "a suggestion"} in {domains[domain].name}. Comments are not part of what agents get.
+          A comment on {fact ? 'a context item' : 'a suggestion'} in {domains[domain].name}.
+          Comments are not part of what agents get.
         </CardDescription>
         <Toolbar onStep={onStep} onBack={onBack} />
       </CardHeader>
       <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5 text-sm">
         <div className="flex max-w-2xl flex-col gap-4">
-          <MentionBlock note={note} href={fact ? `#/context/${fact.id}` : undefined} link="Open the context item" />
+          <MentionBlock
+            note={note}
+            href={fact ? `#/context/${fact.id}` : undefined}
+            link="Open the context item"
+          />
           <Thread subject={subject} domain={domain} />
         </div>
       </CardContent>
       <CardFooter className="h-bar shrink-0 gap-3 rounded-none border-t bg-background px-4">
-        <span className="hidden text-xs text-muted-foreground md:inline">Reply in the thread, or mark it done.</span>
+        <span className="hidden text-xs text-muted-foreground md:inline">
+          Reply in the thread, or mark it done.
+        </span>
         <MentionDone subject={note.subject} next={next} />
       </CardFooter>
     </Cell>
@@ -642,26 +837,37 @@ function Setup() {
   const first = setupSteps.find((s) => !state.setup[s.id])
   // A question about the first item, from what it applies to or, if that is empty, its own words.
   const item = state.added[0]
-  const read = item && (item.where.length ? { metric: item.where[0], markets: item.where.slice(1) } : readQuestion(`${item.title} ${item.summary}`))
+  const read =
+    item &&
+    (item.where.length
+      ? { metric: item.where[0], markets: item.where.slice(1) }
+      : readQuestion(`${item.title} ${item.summary}`))
   const scope = read && scopeText({ metric: read.metric, markets: read.markets })
-  const firstQuestion = scope ? `What should I know about ${scope}?` : "What should I know about our numbers?"
+  const firstQuestion = scope
+    ? `What should I know about ${scope}?`
+    : 'What should I know about our numbers?'
   const doneCount = setupSteps.filter((s) => state.setup[s.id]).length
   const go = (id: string) => {
-    if (id === "definitions") navigate("/settings/integrations/cube/connect", { setup: "1" })
-    if (id === "about") navigate("/settings/general", { setup: "1" })
-    if (id === "fact") navigate("/context/new", { setup: "1" })
+    if (id === 'definitions') navigate('/settings/integrations/cube/connect', { setup: '1' })
+    if (id === 'about') navigate('/settings/general', { setup: '1' })
+    if (id === 'fact') navigate('/context/new', { setup: '1' })
     // A question about the first item, typed in and ready to send.
-    if (id === "ask") navigate("/ask", { setup: "1", n: "setup", q: firstQuestion })
-    if (id === "agent") {
-      dispatch({ type: "setupStep", step: "agent" })
-      open("connect")
+    if (id === 'ask') navigate('/ask', { setup: '1', n: 'setup', q: firstQuestion })
+    if (id === 'agent') {
+      dispatch({ type: 'setupStep', step: 'agent' })
+      open('connect')
     }
   }
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* The same header as the Inbox in every state, so the page keeps its shape. */}
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
-        <Button variant="outline" size="icon-sm" aria-label="Ask in the side panel" onClick={() => openDock("ask")}>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Ask in the side panel"
+          onClick={() => openDock('ask')}
+        >
           <MessageSquareIcon />
         </Button>
       </SiteHeader>
@@ -670,10 +876,13 @@ function Setup() {
           <div className="grid grid-cols-1 gap-px bg-border p-px">
             <Cell className="gap-0 py-0">
               <CardHeader className="border-b px-4 py-4">
-                <CardTitle className="text-base">Set up your workspace so agents can use what you know</CardTitle>
+                <CardTitle className="text-base">
+                  Set up your workspace so agents can use what you know
+                </CardTitle>
                 <CardDescription>
-                  Your team writes down what the numbers don't show, and every agent reads it before it answers. Write first, connect later: about ten minutes to your
-                  first answer. Context goes to the domain Company, owned by you.
+                  Your team writes down what the numbers don't show, and every agent reads it before
+                  it answers. Write first, connect later: about ten minutes to your first answer.
+                  Context goes to the domain Company, owned by you.
                 </CardDescription>
                 <CardAction className="text-xs text-muted-foreground tabular-nums">
                   {doneCount} of {setupSteps.length} done
@@ -684,18 +893,37 @@ function Setup() {
                   {setupSteps.map((step, i) => {
                     const isDone = state.setup[step.id]
                     return (
-                      <li key={step.id} className="flex min-h-16 items-center gap-3 px-4 py-3 @md:px-6">
-                        <span aria-hidden className="flex size-10 shrink-0 items-center justify-center text-sm text-muted-foreground tabular-nums">
+                      <li
+                        key={step.id}
+                        className="flex min-h-16 items-center gap-3 px-4 py-3 @md:px-6"
+                      >
+                        <span
+                          aria-hidden
+                          className="flex size-10 shrink-0 items-center justify-center text-sm text-muted-foreground tabular-nums"
+                        >
                           {isDone ? <CircleCheckIcon className="size-4 text-foreground" /> : i + 1}
                         </span>
                         <span className="min-w-0 flex-1 space-y-1">
-                          <span className={cn("block text-sm leading-snug", isDone && "text-muted-foreground line-through")}>{step.title}</span>
-                          <span className="block text-xs text-muted-foreground">{step.description}</span>
+                          <span
+                            className={cn(
+                              'block text-sm leading-snug',
+                              isDone && 'text-muted-foreground line-through',
+                            )}
+                          >
+                            {step.title}
+                          </span>
+                          <span className="block text-xs text-muted-foreground">
+                            {step.description}
+                          </span>
                         </span>
                         {isDone ? (
                           <span className="sr-only">Done</span>
                         ) : (
-                          <Button variant={first?.id === step.id ? "default" : "outline"} size="sm" onClick={() => go(step.id)}>
+                          <Button
+                            variant={first?.id === step.id ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => go(step.id)}
+                          >
                             {step.action}
                           </Button>
                         )}
@@ -705,7 +933,8 @@ function Setup() {
                 </ol>
               </CardContent>
               <CardFooter className="rounded-none border-t bg-background px-4 py-4 text-xs text-muted-foreground @md:px-6">
-                Until there is context, agents hear “Nothing is written down for this.” That is the honest answer, not an error.
+                Until there is context, agents hear “Nothing is written down for this.” That is the
+                honest answer, not an error.
               </CardFooter>
             </Cell>
           </div>
@@ -720,7 +949,8 @@ function WeekLine() {
   return (
     <>
       <span className="max-sm:hidden">
-        This week agents asked {week.asked} times. {week.found} found checked context; {week.nothing} found nothing written down, most about {week.mostAbout}.
+        This week agents asked {week.asked} times. {week.found} found checked context;{' '}
+        {week.nothing} found nothing written down, most about {week.mostAbout}.
       </span>
       <span className="sm:hidden">
         Agents asked {week.asked} times this week; {week.nothing} found nothing written down.
@@ -739,11 +969,12 @@ function AllDone({ waitingCount }: { waitingCount: number }) {
         <EmptyTitle>Nothing needs you</EmptyTitle>
         <EmptyDescription className="text-xs">
           Nothing new is uncovered, reported or suggested.
-          {waitingCount > 0 && ` ${waitingCount === 1 ? "One suggestion of yours is" : `${waitingCount} of yours are`} waiting on others, under All.`}
+          {waitingCount > 0 &&
+            ` ${waitingCount === 1 ? 'One suggestion of yours is' : `${waitingCount} of yours are`} waiting on others, under All.`}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button variant="outline" size="sm" onClick={() => navigate("/ask")}>
+        <Button variant="outline" size="sm" onClick={() => navigate('/ask')}>
           <MessageSquareIcon data-icon="inline-start" />
           Ask a question
         </Button>
@@ -761,24 +992,29 @@ export function InboxPage() {
   const isMobile = useIsMobile()
   const dock = useDock()
   // A decision shows at once, while it is saved; a failed save takes it back by itself.
-  const [decided, addDecided] = React.useOptimistic(state.done, (done, d: { card: string; outcome: string }) => ({
-    ...done,
-    [d.card]: { label: d.outcome, at: "Just now" },
-  }))
+  const [decided, addDecided] = React.useOptimistic(
+    state.done,
+    (done, d: { card: string; outcome: string }) => ({
+      ...done,
+      [d.card]: { label: d.outcome, at: 'Just now' },
+    }),
+  )
   const { needing, rows, waiting: mineWaiting } = useInboxRows(decided)
-  const tab = query.get("tab") === "all" ? "all" : "needs"
-  const [search, setSearch] = React.useState("")
+  const tab = query.get('tab') === 'all' ? 'all' : 'needs'
+  const [search, setSearch] = React.useState('')
 
   const visible = rows.filter((r) => {
-    if (tab === "needs" && !needs(r)) return false
-    const text = r.kind === "card" ? `${r.card.title} ${r.card.line}` : rowTitle(r)
+    if (tab === 'needs' && !needs(r)) return false
+    const text = r.kind === 'card' ? `${r.card.title} ${r.card.line}` : rowTitle(r)
     return text.toLowerCase().includes(search.toLowerCase())
   })
   // ?card=none is the cleared selection (Esc): the pane says so instead of opening the first card.
-  const cleared = query.get("card") === "none"
-  const selectedId = cleared ? undefined : (query.get("card") ?? (isMobile ? undefined : visible[0] && rowId(visible[0])))
+  const cleared = query.get('card') === 'none'
+  const selectedId = cleared
+    ? undefined
+    : (query.get('card') ?? (isMobile ? undefined : visible[0] && rowId(visible[0])))
   const selected = rows.find((r) => rowId(r) === selectedId)
-  const select = (id?: string) => setQuery({ card: id ?? (isMobile ? undefined : "none") })
+  const select = (id?: string) => setQuery({ card: id ?? (isMobile ? undefined : 'none') })
   const ids = visible.map(rowId)
   const listRef = React.useRef<HTMLUListElement>(null)
   const online = useOnline()
@@ -787,8 +1023,8 @@ export function InboxPage() {
   const markRead = () => {
     const picked = rows.filter((r) => sel.isSelected(rowId(r)))
     for (const r of picked) {
-      if (r.kind === "card") {
-        dispatch({ type: "opened", card: r.card.id })
+      if (r.kind === 'card') {
+        dispatch({ type: 'opened', card: r.card.id })
         commentActions.seen(`review:${r.card.id}`)
       }
       if (r.note) commentActions.seenMention(r.note.subject, me.name)
@@ -797,7 +1033,7 @@ export function InboxPage() {
     sel.clear()
   }
   const step = (d: 1 | -1) => {
-    const i = ids.indexOf(selectedId ?? "")
+    const i = ids.indexOf(selectedId ?? '')
     // With nothing selected, either key opens the first card.
     const nextId = i < 0 ? ids[0] : ids[Math.min(ids.length - 1, Math.max(0, i + d))]
     if (nextId) select(nextId)
@@ -814,20 +1050,21 @@ export function InboxPage() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
       if (!pageKey(e)) return
-      if (e.key === "j") step(1)
-      if (e.key === "k") step(-1)
+      if (e.key === 'j') step(1)
+      if (e.key === 'k') step(-1)
       // Esc clears the selection: on a phone the list comes back, on a wide screen the pane empties.
       // Ticked rows clear first, in the selection's own Esc.
-      if (e.key === "Escape" && selected && !sel.count) select(undefined)
-      if (e.key === "Enter" && t === document.body) frameRef.current?.querySelector<HTMLButtonElement>("button[data-primary]")?.click()
+      if (e.key === 'Escape' && selected && !sel.count) select(undefined)
+      if (e.key === 'Enter' && t === document.body)
+        frameRef.current?.querySelector<HTMLButtonElement>('button[data-primary]')?.click()
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   })
 
   // The save behind a decision: as long as a send takes; with ?decide=fail (or ?state=failed) the first one fails.
   const scenario = useScenario()
-  const failSave = scenario === "failed" || query.get("decide") === "fail"
+  const failSave = scenario === 'failed' || query.get('decide') === 'fail'
   const slow = useSlowNetwork()
   const failedOnce = React.useRef(new Set<string>())
   const save = (card: string) =>
@@ -853,49 +1090,78 @@ export function InboxPage() {
         if (undone) return
         if (!ok) {
           toast.error("Couldn't save that decision", {
-            description: "Nothing changed. The card is back in the Inbox.",
-            action: { label: "Try again", onClick: () => decide(card, d) },
+            description: 'Nothing changed. The card is back in the Inbox.',
+            action: { label: 'Try again', onClick: () => decide(card, d) },
           })
           return
         }
         React.startTransition(() => {
-          if (d.patch && factId) dispatch({ type: "editFact", id: factId, patch: d.patch })
-          dispatch({ type: "complete", card: card.id, outcome: d.outcome })
+          if (d.patch && factId) dispatch({ type: 'editFact', id: factId, patch: d.patch })
+          dispatch({ type: 'complete', card: card.id, outcome: d.outcome })
         })
-      })
+      }),
     )
     toast(d.message, {
       description: d.description,
       duration: 6000,
       action: {
-        label: "Undo",
+        label: 'Undo',
         onClick: () => {
           undone = true
-          dispatch({ type: "reopen", card: card.id, restore: d.patch && factId ? { id: factId, edit: before } : undefined })
+          dispatch({
+            type: 'reopen',
+            card: card.id,
+            restore: d.patch && factId ? { id: factId, edit: before } : undefined,
+          })
         },
       },
     })
   }
 
-  if (state.install === "new") return <Setup />
+  if (state.install === 'new') return <Setup />
 
-  const allDone = tab === "needs" && needing.length === 0
+  const allDone = tab === 'needs' && needing.length === 0
 
   const back = isMobile ? () => select(undefined) : undefined
   const detail = selected ? (
-    selected.kind === "card" ? (
-      <CardDetail key={selected.card.id} card={selected.card} done={selected.done} note={selected.note} onStep={step} next={next} onBack={back} />
-    ) : selected.kind === "waiting" ? (
-      <WaitingDetail key={selected.item.id} item={selected.item} note={selected.note} onStep={step} next={next} onBack={back} />
+    selected.kind === 'card' ? (
+      <CardDetail
+        key={selected.card.id}
+        card={selected.card}
+        done={selected.done}
+        note={selected.note}
+        onStep={step}
+        next={next}
+        onBack={back}
+      />
+    ) : selected.kind === 'waiting' ? (
+      <WaitingDetail
+        key={selected.item.id}
+        item={selected.item}
+        note={selected.note}
+        onStep={step}
+        next={next}
+        onBack={back}
+      />
     ) : (
-      <MentionDetail key={selected.subject} subject={selected.subject} title={selected.title} note={selected.note} onStep={step} next={next} onBack={back} />
+      <MentionDetail
+        key={selected.subject}
+        subject={selected.subject}
+        title={selected.title}
+        note={selected.note}
+        onStep={step}
+        next={next}
+        onBack={back}
+      />
     )
   ) : (
     <Cell className="h-full justify-center">
       <Empty>
         <EmptyHeader>
           <EmptyTitle>Nothing selected</EmptyTitle>
-          <EmptyDescription className="text-xs">Pick a card on the left, or press J to open the first.</EmptyDescription>
+          <EmptyDescription className="text-xs">
+            Pick a card on the left, or press J to open the first.
+          </EmptyDescription>
         </EmptyHeader>
       </Empty>
     </Cell>
@@ -905,24 +1171,35 @@ export function InboxPage() {
     <div className="flex h-full min-h-0 flex-col gap-0">
       <Cell className="h-full min-h-0 gap-0 py-0">
         <CardHeader className="border-b px-4 py-4">
-          <CardTitle className="text-base">{tab === "all" ? "Everything" : "Needs you"}</CardTitle>
-          <CardDescription>{tab === "all" ? "Yours, waiting on others, and done." : <WeekLine />}</CardDescription>
+          <CardTitle className="text-base">{tab === 'all' ? 'Everything' : 'Needs you'}</CardTitle>
+          <CardDescription>
+            {tab === 'all' ? 'Yours, waiting on others, and done.' : <WeekLine />}
+          </CardDescription>
           <CardAction>
             {/* A filter, not navigation: quiet words with counts. */}
             <TextSwitch
               label="Show"
               value={tab}
-              onChange={(v) => setQuery({ tab: v === "all" ? "all" : undefined, card: undefined })}
+              onChange={(v) => setQuery({ tab: v === 'all' ? 'all' : undefined, card: undefined })}
               options={[
-                { value: "needs", label: "Needs me", count: needing.length },
-                { value: "all", label: "All", count: rows.length },
+                { value: 'needs', label: 'Needs me', count: needing.length },
+                { value: 'all', label: 'All', count: rows.length },
               ]}
             />
           </CardAction>
           <form className="col-span-full mt-3" onSubmit={(e) => e.preventDefault()}>
             <div className="relative">
-              <SearchIcon className="absolute top-2 left-2.5 size-4 text-muted-foreground" aria-hidden />
-              <Input placeholder="Search the Inbox" aria-label="Search the Inbox" className="pl-8" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <SearchIcon
+                className="absolute top-2 left-2.5 size-4 text-muted-foreground"
+                aria-hidden
+              />
+              <Input
+                placeholder="Search the Inbox"
+                aria-label="Search the Inbox"
+                className="pl-8"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
           </form>
         </CardHeader>
@@ -933,16 +1210,29 @@ export function InboxPage() {
           ) : visible.length === 0 ? (
             <p className="px-6 py-4 text-sm text-muted-foreground">No cards match “{search}”.</p>
           ) : (
-            <InboxList rows={visible} selected={selectedId} onSelect={select} sel={sel} list={listRef} />
+            <InboxList
+              rows={visible}
+              selected={selectedId}
+              onSelect={select}
+              sel={sel}
+              list={listRef}
+            />
           )}
         </div>
         <BulkBar
           label="Selected cards"
           count={sel.count}
           onClear={sel.clear}
-          note={online ? undefined : { text: "You're offline. Changes are off until you're back; nothing is lost." }}
+          note={
+            online
+              ? undefined
+              : { text: "You're offline. Changes are off until you're back; nothing is lost." }
+          }
         >
-          <BulkButton reason={online ? undefined : "Off while you're offline. Nothing is lost."} onClick={markRead}>
+          <BulkButton
+            reason={online ? undefined : "Off while you're offline. Nothing is lost."}
+            onClick={markRead}
+          >
             <MailOpenIcon />
             <span className="max-sm:sr-only">Mark as read</span>
           </BulkButton>
@@ -968,13 +1258,21 @@ export function InboxPage() {
   )
 
   return (
-    <div className={cn("flex h-full min-h-0 flex-col", TOUCH)}>
+    <div className={cn('flex h-full min-h-0 flex-col', TOUCH)}>
       <SiteHeader title="Inbox" icon={<InboxIcon />}>
-        <Button variant="outline" size="icon-sm" aria-label="Ask in the side panel" onClick={() => openDock("ask")}>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          aria-label="Ask in the side panel"
+          onClick={() => openDock('ask')}
+        >
           <MessageSquareIcon />
         </Button>
       </SiteHeader>
-      <div className="@container/main flex min-h-0 flex-1 flex-col px-4 pt-4 md:px-6 md:pt-6" ref={frameRef}>
+      <div
+        className="@container/main flex min-h-0 flex-1 flex-col px-4 pt-4 md:px-6 md:pt-6"
+        ref={frameRef}
+      >
         <div className="mx-auto flex h-full min-h-0 w-full max-w-wide flex-col gap-px bg-border p-px">
           <div className="min-h-0 flex-1 bg-background">
             <Loadable what="the Inbox" skeleton={<ListSkeleton />}>

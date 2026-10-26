@@ -1,71 +1,62 @@
-import { useEditorState } from "@tiptap/react";
-import * as React from "react";
-import { useCallback, useState } from "react";
+import { useEditorState } from '@tiptap/react'
+import * as React from 'react'
+import { useCallback, useState } from 'react'
 
-import { useRichTextEditorContext } from "../rte-context";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Toggle } from "../ui/toggle";
+import { useRichTextEditorContext } from '../rte-context'
+import { Button } from '../ui/button'
+import { Input } from '../ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
+import { Toggle } from '../ui/toggle'
 
 export const LinkControl = () => {
-  const { editor, labels, icons } = useRichTextEditorContext();
-  const [url, setUrl] = useState("");
-  const [open, setOpen] = useState(false);
+  const { editor, labels, icons } = useRichTextEditorContext()
+  const [url, setUrl] = useState('')
+  const [open, setOpen] = useState(false)
 
   const active = useEditorState({
     editor: editor ?? null,
     selector: (ctx) =>
-      ctx.editor && !ctx.editor.isDestroyed
-        ? ctx.editor.isActive("link")
-        : false,
-  });
+      ctx.editor && !ctx.editor.isDestroyed ? ctx.editor.isActive('link') : false,
+  })
 
   const handleOpen = useCallback(
     (isOpen: boolean) => {
       if (isOpen) {
-        const linkData = editor?.getAttributes("link");
-        setUrl(linkData?.href || "");
+        const linkData = editor?.getAttributes('link')
+        setUrl(linkData?.href || '')
       } else {
-        setUrl("");
+        setUrl('')
       }
-      setOpen(isOpen);
+      setOpen(isOpen)
     },
-    [editor]
-  );
+    [editor],
+  )
 
   const handleSave = () => {
     if (!editor || editor.isDestroyed) {
-      return;
+      return
     }
-    if (url === "") {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
     } else {
-      editor
-        .chain()
-        .focus()
-        .extendMarkRange("link")
-        .setLink({ href: url })
-        .run();
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
     }
-    setOpen(false);
-    setUrl("");
-  };
+    setOpen(false)
+    setUrl('')
+  }
 
-  const handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void = (
-    e
-  ) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSave();
+  const handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSave()
     }
-  };
+  }
 
   React.useEffect(() => {
-    const handler = () => handleOpen(true);
-    window.addEventListener("edit-link", handler);
-    return () => window.removeEventListener("edit-link", handler);
-  }, [handleOpen]);
+    const handler = () => handleOpen(true)
+    window.addEventListener('edit-link', handler)
+    return () => window.removeEventListener('edit-link', handler)
+  }, [handleOpen])
 
   return (
     <Popover open={open} onOpenChange={handleOpen}>
@@ -105,5 +96,5 @@ export const LinkControl = () => {
         </div>
       </PopoverContent>
     </Popover>
-  );
-};
+  )
+}

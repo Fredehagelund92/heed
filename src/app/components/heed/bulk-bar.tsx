@@ -1,11 +1,11 @@
-import * as React from "react"
-import { InfoIcon, XIcon } from "lucide-react"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { Kbd } from "@/components/ui/kbd"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Skip } from "@/lib/bulk"
-import { countLine } from "@/lib/selection"
+import * as React from 'react'
+import { InfoIcon, XIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { Skip } from '@/lib/bulk'
+import { countLine } from '@/lib/selection'
 
 // The one bar for rows picked in a list (Context, Definitions, the Inbox): the count, Clear, and the
 // list's actions, on the ink surface the Heed app uses. It takes a band of its own under the list,
@@ -15,7 +15,11 @@ import { countLine } from "@/lib/selection"
 // open a confirmation, which is the one place that says them in red.
 
 /** What the line above the bar says. */
-export type BulkNote = { text: string; skipped?: Skip[]; action?: { label: string; onClick: () => void } }
+export type BulkNote = {
+  text: string
+  skipped?: Skip[]
+  action?: { label: string; onClick: () => void }
+}
 
 export function BulkBar({
   label,
@@ -35,7 +39,7 @@ export function BulkBar({
 }) {
   // A status line that stays mounted: a screen reader hears each count and each note. One that
   // appears with its text is often not read.
-  const [said, setSaid] = React.useState("")
+  const [said, setSaid] = React.useState('')
   const before = React.useRef({ count, note: note?.text })
   React.useEffect(() => {
     if (note?.text && note.text !== before.current.note) setSaid(note.text)
@@ -55,9 +59,14 @@ export function BulkBar({
             aria-label={label}
             className="flex h-11 max-w-full items-center gap-1 rounded-lg bg-foreground pr-2 pl-4 text-sm text-background shadow-md max-md:h-auto max-md:min-h-14 max-md:w-full max-md:rounded-none max-md:px-2 max-md:shadow-none"
           >
-            <span className="px-1 font-semibold whitespace-nowrap tabular-nums">{count} selected</span>
+            <span className="px-1 font-semibold whitespace-nowrap tabular-nums">
+              {count} selected
+            </span>
             {matching && matching.count > count && (
-              <BulkButton onClick={matching.onSelect} className="underline-offset-4 hover:underline max-md:hidden">
+              <BulkButton
+                onClick={matching.onSelect}
+                className="underline-offset-4 hover:underline max-md:hidden"
+              >
                 Select all {matching.count} matching
               </BulkButton>
             )}
@@ -106,7 +115,10 @@ function NoteLine({ note }: { note: BulkNote }) {
         </Tooltip>
       )}
       {note.action && (
-        <BulkButton onClick={note.action.onClick} className="h-7 px-2 text-xs font-semibold underline underline-offset-4">
+        <BulkButton
+          onClick={note.action.onClick}
+          className="h-7 px-2 text-xs font-semibold underline underline-offset-4"
+        >
           {note.action.label}
         </BulkButton>
       )}
@@ -118,7 +130,13 @@ function NoteLine({ note }: { note: BulkNote }) {
  * A button on the bar. With a `reason` it stays in reach but does nothing, and says why on a hover
  * and to a screen reader.
  */
-export function BulkButton({ reason, className, onClick, children, ...props }: React.ComponentProps<typeof Button> & { reason?: string }) {
+export function BulkButton({
+  reason,
+  className,
+  onClick,
+  children,
+  ...props
+}: React.ComponentProps<typeof Button> & { reason?: string }) {
   const button = (
     <Button
       variant="ghost"
@@ -127,8 +145,8 @@ export function BulkButton({ reason, className, onClick, children, ...props }: R
       aria-description={reason}
       onClick={reason ? (e) => e.preventDefault() : onClick}
       className={cn(
-        "shrink-0 text-background hover:bg-background/15 hover:text-background focus-visible:ring-background/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 max-md:h-11 max-md:min-w-11",
-        className
+        'shrink-0 text-background hover:bg-background/15 hover:text-background focus-visible:ring-background/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 max-md:h-11 max-md:min-w-11',
+        className,
       )}
       {...props}
     >

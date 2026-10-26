@@ -1,8 +1,18 @@
-import * as React from "react"
-import type { JSONContent } from "@tiptap/core"
-import type { CommentItem, CommentReaction, ReactionEmoji } from "@/components/templates/comment-box/types"
-import { createId, mapThread, peopleIn, plainOf, toggleReaction } from "@/components/templates/comment-box/utils"
-import { newReplies, seedComments, seedReactions, type Subject } from "@/data/comments"
+import * as React from 'react'
+import type { JSONContent } from '@tiptap/core'
+import type {
+  CommentItem,
+  CommentReaction,
+  ReactionEmoji,
+} from '@/components/templates/comment-box/types'
+import {
+  createId,
+  mapThread,
+  peopleIn,
+  plainOf,
+  toggleReaction,
+} from '@/components/templates/comment-box/utils'
+import { newReplies, seedComments, seedReactions, type Subject } from '@/data/comments'
 
 // Comments and reactions, kept in memory until the page reloads. Anyone signed in can comment and
 // react; people edit and delete only their own words. Nothing here sends anything: a reply only
@@ -17,7 +27,12 @@ type State = {
   mentionSeen: Partial<Record<string, boolean>>
 }
 
-let state: State = { comments: { ...seedComments }, reactions: { ...seedReactions }, seen: {}, mentionSeen: {} }
+let state: State = {
+  comments: { ...seedComments },
+  reactions: { ...seedReactions },
+  seen: {},
+  mentionSeen: {},
+}
 const listeners = new Set<() => void>()
 const set = (next: State) => {
   state = next
@@ -41,23 +56,39 @@ export function useSubjectReactions(subject: Subject) {
 
 /** A reply the owner hasn't opened yet: the Inbox's quiet marker. */
 export function useNewReply(subject: Subject) {
-  return React.useSyncExternalStore(subscribe, () => (state.seen[subject] ? undefined : newReplies[subject]))
+  return React.useSyncExternalStore(subscribe, () =>
+    state.seen[subject] ? undefined : newReplies[subject],
+  )
 }
 
 /** A comment that mentions someone, as their Inbox shows it. */
-export type MentionNote = { subject: Subject; id: string; from: string; when: string; excerpt: string }
+export type MentionNote = {
+  subject: Subject
+  id: string
+  from: string
+  when: string
+  excerpt: string
+}
 
 // Who is mentioned where and hasn't read it yet, worked out from the comments themselves, again only when they change.
 let notes: { from: State; byPerson: Map<string, MentionNote[]> } | undefined
 function mentionNotes() {
-  if (notes && notes.from.comments === state.comments && notes.from.mentionSeen === state.mentionSeen) return notes.byPerson
+  if (
+    notes &&
+    notes.from.comments === state.comments &&
+    notes.from.mentionSeen === state.mentionSeen
+  )
+    return notes.byPerson
   const byPerson = new Map<string, MentionNote[]>()
   for (const [subject, list] of Object.entries(state.comments) as [Subject, CommentItem[]][])
     for (const c of list.flatMap((x) => [x, ...(x.replies ?? [])])) {
       if (c.deleted) continue
       for (const who of new Set(peopleIn(c.content))) {
         if (who === c.author || state.mentionSeen[`${subject}|${who}`]) continue
-        byPerson.set(who, [...(byPerson.get(who) ?? []), { subject, id: c.id, from: c.author, when: c.when, excerpt: plainOf(c.content) }])
+        byPerson.set(who, [
+          ...(byPerson.get(who) ?? []),
+          { subject, id: c.id, from: c.author, when: c.when, excerpt: plainOf(c.content) },
+        ])
       }
     }
   notes = { from: state, byPerson }
@@ -76,18 +107,43 @@ const at = (subject: Subject, f: (list: CommentItem[]) => CommentItem[]) =>
 
 export const commentActions = {
   /** Posts a comment and gives back its id, so a decision's Undo can take a returned note away again. */
-  post(subject: Subject, author: string, content: JSONContent, opts: { parentId?: string; returned?: boolean } = {}): string {
-    const comment: CommentItem = { id: createId(), author, when: "Just now", content, returned: opts.returned }
+  post(
+    subject: Subject,
+    author: string,
+    content: JSONContent,
+    opts: { parentId?: string; returned?: boolean } = {},
+  ): string {
+    const comment: CommentItem = {
+      id: createId(),
+      author,
+      when: 'Just now',
+      content,
+      returned: opts.returned,
+    }
     // Answering in the thread is reading it.
     commentActions.seenMention(subject, author)
-    at(subject, (list) => (opts.parentId ? list.map((c) => (c.id === opts.parentId ? { ...c, replies: [...(c.replies ?? []), comment] } : c)) : [...list, comment]))
+    at(subject, (list) =>
+      opts.parentId
+        ? list.map((c) =>
+            c.id === opts.parentId ? { ...c, replies: [...(c.replies ?? []), comment] } : c,
+          )
+        : [...list, comment],
+    )
     return comment.id
   },
   react(subject: Subject, id: string, emoji: ReactionEmoji, who: string) {
-    at(subject, (list) => mapThread(list, id, (c) => ({ ...c, reactions: toggleReaction(c.reactions, emoji, who) })))
+    at(subject, (list) =>
+      mapThread(list, id, (c) => ({ ...c, reactions: toggleReaction(c.reactions, emoji, who) })),
+    )
   },
   reactToSubject(subject: Subject, emoji: ReactionEmoji, who: string) {
-    set({ ...state, reactions: { ...state.reactions, [subject]: toggleReaction(state.reactions[subject], emoji, who) } })
+    set({
+      ...state,
+      reactions: {
+        ...state.reactions,
+        [subject]: toggleReaction(state.reactions[subject], emoji, who),
+      },
+    })
   },
   edit(subject: Subject, id: string, content: JSONContent) {
     at(subject, (list) => mapThread(list, id, (c) => ({ ...c, content, edited: true })))
@@ -101,22 +157,31 @@ export const commentActions = {
         const i = c.replies?.findIndex((r) => r.id === id) ?? -1
         if (i < 0 || !c.replies) return [c]
         const later = c.replies.slice(i + 1).some((r) => !r.deleted)
-        return [{ ...c, replies: later ? c.replies.map((r) => (r.id === id ? { ...r, ...gone } : r)) : c.replies.filter((r) => r.id !== id) }]
-      })
+        return [
+          {
+            ...c,
+            replies: later
+              ? c.replies.map((r) => (r.id === id ? { ...r, ...gone } : r))
+              : c.replies.filter((r) => r.id !== id),
+          },
+        ]
+      }),
     )
   },
   seen(subject: Subject) {
     if (!state.seen[subject]) set({ ...state, seen: { ...state.seen, [subject]: true } })
   },
   /** A scenario from the address: a normal week has its mentions unread, all done has them read. */
-  scenario(mode: "week" | "done", person: string) {
-    if (mode === "week") return set({ ...state, mentionSeen: {} })
+  scenario(mode: 'week' | 'done', person: string) {
+    if (mode === 'week') return set({ ...state, mentionSeen: {} })
     const read = (mentionNotes().get(person) ?? []).map((n) => [`${n.subject}|${person}`, true])
-    if (read.length) set({ ...state, mentionSeen: { ...state.mentionSeen, ...Object.fromEntries(read) } })
+    if (read.length)
+      set({ ...state, mentionSeen: { ...state.mentionSeen, ...Object.fromEntries(read) } })
   },
   /** The person has read the comments that mention them here: their Inbox marker goes. */
   seenMention(subject: Subject, person: string) {
     const key = `${subject}|${person}`
-    if (!state.mentionSeen[key]) set({ ...state, mentionSeen: { ...state.mentionSeen, [key]: true } })
+    if (!state.mentionSeen[key])
+      set({ ...state, mentionSeen: { ...state.mentionSeen, [key]: true } })
   },
 }

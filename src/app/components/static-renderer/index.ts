@@ -1,1 +1,1 @@
-export * from "./static-renderer";
+export * from './static-renderer'

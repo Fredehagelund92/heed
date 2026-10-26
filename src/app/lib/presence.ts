@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 
 // Rows that leave and arrive (docs/motion.md): a row that goes collapses in 150ms, then the change is
 // made; a row added later opens in 220ms. Rows already there when a list first shows do not move,
@@ -18,7 +18,8 @@ const subscribe = (l: () => void) => {
   listeners.add(l)
   return () => listeners.delete(l)
 }
-const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+const reduced = () =>
+  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 /** Collapses the row `id`, then runs `commit`: the change is seen as the row going, not as a jump. */
 export function leaveThen(id: string, commit: () => void) {
@@ -56,5 +57,6 @@ export function useLeavingRows() {
 
 /** On a list: from the frame after it first shows, rows added to it open instead of appearing. */
 export function arriveRef(el: HTMLElement | null) {
-  if (el && !el.hasAttribute("data-arrive")) requestAnimationFrame(() => el.setAttribute("data-arrive", ""))
+  if (el && !el.hasAttribute('data-arrive'))
+    requestAnimationFrame(() => el.setAttribute('data-arrive', ''))
 }

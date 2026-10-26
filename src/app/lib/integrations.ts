@@ -1,10 +1,10 @@
-import * as React from "react"
-import type { ConnectorId } from "@/data/integrations"
+import * as React from 'react'
+import type { ConnectorId } from '@/data/integrations'
 
 // Which tools are connected, kept in memory until the page reloads: Cube, Google Drive and the
 // warehouse in the demo world; Markdown in Git once someone goes through the connect flow.
 
-let connected: ConnectorId[] = ["cube", "google-drive", "warehouse"]
+let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
 const listeners = new Set<() => void>()
 
 export function useConnected() {
@@ -13,7 +13,7 @@ export function useConnected() {
       listeners.add(l)
       return () => listeners.delete(l)
     },
-    () => connected
+    () => connected,
   )
 }
 

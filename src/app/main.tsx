@@ -11,4 +11,6 @@ createRoot(document.getElementById('root')!).render(
 
 // After the first paint the app is ready: from then on a dock or a row that arrives moves in; what is
 // on screen at load is simply there (docs/motion.md: no page-enter transition).
-requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.setAttribute('data-ready', '')))
+requestAnimationFrame(() =>
+  requestAnimationFrame(() => document.documentElement.setAttribute('data-ready', '')),
+)

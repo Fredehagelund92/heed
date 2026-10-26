@@ -1,20 +1,31 @@
-import * as React from "react"
-import type { JSONContent } from "@tiptap/core"
-import { generateText } from "@tiptap/core"
-import { CornerUpLeftIcon, MoreHorizontalIcon, PencilIcon, SmilePlusIcon, Trash2Icon } from "lucide-react"
-import { toast } from "sonner"
-import { cn } from "cn"
-import { PersonAvatar } from "@/components/heed/bits"
-import { StaticRenderer } from "@/components/static-renderer"
-import { MentionChip } from "@/components/heed/mention-chip"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Composer } from "./composer"
-import type { CommentItem, CommentReaction, CommentReply, ReactionEmoji } from "./types"
-import { EXTENSIONS } from "./extensions"
-import { names, REACTIONS, reactionLabel } from "./utils"
+import * as React from 'react'
+import type { JSONContent } from '@tiptap/core'
+import { generateText } from '@tiptap/core'
+import {
+  CornerUpLeftIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  SmilePlusIcon,
+  Trash2Icon,
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from 'cn'
+import { PersonAvatar } from '@/components/heed/bits'
+import { StaticRenderer } from '@/components/static-renderer'
+import { MentionChip } from '@/components/heed/mention-chip'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Composer } from './composer'
+import type { CommentItem, CommentReaction, CommentReply, ReactionEmoji } from './types'
+import { EXTENSIONS } from './extensions'
+import { names, REACTIONS, reactionLabel } from './utils'
 
 // From the editorcn Comment Box's thread, restyled flat: no bubbles and no card, a hairline between
 // threads and a hairline stem for replies, replies always open. Chips are quiet: the count shows
@@ -30,10 +41,19 @@ export type ThreadActions = {
   remove: (id: string) => void
 }
 
-const reveal = "opacity-0 transition-opacity group-hover/entry:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 pointer-coarse:opacity-100"
+const reveal =
+  'opacity-0 transition-opacity group-hover/entry:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 pointer-coarse:opacity-100'
 
 /** The chips for the reactions given, each a toggle for you. */
-export function ReactionChips({ reactions, me, onReact }: { reactions: CommentReaction[]; me: string; onReact: (emoji: ReactionEmoji) => void }) {
+export function ReactionChips({
+  reactions,
+  me,
+  onReact,
+}: {
+  reactions: CommentReaction[]
+  me: string
+  onReact: (emoji: ReactionEmoji) => void
+}) {
   return (
     <>
       {reactions.map((r) => {
@@ -49,8 +69,10 @@ export function ReactionChips({ reactions, me, onReact }: { reactions: CommentRe
                   aria-label={`${label}, ${r.by.length}: ${names(r.by, me)}`}
                   onClick={() => onReact(r.emoji)}
                   className={cn(
-                    "flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",
-                    mine ? "border-primary/40 bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted"
+                    'flex h-6 items-center gap-1 rounded-full border px-2 text-xs tabular-nums transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]',
+                    mine
+                      ? 'border-primary/40 bg-primary/10 text-foreground'
+                      : 'text-muted-foreground hover:bg-muted',
                   )}
                 />
               }
@@ -71,7 +93,13 @@ export function ReactionChips({ reactions, me, onReact }: { reactions: CommentRe
 }
 
 /** The add-reaction button and its five choices. */
-export function ReactionPicker({ onPick, className }: { onPick: (emoji: ReactionEmoji) => void; className?: string }) {
+export function ReactionPicker({
+  onPick,
+  className,
+}: {
+  onPick: (emoji: ReactionEmoji) => void
+  className?: string
+}) {
   const [open, setOpen] = React.useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -79,7 +107,14 @@ export function ReactionPicker({ onPick, className }: { onPick: (emoji: Reaction
         <TooltipTrigger
           render={
             <PopoverTrigger
-              render={<Button aria-label="Add a reaction" variant="ghost" size="icon-xs" className={cn("size-6 rounded-full text-muted-foreground", className)} />}
+              render={
+                <Button
+                  aria-label="Add a reaction"
+                  variant="ghost"
+                  size="icon-xs"
+                  className={cn('size-6 rounded-full text-muted-foreground', className)}
+                />
+              }
             />
           }
         >
@@ -113,13 +148,26 @@ export function ReactionPicker({ onPick, className }: { onPick: (emoji: Reaction
   )
 }
 
-function Entry({ comment, actions, small, onReply }: { comment: CommentReply; actions: ThreadActions; small?: boolean; onReply?: () => void }) {
+function Entry({
+  comment,
+  actions,
+  small,
+  onReply,
+}: {
+  comment: CommentReply
+  actions: ThreadActions
+  small?: boolean
+  onReply?: () => void
+}) {
   const [editing, setEditing] = React.useState(false)
   const mine = comment.author === actions.me
   if (comment.deleted)
     return (
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span aria-hidden className={cn("shrink-0 rounded-full border border-dashed", small ? "size-5" : "size-7")} />
+        <span
+          aria-hidden
+          className={cn('shrink-0 rounded-full border border-dashed', small ? 'size-5' : 'size-7')}
+        />
         <p>
           Comment deleted<span className="sr-only"> by {comment.author}</span>, {comment.when}
         </p>
@@ -127,14 +175,20 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
     )
   return (
     <article aria-label={`${comment.author}, ${comment.when}`} className="group/entry flex gap-3">
-      <PersonAvatar name={comment.author} size={small ? 20 : 28} className={small ? "mt-0.5" : undefined} />
+      <PersonAvatar
+        name={comment.author}
+        size={small ? 20 : 28}
+        className={small ? 'mt-0.5' : undefined}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex min-h-6 items-center gap-2 text-sm">
           <span className="truncate font-medium">{comment.author}</span>
-          {actions.owners.includes(comment.author) && <span className="shrink-0 text-xs text-muted-foreground">Owner</span>}
+          {actions.owners.includes(comment.author) && (
+            <span className="shrink-0 text-xs text-muted-foreground">Owner</span>
+          )}
           <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
             {comment.when}
-            {comment.edited && ", edited"}
+            {comment.edited && ', edited'}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -143,7 +197,7 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
                   variant="ghost"
                   size="icon-xs"
                   aria-label={`More for ${comment.author}'s comment`}
-                  className={cn("ml-auto size-6 text-muted-foreground", reveal)}
+                  className={cn('ml-auto size-6 text-muted-foreground', reveal)}
                 />
               }
             >
@@ -152,8 +206,10 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
             <DropdownMenuContent align="end" className="min-w-36">
               <DropdownMenuItem
                 onClick={() => {
-                  navigator.clipboard?.writeText(generateText(comment.content, EXTENSIONS)).catch(() => undefined)
-                  toast("Copied")
+                  navigator.clipboard
+                    ?.writeText(generateText(comment.content, EXTENSIONS))
+                    .catch(() => undefined)
+                  toast('Copied')
                 }}
               >
                 Copy text
@@ -168,7 +224,7 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
                     variant="destructive"
                     onClick={() => {
                       actions.remove(comment.id)
-                      toast("Comment deleted")
+                      toast('Comment deleted')
                     }}
                   >
                     <Trash2Icon />
@@ -206,12 +262,22 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
             className="text-sm leading-relaxed text-foreground/90 [&_code]:text-[0.85em]"
             content={comment.content}
             extensions={EXTENSIONS}
-            options={{ nodeMapping: { mention: ({ node }) => <MentionChip mention={{ id: node.attrs.id, label: node.attrs.label }} /> } }}
+            options={{
+              nodeMapping: {
+                mention: ({ node }) => (
+                  <MentionChip mention={{ id: node.attrs.id, label: node.attrs.label }} />
+                ),
+              },
+            }}
           />
         )}
         {!editing && (
           <div className="mt-1 flex min-h-6 flex-wrap items-center gap-1">
-            <ReactionChips reactions={comment.reactions ?? []} me={actions.me} onReact={(e) => actions.react(comment.id, e)} />
+            <ReactionChips
+              reactions={comment.reactions ?? []}
+              me={actions.me}
+              onReact={(e) => actions.react(comment.id, e)}
+            />
             {onReply && (
               <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={onReply}>
                 Reply
@@ -226,17 +292,33 @@ function Entry({ comment, actions, small, onReply }: { comment: CommentReply; ac
 }
 
 /** One comment and its replies, one level deep. */
-export function CommentThread({ comment, actions }: { comment: CommentItem; actions: ThreadActions }) {
+export function CommentThread({
+  comment,
+  actions,
+}: {
+  comment: CommentItem
+  actions: ThreadActions
+}) {
   const [replying, setReplying] = React.useState(false)
   const replies = comment.replies ?? []
-  const first = comment.author.split(" ")[0]
+  const first = comment.author.split(' ')[0]
   return (
     <li className="flex flex-col gap-3 border-t py-4 first:border-t-0">
-      <Entry comment={comment} actions={actions} onReply={comment.deleted ? undefined : () => setReplying(true)} />
+      <Entry
+        comment={comment}
+        actions={actions}
+        onReply={comment.deleted ? undefined : () => setReplying(true)}
+      />
       {(replies.length > 0 || replying) && (
         <div className="ml-3.5 flex flex-col gap-3 border-l pl-4">
           {replies.map((r) => (
-            <Entry key={r.id} comment={r} actions={actions} small onReply={() => setReplying(true)} />
+            <Entry
+              key={r.id}
+              comment={r}
+              actions={actions}
+              small
+              onReply={() => setReplying(true)}
+            />
           ))}
           {replying && (
             <Composer

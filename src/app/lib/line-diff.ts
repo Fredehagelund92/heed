@@ -3,12 +3,14 @@
 // "312 to 340" marks the number and not the whole sentence.
 
 export type Word = { text: string; changed: boolean }
-export type Row = { t: " " | "-" | "+"; line: string; words?: Word[] }
+export type Row = { t: ' ' | '-' | '+'; line: string; words?: Word[] }
 
 /** Longest common subsequence table, for lines or words. */
 function lcs<T>(a: T[], b: T[]) {
   const dp = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0))
-  for (let i = a.length - 1; i >= 0; i--) for (let j = b.length - 1; j >= 0; j--) dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+  for (let i = a.length - 1; i >= 0; i--)
+    for (let j = b.length - 1; j >= 0; j--)
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
   return dp
 }
 
@@ -42,33 +44,35 @@ export function wordDiff(before: string, after: string): [Word[], Word[]] {
     if (i < a.length && j < b.length && a[i] === b[j]) {
       left.push({ text: a[i++], changed: false })
       right.push({ text: b[j++], changed: false })
-    } else if (i < a.length && (j === b.length || dp[i + 1][j] >= dp[i][j + 1])) left.push({ text: a[i++], changed: true })
+    } else if (i < a.length && (j === b.length || dp[i + 1][j] >= dp[i][j + 1]))
+      left.push({ text: a[i++], changed: true })
     else right.push({ text: b[j++], changed: true })
   }
   return [runs(left), runs(right)]
 }
 
 export function lineDiff(before: string, after: string): Row[] {
-  const a = before ? before.split("\n") : []
-  const b = after ? after.split("\n") : []
+  const a = before ? before.split('\n') : []
+  const b = after ? after.split('\n') : []
   const dp = lcs(a, b)
   const rows: Row[] = []
   let i = 0
   let j = 0
   while (i < a.length || j < b.length) {
     if (i < a.length && j < b.length && a[i] === b[j]) {
-      rows.push({ t: " ", line: a[i++] })
+      rows.push({ t: ' ', line: a[i++] })
       j++
-    } else if (i < a.length && (j === b.length || dp[i + 1][j] >= dp[i][j + 1])) rows.push({ t: "-", line: a[i++] })
-    else rows.push({ t: "+", line: b[j++] })
+    } else if (i < a.length && (j === b.length || dp[i + 1][j] >= dp[i][j + 1]))
+      rows.push({ t: '-', line: a[i++] })
+    else rows.push({ t: '+', line: b[j++] })
   }
   // A run of removed lines followed by a run of added ones: pair them up and mark the words.
   for (let k = 0; k < rows.length; k++) {
-    if (rows[k].t !== "-") continue
+    if (rows[k].t !== '-') continue
     let del = k
-    while (del < rows.length && rows[del].t === "-") del++
+    while (del < rows.length && rows[del].t === '-') del++
     let add = del
-    while (add < rows.length && rows[add].t === "+") add++
+    while (add < rows.length && rows[add].t === '+') add++
     for (let p = 0; p < Math.min(del - k, add - del); p++) {
       const [l, r] = wordDiff(rows[k + p].line, rows[del + p].line)
       rows[k + p].words = l

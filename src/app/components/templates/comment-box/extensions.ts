@@ -1,5 +1,5 @@
-import { Mention } from "@tiptap/extension-mention"
-import { StarterKit } from "@tiptap/starter-kit"
+import { Mention } from '@tiptap/extension-mention'
+import { StarterKit } from '@tiptap/starter-kit'
 
 // From the editorcn Comment Box's utils, apart so the store and the Inbox never load Tiptap.
 
@@ -17,4 +17,7 @@ export const TEXT_EXTENSIONS = [
 ]
 
 /** The same, with mentions of people, for reading and copying a comment ("@Jon Abara"). The composer adds the '@' picker itself. */
-export const EXTENSIONS = [...TEXT_EXTENSIONS, Mention.configure({ HTMLAttributes: { class: "mention" } })]
+export const EXTENSIONS = [
+  ...TEXT_EXTENSIONS,
+  Mention.configure({ HTMLAttributes: { class: 'mention' } }),
+]

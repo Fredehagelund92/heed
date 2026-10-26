@@ -1,6 +1,6 @@
-import * as React from "react"
-import { isTyping } from "@/lib/keys"
-import { all, extend, NONE, step, toggle, type Selection } from "@/lib/selection"
+import * as React from 'react'
+import { isTyping } from '@/lib/keys'
+import { all, extend, NONE, step, toggle, type Selection } from '@/lib/selection'
 
 // One way to pick rows in every list (Context, Definitions, the Inbox, a source's folders): the
 // rules are in lib/selection.ts, the clicks and keys here.
@@ -34,9 +34,11 @@ export function useSelection(
     initial?: string[]
     /** Delete or Backspace on a selection: opens the list's confirmation. */
     onDeleteKey?: () => void
-  } = {}
+  } = {},
 ) {
-  const [s, set] = React.useState<Selection>(() => (initial ? { ...NONE, ids: initial, base: initial } : NONE))
+  const [s, set] = React.useState<Selection>(() =>
+    initial ? { ...NONE, ids: initial, base: initial } : NONE,
+  )
   // The newest order, so an update always draws its range over the rows on screen now.
   const orderRef = React.useRef(order)
   React.useLayoutEffect(() => {
@@ -74,24 +76,37 @@ export function useSelection(
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.defaultPrevented) return
       const t = e.target as Node
-      if (e.key === "Escape" && count) {
+      if (e.key === 'Escape' && count) {
         e.preventDefault()
         clear()
       }
       // Delete or Backspace on a selection opens the confirmation; nothing is deleted from a key alone.
-      if ((e.key === "Delete" || e.key === "Backspace") && count && deleteKey.current && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        count &&
+        deleteKey.current &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey
+      ) {
         e.preventDefault()
         deleteKey.current()
       }
       // Cmd or Ctrl and A in the list, or with nothing focused: the rows, not the page's text.
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "a" && orderRef.current.length) {
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        !e.shiftKey &&
+        e.key.toLowerCase() === 'a' &&
+        orderRef.current.length
+      ) {
         if (t !== document.body && !scope?.current?.contains(t)) return
         e.preventDefault()
         selectAll()
       }
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [keys, scope, count, clear, selectAll])
 
   return {
@@ -110,7 +125,8 @@ export function useSelection(
     /** A row's checkbox: Shift draws a range, anything else ticks the one row. */
     checkbox: (id: string) => ({
       checked: ticked.has(id),
-      onCheckedChange: (_: boolean, details: ChangeDetails) => ((details.event as MouseEvent).shiftKey ? range(id) : one(id)),
+      onCheckedChange: (_: boolean, details: ChangeDetails) =>
+        (details.event as MouseEvent).shiftKey ? range(id) : one(id),
     }),
     /** The header's checkbox: ticks every row shown, or clears when they all are. */
     toggleAll: () => (allShown ? clear() : selectAll()),
@@ -133,28 +149,33 @@ export function useSelection(
       if (!e.shiftKey) return
       e.preventDefault()
       // Kept from the press, focus still moves to the row: Shift and an arrow carries on from there.
-      const hit = (e.target as HTMLElement).closest<HTMLElement>("[role=checkbox], [data-row-open]")
-      const to = hit ?? e.currentTarget.querySelector<HTMLElement>("[data-row-open]") ?? e.currentTarget.querySelector<HTMLElement>("[role=checkbox]")
+      const hit = (e.target as HTMLElement).closest<HTMLElement>('[role=checkbox], [data-row-open]')
+      const to =
+        hit ??
+        e.currentTarget.querySelector<HTMLElement>('[data-row-open]') ??
+        e.currentTarget.querySelector<HTMLElement>('[role=checkbox]')
       to?.focus({ preventScroll: true })
     },
     /** On the list: Shift and Up or Down extends from the cursor's row, X ticks it. */
     onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
       const target = e.target as HTMLElement
-      if (target.closest("input, textarea")) return
-      const stops = [...e.currentTarget.querySelectorAll<HTMLElement>("[data-row-open]")]
-      const at = stops.findIndex((r) => r === target || r.contains(target) || r.closest("tr, li")?.contains(target))
+      if (target.closest('input, textarea')) return
+      const stops = [...e.currentTarget.querySelectorAll<HTMLElement>('[data-row-open]')]
+      const at = stops.findIndex(
+        (r) => r === target || r.contains(target) || r.closest('tr, li')?.contains(target),
+      )
       if (at < 0) return
       const from = stops[at].dataset.rowOpen!
-      if (e.shiftKey && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault()
-        const next = stops[at + (e.key === "ArrowDown" ? 1 : -1)]
+        const next = stops[at + (e.key === 'ArrowDown' ? 1 : -1)]
         if (!next) return
         next.focus()
-        next.scrollIntoView({ block: "nearest" })
+        next.scrollIntoView({ block: 'nearest' })
         const to = next.dataset.rowOpen!
         set((x) => step(x, orderRef.current, from, to))
-      } else if (e.key === "x" && !e.shiftKey) {
+      } else if (e.key === 'x' && !e.shiftKey) {
         e.preventDefault()
         one(from)
       }

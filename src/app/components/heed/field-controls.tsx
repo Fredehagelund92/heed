@@ -1,17 +1,24 @@
-import * as React from "react"
-import { CalendarIcon, PlusIcon, XIcon } from "lucide-react"
-import { cn } from "cn"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { missingDates, WHEN_PRESETS, whenSummary, type WhenMode, type WhenValue } from "@/lib/when"
-import { TagChip, WhereChip } from "@/components/heed/tag-chip"
-import { PersonAvatar } from "@/components/heed/bits"
+import * as React from 'react'
+import { CalendarIcon, PlusIcon, XIcon } from 'lucide-react'
+import { cn } from 'cn'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { missingDates, WHEN_PRESETS, whenSummary, type WhenMode, type WhenValue } from '@/lib/when'
+import { TagChip, WhereChip } from '@/components/heed/tag-chip'
+import { PersonAvatar } from '@/components/heed/bits'
 
 // An edit page's properties as a calm list under the title, the way a document shows them, not a
 // form: a muted icon and label on the left, the value on the right shown as the thing it is (a dot,
@@ -21,7 +28,7 @@ import { PersonAvatar } from "@/components/heed/bits"
 
 /** A value at rest: no border; a soft fill says it can be clicked. */
 const valueBox =
-  "-mx-1.5 flex min-h-8 w-fit max-w-[calc(100%+0.75rem)] min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm transition-colors outline-none hover:bg-muted/70 focus-visible:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted disabled:cursor-not-allowed disabled:hover:bg-transparent"
+  '-mx-1.5 flex min-h-8 w-fit max-w-[calc(100%+0.75rem)] min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm transition-colors outline-none hover:bg-muted/70 focus-visible:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted disabled:cursor-not-allowed disabled:hover:bg-transparent'
 
 /** An empty value: what to add, in a muted ghost, never an empty box. */
 export function Ghost({ children }: { children: React.ReactNode }) {
@@ -31,24 +38,31 @@ export function Ghost({ children }: { children: React.ReactNode }) {
 /** The properties, in groups split by space and one hairline. Up and Down move between values. */
 export function PropertyList({ label, children }: { label: string; children: React.ReactNode }) {
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     const t = e.target as HTMLElement
-    if (!t.matches("[data-prop-value]")) return
+    if (!t.matches('[data-prop-value]')) return
     // In a text line the arrows move the caret until it reaches an end.
     if (t instanceof HTMLTextAreaElement) {
       const atEnd = t.selectionStart === t.value.length
       const atStart = t.selectionEnd === 0
-      if ((e.key === "ArrowDown" && !atEnd) || (e.key === "ArrowUp" && !atStart)) return
+      if ((e.key === 'ArrowDown' && !atEnd) || (e.key === 'ArrowUp' && !atStart)) return
     }
-    const all = [...e.currentTarget.querySelectorAll<HTMLElement>("[data-prop-value]")].filter((el) => !el.closest("[hidden]"))
+    const all = [...e.currentTarget.querySelectorAll<HTMLElement>('[data-prop-value]')].filter(
+      (el) => !el.closest('[hidden]'),
+    )
     const i = all.indexOf(t)
-    const next = all[i + (e.key === "ArrowDown" ? 1 : -1)]
+    const next = all[i + (e.key === 'ArrowDown' ? 1 : -1)]
     if (!next) return
     e.preventDefault()
     next.focus()
   }
   return (
-    <div role="group" aria-label={label} onKeyDown={onKeyDown} className="mb-6 flex flex-col border-b pb-5 sm:mb-8">
+    <div
+      role="group"
+      aria-label={label}
+      onKeyDown={onKeyDown}
+      className="mb-6 flex flex-col border-b pb-5 sm:mb-8"
+    >
       {children}
     </div>
   )
@@ -56,7 +70,11 @@ export function PropertyList({ label, children }: { label: string; children: Rea
 
 /** One group of properties; the next group starts after a hairline. */
 export function PropertyGroup({ children }: { children: React.ReactNode }) {
-  return <dl className="flex flex-col gap-0.5 border-t border-border/60 py-2.5 first:border-t-0 first:pt-0 last:pb-0">{children}</dl>
+  return (
+    <dl className="flex flex-col gap-0.5 border-t border-border/60 py-2.5 first:border-t-0 first:pt-0 last:pb-0">
+      {children}
+    </dl>
+  )
 }
 
 /** One property: the label in its column (above the value on a phone), the value beside it. */
@@ -75,7 +93,10 @@ export function PropertyRow({
 }) {
   return (
     <div className="grid grid-cols-1 items-start gap-x-3 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
-      <dt id={id} className="flex h-7 items-center gap-2 text-sm text-muted-foreground sm:h-8 [&>svg]:size-3.5 [&>svg]:shrink-0">
+      <dt
+        id={id}
+        className="flex h-7 items-center gap-2 text-sm text-muted-foreground sm:h-8 [&>svg]:size-3.5 [&>svg]:shrink-0"
+      >
         {icon}
         {label}
         {required && (
@@ -130,7 +151,7 @@ export function PickerField({
               data-prop-value
               aria-disabled
               aria-labelledby={`${labelId} ${valueId}`}
-              className={cn(valueBox, "cursor-default hover:bg-transparent")}
+              className={cn(valueBox, 'cursor-default hover:bg-transparent')}
             />
           }
         >
@@ -142,7 +163,13 @@ export function PickerField({
       </Tooltip>
     )
   const trigger = (
-    <button type="button" data-prop-value disabled={disabled} aria-labelledby={`${labelId} ${valueId}`} className={valueBox}>
+    <button
+      type="button"
+      data-prop-value
+      disabled={disabled}
+      aria-labelledby={`${labelId} ${valueId}`}
+      className={valueBox}
+    >
       <span id={valueId} className="flex min-w-0 flex-wrap items-center gap-1.5">
         {value}
       </span>
@@ -152,7 +179,11 @@ export function PickerField({
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetTrigger render={trigger} />
-        <SheetContent side="bottom" initialFocus={initialFocus} className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <SheetContent
+          side="bottom"
+          initialFocus={initialFocus}
+          className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        >
           <SheetHeader className="pb-2">
             <SheetTitle>{label}</SheetTitle>
           </SheetHeader>
@@ -163,14 +194,24 @@ export function PickerField({
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger render={trigger} />
-      <PopoverContent align="start" initialFocus={initialFocus} aria-label={label} className={cn("w-72 p-1", className)}>
+      <PopoverContent
+        align="start"
+        initialFocus={initialFocus}
+        aria-label={label}
+        className={cn('w-72 p-1', className)}
+      >
         {children}
       </PopoverContent>
     </Popover>
   )
 }
 
-export type Option<T extends string> = { value: T; label: string; hint?: string; icon?: React.ReactNode }
+export type Option<T extends string> = {
+  value: T
+  label: string
+  hint?: string
+  icon?: React.ReactNode
+}
 
 /** One choice from a short list: arrow keys move, Enter picks, the field closes. */
 export function SelectField<T extends string>({
@@ -195,8 +236,22 @@ export function SelectField<T extends string>({
   const list = React.useRef<HTMLDivElement>(null)
   const current = options.find((o) => o.value === value)
   return (
-    <PickerField labelId={labelId} label={label} value={display ?? current?.label} open={open} onOpenChange={setOpen} disabled={disabled} initialFocus={list}>
-      <Command ref={list} tabIndex={-1} defaultValue={current?.label} label={label} className="p-0 outline-none">
+    <PickerField
+      labelId={labelId}
+      label={label}
+      value={display ?? current?.label}
+      open={open}
+      onOpenChange={setOpen}
+      disabled={disabled}
+      initialFocus={list}
+    >
+      <Command
+        ref={list}
+        tabIndex={-1}
+        defaultValue={current?.label}
+        label={label}
+        className="p-0 outline-none"
+      >
         <CommandList label={label}>
           {options.map((o) => (
             <CommandItem
@@ -208,10 +263,16 @@ export function SelectField<T extends string>({
                 setOpen(false)
               }}
             >
-              {o.icon && <span className="flex size-4 shrink-0 items-center justify-center self-start pt-0.5">{o.icon}</span>}
+              {o.icon && (
+                <span className="flex size-4 shrink-0 items-center justify-center self-start pt-0.5">
+                  {o.icon}
+                </span>
+              )}
               <span className="flex min-w-0 flex-col">
                 <span>{o.label}</span>
-                {o.hint && <span className="line-clamp-2 text-xs text-muted-foreground">{o.hint}</span>}
+                {o.hint && (
+                  <span className="line-clamp-2 text-xs text-muted-foreground">{o.hint}</span>
+                )}
               </span>
             </CommandItem>
           ))}
@@ -221,7 +282,10 @@ export function SelectField<T extends string>({
   )
 }
 
-export type OptionGroup = { heading: string; options: { value: string; label: string; icon?: React.ReactNode }[] }
+export type OptionGroup = {
+  heading: string
+  options: { value: string; label: string; icon?: React.ReactNode }[]
+}
 
 /** One choice from a long list: type to narrow it, grouped, Enter picks. */
 export function SearchSelectField({
@@ -234,7 +298,7 @@ export function SearchSelectField({
   placeholder,
   searchPlaceholder,
   onClear,
-  clearLabel = "Clear",
+  clearLabel = 'Clear',
 }: {
   labelId: string
   label: string
@@ -305,41 +369,54 @@ export function SearchSelectField({
 
 /** A value that is set elsewhere, shown at the fields' height so the list stays aligned. */
 export function StaticField({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-8 items-center gap-2 text-sm text-muted-foreground">{children}</div>
+  return (
+    <div className="flex min-h-8 items-center gap-2 text-sm text-muted-foreground">{children}</div>
+  )
 }
 
 /* ---------- When ---------- */
 
 const toDate = (iso: string) => {
   if (!iso) return undefined
-  const [y, m, d] = iso.split("-").map(Number)
+  const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
-const toIso = (d: Date | undefined) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "")
+const toIso = (d: Date | undefined) =>
+  d
+    ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    : ''
 
 /**
  * When as one picker: the presets and the calendar in the same popover. A preset with dates shows
  * the calendar beside it (a range for Between dates); Always shows none.
  */
-export function WhenField({ labelId, value, onChange }: { labelId: string; value: WhenValue; onChange: (value: WhenValue) => void }) {
+export function WhenField({
+  labelId,
+  value,
+  onChange,
+}: {
+  labelId: string
+  value: WhenValue
+  onChange: (value: WhenValue) => void
+}) {
   const [open, setOpen] = React.useState(false)
   const mobile = useIsMobile()
   const presets = React.useRef<HTMLDivElement>(null)
   const missing = missingDates(value)
-  const month = toDate(value.mode === "until" ? value.until : value.from) ?? new Date(2026, 9, 1)
-  const single = value.mode === "until" ? value.until : value.from
+  const month = toDate(value.mode === 'until' ? value.until : value.from) ?? new Date(2026, 9, 1)
+  const single = value.mode === 'until' ? value.until : value.from
   const hint =
-    value.mode === "always"
-      ? "Agents get it whatever dates a question asks about."
-      : value.mode === "ongoing"
-        ? "Pick when it started, if you know."
-        : value.mode === "between"
-          ? "Pick the first day, then the last."
-          : value.mode === "until"
-            ? "Pick the last day it applies."
-            : value.mode === "day"
-              ? "Pick the day."
-              : "Pick the first day it applies."
+    value.mode === 'always'
+      ? 'Agents get it whatever dates a question asks about.'
+      : value.mode === 'ongoing'
+        ? 'Pick when it started, if you know.'
+        : value.mode === 'between'
+          ? 'Pick the first day, then the last.'
+          : value.mode === 'until'
+            ? 'Pick the last day it applies.'
+            : value.mode === 'day'
+              ? 'Pick the day.'
+              : 'Pick the first day it applies.'
   return (
     <PickerField
       labelId={labelId}
@@ -356,7 +433,9 @@ export function WhenField({ labelId, value, onChange }: { labelId: string; value
       open={open}
       onOpenChange={setOpen}
       // Focus lands on the chosen preset; arrows move between presets, Tab goes on to the calendar.
-      initialFocus={() => presets.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')}
+      initialFocus={() =>
+        presets.current?.querySelector<HTMLElement>('[role="radio"][aria-checked="true"]')
+      }
       className="w-auto max-w-[calc(100vw-2rem)]"
     >
       <div className="flex flex-col gap-1 sm:flex-row">
@@ -381,22 +460,34 @@ export function WhenField({ labelId, value, onChange }: { labelId: string; value
           <p className="px-2 pt-1.5 pb-1 text-xs text-muted-foreground" aria-live="polite">
             {hint}
           </p>
-          {value.mode !== "always" &&
-            (value.mode === "between" ? (
+          {value.mode !== 'always' &&
+            (value.mode === 'between' ? (
               <Calendar
                 mode="range"
                 defaultMonth={month}
                 selected={{ from: toDate(value.from), to: toDate(value.until) }}
                 onSelect={(r) => onChange({ ...value, from: toIso(r?.from), until: toIso(r?.to) })}
-                className={cn("p-1", mobile ? "[--cell-size:--spacing(11)]" : "[--cell-size:--spacing(8)]")}
+                className={cn(
+                  'p-1',
+                  mobile ? '[--cell-size:--spacing(11)]' : '[--cell-size:--spacing(8)]',
+                )}
               />
             ) : (
               <Calendar
                 mode="single"
                 defaultMonth={month}
                 selected={toDate(single)}
-                onSelect={(d) => onChange(value.mode === "until" ? { ...value, until: toIso(d) } : { ...value, from: toIso(d) })}
-                className={cn("p-1", mobile ? "[--cell-size:--spacing(11)]" : "[--cell-size:--spacing(8)]")}
+                onSelect={(d) =>
+                  onChange(
+                    value.mode === 'until'
+                      ? { ...value, until: toIso(d) }
+                      : { ...value, from: toIso(d) },
+                  )
+                }
+                className={cn(
+                  'p-1',
+                  mobile ? '[--cell-size:--spacing(11)]' : '[--cell-size:--spacing(8)]',
+                )}
               />
             ))}
           <div className="mt-auto flex items-center justify-between gap-2 border-t px-1 pt-2 pb-1">
@@ -427,7 +518,7 @@ export function ChipsField({
   groups,
   onChange,
   placeholder,
-  searchPlaceholder = "Search",
+  searchPlaceholder = 'Search',
 }: {
   labelId: string
   label: string
@@ -438,10 +529,11 @@ export function ChipsField({
   searchPlaceholder?: string
 }) {
   const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState("")
+  const [search, setSearch] = React.useState('')
   const mobile = useIsMobile()
   const input = React.useRef<HTMLInputElement>(null)
-  const toggle = (v: string) => onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v])
+  const toggle = (v: string) =>
+    onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v])
   const typed = search.trim()
   const known = groups.some((g) => g.items.some((i) => i.toLowerCase() === typed.toLowerCase()))
   const addId = React.useId()
@@ -454,15 +546,20 @@ export function ChipsField({
         onValueChange={setSearch}
         placeholder={searchPlaceholder}
         onKeyDown={(e) => {
-          if (e.key === "Backspace" && !search && values.length) onChange(values.slice(0, -1))
+          if (e.key === 'Backspace' && !search && values.length) onChange(values.slice(0, -1))
         }}
       />
-      <CommandList label={label} className={mobile ? undefined : "max-h-72"}>
+      <CommandList label={label} className={mobile ? undefined : 'max-h-72'}>
         <CommandEmpty>Nothing by that name.</CommandEmpty>
         {groups.map((g) => (
           <CommandGroup key={g.heading} heading={g.heading}>
             {g.items.map((i) => (
-              <CommandItem key={i} value={i} data-checked={values.includes(i)} onSelect={() => toggle(i)}>
+              <CommandItem
+                key={i}
+                value={i}
+                data-checked={values.includes(i)}
+                onSelect={() => toggle(i)}
+              >
                 <WhereChip w={i} />
               </CommandItem>
             ))}
@@ -474,7 +571,7 @@ export function ChipsField({
               value={`${addId}-${typed}`}
               onSelect={() => {
                 if (!values.includes(typed)) onChange([...values, typed])
-                setSearch("")
+                setSearch('')
               }}
             >
               <PlusIcon aria-hidden />
@@ -499,12 +596,12 @@ export function ChipsField({
       data-prop-value
       aria-labelledby={`${labelId} ${addId}-t`}
       className={cn(
-        "inline-flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted",
-        !values.length && "-ml-1.5 h-8 text-sm"
+        'inline-flex h-6 items-center gap-1 rounded-[6px] px-1.5 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted',
+        !values.length && '-ml-1.5 h-8 text-sm',
       )}
     >
       <PlusIcon aria-hidden className="size-3" />
-      <span id={`${addId}-t`}>{values.length ? "Add" : placeholder}</span>
+      <span id={`${addId}-t`}>{values.length ? 'Add' : placeholder}</span>
     </button>
   )
 
@@ -516,7 +613,11 @@ export function ChipsField({
       {mobile ? (
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger render={trigger} />
-          <SheetContent side="bottom" initialFocus={input} className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <SheetContent
+            side="bottom"
+            initialFocus={input}
+            className="max-h-[85svh] gap-0 pb-[max(1rem,env(safe-area-inset-bottom))]"
+          >
             <SheetHeader className="pb-2">
               <SheetTitle>{label}</SheetTitle>
             </SheetHeader>
@@ -526,7 +627,12 @@ export function ChipsField({
       ) : (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger render={trigger} />
-          <PopoverContent align="start" initialFocus={input} aria-label={label} className="w-80 p-1">
+          <PopoverContent
+            align="start"
+            initialFocus={input}
+            aria-label={label}
+            className="w-80 p-1"
+          >
             {list}
           </PopoverContent>
         </Popover>
@@ -536,7 +642,17 @@ export function ChipsField({
 }
 
 /** A line of text edited in place: no border until focus, growing with what is typed. */
-export function InlineText({ labelId, value, onChange, placeholder }: { labelId: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+export function InlineText({
+  labelId,
+  value,
+  onChange,
+  placeholder,
+}: {
+  labelId: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}) {
   return (
     <textarea
       data-prop-value
@@ -553,9 +669,21 @@ export function InlineText({ labelId, value, onChange, placeholder }: { labelId:
 /* ---------- people ---------- */
 
 /** A person as a chip: their face and name, "(you)" for the reader. */
-export function PersonChip({ name, you, onRemove }: { name: string; you?: boolean; onRemove?: () => void }) {
+export function PersonChip({
+  name,
+  you,
+  onRemove,
+}: {
+  name: string
+  you?: boolean
+  onRemove?: () => void
+}) {
   return (
-    <TagChip icon={<PersonAvatar name={name} size={16} className="-ml-0.5" />} onRemove={onRemove} removeLabel={onRemove ? `Remove ${name}` : undefined}>
+    <TagChip
+      icon={<PersonAvatar name={name} size={16} className="-ml-0.5" />}
+      onRemove={onRemove}
+      removeLabel={onRemove ? `Remove ${name}` : undefined}
+    >
       {name}
       {you && <span className="font-normal text-muted-foreground"> (you)</span>}
     </TagChip>
@@ -600,7 +728,13 @@ export function PeopleField({
       disabled={disabled}
       lockedReason={lockedReason}
       initialFocus={input}
-      value={values.length ? values.map((n) => <PersonChip key={n} name={n} you={n === me} />) : <Ghost>Add an owner</Ghost>}
+      value={
+        values.length ? (
+          values.map((n) => <PersonChip key={n} name={n} you={n === me} />)
+        ) : (
+          <Ghost>Add an owner</Ghost>
+        )
+      }
     >
       <Command label={label} className="p-0">
         <CommandInput ref={input} placeholder="Search people" />
@@ -611,7 +745,13 @@ export function PeopleField({
               key={p.name}
               value={p.name}
               data-checked={values.includes(p.name)}
-              onSelect={() => onChange(values.includes(p.name) ? values.filter((x) => x !== p.name) : [...values, p.name])}
+              onSelect={() =>
+                onChange(
+                  values.includes(p.name)
+                    ? values.filter((x) => x !== p.name)
+                    : [...values, p.name],
+                )
+              }
             >
               <PersonAvatar name={p.name} size={20} />
               <span className="flex min-w-0 flex-col">

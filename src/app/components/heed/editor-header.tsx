@@ -1,7 +1,7 @@
-import * as React from "react"
-import type { ReactNode } from "react"
-import { CheckIcon, CloudOffIcon, EllipsisIcon, Loader2Icon, SearchIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import * as React from 'react'
+import type { ReactNode } from 'react'
+import { CheckIcon, CloudOffIcon, EllipsisIcon, Loader2Icon, SearchIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,11 +10,11 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { ThemeChoices } from "@/components/site-header"
-import { cn } from "cn"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { open } from "@/lib/events"
+} from '@/components/ui/dropdown-menu'
+import { ThemeChoices } from '@/components/site-header'
+import { cn } from 'cn'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { open } from '@/lib/events'
 
 // An editor's header keeps to what matters: the way back, the title, whether the draft is saved,
 // one Write / Try it toggle and the one primary action. Everything else sits in one More menu.
@@ -30,13 +30,22 @@ export function SaveStatus({ saving, offline }: { saving: boolean; offline?: boo
     setJustSaved(!saving)
   }
   return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums" aria-live="polite">
+    <span
+      className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
+      aria-live="polite"
+    >
       <Icon
-        key={saving ? "saving" : "saved"}
-        className={cn("size-3.5", saving && !offline && "animate-spin", justSaved && !offline && "animate-in duration-(--dur-2) fade-in-0 zoom-in-60")}
+        key={saving ? 'saving' : 'saved'}
+        className={cn(
+          'size-3.5',
+          saving && !offline && 'animate-spin',
+          justSaved && !offline && 'animate-in duration-(--dur-2) fade-in-0 zoom-in-60',
+        )}
         aria-hidden
       />
-      <span className="max-sm:sr-only">{offline ? "Saved on this device" : saving ? "Saving" : "Saved"}</span>
+      <span className="max-sm:sr-only">
+        {offline ? 'Saved on this device' : saving ? 'Saving' : 'Saved'}
+      </span>
     </span>
   )
 }
@@ -58,7 +67,7 @@ export function HeaderMore({ children }: { children?: ReactNode }) {
         )}
         {mobile && (
           <>
-            <DropdownMenuItem onClick={() => open("palette")}>
+            <DropdownMenuItem onClick={() => open('palette')}>
               <SearchIcon />
               Search
             </DropdownMenuItem>

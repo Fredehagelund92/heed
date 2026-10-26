@@ -1,9 +1,9 @@
-import type { ReactNode } from "react"
-import type { Editor } from "@tiptap/react"
-import { RichTextEditor } from "@/components/editor"
-import "@/components/editor/style.css"
-import { Canvas } from "@/components/heed/doc"
-import { Toolbar } from "@/components/heed/doc-toolbar"
+import type { ReactNode } from 'react'
+import type { Editor } from '@tiptap/react'
+import { RichTextEditor } from '@/components/editor'
+import '@/components/editor/style.css'
+import { Canvas } from '@/components/heed/doc'
+import { Toolbar } from '@/components/heed/doc-toolbar'
 
 // The one document editor: the page header, then the formatting toolbar as a fixed 40px row (outside
 // the scroller), the tinted canvas with the document sheet (the only scroller), an optional side
@@ -33,7 +33,11 @@ export function DocumentEditorShell({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {header}
-      <RichTextEditor editor={editor} variant="subtle" className="flex min-h-0 flex-1 flex-col rounded-none! border-0! bg-transparent! shadow-none!">
+      <RichTextEditor
+        editor={editor}
+        variant="subtle"
+        className="flex min-h-0 flex-1 flex-col rounded-none! border-0! bg-transparent! shadow-none!"
+      >
         {toolbar && <Toolbar editor={editor} />}
         <div ref={paneRef} className="@container/main flex min-h-0 flex-1">
           <Canvas className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</Canvas>

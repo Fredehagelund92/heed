@@ -1,16 +1,31 @@
-import { ArrowUpRightIcon, BotIcon, CircleAlertIcon, CoinsIcon, PlugIcon, TimerIcon, WrenchIcon } from "lucide-react"
-import { cn } from "cn"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
-import { buttonVariants } from "@/components/ui/button"
-import { Frame, FrameSection } from "@/components/heed/frame"
-import { Loadable } from "@/components/heed/load-state"
-import { ObsSkeleton } from "@/components/obs/obs-skeleton"
-import { LineChart } from "@/components/obs/charts"
-import { Kpi, RangeSwitch } from "@/components/obs/controls"
-import { AGENT_TOOLS } from "@/data/agents"
-import { AGENT_CALLS, SPEND, TOOL_CALLS, money, speedOf } from "@/data/observability"
-import { OBS_PURPOSE, useObsView } from "@/lib/obs"
-import { ObsPage } from "@/pages/observability"
+import {
+  ArrowUpRightIcon,
+  BotIcon,
+  CircleAlertIcon,
+  CoinsIcon,
+  PlugIcon,
+  TimerIcon,
+  WrenchIcon,
+} from 'lucide-react'
+import { cn } from 'cn'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { buttonVariants } from '@/components/ui/button'
+import { Frame, FrameSection } from '@/components/heed/frame'
+import { Loadable } from '@/components/heed/load-state'
+import { ObsSkeleton } from '@/components/obs/obs-skeleton'
+import { LineChart } from '@/components/obs/charts'
+import { Kpi, RangeSwitch } from '@/components/obs/controls'
+import { AGENT_TOOLS } from '@/data/agents'
+import { AGENT_CALLS, SPEND, TOOL_CALLS, money, speedOf } from '@/data/observability'
+import { OBS_PURPOSE, useObsView } from '@/lib/obs'
+import { ObsPage } from '@/pages/observability'
 
 // Usage, for admins: how agents call the tools, how fast they get a reply, which kinds of agent
 // call, and what the model costs. Answering an agent needs no model, so the spend is Ask's wording,
@@ -18,9 +33,11 @@ import { ObsPage } from "@/pages/observability"
 // Agents are counted by kind: the name an agent gives itself maps to a fixed list and is not kept.
 
 /** How a range and the review flag scale the week the board draws. */
-const scaleOf = (range: number, state: string) => (range === 7 ? 1 : range === 30 ? 4.3 : 12.9) * (state === "busy" ? 3.4 : state === "quiet" ? 0.03 : 1)
+const scaleOf = (range: number, state: string) =>
+  (range === 7 ? 1 : range === 30 ? 4.3 : 12.9) *
+  (state === 'busy' ? 3.4 : state === 'quiet' ? 0.03 : 1)
 
-const SPEND_FILL = ["var(--primary)", "var(--chart-3)", "var(--chart-2)"]
+const SPEND_FILL = ['var(--primary)', 'var(--chart-3)', 'var(--chart-2)']
 
 export function UsagePage() {
   return (
@@ -34,7 +51,7 @@ export function UsagePage() {
 
 function Usage() {
   const view = useObsView()
-  if (view.state === "empty")
+  if (view.state === 'empty')
     return (
       <Frame>
         <FrameSection title="Usage" description={OBS_PURPOSE.usage} />
@@ -44,10 +61,16 @@ function Usage() {
               <PlugIcon />
             </EmptyMedia>
             <EmptyTitle>No agent has called yet</EmptyTitle>
-            <EmptyDescription>Connect an agent, and its calls show here by tool and by kind of agent. Ask in the app counts toward the model spend.</EmptyDescription>
+            <EmptyDescription>
+              Connect an agent, and its calls show here by tool and by kind of agent. Ask in the app
+              counts toward the model spend.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <a href="#/settings/agents" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            <a
+              href="#/settings/agents"
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
+            >
               Agents and access
             </a>
           </EmptyContent>
@@ -57,7 +80,14 @@ function Usage() {
 
   const k = scaleOf(view.range, view.state)
   const n = (v: number) => Math.round(v * k)
-  const tools = TOOL_CALLS.map((t) => ({ ...t, calls: n(t.calls), answered: n(t.answered), detail: n(t.detail), nothing: n(t.nothing), failed: n(t.failed) }))
+  const tools = TOOL_CALLS.map((t) => ({
+    ...t,
+    calls: n(t.calls),
+    answered: n(t.answered),
+    detail: n(t.detail),
+    nothing: n(t.nothing),
+    failed: n(t.failed),
+  }))
   const calls = tools.reduce((a, t) => a + t.calls, 0)
   const unread = n(2)
   const agents = AGENT_CALLS.map((a) => ({ ...a, calls: n(a.calls) })).filter((a) => a.calls > 0)
@@ -67,45 +97,66 @@ function Usage() {
 
   return (
     <Frame>
-      <FrameSection title="Usage" description={OBS_PURPOSE.usage} action={<RangeSwitch value={view.range} />} />
+      <FrameSection
+        title="Usage"
+        description={OBS_PURPOSE.usage}
+        action={<RangeSwitch value={view.range} />}
+      />
       <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4">
         <Kpi
           icon={<WrenchIcon />}
           label="Tool calls"
-          value={calls.toLocaleString("en")}
-          change={view.range === 7 && view.state === "normal" ? "+8%" : undefined}
+          value={calls.toLocaleString('en')}
+          change={view.range === 7 && view.state === 'normal' ? '+8%' : undefined}
           tone="up"
           sub={`by ${agents.length} kinds of agent`}
         />
-        <Kpi icon={<TimerIcon />} label="Median reply" value={median} unit="ms" sub={`95 of 100 under ${p95} ms`} />
+        <Kpi
+          icon={<TimerIcon />}
+          label="Median reply"
+          value={median}
+          unit="ms"
+          sub={`95 of 100 under ${p95} ms`}
+        />
         <Kpi
           icon={<CircleAlertIcon />}
           label="Could not be read"
           value={unread}
-          change={view.range === 7 && view.state === "normal" ? "-1" : undefined}
+          change={view.range === 7 && view.state === 'normal' ? '-1' : undefined}
           tone="up"
-          sub={`${calls ? ((unread / calls) * 100).toFixed(1) : "0"}% of calls`}
+          sub={`${calls ? ((unread / calls) * 100).toFixed(1) : '0'}% of calls`}
         />
-        <Kpi icon={<CoinsIcon />} label="Model spend" value={money(SPEND.total)} sub={`of ${money(SPEND.cap).replace(".00", "")} this month`} />
+        <Kpi
+          icon={<CoinsIcon />}
+          label="Model spend"
+          value={money(SPEND.total)}
+          sub={`of ${money(SPEND.cap).replace('.00', '')} this month`}
+        />
       </div>
 
-      <FrameSection title="Tools" description="Each call an agent made, by tool. Answering needs no model.">
+      <FrameSection
+        title="Tools"
+        description="Each call an agent made, by tool. Answering needs no model."
+      >
         <Tools tools={tools} />
       </FrameSection>
 
       <div className="grid grid-cols-[minmax(0,1fr)] border-t @4xl/main:grid-cols-2">
-        <FrameSection title="How fast" description={`The median reply and 95 of 100 replies, by ${speed.per}.`}>
+        <FrameSection
+          title="How fast"
+          description={`The median reply and 95 of 100 replies, by ${speed.per}.`}
+        >
           <div className="px-3 pb-3">
             <SeriesLegend
               items={[
-                { name: "Median", color: "var(--primary)" },
-                { name: "95 of 100", color: "var(--chart-2)" },
+                { name: 'Median', color: 'var(--primary)' },
+                { name: '95 of 100', color: 'var(--chart-2)' },
               ]}
             />
             <LineChart
               series={[
-                { name: "Median", values: speed.median, color: "var(--primary)" },
-                { name: "95 of 100", values: speed.p95, color: "var(--chart-2)" },
+                { name: 'Median', values: speed.median, color: 'var(--primary)' },
+                { name: '95 of 100', values: speed.p95, color: 'var(--chart-2)' },
               ]}
               labels={speed.labels}
               max={150}
@@ -138,8 +189,12 @@ function Usage() {
                         {a.name}
                       </span>
                     </td>
-                    <td className="h-11 px-4 text-right tabular-nums">{a.calls.toLocaleString("en")}</td>
-                    <td className="h-11 px-4 text-right whitespace-nowrap text-muted-foreground md:pr-5">{a.last}</td>
+                    <td className="h-11 px-4 text-right tabular-nums">
+                      {a.calls.toLocaleString('en')}
+                    </td>
+                    <td className="h-11 px-4 text-right whitespace-nowrap text-muted-foreground md:pr-5">
+                      {a.last}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -197,21 +252,27 @@ function SeriesLegend({ items }: { items: { name: string; color: string }[] }) {
 function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
   const what = (name: string) =>
     AGENT_TOOLS.find((t) => t.name === name)
-      ?.what.replace(/\.$/, "")
-      .replace(/, (with|after) .*$/, "")
+      ?.what.replace(/\.$/, '')
+      .replace(/, (with|after) .*$/, '')
   const cell = (v: number, warn?: boolean) =>
-    v ? <span className={cn(warn && "font-semibold text-[var(--warn)]")}>{v.toLocaleString("en")}</span> : <span className="text-muted-foreground">-</span>
-  const th = "h-9 px-4 text-right font-medium whitespace-nowrap"
+    v ? (
+      <span className={cn(warn && 'font-semibold text-[var(--warn)]')}>
+        {v.toLocaleString('en')}
+      </span>
+    ) : (
+      <span className="text-muted-foreground">-</span>
+    )
+  const th = 'h-9 px-4 text-right font-medium whitespace-nowrap'
   return (
     <table className="w-full text-sm" aria-label="Calls by tool">
       <thead>
         <tr className="border-t bg-[color-mix(in_oklab,var(--muted)_45%,var(--background))] text-xs text-muted-foreground">
           <th className="h-9 px-4 text-left font-medium md:pl-5">Tool</th>
           <th className={th}>Calls</th>
-          <th className={cn(th, "@max-2xl/main:hidden")}>Answered</th>
-          <th className={cn(th, "@max-2xl/main:hidden")}>Needed more detail</th>
-          <th className={cn(th, "@max-2xl/main:hidden")}>Not found</th>
-          <th className={cn(th, "md:pr-5 @max-2xl/main:hidden")}>Failed</th>
+          <th className={cn(th, '@max-2xl/main:hidden')}>Answered</th>
+          <th className={cn(th, '@max-2xl/main:hidden')}>Needed more detail</th>
+          <th className={cn(th, '@max-2xl/main:hidden')}>Not found</th>
+          <th className={cn(th, 'md:pr-5 @max-2xl/main:hidden')}>Failed</th>
         </tr>
       </thead>
       <tbody>
@@ -228,14 +289,20 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
                   t.failed && `${t.failed} failed`,
                 ]
                   .filter(Boolean)
-                  .join(", ")}
+                  .join(', ')}
               </span>
             </td>
-            <td className="px-4 text-right align-top pt-2.5 tabular-nums @2xl/main:align-middle @2xl/main:pt-0">{t.calls.toLocaleString("en")}</td>
-            <td className="px-4 text-right tabular-nums @max-2xl/main:hidden">{cell(t.answered)}</td>
+            <td className="px-4 text-right align-top pt-2.5 tabular-nums @2xl/main:align-middle @2xl/main:pt-0">
+              {t.calls.toLocaleString('en')}
+            </td>
+            <td className="px-4 text-right tabular-nums @max-2xl/main:hidden">
+              {cell(t.answered)}
+            </td>
             <td className="px-4 text-right tabular-nums @max-2xl/main:hidden">{cell(t.detail)}</td>
             <td className="px-4 text-right tabular-nums @max-2xl/main:hidden">{cell(t.nothing)}</td>
-            <td className="px-4 text-right tabular-nums md:pr-5 @max-2xl/main:hidden">{cell(t.failed, true)}</td>
+            <td className="px-4 text-right tabular-nums md:pr-5 @max-2xl/main:hidden">
+              {cell(t.failed, true)}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -249,23 +316,36 @@ function Spend() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-y-4 pb-1 @4xl/main:grid-cols-2">
       <div className="px-4 md:px-5">
         <p className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-semibold tracking-tight tabular-nums">{money(SPEND.total)}</span>
-          <span className="text-sm text-muted-foreground">of {money(SPEND.cap).replace(".00", "")} this month</span>
+          <span className="text-2xl font-semibold tracking-tight tabular-nums">
+            {money(SPEND.total)}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            of {money(SPEND.cap).replace('.00', '')} this month
+          </span>
         </p>
-        <div className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-[2px] bg-muted" aria-hidden>
+        <div
+          className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-[2px] bg-muted"
+          aria-hidden
+        >
           {SPEND.parts.map((p, i) => (
-            <span key={p.name} style={{ width: `${(p.amount / SPEND.cap) * 100}%`, background: SPEND_FILL[i] }} />
+            <span
+              key={p.name}
+              style={{ width: `${(p.amount / SPEND.cap) * 100}%`, background: SPEND_FILL[i] }}
+            />
           ))}
         </div>
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
           {SPEND.parts.map((p, i) => (
             <li key={p.name} className="flex items-center gap-1.5">
               <span aria-hidden className="size-2.5" style={{ background: SPEND_FILL[i] }} />
-              {p.name} <span className="font-medium text-foreground tabular-nums">{money(p.amount)}</span>
+              {p.name}{' '}
+              <span className="font-medium text-foreground tabular-nums">{money(p.amount)}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-muted-foreground">Answering agents costs nothing. Answer tests ran once, from the command line.</p>
+        <p className="mt-3 text-[13px] text-muted-foreground">
+          Answering agents costs nothing. Answer tests ran once, from the command line.
+        </p>
       </div>
       <table className="w-full self-start text-sm @4xl/main:border-l" aria-label="Spend caps">
         <thead>
@@ -280,7 +360,9 @@ function Spend() {
             <tr key={l.name} className="border-t">
               <td className="h-11 px-4 md:pl-5">{l.name}</td>
               <td className="h-11 px-4 text-right tabular-nums">{money(l.used)}</td>
-              <td className="h-11 px-4 text-right text-muted-foreground tabular-nums md:pr-5">{money(l.cap)}</td>
+              <td className="h-11 px-4 text-right text-muted-foreground tabular-nums md:pr-5">
+                {money(l.cap)}
+              </td>
             </tr>
           ))}
         </tbody>

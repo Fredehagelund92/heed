@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from 'react'
 import {
   BotIcon,
   CheckIcon,
@@ -12,50 +12,74 @@ import {
   ListIcon,
   TriangleAlertIcon,
   Undo2Icon,
-} from "lucide-react"
-import { toast } from "sonner"
-import { cn } from "cn"
-import { PersonAvatar, StateLine } from "@/components/heed/bits"
-import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from "@/components/heed/review-parts"
-import { ToolLogo } from "@/components/heed/tool-logo"
-import { ResizableAside } from "@/components/resizable-aside"
-import { Panel } from "@/components/heed/panel"
-import { SiteHeader } from "@/components/site-header"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { connectorById } from "@/data/integrations"
-import { Button } from "@/components/ui/button"
-import { Kbd } from "@/components/ui/kbd"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import type { JSONContent } from "@tiptap/core"
-import { isTyping, pageKey } from "@/lib/keys"
-import { open as openOverlay } from "@/lib/events"
-import { useSend, type Sender } from "@/lib/scenario"
-import { useReducedMotion } from "@/hooks/use-reduced-motion"
-import { flushSync } from "react-dom"
-import { TOUCH } from "@/lib/touch"
-import { publishEffects, touchedBy } from "@/lib/publish"
-import { lineDiff } from "@/lib/line-diff"
-import { useLinksEnabled } from "@/lib/links-switch"
-import { Composer } from "@/components/templates/comment-box/composer"
-import { CommentBox } from "@/components/templates/comment-box"
-import { commentActions } from "@/lib/comments"
-import { ChoiceGroup, TextSwitch, ViewToggle } from "@/components/heed/switches"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { DRAFT_LABEL } from "@/data/ask"
-import { cards } from "@/data/inbox"
-import { useSavedQuestions } from "@/data/saved-questions"
-import { checkDraft } from "@/lib/saved-check"
-import { SavedLine } from "@/components/obs/saved-line"
-import { careLine, marks, needsCare, readiness, readTime, reviewFor, reviews, type Review } from "@/data/review"
-import { domains, factById } from "@/data/world"
-import { useIsMobile } from "@/hooks/use-mobile"
-import { navigate } from "@/lib/router"
-import { useMe, useStore, type State } from "@/lib/store"
-import { Summary } from "@/pages/review"
-import { TruncatedText } from "@/components/heed/truncated"
-import { plainText } from "@/lib/mentions"
-import { useWide } from "@/hooks/use-wide"
+} from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from 'cn'
+import { PersonAvatar, StateLine } from '@/components/heed/bits'
+import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from '@/components/heed/review-parts'
+import { ToolLogo } from '@/components/heed/tool-logo'
+import { ResizableAside } from '@/components/resizable-aside'
+import { Panel } from '@/components/heed/panel'
+import { SiteHeader } from '@/components/site-header'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { connectorById } from '@/data/integrations'
+import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import type { JSONContent } from '@tiptap/core'
+import { isTyping, pageKey } from '@/lib/keys'
+import { open as openOverlay } from '@/lib/events'
+import { useSend, type Sender } from '@/lib/scenario'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
+import { flushSync } from 'react-dom'
+import { TOUCH } from '@/lib/touch'
+import { publishEffects, touchedBy } from '@/lib/publish'
+import { lineDiff } from '@/lib/line-diff'
+import { useLinksEnabled } from '@/lib/links-switch'
+import { Composer } from '@/components/templates/comment-box/composer'
+import { CommentBox } from '@/components/templates/comment-box'
+import { commentActions } from '@/lib/comments'
+import { ChoiceGroup, TextSwitch, ViewToggle } from '@/components/heed/switches'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { DRAFT_LABEL } from '@/data/ask'
+import { cards } from '@/data/inbox'
+import { useSavedQuestions } from '@/data/saved-questions'
+import { checkDraft } from '@/lib/saved-check'
+import { SavedLine } from '@/components/obs/saved-line'
+import {
+  careLine,
+  marks,
+  needsCare,
+  readiness,
+  readTime,
+  reviewFor,
+  reviews,
+  type Review,
+} from '@/data/review'
+import { domains, factById } from '@/data/world'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { navigate } from '@/lib/router'
+import { useMe, useStore, type State } from '@/lib/store'
+import { Summary } from '@/pages/review'
+import { TruncatedText } from '@/components/heed/truncated'
+import { plainText } from '@/lib/mentions'
+import { useWide } from '@/hooks/use-wide'
 
 // The full-screen review, where you work: the queue of waiting suggestions on the left, the change
 // in the middle, Try it and the decision on the right. It loads on its own when first opened.
@@ -67,7 +91,17 @@ function QueueRail({ count, onShow }: { count: number; onShow: () => void }) {
   return (
     <div className="flex h-full flex-col items-center gap-1 pt-2">
       <Tooltip>
-        <TooltipTrigger render={<Button variant="ghost" size="icon" aria-label={`Show the queue, ${count} waiting`} className="size-9" onClick={onShow} />}>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`Show the queue, ${count} waiting`}
+              className="size-9"
+              onClick={onShow}
+            />
+          }
+        >
           <ListIcon />
         </TooltipTrigger>
         <TooltipContent side="right">Show the queue</TooltipContent>
@@ -99,9 +133,12 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
             <section key={from} className="pb-3">
               <h2 className="flex items-center gap-2 px-2 pb-1.5 text-xs font-medium text-muted-foreground">
                 {items[0].synced ? (
-                  <ToolLogo c={connectorById("google-drive")!} size="sm" />
+                  <ToolLogo c={connectorById('google-drive')!} size="sm" />
                 ) : items[0].drafted ? (
-                  <span aria-hidden className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/60">
+                  <span
+                    aria-hidden
+                    className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/60"
+                  >
                     <CircleDashedIcon className="size-3" />
                   </span>
                 ) : (
@@ -109,7 +146,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
                 )}
                 <span className="truncate">
                   {from}
-                  {agent ? ", via an agent" : ""}
+                  {agent ? ', via an agent' : ''}
                 </span>
                 <span className="ml-auto tabular-nums">{items.length}</span>
               </h2>
@@ -123,27 +160,36 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
                     <li key={r.id}>
                       <button
                         type="button"
-                        aria-current={on ? "true" : undefined}
+                        aria-current={on ? 'true' : undefined}
                         onClick={() => onPick(r.id)}
                         className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50",
-                          on && "bg-muted shadow-[inset_0_0_0_1px_var(--border)]",
-                          done && "text-muted-foreground"
+                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50',
+                          on && 'bg-muted shadow-[inset_0_0_0_1px_var(--border)]',
+                          done && 'text-muted-foreground',
                         )}
                       >
                         {done ? (
                           <CheckIcon aria-label="Done" className="size-3.5 shrink-0" />
                         ) : care ? (
                           <TriangleAlertIcon
-                            aria-label={careLine(r) ?? "Needs care"}
+                            aria-label={careLine(r) ?? 'Needs care'}
                             className="size-3.5 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
                           />
                         ) : on ? (
-                          <CircleIcon aria-label="You are here" className="size-3.5 shrink-0 fill-primary text-primary" />
+                          <CircleIcon
+                            aria-label="You are here"
+                            className="size-3.5 shrink-0 fill-primary text-primary"
+                          />
                         ) : wasRead ? (
-                          <CircleCheckIcon aria-label="Read" className="size-3.5 shrink-0 text-muted-foreground" />
+                          <CircleCheckIcon
+                            aria-label="Read"
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                          />
                         ) : (
-                          <CircleIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                          <CircleIcon
+                            aria-hidden
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                          />
                         )}
                         <TruncatedText text={r.title} className="flex-1" />
                       </button>
@@ -160,7 +206,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
         {opened.length > 0 && (
           <button
             type="button"
-            onClick={() => opened.forEach((r) => dispatch({ type: "reviewed", card: r.id }))}
+            onClick={() => opened.forEach((r) => dispatch({ type: 'reviewed', card: r.id }))}
             className="inline-flex min-h-7 items-center self-center rounded-sm px-1 text-xs text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Mark the {opened.length} I've opened as read
@@ -178,7 +224,15 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
  * "Checked by" stays true for every one of them. It lists them before it publishes, and Undo puts
  * all of them back.
  */
-function PublishReady({ items, unread, apart }: { items: Review[]; unread: number; apart: number }) {
+function PublishReady({
+  items,
+  unread,
+  apart,
+}: {
+  items: Review[]
+  unread: number
+  apart: number
+}) {
   const { state, dispatch } = useStore()
   const [confirm, setConfirm] = React.useState(false)
   const sender = useSend()
@@ -191,44 +245,62 @@ function PublishReady({ items, unread, apart }: { items: Review[]; unread: numbe
     const facts = items.flatMap(touchedBy)
     const undos = items.map((r) => {
       const undo = publishEffects(r, me.name, dispatch)
-      dispatch({ type: "complete", card: r.id, outcome: "Published" })
+      dispatch({ type: 'complete', card: r.id, outcome: 'Published' })
       return undo
     })
     setConfirm(false)
     toast(`Published ${n}`, {
-      description: "Agents get them from the next question. The ones you haven't read are still waiting.",
+      description:
+        "Agents get them from the next question. The ones you haven't read are still waiting.",
       action: {
-        label: "Undo",
+        label: 'Undo',
         onClick: () => {
-          dispatch({ type: "revert", before, cards: ids, facts })
+          dispatch({ type: 'revert', before, cards: ids, facts })
           undos.forEach((u) => u?.())
-          toast(`Back: ${n} waiting again`, { description: "Nothing was published." })
+          toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' })
         },
       },
     })
   }
   const button = (
-    <Button variant="outline" size="sm" className="w-full" disabled={!n || !sender.online} onClick={() => setConfirm(true)}>
-      {n ? `Publish the ${n} you've read` : unread ? "Read one to publish it" : "Nothing else is ready"}
+    <Button
+      variant="outline"
+      size="sm"
+      className="w-full"
+      disabled={!n || !sender.online}
+      onClick={() => setConfirm(true)}
+    >
+      {n
+        ? `Publish the ${n} you've read`
+        : unread
+          ? 'Read one to publish it'
+          : 'Nothing else is ready'}
     </Button>
   )
   return (
     <>
       <Tooltip>
-        <TooltipTrigger render={<span className="w-full" tabIndex={n && sender.online ? undefined : 0} />}>{button}</TooltipTrigger>
+        <TooltipTrigger
+          render={<span className="w-full" tabIndex={n && sender.online ? undefined : 0} />}
+        >
+          {button}
+        </TooltipTrigger>
         <TooltipContent className="max-w-64">
-          {!sender.online ? "Offline: publishing waits until you're back. " : ""}
-          {unread ? `${unread} more ${unread === 1 ? "is" : "are"} ready but not read yet. ` : ""}Only what you've read, so “Checked by” stays true.
+          {!sender.online ? "Offline: publishing waits until you're back. " : ''}
+          {unread ? `${unread} more ${unread === 1 ? 'is' : 'are'} ready but not read yet. ` : ''}
+          Only what you've read, so “Checked by” stays true.
           {apart
-            ? ` ${apart} ${apart === 1 ? "needs" : "need"} a look of ${apart === 1 ? "its" : "their"} own first (a claim, a new link or an unchecked value) and ${apart === 1 ? "stays" : "stay"} out of it.`
-            : ""}
+            ? ` ${apart} ${apart === 1 ? 'needs' : 'need'} a look of ${apart === 1 ? 'its' : 'their'} own first (a claim, a new link or an unchecked value) and ${apart === 1 ? 'stays' : 'stay'} out of it.`
+            : ''}
         </TooltipContent>
       </Tooltip>
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Publish the {n} you've read?</DialogTitle>
-            <DialogDescription>Each goes out with you as the one who checked it. Undo puts all of them back.</DialogDescription>
+            <DialogDescription>
+              Each goes out with you as the one who checked it. Undo puts all of them back.
+            </DialogDescription>
           </DialogHeader>
           <ul aria-label="To publish" className="flex min-w-0 flex-col divide-y border-y text-sm">
             {items.map((r) => (
@@ -239,14 +311,20 @@ function PublishReady({ items, unread, apart }: { items: Review[]; unread: numbe
               </li>
             ))}
           </ul>
-          {sender.state === "failed" && (
+          {sender.state === 'failed' && (
             <p role="alert" className="text-sm">
-              <span className="font-medium">Couldn't publish them.</span> <span className="text-muted-foreground">Nothing changed. Try again.</span>
+              <span className="font-medium">Couldn't publish them.</span>{' '}
+              <span className="text-muted-foreground">Nothing changed. Try again.</span>
             </p>
           )}
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-            <Button disabled={!sender.online} loading={sender.state === "sending"} loadingLabel="Publishing…" onClick={() => sender.send(publishAll)}>
+            <Button
+              disabled={!sender.online}
+              loading={sender.state === 'sending'}
+              loadingLabel="Publishing…"
+              onClick={() => sender.send(publishAll)}
+            >
               {`Publish ${n}`}
             </Button>
           </DialogFooter>
@@ -279,7 +357,7 @@ function ReadMark({ r }: { r: Review }) {
       window.clearTimeout(timer)
       if (e.isIntersecting) {
         since = Date.now()
-        timer = window.setTimeout(() => dispatch({ type: "reviewed", card: r.id }), left)
+        timer = window.setTimeout(() => dispatch({ type: 'reviewed', card: r.id }), left)
       } else if (since) left = Math.max(0, left - (Date.now() - since))
       setVisible(e.isIntersecting)
     })
@@ -291,7 +369,10 @@ function ReadMark({ r }: { r: Review }) {
   }, [r.id, read, counts, dispatch, ms])
   if (!counts) return null
   return (
-    <p ref={ref} className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+    <p
+      ref={ref}
+      className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"
+    >
       {read ? (
         <>
           <CircleCheckIcon aria-hidden className="size-3.5 text-primary" />
@@ -301,15 +382,21 @@ function ReadMark({ r }: { r: Review }) {
         <>
           <CircleIcon aria-hidden className="size-3.5" />
           Counts as read after about {Math.round(ms / 1000)} seconds here.
-          <span aria-hidden className="h-0.5 w-16 overflow-hidden rounded-full bg-muted motion-reduce:hidden">
+          <span
+            aria-hidden
+            className="h-0.5 w-16 overflow-hidden rounded-full bg-muted motion-reduce:hidden"
+          >
             <span
               className="block h-full origin-left bg-primary/70"
-              style={{ animation: `readfill ${ms}ms linear forwards`, animationPlayState: visible ? "running" : "paused" }}
+              style={{
+                animation: `readfill ${ms}ms linear forwards`,
+                animationPlayState: visible ? 'running' : 'paused',
+              }}
             />
           </span>
           <button
             type="button"
-            onClick={() => dispatch({ type: "reviewed", card: r.id })}
+            onClick={() => dispatch({ type: 'reviewed', card: r.id })}
             className="inline-flex min-h-6 items-center rounded-sm px-1 text-foreground underline decoration-foreground/30 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Mark as read
@@ -325,34 +412,49 @@ function SourceView({ r }: { r: Review }) {
   const rows = lineDiff(r.source.before, r.source.after)
   return (
     <section className="flex flex-col gap-3 py-2">
-      <p className="text-xs text-muted-foreground">The stored markdown, line by line. Exact, but a moved step reads as removed and added.</p>
+      <p className="text-xs text-muted-foreground">
+        The stored markdown, line by line. Exact, but a moved step reads as removed and added.
+      </p>
       <pre className="overflow-x-auto rounded-frame border font-mono text-[13px] leading-6">
         {rows.map((row, k) => (
           <div
             key={k}
-            className={cn("flex gap-3 px-3 whitespace-pre-wrap", row.t === "+" && "bg-[var(--mark-add)]", row.t === "-" && "bg-[var(--mark-del)] text-foreground/80")}
+            className={cn(
+              'flex gap-3 px-3 whitespace-pre-wrap',
+              row.t === '+' && 'bg-[var(--mark-add)]',
+              row.t === '-' && 'bg-[var(--mark-del)] text-foreground/80',
+            )}
           >
-            <span aria-label={row.t === "+" ? "added" : row.t === "-" ? "removed" : undefined} className="w-3 shrink-0 text-muted-foreground select-none">
+            <span
+              aria-label={row.t === '+' ? 'added' : row.t === '-' ? 'removed' : undefined}
+              className="w-3 shrink-0 text-muted-foreground select-none"
+            >
               {row.t}
             </span>
             <span>
               {row.words
                 ? row.words.map((w, i) =>
                     w.changed && w.text.trim() ? (
-                      row.t === "-" ? (
-                        <del key={i} className="rounded-sm bg-[color-mix(in_oklab,var(--mark-del-line)_28%,transparent)] decoration-[var(--mark-del-line)]">
+                      row.t === '-' ? (
+                        <del
+                          key={i}
+                          className="rounded-sm bg-[color-mix(in_oklab,var(--mark-del-line)_28%,transparent)] decoration-[var(--mark-del-line)]"
+                        >
                           {w.text}
                         </del>
                       ) : (
-                        <ins key={i} className="rounded-sm bg-[color-mix(in_oklab,var(--mark-add-line)_28%,transparent)] no-underline">
+                        <ins
+                          key={i}
+                          className="rounded-sm bg-[color-mix(in_oklab,var(--mark-add-line)_28%,transparent)] no-underline"
+                        >
                           {w.text}
                         </ins>
                       )
                     ) : (
                       <React.Fragment key={i}>{w.text}</React.Fragment>
-                    )
+                    ),
                   )
-                : row.line || " "}
+                : row.line || ' '}
             </span>
           </div>
         ))}
@@ -362,21 +464,25 @@ function SourceView({ r }: { r: Review }) {
 }
 
 /** The change itself, in the style that fits its kind. */
-function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
+function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
   const [showUnchanged, setShowUnchanged] = React.useState(false)
-  const fact = factById(r.retire?.factId ?? cards.find((c) => c.id === r.id)?.factId ?? "")
-  if (view === "source") return <SourceView r={r} />
+  const fact = factById(r.retire?.factId ?? cards.find((c) => c.id === r.id)?.factId ?? '')
+  if (view === 'source') return <SourceView r={r} />
   return (
     <div className="flex flex-col">
       {r.retire?.withdrawn && (
-        <section aria-label="What the thread decided" className="mb-6 flex flex-col gap-2 rounded-frame border border-dashed bg-muted/40 p-4">
+        <section
+          aria-label="What the thread decided"
+          className="mb-6 flex flex-col gap-2 rounded-frame border border-dashed bg-muted/40 p-4"
+        >
           <p className="flex items-center gap-2 text-sm font-medium">
             <Undo2Icon aria-hidden className="size-4 text-muted-foreground" />
             Withdrawn in the comments
           </p>
           <blockquote className="text-sm italic">“{r.retire.withdrawn.quote}”</blockquote>
           <p className="text-xs text-muted-foreground">
-            {r.retire.withdrawn.by}, {r.retire.withdrawn.when.toLowerCase()}. Archive is still possible, but no longer the suggestion.
+            {r.retire.withdrawn.by}, {r.retire.withdrawn.when.toLowerCase()}. Archive is still
+            possible, but no longer the suggestion.
           </p>
         </section>
       )}
@@ -384,22 +490,27 @@ function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
         <section className="flex flex-col gap-3 py-2">
           <header className="flex items-center gap-2">
             <KindLabel kind="Removed" />
-            <span className="text-xs text-muted-foreground">The context item, as agents get it now</span>
+            <span className="text-xs text-muted-foreground">
+              The context item, as agents get it now
+            </span>
           </header>
           <div className="relative rounded-frame border p-4">
             <span
               className={cn(
-                "absolute top-3 right-3 rotate-2 rounded-md border-2 px-2 py-0.5 text-xs font-semibold tracking-wide",
-                r.retire.withdrawn ? "border-muted-foreground/50 text-muted-foreground" : "border-[var(--mark-del-line)] text-[var(--mark-del-line)]"
+                'absolute top-3 right-3 rotate-2 rounded-md border-2 px-2 py-0.5 text-xs font-semibold tracking-wide',
+                r.retire.withdrawn
+                  ? 'border-muted-foreground/50 text-muted-foreground'
+                  : 'border-[var(--mark-del-line)] text-[var(--mark-del-line)]',
               )}
             >
-              {r.retire.withdrawn ? "Withdrawn" : "Will be archived"}
+              {r.retire.withdrawn ? 'Withdrawn' : 'Will be archived'}
             </span>
             <p className="pr-28 font-medium">{fact.title}</p>
             <p className="mt-1 text-sm text-muted-foreground">{plainText(fact.summary)}</p>
           </div>
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{r.retire.used} questions</span> used it this week. {r.retire.checkFirst}
+            <span className="font-medium text-foreground">{r.retire.used} questions</span> used it
+            this week. {r.retire.checkFirst}
           </p>
         </section>
       )}
@@ -408,7 +519,7 @@ function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
       {r.clash && <Clash r={r} />}
       {r.rewrite && <Rewrite rewrite={r.rewrite} />}
       {r.blocks.length > 0 && (
-        <div className={cn((r.claims || r.clash) && "mt-6 border-t pt-4")}>
+        <div className={cn((r.claims || r.clash) && 'mt-6 border-t pt-4')}>
           {r.blocks.map((b, i) => (
             <ChangeBlock key={i} block={b} index={i} total={r.blocks.length} />
           ))}
@@ -422,8 +533,12 @@ function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
             onClick={() => setShowUnchanged((s) => !s)}
             className="flex items-center gap-1.5 text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:underline"
           >
-            {showUnchanged ? <ChevronUpIcon className="size-4" aria-hidden /> : <ChevronDownIcon className="size-4" aria-hidden />}
-            {r.unchanged.length} fields unchanged: {r.unchanged.join(", ")}
+            {showUnchanged ? (
+              <ChevronUpIcon className="size-4" aria-hidden />
+            ) : (
+              <ChevronDownIcon className="size-4" aria-hidden />
+            )}
+            {r.unchanged.length} fields unchanged: {r.unchanged.join(', ')}
           </button>
           {showUnchanged && fact && (
             <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-[9rem_minmax(0,1fr)]">
@@ -431,19 +546,19 @@ function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
                 <React.Fragment key={f}>
                   <dt>{f}</dt>
                   <dd className="text-foreground/80">
-                    {f === "Title"
+                    {f === 'Title'
                       ? fact.title
-                      : f === "Where"
-                        ? fact.where.join(", ")
-                        : f === "When"
+                      : f === 'Where'
+                        ? fact.where.join(', ')
+                        : f === 'When'
                           ? fact.when
                           : f === "Don't conclude"
                             ? fact.dontConclude
-                            : f === "Source"
+                            : f === 'Source'
                               ? fact.source
-                              : f === "Kind"
-                                ? "As before"
-                                : "As before"}
+                              : f === 'Kind'
+                                ? 'As before'
+                                : 'As before'}
                   </dd>
                 </React.Fragment>
               ))}
@@ -461,13 +576,15 @@ function SyncedFrom({ r }: { r: Review }) {
   return (
     <section className="mb-6 flex flex-col gap-3 border-b pb-6">
       <header className="flex items-center gap-2">
-        <ToolLogo c={connectorById("google-drive")!} size="sm" />
+        <ToolLogo c={connectorById('google-drive')!} size="sm" />
         <span className="text-sm font-medium">From the document</span>
         <span className="text-xs text-muted-foreground">
           {s.folder} / {s.doc}, read {s.read.toLowerCase()}
         </span>
       </header>
-      <blockquote className="rounded-frame bg-muted px-3 py-2 text-sm italic">“{s.quote}”</blockquote>
+      <blockquote className="rounded-frame bg-muted px-3 py-2 text-sm italic">
+        “{s.quote}”
+      </blockquote>
       <dl className="grid gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[10rem_minmax(0,1fr)]">
         <dt className="text-muted-foreground">Set by the document</dt>
         <dd>The title, what agents should know, where and when it applies</dd>
@@ -475,19 +592,27 @@ function SyncedFrom({ r }: { r: Review }) {
         <dd>Who owns it and who it's for: the owners of Sales decide when they publish</dd>
       </dl>
       <p className="text-xs text-muted-foreground">
-        Only a link, the title and this quote are kept, never the document. If the document changes, its suggestion is replaced.
+        Only a link, the title and this quote are kept, never the document. If the document changes,
+        its suggestion is replaced.
       </p>
     </section>
   )
 }
 
 const relations = [
-  { id: "replaces", label: "This replaces it", hint: "The live item is archived when you publish." },
-  { id: "disagree", label: "These disagree", hint: "Both stay; agents say context disagrees." },
-  { id: "unrelated", label: "Unrelated", hint: "Both stay; they apply to different things." },
+  {
+    id: 'replaces',
+    label: 'This replaces it',
+    hint: 'The live item is archived when you publish.',
+  },
+  { id: 'disagree', label: 'These disagree', hint: 'Both stay; agents say context disagrees.' },
+  { id: 'unrelated', label: 'Unrelated', hint: 'Both stay; they apply to different things.' },
 ] as const
-type Relation = (typeof relations)[number]["id"]
-const RelationContext = React.createContext<[Relation | null, (r: Relation) => void]>([null, () => undefined])
+type Relation = (typeof relations)[number]['id']
+const RelationContext = React.createContext<[Relation | null, (r: Relation) => void]>([
+  null,
+  () => undefined,
+])
 
 /** A clash with live context: both side by side with the differing words marked, then how they relate. */
 function Clash({ r }: { r: Review }) {
@@ -496,8 +621,13 @@ function Clash({ r }: { r: Review }) {
   return (
     <section className="flex flex-col gap-4 py-2">
       <header className="flex items-center gap-2">
-        <TriangleAlertIcon aria-hidden className="size-4 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
-        <span className="text-sm font-medium">It overlaps live context that says something else</span>
+        <TriangleAlertIcon
+          aria-hidden
+          className="size-4 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
+        />
+        <span className="text-sm font-medium">
+          It overlaps live context that says something else
+        </span>
       </header>
       <div className="grid gap-3 @3xl:grid-cols-2">
         <div className="flex flex-col gap-2 rounded-frame border p-4">
@@ -510,14 +640,18 @@ function Clash({ r }: { r: Review }) {
         </div>
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">How do they relate? Publish waits for your answer.</legend>
+        <legend className="mb-2 text-sm font-medium">
+          How do they relate? Publish waits for your answer.
+        </legend>
         <ChoiceGroup
           label="How do they relate?"
           options={relations.map((x) => ({ value: x.id, label: x.label }))}
           value={relation ?? undefined}
           onChange={(v) => setRelation(v as Relation)}
         />
-        <p className="text-xs text-muted-foreground">{relation ? relations.find((x) => x.id === relation)!.hint : "Choose one of the three."}</p>
+        <p className="text-xs text-muted-foreground">
+          {relation ? relations.find((x) => x.id === relation)!.hint : 'Choose one of the three.'}
+        </p>
       </fieldset>
     </section>
   )
@@ -525,10 +659,10 @@ function Clash({ r }: { r: Review }) {
 
 /** Try it: Heed's answer from the context, with the draft or as published. */
 function TryItPanel({ r, now }: { r: Review; now?: string }) {
-  const [version, setVersion] = React.useState<"draft" | "published">("draft")
+  const [version, setVersion] = React.useState<'draft' | 'published'>('draft')
   const linksOn = useLinksEnabled()
   // Links the suggestion adds or removes: whether an answer would follow them.
-  const linked = r.blocks.flatMap((b) => (b.kind === "Link" && "mention" in b ? [b.mention] : []))
+  const linked = r.blocks.flatMap((b) => (b.kind === 'Link' && 'mention' in b ? [b.mention] : []))
   // Just published: the answer agents now give, in place of the draft.
   if (now)
     return (
@@ -541,7 +675,7 @@ function TryItPanel({ r, now }: { r: Review; now?: string }) {
         </div>
       </section>
     )
-  const a = version === "draft" ? r.tryIt.after : r.tryIt.before
+  const a = version === 'draft' ? r.tryIt.after : r.tryIt.before
   const same = r.tryIt.after.text === r.tryIt.before.text
   return (
     <section className="flex flex-col gap-3 border-b p-4">
@@ -555,27 +689,31 @@ function TryItPanel({ r, now }: { r: Review; now?: string }) {
           value={version}
           onChange={setVersion}
           options={[
-            { value: "draft", label: "Draft" },
-            { value: "published", label: "Published" },
+            { value: 'draft', label: 'Draft' },
+            { value: 'published', label: 'Published' },
           ]}
         />
       </div>
       <p className="text-sm text-muted-foreground">“{r.tryIt.question}”</p>
       <div className="flex flex-col gap-2 rounded-frame border bg-muted/30 p-3">
-        <StateLine state={a.state} draft={version === "draft"} sentence>
-          {version === "draft" && a.state === "grounded" ? DRAFT_LABEL : undefined}
+        <StateLine state={a.state} draft={version === 'draft'} sentence>
+          {version === 'draft' && a.state === 'grounded' ? DRAFT_LABEL : undefined}
         </StateLine>
         <p className="text-sm leading-relaxed">{a.text}</p>
         <p className="text-xs text-muted-foreground">
-          {version === "draft" ? "What agents will say after you publish, from this draft." : "What agents say today, from the checked context."}
+          {version === 'draft'
+            ? 'What agents will say after you publish, from this draft.'
+            : 'What agents say today, from the checked context.'}
         </p>
       </div>
       {same && <p className="text-xs text-muted-foreground">Same answer before and after.</p>}
-      <p className="text-sm text-muted-foreground">{r.tryIt.reach} questions agents asked this week would get this version.</p>
-      <SavedLine r={r} domain={cards.find((c) => c.id === r.id)?.domain ?? "sales"} />
+      <p className="text-sm text-muted-foreground">
+        {r.tryIt.reach} questions agents asked this week would get this version.
+      </p>
+      <SavedLine r={r} domain={cards.find((c) => c.id === r.id)?.domain ?? 'sales'} />
       {linked.map((m) => (
         <p key={m.id} className="text-sm text-muted-foreground">
-          {m.change === "removed"
+          {m.change === 'removed'
             ? `The answer no longer links to ${m.label}.`
             : linksOn
               ? `The answer would follow the new link to ${m.label}, one step, to read what it means.`
@@ -587,7 +725,15 @@ function TryItPanel({ r, now }: { r: Review; now?: string }) {
 }
 
 /** What a decision just did, shown in place until the next suggestion opens, with Undo. */
-type Finished = { outcome: string; message: string; description: string; before: State; now?: string; next?: string; alsoUndo?: () => void }
+type Finished = {
+  outcome: string
+  message: string
+  description: string
+  before: State
+  now?: string
+  next?: string
+  alsoUndo?: () => void
+}
 
 type DecisionProps = {
   r: Review
@@ -610,7 +756,7 @@ type DecisionProps = {
   reduced: boolean
   onNext: () => void
   /** The panel beside or under the change; on a phone, also a bar stuck to the bottom edge. */
-  variant?: "panel" | "bar"
+  variant?: 'panel' | 'bar'
 }
 
 /** Ready, Overlaps and the decision: one primary action that fits the state. */
@@ -629,7 +775,7 @@ function Decision({
   paused,
   reduced,
   onNext,
-  variant = "panel",
+  variant = 'panel',
 }: DecisionProps) {
   const hovered = React.useRef(false)
   const focused = React.useRef(false)
@@ -640,14 +786,14 @@ function Decision({
   const { state, dispatch } = useStore()
   const [relation] = React.useContext(RelationContext)
   const me = useMe()
-  const first = r.from.split(" ")[0]
+  const first = r.from.split(' ')[0]
   const done = state.done[r.id]
   // The last thing tried, so Retry does it again.
-  const [tried, setTried] = React.useState<"publish" | "archive" | "return" | "close">()
-  const sending = sender.state === "sending"
+  const [tried, setTried] = React.useState<'publish' | 'archive' | 'return' | 'close'>()
+  const sending = sender.state === 'sending'
   const blockedBySend = !sender.online || sending
   const publish = () => {
-    setTried("publish")
+    setTried('publish')
     sender.send(commitPublish)
   }
   const commitPublish = () => {
@@ -655,29 +801,44 @@ function Decision({
     const alsoUndo = publishEffects(r, me.name, dispatch, relation)
     onDone({
       alsoUndo,
-      outcome: "Published",
-      message: "Published",
-      description: r.clash && relation === "disagree" ? "Both stay live; agents say context disagrees." : "Agents get it from the next question.",
+      outcome: 'Published',
+      message: 'Published',
+      description:
+        r.clash && relation === 'disagree'
+          ? 'Both stay live; agents say context disagrees.'
+          : 'Agents get it from the next question.',
       before,
       now: r.tryIt.after.text,
     })
   }
   const archive = () => {
-    setTried("archive")
+    setTried('archive')
     sender.send(commitArchive)
   }
   const commitArchive = () => {
     const before = state
     setConfirmArchive(false)
-    if (r.retire) dispatch({ type: "editFact", id: r.retire.factId, patch: { status: "Archived" } })
-    onDone({ outcome: "Archived", message: "Archived", description: "Agents stop getting it from the next question.", before })
+    if (r.retire) dispatch({ type: 'editFact', id: r.retire.factId, patch: { status: 'Archived' } })
+    onDone({
+      outcome: 'Archived',
+      message: 'Archived',
+      description: 'Agents stop getting it from the next question.',
+      before,
+    })
   }
   // Archiving takes context away from agents, so it always asks first, from the button or the key.
   const [confirmArchive, setConfirmArchive] = React.useState(false)
   // A withdrawn retirement closes: nothing changes, and the context item stays live.
   const close = () => {
-    setTried("close")
-    sender.send(() => onDone({ outcome: "Closed", message: "Closed", description: "Nothing changes: the context item stays live.", before: state }))
+    setTried('close')
+    sender.send(() =>
+      onDone({
+        outcome: 'Closed',
+        message: 'Closed',
+        description: 'Nothing changes: the context item stays live.',
+        before: state,
+      }),
+    )
   }
   const withdrawn = r.retire?.withdrawn
   const returnNote = React.useRef<JSONContent | null>(null)
@@ -687,7 +848,7 @@ function Decision({
     onDraft(null)
     const posted = commentActions.post(`review:${r.id}`, me.name, note, { returned: true })
     onDone({
-      outcome: "Returned",
+      outcome: 'Returned',
       message: `Returned to ${r.from}`,
       description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
       before,
@@ -698,24 +859,39 @@ function Decision({
       },
     })
   }
-  const retry = () => (tried === "close" ? close() : sender.send(tried === "archive" ? commitArchive : tried === "return" ? commitReturn : commitPublish))
-  const verb = tried === "archive" ? "archive it" : tried === "return" ? "return it" : tried === "close" ? "close it" : "publish"
+  const retry = () =>
+    tried === 'close'
+      ? close()
+      : sender.send(
+          tried === 'archive' ? commitArchive : tried === 'return' ? commitReturn : commitPublish,
+        )
+  const verb =
+    tried === 'archive'
+      ? 'archive it'
+      : tried === 'return'
+        ? 'return it'
+        : tried === 'close'
+          ? 'close it'
+          : 'publish'
   // Offline nothing is sent; a failed try changed nothing. Both said at the button, never "Published".
   // The one action offline turns off, by name.
-  const mainVerb = r.retire?.withdrawn ? "Close" : r.retire ? "Archive" : "Publish"
-  const failed = sender.state === "failed"
+  const mainVerb = r.retire?.withdrawn ? 'Close' : r.retire ? 'Archive' : 'Publish'
+  const failed = sender.state === 'failed'
   const problem = !sender.online ? (
     <p role="status" className="text-sm text-muted-foreground">
-      <span className="font-medium text-foreground">You're offline.</span> {mainVerb} is off until you're back; nothing is lost.
+      <span className="font-medium text-foreground">You're offline.</span> {mainVerb} is off until
+      you're back; nothing is lost.
     </p>
   ) : failed ? (
     <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
       <span>
-        <span className="font-medium">Couldn't {verb}.</span>{" "}
-        <span className="text-muted-foreground">Nothing changed{tried === "return" ? "; your note is kept" : ""}.</span>
+        <span className="font-medium">Couldn't {verb}.</span>{' '}
+        <span className="text-muted-foreground">
+          Nothing changed{tried === 'return' ? '; your note is kept' : ''}.
+        </span>
       </span>
       {/* A failed note retries beside its editor; a failed decision retries from the buttons below. */}
-      {tried === "return" && (
+      {tried === 'return' && (
         <Button variant="outline" size="sm" onClick={retry}>
           Try again
         </Button>
@@ -725,19 +901,27 @@ function Decision({
   const blocked = !!r.clash && !relation
   // What Command and Enter does here, if anything: the hint only shows when the key acts.
   const keyAction =
-    done || finished || returning || blockedBySend ? null : withdrawn ? "close" : r.retire ? "archive" : blocked || (r.claims && !r.drafted) ? null : "publish"
+    done || finished || returning || blockedBySend
+      ? null
+      : withdrawn
+        ? 'close'
+        : r.retire
+          ? 'archive'
+          : blocked || (r.claims && !r.drafted)
+            ? null
+            : 'publish'
   // Command and Enter publishes, as the button says (the panel listens; the phone bar is the same decision).
   React.useEffect(() => {
-    if (variant !== "panel") return
+    if (variant !== 'panel') return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Enter" || !(e.metaKey || e.ctrlKey) || !keyAction || isTyping(e.target)) return
+      if (e.key !== 'Enter' || !(e.metaKey || e.ctrlKey) || !keyAction || isTyping(e.target)) return
       e.preventDefault()
-      if (keyAction === "archive") setConfirmArchive(true)
-      else if (keyAction === "close") close()
+      if (keyAction === 'archive') setConfirmArchive(true)
+      else if (keyAction === 'close') close()
       else publish()
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   })
 
   // A draft that would make a saved question worse says so instead of a plain Ready; it never stops Publish.
@@ -749,14 +933,14 @@ function Decision({
         ? {
             ok: false,
             bulk: false,
-            title: "To check before archiving",
-            text: `${drift.look === 1 ? "1 saved question answers" : `${drift.look} saved questions answer`} from it and would hear nothing is written down. Archive anyway if you meant it.`,
+            title: 'To check before archiving',
+            text: `${drift.look === 1 ? '1 saved question answers' : `${drift.look} saved questions answer`} from it and would hear nothing is written down. Archive anyway if you meant it.`,
           }
         : {
             ok: false,
             bulk: false,
-            title: "A draft to check",
-            text: `${drift.look === 1 ? "1 saved question needs" : `${drift.look} saved questions need`} a look with it. Publish anyway if you meant it.`,
+            title: 'A draft to check',
+            text: `${drift.look === 1 ? '1 saved question needs' : `${drift.look} saved questions need`} a look with it. Publish anyway if you meant it.`,
           }
       : base
   const ReadyIcon = ready.ok ? CircleCheckIcon : CircleDashedIcon
@@ -764,14 +948,14 @@ function Decision({
   // The buttons, the same in the panel and in the phone's bar.
   const actions = r.drafted ? (
     <>
-      <Button variant="outline" size="sm" onClick={() => navigate("/context/new", { gap: r.id })}>
+      <Button variant="outline" size="sm" onClick={() => navigate('/context/new', { gap: r.id })}>
         Edit<span className="max-sm:hidden"> the draft</span>
       </Button>
       <Button
         size="sm"
         className="ml-auto"
-        disabled={blockedBySend && !(sending && tried === "publish")}
-        loading={sending && tried === "publish"}
+        disabled={blockedBySend && !(sending && tried === 'publish')}
+        loading={sending && tried === 'publish'}
         loadingLabel="Publishing…"
         onClick={publish}
       >
@@ -783,8 +967,8 @@ function Decision({
       <Button
         variant="outline"
         size="sm"
-        disabled={blockedBySend && !(sending && tried === "publish")}
-        loading={sending && tried === "publish"}
+        disabled={blockedBySend && !(sending && tried === 'publish')}
+        loading={sending && tried === 'publish'}
         loadingLabel="Publishing…"
         onClick={publish}
       >
@@ -797,7 +981,12 @@ function Decision({
   ) : (
     <>
       {withdrawn ? (
-        <Button variant="outline" size="sm" disabled={blockedBySend} onClick={() => setConfirmArchive(true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={blockedBySend}
+          onClick={() => setConfirmArchive(true)}
+        >
           Archive anyway
         </Button>
       ) : (
@@ -809,8 +998,8 @@ function Decision({
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blockedBySend && !(sending && tried === "close")}
-          loading={sending && tried === "close"}
+          disabled={blockedBySend && !(sending && tried === 'close')}
+          loading={sending && tried === 'close'}
           loadingLabel="Closing…"
           onClick={close}
         >
@@ -820,8 +1009,8 @@ function Decision({
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blockedBySend && !(sending && tried === "archive")}
-          loading={sending && tried === "archive"}
+          disabled={blockedBySend && !(sending && tried === 'archive')}
+          loading={sending && tried === 'archive'}
           loadingLabel="Archiving…"
           onClick={() => setConfirmArchive(true)}
         >
@@ -831,8 +1020,8 @@ function Decision({
         <Button
           size="sm"
           className="ml-auto"
-          disabled={blocked || (blockedBySend && !(sending && tried === "publish"))}
-          loading={sending && tried === "publish"}
+          disabled={blocked || (blockedBySend && !(sending && tried === 'publish'))}
+          loading={sending && tried === 'publish'}
           loadingLabel="Publishing…"
           onClick={publish}
         >
@@ -844,7 +1033,7 @@ function Decision({
 
   // After a failed decision there is one way forward: Try again, with Return beside it.
   const shownActions =
-    failed && tried !== "return" ? (
+    failed && tried !== 'return' ? (
       <>
         <Button variant="outline" size="sm" onClick={() => setReturning(true)}>
           Return<span className="max-sm:hidden"> with a note</span>
@@ -873,19 +1062,29 @@ function Decision({
       <p className="flex items-center gap-2 text-sm font-medium">
         <CircleCheckIcon className="size-4 text-primary" aria-hidden />
         {finished.message}
-        <Button variant="ghost" size="sm" className="ml-auto h-7 pointer-coarse:h-10" onClick={onUndo}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-7 pointer-coarse:h-10"
+          onClick={onUndo}
+        >
           <Undo2Icon data-icon="inline-start" />
           Undo
         </Button>
       </p>
-      {variant === "panel" && <p className="line-clamp-1 text-sm text-muted-foreground">{finished.description}</p>}
+      {variant === 'panel' && (
+        <p className="line-clamp-1 text-sm text-muted-foreground">{finished.description}</p>
+      )}
       {reduced ? (
         <Button size="sm" className="self-end pointer-coarse:h-10" onClick={onNext}>
-          {finished.next ? "Next suggestion" : "Back to the Inbox"}
+          {finished.next ? 'Next suggestion' : 'Back to the Inbox'}
         </Button>
       ) : (
         <span aria-hidden className="h-0.5 overflow-hidden rounded-full bg-muted">
-          <span className="block h-full origin-left animate-[countdown_2.6s_linear_forwards] bg-primary" style={{ animationPlayState: paused ? "paused" : "running" }} />
+          <span
+            className="block h-full origin-left animate-[countdown_2.6s_linear_forwards] bg-primary"
+            style={{ animationPlayState: paused ? 'paused' : 'running' }}
+          />
         </span>
       )}
     </div>
@@ -897,13 +1096,17 @@ function Decision({
         <DialogHeader>
           <DialogTitle>Archive the context item?</DialogTitle>
           <DialogDescription>
-            Agents stop getting “{r.title}” from the next question; {r.retire.used} questions used it this week.
-            {withdrawn ? ` ${withdrawn.by.split(" ")[0]} withdrew this suggestion in the comments.` : ""} Undo is there for a moment after.
+            Agents stop getting “{r.title}” from the next question; {r.retire.used} questions used
+            it this week.
+            {withdrawn
+              ? ` ${withdrawn.by.split(' ')[0]} withdrew this suggestion in the comments.`
+              : ''}{' '}
+            Undo is there for a moment after.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button variant={withdrawn ? "destructive" : "default"} onClick={archive}>
+          <Button variant={withdrawn ? 'destructive' : 'default'} onClick={archive}>
             Archive
           </Button>
         </DialogFooter>
@@ -912,7 +1115,7 @@ function Decision({
   )
 
   // On a phone: the state in words and where you are, then the two actions at full touch size.
-  if (variant === "bar") {
+  if (variant === 'bar') {
     if (returning) return null
     const at = reviews.findIndex((x) => x.id === r.id)
     return (
@@ -922,34 +1125,54 @@ function Decision({
           outcome
         ) : done ? (
           <p className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}.
+            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}
+            .
           </p>
         ) : (
           <>
             {problem ?? (
               <p className="flex items-center gap-2 text-sm">
                 {careLine(r) ? (
-                  <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
+                  <TriangleAlertIcon
+                    aria-hidden
+                    className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]"
+                  />
                 ) : (
                   <ReadyIcon className="size-4 shrink-0" aria-hidden />
                 )}
-                <span className="min-w-0 flex-1 font-medium text-pretty">{careLine(r) ?? ready.title}</span>
+                <span className="min-w-0 flex-1 font-medium text-pretty">
+                  {careLine(r) ?? ready.title}
+                </span>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                   {at + 1} of {reviews.length}
                 </span>
                 {onStep && (
                   <span className="-mr-2 flex shrink-0">
-                    <Button variant="ghost" size="icon" aria-label="Previous suggestion" disabled={at === 0} onClick={() => onStep(-1)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Previous suggestion"
+                      disabled={at === 0}
+                      onClick={() => onStep(-1)}
+                    >
                       <ChevronUpIcon />
                     </Button>
-                    <Button variant="ghost" size="icon" aria-label="Next suggestion" disabled={at === reviews.length - 1} onClick={() => onStep(1)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Next suggestion"
+                      disabled={at === reviews.length - 1}
+                      onClick={() => onStep(1)}
+                    >
                       <ChevronDownIcon />
                     </Button>
                   </span>
                 )}
               </p>
             )}
-            <div className="flex gap-2 *:data-[slot=button]:h-11 *:data-[slot=button]:flex-1">{shownActions}</div>
+            <div className="flex gap-2 *:data-[slot=button]:h-11 *:data-[slot=button]:flex-1">
+              {shownActions}
+            </div>
           </>
         )}
       </div>
@@ -964,11 +1187,13 @@ function Decision({
         <p className="flex items-start gap-2 text-sm">
           <ReadyIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            <span className="font-medium">{ready.title}.</span> <span className="text-muted-foreground">{ready.text}</span>
+            <span className="font-medium">{ready.title}.</span>{' '}
+            <span className="text-muted-foreground">{ready.text}</span>
           </span>
         </p>
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Overlaps:</span> {r.clash ? r.clash.title : "none"}.
+          <span className="font-medium text-foreground">Overlaps:</span>{' '}
+          {r.clash ? r.clash.title : 'none'}.
         </p>
       </section>
       <section className="flex min-h-25 flex-col justify-center gap-3 p-4">
@@ -976,13 +1201,16 @@ function Decision({
           outcome
         ) : done ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}.
+            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}
+            .
           </p>
         ) : returning ? (
           // The note is the first comment of the suggestion's thread, so the reply lands in the same place.
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">A note for {r.from}</p>
-            <p className="text-xs text-muted-foreground">It goes into the comments, where {first} can answer.</p>
+            <p className="text-xs text-muted-foreground">
+              It goes into the comments, where {first} can answer.
+            </p>
             <Composer
               author={me.name}
               avatar={false}
@@ -996,7 +1224,7 @@ function Decision({
               postDisabled={blockedBySend}
               onCancel={() => setReturning(false)}
               onPost={(content) => {
-                setTried("return")
+                setTried('return')
                 returnNote.current = content
                 sender.send(commitReturn)
               }}
@@ -1007,12 +1235,19 @@ function Decision({
           <div className="flex flex-col gap-2">
             {problem}
             {/* Desktop decisions are full size: 36px, 13px text. */}
-            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-[13px]">{shownActions}</div>
-            {draft && <p className="text-xs text-muted-foreground">Your note for {first} is kept. Return with a note opens it again.</p>}
+            <div className="flex flex-wrap gap-2 *:data-[slot=button]:h-9 *:data-[slot=button]:px-3 *:data-[slot=button]:text-[13px]">
+              {shownActions}
+            </div>
+            {draft && (
+              <p className="text-xs text-muted-foreground">
+                Your note for {first} is kept. Return with a note opens it again.
+              </p>
+            )}
             {/* The key is for people with a keyboard, and only when it acts: never on a touch screen. */}
             {keyAction && (
               <p className="text-right text-xs text-muted-foreground pointer-coarse:hidden">
-                <Kbd>⌘</Kbd> <Kbd>Enter</Kbd> to {keyAction === "close" ? "close it; nothing changes" : keyAction}
+                <Kbd>⌘</Kbd> <Kbd>Enter</Kbd> to{' '}
+                {keyAction === 'close' ? 'close it; nothing changes' : keyAction}
               </p>
             )}
           </div>
@@ -1030,14 +1265,22 @@ function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUnd
     const o = state.done[r.id]?.label
     if (o) tally.set(o, (tally.get(o) ?? 0) + 1)
   }
-  const parts = [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([o, n]) => `${n} ${o.toLowerCase()}`)
+  const parts = [...tally.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([o, n]) => `${n} ${o.toLowerCase()}`)
   return (
     <div className="mx-auto flex max-w-xl flex-col items-start gap-4 px-4 py-16 sm:px-8">
       <CircleCheckIcon aria-hidden className="size-6 text-primary" />
-      <h2 id="change-heading" tabIndex={-1} className="text-xl font-semibold tracking-tight outline-none sm:text-2xl">
+      <h2
+        id="change-heading"
+        tabIndex={-1}
+        className="text-xl font-semibold tracking-tight outline-none sm:text-2xl"
+      >
         All {reviews.length} handled
       </h2>
-      <p className="text-sm text-muted-foreground">{parts.join(", ")}. Agents get what was published from the next question.</p>
+      <p className="text-sm text-muted-foreground">
+        {parts.join(', ')}. Agents get what was published from the next question.
+      </p>
       <p className="text-sm text-muted-foreground">
         Last: <span className="text-foreground">{title}</span>, {last.outcome.toLowerCase()}.
       </p>
@@ -1046,7 +1289,7 @@ function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUnd
           <Undo2Icon data-icon="inline-start" />
           Undo the last one
         </Button>
-        <Button onClick={() => navigate("/inbox")}>Back to the Inbox</Button>
+        <Button onClick={() => navigate('/inbox')}>Back to the Inbox</Button>
       </div>
     </div>
   )
@@ -1058,7 +1301,7 @@ export function ReviewPage({ id }: { id: string }) {
   const me = useMe()
   const { state, dispatch } = useStore()
   const isMobile = useIsMobile()
-  const [view, setView] = React.useState<"rich" | "source">("rich")
+  const [view, setView] = React.useState<'rich' | 'source'>('rich')
   const [queueOpen, setQueueOpen] = React.useState(false)
   const [finished, setFinished] = React.useState<Finished | null>(null)
   const [mainRef, wide] = useWide<HTMLDivElement>()
@@ -1070,7 +1313,7 @@ export function ReviewPage({ id }: { id: string }) {
       mainRef(el)
       roomyRef(el)
     },
-    [mainRef, roomyRef]
+    [mainRef, roomyRef],
   )
   const [returning, setReturningState] = React.useState(false)
   const [drafts, setDrafts] = React.useState<Record<string, JSONContent>>({})
@@ -1090,7 +1333,10 @@ export function ReviewPage({ id }: { id: string }) {
   // Returning from the phone's bar opens the note where the decision is written.
   const setReturning = (v: boolean) => {
     setReturningState(v)
-    if (v) requestAnimationFrame(() => document.getElementById("decision")?.scrollIntoView({ block: "start", behavior: "smooth" }))
+    if (v)
+      requestAnimationFrame(() =>
+        document.getElementById('decision')?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+      )
   }
   const relation = React.useState<Relation | null>(null)
   const at = reviews.findIndex((x) => x.id === id)
@@ -1101,15 +1347,15 @@ export function ReviewPage({ id }: { id: string }) {
       if (reduced || !document.startViewTransition) return open()
       document.startViewTransition(() => flushSync(open))
     },
-    [reduced]
+    [reduced],
   )
-  const leave = React.useCallback(() => navigate("/inbox", { card: id }), [id])
+  const leave = React.useCallback(() => navigate('/inbox', { card: id }), [id])
   // Opening the review is reading its new reply and any mention of you: the Inbox markers go.
   // Opening it also counts as reading it, for "Publish the ones you've read".
   React.useEffect(() => {
     commentActions.seen(`review:${id}`)
     commentActions.seenMention(`review:${id}`, me.name)
-    dispatch({ type: "opened", card: id })
+    dispatch({ type: 'opened', card: id })
   }, [id, me.name, dispatch])
 
   // The hold after a decision ends in the next suggestion, or the Inbox when nothing is left.
@@ -1124,7 +1370,7 @@ export function ReviewPage({ id }: { id: string }) {
   const focusChange = React.useCallback(() => {
     requestAnimationFrame(() => {
       if (isTyping(document.activeElement)) return
-      document.getElementById("change-heading")?.focus({ preventScroll: true })
+      document.getElementById('change-heading')?.focus({ preventScroll: true })
     })
   }, [])
   React.useEffect(() => focusChange(), [id, focusChange])
@@ -1148,7 +1394,11 @@ export function ReviewPage({ id }: { id: string }) {
   const pauseWait = () => {
     if (!hold.current.timer) return
     window.clearTimeout(hold.current.timer)
-    hold.current = { timer: 0, left: Math.max(400, hold.current.left - (Date.now() - hold.current.since)), since: 0 }
+    hold.current = {
+      timer: 0,
+      left: Math.max(400, hold.current.left - (Date.now() - hold.current.since)),
+      since: 0,
+    }
     setPaused(true)
   }
   const resumeWait = () => {
@@ -1163,13 +1413,21 @@ export function ReviewPage({ id }: { id: string }) {
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!pageKey(e)) return
-      if (finished && e.key !== "Escape" && e.key !== "?" && e.key !== "k" && (e.key.length === 1 || e.key === "ArrowDown") && e.key !== " ") return moveOn()
-      if (e.key === "Escape") return returning ? setReturningState(false) : leave()
-      if (e.key === "j" && at < reviews.length - 1) go(reviews[at + 1].id)
-      if (e.key === "k" && at > 0) go(reviews[at - 1].id)
+      if (
+        finished &&
+        e.key !== 'Escape' &&
+        e.key !== '?' &&
+        e.key !== 'k' &&
+        (e.key.length === 1 || e.key === 'ArrowDown') &&
+        e.key !== ' '
+      )
+        return moveOn()
+      if (e.key === 'Escape') return returning ? setReturningState(false) : leave()
+      if (e.key === 'j' && at < reviews.length - 1) go(reviews[at + 1].id)
+      if (e.key === 'k' && at > 0) go(reviews[at - 1].id)
     }
-    window.addEventListener("keydown", onKey)
-    return () => window.removeEventListener("keydown", onKey)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
   }, [at, go, leave, returning, finished, moveOn])
 
   if (!r) {
@@ -1181,11 +1439,12 @@ export function ReviewPage({ id }: { id: string }) {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <p className="font-medium">Nothing to review here</p>
           <p className="max-w-sm text-sm text-pretty text-muted-foreground">
-            This suggestion was probably published, returned or withdrawn, or the link is from before it was.
+            This suggestion was probably published, returned or withdrawn, or the link is from
+            before it was.
           </p>
           <div className="flex flex-wrap justify-center gap-2">
             {waiting && <Button onClick={() => go(waiting.id)}>Open the next suggestion</Button>}
-            <Button variant="outline" onClick={() => navigate("/inbox")}>
+            <Button variant="outline" onClick={() => navigate('/inbox')}>
               Back to the Inbox
             </Button>
           </div>
@@ -1196,9 +1455,11 @@ export function ReviewPage({ id }: { id: string }) {
 
   // A decision shows what it did in place for a moment, with Undo, then the next suggestion opens.
   const onDone = (f: Finished) => {
-    dispatch({ type: "complete", card: r.id, outcome: f.outcome })
+    dispatch({ type: 'complete', card: r.id, outcome: f.outcome })
     focusChange()
-    const next = reviews.find((x, i) => i > at && !state.done[x.id]) ?? reviews.find((x) => x.id !== r.id && !state.done[x.id])
+    const next =
+      reviews.find((x, i) => i > at && !state.done[x.id]) ??
+      reviews.find((x) => x.id !== r.id && !state.done[x.id])
     setFinished({ ...f, next: next?.id })
     setPaused(false)
     window.clearTimeout(hold.current.timer)
@@ -1210,7 +1471,7 @@ export function ReviewPage({ id }: { id: string }) {
     hold.current.timer = 0
     // Exactly this decision goes back: its outcome and the context items it changed, nothing else.
     if (finished) {
-      dispatch({ type: "revert", before: finished.before, cards: [r.id], facts: touchedBy(r) })
+      dispatch({ type: 'revert', before: finished.before, cards: [r.id], facts: touchedBy(r) })
       finished.alsoUndo?.()
     }
     setFinished(null)
@@ -1218,7 +1479,7 @@ export function ReviewPage({ id }: { id: string }) {
   }
   const undoLast = () => {
     if (!allDone) return
-    dispatch({ type: "revert", before: allDone.before, cards: [r.id], facts: touchedBy(r) })
+    dispatch({ type: 'revert', before: allDone.before, cards: [r.id], facts: touchedBy(r) })
     allDone.alsoUndo?.()
     setAllDone(null)
     focusChange()
@@ -1243,7 +1504,9 @@ export function ReviewPage({ id }: { id: string }) {
     onNext: moveOn,
     onHold: (held: boolean) => (held ? pauseWait() : resumeWait()),
   }
-  const queue = <Queue current={r.id} onPick={(to) => (setQueueOpen(false), setQueuePeek(false), go(to))} />
+  const queue = (
+    <Queue current={r.id} onPick={(to) => (setQueueOpen(false), setQueuePeek(false), go(to))} />
+  )
   const side = (
     <>
       <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
@@ -1254,13 +1517,16 @@ export function ReviewPage({ id }: { id: string }) {
   return (
     <RelationContext.Provider value={relation as [Relation | null, (r: Relation) => void]}>
       {/* Under a finger every control is at least 40px; the phone bar's actions are 44px. */}
-      <div key={r.id} className={cn("flex h-full min-h-0 flex-col bg-background", TOUCH)}>
+      <div key={r.id} className={cn('flex h-full min-h-0 flex-col bg-background', TOUCH)}>
         <SiteHeader
           title={
             <Breadcrumb className="min-w-0">
               <BreadcrumbList className="flex-nowrap text-sm">
                 <BreadcrumbItem className="max-sm:hidden">
-                  <BreadcrumbLink href={`#/inbox?card=${r.id}`} className="text-foreground/75 hover:text-foreground">
+                  <BreadcrumbLink
+                    href={`#/inbox?card=${r.id}`}
+                    className="text-foreground/75 hover:text-foreground"
+                  >
                     Inbox
                   </BreadcrumbLink>
                 </BreadcrumbItem>
@@ -1271,7 +1537,9 @@ export function ReviewPage({ id }: { id: string }) {
                 <BreadcrumbSeparator className="max-sm:hidden" />
                 <BreadcrumbItem className="min-w-0">
                   <BreadcrumbPage className="flex min-w-0 items-center gap-1.5 font-medium">
-                    {r.agent && <BotIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />}
+                    {r.agent && (
+                      <BotIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                    )}
                     <span className="truncate">{r.title}</span>
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -1280,7 +1548,12 @@ export function ReviewPage({ id }: { id: string }) {
           }
         >
           {isMobile && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setQueueOpen(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setQueueOpen(true)}
+            >
               <ListIcon data-icon="inline-start" />
               Queue
             </Button>
@@ -1292,7 +1565,13 @@ export function ReviewPage({ id }: { id: string }) {
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button variant="ghost" size="icon-sm" aria-label="Keyboard shortcuts" className="pointer-coarse:hidden" onClick={() => openOverlay("shortcuts")} />
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Keyboard shortcuts"
+                    className="pointer-coarse:hidden"
+                    onClick={() => openOverlay('shortcuts')}
+                  />
                 }
               >
                 <KeyboardIcon />
@@ -1303,8 +1582,8 @@ export function ReviewPage({ id }: { id: string }) {
             </Tooltip>
             <span className="max-sm:hidden">
               <ViewToggle
-                pressed={view === "source"}
-                onPressedChange={(p) => setView(p ? "source" : "rich")}
+                pressed={view === 'source'}
+                onPressedChange={(p) => setView(p ? 'source' : 'rich')}
                 icon={<CodeXmlIcon />}
                 text="Source"
                 on="View source"
@@ -1315,7 +1594,15 @@ export function ReviewPage({ id }: { id: string }) {
               <>
                 <Tooltip>
                   <TooltipTrigger
-                    render={<Button variant="ghost" size="icon-sm" aria-label="Previous suggestion" disabled={at === 0} onClick={() => go(reviews[at - 1].id)} />}
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Previous suggestion"
+                        disabled={at === 0}
+                        onClick={() => go(reviews[at - 1].id)}
+                      />
+                    }
                   >
                     <ChevronUpIcon />
                   </TooltipTrigger>
@@ -1326,7 +1613,13 @@ export function ReviewPage({ id }: { id: string }) {
                 <Tooltip>
                   <TooltipTrigger
                     render={
-                      <Button variant="ghost" size="icon-sm" aria-label="Next suggestion" disabled={at === reviews.length - 1} onClick={() => go(reviews[at + 1].id)} />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Next suggestion"
+                        disabled={at === reviews.length - 1}
+                        onClick={() => go(reviews[at + 1].id)}
+                      />
                     }
                   >
                     <ChevronDownIcon />
@@ -1374,7 +1667,11 @@ export function ReviewPage({ id }: { id: string }) {
                     subject={`review:${r.id}`}
                     me={me.name}
                     owners={domains.sales.owners}
-                    note={r.agent ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(" ")[0]} answers here; agents never read or write comments.` : undefined}
+                    note={
+                      r.agent
+                        ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`
+                        : undefined
+                    }
                     className="border-t pt-6"
                   />
                 </div>
@@ -1384,24 +1681,44 @@ export function ReviewPage({ id }: { id: string }) {
           </main>
           {/* Beside the change when there is room, under it when there isn't: once, never twice. */}
           {wide && !allDone && (
-            <ResizableAside side="right" storageKey="review-side" defaultWidth={340} min={300} max={480} label="Try it and decide" className="border-l">
+            <ResizableAside
+              side="right"
+              storageKey="review-side"
+              defaultWidth={340}
+              min={300}
+              max={480}
+              label="Try it and decide"
+              className="border-l"
+            >
               {/* The shared panel: Try it scrolls in the body; the decision stays in reach as the footer. */}
-              <Panel title="Try it and decide" footer={<Decision key={`d-${r.id}`} {...decision} />}>
+              <Panel
+                title="Try it and decide"
+                footer={<Decision key={`d-${r.id}`} {...decision} />}
+              >
                 <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
               </Panel>
             </ResizableAside>
           )}
         </div>
         {/* On a phone the decision stays in reach: a bar along the bottom edge. */}
-        {isMobile && !allDone && <Decision key={`bar-${r.id}`} {...decision} variant="bar" onStep={(d) => go(reviews[at + d].id)} />}
+        {isMobile && !allDone && (
+          <Decision
+            key={`bar-${r.id}`}
+            {...decision}
+            variant="bar"
+            onStep={(d) => go(reviews[at + d].id)}
+          />
+        )}
         {/* Which suggestion is open, said once for a screen reader after J, K or a decision. */}
         <p role="status" aria-live="polite" className="sr-only">
-          {allDone ? `All ${reviews.length} handled.` : `Suggestion ${at + 1} of ${reviews.length}: ${r.title}`}
+          {allDone
+            ? `All ${reviews.length} handled.`
+            : `Suggestion ${at + 1} of ${reviews.length}: ${r.title}`}
         </p>
         <Sheet open={queueOpen} onOpenChange={setQueueOpen}>
           <SheetContent side="left" className="w-[min(20rem,85vw)] gap-0 bg-background p-0">
             <SheetHeader className="border-b">
-              <SheetTitle>Waiting for {me.name.split(" ")[0]}</SheetTitle>
+              <SheetTitle>Waiting for {me.name.split(' ')[0]}</SheetTitle>
             </SheetHeader>
             {queue}
           </SheetContent>

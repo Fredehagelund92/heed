@@ -1,27 +1,29 @@
-import { domainIds, domains, facts, people, type DomainId, type Person } from "@/data/world"
-import { changed, describe, syncOwnership } from "@/lib/domains"
+import { domainIds, domains, facts, people, type DomainId, type Person } from '@/data/world'
+import { changed, describe, syncOwnership } from '@/lib/domains'
 
 // The people in the workspace, as Settings > People and a domain page change them. Two roles only,
 // as v1 has them: an admin or a member. Ownership is per domain and lives on the domain, so a person
 // added as an owner on either page shows in both, and in every list, mention and comment.
 
-export const emailOf = (p: Person) => p.email ?? `${p.name.toLowerCase().replace(/[^a-z]+/g, ".")}@larchwood.example`
+export const emailOf = (p: Person) =>
+  p.email ?? `${p.name.toLowerCase().replace(/[^a-z]+/g, '.')}@larchwood.example`
 
 const seen: Record<string, string> = {
-  "Jon Abara": "Today",
-  "Tomas Eriksen": "Today",
-  "Ines Duarte": "Yesterday",
-  "Ravi Kapoor": "2 days ago",
-  "Maria Lindqvist": "Yesterday",
-  "Sofia Brandt": "Today",
-  "Noor Haddad": "3 days ago",
-  "Alex Moreau": "Last week",
-  "Priya Nair": "Yesterday",
-  "Lars Dahl": "2 weeks ago",
-  "Kofi Mensah": "Today",
-  "Ella Voss": "Last month",
+  'Jon Abara': 'Today',
+  'Tomas Eriksen': 'Today',
+  'Ines Duarte': 'Yesterday',
+  'Ravi Kapoor': '2 days ago',
+  'Maria Lindqvist': 'Yesterday',
+  'Sofia Brandt': 'Today',
+  'Noor Haddad': '3 days ago',
+  'Alex Moreau': 'Last week',
+  'Priya Nair': 'Yesterday',
+  'Lars Dahl': '2 weeks ago',
+  'Kofi Mensah': 'Today',
+  'Ella Voss': 'Last month',
 }
-export const lastActiveOf = (p: Person) => (p.invited ? "Not yet" : (p.lastActive ?? seen[p.name] ?? "A while ago"))
+export const lastActiveOf = (p: Person) =>
+  p.invited ? 'Not yet' : (p.lastActive ?? seen[p.name] ?? 'A while ago')
 
 /** A few quiet lines on what they did lately: the context they checked. */
 export function activityOf(name: string) {
@@ -32,16 +34,17 @@ export function activityOf(name: string) {
 }
 
 /** The domains only this person owns: they must hand those over before they can leave. */
-export const soleOwnerOf = (name: string) => domainIds.filter((d) => domains[d].owners.length === 1 && domains[d].owners[0] === name)
+export const soleOwnerOf = (name: string) =>
+  domainIds.filter((d) => domains[d].owners.length === 1 && domains[d].owners[0] === name)
 
 /** Make someone an owner of a domain, or not. A domain always keeps one owner. */
-export function setOwner(name: string, d: DomainId, own: boolean): "ok" | "last" {
+export function setOwner(name: string, d: DomainId, own: boolean): 'ok' | 'last' {
   const owners = domains[d].owners
-  if (!own && owners.length === 1 && owners[0] === name) return "last"
+  if (!own && owners.length === 1 && owners[0] === name) return 'last'
   domains[d].owners = own ? [...new Set([...owners, name])] : owners.filter((o) => o !== name)
   syncOwnership()
   changed()
-  return "ok"
+  return 'ok'
 }
 
 export function setAdmin(name: string, admin: boolean) {
@@ -56,7 +59,7 @@ export function setAdmin(name: string, admin: boolean) {
 export function invite(emails: string[], admin: boolean, owns: DomainId[]) {
   for (const email of emails) {
     if (people.some((p) => emailOf(p) === email)) continue
-    people.push({ name: email, email, role: "Invited", owns: [], admin, invited: true })
+    people.push({ name: email, email, role: 'Invited', owns: [], admin, invited: true })
     for (const d of owns) domains[d].owners = [...domains[d].owners, email]
   }
   syncOwnership()
@@ -64,7 +67,7 @@ export function invite(emails: string[], admin: boolean, owns: DomainId[]) {
 }
 
 /** Take back an invite, or remove someone; only when they own no domain alone. */
-export function removePerson(name: string): "ok" | DomainId[] {
+export function removePerson(name: string): 'ok' | DomainId[] {
   const alone = soleOwnerOf(name)
   if (alone.length) return alone
   for (const d of domainIds) domains[d].owners = domains[d].owners.filter((o) => o !== name)
@@ -72,7 +75,7 @@ export function removePerson(name: string): "ok" | DomainId[] {
   if (i >= 0) people.splice(i, 1)
   syncOwnership()
   changed()
-  return "ok"
+  return 'ok'
 }
 
 /** Undo a removal (from the toast): put them back as they were. */

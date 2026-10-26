@@ -1,6 +1,6 @@
-import * as React from "react"
-import { cn } from "cn"
-import { clamp, readWidth, saveWidth } from "@/lib/pane-width"
+import * as React from 'react'
+import { cn } from 'cn'
+import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
 
 /**
  * A side pane whose edge can be dragged to resize it, between a minimum and a maximum, with its
@@ -27,7 +27,7 @@ export function ResizableAside({
   className,
   children,
 }: {
-  side: "left" | "right"
+  side: 'left' | 'right'
   storageKey: string
   defaultWidth: number
   min: number
@@ -40,10 +40,12 @@ export function ResizableAside({
   className?: string
   children: React.ReactNode
 }) {
-  const [width, setWidth] = React.useState(() => clamp(readWidth(storageKey, defaultWidth), min, max))
+  const [width, setWidth] = React.useState(() =>
+    clamp(readWidth(storageKey, defaultWidth), min, max),
+  )
   const [drag, setDrag] = React.useState<number | null>(null)
   const start = React.useRef({ x: 0, width, moved: false, active: false })
-  const sign = side === "left" ? 1 : -1
+  const sign = side === 'left' ? 1 : -1
   const collapsible = !!onCollapsedChange
   // Past this the pane folds when let go, rather than snapping back to its minimum.
   const foldAt = min / 2
@@ -57,7 +59,8 @@ export function ResizableAside({
   }
 
   const raw = (e: React.PointerEvent) => start.current.width + sign * (e.clientX - start.current.x)
-  const shown = drag !== null ? clamp(drag, collapsible ? closed : min, max) : collapsed ? closed : width
+  const shown =
+    drag !== null ? clamp(drag, collapsible ? closed : min, max) : collapsed ? closed : width
 
   return (
     <aside
@@ -65,16 +68,16 @@ export function ResizableAside({
       data-collapsed={folded || undefined}
       style={{ width: shown }}
       className={cn(
-        "relative shrink-0 transition-[width] duration-(--dur-3) ease-out",
-        drag !== null && "transition-none",
-        className
+        'relative shrink-0 transition-[width] duration-(--dur-3) ease-out',
+        drag !== null && 'transition-none',
+        className,
       )}
     >
       <div
         className={cn(
-          "flex h-full overflow-hidden transition-opacity duration-(--dur-3) ease-out",
-          side === "left" ? "justify-end" : "justify-start",
-          folded && rail && "opacity-0"
+          'flex h-full overflow-hidden transition-opacity duration-(--dur-3) ease-out',
+          side === 'left' ? 'justify-end' : 'justify-start',
+          folded && rail && 'opacity-0',
         )}
         inert={folded}
       >
@@ -85,9 +88,9 @@ export function ResizableAside({
       {rail && (
         <div
           className={cn(
-            "absolute inset-y-0 transition-opacity duration-(--dur-3) ease-out",
-            side === "left" ? "left-0" : "right-0",
-            !folded && "pointer-events-none opacity-0"
+            'absolute inset-y-0 transition-opacity duration-(--dur-3) ease-out',
+            side === 'left' ? 'left-0' : 'right-0',
+            !folded && 'pointer-events-none opacity-0',
           )}
           style={{ width: railWidth }}
           inert={!folded}
@@ -103,16 +106,21 @@ export function ResizableAside({
         aria-valuemax={max}
         aria-valuenow={Math.round(shown)}
         tabIndex={0}
-        title={collapsible ? `Drag to resize, click to ${collapsed ? "show" : "hide"}` : undefined}
+        title={collapsible ? `Drag to resize, click to ${collapsed ? 'show' : 'hide'}` : undefined}
         data-dragging={drag !== null || undefined}
         className={cn(
-          "group/handle absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none outline-none",
-          side === "left" ? "-right-1" : "-left-1"
+          'group/handle absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none outline-none',
+          side === 'left' ? '-right-1' : '-left-1',
         )}
         onPointerDown={(e) => {
           e.preventDefault()
           e.currentTarget.setPointerCapture(e.pointerId)
-          start.current = { x: e.clientX, width: collapsed ? closed : width, moved: false, active: true }
+          start.current = {
+            x: e.clientX,
+            width: collapsed ? closed : width,
+            moved: false,
+            active: true,
+          }
           setDrag(start.current.width)
         }}
         onPointerMove={(e) => {
@@ -142,10 +150,10 @@ export function ResizableAside({
         }}
         onDoubleClick={() => !collapsible && commit(defaultWidth)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && collapsible) onCollapsedChange(!collapsed)
+          if (e.key === 'Enter' && collapsible) onCollapsedChange(!collapsed)
           if (collapsed) return
-          if (e.key === "ArrowLeft") commit(width - sign * 16)
-          if (e.key === "ArrowRight") commit(width + sign * 16)
+          if (e.key === 'ArrowLeft') commit(width - sign * 16)
+          if (e.key === 'ArrowRight') commit(width + sign * 16)
         }}
       >
         <span

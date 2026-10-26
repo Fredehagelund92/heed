@@ -1,22 +1,40 @@
-import type { ReactNode } from "react"
-import { diffWords } from "diff"
-import { BotIcon, CircleAlertIcon, CircleCheckIcon, CircleDashedIcon, CircleDotDashedIcon, ClockIcon, ContrastIcon, TriangleAlertIcon } from "lucide-react"
-import { cn } from "cn"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { AnswerState } from "@/data/ask"
-import { ANSWER_LINES } from "@/lib/help-content"
-import { domains, type DomainId, type Status } from "@/data/world"
+import type { ReactNode } from 'react'
+import { diffWords } from 'diff'
+import {
+  BotIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  CircleDashedIcon,
+  CircleDotDashedIcon,
+  ClockIcon,
+  ContrastIcon,
+  TriangleAlertIcon,
+} from 'lucide-react'
+import { cn } from 'cn'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { AnswerState } from '@/data/ask'
+import { ANSWER_LINES } from '@/lib/help-content'
+import { domains, type DomainId, type Status } from '@/data/world'
 
 /* ---------- people ---------- */
 
 // Soft tint, dark initials, picked from the name so one person keeps one colour everywhere.
 // Each pair is 6.4:1 or better, and stays the same in dark mode.
 const PASTELS: [string, string][] = [
-  ["#ffd9c7", "#7a2e10"], ["#d4ecff", "#174a7a"], ["#dff3d0", "#2d5a14"], ["#f7d6ef", "#7a1f63"],
-  ["#fff0bf", "#6a4a00"], ["#d9dcff", "#2e3591"], ["#cdf1ea", "#0f5a4e"], ["#ffd6dc", "#8a1f33"],
-  ["#e9dcff", "#56309a"], ["#e2ecd4", "#3c5520"], ["#ffe2cc", "#80400e"], ["#d6e9f5", "#1d4d6b"],
+  ['#ffd9c7', '#7a2e10'],
+  ['#d4ecff', '#174a7a'],
+  ['#dff3d0', '#2d5a14'],
+  ['#f7d6ef', '#7a1f63'],
+  ['#fff0bf', '#6a4a00'],
+  ['#d9dcff', '#2e3591'],
+  ['#cdf1ea', '#0f5a4e'],
+  ['#ffd6dc', '#8a1f33'],
+  ['#e9dcff', '#56309a'],
+  ['#e2ecd4', '#3c5520'],
+  ['#ffe2cc', '#80400e'],
+  ['#d6e9f5', '#1d4d6b'],
 ]
 
 function hash(s: string) {
@@ -27,19 +45,42 @@ function hash(s: string) {
 
 const initials = (name: string) =>
   name
-    .split(" ")
+    .split(' ')
     .map((p) => p[0])
-    .join("")
+    .join('')
     .slice(0, 2)
     .toUpperCase()
 
 /** A person: 32 in chat, 28 in lists. */
-export function PersonAvatar({ name, size = 28, className }: { name: string; size?: 16 | 20 | 28 | 32; className?: string }) {
+export function PersonAvatar({
+  name,
+  size = 28,
+  className,
+}: {
+  name: string
+  size?: 16 | 20 | 28 | 32
+  className?: string
+}) {
   const [tint, ink] = PASTELS[hash(name) % PASTELS.length]
   return (
-    <Avatar className={cn(size === 16 ? "size-4" : size === 20 ? "size-5" : size === 28 ? "size-7" : "size-8", className)} title={name}>
+    <Avatar
+      className={cn(
+        size === 16 ? 'size-4' : size === 20 ? 'size-5' : size === 28 ? 'size-7' : 'size-8',
+        className,
+      )}
+      title={name}
+    >
       <AvatarFallback
-        className={cn("font-semibold", size === 16 ? "text-[7px]" : size === 20 ? "text-[9px]" : size === 28 ? "text-[11px]" : "text-xs")}
+        className={cn(
+          'font-semibold',
+          size === 16
+            ? 'text-[7px]'
+            : size === 20
+              ? 'text-[9px]'
+              : size === 28
+                ? 'text-[11px]'
+                : 'text-xs',
+        )}
         style={{ background: tint, color: ink }}
       >
         {initials(name)}
@@ -51,7 +92,7 @@ export function PersonAvatar({ name, size = 28, className }: { name: string; siz
 /** An agent that sent something with a person's OK. */
 export function AgentAvatar({ size = 28 }: { size?: 28 | 32 }) {
   return (
-    <Avatar className={size === 28 ? "size-7" : "size-8"}>
+    <Avatar className={size === 28 ? 'size-7' : 'size-8'}>
       <AvatarFallback className="bg-muted text-foreground">
         <BotIcon className="size-4" aria-hidden />
       </AvatarFallback>
@@ -65,10 +106,9 @@ export function DomainBadge({ id }: { id: DomainId }) {
   return <Badge variant="outline">{domains[id].name}</Badge>
 }
 
-
 export function StatusBadge({ status }: { status: Status }) {
-  if (status === "Live") return <Badge variant="outline">Live</Badge>
-  if (status === "Needs checking")
+  if (status === 'Live') return <Badge variant="outline">Live</Badge>
+  if (status === 'Needs checking')
     return (
       <Badge variant="secondary">
         <ClockIcon data-icon="inline-start" aria-hidden />
@@ -118,9 +158,15 @@ export function StateLine({
   tip?: boolean
 }) {
   const line = ANSWER_LINES.find((l) => l.state === state)!
-  const Icon = draft && state === "grounded" ? CircleDotDashedIcon : stateIcon[state]
+  const Icon = draft && state === 'grounded' ? CircleDotDashedIcon : stateIcon[state]
   const chip = (
-    <span className={cn("flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold", draft ? "border border-dashed border-input" : stateTone[state], className)}>
+    <span
+      className={cn(
+        'flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm font-semibold',
+        draft ? 'border border-dashed border-input' : stateTone[state],
+        className,
+      )}
+    >
       <Icon className="size-4 shrink-0" aria-hidden />
       <span>{children ?? line.label}</span>
     </span>
@@ -136,7 +182,7 @@ export function StateLine({
     ) : (
       chip
     )
-  if (!sentence || draft || state === "grounded") return shown
+  if (!sentence || draft || state === 'grounded') return shown
   return (
     <span className="flex flex-col gap-1">
       {shown}
@@ -150,12 +196,13 @@ export function StateLine({
  * quiet tint per state, the words in the text colour so they keep 4.5:1 in both themes.
  */
 const stateTone: Record<AnswerState, string> = {
-  grounded: "bg-primary/8 [&>svg]:text-primary",
-  partial: "bg-muted [&>svg]:text-muted-foreground",
-  missing: "border border-dashed border-input [&>svg]:text-muted-foreground",
-  conflict: "bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--warn)_45%,transparent)] ring-inset [&>svg]:text-[var(--warn)]",
-  stale: "bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] [&>svg]:text-[var(--warn)]",
-  failed: "bg-destructive/10 [&>svg]:text-destructive",
+  grounded: 'bg-primary/8 [&>svg]:text-primary',
+  partial: 'bg-muted [&>svg]:text-muted-foreground',
+  missing: 'border border-dashed border-input [&>svg]:text-muted-foreground',
+  conflict:
+    'bg-[color-mix(in_oklab,var(--warn)_14%,transparent)] ring-1 ring-[color-mix(in_oklab,var(--warn)_45%,transparent)] ring-inset [&>svg]:text-[var(--warn)]',
+  stale: 'bg-[color-mix(in_oklab,var(--warn)_8%,transparent)] [&>svg]:text-[var(--warn)]',
+  failed: 'bg-destructive/10 [&>svg]:text-destructive',
 }
 
 /* ---------- review ---------- */
@@ -166,23 +213,37 @@ export function WordDiff({ before, after }: { before: string; after: string }) {
     <p className="text-sm leading-relaxed">
       {diffWords(before, after).map((p, i) =>
         p.added ? (
-          <ins key={i} className="rounded-sm bg-green-100 px-0.5 text-green-900 underline decoration-green-700/50 dark:bg-green-950 dark:text-green-100">
+          <ins
+            key={i}
+            className="rounded-sm bg-green-100 px-0.5 text-green-900 underline decoration-green-700/50 dark:bg-green-950 dark:text-green-100"
+          >
             {p.value}
           </ins>
         ) : p.removed ? (
-          <del key={i} className="rounded-sm bg-red-100 px-0.5 text-red-900 dark:bg-red-950 dark:text-red-100">
+          <del
+            key={i}
+            className="rounded-sm bg-red-100 px-0.5 text-red-900 dark:bg-red-950 dark:text-red-100"
+          >
             {p.value}
           </del>
         ) : (
           <span key={i}>{p.value}</span>
-        )
+        ),
       )}
     </p>
   )
 }
 
 /** One field of a suggestion: unchanged fields stay quiet, changed ones show the words that moved. */
-export function FieldDiff({ label, before, after }: { label: string; before: string; after: string }) {
+export function FieldDiff({
+  label,
+  before,
+  after,
+}: {
+  label: string
+  before: string
+  after: string
+}) {
   const changed = before !== after
   return (
     <div className="grid gap-1.5 border-t py-3 first:border-t-0 first:pt-0 @lg:grid-cols-[10rem_minmax(0,1fr)] @lg:gap-4">
@@ -193,7 +254,11 @@ export function FieldDiff({ label, before, after }: { label: string; before: str
       {changed && before ? (
         <WordDiff before={before} after={after} />
       ) : (
-        <p className={cn("text-sm leading-relaxed break-words", !changed && "text-muted-foreground")}>{after}</p>
+        <p
+          className={cn('text-sm leading-relaxed break-words', !changed && 'text-muted-foreground')}
+        >
+          {after}
+        </p>
       )}
     </div>
   )

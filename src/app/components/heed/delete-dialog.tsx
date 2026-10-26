@@ -1,9 +1,17 @@
-import * as React from "react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import { count, needsTyping, skippedLine, type Skip } from "@/lib/bulk"
+import * as React from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { count, needsTyping, skippedLine, type Skip } from '@/lib/bulk'
 
 // The one confirmation before something is deleted for good: from a list's bar, the Delete key on a
 // selection, or an item's own menu. It names what goes (titles and a count), says what that means,
@@ -39,13 +47,23 @@ export function DeleteDialog(props: Props) {
   )
 }
 
-function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], archive, onDelete, cancel }: Props & { cancel: React.RefObject<HTMLButtonElement | null> }) {
-  const [typed, setTyped] = React.useState("")
+function Body({
+  onOpenChange,
+  noun,
+  titles,
+  consequence,
+  also,
+  skipped = [],
+  archive,
+  onDelete,
+  cancel,
+}: Props & { cancel: React.RefObject<HTMLButtonElement | null> }) {
+  const [typed, setTyped] = React.useState('')
   const n = titles.length
   const typing = needsTyping(n)
   const ready = !typing || typed.trim() === String(n)
   const onlyPublished = n === 0 && !!archive?.count
-  const others = skipped.filter((s) => s.why !== "published")
+  const others = skipped.filter((s) => s.why !== 'published')
 
   if (onlyPublished)
     return (
@@ -53,7 +71,8 @@ function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], arc
         <DialogHeader>
           <DialogTitle>Published items are archived, not deleted</DialogTitle>
           <DialogDescription>
-            Archiving keeps their history, and agents stop getting them from the next question. You can undo it, or publish them again later.
+            Archiving keeps their history, and agents stop getting them from the next question. You
+            can undo it, or publish them again later.
           </DialogDescription>
         </DialogHeader>
         {others.length > 0 && <SkippedList skipped={others} />}
@@ -65,7 +84,7 @@ function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], arc
               archive!.onArchive()
             }}
           >
-            Archive {count(archive!.count, "item")}
+            Archive {count(archive!.count, 'item')}
           </Button>
         </DialogFooter>
       </>
@@ -95,7 +114,8 @@ function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], arc
       {also && <p className="text-sm text-muted-foreground">{also}</p>}
       {archive && archive.count > 0 && (
         <p className="text-sm text-muted-foreground">
-          {count(archive.count, "published item")} {archive.count === 1 ? "stays" : "stay"}: published items are archived, not deleted.{" "}
+          {count(archive.count, 'published item')} {archive.count === 1 ? 'stays' : 'stay'}:
+          published items are archived, not deleted.{' '}
           <button
             type="button"
             className="font-medium text-foreground underline underline-offset-4"
@@ -104,7 +124,7 @@ function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], arc
               archive.onArchive()
             }}
           >
-            Archive {archive.count === 1 ? "it" : "them"} instead
+            Archive {archive.count === 1 ? 'it' : 'them'} instead
           </button>
         </p>
       )}
@@ -112,7 +132,13 @@ function Body({ onOpenChange, noun, titles, consequence, also, skipped = [], arc
       {typing && (
         <Field>
           <FieldLabel htmlFor="delete-count">Type {n} to delete them</FieldLabel>
-          <Input id="delete-count" inputMode="numeric" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+          <Input
+            id="delete-count"
+            inputMode="numeric"
+            autoComplete="off"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+          />
         </Field>
       )}
       <DialogFooter>
