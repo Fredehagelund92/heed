@@ -1,4 +1,3 @@
-import * as React from 'react'
 import {
   HIDE_UNDER,
   monthName,
@@ -6,11 +5,13 @@ import {
   STATE_WORDS,
   type Shown,
   type Topic,
-} from '@/data/observability'
-import { domains, type DomainId } from '@/data/world'
+} from '@/model/observability'
+import type { DomainId } from '@/model/items'
+import type { Domains } from '@/model/people'
 
 // Questions' filters and saved views. A view belongs to the workspace, as LangSmith's do: saved
-// once, everyone with access sees it as a tab. Five come with it; more are saved from the filters.
+// once, everyone with access sees it as a tab. Five come with it; more are saved from the filters
+// and kept by the workspace (src/app/api).
 
 export type Gap = 'draft' | 'suggestion' | 'none'
 export type Filters = {
@@ -37,31 +38,6 @@ export const BUILT_IN: (SavedView & { has: (t: Topic) => boolean })[] = [
   { id: 'reported', name: 'Reported', filters: {}, has: (t) => !!t.reported },
 ]
 
-let custom: SavedView[] = []
-const listeners = new Set<() => void>()
-
-export function useSavedViews() {
-  return React.useSyncExternalStore(
-    (l) => {
-      listeners.add(l)
-      return () => listeners.delete(l)
-    },
-    () => custom,
-  )
-}
-
-export function saveView(name: string, filters: Filters, by: string) {
-  const id = `v-${custom.length + 1}`
-  custom = [...custom, { id, name, filters, by, custom: true }]
-  listeners.forEach((l) => l())
-  return id
-}
-
-export function removeView(id: string) {
-  custom = custom.filter((v) => v.id !== id)
-  listeners.forEach((l) => l())
-}
-
 /** A topic's gap, as the Gap status filter reads it. */
 export const gapOf = (t: Topic): Gap | undefined =>
   t.gap?.label === 'Draft ready'
@@ -87,11 +63,11 @@ export function passes(t: Topic & { counts: Record<Shown, number> }, f: Filters)
 }
 
 /** The filters read back as a sentence, the way Context and Definitions say theirs. */
-export function sentence(f: Filters) {
+export function sentence(f: Filters, domains: Domains) {
   return [
     f.answer?.length &&
       `Answer is ${f.answer.length > 1 ? 'any of ' : ''}${f.answer.map((s) => STATE_WORDS[s]).join(', ')}`,
-    f.domain && `Domain is ${domains[f.domain].name}`,
+    f.domain && `Domain is ${domains[f.domain]?.name}`,
     f.agent && `Agent is ${f.agent}`,
     f.gap?.length &&
       `In the Inbox is ${f.gap.length > 1 ? 'any of ' : ''}${f.gap.map((g) => GAP_WORDS[g]).join(', ')}`,

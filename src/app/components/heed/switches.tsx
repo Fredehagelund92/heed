@@ -68,7 +68,7 @@ function useArrows<T extends string>(values: T[], value: T, onChange: (v: T) => 
           : 0
     if (!step) return
     e.preventDefault()
-    const next = values[(values.indexOf(value) + step + values.length) % values.length]
+    const next = values[(values.indexOf(value) + step + values.length) % values.length]!
     const group = e.currentTarget
     onChange(next)
     requestAnimationFrame(() => group.querySelector<HTMLElement>(`[data-value="${next}"]`)?.focus())
@@ -196,7 +196,7 @@ export function ChoiceGroup<T extends string>({
 }) {
   const onKeyDown = useArrows(
     options.map((o) => o.value),
-    value ?? options[0].value,
+    value ?? options[0]!.value,
     onChange,
   )
   return (

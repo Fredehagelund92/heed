@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useDomains, usePeople } from '@/lib/workspace'
 import { CircleSlashIcon, FolderIcon, GlobeIcon, UserRoundIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
@@ -6,7 +7,6 @@ import { TypeGlyph } from '@/components/heed/definition'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { domains, person, type DomainId } from '@/data/world'
 import { chipTone, domainHue } from '@/lib/tones'
 import { openDock } from '@/lib/dock'
 import {
@@ -68,7 +68,7 @@ const chip =
 function mentionTone(kind: string, key: string) {
   if (kind === 'metric' || kind === 'dimension' || kind === 'term' || kind === 'market')
     return chipTone(kind)
-  if (kind === 'domain') return chipTone('domain', domainHue[key as DomainId])
+  if (kind === 'domain') return chipTone('domain', domainHue[key])
   return chipTone('neutral')
 }
 
@@ -79,6 +79,8 @@ const Label = ({ children }: { children: React.ReactNode }) => (
 
 /** A domain's or a person's quick view: a small card. */
 function CardChip({ target, children }: { target: Mentionable; children: React.ReactElement }) {
+  const domains = useDomains()
+  const people = usePeople()
   const { kind, key } = parseMentionId(target.id)
   return (
     <Popover>
@@ -94,11 +96,11 @@ function CardChip({ target, children }: { target: Mentionable; children: React.R
           <>
             <p className="flex items-center gap-1.5 font-medium">
               <FolderIcon className="size-3.5 text-muted-foreground" aria-hidden />
-              {domains[key as DomainId].name}
+              {domains[key]?.name}
             </p>
-            <p className="text-muted-foreground">{domains[key as DomainId].covers}</p>
+            <p className="text-muted-foreground">{domains[key]?.covers}</p>
             <p className="text-xs text-muted-foreground">
-              Owned by {domains[key as DomainId].owners.join(' and ')}
+              Owned by {domains[key]?.owners.join(' and ')}
             </p>
           </>
         ) : (
@@ -106,7 +108,9 @@ function CardChip({ target, children }: { target: Mentionable; children: React.R
             <PersonAvatar name={key} size={32} />
             <div className="min-w-0">
               <p className="truncate font-medium">{key}</p>
-              <p className="truncate text-xs text-muted-foreground">{person(key).role}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {people.find((p) => p.name === key)?.role}
+              </p>
             </div>
           </div>
         )}

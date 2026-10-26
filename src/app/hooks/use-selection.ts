@@ -166,7 +166,7 @@ export function useSelection(
         (r) => r === target || r.contains(target) || r.closest('tr, li')?.contains(target),
       )
       if (at < 0) return
-      const from = stops[at].dataset.rowOpen!
+      const from = stops[at]!.dataset.rowOpen!
       if (e.shiftKey && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
         e.preventDefault()
         const next = stops[at + (e.key === 'ArrowDown' ? 1 : -1)]

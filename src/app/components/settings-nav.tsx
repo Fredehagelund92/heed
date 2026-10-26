@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/sidebar'
 import { useConnected } from '@/lib/integrations'
 import { BACK_TO_APP } from '@/lib/brand'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 
 // Inside Settings the app sidebar gives way to the settings navigation, as Linear's does: a way
 // back to Heed on top, then five sections in three groups. No tabs anywhere in Settings.

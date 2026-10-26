@@ -1,4 +1,10 @@
 import * as React from 'react'
+import { useDomains } from '@/lib/workspace'
+import { useQuery } from '@tanstack/react-query'
+import { observabilityPageQuery } from '@/api/queries'
+import { useObservability } from '@/lib/obs'
+import type { Observability } from '@/model/observability'
+import type { Domains } from '@/model/people'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -30,27 +36,18 @@ import { DomainDot } from '@/components/heed/tag-chip'
 import { BarRows, Legend, StackedBars } from '@/components/obs/charts'
 import { Kpi, ObsControls } from '@/components/obs/controls'
 import {
-  agentsOf,
-  barsOf,
-  couldNotRead,
   dateLabel,
   GROUPINGS,
   groupCount,
   HIDE_UNDER,
   monthsLabel,
-  notFoundGroups,
-  numbersOf,
-  publishesIn,
-  rollUp,
   shownCount,
-  topicTitle,
-  topicsOf,
   total,
   visibleTotal,
   type Grouping,
   type TopicRow,
   type View,
-} from '@/data/observability'
+} from '@/model/observability'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,8 +57,8 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { savedCounts, useSavedQuestions } from '@/data/saved-questions'
-import { domains } from '@/data/world'
+import { savedCounts } from '@/model/saved-questions'
+import { useSavedQuestions } from '@/api/queries'
 import { open } from '@/lib/events'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { href, setQuery, useRoute } from '@/lib/router'
@@ -84,10 +81,12 @@ const questionsHref = (v: View, extra: Record<string, string | undefined> = {}) 
   })
 
 export function OverviewPage() {
+  const load = useQuery(observabilityPageQuery('overview'))
   const view = useObsView()
   return (
     <ObsPage section="overview">
       <Loadable
+        query={load}
         what="the counts"
         skeleton={<ObsSkeleton section="overview" kpis={4} body="overview" />}
       >
@@ -110,9 +109,10 @@ function Head({
   view: ReturnType<typeof useObsView>
   children?: React.ReactNode
 }) {
+  const domains = useDomains()
   const domainLine =
     view.owned && view.domain
-      ? `What agents asked about ${domains[view.domain].name} ${view.label}, and what they got.`
+      ? `What agents asked about ${domains[view.domain]?.name} ${view.label}, and what they got.`
       : OBS_PURPOSE.overview
   // On a narrow page the filters take a row of their own under the title.
   return (
@@ -130,17 +130,19 @@ function Head({
 }
 
 function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
-  const n = numbersOf(view)
-  const bars = barsOf(view)
+  const domains = useDomains()
+  const obs = useObservability()
+  const n = obs.numbersOf(view)
+  const bars = obs.barsOf(view)
   const saved = savedCounts(useSavedQuestions(), view.domain)
-  const topics = topicsOf(view)
+  const topics = obs.topicsOf(view)
   // Top topics grouped as Questions groups them: metric and market by default, the month kept inside.
   const { query } = useRoute()
   const grouping: Grouping =
     query.get('group') === 'none' ? 'none' : query.get('group') === 'domain' ? 'domain' : 'metric'
-  const top = topRows(topics, grouping)
-  const unread = couldNotRead(view)
-  const pubs = publishesIn(view)
+  const top = topRows(obs, domains, topics, grouping)
+  const unread = obs.couldNotRead(view)
+  const pubs = obs.publishesIn(view)
   const marks = pubs
     .map((p) => ({
       index: bars.findIndex((b, i) => (b.at ?? 0) <= p.at && (bars[i + 1]?.at ?? Infinity) > p.at),
@@ -148,7 +150,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
     }))
     .filter((m) => m.index >= 0)
   // Found nothing five or more times in 7 days, whatever the range, counted across a month edge.
-  const nothing = notFoundGroups(view)
+  const nothing = obs.notFoundGroups(view)
   const before = view.range === 7 ? 'the 7 days before' : `the ${view.range} days before`
   return (
     <Frame>
@@ -291,27 +293,27 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                   </span>
                   <span className="min-w-0 flex-1">
                     <a
-                      href={questionsHref(view, { dock: `topic.${t.rows[0].id}` })}
+                      href={questionsHref(view, { dock: `topic.${t.rows[0]!.id}` })}
                       className="block truncate text-sm font-medium underline-offset-4 hover:underline"
                     >
                       {t.name}
                     </a>
                     <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                       {t.domain && <DomainDot id={t.domain} />}
-                      {t.domain ? domains[t.domain].name : 'No domain'} - asked {groupCount(t)}{' '}
+                      {t.domain ? domains[t.domain]?.name : 'No domain'} - asked {groupCount(t)}{' '}
                       times, not found {shownCount(t.counts.missing)}
                       {t.months.length > 1
                         ? `, across ${monthsLabel(t.months)}, counted together`
                         : ''}
                     </span>
                   </span>
-                  {t.rows[0].gap && (
+                  {t.rows[0]!.gap && (
                     <a
-                      href={t.rows[0].gap.href}
+                      href={t.rows[0]!.gap.href}
                       className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'shrink-0')}
                     >
                       <ArrowUpRightIcon data-icon="inline-start" />
-                      {t.rows[0].gap.label}
+                      {t.rows[0]!.gap.label}
                     </a>
                   )}
                 </li>
@@ -346,7 +348,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
               ))}
               {!pubs.length && (
                 <li className="px-4 py-4 text-sm text-muted-foreground md:px-5">
-                  Nothing was published{view.domain ? ` in ${domains[view.domain].name}` : ''}{' '}
+                  Nothing was published{view.domain ? ` in ${domains[view.domain]?.name}` : ''}{' '}
                   {view.label}.
                 </li>
               )}
@@ -359,7 +361,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                   <BarRows
                     quiet
                     caption="Questions by kind of agent"
-                    rows={agentsOf(view).map((a) => ({
+                    rows={obs.agentsOf(view).map((a) => ({
                       key: a.name,
                       name: a.name,
                       label: a.name,
@@ -385,6 +387,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
 
 /** Nothing connected: dashes, a ghost chart, and the three steps to the first question. */
 function NothingConnected() {
+  const obs = useObservability()
   const view = useObsView()
   const steps = [
     { done: true, title: 'Write what the business is about' },
@@ -418,7 +421,7 @@ function NothingConnected() {
       <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-6-5)">
         <div aria-hidden className="px-4 py-6 opacity-50 md:px-5">
           <StackedBars
-            bars={barsOf({ range: 7 }).map((b) => ({
+            bars={obs.barsOf({ range: 7 }).map((b) => ({
               ...b,
               counts: { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
             }))}
@@ -513,10 +516,10 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
 }
 
 /** Top topics in a grouping: each exact scope with its month, metric and market (months joined), or a domain. */
-function topRows(topics: TopicRow[], grouping: Grouping) {
+function topRows(obs: Observability, domains: Domains, topics: TopicRow[], grouping: Grouping) {
   if (grouping === 'none')
-    return topics.map((t) => ({ ...rollUp([t])[0], name: topicTitle(t), id: t.id }))
-  const groups = rollUp(topics).map((g) => ({ ...g, id: g.rows[0].id }))
+    return topics.map((t) => ({ ...obs.rollUp([t])[0]!, name: obs.topicTitle(t), id: t.id }))
+  const groups = obs.rollUp(topics).map((g) => ({ ...g, id: g.rows[0]!.id }))
   if (grouping === 'metric') return groups
   const by = new Map<string, typeof groups>()
   for (const g of groups) by.set(g.domain ?? '', [...(by.get(g.domain ?? '') ?? []), g])
@@ -541,7 +544,7 @@ function topRows(topics: TopicRow[], grouping: Grouping) {
       return {
         ...gs[0],
         key: d || 'none',
-        name: d ? domains[d as keyof typeof domains].name : 'No domain',
+        name: d ? (domains[d]?.name ?? 'No domain') : 'No domain',
         rows,
         counts,
         total: sum,

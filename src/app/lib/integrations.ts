@@ -1,29 +1,16 @@
-import * as React from 'react'
-import type { ConnectorId } from '@/data/integrations'
+import { useSettings, useWrite } from '@/api/queries'
+import type { ConnectorId } from '@/model/integrations'
 
-// Which tools are connected, kept in memory until the page reloads: Cube, Google Drive and the
-// warehouse in the demo world; Markdown in Git once someone goes through the connect flow.
+// Which tools are connected: Cube, Google Drive and the warehouse in the demo world; Markdown in Git
+// once someone goes through the connect flow.
 
-let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
-const listeners = new Set<() => void>()
+export const useConnected = (): ConnectorId[] => useSettings().connected
 
-export function useConnected() {
-  return React.useSyncExternalStore(
-    (l) => {
-      listeners.add(l)
-      return () => listeners.delete(l)
-    },
-    () => connected,
-  )
-}
-
-export function connect(id: ConnectorId) {
-  if (connected.includes(id)) return
-  connected = [...connected, id]
-  listeners.forEach((l) => l())
-}
-
-export function disconnect(id: ConnectorId) {
-  connected = connected.filter((c) => c !== id)
-  listeners.forEach((l) => l())
+export function useConnectActions() {
+  const write = useWrite()
+  return {
+    /** `setup`: connected from the setup checklist, whose last step it is. */
+    connect: (id: ConnectorId, setup?: boolean) => write('connectIntegration', { id, setup }),
+    disconnect: (id: ConnectorId) => write('disconnectIntegration', { id }),
+  }
 }

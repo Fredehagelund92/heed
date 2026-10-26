@@ -3,7 +3,7 @@ import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import type { SuggestionProps } from '@tiptap/suggestion'
 import { MentionChip, MentionIcon } from '@/components/heed/mention-chip'
 import { SuggestList, type SuggestHandle } from '@/components/heed/suggest-list'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 import {
   rememberMention,
   searchMentions,

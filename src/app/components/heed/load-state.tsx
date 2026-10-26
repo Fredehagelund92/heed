@@ -4,9 +4,8 @@ import { CloudAlertIcon, RefreshCwIcon, WifiOffIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { setQuery } from '@/lib/router'
-import { ArrivedAfterWait, useDelayedBusy, useFirstLoad } from '@/lib/loading'
-import { useOnline, useScenario } from '@/lib/scenario'
+import { ArrivedAfterWait, useDelayedBusy } from '@/lib/loading'
+import { useOnline } from '@/lib/send'
 
 // Loading, a failed load and being offline, said calmly in the page's own shape: skeleton rows
 // where the rows go, a sheet where the document goes, and one line with Retry when a load fails.
@@ -197,11 +196,30 @@ export function LoadError({
   )
 }
 
+/** What Loadable needs of a read: TanStack Query's own states. */
+export type LoadState = {
+  isPending: boolean
+  isError: boolean
+  isFetching: boolean
+  refetch: () => unknown
+}
+
+/** One state for several reads of one region: it waits for all, and fails when one does. */
+export function allLoaded(...reads: LoadState[]): LoadState {
+  return {
+    isPending: reads.some((r) => r.isPending && !r.isError),
+    isError: reads.some((r) => r.isError),
+    isFetching: reads.some((r) => r.isFetching),
+    refetch: () => reads.filter((r) => r.isError).forEach((r) => r.refetch()),
+  }
+}
+
 /**
- * Shows its content, or the loading or failed state. A load that ends within 150ms shows nothing
- * in between; a longer one shows the page-shaped skeleton for at least 300ms, and the content then
- * fades in through a <ViewTransition>. `quiet` is a second region of the same load (a side panel):
- * it shows its own skeleton, and leaves the failure to the main region.
+ * Shows its content, or the loading or failed state of `query`, the read it shows. A load that ends
+ * within 150ms shows nothing in between; a longer one shows the page-shaped skeleton for at least
+ * 300ms, and the content then fades in through a <ViewTransition>. A failed load says so with Retry,
+ * which reads again. `quiet` is a second region of the same load (a side panel): it shows its own
+ * skeleton, and leaves the failure to the main region.
  */
 export function Loadable({
   what,
@@ -209,19 +227,18 @@ export function Loadable({
   children,
   errorClassName,
   quiet,
+  query,
 }: {
   what: string
   skeleton: React.ReactNode
   children: React.ReactNode
   errorClassName?: string
   quiet?: boolean
+  query: LoadState
 }) {
-  const scenario = useScenario()
-  const waiting = useFirstLoad(what)
-  const [retrying, setRetrying] = React.useState(false)
-  const timer = React.useRef(0)
-  React.useEffect(() => () => window.clearTimeout(timer.current), [])
-  const busy = retrying || scenario === 'loading' || waiting
+  const failed = query.isError && !query.isFetching
+  // Pending is the first load; a failed one read again is a retry.
+  const busy = (query.isPending && !query.isError) || (query.isError && query.isFetching)
   const shown = useDelayedBusy(busy)
   // Whether the person saw the skeleton: what arrives after it may grow in, once.
   const [waited, setWaited] = React.useState(false)
@@ -234,19 +251,9 @@ export function Loadable({
     )
   // Under 150ms: nothing yet, so a fast load never flashes a skeleton.
   if (busy) return <div role="status" aria-busy="true" aria-label="Loading" className="min-h-24" />
-  if (scenario === 'failed')
+  if (failed)
     return quiet ? null : (
-      <LoadError
-        what={what}
-        className={errorClassName}
-        onRetry={() => {
-          setRetrying(true)
-          timer.current = window.setTimeout(() => {
-            setRetrying(false)
-            setQuery({ state: undefined })
-          }, 700)
-        }}
-      />
+      <LoadError what={what} className={errorClassName} onRetry={() => void query.refetch()} />
     )
   return (
     <ViewTransition key="content" enter="vt-arrive">

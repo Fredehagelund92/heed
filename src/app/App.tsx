@@ -1,6 +1,9 @@
 import * as React from 'react'
 import { Outlet } from '@tanstack/react-router'
-import { commentActions } from '@/lib/comments'
+import { QueryClientProvider, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { mockControls } from '@/api'
+import { createQueryClient } from '@/api/query-client'
+import { isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
 import { ConnectAgentDialog } from '@/components/connect-agent'
@@ -22,14 +25,11 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { open } from '@/lib/events'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, useInAppLinks, useRoute } from '@/lib/router'
-import { useStore } from '@/lib/store'
-import { StoreProvider } from '@/lib/store-provider'
 import { ThemeProvider } from '@/lib/theme'
 import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
 import { SignInPage } from '@/pages/signin'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useDomains } from '@/lib/domains'
 
 /**
  * A lazy page's fallback, in the page's own shape: nothing for 150ms, so a chunk already fetched never
@@ -156,14 +156,12 @@ function DockContent() {
 
 /** The app inside its shell: the sidebar, the page and the dock. Signed out, the sign-in page. */
 export function AppShell() {
-  const { state } = useStore()
-  if (!state.user) return <SignInPage />
+  const { user } = useSession()
+  if (!user) return <SignInPage />
   return <Shell />
 }
 
 function Shell() {
-  // A renamed domain or a new owner shows everywhere at once.
-  useDomains()
   const dock = useDock()
   const isMobile = useIsMobile()
   const { parts } = useRoute()
@@ -267,21 +265,35 @@ function Shell() {
   )
 }
 
+/**
+ * The mock binding plays the review flags in the address (?demo=, ?state=, ?slow=1 and the rest):
+ * every move tells it where the app is. A flag that sets a fault starts the page's own load again;
+ * one that changes the demo's world refreshes everything. The http binding has no flags.
+ */
+function ScenarioSync() {
+  const { path, query } = useRoute()
+  const queryClient = useQueryClient()
+  const search = query.toString()
+  React.useLayoutEffect(() => {
+    if (!mockControls) return
+    const changed = mockControls.setAddress({
+      path,
+      query: Object.fromEntries(new URLSearchParams(search)),
+    })
+    if (changed.fault) void queryClient.resetQueries({ predicate: (q) => isPageQuery(q.queryKey) })
+    if (changed.data) void queryClient.invalidateQueries()
+  }, [path, search, queryClient])
+  return null
+}
+
 function Gate() {
-  const { state, dispatch } = useStore()
+  const { user } = useSession()
   const route = useRoute()
-  const demo = route.query.get('demo')
   useInAppLinks()
   React.useEffect(() => {
-    if (demo === 'setup' || demo === 'done' || demo === 'week' || demo === 'last')
-      dispatch({ type: 'demo', mode: demo })
-    if ((demo === 'done' || demo === 'week') && state.user)
-      commentActions.scenario(demo, state.user)
-  }, [demo, dispatch, state.user])
-  React.useEffect(() => {
     // The documentation is a public site: it needs nobody signed in.
-    if (!state.user && route.parts[0] !== 'signin' && route.parts[0] !== 'docs') navigate('/signin')
-  }, [state.user, route.parts])
+    if (!user && route.parts[0] !== 'signin' && route.parts[0] !== 'docs') navigate('/signin')
+  }, [user, route.parts])
   // ?open=palette, connect, shortcuts or report opens that overlay, so every state has a link.
   const overlay = route.query.get('open')
   React.useEffect(() => {
@@ -298,6 +310,22 @@ function Gate() {
 }
 
 /**
+ * The shared reads every screen uses (the session, the workspace, the library), loaded once before
+ * anything is drawn, so a screen reads them from the cache and never waits. Signed out, only the
+ * session: the sign-in page and the documentation need nothing else.
+ */
+function Loaded({ children }: { children: React.ReactNode }) {
+  const session = useQuery(sessionQuery())
+  const signedIn = !!session.data?.user
+  const rest = useQueries({
+    queries: sharedQueries().map((q) => ({ ...q, enabled: signedIn })),
+  })
+  if (!session.data) return null
+  if (signedIn && rest.some((q) => q.data === undefined)) return null
+  return children
+}
+
+/**
  * Toasts never cover a primary action: clear of the Ask box wherever Ask is open, above the
  * 48px action bars at the foot of panes, and in the review at the bottom right above the decision
  * panel, so it covers neither the change nor its buttons; on a phone above the decision bar.
@@ -307,7 +335,7 @@ function AppToaster() {
   const ask = parts[0] === 'ask' || /^(ask|try)/.test(query.get('dock') ?? '')
   const review = parts[0] === 'inbox' && parts[2] === 'review'
   // A list's selection bar sits in a band at its foot: a toast about what the bar did sits above it and its line.
-  const list = ['context', 'definitions', 'inbox'].includes(parts[0]) && !parts[1]
+  const list = ['context', 'definitions', 'inbox'].includes(parts[0] ?? '') && !parts[1]
   return (
     <Toaster
       position="bottom-right"
@@ -319,19 +347,35 @@ function AppToaster() {
   )
 }
 
+const queryClient = createQueryClient({
+  // A session that ended: everything cached was the person's, and the sign-in page comes next.
+  onSignedOut: () => void queryClient.invalidateQueries({ queryKey: sessionQuery().queryKey }),
+})
+
 export default function App() {
   return (
-    <ThemeProvider>
-      <StoreProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
         <TooltipProvider>
-          <Gate />
-          <CommandPalette />
-          <ConnectAgentDialog />
-          <ShortcutsDialog />
-          <ReportDialog />
+          <ScenarioSync />
+          <Loaded>
+            <Gate />
+            <SignedIn>
+              <CommandPalette />
+              <ConnectAgentDialog />
+              <ShortcutsDialog />
+              <ReportDialog />
+            </SignedIn>
+          </Loaded>
           <AppToaster />
         </TooltipProvider>
-      </StoreProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
+}
+
+/** What only someone signed in sees: the overlays over the app. */
+function SignedIn({ children }: { children: React.ReactNode }) {
+  const { user } = useSession()
+  return user ? children : null
 }

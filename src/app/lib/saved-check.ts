@@ -1,13 +1,6 @@
-import { cards } from '@/data/inbox'
-import type { Review } from '@/data/review'
-import {
-  removeSavedQuestion,
-  saveQuestion,
-  savedQuestions,
-  setSavedResult,
-  type SavedQuestion,
-  type SavedResult,
-} from '@/data/saved-questions'
+import type { InboxCard } from '@/model/inbox'
+import type { Review } from '@/model/review'
+import type { SavedQuestion, SavedResult } from '@/model/saved-questions'
 
 // The check, against a draft: before Publish, the review shows what the saved questions that answer
 // from this item would get with it. Shown only, never stored. It never stops Publish: it says it,
@@ -27,11 +20,15 @@ export type DraftResult = {
 export type DraftCheck = { results: DraftResult[]; same: number; changed: number; look: number }
 
 /** The item a review lands on or takes away, as its Inbox card names it. */
-export const itemOfReview = (r: Review) =>
+export const itemOfReview = (r: Review, cards: Pick<InboxCard, 'id' | 'factId'>[]) =>
   r.retire?.factId ?? cards.find((c) => c.id === r.id)?.factId
 
-export function checkDraft(r: Review, all: SavedQuestion[] = savedQuestions()): DraftCheck | null {
-  const item = itemOfReview(r)
+/** What the saved questions that answer from `item` (the review's, itemOfReview) would get with it. */
+export function checkDraft(
+  r: Review,
+  all: SavedQuestion[],
+  item: string | undefined,
+): DraftCheck | null {
   if (!item) return null
   const qs = all.filter((q) => q.factId === item)
   if (!qs.length) return null
@@ -85,47 +82,6 @@ export function draftLine(c: DraftCheck) {
 /* ---------- a gap's draft: also save its question ---------- */
 
 const alsoSave = new Map<string, boolean>()
-/** On by default: a gap's question is worth keeping once it is answered. */
+/** On by default: a gap's question is worth keeping once it is answered. Publish sends the choice. */
 export const savesQuestion = (id: string) => alsoSave.get(id) ?? true
 export const setSavesQuestion = (id: string, on: boolean) => alsoSave.set(id, on)
-
-/**
- * After a publish: store what the draft showed, and save a gap's question if asked. Gives back what
- * takes it all back, for Undo.
- */
-export function afterPublish(
-  r: Review,
-  me: string,
-  itemId: string | undefined,
-  domain: SavedQuestion['domain'],
-): (() => void) | undefined {
-  const undo: (() => void)[] = []
-  const check = checkDraft(r)
-  for (const x of check?.results ?? []) {
-    if (x.result === 'same') continue
-    const was = { result: x.q.result, why: x.q.why, when: x.q.when, diff: x.q.diff }
-    setSavedResult(
-      x.q.id,
-      x.result === 'changed'
-        ? {
-            result: 'same',
-            why: 'This publish is its new saved answer.',
-            when: 'Just now',
-            diff: undefined,
-          }
-        : { result: 'look', why: x.why, when: 'Just now', diff: { saved: x.before, now: x.now } },
-    )
-    undo.push(() => setSavedResult(x.q.id, was))
-  }
-  if (r.drafted && savesQuestion(r.id) && itemId) {
-    const id = saveQuestion({
-      question: `What happened to ${r.drafted.scope}?`,
-      domain,
-      savedBy: me,
-      expect: 'Checked, from the item this draft became.',
-      factId: itemId,
-    })
-    undo.push(() => removeSavedQuestion(id))
-  }
-  return undo.length ? () => undo.forEach((u) => u()) : undefined
-}

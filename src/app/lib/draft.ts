@@ -1,5 +1,5 @@
 import * as React from 'react'
-import type { Fact } from '@/data/world'
+import type { Fact } from '@/model/items'
 
 // The context item being written in the editor, so Try it in the dock can ask against it.
 

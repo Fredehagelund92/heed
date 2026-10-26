@@ -1,16 +1,9 @@
 import * as React from 'react'
-import {
-  domainIds,
-  domains,
-  markets,
-  people,
-  servedToAgents,
-  type Fact,
-  type Kind,
-} from '@/data/world'
+import { useVocabulary, useWorkspace } from '@/api/queries'
+import { servedToAgents, type Fact, type Kind } from '@/model/items'
+import type { Domain, Person } from '@/model/people'
 import { useDefinitions, type Definition } from '@/lib/definitions'
-import { useFacts } from '@/lib/store'
-import { useDomains } from '@/lib/domains'
+import { useFacts } from '@/lib/workspace'
 import { storageKey } from '@/lib/brand'
 
 // What an '@' can point at, kept free of the editor so lists, pages and the Inbox can read
@@ -66,16 +59,23 @@ export function parseMentionId(id: string): { kind: MentionKind; key: string } {
 
 /* ---------- what there is to mention ---------- */
 
-// `version` is the domains' edit count: a new one means names or texts changed.
-function build(facts: Fact[], definitions: Definition[], version = 0): Mentionable[] {
-  void version
+type World = {
+  facts: Fact[]
+  definitions: Definition[]
+  domains: Domain[]
+  people: Person[]
+  markets: string[]
+}
+
+function build({ facts, definitions, domains: list, people, markets }: World): Mentionable[] {
+  const domains = Object.fromEntries(list.map((d) => [d.id, d]))
   return [
     // A domain's row says what it covers, in its owners' words.
-    ...domainIds.map((d) => ({
-      id: mentionId('domain', d),
+    ...list.map((d) => ({
+      id: mentionId('domain', d.id),
       kind: 'domain' as const,
-      label: domains[d].name,
-      hint: domains[d].covers || 'Domain',
+      label: d.name,
+      hint: d.covers || 'Domain',
     })),
     ...definitions.map((d) => ({
       id: mentionId(d.type, d.name),
@@ -84,7 +84,7 @@ function build(facts: Fact[], definitions: Definition[], version = 0): Mentionab
       hint: d.sameAs
         ? `Another name for ${d.sameAs}`
         : d.domain
-          ? domains[d.domain].name
+          ? domains[d.domain]?.name
           : undefined,
       synonym: !!d.sameAs,
     })),
@@ -92,7 +92,7 @@ function build(facts: Fact[], definitions: Definition[], version = 0): Mentionab
       id: mentionId('context', f.id),
       kind: 'context' as const,
       label: f.title,
-      hint: domains[f.domain].name,
+      hint: domains[f.domain]?.name,
       contextKind: f.kind,
     })),
     ...markets.map((m) => ({
@@ -116,11 +116,11 @@ function build(facts: Fact[], definitions: Definition[], version = 0): Mentionab
 export function useMentionables(): Mentionable[] {
   const facts = useFacts()
   const definitions = useDefinitions()
-  // A renamed or new domain changes what can be mentioned.
-  const domainsVersion = useDomains()
+  const { domains, people } = useWorkspace()
+  const { markets } = useVocabulary()
   return React.useMemo(
-    () => build(facts, definitions, domainsVersion),
-    [facts, definitions, domainsVersion],
+    () => build({ facts, definitions, domains, people, markets }),
+    [facts, definitions, domains, people, markets],
   )
 }
 
@@ -204,7 +204,7 @@ export function searchMentions(
       .sort((a, b) => score(a) - score(b) || a.label.localeCompare(b.label)),
   }))
     .filter((g) => g.items.length)
-    .sort((a, b) => score(a.items[0]) - score(b.items[0]))
+    .sort((a, b) => score(a.items[0]!) - score(b.items[0]!))
 }
 
 /* ---------- mentions in stored text ---------- */
@@ -225,7 +225,7 @@ export function mentionParts(md: string): (string | MentionRef)[] {
   let at = 0
   for (const m of md.matchAll(TOKEN)) {
     if (m.index > at) out.push(md.slice(at, m.index))
-    out.push(attrs(m[1]))
+    out.push(attrs(m[1]!))
     at = m.index + m[0].length
   }
   if (at < md.length) out.push(md.slice(at))

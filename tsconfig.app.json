@@ -3,14 +3,12 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
-    // The mockup's pages index their fixtures directly; the check comes back on when the pages read
-    // the typed API instead (the golden plan's P3).
-    "noUncheckedIndexedAccess": false,
     "types": ["vite/client", "vitest/globals"],
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.app.tsbuildinfo",
     "paths": {
       "@/*": ["./src/app/*"],
-      "@domain/*": ["./src/domain/*"]
+      "@domain/*": ["./src/domain/*"],
+      "@contract/*": ["./src/contract/*"]
     }
   },
   "include": ["src/app", "tests/app"],

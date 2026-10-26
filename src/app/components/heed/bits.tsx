@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { useDomains } from '@/lib/workspace'
 import { diffWords } from 'diff'
 import {
   BotIcon,
@@ -14,9 +15,9 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { AnswerState } from '@/data/ask'
+import type { AnswerState } from '@/model/ask'
 import { ANSWER_LINES } from '@/lib/help-content'
-import { domains, type DomainId, type Status } from '@/data/world'
+import type { DomainId, Status } from '@/model/items'
 
 /* ---------- people ---------- */
 
@@ -61,7 +62,7 @@ export function PersonAvatar({
   size?: 16 | 20 | 28 | 32
   className?: string
 }) {
-  const [tint, ink] = PASTELS[hash(name) % PASTELS.length]
+  const [tint, ink] = PASTELS[hash(name) % PASTELS.length]!
   return (
     <Avatar
       className={cn(
@@ -103,7 +104,8 @@ export function AgentAvatar({ size = 28 }: { size?: 28 | 32 }) {
 /* ---------- context items ---------- */
 
 export function DomainBadge({ id }: { id: DomainId }) {
-  return <Badge variant="outline">{domains[id].name}</Badge>
+  const domains = useDomains()
+  return <Badge variant="outline">{domains[id]?.name}</Badge>
 }
 
 export function StatusBadge({ status }: { status: Status }) {

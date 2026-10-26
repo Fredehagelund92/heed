@@ -6,10 +6,20 @@ import {
   MessageSquareWarningIcon,
   ScanSearchIcon,
 } from '@/components/icons'
-import { RANGES, type ObsState, type Range, type View } from '@/data/observability'
-import type { DomainId } from '@/data/world'
+import * as React from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { replayQuery, useObservabilityData } from '@/api/queries'
+import {
+  observability,
+  RANGES,
+  type Observability,
+  type ObsState,
+  type Range,
+  type View,
+} from '@/model/observability'
+import type { DomainId } from '@/model/items'
 import { useRoute } from '@/lib/router'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 
 // Observability's map: six pages in three small groups, who sees them, and what each is for.
 
@@ -70,13 +80,13 @@ export function useObsView(): ObsView {
   const { query } = useRoute()
   const me = useMe()
   const range = (Number(query.get('range')) as Range) || 7
-  const owned = me.admin ? null : (me.owns.filter((d) => d !== 'sandbox') as DomainId[])
-  const asked = query.get('domain') as DomainId | null
+  const owned = me.admin ? null : me.owns.filter((d) => d !== 'sandbox')
+  const asked = query.get('domain')
   // An owner always sees one of their own domains.
   const domain = owned ? (asked && owned.includes(asked) ? asked : owned[0]) : (asked ?? undefined)
   const agent = me.admin ? (query.get('agent') ?? undefined) : undefined
-  const s = query.get('state')
-  const state: ObsState = s === 'empty' || s === 'quiet' || s === 'busy' ? s : 'normal'
+  // The review flag (?state=empty, quiet or busy) is the mock's: its data says which it is.
+  const state: ObsState = useObservabilityData().state
   const label = range === 7 ? 'this week' : `the last ${range} days`
   return {
     range: RANGES.includes(range) ? range : 7,
@@ -87,4 +97,14 @@ export function useObsView(): ObsView {
     owned,
     label,
   }
+}
+
+/** A topic run again (`now`, or before the last publish); undefined until it has run. */
+export const useReplay = (topic: string, when: 'now' | 'before') =>
+  useQuery(replayQuery(topic, when)).data ?? undefined
+
+/** Observability's counts over its data as it stands (the shared read), for any view. */
+export function useObservability(): Observability {
+  const data = useObservabilityData()
+  return React.useMemo(() => observability(data), [data])
 }

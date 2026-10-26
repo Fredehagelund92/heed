@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useObservability, useReplay } from '@/lib/obs'
 import {
   ArrowUpRightIcon,
   CircleCheckIcon,
@@ -21,20 +22,10 @@ import { ReadingCard } from '@/components/heed/reading'
 import { DockStepper } from '@/components/heed/list'
 import { BarRows } from '@/components/obs/charts'
 import { SaveQuestion } from '@/components/obs/save-question'
-import {
-  AGENTS,
-  TOPICS,
-  shownCount,
-  topicCounts,
-  topicName,
-  total,
-  type Shown,
-  monthName,
-  topicTitle,
-} from '@/data/observability'
+import { shownCount, total, type Shown, type Topic, monthName } from '@/model/observability'
 import { openDock } from '@/lib/dock'
 import { useObsView } from '@/lib/obs'
-import { afterAnswer, BEFORE, changedSteps, replay, type ReplayStep, type When } from '@/lib/replay'
+import { afterAnswer, type ReplayStep, type When } from '@/model/replay'
 import { href, setQuery, useRoute } from '@/lib/router'
 
 // The answer panel, opened from a topic: what an agent gets for it now, a replay of the steps an
@@ -56,10 +47,13 @@ type Tab = 'overview' | 'steps' | 'warnings'
 const strip = (text: string) => text.replace(/\s*\[\d+\]/g, '')
 
 export function AnswerPanel({ id }: { id: string }) {
-  const t = TOPICS.find((x) => x.id === id)
+  const obs = useObservability()
+  const t = obs.data.topics.find((x) => x.id === id)
   const view = useObsView()
   const { query } = useRoute()
-  if (!t)
+  const now = useReplay(id, 'now')
+  if (t && !now) return null
+  if (!t || !now)
     return (
       <DockFrame title="Answer">
         <DockMissing>
@@ -73,13 +67,12 @@ export function AnswerPanel({ id }: { id: string }) {
       : 'overview'
   ) as Tab
   const when: When = query.get('when') === 'before' ? 'before' : 'now'
-  const counts = topicCounts(t, view)
+  const counts = obs.topicCounts(t, view)
   const asked = total(counts)
-  const now = replay(t, 'now')
   const warnings = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
     (s) => counts[s] > 0,
   )
-  const question = `What should I know about ${topicName(t)} in ${monthName(t.month)}?`
+  const question = `What should I know about ${obs.topicName(t)} in ${monthName(t.month)}?`
   const write =
     t.gap?.label === 'Draft ready'
       ? t.gap.href
@@ -114,7 +107,7 @@ export function AnswerPanel({ id }: { id: string }) {
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold">Answer</span> - as agents get it now
         </p>
-        <h2 className="mt-1 text-xl font-semibold tracking-tight">{topicTitle(t)}</h2>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">{obs.topicTitle(t)}</h2>
       </div>
       {/* The replay reads what agents get, as Ask does; a topic opened before shows at once. */}
       <ReadingCard
@@ -181,10 +174,12 @@ export function AnswerPanel({ id }: { id: string }) {
   )
 }
 
-function OverviewTab({ t, asked }: { t: (typeof TOPICS)[number]; asked: number }) {
-  const now = replay(t, 'now')
-  const before = replay(t, 'before')
+function OverviewTab({ t, asked }: { t: Topic; asked: number }) {
+  const obs = useObservability()
+  const now = useReplay(t.id, 'now')
+  const before = useReplay(t.id, 'before')
   const [compare, setCompare] = React.useState(false)
+  if (!now || !before) return null
   const same = strip(now.answer.text) === strip(before.answer.text)
   const share = (n: number) => Math.round((n / 142) * asked)
   return (
@@ -210,7 +205,7 @@ function OverviewTab({ t, asked }: { t: (typeof TOPICS)[number]; asked: number }
           ) : (
             <div className="mt-2 grid gap-px overflow-hidden rounded-md border bg-border text-sm @md:grid-cols-2">
               <div className="bg-background px-3 py-2.5">
-                <p className="text-xs font-semibold text-muted-foreground">{BEFORE.label}</p>
+                <p className="text-xs font-semibold text-muted-foreground">{before.before.label}</p>
                 <p className="mt-1">{strip(before.answer.text)}</p>
               </div>
               <div className="bg-background px-3 py-2.5">
@@ -225,7 +220,7 @@ function OverviewTab({ t, asked }: { t: (typeof TOPICS)[number]; asked: number }
         <BarRows
           quiet
           caption="Asked by, by kind of agent"
-          rows={AGENTS.slice(0, 3).map((a) => {
+          rows={obs.data.agents.slice(0, 3).map((a) => {
             const n = Math.max(1, share(a.week))
             return { key: a.name, name: a.name, label: a.name, value: n, display: shownCount(n) }
           })}
@@ -235,9 +230,10 @@ function OverviewTab({ t, asked }: { t: (typeof TOPICS)[number]; asked: number }
   )
 }
 
-function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
-  const run = replay(t, when)
-  const changed = changedSteps(t)
+function StepsTab({ t, when }: { t: Topic; when: When }) {
+  const run = useReplay(t.id, when)
+  if (!run) return null
+  const changed = run.changed
   const steps: ReplayStep[] = [
     ...run.steps,
     { key: 'after', title: 'After the answer', text: afterAnswer(t) },
@@ -259,7 +255,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
           {(
             [
               ['now', 'Now'],
-              ['before', BEFORE.label],
+              ['before', run.before.label],
             ] as [When, string][]
           ).map(([k, label]) => (
             <button
@@ -286,7 +282,7 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
       <ol className="relative flex flex-col">
         {steps.map((s, i) => {
           const Icon = STEP_ICON[s.key]
-          const from = starts[i]
+          const from = starts[i]!
           const isChanged = when === 'before' && changed.includes(s.key)
           return (
             <li key={s.key} className="relative flex gap-3 pb-4 last:pb-0">
@@ -370,13 +366,14 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
   )
 }
 
-function WarningsTab({ t, counts }: { t: (typeof TOPICS)[number]; counts: Record<Shown, number> }) {
+function WarningsTab({ t, counts }: { t: Topic; counts: Record<Shown, number> }) {
+  const obs = useObservability()
   const kinds = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
     (s) => counts[s] > 0,
   )
   const why: Record<Shown, string> = {
     missing: 'Agents asked and nothing applies.',
-    partial: `Agents asked without dates, so ${topicName(t)} was read at today.`,
+    partial: `Agents asked without dates, so ${obs.topicName(t)} was read at today.`,
     conflict: 'Two items that apply say different things. Both are given until an owner chooses.',
     stale: 'An item it answers from has a check date that passed.',
     grounded: '',

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { facts, factById } from '@/data/world'
-import { allDefinitions } from '@/lib/definitions'
+import { facts, factById } from '@/api/mock/data/world'
+import { definitionSeed } from '@/api/mock/definitions'
+import { createWorkspace } from '@/api/mock/workspace'
 import { follow, linksOf } from '@/lib/links'
 
 // get_related: links both ways and the owners' relations, one step, a retired target shown and
 // never followed, a definition from another domain marked, and the switch turns it all off.
 
-const w = { facts, definitions: allDefinitions() }
+const w = { facts, definitions: definitionSeed, domains: createWorkspace().domainMap() }
 
 describe('links', () => {
   it("lists an item's links both ways, in a fixed order", () => {

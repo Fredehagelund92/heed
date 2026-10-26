@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { useDomains, useDomainList } from '@/lib/workspace'
+import { useObservability } from '@/lib/obs'
 import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
@@ -12,11 +14,8 @@ import {
   HIDE_UNDER,
   monthName,
   monthsLabel,
-  rollUp,
   shownCount,
-  sparkOf,
   statusOf,
-  topicTitle,
   total,
   visibleTotal,
   type Grouping,
@@ -25,8 +24,8 @@ import {
   type View,
   sortGroups,
   type Sort,
-} from '@/data/observability'
-import { domainIds, domains, type DomainId } from '@/data/world'
+} from '@/model/observability'
+import type { DomainId } from '@/model/items'
 import { openDock } from '@/lib/dock'
 
 // The topics as rows, in one of three groupings. A topic is an exact scope (domain, metric, market
@@ -56,12 +55,15 @@ export function TopicTable({
   onKeyDown?: React.KeyboardEventHandler
   empty?: React.ReactNode
 }) {
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
+  const obs = useObservability()
   const [open, setOpen] = React.useState<string[]>([])
   const [folded, setFolded] = React.useState<string[]>([])
   const toggle = (list: string[], k: string) =>
     list.includes(k) ? list.filter((x) => x !== k) : [...list, k]
   const groups = sortGroups(
-    grouping === 'none' ? rows.map((r) => rollUp([r])[0]) : rollUp(rows),
+    grouping === 'none' ? rows.map((r) => obs.rollUp([r])[0]!) : obs.rollUp(rows),
     sort,
   )
   // Domain only: a section per domain, with the topics that have none last.
@@ -75,12 +77,13 @@ export function TopicTable({
   const row = (g: TopicGroup) => {
     const many = grouping !== 'none' && g.rows.length > 1
     const isOpen = open.includes(g.key)
-    const first = g.rows[0]
+    // A group has its rows: one, or a topic's months.
+    const first = g.rows[0]!
     return (
       <React.Fragment key={g.key + (grouping === 'none' ? first.id : '')}>
         <TopicLine
           id={first.id}
-          name={grouping === 'none' ? topicTitle(first) : g.name}
+          name={grouping === 'none' ? obs.topicTitle(first) : g.name}
           months={grouping === 'none' ? undefined : g.months}
           group={g}
           view={view}
@@ -92,7 +95,7 @@ export function TopicTable({
         {many &&
           isOpen &&
           g.rows.map((r) => {
-            const one = rollUp([r])[0]
+            const one = obs.rollUp([r])[0]!
             return (
               <TopicLine
                 key={r.id}
@@ -130,7 +133,8 @@ export function TopicTable({
           </tr>
         )}
         {sections.map((s) => {
-          const label = s.domain === null ? '' : s.domain ? domains[s.domain].name : 'No domain'
+          const label =
+            s.domain === null ? '' : s.domain ? (domains[s.domain]?.name ?? s.domain) : 'No domain'
           const exact = s.groups.flatMap((g) => g.rows)
           const sum = exact.reduce((n, r) => n + total(r.counts), 0)
           const shown = exact.reduce(
@@ -193,9 +197,11 @@ function TopicLine({
   /** A month inside a grouped topic, indented under it. */
   month?: boolean
 }) {
+  const domains = useDomains()
+  const obs = useObservability()
   const n = g.visible
   const hidden = n === null && g.shown === 0
-  const st = statusOf({ ...g.rows[0], counts: g.counts })
+  const st = statusOf({ ...g.rows[0]!, counts: g.counts })
   const disagree = g.rows.reduce((k, r) => k + (r.disagree ?? 0), 0)
   const share = g.total ? Math.round((g.counts.missing / g.total) * 100) : 0
   const open = () => (expand ? expand.onToggle() : openDock('topic', id))
@@ -244,7 +250,7 @@ function TopicLine({
         {!month && <Flags g={g} disagree={disagree} />}
         <span className="flex items-center gap-1.5 text-xs text-muted-foreground @3xl/main:hidden">
           {g.domain ? <DomainDot id={g.domain} /> : null}
-          {g.domain ? domains[g.domain].name : 'No domain'}
+          {g.domain ? domains[g.domain]?.name : 'No domain'}
           {st && <span className="truncate">- {st.label}</span>}
         </span>
       </td>
@@ -252,7 +258,7 @@ function TopicLine({
         {!month && (
           <span className="flex items-center gap-1.5">
             {g.domain && <DomainDot id={g.domain} />}
-            {g.domain ? domains[g.domain].name : 'No domain'}
+            {g.domain ? domains[g.domain]?.name : 'No domain'}
           </span>
         )}
       </td>
@@ -277,7 +283,7 @@ function TopicLine({
         )}
       </td>
       <td className="hidden px-2 @4xl/main:table-cell">
-        {!hidden && g.rows.length === 1 && <Sparkline values={sparkOf(g.rows[0], view)} />}
+        {!hidden && g.rows.length === 1 && <Sparkline values={obs.sparkOf(g.rows[0]!, view)} />}
       </td>
       <td className="hidden px-2 py-2 @2xl/main:table-cell">
         {hidden ? (

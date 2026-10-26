@@ -24,8 +24,8 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { DomainBadge, FieldDiff } from '@/components/heed/bits'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/data/integrations'
-import { careLine, countWord, reviewFor } from '@/data/review'
+import { connectorById } from '@/model/integrations'
+import { careLine, countWord, type Review } from '@/model/review'
 import { QuickReview, Sender } from '@/pages/review'
 import { TOUCH } from '@/lib/touch'
 import { SiteHeader } from '@/components/site-header'
@@ -52,23 +52,28 @@ import { Kbd } from '@/components/ui/kbd'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { TextSwitch } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { readQuestion, scopeText } from '@/data/ask'
-import {
-  cards,
-  cardTypeLabel,
-  setupSteps,
-  week,
-  type CardType,
-  type InboxCard,
-  type Waiting,
-} from '@/data/inbox'
-import { domains, factById, type DomainId, type Fact } from '@/data/world'
+import { scopeText } from '@/model/ask'
+import { cardTypeLabel, type CardType, type InboxCard, type Waiting } from '@/model/inbox'
+import type { DomainId, Fact } from '@/model/items'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { openDock, useDock } from '@/lib/dock'
 import { open } from '@/lib/events'
 import { navigate, setQuery, useRoute } from '@/lib/router'
-import { useMe, useStore, type Outcome } from '@/lib/store'
-import { commentActions, useNewReply, type MentionNote } from '@/lib/comments'
+import { useQuery } from '@tanstack/react-query'
+import {
+  inboxPageQuery,
+  readQuestionQuery,
+  useInbox,
+  useReviews,
+  useSavedQuestions,
+  useSession,
+  useWorkspace,
+  useWrite,
+} from '@/api/queries'
+import { setupSteps } from '@/lib/setup'
+import { useDomains, useFacts, useMe } from '@/lib/workspace'
+import type { Outcome } from '@/model/inbox'
+import { useCommentActions, useNewReply, type MentionNote } from '@/lib/comments'
 import {
   groupOf,
   INBOX_GROUPS,
@@ -79,20 +84,17 @@ import {
   type InboxRow,
 } from '@/lib/inbox-rows'
 import { suggestionIcon } from '@/components/heed/change-icons'
-import type { Subject } from '@/data/comments'
+import type { Subject } from '@/model/comments'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { ListSkeleton, Loadable } from '@/components/heed/load-state'
 import { BulkBar, BulkButton } from '@/components/heed/bulk-bar'
-import { useOnline } from '@/lib/scenario'
+import { useOnline } from '@/lib/send'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSelection, type RowSelection } from '@/hooks/use-selection'
 import { pageKey } from '@/lib/keys'
 import { ResultIcon } from '@/components/obs/result'
-import { useSavedQuestions } from '@/data/saved-questions'
-import { useScenario } from '@/lib/scenario'
-import { sendTime, useSlowNetwork } from '@/lib/loading'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 
 // The Inbox, built like shadcn's Mail example (a list with All and Needs me and a search field, and
@@ -118,8 +120,7 @@ const typeIcon: Record<CardType, typeof FlagIcon> = {
 /* ---------- the list ---------- */
 
 /** How big a suggestion is, from its review: "2 wording, 1 link - 12 questions". */
-function evidence(id: string) {
-  const r = reviewFor(id)
+function evidence(r: Review | undefined) {
   if (!r) return ''
   const size =
     r.mode === 'new'
@@ -134,7 +135,7 @@ function evidence(id: string) {
 }
 
 /** The row's second line: who it is from and what it is worth, so the list can be read without opening. */
-function meta(row: InboxRow) {
+function meta(row: InboxRow, reviews: Review[]) {
   if (row.kind === 'mention') return `Mentioned by ${row.note.from}`
   if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
@@ -147,7 +148,8 @@ function meta(row: InboxRow) {
         ? `An agent, with ${s.from}'s OK`
         : s.from
       : ''
-  if (s || card.source) return [from, evidence(card.id)].filter(Boolean).join(' - ')
+  if (s || card.source)
+    return [from, evidence(reviews.find((r) => r.id === card.id))].filter(Boolean).join(' - ')
   if (card.gap)
     return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ', across a month edge' : ''}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
@@ -158,6 +160,7 @@ function meta(row: InboxRow) {
 /** The row's second line; a mention of you, or a reply in a suggestion's comments, takes its place, quietly. */
 function RowMeta({ row }: { row: InboxRow }) {
   const reply = useNewReply(`review:${rowId(row)}`)
+  const reviews = useReviews()
   if (row.note)
     return (
       <span className="line-clamp-1 flex items-center gap-1.5 text-xs text-foreground/80">
@@ -172,7 +175,7 @@ function RowMeta({ row }: { row: InboxRow }) {
         New reply from {reply.from}
       </span>
     )
-  return <span className="line-clamp-1 text-xs text-muted-foreground">{meta(row)}</span>
+  return <span className="line-clamp-1 text-xs text-muted-foreground">{meta(row, reviews)}</span>
 }
 
 /** In the quick view: who answered, and what, with the way to the thread. */
@@ -209,7 +212,8 @@ function InboxList({
   sel: RowSelection
   list: React.RefObject<HTMLUListElement | null>
 }) {
-  const { state } = useStore()
+  const { opened } = useInbox()
+  const reviews = useReviews()
   const leaving = useLeavingRows()
   // Rows added after the list first shows open in; the first ones are simply there.
   React.useEffect(() => arriveRef(list.current), [list])
@@ -228,7 +232,9 @@ function InboxList({
       {rows.map((row, i) => {
         const id = rowId(row)
         const review =
-          row.kind === 'card' && row.card.type === 'suggestion' ? reviewFor(row.card.id) : undefined
+          row.kind === 'card' && row.card.type === 'suggestion'
+            ? reviews.find((r) => r.id === row.card.id)
+            : undefined
         const Icon = review
           ? suggestionIcon(review)
           : row.kind === 'card'
@@ -239,7 +245,7 @@ function InboxList({
         // A suggestion that needs care says so on its row, before it is opened.
         const care = review && row.kind === 'card' && !row.done ? careLine(review) : undefined
         const group = groupOf(row)
-        const firstOfGroup = i === 0 || groupOf(rows[i - 1]) !== group
+        const firstOfGroup = i === 0 || groupOf(rows[i - 1]!) !== group
         const inGroup = rows.filter((r) => groupOf(r) === group).length
         const source = row.kind === 'card' ? row.card.source : undefined
         const prev = rows[i - 1]
@@ -251,9 +257,7 @@ function InboxList({
           : 0
         const done = row.kind === 'card' && !!row.done && !row.note
         // The dot is "not opened yet": it goes once the card was opened here or in the review.
-        const unread = row.note
-          ? true
-          : row.kind === 'card' && !row.done && !state.opened[row.card.id]
+        const unread = row.note ? true : row.kind === 'card' && !row.done && !opened[row.card.id]
         const isSelected = selected === id
         const ticked = sel.isSelected(id)
         return (
@@ -527,14 +531,20 @@ function CardDetail({
 }) {
   const { primary, secondary, online, writes } = useActions(card)
   // Opening a card in the quick view is reading it: its unread dot goes.
-  const { dispatch } = useStore()
-  React.useEffect(() => dispatch({ type: 'opened', card: card.id }), [card.id, dispatch])
+  const write = useWrite()
+  const facts = useFacts()
+  const reviews = useReviews()
+  React.useEffect(() => {
+    void write('markOpened', { ids: [card.id] })
+    // Once per card opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id])
   const waits = !online
-  const fact = card.factId ? factById(card.factId) : undefined
+  const fact = card.factId ? facts.find((f) => f.id === card.factId) : undefined
   const s = card.suggestion
   const changed = s?.changes.filter((c) => c.before !== c.after) ?? []
   // A suggestion's pane is the quick view: what changes, and Review to open the full screen.
-  const review = reviewFor(card.id)
+  const review = reviews.find((r) => r.id === card.id)
 
   return (
     <Cell className="group/pane h-full gap-0 py-0">
@@ -555,9 +565,9 @@ function CardDetail({
             <IconAction
               key={label}
               label={label}
-              icon={secondaryIcon[label]}
+              icon={secondaryIcon[label]!}
               disabled={!!done || (label !== 'Edit' && waits)}
-              onClick={secondary[label]}
+              onClick={secondary[label]!}
             />
           ))}
         </Toolbar>
@@ -698,14 +708,14 @@ function MentionBlock({
 
 /** Clears a mention from Needs you; the comment itself stays. */
 function MentionDone({ subject, next }: { subject: Subject; next: () => void }) {
-  const me = useMe()
+  const commentActions = useCommentActions()
   return (
     <Button
       size="sm"
       className="ml-auto max-sm:flex-1"
       data-primary
       onClick={() => {
-        commentActions.seenMention(subject, me.name)
+        void commentActions.seenMention(subject)
         toast('Done', { description: 'The comment stays in the thread.' })
         next()
       }}
@@ -722,12 +732,13 @@ const CommentBox = React.lazy(() =>
 /** The thread itself, to read and answer without leaving the Inbox. */
 function Thread({ subject, domain }: { subject: Subject; domain: DomainId }) {
   const me = useMe()
+  const domains = useDomains()
   return (
     <React.Suspense fallback={null}>
       <CommentBox
         subject={subject}
         me={me.name}
-        owners={domains[domain].owners}
+        owners={domains[domain]?.owners ?? []}
         className="border-t pt-5"
       />
     </React.Suspense>
@@ -794,7 +805,10 @@ function MentionDetail({
   next: () => void
 }) {
   const [kind, id] = subject.split(':')
-  const fact = kind === 'context' ? factById(id) : undefined
+  const facts = useFacts()
+  const domains = useDomains()
+  const { cards } = useInbox()
+  const fact = kind === 'context' ? facts.find((f) => f.id === id) : undefined
   const card = kind === 'review' ? cards.find((c) => c.id === id) : undefined
   const domain = fact?.domain ?? card?.domain ?? 'sales'
   return (
@@ -802,7 +816,7 @@ function MentionDetail({
       <CardHeader className="border-b px-4 py-4">
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>
-          A comment on {fact ? 'a context item' : 'a suggestion'} in {domains[domain].name}.
+          A comment on {fact ? 'a context item' : 'a suggestion'} in {domains[domain]?.name}.
           Comments are not part of what agents get.
         </CardDescription>
         <Toolbar onStep={onStep} onBack={onBack} />
@@ -830,20 +844,25 @@ function MentionDetail({
 /* ---------- setup and all done ---------- */
 
 function Setup() {
-  const { state, dispatch } = useStore()
-  const first = setupSteps.find((s) => !state.setup[s.id])
+  const {
+    setup: { done: setupDone },
+  } = useWorkspace()
+  const write = useWrite()
+  const first = setupSteps.find((s) => !setupDone[s.id])
   // A question about the first item, from what it applies to or, if that is empty, its own words.
-  const item = state.added[0]
+  // A new install has only what this visit added, newest first.
+  const item = useFacts()[0]
+  const words = useQuery({
+    ...readQuestionQuery(item ? `${item.title} ${item.summary}` : ''),
+    enabled: !!item && !item.where.length,
+  }).data
   const read =
-    item &&
-    (item.where.length
-      ? { metric: item.where[0], markets: item.where.slice(1) }
-      : readQuestion(`${item.title} ${item.summary}`))
-  const scope = read && scopeText({ metric: read.metric, markets: read.markets })
+    item && (item.where.length ? { metric: item.where[0], markets: item.where.slice(1) } : words)
+  const scope = read && scopeText({ metric: read.metric ?? '', markets: read.markets })
   const firstQuestion = scope
     ? `What should I know about ${scope}?`
     : 'What should I know about our numbers?'
-  const doneCount = setupSteps.filter((s) => state.setup[s.id]).length
+  const doneCount = setupSteps.filter((s) => setupDone[s.id]).length
   const go = (id: string) => {
     if (id === 'definitions') navigate('/settings/integrations/cube/connect', { setup: '1' })
     if (id === 'about') navigate('/settings/general', { setup: '1' })
@@ -851,7 +870,7 @@ function Setup() {
     // A question about the first item, typed in and ready to send.
     if (id === 'ask') navigate('/ask', { setup: '1', n: 'setup', q: firstQuestion })
     if (id === 'agent') {
-      dispatch({ type: 'setupStep', step: 'agent' })
+      void write('completeSetupStep', { step: 'agent' })
       open('connect')
     }
   }
@@ -888,7 +907,7 @@ function Setup() {
               <CardContent className="px-0">
                 <ol className="flex flex-col divide-y divide-border">
                   {setupSteps.map((step, i) => {
-                    const isDone = state.setup[step.id]
+                    const isDone = setupDone[step.id]
                     return (
                       <li
                         key={step.id}
@@ -943,6 +962,7 @@ function Setup() {
 
 /** What agents asked this week, in counts only: the quiet sign that it is working. */
 function WeekLine() {
+  const { week } = useInbox()
   return (
     <>
       <span className="max-sm:hidden">
@@ -983,14 +1003,17 @@ function AllDone({ waitingCount }: { waitingCount: number }) {
 /* ---------- the page ---------- */
 
 export function InboxPage() {
-  const { state, dispatch } = useStore()
-  const me = useMe()
+  const load = useQuery(inboxPageQuery())
+  const inbox = useInbox()
+  const { install } = useSession()
+  const write = useWrite()
+  const commentActions = useCommentActions()
   const { query } = useRoute()
   const isMobile = useIsMobile()
   const dock = useDock()
   // A decision shows at once, while it is saved; a failed save takes it back by itself.
   const [decided, addDecided] = React.useOptimistic(
-    state.done,
+    inbox.done,
     (done, d: { card: string; outcome: string }) => ({
       ...done,
       [d.card]: { label: d.outcome, at: 'Just now' },
@@ -1021,10 +1044,10 @@ export function InboxPage() {
     const picked = rows.filter((r) => sel.isSelected(rowId(r)))
     for (const r of picked) {
       if (r.kind === 'card') {
-        dispatch({ type: 'opened', card: r.card.id })
-        commentActions.seen(`review:${r.card.id}`)
+        void write('markOpened', { ids: [r.card.id] })
+        void commentActions.seen(`review:${r.card.id}`)
       }
-      if (r.note) commentActions.seenMention(r.note.subject, me.name)
+      if (r.note) void commentActions.seenMention(r.note.subject)
     }
     toast(`Marked ${picked.length} as read`)
     sel.clear()
@@ -1059,43 +1082,35 @@ export function InboxPage() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // The save behind a decision: as long as a send takes; with ?decide=fail (or ?state=failed) the first one fails.
-  const scenario = useScenario()
-  const failSave = scenario === 'failed' || query.get('decide') === 'fail'
-  const slow = useSlowNetwork()
-  const failedOnce = React.useRef(new Set<string>())
-  const save = (card: string) =>
-    new Promise<boolean>((resolve) => {
-      // The flag fails each card's first save once, so Try again goes through.
-      const fails = failSave && !failedOnce.current.has(card)
-      if (fails) failedOnce.current.add(card)
-      window.setTimeout(() => resolve(!fails), sendTime(slow))
-    })
   /**
    * A decision on a card, without a wait: the row goes now and the next card opens; Undo stays for
-   * 6s; the save runs behind it, and if it fails the card comes back with Try again.
+   * 6s; the save runs behind it (it takes as long as a send, and with ?decide=fail or
+   * ?state=failed the mock fails each card's first one), and if it fails the card comes back with
+   * Try again.
    */
   const decide = (card: InboxCard, d: Decision) => {
-    const factId = card.factId
-    const before = factId ? state.edits[factId] : undefined
     let undone = false
+    let saved: string | undefined
     next()
     leaveThen(card.id, () =>
       React.startTransition(async () => {
         addDecided({ card: card.id, outcome: d.outcome })
-        const ok = await save(card.id)
-        if (undone) return
-        if (!ok) {
+        try {
+          const { undo } = await write('decideCard', {
+            card: card.id,
+            outcome: d.outcome,
+            patch: d.patch,
+          })
+          saved = undo
+          // Undo was pressed while it was being saved: it is taken back as soon as it is in.
+          if (undone) await write('undo', { token: undo })
+        } catch {
+          if (undone) return
           toast.error("Couldn't save that decision", {
             description: 'Nothing changed. The card is back in the Inbox.',
             action: { label: 'Try again', onClick: () => decide(card, d) },
           })
-          return
         }
-        React.startTransition(() => {
-          if (d.patch && factId) dispatch({ type: 'editFact', id: factId, patch: d.patch })
-          dispatch({ type: 'complete', card: card.id, outcome: d.outcome })
-        })
       }),
     )
     toast(d.message, {
@@ -1105,17 +1120,13 @@ export function InboxPage() {
         label: 'Undo',
         onClick: () => {
           undone = true
-          dispatch({
-            type: 'reopen',
-            card: card.id,
-            restore: d.patch && factId ? { id: factId, edit: before } : undefined,
-          })
+          if (saved) void write('undo', { token: saved })
         },
       },
     })
   }
 
-  if (state.install === 'new') return <Setup />
+  if (install === 'new') return <Setup />
 
   const allDone = tab === 'needs' && needing.length === 0
 
@@ -1272,7 +1283,7 @@ export function InboxPage() {
       >
         <div className="mx-auto flex h-full min-h-0 w-full max-w-wide flex-col gap-px bg-border p-px">
           <div className="min-h-0 flex-1 bg-background">
-            <Loadable what="the Inbox" skeleton={<ListSkeleton />}>
+            <Loadable what="the Inbox" skeleton={<ListSkeleton />} query={load}>
               <Decide.Provider value={decide}>{panes}</Decide.Provider>
             </Loadable>
           </div>

@@ -178,10 +178,10 @@ export function emojiExtension() {
         new InputRule({
           find: new RegExp(`(^|\\s):(${CODE}):$`, 'i'),
           handler: ({ state, range, match }) => {
-            const x = fromShortcode(match[2])
+            const x = fromShortcode(match[2]!)
             if (!x) return null
             rememberEmoji(x.char)
-            state.tr.insertText(x.char, range.from + match[1].length, range.to)
+            state.tr.insertText(x.char, range.from + match[1]!.length, range.to)
             return undefined
           },
         }),

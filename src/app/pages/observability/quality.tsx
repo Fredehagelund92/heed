@@ -43,20 +43,16 @@ import { LineChart } from '@/components/obs/charts'
 import { Kpi } from '@/components/obs/controls'
 import { ResultIcon } from '@/components/obs/result'
 import { ReadingLine } from '@/components/heed/reading'
-import {
-  keepNewAnswer,
-  saveQuestion,
-  savedCounts,
-  setSavedResult,
-  useSavedQuestions,
-  type SavedQuestion,
-  type SavedResult,
-} from '@/data/saved-questions'
-import { domainIds, domains, type DomainId } from '@/data/world'
+import { useQuery } from '@tanstack/react-query'
+import type { SavedCheck } from '@/api'
+import { savedCheckQuery, useWrite } from '@/api/queries'
+import { savedCounts, type SavedQuestion, type SavedResult } from '@/model/saved-questions'
+import { useSavedQuestions } from '@/api/queries'
+import type { DomainId } from '@/model/items'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { href, setQuery, useRoute } from '@/lib/router'
-import { useOnline } from '@/lib/scenario'
-import { useMe } from '@/lib/store'
+import { useOnline } from '@/lib/send'
+import { useDomainList, useDomains, useMe } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
 // Quality: the one list of saved questions and how each answers after the last change. Needs a look
@@ -76,32 +72,33 @@ const GROUPS: { result: SavedResult; title: string; icon: typeof CheckIcon }[] =
 ]
 
 export function QualityPage() {
-  // A new review flag (running, failed, same) starts the page afresh.
-  const { query } = useRoute()
+  // A check that stands elsewhere (running, failed) starts the page afresh.
+  const check = useQuery(savedCheckQuery()).data
   return (
     <ObsPage section="quality">
-      <Quality key={query.get('quality') ?? ''} />
+      {check && <Quality key={JSON.stringify(check)} run={check} />}
     </ObsPage>
   )
 }
 
-function Quality() {
+function Quality({ run }: { run: SavedCheck }) {
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   const view = useObsView()
   const me = useMe()
   const { query } = useRoute()
   const online = useOnline()
   const all = useSavedQuestions()
-  const flag = query.get('quality')
-  const [checking, setChecking] = React.useState(flag === 'running')
-  // How far a check has got: one saved question at a time ("5 of 12"). ?quality=running holds it at 5.
-  const [checked, setChecked] = React.useState(flag === 'running' ? 5 : 0)
+  const [checking, setChecking] = React.useState(run.run === 'running')
+  // How far a check has got: one saved question at a time ("5 of 12").
+  const [checked, setChecked] = React.useState(run.checked)
   const timer = React.useRef(0)
   React.useEffect(() => () => window.clearInterval(timer.current), [])
-  const [failed, setFailed] = React.useState(flag === 'failed')
+  const [failed, setFailed] = React.useState(run.run === 'failed')
   const [checkedAt, setCheckedAt] = React.useState('Today, 09:41')
   const [showAll, setShowAll] = React.useState(false)
   // Owners see the domains they own; anyone can narrow to one.
-  const asked = query.get('domain') as DomainId | null
+  const asked = query.get('domain')
   const own = view.owned
   const domain = own
     ? asked && own.includes(asked)
@@ -113,16 +110,7 @@ function Quality() {
   const mine = all.filter(
     (q) => (!own || own.includes(q.domain)) && (!domain || q.domain === domain),
   )
-  // ?quality=same shows the calm week, when every saved question answers as saved.
-  const shown =
-    flag === 'same'
-      ? mine.map((q) => ({
-          ...q,
-          result: 'same' as const,
-          why: 'Same items, same sentence.',
-          diff: undefined,
-        }))
-      : mine
+  const shown = mine
   const c = savedCounts(shown)
   const empty = view.state === 'empty' || shown.length === 0
 
@@ -155,7 +143,7 @@ function Quality() {
           >
             <LayersIcon className="size-3.5" />
             <span className="sr-only">Domain: </span>
-            {domain ? domains[domain].name : 'All domains'}
+            {domain ? domains[domain]?.name : 'All domains'}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuGroup>
@@ -167,7 +155,7 @@ function Quality() {
                 <DropdownMenuRadioItem value="all">All domains</DropdownMenuRadioItem>
                 {domainChoices.map((d) => (
                   <DropdownMenuRadioItem key={d} value={d}>
-                    {domains[d].name}
+                    {domains[d]?.name}
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
@@ -370,6 +358,8 @@ function QuestionRow({
   checkedAt: string
   canChange: boolean
 }) {
+  const domains = useDomains()
+  const write = useWrite()
   const open = (
     <a
       key="open"
@@ -391,11 +381,11 @@ function QuestionRow({
       }
       onClick={() => {
         if (!canChange) return
-        const was = { result: q.result, why: q.why, when: q.when, diff: q.diff }
-        keepNewAnswer(q.id)
-        toast('The new answer is its saved one', {
-          description: 'It is checked against it from now on.',
-          action: { label: 'Undo', onClick: () => setSavedResult(q.id, was) },
+        void write('keepNewAnswer', { id: q.id }).then(({ undo }) => {
+          toast('The new answer is its saved one', {
+            description: 'It is checked against it from now on.',
+            action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
+          })
         })
       }}
     >
@@ -419,7 +409,7 @@ function QuestionRow({
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
           <DomainDot id={q.domain} />
-          {domains[q.domain].name} - saved by {q.savedBy} - {q.why}
+          {domains[q.domain]?.name} - saved by {q.savedBy} - {q.why}
         </p>
         {q.diff && (
           <>
@@ -450,9 +440,11 @@ function QuestionRow({
 
 /** Add a question by typing it: what it gets now becomes what it should get. */
 function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string }) {
+  const domains = useDomains()
+  const write = useWrite()
   const [open, setOpen] = React.useState(false)
   const [q, setQ] = React.useState('')
-  const [d, setD] = React.useState<DomainId>(choices[0])
+  const [d, setD] = React.useState<DomainId>(choices[0] ?? 'sales')
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={<Button variant="outline" size="sm" />}>
@@ -465,17 +457,20 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
           onSubmit={(e) => {
             e.preventDefault()
             if (!q.trim()) return
-            saveQuestion({
-              question: q.trim(),
-              domain: d,
-              savedBy: me,
-              expect: 'What it gets now, checked against every change.',
-              factId: '',
-            })
-            setOpen(false)
-            setQ('')
-            toast('Question saved', {
-              description: 'What it gets now is what it should keep getting.',
+            void write('saveQuestion', {
+              question: {
+                question: q.trim(),
+                domain: d,
+                savedBy: me,
+                expect: 'What it gets now, checked against every change.',
+                factId: '',
+              },
+            }).then(() => {
+              setOpen(false)
+              setQ('')
+              toast('Question saved', {
+                description: 'What it gets now is what it should keep getting.',
+              })
             })
           }}
         >
@@ -505,7 +500,7 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
                     d === x && 'border-primary bg-primary/8 text-foreground',
                   )}
                 >
-                  {domains[x].name}
+                  {domains[x]?.name}
                 </button>
               ))}
             </fieldset>

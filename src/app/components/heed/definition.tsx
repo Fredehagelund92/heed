@@ -14,37 +14,30 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TagChip } from '@/components/heed/tag-chip'
 import { Separator } from '@/components/ui/separator'
-import { domains, type Fact } from '@/data/world'
+import type { Fact } from '@/model/items'
 import {
-  addSynonym,
   parseTags,
-  saveTerm,
-  conflictOf,
-  contextAbout,
   cubeRef,
-  findDefinition,
-  meaningOf,
   kindName,
-  removeTerm,
   sourceUrl,
   SYNCED_AT,
-  synonymsOf,
-  useDefinitions,
   type Definition,
   type DefinitionType,
+  useGlossary,
 } from '@/lib/definitions'
 import { openDock } from '@/lib/dock'
-import { useFacts, useMe } from '@/lib/store'
+import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { mentionId, plainText } from '@/lib/mentions'
 import { MentionText } from '@/components/heed/mention-chip'
 import { Related } from '@/components/heed/related'
 import { useRelated } from '@/hooks/use-related'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { PeekFact, PeekFacts } from '@/components/heed/peek'
 import { useFigures } from '@/lib/figures'
 import { MoreProperties, Property } from '@/components/heed/doc'
 import { VersionHistory } from '@/components/heed/version-history'
-import { historyOfDefinition } from '@/data/history'
+import { useQuery } from '@tanstack/react-query'
+import { definitionHistoryQuery, useWrite } from '@/api/queries'
 import { useShowMore } from '@/hooks/use-show-more'
 import { ShowMoreButton } from '@/components/heed/show-more'
 
@@ -123,7 +116,8 @@ export function AnotherNameFor({ target, className }: { target: Definition; clas
 
 /** Why a term can mislead an agent, said once, in the warning tone. */
 export function ConflictNote({ d, className }: { d: Definition; className?: string }) {
-  const conflict = conflictOf(d)
+  const glossary = useGlossary()
+  const conflict = glossary.conflictOf(d)
   if (!conflict) return null
   return (
     <p
@@ -170,10 +164,10 @@ export function SynonymTags({
   level?: 2 | 3
 }) {
   const H = level === 2 ? 'h2' : 'h3'
-  const me = useMe()
-  useDefinitions()
-  const point = d.sameAs ? meaningOf(d) : d
-  const synonyms = synonymsOf(point.name)
+  const glossary = useGlossary()
+  const write = useWrite()
+  const point = d.sameAs ? glossary.meaningOf(d) : d
+  const synonyms = glossary.synonymsOf(point.name)
   const [text, setText] = React.useState('')
   const [refused, setRefused] = React.useState<Refused[]>([])
   const [selected, setSelected] = React.useState<string | null>(null)
@@ -183,11 +177,11 @@ export function SynonymTags({
   const id = React.useId()
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
-  const commit = (words: string[]) => {
+  const commit = async (words: string[]) => {
     const added: string[] = []
     const out: Refused[] = []
     for (const w of words) {
-      const r = addSynonym(point, w, me.name)
+      const r = await write('addSynonym', { target: point.name, word: w })
       if (r.ok) added.push(w)
       else if (r.why === 'here')
         setFlash(
@@ -213,21 +207,20 @@ export function SynonymTags({
         .join(' '),
     )
   }
-  const remove = (name: string) => {
-    const was = findDefinition(name)
-    removeTerm(name)
+  const remove = async (name: string) => {
+    const { undo } = await write('removeTerm', { name })
     setSelected(null)
     setSaid(`Removed synonym ${name}.`)
     toast(`Removed “${name}”`, {
       description: `${point.name} itself is unchanged.`,
-      action: was ? { label: 'Undo', onClick: () => saveTerm(undefined, was) } : undefined,
+      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
     })
     input.current?.focus()
   }
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === ',' || (e.key === 'Enter' && text.trim())) {
       e.preventDefault()
-      commit(parseTags(text))
+      void commit(parseTags(text))
       setText('')
       return
     }
@@ -235,7 +228,7 @@ export function SynonymTags({
       const last = synonyms[synonyms.length - 1]
       if (!last) return
       e.preventDefault()
-      if (selected === last.name) remove(last.name)
+      if (selected === last.name) void remove(last.name)
       else {
         setSelected(last.name)
         setSaid(`${last.name} selected. Backspace again removes it.`)
@@ -266,14 +259,14 @@ export function SynonymTags({
         </TagChip>
       ))}
       {synonyms.map((s) => {
-        const conflict = conflictOf(s)
+        const conflict = glossary.conflictOf(s)
         return (
           <TagChip
             key={s.name}
             tone={conflict ? 'warn' : 'term'}
             icon={conflict ? <TriangleAlertIcon aria-hidden /> : <EqualIcon aria-hidden />}
             title={conflict ? conflict.message : `${s.name}, added by ${s.by}`}
-            onRemove={canEdit ? () => remove(s.name) : undefined}
+            onRemove={canEdit ? () => void remove(s.name) : undefined}
             removeLabel={`Remove the synonym ${s.name}`}
             className={cn(
               'max-w-48',
@@ -332,15 +325,15 @@ export function SynonymTags({
               // A comma typed or pasted mid-word: every finished word becomes a tag, the rest stays.
               if (v.includes(',')) {
                 const parts = v.split(',')
-                commit(parseTags(parts.slice(0, -1).join(',')))
-                setText(parts[parts.length - 1].trimStart())
+                void commit(parseTags(parts.slice(0, -1).join(',')))
+                setText(parts[parts.length - 1]!.trimStart())
               } else setText(v)
             }}
             onPaste={(e) => {
               const pasted = e.clipboardData.getData('text')
               if (!/[,\n]/.test(pasted)) return
               e.preventDefault()
-              commit(parseTags(`${text}${pasted}`))
+              void commit(parseTags(`${text}${pasted}`))
               setText('')
             }}
             onKeyDown={onKeyDown}
@@ -380,6 +373,7 @@ export function SynonymTags({
 /** The context about a definition: the first five, then more on request, so the page grows instead of a box scrolling. */
 function ContextAbout({ subject, about }: { subject: Definition; about: Fact[] }) {
   const { shown, more, next, showMore } = useShowMore(about, 5, 10)
+  const domains = useDomains()
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm font-medium">
@@ -396,7 +390,7 @@ function ContextAbout({ subject, about }: { subject: Definition; about: Fact[] }
           >
             <span className="line-clamp-1">{f.title}</span>
             <span className="text-xs text-muted-foreground">
-              {domains[f.domain].name}, {f.where.join(', ')}
+              {domains[f.domain]?.name}, {f.where.join(', ')}
             </span>
           </button>
         ))
@@ -414,13 +408,15 @@ export function DefinitionDetails({ d }: { d: Definition }) {
   const me = useMe()
   const canEdit = me.admin || (!!d.domain && me.owns.includes(d.domain))
   const facts = useFacts()
-  useDefinitions()
-  const target = d.sameAs ? findDefinition(d.sameAs) : undefined
-  const about = contextAbout(d, facts)
-  const subject = target ? meaningOf(d) : d
+  const glossary = useGlossary()
+  const domains = useDomains()
+  const target = d.sameAs ? glossary.find(d.sameAs) : undefined
+  const about = glossary.contextAbout(d, facts)
+  const subject = target ? glossary.meaningOf(d) : d
   const related = useRelated(mentionId(d.type, d.name))
   const figures = useFigures()
-  const domain = d.domain ? domains[d.domain].name : 'All domains'
+  const domain = d.domain ? (domains[d.domain]?.name ?? 'All domains') : 'All domains'
+  const history = useQuery(definitionHistoryQuery(d.name)).data ?? []
   const mentioned = related.length > 0
   const hasDetails = !!d.values || d.synced || mentioned
   // The meaning is the page; then one quiet line on where it comes from, and the rest folded into Details.
@@ -431,7 +427,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
         <div className="flex flex-col items-start gap-2">
           <AnotherNameFor target={target} />
           <p className="max-w-reading text-base leading-7 text-muted-foreground">
-            {plainText(meaningOf(d).definition)}
+            {plainText(glossary.meaningOf(d).definition)}
           </p>
         </div>
       ) : d.definition ? (
@@ -525,10 +521,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
       <Separator />
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">History</p>
-        <VersionHistory
-          versions={historyOfDefinition(d, DEFINITIONS_TOOL)}
-          canRestore={!d.synced && canEdit}
-        />
+        <VersionHistory versions={history} canRestore={!d.synced && canEdit} />
       </div>
     </div>
   )

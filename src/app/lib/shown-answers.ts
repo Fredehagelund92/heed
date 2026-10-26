@@ -1,6 +1,6 @@
 import * as React from 'react'
-import type { Answer } from '@/data/ask'
-import type { Fact } from '@/data/world'
+import type { Answer } from '@/model/ask'
+import type { Fact } from '@/model/items'
 
 // The answers on screen, kept by a key the dock's address carries, so the right panel can share an
 // answer or show where it says that while the chat stays beside it. In memory only, like the chats.

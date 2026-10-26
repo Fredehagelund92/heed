@@ -43,17 +43,17 @@ import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
-import { domains, people, servedToAgents, type DomainId } from '@/data/world'
+import { servedToAgents } from '@/model/items'
 import { useWide } from '@/hooks/use-wide'
 import { usePrimaryKey } from '@/hooks/use-primary-key'
 import { useDefinitions } from '@/lib/definitions'
-import { addDomain, domainText, removeDomain, updateDomain, useDomains } from '@/lib/domains'
 import { docExtensions } from '@/lib/doc-extensions'
-import { savedCounts, useSavedQuestions } from '@/data/saved-questions'
+import { useSavedQuestions, useWrite } from '@/api/queries'
+import { savedCounts } from '@/model/saved-questions'
 import { plainText } from '@/lib/mentions'
 import { href, navigate } from '@/lib/router'
 import { useSideChoice } from '@/lib/side-panel'
-import { useFacts, useMe } from '@/lib/store'
+import { useDomains, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { InviteDialog } from '@/pages/people'
 
 // A domain as its own document, the way a context item and About our business are written: the name
@@ -71,15 +71,17 @@ export function DomainPage({
   id: string
   crumbs: (name: string) => React.ReactNode
 }) {
-  useDomains()
+  const domains = useDomains()
+  const people = usePeople()
+  const write = useWrite()
   const me = useMe()
   const facts = useFacts()
   const defs = useDefinitions()
   const isNew = id === 'new'
-  const d = isNew ? undefined : domains[id as DomainId]
+  const d = isNew ? undefined : domains[id]
   const [name, setName] = React.useState(d?.name ?? '')
   const [owners, setOwners] = React.useState<string[]>(d?.owners ?? [me.name])
-  const [text, setText] = React.useState(isNew ? '' : domainText(id as DomainId))
+  const [text, setText] = React.useState(isNew ? '' : (d?.text ?? ''))
   const [saving, setSaving] = React.useState(false)
   const [deleting, setDeleting] = React.useState(false)
   const [inviting, setInviting] = React.useState(false)
@@ -89,9 +91,11 @@ export function DomainPage({
   React.useEffect(
     () => () => {
       window.clearTimeout(timer.current)
-      if (Object.keys(pending.current).length && domains[id as DomainId])
-        updateDomain(id as DomainId, pending.current)
+      if (Object.keys(pending.current).length && !isNew)
+        void write('updateDomain', { id, ...pending.current })
     },
+    // Only when the page closes or moves to another domain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [id],
   )
   const [paneRef, wide] = useWide<HTMLDivElement>()
@@ -110,9 +114,9 @@ export function DomainPage({
     setSaving(true)
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
-      updateDomain(id as DomainId, pending.current)
+      const patch = pending.current
       pending.current = {}
-      setSaving(false)
+      void write('updateDomain', { id, ...patch }).then(() => setSaving(false))
     }, 600)
   }
 
@@ -152,15 +156,19 @@ export function DomainPage({
 
   const items = isNew ? [] : facts.filter((f) => f.domain === id && servedToAgents(f))
   const due = items.filter((f) => f.status === 'Needs checking').length
-  const saved = savedCounts(savedAll, id as DomainId)
+  const saved = savedCounts(savedAll, id)
   const terms = isNew ? 0 : defs.filter((x) => x.domain === id).length
   const sandbox = id === 'sandbox'
   const empty = !items.length && !terms
   const words = plainText(text).split(/\s+/).filter(Boolean).length
 
-  const create = () => {
+  const create = async () => {
     if (!name.trim()) return document.getElementById(fieldId('name'))?.focus()
-    const newId = addDomain(name.trim(), owners, editor?.getMarkdown() ?? text)
+    const { id: newId } = await write('addDomain', {
+      name: name.trim(),
+      owners,
+      text: editor?.getMarkdown() ?? text,
+    })
     toast('Domain added', { description: `${name.trim()} is ready for context.` })
     navigate(`/settings/domains/${newId}`)
   }
@@ -187,7 +195,12 @@ export function DomainPage({
             <Tooltip>
               <TooltipTrigger
                 render={
-                  <Button size="sm" data-primary aria-disabled={!name.trim()} onClick={create} />
+                  <Button
+                    size="sm"
+                    data-primary
+                    aria-disabled={!name.trim()}
+                    onClick={() => void create()}
+                  />
                 }
               >
                 Add the domain
@@ -270,7 +283,7 @@ export function DomainPage({
     >
       <Paper>
         <div className="mb-4 flex items-start gap-3 sm:mb-5">
-          {!isNew && <DomainDot id={id as DomainId} className="mt-3 size-3 sm:mt-3.5" />}
+          {!isNew && <DomainDot id={id} className="mt-3 size-3 sm:mt-3.5" />}
           <textarea
             id={fieldId('name')}
             aria-label="Name"
@@ -410,7 +423,7 @@ export function DomainPage({
           key={String(inviting)}
           open={inviting}
           onOpenChange={setInviting}
-          preset={id as DomainId}
+          preset={id}
         />
       )}
       <Dialog open={deleting} onOpenChange={setDeleting}>
@@ -428,10 +441,11 @@ export function DomainPage({
               variant="destructive"
               onClick={() => {
                 const was = d!.name
-                removeDomain(id as DomainId)
-                setDeleting(false)
-                toast('Domain deleted', { description: was })
-                navigate('/settings/domains')
+                void write('removeDomain', { id }).then(() => {
+                  setDeleting(false)
+                  toast('Domain deleted', { description: was })
+                  navigate('/settings/domains')
+                })
               }}
             >
               Delete

@@ -5,9 +5,15 @@ import { buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { WordDiff } from '@/components/heed/bits'
 import { ResultIcon } from '@/components/obs/result'
-import type { Review } from '@/data/review'
-import { useSavedQuestions } from '@/data/saved-questions'
-import { checkDraft, draftLine, savesQuestion, setSavesQuestion } from '@/lib/saved-check'
+import type { Review } from '@/model/review'
+import { useInbox, useSavedQuestions } from '@/api/queries'
+import {
+  checkDraft,
+  draftLine,
+  itemOfReview,
+  savesQuestion,
+  setSavesQuestion,
+} from '@/lib/saved-check'
 import { href } from '@/lib/router'
 
 // In the review, under what agents will say: the saved questions that answer from this item, checked
@@ -16,7 +22,8 @@ import { href } from '@/lib/router'
 
 export function SavedLine({ r, domain }: { r: Review; domain: string }) {
   const all = useSavedQuestions()
-  const check = checkDraft(r, all)
+  const { cards } = useInbox()
+  const check = checkDraft(r, all, itemOfReview(r, cards))
   const [open, setOpen] = React.useState<string | null>(null)
   const [save, setSave] = React.useState(() => savesQuestion(r.id))
   if (r.drafted)

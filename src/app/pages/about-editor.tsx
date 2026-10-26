@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { RichTextEditor } from '@/components/editor'
 import { Button } from '@/components/ui/button'
-import { ABOUT_BUSINESS } from '@/data/world'
 import { DocumentEditorShell } from '@/components/heed/document-shell'
 import { DocFooter, Paper } from '@/components/heed/doc'
 import { HeaderMore } from '@/components/heed/editor-header'
@@ -17,7 +16,8 @@ import { useHelpAside } from '@/lib/help-aside'
 import { useWide } from '@/hooks/use-wide'
 import { docExtensions } from '@/lib/doc-extensions'
 import { navigate, useRoute } from '@/lib/router'
-import { useMe, useStore } from '@/lib/store'
+import { useWorkspace, useWrite } from '@/api/queries'
+import { useMe } from '@/lib/workspace'
 
 // About our business in the same document editor shell as a context item: the formatting row under
 // the header, the text on the document sheet, markdown in and out, one footer with the count. It
@@ -34,7 +34,8 @@ export function AboutPage({
   helpText: React.ReactNode
 }) {
   const me = useMe()
-  const { state, dispatch } = useStore()
+  const { about, aboutTemplate } = useWorkspace()
+  const write = useWrite()
   const { query } = useRoute()
   const setup = query.get('setup')
   // Null until the first keystroke; until then the count is what the editor writes back.
@@ -53,34 +54,34 @@ export function AboutPage({
     waiting.current = text
     setSaving(true)
     timer.current = window.setTimeout(() => {
-      dispatch({ type: 'about', text })
-      waiting.current = null
-      setSaving(false)
+      void write('setAbout', { text }).then(() => {
+        waiting.current = null
+        setSaving(false)
+      })
     }, 700)
   }
   // Leaving the page saves what is still waiting, so a quick change is never lost.
   React.useEffect(
     () => () => {
       window.clearTimeout(timer.current)
-      if (waiting.current !== null) dispatch({ type: 'about', text: waiting.current })
+      if (waiting.current !== null) void write('setAbout', { text: waiting.current })
     },
-    [dispatch],
+    // The write only changes when the query client does.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
   )
 
   const editor = useEditor({
     immediatelyRender: true,
     shouldRerenderOnTransaction: false,
     extensions: docExtensions('We are a … We sell …'),
-    content: state.about,
+    content: about,
     contentType: 'markdown',
     editorProps: { attributes: { 'aria-label': 'About our business' } },
     onUpdate: ({ editor }) => save(editor.getMarkdown()),
   })
   // Count what the editor writes back, so the number never jumps on the first keystroke.
-  const written = React.useMemo(
-    () => editor?.getMarkdown().length ?? state.about.length,
-    [editor, state.about],
-  )
+  const written = React.useMemo(() => editor?.getMarkdown().length ?? about.length, [editor, about])
   const length = typed ?? written
   const tooLong = length > LIMIT
 
@@ -122,10 +123,13 @@ export function AboutPage({
               disabled={tooLong || length === 0}
               onClick={() => {
                 window.clearTimeout(timer.current)
-                dispatch({ type: 'about', text: editor.getMarkdown() })
-                dispatch({ type: 'setupStep', step: 'about' })
-                toast('Saved', { description: 'Agents read it from the next question.' })
-                navigate('/inbox')
+                waiting.current = null
+                void write('setAbout', { text: editor.getMarkdown() })
+                  .then(() => write('completeSetupStep', { step: 'about' }))
+                  .then(() => {
+                    toast('Saved', { description: 'Agents read it from the next question.' })
+                    navigate('/inbox')
+                  })
               }}
             >
               Done
@@ -190,7 +194,7 @@ export function AboutPage({
             size="sm"
             className="mt-4"
             onClick={() => {
-              editor.commands.setContent(ABOUT_BUSINESS, { contentType: 'markdown' })
+              editor.commands.setContent(aboutTemplate, { contentType: 'markdown' })
               save(editor.getMarkdown())
             }}
           >

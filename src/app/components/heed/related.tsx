@@ -1,5 +1,5 @@
 import { MentionChip } from '@/components/heed/mention-chip'
-import { domains } from '@/data/world'
+import { useDomains } from '@/lib/workspace'
 import { relLabel, type Link } from '@/lib/links'
 import { useRelated } from '@/hooks/use-related'
 import { useLinksEnabled } from '@/lib/links-switch'
@@ -10,11 +10,12 @@ import { useLinksEnabled } from '@/lib/links-switch'
 // definition another domain owns says whose it is.
 
 function LinkLine({ link }: { link: Link }) {
+  const domains = useDomains()
   const typed = link.rel === 'replaces' || link.rel === 'replaced_by' || link.rel === 'disagrees'
   const note = link.to.retired
     ? 'not followed'
     : link.otherDomain && link.to.domain
-      ? `from ${domains[link.to.domain].name}`
+      ? `from ${domains[link.to.domain]?.name}`
       : undefined
   // The relation before the chip, a note under it: both belong to this link, never to the next one.
   return (

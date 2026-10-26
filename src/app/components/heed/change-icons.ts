@@ -10,7 +10,7 @@ import {
   TypeIcon,
   type LucideIcon,
 } from '@/components/icons'
-import type { ChangeKind, Review } from '@/data/review'
+import type { ChangeKind, Review } from '@/model/review'
 
 /** Each kind of change as a glyph: the review's block labels and the Inbox's rows use the same one. */
 export const changeIcons: Record<ChangeKind, LucideIcon> = {

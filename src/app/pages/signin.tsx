@@ -21,15 +21,18 @@ import {
   ItemTitle,
 } from '@/components/ui/item'
 import { Switch } from '@/components/ui/switch'
-import { person, signInPeople } from '@/data/world'
+import { useQuery } from '@tanstack/react-query'
+import { signInPeopleQuery, useApiWrite, useWorkspace } from '@/api/queries'
 import { navigate } from '@/lib/router'
-import { useStore } from '@/lib/store'
+import { personIn } from '@/lib/workspace'
 import { PRODUCT } from '@/lib/brand'
 
 // Sign-in as the login-03 block lays it out: the demo person picker. Company sign-in is outside v1's
 // route and comes before Heed ships to a team.
 export function SignInPage() {
-  const { dispatch } = useStore()
+  const signIn = useApiWrite('signIn')
+  const offered = useQuery(signInPeopleQuery()).data ?? []
+  const { people } = useWorkspace()
   const [fresh, setFresh] = React.useState(false)
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
@@ -43,8 +46,8 @@ export function SignInPage() {
           <CardContent>
             <FieldGroup>
               <ItemGroup className="gap-2">
-                {signInPeople.map((name) => {
-                  const p = person(name)
+                {offered.map((name) => {
+                  const p = personIn(people, name)
                   return (
                     <div role="listitem" key={name}>
                       <Item
@@ -54,8 +57,10 @@ export function SignInPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              dispatch({ type: 'signIn', name, fresh })
-                              navigate('/inbox')
+                              signIn.mutate(
+                                { name, fresh },
+                                { onSuccess: () => navigate('/inbox') },
+                              )
                             }}
                           />
                         }

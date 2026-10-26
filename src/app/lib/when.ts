@@ -1,4 +1,4 @@
-import { dateLabel, whenLabel, type Validity } from '@/data/contract'
+import { dateLabel, whenLabel, type Validity } from '@/model/validity'
 
 // The edit pages' When: six presets over the stored dates, and the one line the field shows.
 

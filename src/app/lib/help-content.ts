@@ -1,4 +1,4 @@
-import type { AnswerState } from '@/data/ask'
+import type { AnswerState } from '@/model/ask'
 import { SLUG } from '@/lib/brand'
 import { answerLines } from '@domain/words'
 

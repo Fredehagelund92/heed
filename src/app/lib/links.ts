@@ -1,4 +1,5 @@
-import { domains, servedToAgents, type DomainId, type Fact } from '@/data/world'
+import { servedToAgents, type DomainId, type Fact } from '@/model/items'
+import type { Domains } from '@/model/people'
 import type { Definition } from '@/lib/definitions'
 import { mentionId, mentionsIn, parseMentionId, type MentionKind } from '@/lib/mentions'
 
@@ -34,7 +35,7 @@ export const relLabel: Record<Rel, string> = {
   mentioned_by: 'linked from',
 }
 
-type World = { facts: Fact[]; definitions: Definition[] }
+type World = { facts: Fact[]; definitions: Definition[]; domains: Domains }
 
 /** Where a mention points, as it stands now: its words, its domain, and whether it is retired. */
 function end(id: string, label: string, w: World): LinkEnd {
@@ -57,9 +58,9 @@ function end(id: string, label: string, w: World): LinkEnd {
     return {
       id,
       kind,
-      label: domains[key as DomainId]?.name ?? label,
-      retired: !domains[key as DomainId],
-      domain: key as DomainId,
+      label: w.domains[key]?.name ?? label,
+      retired: !w.domains[key],
+      domain: key,
     }
   return { id, kind, label, retired: false }
 }

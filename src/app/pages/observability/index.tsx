@@ -4,7 +4,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { FramePage } from '@/components/heed/frame'
 import { OBS_TITLES, seesObservability, type ObsSection } from '@/lib/obs'
 import { SettingsCrumbs } from '@/pages/settings'
-import { useMe } from '@/lib/store'
+import { useMe } from '@/lib/workspace'
 import { OverviewPage } from '@/pages/observability/overview'
 import { QuestionsPage } from '@/pages/observability/questions'
 import { QualityPage } from '@/pages/observability/quality'

@@ -63,25 +63,18 @@ import {
 import {
   connectorById,
   connectors,
-  cubeActivity,
-  cubeViews,
-  driveActivity,
-  driveDocuments,
-  driveFolders,
-  figureConnections,
-  integrationState,
-  warehouseHas,
   kindName,
   type Activity,
   type Connector,
-  type DocState,
   type IntegrationState,
-} from '@/data/integrations'
-import { domainIds, domains, people, type DomainId } from '@/data/world'
-import { connect, disconnect, useConnected } from '@/lib/integrations'
-import { setDataContact, setFigures, useFigures } from '@/lib/figures'
+} from '@/model/integrations'
+import type { DomainId } from '@/model/items'
+import { useConnectActions, useConnected } from '@/lib/integrations'
+import { useFigureActions, useFigures } from '@/lib/figures'
 import { navigate, setQuery, useRoute } from '@/lib/router'
-import { useStore } from '@/lib/store'
+import { useIntegrations } from '@/api/queries'
+import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
+import type { DocState } from '@/model/integrations'
 import { SettingsCrumbs } from '@/pages/settings'
 import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/components/heed/frame'
@@ -195,10 +188,11 @@ function DataTable({
 }
 
 function Owners({ domain }: { domain?: DomainId }) {
+  const domains = useDomains()
   if (!domain) return <span className="text-muted-foreground">shared</span>
   return (
     <span className="flex -space-x-1.5">
-      {domains[domain].owners.map((o) => (
+      {domains[domain]?.owners.map((o) => (
         <PersonAvatar key={o} name={o} size={20} className="ring-2 ring-background" />
       ))}
     </span>
@@ -269,7 +263,11 @@ function Connection({
  */
 function FiguresSection({ c }: { c: Connector }) {
   const f = useFigures()
-  const conn = figureConnections[c.id]
+  const { setFigures, setDataContact } = useFigureActions()
+  const people = usePeople()
+  const { figureConnections, warehouseHas } = useIntegrations()
+  // Shown only for an integration that can answer figures, which says how it is reached.
+  const conn = figureConnections[c.id]!
   const on = f.enabled(c.id)
   const switchId = `figures-${c.id}`
   return (
@@ -559,8 +557,7 @@ function AvailableCell({ c, connected }: { c: Connector; connected: boolean }) {
 }
 
 export function IntegrationsPage() {
-  const { query } = useRoute()
-  const state = integrationState(query.get('state'))
+  const { state } = useIntegrations()
   const live = useConnected()
   const connected = state === 'nothing' ? [] : live
   const [text, setText] = React.useState('')
@@ -763,6 +760,7 @@ function DisconnectDialog({
   open: boolean
   onOpenChange: (o: boolean) => void
 }) {
+  const { disconnect } = useConnectActions()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -783,7 +781,7 @@ function DisconnectDialog({
           <Button
             variant="destructive"
             onClick={() => {
-              disconnect(c.id)
+              void disconnect(c.id)
               onOpenChange(false)
               toast(`${c.name} disconnected`, {
                 description: 'Kept in the history log. Connect it again from Integrations.',
@@ -829,8 +827,15 @@ function ReadAgain({ c, busy }: { c: Connector; busy?: boolean }) {
 
 export function ConnectorPage({ id }: { id: string }) {
   const c = connectorById(id)
-  const { query } = useRoute()
-  const state = integrationState(query.get('state'))
+  const {
+    state,
+    cubeViews,
+    driveFolders,
+    driveDocuments,
+    activity: { cube: cubeActivity, drive: driveActivity },
+    warehouseHas,
+  } = useIntegrations()
+  const domains = useDomains()
   const live = useConnected()
   const [leaving, setLeaving] = React.useState(false)
   if (!c || !live.includes(c.id))
@@ -1041,7 +1046,7 @@ export function ConnectorPage({ id }: { id: string }) {
                     </code>,
                     v.metrics,
                     v.dimensions,
-                    v.domain ? domains[v.domain].name : <NoDomain key="d" />,
+                    v.domain ? domains[v.domain]?.name : <NoDomain key="d" />,
                     <Owners key="o" domain={v.domain} />,
                   ])}
                 />
@@ -1143,7 +1148,7 @@ export function ConnectorPage({ id }: { id: string }) {
                       <span className="font-medium">{f.folder}</span>
                       <span className="text-muted-foreground"> / {f.path}</span>
                     </span>,
-                    domains[f.domain].name,
+                    domains[f.domain]?.name,
                     <Owners key="o" domain={f.domain} />,
                     f.documents,
                   ])}
@@ -1201,7 +1206,7 @@ export function ConnectorPage({ id }: { id: string }) {
                       )}
                       <span className="text-xs text-muted-foreground">{d.folder}</span>
                     </span>,
-                    domains[d.domain].name,
+                    domains[d.domain]?.name,
                     <Badge
                       key="s"
                       variant="outline"
@@ -1431,6 +1436,8 @@ function Checks({ items, running }: { items: string[]; running: number }) {
 }
 
 function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: DomainId) => void }) {
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -1445,14 +1452,14 @@ function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: Domai
           />
         }
       >
-        <span className="truncate">{value ? domains[value].name : 'Choose'}</span>
+        <span className="truncate">{value ? domains[value]?.name : 'Choose'}</span>
         <ChevronDownIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
         <DropdownMenuRadioGroup value={value ?? ''} onValueChange={(v) => onChange(v as DomainId)}>
           {domainIds.map((d) => (
             <DropdownMenuRadioItem key={d} value={d}>
-              {domains[d].name}
+              {domains[d]?.name}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -1464,7 +1471,8 @@ function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: Domai
 export function ConnectFlow({ id }: { id: string }) {
   const c = connectorById(id)
   const { query } = useRoute()
-  const { dispatch } = useStore()
+  const { connect } = useConnectActions()
+  const { cubeViews, driveFolders } = useIntegrations()
   const live = useConnected()
   const at = Math.min(5, Math.max(1, Number(query.get('step')) || 1))
   const setup = !!query.get('setup')
@@ -1518,17 +1526,15 @@ export function ConnectFlow({ id }: { id: string }) {
     setTested(0)
     ;[1, 2, 3].forEach((n) => window.setTimeout(() => setTested(n), n * 500))
   }
-  const finish = () => {
-    connect(c.id)
+  const finish = async () => {
+    await connect(c.id, !!setup)
     toast(`${c.name} connected`, {
       description: isCube
         ? 'First read now. Definitions show in Definitions as a read-only copy.'
         : 'First read at 07:00. Documents become suggestions; nothing is published by a read.',
     })
-    if (setup) {
-      dispatch({ type: 'setupStep', step: 'definitions' })
-      navigate('/inbox')
-    } else navigate(`/settings/integrations/${c.id}`)
+    if (setup) navigate('/inbox')
+    else navigate(`/settings/integrations/${c.id}`)
   }
   const testItems = isCube
     ? ['Reached the repository', 'Signed in with the token', 'Found 7 Cube views']
@@ -1924,7 +1930,7 @@ export function ConnectFlow({ id }: { id: string }) {
                 <ArrowRightIcon data-icon="inline-end" />
               </Button>
             ) : (
-              <Button onClick={finish} disabled={!why.trim()}>
+              <Button onClick={() => void finish()} disabled={!why.trim()}>
                 {isCube ? `Add ${c.name}` : `Connect ${c.name}`}
               </Button>
             )}

@@ -1,8 +1,10 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { EqualIcon, FolderIcon, GlobeIcon, SigmaIcon, SplitIcon, XIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
+import { useVocabulary } from '@/api/queries'
 import { chipTone, domainHue, domainIdByName, kindOfWhere, type Tone } from '@/lib/tones'
-import type { DomainId } from '@/data/world'
+import { useDomains } from '@/lib/workspace'
+import type { DomainId } from '@/model/items'
 
 // The one chip: 24px, a 6px radius, tinted by what it names, with its type's icon. Tags in the
 // editor, Details, the list's Scope column and filters all use it.
@@ -73,9 +75,11 @@ export function WhereChip({
   label?: ReactNode
   onRemove?: () => void
 }) {
-  const kind = kindOfWhere(w)
+  const vocabulary = useVocabulary()
+  const domains = useDomains()
+  const kind = kindOfWhere(w, vocabulary, domains)
   const Icon = whereIcon[kind]
-  const hue = kind === 'domain' ? domainHue[domainIdByName(w)!] : undefined
+  const hue = kind === 'domain' ? domainHue[domainIdByName(w, domains)!] : undefined
   return (
     <TagChip
       tone={kind}

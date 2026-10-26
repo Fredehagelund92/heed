@@ -1,5 +1,5 @@
-import { scopeText, type Answer } from '@/data/ask'
-import type { Fact } from '@/data/world'
+import { scopeText, type Answer } from '@/model/ask'
+import type { Fact } from '@/model/items'
 
 // What an agent gets back from get_context: the state, the one sentence to relay, and each context
 // item with its source and who checked it. It is built from published context only. Comments and

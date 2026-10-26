@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  addSynonym,
-  checkSynonym,
-  findDefinition,
-  parseTags,
-  removeTerm,
-  synonymsOf,
-} from '@/lib/definitions'
+import { createDefinitions } from '@/api/mock/definitions'
+import { glossary, parseTags } from '@/lib/definitions'
 
 // Synonyms are typed as tags: a comma, Enter or a paste makes them, each word once, the person's
 // casing kept; a word that already means something else says who has it.
@@ -19,24 +13,37 @@ describe('synonym tags', () => {
   })
 
   it('adds a synonym once, and says who already has a word', () => {
-    const gross = findDefinition('Gross sales')!
-    expect(checkSynonym(gross, 'gmv')).toMatchObject({ ok: false, why: 'here' })
-    expect(checkSynonym(gross, 'turnover')).toMatchObject({
+    const definitions = createDefinitions()
+    const g = () => glossary(definitions.list())
+    const gross = g().find('Gross sales')!
+    expect(g().checkSynonym(gross, 'gmv')).toMatchObject({ ok: false, why: 'here' })
+    expect(g().checkSynonym(gross, 'turnover')).toMatchObject({
       ok: false,
       why: 'taken',
       holder: 'Net revenue',
       by: 'Sofia Brandt',
     })
-    expect(checkSynonym(gross, 'Peak season')).toMatchObject({ ok: false, why: 'term' })
-    expect(checkSynonym(gross, 'Orders')).toMatchObject({
+    expect(g().checkSynonym(gross, 'Peak season')).toMatchObject({ ok: false, why: 'term' })
+    expect(g().checkSynonym(gross, 'Orders')).toMatchObject({
       ok: false,
       why: 'source',
       holder: 'Orders',
     })
-    expect(addSynonym(gross, '  Sales Value ', 'Jon Abara')).toEqual({ ok: true, created: true })
-    expect(synonymsOf('Gross sales').map((s) => s.name)).toContain('Sales Value')
-    expect(checkSynonym(gross, 'sales value')).toMatchObject({ ok: false, why: 'here' })
-    removeTerm('Sales Value')
-    expect(synonymsOf('Gross sales').map((s) => s.name)).not.toContain('Sales Value')
+    expect(definitions.addSynonym(gross.name, '  Sales Value ', 'Jon Abara')).toEqual({
+      ok: true,
+      created: true,
+    })
+    expect(
+      g()
+        .synonymsOf('Gross sales')
+        .map((s) => s.name),
+    ).toContain('Sales Value')
+    expect(g().checkSynonym(gross, 'sales value')).toMatchObject({ ok: false, why: 'here' })
+    definitions.removeTerm('Sales Value')
+    expect(
+      g()
+        .synonymsOf('Gross sales')
+        .map((s) => s.name),
+    ).not.toContain('Sales Value')
   })
 })

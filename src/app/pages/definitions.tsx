@@ -15,7 +15,7 @@ import {
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { connectorById } from '@/data/integrations'
+import { connectorById } from '@/model/integrations'
 import { PersonAvatar } from '@/components/heed/bits'
 import { AnotherNameFor, TypeGlyph, TypeTile } from '@/components/heed/definition'
 import { TagChip } from '@/components/heed/tag-chip'
@@ -51,29 +51,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { domainIds, domains, type DomainId } from '@/data/world'
+import { useQuery } from '@tanstack/react-query'
+import { definitionsPageQuery } from '@/api/queries'
+import type { DomainId } from '@/model/items'
 import {
-  alsoCalled,
-  conflictOf,
-  contextAbout,
-  findDefinition,
-  foldsInto,
   sourceUrl,
   typeLabel,
-  useDefinitions,
   type Definition,
   type DefinitionType,
-  meaningOf,
+  useGlossary,
 } from '@/lib/definitions'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
 import { href, navigate, useRoute } from '@/lib/router'
-import { useFacts } from '@/lib/store'
+import { useDomainList, useDomains, useFacts } from '@/lib/workspace'
 import { APP_URL } from '@/lib/brand'
 import { TruncatedText } from '@/components/heed/truncated'
 import { TextSwitch } from '@/components/heed/switches'
 import { plainText } from '@/lib/mentions'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { Loadable, TableSkeleton } from '@/components/heed/load-state'
 import { useFigures } from '@/lib/figures'
 
@@ -112,8 +108,14 @@ const COLS = 7
 
 /* ---------- the list ---------- */
 
+const NO_DEFINITIONS: Definition[] = []
+
 export function DefinitionsPage() {
-  const all = useDefinitions()
+  const load = useQuery(definitionsPageQuery())
+  const all = load.data ?? NO_DEFINITIONS
+  const glossary = useGlossary()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   const facts = useFacts()
   const dock = useDock()
   const { query } = useRoute()
@@ -139,10 +141,11 @@ export function DefinitionsPage() {
   // Led by coverage: what agents would hear Not found for comes first.
   const sort: Sort = chosenSort ?? (text.trim() ? 'best' : 'coverage')
   const tool = connectorById('cube')!.name
-  const about = (d: Definition) => contextAbout(d, facts).length
+  const about = (d: Definition) => glossary.contextAbout(d, facts).length
   // A row's conflict includes the words folded into it, so folding never hides one.
   const cueOf = (d: Definition): Cue | undefined =>
-    conflictOf(d) || (!synonymRows && alsoCalled(d).some((x) => conflictOf(x)))
+    glossary.conflictOf(d) ||
+    (!synonymRows && glossary.alsoCalled(d).some((x) => glossary.conflictOf(x)))
       ? 'conflict'
       : d.changed
         ? 'changed'
@@ -150,8 +153,9 @@ export function DefinitionsPage() {
           ? 'none'
           : undefined
   // The rows: every definition and term, and a synonym only in the audit view (or when what it names is gone).
-  const rows = all.filter((d) => synonymRows || !foldsInto(d))
-  const otherNames = (d: Definition) => (synonymRows ? [] : alsoCalled(d).map((x) => x.name))
+  const rows = all.filter((d) => synonymRows || !glossary.foldsInto(d))
+  const otherNames = (d: Definition) =>
+    synonymRows ? [] : glossary.alsoCalled(d).map((x) => x.name)
   const pass = (d: Definition, skip?: 'view' | 'domain' | 'cue') =>
     (skip === 'view' || view === 'all' || d.type === view) &&
     (skip === 'domain' || !domain.length || (d.domain && domain.includes(d.domain))) &&
@@ -191,7 +195,7 @@ export function DefinitionsPage() {
         ? (d.group ?? 'Terms')
         : group === 'domain'
           ? d.domain
-            ? domains[d.domain].name
+            ? (domains[d.domain]?.name ?? 'All domains')
             : 'All domains'
           : ''
   const groups =
@@ -243,14 +247,14 @@ export function DefinitionsPage() {
 
   /** A flag only when something needs a look: a conflict, a definition Cube changed, or no description in Cube. */
   const foldedConflict = (d: Definition) =>
-    synonymRows ? undefined : alsoCalled(d).find((x) => conflictOf(x))
+    synonymRows ? undefined : glossary.alsoCalled(d).find((x) => glossary.conflictOf(x))
   const flagOf = (d: Definition) =>
-    conflictOf(d)
-      ? { icon: TriangleAlertIcon, tip: conflictOf(d)!.message }
+    glossary.conflictOf(d)
+      ? { icon: TriangleAlertIcon, tip: glossary.conflictOf(d)!.message }
       : foldedConflict(d)
         ? {
             icon: TriangleAlertIcon,
-            tip: `Another name for it has a conflict: ${conflictOf(foldedConflict(d)!)!.message}`,
+            tip: `Another name for it has a conflict: ${glossary.conflictOf(foldedConflict(d)!)!.message}`,
           }
         : d.changed
           ? {
@@ -265,7 +269,7 @@ export function DefinitionsPage() {
             : undefined
 
   const row = (d: Definition) => {
-    const target = d.sameAs ? findDefinition(d.sameAs) : undefined
+    const target = d.sameAs ? glossary.find(d.sameAs) : undefined
     const flag = flagOf(d)
     const n = about(d)
     // The lock is said once, in the line above the table; a row shows only who wrote a term.
@@ -319,15 +323,16 @@ export function DefinitionsPage() {
               {target && <AnotherNameFor target={target} className="min-w-0 @max-xl/main:hidden" />}
               <AlsoCalledChips
                 names={otherNames(d)}
-                conflicts={alsoCalled(d)
-                  .filter((x) => conflictOf(x))
+                conflicts={glossary
+                  .alsoCalled(d)
+                  .filter((x) => glossary.conflictOf(x))
                   .map((x) => x.name)}
                 matched={matchedBy(d)}
               />
               {/* On a phone the short facts go on a second line. */}
               <span className="flex gap-2 text-dense text-muted-foreground @xl/main:hidden">
                 {group !== 'domain' && (
-                  <span>{d.domain ? domains[d.domain].name : 'All domains'}</span>
+                  <span>{d.domain ? domains[d.domain]?.name : 'All domains'}</span>
                 )}
                 <span>
                   {d.type === 'dimension'
@@ -346,7 +351,7 @@ export function DefinitionsPage() {
             group !== 'domain' && '@min-[60rem]/main:table-cell',
           )}
         >
-          {d.domain ? domains[d.domain].name : '–'}
+          {d.domain ? domains[d.domain]?.name : '–'}
         </td>
         <td className="hidden w-20 px-2 text-right align-middle tabular-nums @xl/main:table-cell">
           {d.type === 'dimension' || d.sameAs ? (
@@ -369,7 +374,7 @@ export function DefinitionsPage() {
               aria-label={`Write context about ${d.name}`}
               onClick={(e) => {
                 e.stopPropagation()
-                navigate('/context/new', { metric: meaningOf(d).name })
+                navigate('/context/new', { metric: glossary.meaningOf(d).name })
               }}
             >
               Write
@@ -429,6 +434,7 @@ export function DefinitionsPage() {
           what="the definitions"
           skeleton={<TableSkeleton lead={[41, 57, 49]} />}
           errorClassName="border-b"
+          query={load}
         >
           <ListBar>
             {/* On a phone the views fold into one menu, so the bar keeps to two rows. */}
@@ -510,7 +516,7 @@ export function DefinitionsPage() {
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Synonyms</DropdownMenuLabel>
                   <DropdownMenuCheckboxItem checked={synonymRows} onCheckedChange={setSynonymRows}>
-                    <FilterValue count={all.filter((d) => foldsInto(d)).length}>
+                    <FilterValue count={all.filter((d) => glossary.foldsInto(d)).length}>
                       <span className="inline-flex items-center gap-2">
                         <TypeGlyph d={{ type: 'term', sameAs: 'x' }} />
                         Show synonyms as rows
@@ -530,7 +536,7 @@ export function DefinitionsPage() {
                       <FilterValue
                         count={all.filter((x) => x.domain === d && pass(x, 'domain')).length}
                       >
-                        {domains[d].name}
+                        {domains[d]?.name}
                       </FilterValue>
                     </DropdownMenuCheckboxItem>
                   ))}
@@ -623,7 +629,7 @@ export function DefinitionsPage() {
             {domain.length > 0 && (
               <FilterChip
                 field="Domain"
-                values={domain.map((d) => domains[d].name)}
+                values={domain.map((d) => domains[d]!.name)}
                 onRemove={() => setDomain([])}
               />
             )}
@@ -721,7 +727,7 @@ export function DefinitionsPage() {
                           view !== 'all' && `${typeLabel[view]}s only`,
                           cues.length && `Status is ${cues.map((c) => CUES[c]).join(' or ')}`,
                           domain.length &&
-                            `Domain is ${domain.map((d) => domains[d].name).join(' or ')}`,
+                            `Domain is ${domain.map((d) => domains[d]?.name).join(' or ')}`,
                         ]
                           .filter(Boolean)
                           .join(', ')}

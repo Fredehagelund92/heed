@@ -41,9 +41,10 @@ function sharedWords(text: string, others: string[], min: number) {
     for (let i = 1; i <= a.length; i++) {
       const row = new Array<number>(b.length + 1).fill(0)
       for (let j = 1; j <= b.length; j++) {
-        if (a[i - 1].word !== b[j - 1].word) continue
-        row[j] = prev[j - 1] + 1
-        if (row[j] >= min) for (let k = i - row[j]; k < i; k++) hit[k] = true
+        if (a[i - 1]!.word !== b[j - 1]!.word) continue
+        const run = prev[j - 1]! + 1
+        row[j] = run
+        if (run >= min) for (let k = i - run; k < i; k++) hit[k] = true
       }
       prev = row
     }
@@ -63,9 +64,11 @@ export function markShared(text: string, others: string[], min = 3): Segment[] {
     // A marked run spans from its first word to its last, the spaces between included.
     let j = i
     while (j + 1 < words.length && hit[j + 1]) j++
-    if (words[i].start > at) out.push({ text: text.slice(at, words[i].start), marked: false })
-    out.push({ text: text.slice(words[i].start, words[j].end), marked: true })
-    at = words[j].end
+    const first = words[i]!
+    const last = words[j]!
+    if (first.start > at) out.push({ text: text.slice(at, first.start), marked: false })
+    out.push({ text: text.slice(first.start, last.end), marked: true })
+    at = last.end
     i = j
   }
   if (at < text.length) out.push({ text: text.slice(at), marked: false })

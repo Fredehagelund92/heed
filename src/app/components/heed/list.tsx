@@ -24,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import type { Status } from '@/data/world'
+import type { Status } from '@/model/items'
 
 // The parts the Context and Definitions lists share, drawn the way the Heed app draws its list and
 // Efferd its tables: a quiet filter bar, a thin header row, rows of one line at one density, plain
@@ -203,14 +203,15 @@ export function Highlight({ text, query }: { text: string; query: string }) {
   const parts: React.ReactNode[] = []
   let last = 0
   for (const m of text.matchAll(re)) {
-    const start = m.index + m[1].length
+    const [, before = '', word = ''] = m
+    const start = m.index + before.length
     parts.push(
       text.slice(last, start),
       <mark key={start} className="bg-transparent font-bold text-inherit">
-        {m[2]}
+        {word}
       </mark>,
     )
-    last = start + m[2].length
+    last = start + word.length
   }
   parts.push(text.slice(last))
   return <>{parts}</>
@@ -373,7 +374,7 @@ export function DockStepper({
               size="icon-sm"
               aria-label="Previous"
               disabled={at === 0}
-              onClick={() => onGo(order[at - 1])}
+              onClick={() => onGo(order[at - 1]!)}
             />
           }
         >
@@ -391,7 +392,7 @@ export function DockStepper({
               size="icon-sm"
               aria-label="Next"
               disabled={at === order.length - 1}
-              onClick={() => onGo(order[at + 1])}
+              onClick={() => onGo(order[at + 1]!)}
             />
           }
         >

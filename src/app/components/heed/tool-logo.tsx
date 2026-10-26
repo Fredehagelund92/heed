@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import type { Connector } from '@/data/integrations'
+import type { Connector } from '@/model/integrations'
 
 /** A tool's real logo in a white tile, so it reads the same in light and dark. */
 export function ToolLogo({

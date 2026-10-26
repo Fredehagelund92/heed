@@ -1,4 +1,8 @@
 import type { CSSProperties } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { observabilityPageQuery } from '@/api/queries'
+import { useObservability } from '@/lib/obs'
+import type { ObsData } from '@/model/observability'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -23,8 +27,8 @@ import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { LineChart } from '@/components/obs/charts'
 import { Kpi, RangeSwitch } from '@/components/obs/controls'
-import { AGENT_TOOLS } from '@/data/agents'
-import { AGENT_CALLS, SPEND, TOOL_CALLS, money, speedOf } from '@/data/observability'
+import { AGENT_TOOLS } from '@/lib/agents'
+import { money } from '@/model/observability'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { ObsPage } from '@/pages/observability'
 
@@ -41,9 +45,14 @@ const scaleOf = (range: number, state: string) =>
 const SPEND_FILL = ['var(--primary)', 'var(--chart-3)', 'var(--chart-2)']
 
 export function UsagePage() {
+  const load = useQuery(observabilityPageQuery('usage'))
   return (
     <ObsPage section="usage">
-      <Loadable what="the usage" skeleton={<ObsSkeleton section="usage" kpis={4} body="table" />}>
+      <Loadable
+        query={load}
+        what="the usage"
+        skeleton={<ObsSkeleton section="usage" kpis={4} body="table" />}
+      >
         <Usage />
       </Loadable>
     </ObsPage>
@@ -51,6 +60,7 @@ export function UsagePage() {
 }
 
 function Usage() {
+  const obs = useObservability()
   const view = useObsView()
   if (view.state === 'empty')
     return (
@@ -81,7 +91,7 @@ function Usage() {
 
   const k = scaleOf(view.range, view.state)
   const n = (v: number) => Math.round(v * k)
-  const tools = TOOL_CALLS.map((t) => ({
+  const tools = obs.data.toolCalls.map((t) => ({
     ...t,
     calls: n(t.calls),
     answered: n(t.answered),
@@ -91,8 +101,10 @@ function Usage() {
   }))
   const calls = tools.reduce((a, t) => a + t.calls, 0)
   const unread = n(2)
-  const agents = AGENT_CALLS.map((a) => ({ ...a, calls: n(a.calls) })).filter((a) => a.calls > 0)
-  const speed = speedOf(view.range)
+  const agents = obs.data.agentCalls
+    .map((a) => ({ ...a, calls: n(a.calls) }))
+    .filter((a) => a.calls > 0)
+  const speed = obs.speedOf(view.range)
   const median = middle(speed.median)
   const p95 = middle(speed.p95)
 
@@ -130,8 +142,8 @@ function Usage() {
         <Kpi
           icon={<CoinsIcon />}
           label="Model spend"
-          value={money(SPEND.total)}
-          sub={`of ${money(SPEND.cap).replace('.00', '')} this month`}
+          value={money(obs.data.spend.total)}
+          sub={`of ${money(obs.data.spend.cap).replace('.00', '')} this month`}
         />
       </div>
 
@@ -254,7 +266,7 @@ function SeriesLegend({ items }: { items: { name: string; color: string }[] }) {
 }
 
 /** The tools, one row each. On a narrow page the four results fold into one line under the name. */
-function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
+function Tools({ tools }: { tools: ObsData['toolCalls'] }) {
   const what = (name: string) =>
     AGENT_TOOLS.find((t) => t.name === name)
       ?.what.replace(/\.$/, '')
@@ -317,28 +329,29 @@ function Tools({ tools }: { tools: typeof TOOL_CALLS }) {
 
 /** This month's spend as one bar against the cap, by feature, and the caps under it. */
 function Spend() {
+  const obs = useObservability()
   return (
     <div className="grid grid-cols-1 gap-y-4 pb-1 @4xl/main:grid-cols-2">
       <div className="px-4 md:px-5">
         <p className="flex items-baseline gap-1.5">
           <span className="text-2xl font-semibold tracking-tight tabular-nums">
-            {money(SPEND.total)}
+            {money(obs.data.spend.total)}
           </span>
           <span className="text-sm text-muted-foreground">
-            of {money(SPEND.cap).replace('.00', '')} this month
+            of {money(obs.data.spend.cap).replace('.00', '')} this month
           </span>
         </p>
         <div
           className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-xs bg-muted"
           aria-hidden
         >
-          {SPEND.parts.map((p, i) => (
+          {obs.data.spend.parts.map((p, i) => (
             <span
               key={p.name}
               className="bg-(--swatch)"
               style={
                 {
-                  width: `${(p.amount / SPEND.cap) * 100}%`,
+                  width: `${(p.amount / obs.data.spend.cap) * 100}%`,
                   '--swatch': SPEND_FILL[i],
                 } as CSSProperties
               }
@@ -346,7 +359,7 @@ function Spend() {
           ))}
         </div>
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          {SPEND.parts.map((p, i) => (
+          {obs.data.spend.parts.map((p, i) => (
             <li key={p.name} className="flex items-center gap-1.5">
               <span
                 aria-hidden
@@ -371,7 +384,7 @@ function Spend() {
           </tr>
         </thead>
         <tbody>
-          {SPEND.limits.map((l) => (
+          {obs.data.spend.limits.map((l) => (
             <tr key={l.name} className="border-t">
               <td className="h-11 px-4 md:pl-5">{l.name}</td>
               <td className="h-11 px-4 text-right tabular-nums">{money(l.used)}</td>

@@ -3,7 +3,16 @@ import { createRoot } from 'react-dom/client'
 import { createRouter, RouterProvider } from '@tanstack/react-router'
 import './styles/index.css'
 import { bindRouter } from '@/lib/router'
+import { mockControls, startApi } from '@/api'
 import { routeTree } from './routeTree.gen'
+
+// The binding first. The mock reads the review flags of the address it starts at (?demo=setup is
+// a new install from the first paint).
+startApi()
+mockControls?.setAddress({
+  path: window.location.pathname,
+  query: Object.fromEntries(new URLSearchParams(window.location.search)),
+})
 
 const router = createRouter({
   routeTree,

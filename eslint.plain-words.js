@@ -110,8 +110,9 @@ export const appSurfaces = [
     place: 'Integrations',
     files: [
       'src/app/pages/integrations.tsx',
-      'src/app/data/integrations.ts',
-      'src/app/data/world.ts',
+      'src/app/model/integrations.ts',
+      'src/app/api/mock/data/integrations.ts',
+      'src/app/api/mock/data/world.ts',
     ],
   },
   // An edition is Advanced vocabulary: Settings and the agent's reply, never success copy.

@@ -33,7 +33,7 @@ import {
   VERB,
   type Version,
   type VersionKind,
-} from '@/data/history'
+} from '@/model/history'
 import { useShowMore } from '@/hooks/use-show-more'
 
 // A history that stays small however long it gets: one line until opened ("12 changes - last

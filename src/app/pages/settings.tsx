@@ -35,14 +35,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { AGENT_TOOLS, logoFor } from '@/data/agents'
+import { AGENT_TOOLS, logoFor } from '@/lib/agents'
 import { GuideLink } from '@/components/heed/guide-link'
-import { setLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
-import { revokeConnected, useConnected, type Connected } from '@/lib/connect'
-import { domainIds, domains, servedToAgents } from '@/data/world'
-import { useFacts, useMe, useStore, type LogEntry } from '@/lib/store'
-import { relativeDate } from '@/data/history'
-import { excerptOf, useDomains } from '@/lib/domains'
+import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
+import type { Connected } from '@/lib/connect'
+import { servedToAgents } from '@/model/items'
+import { useAgentConnections, useLibrary, useWrite } from '@/api/queries'
+import { useFacts, useMe } from '@/lib/workspace'
+import type { LogEntry } from '@/model/items'
+import { relativeDate } from '@/model/history'
+import { useDomainList, useDomains } from '@/lib/workspace'
 import { useDefinitions } from '@/lib/definitions'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { IntegrationsRoute } from '@/pages/integrations'
@@ -55,7 +57,7 @@ import {
   type FrameColumn,
 } from '@/components/heed/frame'
 import { SLUG } from '@/lib/brand'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { ShowMoreButton } from '@/components/heed/show-more'
 import { useShowMore } from '@/hooks/use-show-more'
 import { People } from '@/pages/people'
@@ -71,7 +73,8 @@ import { People } from '@/pages/people'
  * adds a domain. Arrow keys move between cells; search shows once there are more than eight.
  */
 function Domains() {
-  useDomains()
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   const facts = useFacts()
   const defs = useDefinitions()
   const [q, setQ] = React.useState('')
@@ -79,10 +82,10 @@ function Domains() {
   // Sorted by name; the sandbox, which never reaches agents, comes last.
   const ids = [...domainIds]
     .sort((a, b) =>
-      a === 'sandbox' ? 1 : b === 'sandbox' ? -1 : domains[a].name.localeCompare(domains[b].name),
+      a === 'sandbox' ? 1 : b === 'sandbox' ? -1 : domains[a]!.name.localeCompare(domains[b]!.name),
     )
     .filter((id) =>
-      `${domains[id].name} ${excerptOf(id)}`.toLowerCase().includes(q.trim().toLowerCase()),
+      `${domains[id]?.name} ${domains[id]?.covers}`.toLowerCase().includes(q.trim().toLowerCase()),
     )
   const onKeyDown = (e: React.KeyboardEvent) => {
     const keys = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 0, ArrowUp: 0 } as Record<
@@ -95,7 +98,7 @@ function Domains() {
     if (i < 0) return
     const cols = getComputedStyle(grid.current).gridTemplateColumns.split(' ').length
     const step = e.key === 'ArrowDown' ? cols : e.key === 'ArrowUp' ? -cols : keys[e.key]
-    const next = cells[i + step]
+    const next = cells[i + (step ?? 0)]
     if (!next) return
     e.preventDefault()
     next.focus()
@@ -138,25 +141,25 @@ function Domains() {
               >
                 <span className="flex items-center gap-2">
                   <DomainDot id={id} />
-                  <span className="truncate font-medium">{domains[id].name}</span>
+                  <span className="truncate font-medium">{domains[id]?.name}</span>
                   {id === 'sandbox' && (
                     <span className="text-xs text-muted-foreground">Never reaches agents</span>
                   )}
                 </span>
                 <span className="line-clamp-2 text-sm text-muted-foreground">
-                  {excerptOf(id) || 'Nothing written yet.'}
+                  {domains[id]?.covers || 'Nothing written yet.'}
                 </span>
                 <span className="mt-auto flex items-end justify-between gap-3 pt-2">
                   <span
                     className="flex -space-x-1.5 *:ring-2 *:ring-background"
-                    aria-label={`Owners: ${domains[id].owners.join(', ')}`}
+                    aria-label={`Owners: ${domains[id]?.owners.join(', ')}`}
                   >
-                    {domains[id].owners.slice(0, 4).map((o) => (
+                    {domains[id]?.owners.slice(0, 4).map((o) => (
                       <PersonAvatar key={o} name={o} />
                     ))}
-                    {domains[id].owners.length > 4 && (
+                    {domains[id]!.owners.length > 4 && (
                       <span className="grid size-7 place-items-center rounded-full bg-muted text-2xs font-medium">
-                        +{domains[id].owners.length - 4}
+                        +{domains[id]!.owners.length - 4}
                       </span>
                     )}
                   </span>
@@ -262,9 +265,13 @@ function RevokeDialog({
 }
 
 function Agents() {
+  const domains = useDomains()
+  const domainIds = useDomainList().map((d) => d.id)
   const linksOn = useLinksEnabled()
+  const setLinksEnabled = useSetLinksEnabled()
+  const write = useWrite()
   const [paused, setPaused] = React.useState(false)
-  const rows = useConnected()
+  const rows = useAgentConnections()
   const [revoking, setRevoking] = React.useState<Connected>()
   const { shown, more, next, showMore } = useShowMore(rows, 5, 20)
   return (
@@ -331,7 +338,7 @@ function Agents() {
         onClose={() => setRevoking(undefined)}
         onRevoke={() => {
           if (!revoking) return
-          revokeConnected(revoking)
+          void write('revokeAgentConnection', { agent: revoking.agent, who: revoking.who })
           toast(`${revoking.agent} for ${revoking.who} revoked`)
           setRevoking(undefined)
         }}
@@ -364,7 +371,7 @@ function Agents() {
                 <Select
                   items={[
                     { label: 'No domain paused', value: 'none' },
-                    ...domainIds.map((d) => ({ label: domains[d].name, value: d })),
+                    ...domainIds.map((d) => ({ label: domains[d]?.name, value: d })),
                   ]}
                   defaultValue="none"
                 >
@@ -376,7 +383,7 @@ function Agents() {
                       <SelectItem value="none">No domain paused</SelectItem>
                       {domainIds.map((d) => (
                         <SelectItem key={d} value={d}>
-                          {domains[d].name}
+                          {domains[d]?.name}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -454,10 +461,11 @@ const cols = (...labels: string[]): FrameColumn[] =>
   }))
 
 function Advanced() {
-  const { state } = useStore()
+  const { log } = useLibrary()
+  const domains = useDomains()
   // What was deleted, newest first: drafts and terms. Published context is archived, never deleted.
   const deleted = [
-    ...state.log
+    ...log
       .filter((e) => e.what === 'deleted')
       .flatMap((e) =>
         e.items.map((i) => ({
@@ -523,7 +531,7 @@ function Advanced() {
         level={3}
         description="Who changed what, and when. Hash-chained, so a change after the fact shows."
         collapsible
-        defaultOpen={state.log.length > 0}
+        defaultOpen={log.length > 0}
         action={
           <>
             <Button
@@ -551,7 +559,7 @@ function Advanced() {
             { label: 'What' },
           ]}
           rows={[
-            ...state.log.map((e) => [
+            ...log.map((e) => [
               relativeDate(e.on).replace(/^./, (c) => c.toUpperCase()),
               e.who,
               logLine(e),
@@ -711,7 +719,7 @@ function Advanced() {
             hint: d.hint,
             value: (
               <span className="text-xs text-muted-foreground">
-                {d.domain ? domains[d.domain].name : ''}
+                {d.domain ? domains[d.domain]?.name : ''}
               </span>
             ),
           }))}
@@ -831,7 +839,7 @@ export function SettingsPage({
     )
   const title = (
     <SettingsCrumbs
-      trail={[{ label: 'Settings', href: '/settings/general' }, { label: TITLES[current] }]}
+      trail={[{ label: 'Settings', href: '/settings/general' }, { label: TITLES[current]! }]}
     />
   )
   if (current === 'general')

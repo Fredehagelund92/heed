@@ -1,4 +1,8 @@
 import * as React from 'react'
+import { useDomains } from '@/lib/workspace'
+import { useQuery } from '@tanstack/react-query'
+import { observabilityPageQuery } from '@/api/queries'
+import { useObservability } from '@/lib/obs'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -17,15 +21,7 @@ import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { Bars } from '@/components/obs/charts'
 import { Kpi, RangeSwitch } from '@/components/obs/controls'
-import {
-  FEEDBACK_WEEK,
-  GOOD_BY_WEEK,
-  REPORT_WORDS,
-  REPORTS,
-  shownCount,
-  type ReportState,
-} from '@/data/observability'
-import { domains } from '@/data/world'
+import { REPORT_WORDS, shownCount, type ReportState } from '@/model/observability'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { ObsPage } from '@/pages/observability'
 
@@ -41,9 +37,11 @@ const STATE_ICON: Record<ReportState, typeof FlagIcon> = {
 }
 
 export function FeedbackPage() {
+  const load = useQuery(observabilityPageQuery('feedback'))
   return (
     <ObsPage section="feedback">
       <Loadable
+        query={load}
         what="the feedback"
         skeleton={<ObsSkeleton section="feedback" kpis={4} body="split" />}
       >
@@ -54,17 +52,19 @@ export function FeedbackPage() {
 }
 
 function Feedback() {
+  const domains = useDomains()
+  const obs = useObservability()
   const view = useObsView()
   const [tab, setTab] = React.useState<'all' | ReportState>('all')
   const reports =
     view.state === 'empty'
       ? []
-      : REPORTS.filter((r) => !view.owned || view.owned.includes(r.domain))
+      : obs.data.reports.filter((r) => !view.owned || view.owned.includes(r.domain))
   const shown = reports.filter((r) => tab === 'all' || r.state === tab)
   const weeks = view.range === 90 ? 13 : 8
   const scale = view.range === 7 ? 1 : view.range === 30 ? 4.3 : 12.9
-  const good = view.state === 'empty' ? 0 : Math.round(FEEDBACK_WEEK.good * scale)
-  const wrong = view.state === 'empty' ? 0 : Math.round(FEEDBACK_WEEK.wrong * scale)
+  const good = view.state === 'empty' ? 0 : Math.round(obs.data.feedbackWeek.good * scale)
+  const wrong = view.state === 'empty' ? 0 : Math.round(obs.data.feedbackWeek.wrong * scale)
   const people = reports.filter((r) => !r.agent).length
   const agents = reports.filter((r) => r.agent).length
   if (view.state === 'empty')
@@ -97,7 +97,7 @@ function Feedback() {
           icon={<ThumbsUpIcon />}
           label="Good answer"
           value={shownCount(good)}
-          change={view.range === 7 ? `+${FEEDBACK_WEEK.goodChange}` : undefined}
+          change={view.range === 7 ? `+${obs.data.feedbackWeek.goodChange}` : undefined}
           tone="up"
           sub={`${view.label}, in Ask`}
         />
@@ -173,7 +173,7 @@ function Feedback() {
                       </a>
                       <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
                         <DomainDot id={r.domain} />
-                        {domains[r.domain].name} - {r.line}
+                        {domains[r.domain]?.name} - {r.line}
                       </p>
                     </div>
                     {/* On a narrow page the state and who sent it go under the title. */}
@@ -213,8 +213,8 @@ function Feedback() {
           >
             <div className="px-3 pb-3">
               <Bars
-                values={GOOD_BY_WEEK.values.slice(-weeks)}
-                labels={GOOD_BY_WEEK.labels.slice(-weeks)}
+                values={obs.data.goodByWeek.values.slice(-weeks)}
+                labels={obs.data.goodByWeek.labels.slice(-weeks)}
                 caption="Good answers, by week"
               />
             </div>

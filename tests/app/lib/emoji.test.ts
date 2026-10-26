@@ -27,10 +27,10 @@ describe('the set', () => {
 
 describe('finding one', () => {
   it('starts with what was used and the reactions', () => {
-    const [first] = searchEmoji('th', [])
+    const first = searchEmoji('th', [])[0]!
     expect(first.label).toBe('Frequently used')
-    expect(first.items[0].char).toBe('👍')
-    expect(searchEmoji('ta', ['🎉'])[0]).toEqual({
+    expect(first.items[0]!.char).toBe('👍')
+    expect(searchEmoji('ta', ['🎉'])[0]!).toEqual({
       label: 'Frequently used',
       items: [expect.objectContaining({ char: '🎉' })],
     })
@@ -38,14 +38,14 @@ describe('finding one', () => {
 
   it('puts the best fit first, and the group it is in', () => {
     const groups = searchEmoji('ta', [])
-    expect(groups[0].items[0].short).toBe('tada')
+    expect(groups[0]!.items[0]!.short).toBe('tada')
     // "star-struck" only contains the letters, and something starts with them: it stays out.
     expect(groups.flatMap((g) => g.items).some((x) => x.short === 'star_struck')).toBe(false)
   })
 
   it('finds by a word of the name or another name', () => {
-    expect(searchEmoji('celebr', [])[0].items[0].char).toBe('🎉')
-    expect(searchEmoji('thanks', [])[0].items[0].char).toBe('🙏')
+    expect(searchEmoji('celebr', [])[0]!.items[0]!.char).toBe('🎉')
+    expect(searchEmoji('thanks', [])[0]!.items[0]!.char).toBe('🙏')
   })
 
   it('finds nothing for words that are no emoji', () => {

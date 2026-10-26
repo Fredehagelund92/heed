@@ -29,7 +29,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
-import { connectorById } from '@/data/integrations'
+import { connectorById } from '@/model/integrations'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -45,37 +45,26 @@ import {
 import type { JSONContent } from '@tiptap/core'
 import { isTyping, pageKey } from '@/lib/keys'
 import { open as openOverlay } from '@/lib/events'
-import { useSend, type Sender } from '@/lib/scenario'
+import { useSend, type Sender } from '@/lib/send'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { flushSync } from 'react-dom'
 import { TOUCH } from '@/lib/touch'
-import { publishEffects, touchedBy } from '@/lib/publish'
 import { lineDiff } from '@/lib/line-diff'
 import { useLinksEnabled } from '@/lib/links-switch'
 import { Composer } from '@/components/templates/comment-box/composer'
 import { CommentBox } from '@/components/templates/comment-box'
-import { commentActions } from '@/lib/comments'
+import { useCommentActions } from '@/lib/comments'
 import { ChoiceGroup, TextSwitch, ViewToggle } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { DRAFT_LABEL } from '@/data/ask'
-import { cards } from '@/data/inbox'
-import { useSavedQuestions } from '@/data/saved-questions'
-import { checkDraft } from '@/lib/saved-check'
+import { DRAFT_LABEL } from '@/model/ask'
+import { useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
+import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
-import {
-  careLine,
-  marks,
-  needsCare,
-  readiness,
-  readTime,
-  reviewFor,
-  reviews,
-  type Review,
-} from '@/data/review'
-import { domains, factById } from '@/data/world'
+import { careLine, marks, needsCare, readiness, readTime, type Review } from '@/model/review'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { navigate } from '@/lib/router'
-import { useMe, useStore, type State } from '@/lib/store'
+import { useDomains, useFacts } from '@/lib/workspace'
+import { useMe } from '@/lib/workspace'
 import { Summary } from '@/pages/review'
 import { TruncatedText } from '@/components/heed/truncated'
 import { plainText } from '@/lib/mentions'
@@ -115,7 +104,9 @@ function QueueRail({ count, onShow }: { count: number; onShow: () => void }) {
 
 /** The queue of waiting suggestions, grouped by who sent them. */
 function Queue({ current, onPick }: { current: string; onPick: (id: string) => void }) {
-  const { state, dispatch } = useStore()
+  const state = useInbox()
+  const reviews = useReviews()
+  const write = useWrite()
   const senders = [...new Set(reviews.map((r) => r.from))]
   // Only what the owner has read: publishing signs their name on it.
   // Only what needs no look of its own: no claim, overlap, retirement, unchecked value or new link.
@@ -128,13 +119,14 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
       <nav aria-label="Waiting suggestions" className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         {senders.map((from) => {
           const items = reviews.filter((r) => r.from === from)
-          const agent = items[0].agent
+          const head = items[0]!
+          const agent = head.agent
           return (
             <section key={from} className="pb-3">
               <h2 className="flex items-center gap-2 px-2 pb-1.5 text-xs font-medium text-muted-foreground">
-                {items[0].synced ? (
+                {head.synced ? (
                   <ToolLogo c={connectorById('google-drive')!} size="sm" />
-                ) : items[0].drafted ? (
+                ) : head.drafted ? (
                   <span
                     aria-hidden
                     className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/60"
@@ -206,7 +198,7 @@ function Queue({ current, onPick }: { current: string; onPick: (id: string) => v
         {opened.length > 0 && (
           <button
             type="button"
-            onClick={() => opened.forEach((r) => dispatch({ type: 'reviewed', card: r.id }))}
+            onClick={() => opened.forEach((r) => void write('markReviewed', { id: r.id }))}
             className="inline-flex min-h-7 items-center self-center rounded-sm px-1 text-xs text-muted-foreground underline decoration-muted-foreground/40 underline-offset-4 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Mark the {opened.length} I've opened as read
@@ -233,32 +225,23 @@ function PublishReady({
   unread: number
   apart: number
 }) {
-  const { state, dispatch } = useStore()
+  const write = useWrite()
   const [confirm, setConfirm] = React.useState(false)
   const sender = useSend()
   const n = items.length
-  const me = useMe()
   // Each one is published as a single Publish would, and Undo takes back exactly these, whatever else happened since.
-  const publishAll = () => {
-    const before = state
-    const ids = items.map((r) => r.id)
-    const facts = items.flatMap(touchedBy)
-    const undos = items.map((r) => {
-      const undo = publishEffects(r, me.name, dispatch)
-      dispatch({ type: 'complete', card: r.id, outcome: 'Published' })
-      return undo
-    })
+  const publishAll = async () => {
+    const { undo } = await write('publishReviews', { ids: items.map((r) => r.id) })
     setConfirm(false)
     toast(`Published ${n}`, {
       description:
         "Agents get them from the next question. The ones you haven't read are still waiting.",
       action: {
         label: 'Undo',
-        onClick: () => {
-          dispatch({ type: 'revert', before, cards: ids, facts })
-          undos.forEach((u) => u?.())
-          toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' })
-        },
+        onClick: () =>
+          void write('undo', { token: undo }).then(() =>
+            toast(`Back: ${n} waiting again`, { description: 'Nothing was published.' }),
+          ),
       },
     })
   }
@@ -340,7 +323,8 @@ function PublishReady({
  * does; so does Mark as read. Opening and leaving does not.
  */
 function ReadMark({ r }: { r: Review }) {
-  const { state, dispatch } = useStore()
+  const state = useInbox()
+  const write = useWrite()
   const ref = React.useRef<HTMLParagraphElement>(null)
   const read = !!state.reviewed[r.id]
   const counts = !state.done[r.id] && readiness(r).bulk
@@ -355,18 +339,20 @@ function ReadMark({ r }: { r: Review }) {
     let timer = 0
     const seen = new IntersectionObserver(([e]) => {
       window.clearTimeout(timer)
-      if (e.isIntersecting) {
+      if (e?.isIntersecting) {
         since = Date.now()
-        timer = window.setTimeout(() => dispatch({ type: 'reviewed', card: r.id }), left)
+        timer = window.setTimeout(() => void write('markReviewed', { id: r.id }), left)
       } else if (since) left = Math.max(0, left - (Date.now() - since))
-      setVisible(e.isIntersecting)
+      setVisible(!!e?.isIntersecting)
     })
     seen.observe(el)
     return () => {
       seen.disconnect()
       window.clearTimeout(timer)
     }
-  }, [r.id, read, counts, dispatch, ms])
+    // The write only changes with the query client.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r.id, read, counts, ms])
   if (!counts) return null
   return (
     <p
@@ -396,7 +382,7 @@ function ReadMark({ r }: { r: Review }) {
           </span>
           <button
             type="button"
-            onClick={() => dispatch({ type: 'reviewed', card: r.id })}
+            onClick={() => void write('markReviewed', { id: r.id })}
             className="inline-flex min-h-6 items-center rounded-sm px-1 text-foreground underline decoration-foreground/30 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             Mark as read
@@ -463,7 +449,10 @@ function SourceView({ r }: { r: Review }) {
 /** The change itself, in the style that fits its kind. */
 function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
   const [showUnchanged, setShowUnchanged] = React.useState(false)
-  const fact = factById(r.retire?.factId ?? cards.find((c) => c.id === r.id)?.factId ?? '')
+  const facts = useFacts()
+  const { cards } = useInbox()
+  const item = itemOfReview(r, cards)
+  const fact = facts.find((f) => f.id === item)
   if (view === 'source') return <SourceView r={r} />
   return (
     <div className="flex flex-col">
@@ -653,6 +642,7 @@ function Clash({ r }: { r: Review }) {
 
 /** Try it: Heed's answer from the context, with the draft or as published. */
 function TryItPanel({ r, now }: { r: Review; now?: string }) {
+  const { cards } = useInbox()
   const [version, setVersion] = React.useState<'draft' | 'published'>('draft')
   const linksOn = useLinksEnabled()
   // Links the suggestion adds or removes: whether an answer would follow them.
@@ -723,10 +713,12 @@ type Finished = {
   outcome: string
   message: string
   description: string
-  before: State
+  /** Pass to `undo`: takes back exactly this decision. */
+  undo: string
   now?: string
   next?: string
-  alsoUndo?: () => void
+  /** What Undo puts back on this screen beyond the decision: a returned note, back in the editor. */
+  afterUndo?: () => void
 }
 
 type DecisionProps = {
@@ -777,9 +769,11 @@ function Decision({
     which.current = on
     onHold(hovered.current || focused.current)
   }
-  const { state, dispatch } = useStore()
-  const [relation] = React.useContext(RelationContext)
+  const state = useInbox()
+  const reviews = useReviews()
   const me = useMe()
+  const write = useWrite()
+  const [relation] = React.useContext(RelationContext)
   const first = r.from.split(' ')[0]
   const done = state.done[r.id]
   // The last thing tried, so Retry does it again.
@@ -790,18 +784,20 @@ function Decision({
     setTried('publish')
     sender.send(commitPublish)
   }
-  const commitPublish = () => {
-    const before = state
-    const alsoUndo = publishEffects(r, me.name, dispatch, relation)
+  const commitPublish = async () => {
+    const { undo } = await write('publishReview', {
+      id: r.id,
+      relation,
+      saveQuestion: savesQuestion(r.id),
+    })
     onDone({
-      alsoUndo,
+      undo,
       outcome: 'Published',
       message: 'Published',
       description:
         r.clash && relation === 'disagree'
           ? 'Both stay live; agents say context disagrees.'
           : 'Agents get it from the next question.',
-      before,
       now: r.tryIt.after.text,
     })
   }
@@ -809,15 +805,14 @@ function Decision({
     setTried('archive')
     sender.send(commitArchive)
   }
-  const commitArchive = () => {
-    const before = state
+  const commitArchive = async () => {
+    const { undo } = await write('archiveReview', { id: r.id })
     setConfirmArchive(false)
-    if (r.retire) dispatch({ type: 'editFact', id: r.retire.factId, patch: { status: 'Archived' } })
     onDone({
+      undo,
       outcome: 'Archived',
       message: 'Archived',
       description: 'Agents stop getting it from the next question.',
-      before,
     })
   }
   // Archiving takes context away from agents, so it always asks first, from the button or the key.
@@ -825,32 +820,30 @@ function Decision({
   // A withdrawn retirement closes: nothing changes, and the context item stays live.
   const close = () => {
     setTried('close')
-    sender.send(() =>
+    sender.send(async () => {
+      const { undo } = await write('closeReview', { id: r.id })
       onDone({
+        undo,
         outcome: 'Closed',
         message: 'Closed',
         description: 'Nothing changes: the context item stays live.',
-        before: state,
-      }),
-    )
+      })
+    })
   }
   const withdrawn = r.retire?.withdrawn
   const returnNote = React.useRef<JSONContent | null>(null)
-  const commitReturn = () => {
-    const before = state
+  const commitReturn = async () => {
     const note = returnNote.current!
+    // The note becomes the first comment; if the return fails, it stays in the editor.
+    const { undo } = await write('returnReview', { id: r.id, note })
     onDraft(null)
-    const posted = commentActions.post(`review:${r.id}`, me.name, note, { returned: true })
     onDone({
+      undo,
       outcome: 'Returned',
       message: `Returned to ${r.from}`,
       description: `${first} sees your note in the comments. Agents don't get the change, or the note.`,
-      before,
       // Undo takes the note back out of the comments and keeps it as a draft.
-      alsoUndo: () => {
-        commentActions.remove(`review:${r.id}`, posted)
-        onDraft(note)
-      },
+      afterUndo: () => onDraft(note),
     })
   }
   const retry = () =>
@@ -919,7 +912,7 @@ function Decision({
   })
 
   // A draft that would make a saved question worse says so instead of a plain Ready; it never stops Publish.
-  const drift = checkDraft(r, useSavedQuestions())
+  const drift = checkDraft(r, useSavedQuestions(), itemOfReview(r, state.cards))
   const base = readiness(r, relation ? relations.find((x) => x.id === relation) : null)
   const ready =
     drift?.look && !r.retire?.withdrawn
@@ -1250,7 +1243,8 @@ function Decision({
 
 /** Everything in the queue decided: how it went, Undo for the last one, and the way back. */
 function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUndo: () => void }) {
-  const { state } = useStore()
+  const state = useInbox()
+  const reviews = useReviews()
   const tally = new Map<string, number>()
   for (const r of reviews) {
     const o = state.done[r.id]?.label
@@ -1288,9 +1282,13 @@ function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUnd
 
 /** The full-screen review: queue, change, and decision. J and K move, Esc goes back to the Inbox. */
 export function ReviewPage({ id }: { id: string }) {
-  const r = reviewFor(id)
+  const reviews = useReviews()
+  const r = reviews.find((x) => x.id === id)
   const me = useMe()
-  const { state, dispatch } = useStore()
+  const state = useInbox()
+  const domains = useDomains()
+  const write = useWrite()
+  const commentActions = useCommentActions()
   const isMobile = useIsMobile()
   const [view, setView] = React.useState<'rich' | 'source'>('rich')
   const [queueOpen, setQueueOpen] = React.useState(false)
@@ -1344,10 +1342,12 @@ export function ReviewPage({ id }: { id: string }) {
   // Opening the review is reading its new reply and any mention of you: the Inbox markers go.
   // Opening it also counts as reading it, for "Publish the ones you've read".
   React.useEffect(() => {
-    commentActions.seen(`review:${id}`)
-    commentActions.seenMention(`review:${id}`, me.name)
-    dispatch({ type: 'opened', card: id })
-  }, [id, me.name, dispatch])
+    void commentActions.seen(`review:${id}`)
+    void commentActions.seenMention(`review:${id}`)
+    void write('markOpened', { ids: [id] })
+    // Once per suggestion opened.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, me.name])
 
   // The hold after a decision ends in the next suggestion, or the Inbox when nothing is left.
   // After the last decision: the review shows that everything is handled, with Undo for that last one.
@@ -1414,12 +1414,12 @@ export function ReviewPage({ id }: { id: string }) {
       )
         return moveOn()
       if (e.key === 'Escape') return returning ? setReturningState(false) : leave()
-      if (e.key === 'j' && at < reviews.length - 1) go(reviews[at + 1].id)
-      if (e.key === 'k' && at > 0) go(reviews[at - 1].id)
+      if (e.key === 'j' && at < reviews.length - 1) go(reviews[at + 1]!.id)
+      if (e.key === 'k' && at > 0) go(reviews[at - 1]!.id)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [at, go, leave, returning, finished, moveOn])
+  }, [at, go, leave, returning, finished, moveOn, reviews])
 
   if (!r) {
     // An old link: say why it is empty, and offer the next suggestion that still waits.
@@ -1446,7 +1446,6 @@ export function ReviewPage({ id }: { id: string }) {
 
   // A decision shows what it did in place for a moment, with Undo, then the next suggestion opens.
   const onDone = (f: Finished) => {
-    dispatch({ type: 'complete', card: r.id, outcome: f.outcome })
     focusChange()
     const next =
       reviews.find((x, i) => i > at && !state.done[x.id]) ??
@@ -1462,16 +1461,16 @@ export function ReviewPage({ id }: { id: string }) {
     hold.current.timer = 0
     // Exactly this decision goes back: its outcome and the context items it changed, nothing else.
     if (finished) {
-      dispatch({ type: 'revert', before: finished.before, cards: [r.id], facts: touchedBy(r) })
-      finished.alsoUndo?.()
+      void write('undo', { token: finished.undo })
+      finished.afterUndo?.()
     }
     setFinished(null)
     setReturning(false)
   }
   const undoLast = () => {
     if (!allDone) return
-    dispatch({ type: 'revert', before: allDone.before, cards: [r.id], facts: touchedBy(r) })
-    allDone.alsoUndo?.()
+    void write('undo', { token: allDone.undo })
+    allDone.afterUndo?.()
     setAllDone(null)
     focusChange()
   }
@@ -1591,7 +1590,7 @@ export function ReviewPage({ id }: { id: string }) {
                         size="icon-sm"
                         aria-label="Previous suggestion"
                         disabled={at === 0}
-                        onClick={() => go(reviews[at - 1].id)}
+                        onClick={() => go(reviews[at - 1]!.id)}
                       />
                     }
                   >
@@ -1609,7 +1608,7 @@ export function ReviewPage({ id }: { id: string }) {
                         size="icon-sm"
                         aria-label="Next suggestion"
                         disabled={at === reviews.length - 1}
-                        onClick={() => go(reviews[at + 1].id)}
+                        onClick={() => go(reviews[at + 1]!.id)}
                       />
                     }
                   >
@@ -1657,7 +1656,7 @@ export function ReviewPage({ id }: { id: string }) {
                     key={r.id}
                     subject={`review:${r.id}`}
                     me={me.name}
-                    owners={domains.sales.owners}
+                    owners={domains.sales?.owners ?? []}
                     note={
                       r.agent
                         ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`
@@ -1697,7 +1696,7 @@ export function ReviewPage({ id }: { id: string }) {
             key={`bar-${r.id}`}
             {...decision}
             variant="bar"
-            onStep={(d) => go(reviews[at + d].id)}
+            onStep={(d) => go(reviews[at + d]!.id)}
           />
         )}
         {/* Which suggestion is open, said once for a screen reader after J, K or a decision. */}

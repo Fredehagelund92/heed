@@ -44,20 +44,14 @@ import {
   vscodeLink,
   type AgentId,
   type Via,
-} from '@/data/agents'
-import {
-  addConnected,
-  CHECK_MS,
-  HINT_MS,
-  LIVE_PHASES,
-  MOCK_SIGN_IN_MS,
-  phaseAt,
-  type LivePhase,
-} from '@/lib/connect'
+} from '@/lib/agents'
+import { CHECK_MS, HINT_MS, phaseAt, STOP_MS, type LivePhase } from '@/lib/connect'
 import { onOpen } from '@/lib/events'
 import { storageKey } from '@/lib/brand'
-import { useRoute } from '@/lib/router'
-import { useMe } from '@/lib/store'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/api'
+import { agentConnectionsQuery, connectReviewQuery } from '@/api/queries'
+import { useMe } from '@/lib/workspace'
 
 // Connect an agent: one prompt first, shown in full and copied exactly as shown, with a live line
 // that watches for the sign-in; then one cell per agent for a quick start, with the one-click links
@@ -70,7 +64,8 @@ const copy = (text: string) => navigator.clipboard?.writeText(text).catch(() => 
 const agentOf = (via: Via) =>
   via === 'prompt' ? 'Claude Code' : guide(via).name === 'Your agent' ? 'ChatGPT' : guide(via).name
 
-type Live = { phase: LivePhase; via: Via; started: number; signIn?: number; agent?: string }
+/** `asks`: a wait the person started, so the page asks whether an agent signed in; a review state waits for nobody. */
+type Live = { phase: LivePhase; via: Via; started: number; asks?: boolean; agent?: string }
 
 /** A state from the review flag: it waits for nobody, so each state stays until acted on. */
 function fromFlag(flag?: LivePhase): Live {
@@ -83,42 +78,45 @@ function fromFlag(flag?: LivePhase): Live {
   }
 }
 
-/** The live line's state: a mock agent signs in 8 seconds after a copy, and ?connect= shows any state. */
+/**
+ * The live line's state: every few seconds it asks whether an agent signed in since the wait began
+ * (in the mock, one signs in 8 seconds after a copy), and a review address shows any state.
+ */
 function useLive() {
   const me = useMe()
-  const asked = useRoute().query.get('connect')
-  const flag = LIVE_PHASES.find((p) => p === asked)
+  const queryClient = useQueryClient()
+  const flag = useQuery(connectReviewQuery()).data ?? undefined
   const [live, setLive] = React.useState<Live>(() => fromFlag(flag))
-  // A new ?connect= flag (a review link) starts that state over, during render rather than after it.
+  // A new review flag starts that state over, during render rather than after it.
   const [shownFlag, setShownFlag] = React.useState(flag)
   if (flag !== shownFlag) {
     setShownFlag(flag)
     setLive(fromFlag(flag))
   }
-  React.useEffect(() => {
-    if (flag === 'connected') addConnected('Claude Code', me.name)
-  }, [flag, me.name])
 
   const waiting = live.phase === 'waiting' || live.phase === 'hint'
   React.useEffect(() => {
     if (!waiting) return
-    const t = setInterval(() => {
-      const phase = phaseAt(Date.now() - live.started, live.signIn)
-      if (phase === live.phase) return
-      if (phase === 'connected') addConnected(live.agent!, me.name)
-      setLive((l) => ({ ...l, phase }))
-    }, CHECK_MS)
+    const check = async () => {
+      const elapsed = Date.now() - live.started
+      const answer =
+        live.asks && elapsed < STOP_MS
+          ? await api.checkConnect({ since: live.started, agent: live.agent ?? 'Claude Code' })
+          : { state: 'waiting' as const }
+      const phase: LivePhase =
+        answer.state === 'connected' || answer.state === 'declined'
+          ? answer.state
+          : phaseAt(elapsed)
+      if (phase === 'connected')
+        void queryClient.invalidateQueries({ queryKey: agentConnectionsQuery().queryKey })
+      setLive((l) => (l.phase === phase ? l : { ...l, phase }))
+    }
+    const t = setInterval(() => void check(), CHECK_MS)
     return () => clearInterval(t)
-  }, [waiting, live, me.name])
+  }, [waiting, live, queryClient])
 
   const start = (via: Via) =>
-    setLive({
-      phase: 'waiting',
-      via,
-      started: Date.now(),
-      signIn: MOCK_SIGN_IN_MS,
-      agent: agentOf(via),
-    })
+    setLive({ phase: 'waiting', via, started: Date.now(), asks: true, agent: agentOf(via) })
   return { live, start, again: () => start(live.via), me: me.name }
 }
 

@@ -1,0 +1,59 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { buildApp } from '../../../src/server/app.ts'
+import { systemClock } from '../../../src/server/clock.ts'
+import { createLogger } from '../../../src/server/observability/logger.ts'
+import { heedApiMethods, type HeedApi } from '@/api/client'
+import { createHttpApi, wiredMethods } from '@/api/http'
+import { describeHeedApi } from '../conformance/heed-api'
+import { idleJobs } from '../../server/idle-jobs.ts'
+import { apiDatabase, testDatabase } from '../../integration/support.ts'
+
+/*
+  The app's http binding against the real service and PostgreSQL 18. The conformance suite is the
+  one the mock binding passes (tests/app/mock/conformance.test.ts), for the methods wired so far.
+*/
+
+const person = { email: 'jon.abara@example.test', name: 'Jon Abara', roles: [] }
+const { url } = testDatabase()
+const app = buildApp({
+  database: apiDatabase(url),
+  jobs: idleJobs(),
+  logger: createLogger({ level: 'silent' }),
+  clock: systemClock('2026-10-07'),
+  devPeople: [person],
+})
+let api: HeedApi | undefined
+
+beforeAll(async () => {
+  const address = await app.listen({ host: '127.0.0.1', port: 0 })
+  // A browser keeps the session cookie and sends its origin; this jar does both.
+  let cookie = ''
+  api = createHttpApi({
+    baseUrl: `${address}/api/v1`,
+    fetch: async (request, init) => {
+      const headers = new Headers(
+        init?.headers ?? (request instanceof Request ? request.headers : undefined),
+      )
+      if (cookie) headers.set('cookie', cookie)
+      headers.set('origin', address)
+      const response = await fetch(request, { ...init, headers })
+      const set = response.headers.getSetCookie()
+      if (set.length) cookie = set.map((c) => c.split(';')[0]).join('; ')
+      return response
+    },
+  })
+}, 120_000)
+afterAll(() => app.close())
+
+describeHeedApi('http binding on PostgreSQL', () => api!, {
+  person: person.name,
+  wired: wiredMethods,
+})
+
+describe('the http binding', () => {
+  it('answers a method it does not offer yet as not available', async () => {
+    const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
+    expect(unwired.length).toBeGreaterThan(0)
+    await expect(api!.getWorkspace()).rejects.toMatchObject({ kind: 'not-available' })
+  })
+})

@@ -19,22 +19,18 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TODAY } from '@/data/history'
-import { DEFINITIONS_TOOL } from '@/data/integrations'
-import { domains, type DomainId } from '@/data/world'
+import { TODAY } from '@/model/history'
+import { DEFINITIONS_TOOL } from '@/model/integrations'
+import type { DomainId } from '@/model/items'
+import type { Domains } from '@/model/people'
 import type { RowSelection } from '@/hooks/use-selection'
 import { APP_URL } from '@/lib/brand'
 import { count, download, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
-import {
-  deleteTerms,
-  goesWith,
-  kindName,
-  moveTerms,
-  restoreDefinitions,
-  type Definition,
-} from '@/lib/definitions'
-import { useOnline } from '@/lib/scenario'
-import { useMe, useStore, type LogEntry } from '@/lib/store'
+import { useWrite } from '@/api/queries'
+import { kindName, useGlossary, type Definition } from '@/lib/definitions'
+import { useOnline } from '@/lib/send'
+import { useDomains, useMe } from '@/lib/workspace'
+import type { LogEntry } from '@/model/items'
 
 // What a person can do to many definitions at once. Only terms change here: synced metrics and
 // dimensions are read-only and are left alone, with the tool that owns them. Deleting a term takes
@@ -54,7 +50,9 @@ export function DefinitionsBulk({
   deleting: boolean
   setDeleting: (open: boolean) => void
 }) {
-  const { dispatch } = useStore()
+  const write = useWrite()
+  const glossary = useGlossary()
+  const domains = useDomains()
   const me = useMe()
   const online = useOnline()
   const [note, setNote] = React.useState<BulkNote>()
@@ -77,13 +75,12 @@ export function DefinitionsBulk({
     return done
   }
 
-  const deletePlan = planTerms('delete', picked, who, { tool })
-  const others = goesWith(deletePlan.act.map((d) => d.name))
+  const deletePlan = planTerms('delete', picked, who, domains, { tool })
+  const others = glossary.goesWith(deletePlan.act.map((d) => d.name))
 
-  function remove() {
+  async function remove() {
     const names = deletePlan.act.map((d) => d.name)
     const gone = [...deletePlan.act, ...others]
-    const snapshot = deleteTerms(names)
     const entry: LogEntry = {
       id: `log-term-${++entries}`,
       on: TODAY,
@@ -92,37 +89,28 @@ export function DefinitionsBulk({
       summary: 'Deleted: a term, and the other names that pointed at it.',
       items: gone.map((d) => ({ id: `term:${d.name}`, title: d.name, domain: d.domain })),
     }
-    dispatch({ type: 'bulk', patches: {}, remove: [], entry })
+    const { undo } = await write('deleteTerms', { names, entry })
     settle(deletePlan.act, deletePlan.skipped)
     toast(`${count(names.length, 'term')} deleted`, {
       description: others.length ? `With ${count(others.length, 'other name')}.` : undefined,
       duration: 10_000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          restoreDefinitions(snapshot)
-          dispatch({ type: 'unlog', entry: entry.id })
-        },
-      },
+      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
     })
   }
 
-  function move(d: DomainId) {
-    const plan = planTerms('domain', picked, who, { tool, domain: d })
+  async function move(d: DomainId) {
+    const plan = planTerms('domain', picked, who, domains, { tool, domain: d })
     if (!plan.act.length) return setNote({ text: skippedLine(plan.skipped), skipped: plan.skipped })
-    const snapshot = moveTerms(
-      plan.act.map((x) => x.name),
-      d,
-    )
+    const { undo } = await write('moveTerms', { names: plan.act.map((x) => x.name), domain: d })
     settle(plan.act, plan.skipped)
-    toast(`${count(plan.act.length, 'term')} moved to ${domains[d].name}`, {
-      action: { label: 'Undo', onClick: () => restoreDefinitions(snapshot) },
+    toast(`${count(plan.act.length, 'term')} moved to ${domains[d]?.name}`, {
+      action: { label: 'Undo', onClick: () => void write('undo', { token: undo }) },
     })
   }
 
   const off = online ? undefined : OFFLINE
   const deleteReason = off ?? (deletePlan.act.length ? undefined : deletePlan.skipped[0]?.reason)
-  const domainChoices = movableTo(who)
+  const domainChoices = movableTo(who, domains)
 
   return (
     <>
@@ -154,8 +142,8 @@ export function DefinitionsBulk({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-52">
                 {domainChoices.map((d) => (
-                  <DropdownMenuItem key={d} onClick={() => move(d)}>
-                    {domains[d].name}
+                  <DropdownMenuItem key={d} onClick={() => void move(d)}>
+                    {domains[d]?.name}
                   </DropdownMenuItem>
                 ))}
                 <p className="px-2 py-1.5 text-xs text-muted-foreground">
@@ -187,7 +175,7 @@ export function DefinitionsBulk({
               <DropdownMenuSubContent className="w-52">
                 <DropdownMenuItem
                   onClick={() => {
-                    download('definitions.md', defsMarkdown(picked), 'text/markdown')
+                    download('definitions.md', defsMarkdown(picked, domains), 'text/markdown')
                     toast(`Exported ${count(picked.length, 'definition')} as Markdown`)
                   }}
                 >
@@ -195,7 +183,7 @@ export function DefinitionsBulk({
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
-                    download('definitions.csv', defsCsv(picked), 'text/csv')
+                    download('definitions.csv', defsCsv(picked, domains), 'text/csv')
                     toast(`Exported ${count(picked.length, 'definition')} as a spreadsheet`)
                   }}
                 >
@@ -218,33 +206,33 @@ export function DefinitionsBulk({
             : undefined
         }
         skipped={deletePlan.skipped}
-        onDelete={remove}
+        onDelete={() => void remove()}
       />
     </>
   )
 }
 
-function defsMarkdown(defs: Definition[]) {
+function defsMarkdown(defs: Definition[], domains: Domains) {
   return (
     `# Definitions\n\n` +
     defs
       .map(
         (d) =>
           `## ${d.name}\n\n${d.definition || `Another name for ${d.sameAs}.`}\n\n- Type: ${kindName(d)}\n` +
-          (d.domain ? `- Domain: ${domains[d.domain].name}\n` : ''),
+          (d.domain ? `- Domain: ${domains[d.domain]?.name}\n` : ''),
       )
       .join('\n')
   )
 }
 
-function defsCsv(defs: Definition[]) {
+function defsCsv(defs: Definition[], domains: Domains) {
   const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
   const rows = [
     ['Name', 'Type', 'Domain', 'Meaning'],
     ...defs.map((d) => [
       d.name,
       kindName(d),
-      d.domain ? domains[d.domain].name : '',
+      d.domain ? (domains[d.domain]?.name ?? '') : '',
       d.definition || `Another name for ${d.sameAs}`,
     ]),
   ]
