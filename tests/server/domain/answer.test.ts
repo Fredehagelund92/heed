@@ -277,6 +277,7 @@ describe('Asked this week', () => {
         topic('g', { values: [], dimensions: ['dim:market'], calls: 4 }),
       ],
       5,
+      '2026-10-26',
     )
     expect(topics.map((t) => [t.metrics, t.values, t.months, t.month, t.count, t.atLeast])).toEqual(
       [
@@ -294,8 +295,27 @@ describe('Asked this week', () => {
     )
     expect(hidden).toBeNull()
     expect(
-      askedTopics([topic('a', { calls: 2 }), topic('b', { values: [], calls: 3 })], 5),
+      askedTopics(
+        [topic('a', { calls: 2 }), topic('b', { values: [], calls: 3 })],
+        5,
+        '2026-10-26',
+      ),
     ).toEqual({ topics: [], hidden: 5 })
+  })
+
+  it('answers a row listed only by its total on the month of today, never on a hidden month', () => {
+    const { topics } = askedTopics(
+      [
+        topic('a', { calls: 3, month: '2026-09-01' }),
+        topic('b', { calls: 3, month: '2026-08-01' }),
+      ],
+      5,
+      '2026-10-26',
+    )
+    expect(topics).toHaveLength(1)
+    expect(topics[0]!.months).toEqual([])
+    expect(topics[0]!.count).toBe(6)
+    expect(topicScope(topics[0]!).window.start).toBe('2026-10-01')
   })
 })
 

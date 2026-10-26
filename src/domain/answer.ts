@@ -513,7 +513,7 @@ export type AskedTopic = {
   dimensions: string[]
   /** The months whose own calls are shown (at least the minimum), newest first. */
   months: string[]
-  /** The month the row is answered on: the newest shown month, else the newest month asked. */
+  /** The month the row is answered on: the newest shown month, else the month of today. */
   month: string
   count: number | null
   atLeast: number
@@ -524,12 +524,14 @@ export type AskedTopic = {
  * `minimum` times is never shown on its own (FR-614): a row's count is shown only when no hidden
  * month could be worked out from it by subtraction (`visibleTotal`); otherwise `count` is null
  * and `atLeast` is what its shown months add up to ("13+"). Only shown months are listed in
- * `months`, and the row is answered on the newest of them (`month`; on its newest month asked when
- * none is shown). A row that shows fewer than `minimum` is not listed. `hidden` is what the rows not listed add up to, itself hidden under the minimum.
+ * `months`, and the row is answered on the newest of them (`month`; on the month of `today` when
+ * none is shown, never on a hidden one). A row that shows fewer than `minimum` is not listed.
+ * `hidden` is what the rows not listed add up to, itself hidden under the minimum.
  */
 export function askedTopics(
   rows: readonly TopicCount[],
   minimum: number,
+  today: string,
 ): { topics: AskedTopic[]; hidden: number | null } {
   const groups = new Map<string, TopicCount[]>()
   for (const row of rows) {
@@ -548,9 +550,13 @@ export function askedTopics(
       0,
     )
     const first = list[0]!
-    const newest = (rows: TopicCount[]) =>
-      [...new Set(rows.map((row) => row.month))].sort(compareIds).reverse()
-    const months = newest(list.filter((row) => visibleCount(row.calls, minimum) !== null))
+    const months = [
+      ...new Set(
+        list.filter((row) => visibleCount(row.calls, minimum) !== null).map((row) => row.month),
+      ),
+    ]
+      .sort(compareIds)
+      .reverse()
     return {
       key,
       area: first.area,
@@ -558,7 +564,7 @@ export function askedTopics(
       values: [...first.values].sort(compareIds),
       dimensions: [...first.dimensions].sort(compareIds),
       months,
-      month: months[0] ?? newest(list)[0]!,
+      month: months[0] ?? `${today.slice(0, 7)}-01`,
       count: list.length > 1 ? visibleTotal(total, atLeast, minimum) : visibleCount(total, minimum),
       atLeast,
       total,

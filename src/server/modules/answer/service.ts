@@ -201,11 +201,11 @@ export async function askedThisWeek(
   const bundle = await liveBundle(tx, cache)
   const today = clock.today()
   const { week, topics } = await topicsOfWeek(tx, today)
-  const asked = askedTopics(topics, await minimumCount(tx))
+  const asked = askedTopics(topics, await minimumCount(tx), today)
   return {
     week,
     rows: asked.topics.map((topic) => {
-      const scope = topicScope({ ...topic, month: topic.month })
+      const scope = topicScope(topic)
       const now = answer(bundle, { scope }, { today })
       return {
         title: topicWords(bundle, scope),
