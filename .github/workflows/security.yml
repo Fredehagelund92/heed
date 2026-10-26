@@ -26,12 +26,13 @@ jobs:
         run: npm audit signatures
       # OSV-Scanner rather than npm audit is the gate, because it records reviewed exceptions
       # with a reason and an expiry date (osv-scanner.toml); npm audit cannot.
+      # Both lockfiles: the app's, and the mockup's (apps/mockup is its own npm package).
       - name: Every locked dependency against OSV, with the reviewed exceptions in osv-scanner.toml
         run: |
           curl -fsSL -o osv-scanner https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64
           echo "ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108  osv-scanner" | sha256sum -c -
           chmod +x osv-scanner
-          ./osv-scanner scan source --lockfile package-lock.json --config osv-scanner.toml
+          ./osv-scanner scan source --lockfile package-lock.json --lockfile apps/mockup/package-lock.json --config osv-scanner.toml
 
   secrets:
     name: Secrets in the history
