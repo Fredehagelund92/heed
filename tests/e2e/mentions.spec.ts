@@ -99,8 +99,14 @@ for (const size of [widths[0], phone]) {
       // then once more: that arrow selects the chip instead of jumping over it (a jump would
       // reach Norway).
       const selected = field.locator('[data-selected] [data-slot="mention-chip"]')
-      for (let i = 0; i < ' before and after.'.length + 1; i++)
+      // The editor reads its selection back from the page after each key, so let a frame pass
+      // between presses; on a busy runner a fast press reads a caret that is one step behind.
+      for (let i = 0; i < ' before and after.'.length + 1; i++) {
         await page.keyboard.press('ArrowLeft')
+        await page.evaluate(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        )
+      }
       await expect(selected).toHaveText(/^Orders/)
       await page.keyboard.press('Delete')
       await expect(stored(page, 3)).toHaveText(
