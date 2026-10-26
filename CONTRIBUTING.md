@@ -25,6 +25,18 @@ rule below is enforced by a tool, so you find out in seconds, not in review.
 Run `npm run check` before you push. If a rule seems wrong, change the rule in the same pull
 request and explain why; do not work around it.
 
+## Which rules apply
+
+The approved Heed v1 mockup is the acceptance specification for the web app. Its rules are in
+[the design contract v2](docs/design/design-contract.md), with [motion](docs/design/motion.md),
+[copy](docs/design/copy.md), [accessibility](docs/design/accessibility.md) and
+[components](docs/design/components.md), and the product in [docs/product.md](docs/product.md).
+Any new UI follows them. Its behaviour is checked against the mockup's job specs (J1 to J30).
+
+The rest of this page describes the lint that still guards the **old front end** (`src/web`).
+It stays in force until the switch to the new web app. Where it differs from the contract v2,
+the contract v2 wins for new work.
+
 ## The one idea
 
 **Tokens own appearance. Components own structure. Features only compose.**
@@ -75,7 +87,7 @@ definition in `src/web/lib/crumbs.ts`; a new route without one fails the type ch
   `bg-type-event-tint`, `text-type-event-ink`, `bg-status-warning-bg`. Raw palette colours (`bg-red-500`)
   and arbitrary colours (`text-[#fff]`) are reported.
 - Status always pairs colour with an icon or a word. Colour is never the only sign (NFR-111).
-- Radius is `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl` (4, 8, 12, 16) or
+- Radius is `rounded-sm`, `rounded-md`, `rounded-lg`, `rounded-xl` (3, 4, 4, 6) or
   `rounded-full`. Type is a role: `text-caption` (12), `text-dense` (13), `text-body` (14),
   `text-reading` (15, item prose), `text-row-phone` (15, phone list titles), `text-large` (16), `text-title` (20), `text-display` (24), with weights `font-normal`
   (400) and `font-bold` (700). Tailwind's `text-sm` and friends do not exist.
