@@ -1,6 +1,6 @@
 # Develop Heed
 
-How the repository is laid out, how to run the front end, the commands, the rules and the versions. To run the whole product, see the [Quick start](../README.md#quick-start); to run and configure the service, see [Run and operate the service](operations.md).
+How the repository is laid out, how to run the front end, the commands, what CI runs, the rules and the versions. To run the whole product, see the [Quick start](../README.md#quick-start); to run and configure the service, see [Run and operate the service](operations.md).
 
 ## The two parts
 
@@ -249,6 +249,54 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run test:e2e:api`                          | Playwright against an http mode build and the service (needs a seeded database, `E2E_DATABASE_URL`)                                                                                                                                   |
 | `npm run registry:build` / `registry:validate`  | Build or validate `registry.json`                                                                                                                                                                                                     |
 | `npm run check`                                 | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request, every push to `main`, every night at 03:17
+UTC, and by hand (`gh workflow run CI --ref <branch>`). Its first job, **What the change needs**,
+sorts the changed paths into a tier with `.github/scripts/ci-scope.sh`, and the expensive jobs
+run only when the tier needs them. Its last job, **CI gate**, passes when every job passed or was
+skipped on purpose, and fails on a failure, a cancel, or a job that should have run and did not.
+It is the one check a branch rule needs to require. A new push to a pull request cancels the run
+it replaces; runs on `main` and at night always finish.
+
+### Validation tiers
+
+A pull request takes the highest tier any of its files falls in.
+
+| Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                         |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the app reads: `docs/help`, `docs/templates` and `docs/api`                                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), registry and build |
+| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                    |
+| Medium    | Anything else: the front end, the domain, the contract, the tests, scripts and configuration                                                                                                                                            | Every app job: the checks, the service tests, the library on the real API, Storybook, Playwright  |
+| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                               |
+
+Every tier also runs the security scan (known vulnerabilities in dependencies, and secrets in the
+history) and the held-out seal. A path no rule names counts as Medium, and an empty change runs
+everything, so a gap in the rules runs more, never less. Change the rules in
+`.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
+
+The browser tests run in eleven parallel parts: seven for the pages, three for the Storybook
+tests, and one for the screenshot tests. Every job stops after 25 minutes at most, so a hung part
+fails instead of holding the run.
+
+### On main and every night
+
+Every push to `main`, the nightly run and a manual run take the Sensitive tier: every job,
+whatever changed. The nightly run also catches a new advisory against an unchanged lockfile, and
+a flaky test that a single pull request run passed by luck.
+
+### Batching merges
+
+CI time is spent per pull request, so fewer, well formed pull requests merge faster.
+
+- Stack dependent pull requests: base each one on the branch before it, and merge them in order.
+  Each one runs CI on its own change.
+- Merge small, independent pull requests together: put them on one branch, so one run covers
+  them all. Keep Docs tier changes apart from code, so they take the short path.
+- Add the `full-ci` label to a pull request to run everything whatever its tier: before merging a
+  batch, when a Docs or Import change could still affect the app, or to repeat a nightly failure
+  on a branch. Adding any label starts a fresh run, so add labels before you push where you can.
 
 ## How to add a component
 

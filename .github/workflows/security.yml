@@ -1,20 +1,14 @@
 name: Security scanning
 
-# Dependency and secret scanning (NFR-025, NFR-027). Every pull request and push to main, and
-# daily, because a new advisory can make an unchanged lockfile fail.
+# Dependency and secret scanning (NFR-025, NFR-027). The CI workflow calls it on every pull
+# request, every push to main and every night, whatever changed, because a new advisory can make
+# an unchanged lockfile fail; the CI gate needs both jobs. Run it by hand with workflow_dispatch.
 on:
-  push:
-    branches: [main]
-  pull_request:
-  schedule:
-    - cron: '17 5 * * *'
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: security-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   dependencies:
