@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -79,10 +78,9 @@ const submitted = () =>
 
 describe('the first suggestion of a workspace', () => {
   it('has a sheet with nothing to compare, and its checks run without a live edition', async () => {
-    expect(
-      (await client.query('select 1 from live_edition')).rowCount,
-      'no edition is live',
-    ).toBe(0)
+    expect((await client.query('select 1 from live_edition')).rowCount, 'no edition is live').toBe(
+      0,
+    )
     const p = await submitted()
     const s = await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
     expect(s.mode).toBe('new')
@@ -93,8 +91,9 @@ describe('the first suggestion of a workspace', () => {
     // cannot pass. They still run and say which failed: no edition-less 412, and nothing is published.
     const refused = await call('POST', `/review/${p.id}/publish`, 'owner', { revision: p.revision })
     expect(refused.statusCode, refused.body).toBe(422)
-    const gate = refused.json<{ data: { gate: { levels: { level: string; outcome: string }[] } } }>()
-      .data.gate
+    const gate = refused.json<{
+      data: { gate: { levels: { level: string; outcome: string }[] } }
+    }>().data.gate
     expect(gate.levels.map((l) => [l.level, l.outcome])).toEqual([
       ['format', 'failed'],
       ['matching', 'passed'],

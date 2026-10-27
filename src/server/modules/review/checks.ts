@@ -1,4 +1,3 @@
-import { ORPCError } from '@orpc/client'
 import * as z from 'zod/mini'
 import type { AttachedTest, Gate, LevelResult } from '../../../contract/review.ts'
 import { contentDigest } from '../../../domain/canonical.ts'
