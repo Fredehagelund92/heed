@@ -80,9 +80,11 @@ import {
 } from '../modules/assistant/index.ts'
 import {
   createBinService,
+  createReviewPath,
   createReviewService,
   type ReviewService,
 } from '../modules/review/index.ts'
+import { createInboxFeedService } from '../modules/inbox/index.ts'
 import {
   can,
   checkMutation,
@@ -210,6 +212,11 @@ export function createRouter({
           }
           await tx.query("select set_config('cl.person_id',$1,true)", [session?.person.id ?? ''])
           const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
+          const review = createReviewService(tx, clock)
+          const gaps = createGapsService(tx, clock, session?.person.id ?? '')
+          const reviewPath = createReviewPath(tx, clock, answerBundles, review, (id) =>
+            proposals.get(id),
+          )
           return next({
             context: {
               tx,
@@ -220,11 +227,17 @@ export function createRouter({
               people: createPeopleService(tx),
               vocabulary: createVocabularyService(tx),
               proposals,
-              review: createReviewService(tx, clock),
+              review,
+              path: reviewPath,
+              cards: createInboxFeedService(tx, clock, answerBundles, {
+                review,
+                path: reviewPath,
+                gaps,
+              }),
               bin: createBinService(tx, clock, proposals),
               inbox: createInboxService(tx),
               activity: createActivityService(tx),
-              gaps: createGapsService(tx, clock, session?.person.id ?? ''),
+              gaps,
               sources: createSourcesService(tx),
               evals: createEvalsService(tx, { port: models, clock }),
               quality: createQualityService(tx, clock),
@@ -325,6 +338,25 @@ export function createRouter({
       ),
     },
     review: {
+      sheet: authorized.review.sheet.handler(({ context, input }) => context.path.sheet(input.id)),
+      markRead: authorized.review.markRead.handler(({ context, input }) =>
+        context.path.markRead(input),
+      ),
+      publish: authorized.review.publish.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'review.publish', input, () =>
+          context.path.publish(input),
+        ),
+      ),
+      return: authorized.review.return.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'review.return', input, () =>
+          context.path.returnWithNote(input),
+        ),
+      ),
+      publishRead: authorized.review.publishRead.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'review.publishRead', input, () =>
+          context.path.publishRead(input.ids),
+        ),
+      ),
       queue: authorized.review.queue.handler(({ context, input }) => context.review.queue(input)),
       get: authorized.review.get.handler(({ context, input }) => context.review.get(input.id)),
       runChecks: authorized.review.runChecks.handler(({ context, input }) =>
@@ -674,6 +706,15 @@ export function createRouter({
           () => context.gaps.startDraft(input.id, input.areaId),
         ),
       ),
+      draft: authorized.gaps.draft.handler(({ context, input }) =>
+        retryWrite(
+          context.tx,
+          context.request.headers['idempotency-key'] as string | undefined,
+          'gaps.draft',
+          input,
+          () => context.gaps.scopeDraft(input.id, input.areaId),
+        ),
+      ),
     },
     topics: {
       counts: authorized.topics.counts.handler(({ context, input }) =>
@@ -761,6 +802,33 @@ export function createRouter({
       archive: authorized.inbox.archive.handler(({ context, input }) =>
         context.inbox.archive(input.ids),
       ),
+      feed: authorized.inbox.feed.handler(({ context, input }) => context.cards.feed(input.tab)),
+    },
+    cards: {
+      markRead: authorized.cards.markRead.handler(({ context, input }) =>
+        context.cards.markRead(input.cards),
+      ),
+      decide: authorized.cards.decide.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'cards.decide', input, () =>
+          context.cards.decide(input),
+        ),
+      ),
+    },
+    decisions: {
+      undo: authorized.decisions.undo.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'decisions.undo', input, () => {
+          const [kind, ids] = [
+            input.token.split(':')[0],
+            input.token.slice(input.token.indexOf(':') + 1),
+          ]
+          if (kind === 'decision' || kind === 'decisions')
+            return context.path.undoDecisions(ids.split(','))
+          return context.cards.undoCard(input.token)
+        }),
+      ),
+    },
+    setup: {
+      state: authorized.setup.state.handler(({ context }) => context.cards.setup()),
     },
     activity: {
       list: authorized.activity.list.handler(({ context, input }) => context.activity.list(input)),
@@ -1029,9 +1097,11 @@ export function createRouter({
       ),
     },
     ask: {
-      lookup: authorized.ask.lookup.handler(({ context, input }) =>
-        lookupQuestion(context.tx, clock, answerBundles, input),
-      ),
+      lookup: authorized.ask.lookup.handler(async ({ context, input }) => {
+        // The setup checklist's Ask step (FR-816): only that Ask was used, never what or by whom.
+        await context.cards.askedOnce()
+        return lookupQuestion(context.tx, clock, answerBundles, input)
+      }),
       asked: authorized.ask.asked.handler(({ context }) =>
         askedThisWeek(context.tx, clock, answerBundles),
       ),

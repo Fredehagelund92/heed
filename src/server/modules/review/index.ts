@@ -2,3 +2,5 @@ export { createReviewService, sourceToolQuestion, type ReviewService } from './s
 export { draftChecks, type DraftCheck, type DraftToCheck } from './checks.ts'
 export { createBinService, type BinService } from './bin.ts'
 export { waitingMembers, type WaitingMember } from './vocabulary.ts'
+export { createReviewPath, type ReviewPath } from './path.ts'
+export { loadProposal, type LoadedProposal } from './records.ts'

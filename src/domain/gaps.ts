@@ -94,6 +94,18 @@ export type TopicScope = {
 export const dimensionOfValue = (valueKey: string) => `dim:${valueKey.slice(4).split('/')[0]}`
 
 /**
+ * A Not found card's draft (the golden plan's B7): the gap's scope, and when it applies the month
+ * agents asked about, as the topic keeps it (FR-604), never "still going on". The person says
+ * what to write; the dates are the gap's own until they change them.
+ */
+export function draftFromGap(topic: TopicScope & { month: string }, areaId: string) {
+  const [year, month] = topic.month.split('-').map(Number) as [number, number]
+  const next =
+    month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`
+  return { ...draftFromTopic(topic, areaId), validity: { start: topic.month, end: next } }
+}
+
+/**
  * FR-616: the draft a gap starts, filled with the topic's scope. It has no dates: the topic's
  * month is when people asked, not when the fact applies, and a standing fact dated to that month
  * would stop being delivered when it ends. The person says when it applies.

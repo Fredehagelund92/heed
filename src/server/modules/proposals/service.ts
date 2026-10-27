@@ -55,6 +55,17 @@ const open = ['draft', 'submitted', 'in_review', 'changes_requested']
 /** An accepted item of `serving_items` as a draft's scope and validity, for cl_scopes_overlap. */
 const servedScope = `jsonb_build_object('validity',jsonb_build_object('start',valid_from,'end',valid_until),'scope',jsonb_build_object('metrics',metrics,'dimensions',to_jsonb(dimension_keys),'dimensionValues',coalesce((select jsonb_agg(jsonb_build_object('dimension','dim:'||split_part(substr(value,5),'/',1),'value',value)) from unnest(value_keys) value),'[]')))`
 type Overlapping = z.infer<typeof overlapSchema>['otherProposals'][number]
+
+/**
+ * Accepted items in service, that the person may read, whose scope and dates overlap a draft's:
+ * possible duplicates and conflicts (FR-209). The item the draft changes is left out.
+ */
+export function acceptedOverlaps(tx: Queryable, draft: Draft, itemId: string | null) {
+  return tx.query<{ id: string; title: string; kind: ItemKind }>(
+    `select item_id as id,title,kind::text as kind from serving_items((select seq from live_edition)) v where cl_audience_allows(audience_groups) and item_id is distinct from $2 and cl_scopes_overlap($1::jsonb,${servedScope}) order by item_id`,
+    [JSON.stringify(draft), itemId],
+  )
+}
 export function rejectSensitive(value: unknown) {
   const findings = textFindings(value)
   if (findings.length)
@@ -873,10 +884,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
      */
     async overlap(id: string) {
       const p = await getItem(id)
-      const accepted = await tx.query<{ id: string; title: string; kind: ItemKind }>(
-        `select item_id as id,title,kind::text as kind from serving_items((select seq from live_edition)) v where cl_audience_allows(audience_groups) and item_id is distinct from $2 and cl_scopes_overlap($1::jsonb,${servedScope}) order by item_id`,
-        [JSON.stringify(p.draft), p.itemId],
-      )
+      const accepted = await acceptedOverlaps(tx, p.draft, p.itemId)
       const proposals = await tx.query<Overlapping & { own: boolean }>(
         `select p.id::text,p.number::float8 as number,coalesce(v.title,p.draft->>'title','Untitled proposal') as title,
            coalesce(i.kind::text,p.draft->>'kind','note') as kind,p.state::text as state,p.proposer_id=cl_person() as own

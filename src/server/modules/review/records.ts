@@ -165,6 +165,14 @@ type NewDecision = {
 }
 
 /**
+ * A decision's round: how many of the same person's same decisions on the version were undone
+ * (FR-227). An undone decision leaves room for a new one; a repeated one finds the first.
+ */
+const undoneBefore = (version: string, outcome: string) =>
+  `(select count(*) from decisions d join decision_undos u on u.decision_id=d.id
+     where d.item_version_id=${version} and d.decided_by=cl_person() and d.outcome=${outcome})`
+
+/**
  * Records many decisions in one statement, in their order: each one's id, or null where the same
  * person already made that decision on that version.
  */
@@ -174,9 +182,10 @@ export async function insertDecisions(
 ): Promise<(string | null)[]> {
   try {
     const rows = await tx.query<{ id: string; proposalId: string }>(
-      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason)
+      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason,round)
        select (row->>'proposalId')::uuid,(row->>'itemVersionId')::uuid,(row->>'vocabularyVersionId')::uuid,
-              row->>'areaId',cl_person(),(row->>'capacity')::decision_capacity,(row->>'outcome')::decision_outcome,row->>'reason'
+              row->>'areaId',cl_person(),(row->>'capacity')::decision_capacity,(row->>'outcome')::decision_outcome,row->>'reason',
+              ${undoneBefore("(row->>'itemVersionId')::uuid", "(row->>'outcome')::decision_outcome")}
          from jsonb_array_elements($1::jsonb) with ordinality as e(row, n) order by n
        on conflict do nothing returning id::text,proposal_id::text as "proposalId"`,
       [JSON.stringify(decisions)],
@@ -199,8 +208,8 @@ const forbiddenDecision = (error: unknown) =>
 export async function insertDecision(tx: Queryable, decision: NewDecision) {
   try {
     const rows = await tx.query<{ id: string }>(
-      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason)
-       values($1,$2,$3,$4,cl_person(),$5,$6,$7)
+      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason,round)
+       values($1,$2,$3,$4,cl_person(),$5,$6,$7,${undoneBefore('$2::uuid', '$6::decision_outcome')})
        on conflict do nothing returning id::text`,
       [
         decision.proposalId,

@@ -246,6 +246,86 @@
     }
   },
   "review": {
+    "sheet": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/review/{id}/sheet",
+          "tags": [
+            "review"
+          ],
+          "summary": "The review page's read: the change by kind, its claims against the copied sentence, a clash with live context, what agents say before and after, and the Ready line (FR-224 to FR-226)"
+        }
+      }
+    },
+    "markRead": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/{id}/read",
+          "tags": [
+            "review"
+          ],
+          "summary": "The person read this version of a suggestion: it may go out with \"Publish the N you've read\" (FR-226)"
+        }
+      }
+    },
+    "publish": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/{id}/publish",
+          "tags": [
+            "review"
+          ],
+          "summary": "Publishes the whole change, once the owner said how it relates to each live item it clashes with (FR-225); answers with a token that undoes it"
+        }
+      }
+    },
+    "return": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/{id}/return",
+          "tags": [
+            "review"
+          ],
+          "summary": "Returns a suggestion to its sender with a note, which becomes the first comment of its discussion; answers with a token that undoes it"
+        }
+      }
+    },
+    "publishRead": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/publish-read",
+          "tags": [
+            "review"
+          ],
+          "summary": "Publish the N you've read: each plain change the person read publishes as Publish would; the rest is named and left out (FR-226)"
+        }
+      }
+    },
     "queue": {
       "~orpc": {
         "errorMap": {},
@@ -1416,6 +1496,22 @@
           "summary": "Start a draft filled with the scope of the gap"
         }
       }
+    },
+    "draft": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/gaps/{id}/scope-draft",
+          "tags": [
+            "gaps"
+          ],
+          "summary": "A Not found card's draft: the gap's scope, its own month as when it applies and a title in words, or the draft already started from it"
+        }
+      }
     }
   },
   "topics": {
@@ -1790,6 +1886,92 @@
           "tags": [
             "notifications"
           ]
+        }
+      }
+    },
+    "feed": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/inbox/feed",
+          "tags": [
+            "inbox"
+          ],
+          "summary": "The Inbox by need: Not found, Reported, Due for a check and Suggestions for the domains the person owns, with what they sent that waits and what is done under All; counts from agents only, small counts hidden (FR-614)"
+        }
+      }
+    }
+  },
+  "cards": {
+    "markRead": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/inbox/cards/read",
+          "tags": [
+            "inbox"
+          ],
+          "summary": "The person opened these cards: their unread mark goes"
+        }
+      }
+    },
+    "decide": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/inbox/cards/decide",
+          "tags": [
+            "inbox"
+          ],
+          "summary": "A card's one decision: Not something we write down, Not a problem, Still true or Archive; it answers with a token that undoes it (FR-227)"
+        }
+      }
+    }
+  },
+  "decisions": {
+    "undo": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/decisions/undo",
+          "tags": [
+            "review"
+          ],
+          "summary": "Takes back a decision its maker made moments ago, as a new edition that serves again exactly what it changed (FR-227)"
+        }
+      }
+    }
+  },
+  "setup": {
+    "state": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/setup",
+          "tags": [
+            "admin"
+          ],
+          "summary": "A new workspace's setup checklist, read from what exists: About our business, a published context item, Ask used, an agent connected, definitions connected (FR-816)"
         }
       }
     }

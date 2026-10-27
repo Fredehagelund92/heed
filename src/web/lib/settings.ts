@@ -176,6 +176,15 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
     fields: [{ name: 'value', label: 'Mentions', kind: 'int', unit: 'mentions' }],
     words: (value) => plural(num(value), 'mention'),
   },
+  'limits.undo_seconds': {
+    title: 'Time to undo a decision',
+    description:
+      'How long the person who decided something can still undo it: sharing a suggestion with agents, returning it, or closing a card. It can be 6 seconds at least, as long as Undo shows.',
+    group: 'review',
+    shape: 'value',
+    fields: [{ name: 'value', label: 'Seconds', kind: 'int', unit: 'seconds' }],
+    words: (value) => plural(num(value), 'second'),
+  },
   'serving.max_overlay_age_seconds': {
     title: 'Stop switch delay',
     description:
@@ -715,6 +724,7 @@ const actionNames: Record<string, string> = {
   'decision.request_changes': 'Changes requested',
   'decision.reject': 'Rejected',
   'decision.retire': 'Archived',
+  'decision.undone': 'Decision undone',
   'gap.draft_started': 'Draft started from a gap',
   'ai_client.connected': 'Agent connected',
   'ai_client.disconnected': 'Agent disconnected',

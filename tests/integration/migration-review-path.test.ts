@@ -62,7 +62,12 @@ it('takes risk and the approver out of the gate, and adds what the review reads'
     )
     expect(due.rows.map((r) => r.version)).toContain(normal.id)
 
-    expect(await migrate(client)).toBe(1)
+    // Up to 0005 only: later migrations have their own tests.
+    await copyFile(
+      new URL('0005_review_path.sql', migrationDirectory),
+      join(before, '0005_review_path.sql'),
+    )
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(1)
 
     // Every risk level needs levels 1 to 3, and the owner's accept is all the high one needs.
     const levels = await client.query<{ risk: string; levels: string[] }>(
@@ -116,7 +121,7 @@ it('takes risk and the approver out of the gate, and adds what the review reads'
       (await client.query("select to_regprocedure('cl_proposal_base(uuid)') is not null as ok"))
         .rows,
     ).toEqual([{ ok: true }])
-    expect(await migrate(client)).toBe(0)
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(0)
   } finally {
     await rm(before, { recursive: true })
   }
