@@ -1,4 +1,4 @@
--- 0007_context_items: what the Context list, a context item's page and changes to many items at
+-- 0008_context_items: what the Context list, a context item's page and changes to many items at
 -- once keep (docs/product.md, section 3; FR-137, FR-139, FR-140).
 --
 -- - Kind: a context item's kind belongs to each of its versions, as its domain and words do, so an

@@ -10,14 +10,14 @@ import { testDatabase, transaction } from './support.ts'
 const { client } = testDatabase({ unmigrated: true })
 
 /*
-  0007_context_items.sql: what Context keeps. A database at 0006 holds an accepted item. After the
+  0008_context_items.sql: what Context keeps. A database at 0007 holds an accepted item. After the
   migration its version carries the kind its item was created with, what agents get reads it
   there, a draft records who deleted it, and the new tables are there with their row security.
   (A test file shares one database, so the whole change is one test.)
 */
 
-async function atVersion6() {
-  const before = await mkdtemp(join(tmpdir(), 'heed-migration-0006-'))
+async function atVersion7() {
+  const before = await mkdtemp(join(tmpdir(), 'heed-migration-0007-'))
   for (const name of [
     '0001_baseline.sql',
     '0002_edition_digest_byte_order.sql',
@@ -25,14 +25,15 @@ async function atVersion6() {
     '0004_agent_contract.sql',
     '0005_review_path.sql',
     '0006_inbox_and_undo.sql',
+    '0007_comments.sql',
   ])
     await copyFile(new URL(name, migrationDirectory), join(before, name))
-  expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(6)
+  expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(7)
   return before
 }
 
 it("keeps each version's kind, and adds what Context keeps", async () => {
-  const before = await atVersion6()
+  const before = await atVersion7()
   try {
     await foundation(client)
     const v = await transaction(client, async () => {
@@ -45,10 +46,10 @@ it("keeps each version's kind, and adds what Context keeps", async () => {
       [v.id],
     )
 
-    // Up to 0007 only: later migrations have their own tests.
+    // Up to 0008 only: later migrations have their own tests.
     await copyFile(
-      new URL('0007_context_items.sql', migrationDirectory),
-      join(before, '0007_context_items.sql'),
+      new URL('0008_context_items.sql', migrationDirectory),
+      join(before, '0008_context_items.sql'),
     )
     expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(1)
 

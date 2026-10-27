@@ -618,7 +618,7 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   single link points to, with no model. It fills the words, a kind and dates by rule and where
   it applies by the vocabulary's names, and lists in `unsure` what it guessed.
 
-A context item's kind belongs to each version (migration 0007), so Change kind keeps its id,
+A context item's kind belongs to each version (migration 0008), so Change kind keeps its id,
 history and links. In a change to many items, an owner of a draft's domain may delete it, and
 Mark as checked records a check even when nothing else moved, for an owner of the domain or an
 admin; `POST /proposals/{id}/discard` and `POST /items/{id}/recheck` keep their own rules for the

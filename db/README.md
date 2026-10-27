@@ -410,8 +410,8 @@ it, marked by that person only. `thread_reads` keeps when a person last opened a
 only. Agents never read any of it: the serving and analytics roles have no grant on these tables,
 and no edition or serving function reads them.
 
-Context (migration 0007). A context item's kind is part of each version (`item_versions.kind`),
-as its domain and words are; every version before 0007 took its item's kind, and `items.kind`
+Context (migration 0008). A context item's kind is part of each version (`item_versions.kind`),
+as its domain and words are; every version before 0008 took its item's kind, and `items.kind`
 stays as the kind it was created with. A version's content digest always held its kind, so
 sealed editions verify as before. A version written without a kind takes the kind of the
 version it follows (`item_versions_kind`). `item_owners` names who answers for an item beside
