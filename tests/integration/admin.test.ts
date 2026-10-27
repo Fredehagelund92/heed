@@ -219,15 +219,18 @@ describe('settings and limits', () => {
     const [current] = (await ok<Setting[]>('GET', '/settings', 'admin')).filter(
       (s) => s.key === 'business.about',
     )
-    // A fresh Heed starts with the starter text, as installed: a first version nobody changed by hand.
-    expect(current).toMatchObject({
-      version: 1,
+    // A fresh Heed starts with no text (0009): versions nobody changed by hand, the last empty.
+    // The starter text is the guide's worked example, which a person may start from.
+    expect(current).toMatchObject({ version: 2, value: '', changedBy: null, editable: true })
+    expect((await serving.policy('claude-code')).about).toBe('')
+    const started = await ok<Setting>('PUT', path, 'admin', {
+      version: 2,
       value: ABOUT_BUSINESS_STARTER,
-      changedBy: null,
-      editable: true,
+      reason: 'Start from the guide',
     })
+    expect(started).toMatchObject({ version: 3, value: ABOUT_BUSINESS_STARTER })
     expect((await serving.policy('claude-code')).about).toBe(ABOUT_BUSINESS_STARTER)
-    const change = { version: 1, reason: 'Say we also sell in two stores' }
+    const change = { version: 3, reason: 'Say we also sell in two stores' }
     expect(
       (await call('PUT', path, 'admin', { ...change, value: 'x'.repeat(ABOUT_BUSINESS_MAX + 1) }))
         .statusCode,
@@ -241,7 +244,7 @@ describe('settings and limits', () => {
         '  We run a webshop and two stores.\r\n\r\n\r\n- First-time buyer: a first paid order.  ',
     })
     const text = 'We run a webshop and two stores.\n\n- First-time buyer: a first paid order.'
-    expect(saved).toMatchObject({ version: 2, value: text, changedBy: people.admin })
+    expect(saved).toMatchObject({ version: 4, value: text, changedBy: people.admin })
     expect(await auditRows()).toBe(before + 1)
     const [audit] = (
       await client.query<{ action: string; actor_id: string; details: Record<string, unknown> }>(
@@ -251,12 +254,12 @@ describe('settings and limits', () => {
     expect(audit).toMatchObject({
       action: 'setting.changed',
       actor_id: people.admin,
-      details: { from: 1, to: 2, value: text, reason: change.reason },
+      details: { from: 3, to: 4, value: text, reason: change.reason },
     })
     expect((await serving.policy('claude-code')).about).toBe(text)
     // Empty is allowed: then nothing is given.
     const empty = await ok<Setting>('PUT', path, 'admin', {
-      version: 2,
+      version: 4,
       value: ' ',
       reason: 'Off for the pilot',
     })

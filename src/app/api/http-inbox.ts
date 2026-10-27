@@ -77,32 +77,42 @@ export function workspaceOf(input: {
 const viaOf = (channel: string) => (channel === 'form' ? 'editor' : 'a chat')
 
 /** A context item a card names, as the quick view and Try it read it before the review loads. */
-function stubOf(card: Extract<Card, { group: 'suggestion' }>): Fact {
-  return {
-    id: card.itemId ?? card.id,
-    title: card.title,
-    summary: '',
-    domain: card.areaId,
-    kind: 'note',
-    where: [],
-    valid: {},
-    when: whenLabel({}),
-    status: 'Draft',
-    checkedBy: '',
-    checkedOn: '',
-    source: '',
-    quote: '',
-    dontConclude: '',
-  }
+const draftStub: Fact = {
+  id: '',
+  title: '',
+  summary: '',
+  domain: '',
+  kind: 'note',
+  where: [],
+  valid: {},
+  when: whenLabel({}),
+  status: 'Draft',
+  checkedBy: '',
+  checkedOn: '',
+  source: '',
+  quote: '',
+  dontConclude: '',
 }
+const stubOf = (card: Extract<Card, { group: 'suggestion' }>): Fact => ({
+  ...draftStub,
+  id: card.itemId ?? card.id,
+  title: card.title,
+  domain: card.areaId,
+})
 
 /**
  * A card's id in the app. A suggestion is named by its bare proposal id, as its discussion is
- * (`review:<proposal id>`); the other cards keep the service's name.
+ * (`review:<proposal id>`), and so is a Not found card with a draft, which is reviewed like one;
+ * the other cards keep the service's name.
  */
 type NeedCard = Exclude<Card, { group: 'mention' }>
 
-const idOf = (card: NeedCard) => (card.group === 'suggestion' ? card.proposalId : card.id)
+export const idOf = (card: NeedCard) =>
+  card.group === 'suggestion'
+    ? card.proposalId
+    : card.group === 'gap' && card.draft
+      ? card.draft
+      : card.id
 
 function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
   const base = { id: idOf(card), domain: card.areaId, for: me, when: whenWords(card.at, now) }
@@ -151,20 +161,33 @@ function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
           : `Nothing is drafted yet: write what agents should know about ${card.title}.`,
         primary: card.draft ? 'Review' : 'Write context',
         secondary: ['Not something we write down'],
-        gap: { scope: [card.title], times, belongs: `context about ${card.title}` },
+        gap: {
+          scope: [card.title],
+          times,
+          belongs: `context about ${card.title}`,
+          // The draft is reviewed under this card's id; the review reads what it says.
+          ...(card.draft
+            ? { draft: { ...draftStub, id: card.draft, title: card.title, domain: card.areaId } }
+            : {}),
+        },
       }
     }
-    // The service keeps who sent a report only once named reports come (P10), and not yet which
-    // context item it was about: the card says what was sent, and its one decision.
-    case 'flag':
+    // A report names the context item the reported answer gave first, when the service knows the
+    // answer; who sent it is kept only once named reports come (P10). With no item, the card says
+    // what was sent and offers its one decision.
+    case 'flag': {
+      const item = card.items[0]
       return {
         ...base,
         type: 'flag',
-        title: `An answer was reported as ${card.verdict}`,
+        title: item?.title ?? `An answer was reported as ${card.verdict}`,
         line: `Reported ${card.verdict}${card.note ? `: “${card.note}”` : '.'}`,
-        detail: 'Agents keep getting the same answer until its context is changed.',
-        primary: 'Not a problem',
-        secondary: [],
+        detail: item
+          ? 'Agents keep getting the context item until it is changed.'
+          : 'Agents keep getting the same answer until its context is changed.',
+        ...(item
+          ? { primary: 'Open the context item', secondary: ['Not a problem'], factId: item.id }
+          : { primary: 'Not a problem', secondary: [] }),
         flag: {
           reason: card.verdict,
           note: card.note ?? '',
@@ -173,6 +196,7 @@ function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
           via: 'an agent',
         },
       }
+    }
     case 'check': {
       const by = card.lastChecked.by
       const on = card.lastChecked.on
@@ -247,11 +271,20 @@ export function inboxOf(feed: Feed, me: string, domains: Domains, now: Date): Om
   const done: Record<string, Outcome> = {}
   const opened: Record<string, boolean> = {}
   const reviewed: Record<string, boolean> = {}
+  // A draft's own suggestion card says whether it was opened in the review and read.
+  const draftCards = new Map(
+    feed.cards.flatMap((c) =>
+      c.group === 'suggestion' && drafts.has(c.proposalId) ? [[c.proposalId, c] as const] : [],
+    ),
+  )
   for (const c of cards) {
     const id = idOf(c)
-    if (c.done) done[id] = { label: c.done.outcome, at: whenWords(c.done.at, now) }
-    if (c.opened) opened[id] = true
-    if (c.group === 'suggestion' && c.read) reviewed[id] = true
+    const draft = c.group === 'gap' && c.draft ? draftCards.get(c.draft) : undefined
+    // A drafted Not found card is decided when its draft is: published, returned or archived.
+    const decided = c.done ?? draft?.done
+    if (decided) done[id] = { label: decided.outcome, at: whenWords(decided.at, now) }
+    if (c.opened || draft?.opened) opened[id] = true
+    if ((c.group === 'suggestion' && c.read) || draft?.read) reviewed[id] = true
   }
   return {
     cards: cards.map((c) => cardOf(c, me, now)),
@@ -442,6 +475,15 @@ function pageOf(url: string) {
   }
 }
 
+/** A page's host, as a source is named in a sentence: "status.example". */
+function hostOf(url: string) {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
 /** The values that moved, pulled out of the change: "Number 312 to 340", "Source page". */
 function movedOf(values: ReviewSheet['diff']['values']): Review['moved'] {
   return values.flatMap((v) => {
@@ -532,13 +574,25 @@ export const refOf = (sheet: ReviewSheet): SheetRef => ({
 const firstParagraph = (markdown: string) => markdown.split('\n\n')[0] ?? ''
 
 /** A review sheet as the review draws it, under the id of its card. */
-export function reviewOf(sheet: ReviewSheet, cardId: string): Review {
+export function reviewOf(
+  sheet: ReviewSheet,
+  cardId: string,
+  /** For a Not found card's draft: how often agents found nothing this week, under the minimum null. */
+  gap?: { times: number | null },
+): Review {
   const { diff, proposal } = sheet
   const rewrite = diff.blocks.find(
     (b): b is Extract<ServerBlock, { kind: 'wording'; runs: unknown }> =>
       b.kind === 'wording' && 'runs' in b && b.rewrite,
   )
-  const from = sheet.from.name ?? 'Someone'
+  // Drafted for a Not found card by the drafting helper: nobody wrote it, so it is the queue's own.
+  const drafted = sheet.gapId !== null && sheet.writtenBy !== null
+  const from = drafted ? 'Drafted for you' : (sheet.from.name ?? 'Someone')
+  // The page it was drafted from: a new item's source is an added block, a change's a moved value.
+  const page =
+    diff.blocks.flatMap((b) =>
+      b.kind === 'added' && b.field === 'sources' && 'url' in b ? [b.url] : [],
+    )[0] ?? diff.values.find((v) => v.what === 'source' && v.after)?.after
   const clash = sheet.clashes.find((c) => !c.relation) ?? sheet.clashes[0]
   const say = (a: ReviewSheet['tryIt']['before']) => ({ state: a.state, text: a.say })
   const reach = sheet.reach?.questions ?? 0
@@ -551,12 +605,12 @@ export function reviewOf(sheet: ReviewSheet, cardId: string): Review {
     on: dayWords(proposal.submittedAt ?? proposal.createdAt),
     ...(sheet.note ? { note: sheet.note } : {}),
     mode: sheet.mode,
-    ...(sheet.gapId && sheet.writtenBy
+    ...(drafted
       ? {
           drafted: {
-            questions: reach,
+            questions: gap?.times ?? reach,
             scope: sheet.tryIt.question,
-            from: 'what agents asked',
+            from: page ? `the page at ${hostOf(page)}` : 'the context around it',
           },
         }
       : {}),

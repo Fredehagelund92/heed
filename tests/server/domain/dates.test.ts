@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { loadGoldenSet } from '../../../db/seed/golden-set.ts'
-import { readDates, whatHeedReads } from '../../../src/domain/dates.ts'
+import { monthWords, readDates, whatHeedReads } from '../../../src/domain/dates.ts'
 import { shiftDate } from '../../../src/domain/validity.ts'
 import { normalizeName } from '../../../src/domain/vocabulary.ts'
 
@@ -358,5 +358,12 @@ describe('the golden set', () => {
         window.from,
         window.to,
       ])
+  })
+})
+
+describe('a month in words', () => {
+  it('names the month of a day in full, with its year', () => {
+    expect(monthWords('2026-10-01')).toBe('October 2026')
+    expect(monthWords('2027-01-31')).toBe('January 2027')
   })
 })

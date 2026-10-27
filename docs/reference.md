@@ -526,7 +526,9 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   those of their domains, an administrator every domain, anyone else none; a Mentioned you card
   is the person's own, in any domain: one for each thread with a comment that mentions them and
   that they haven't read, named `mention:<subject>`. Reported cards are the anonymous wrong or unclear
-  reports of the last 90 days, with no person. Under All come what the person sent that waits
+  reports of the last 90 days, with no person; each names the context the reported answer gave
+  (`items`), the version agents got and only one the person may read. A Not found card's title
+  names what agents asked about and the month: "Orders in Spain, October 2026". Under All come what the person sent that waits
   on an owner and what was done in the last 14 days. A suggestion's card says whether the
   person read the version under review (`read`), so it may go out with the others they read.
   `week` counts this week's agent questions, each hidden under `privacy.min_count` (FR-614).

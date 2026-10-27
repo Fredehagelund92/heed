@@ -62,17 +62,46 @@ export const claimsToCheck = (id: 'sug-agent') =>
 
 /**
  * How the queue ends in each mode once every suggestion is decided. The mock closes Lars's
- * withdrawn retirement; on the service, which keeps no withdrawal yet (P9), it is archived.
+ * withdrawn retirement; on the service, which keeps no withdrawal yet (P9), it is archived, and
+ * the two suggestions a Google Drive read makes are not there yet (P11b).
  */
 export const allHandled = () =>
-  http ? '7 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
+  http ? '8 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
 
 /** Skips the rest of a journey in http mode, until the pull request that builds what it needs. */
 export const untilInHttp = (pr: string, what: string) =>
   base.skip(http, `Needs ${what} on the service (${pr})`)
 
+/**
+ * One step that needs a later pull request's work on the service: it runs on the mock, and in
+ * http mode it is left out, said in the report, while the rest of the journey runs.
+ */
+export async function inMockUntil(pr: string, what: string, step: () => Promise<void>) {
+  if (!http) return step()
+  base.info().annotations.push({ type: 'skipped step', description: `Needs ${what} (${pr})` })
+}
+
 /** The app's own origin, which the service takes changes from. */
 const origin = process.env.GOLDEN_WEB_ORIGIN ?? ''
+
+/**
+ * A fresh copy of a workspace on its own service, with Jon signed in, as the mock starts. The
+ * harness reads the app's demo week under the app's aliases (tsconfig.app.json), so it is loaded
+ * by name, in http mode only.
+ */
+async function startService(page: Page, workspace: 'week' | 'empty') {
+  const harness = './http/harness.ts'
+  const { freshService } = (await import(harness)) as {
+    freshService: (workspace: 'week' | 'empty') => Promise<{ close: () => Promise<void> }>
+  }
+  const service = await freshService(workspace)
+  const signedIn = await page.request.post('/api/v1/auth/sign-in', {
+    headers: { 'x-heed-csrf': 'dev-sign-in', origin },
+    data: { email: 'per_jon@example.test' },
+  })
+  if (!signedIn.ok()) throw new Error(`Jon could not sign in: ${await signedIn.text()}`)
+  return service
+}
 
 /** The app's requests to the service still waiting for an answer, by page. */
 const waiting = new WeakMap<Page, number>()
@@ -102,19 +131,8 @@ export const test = base.extend<{ demoWeek: void }>({
       page.on('request', (r) => count(1)(r.url()))
       page.on('requestfinished', (r) => count(-1)(r.url()))
       page.on('requestfailed', (r) => count(-1)(r.url()))
-      // The harness reads the app's demo week under the app's aliases (tsconfig.app.json), so it is
-      // loaded by name, in http mode only.
-      const harness = './http/harness.ts'
-      const { freshService } = (await import(harness)) as {
-        freshService: () => Promise<{ close: () => Promise<void> }>
-      }
-      const service = await freshService()
+      const service = await startService(page, 'week')
       try {
-        const signedIn = await page.request.post('/api/v1/auth/sign-in', {
-          headers: { 'x-heed-csrf': 'dev-sign-in', origin },
-          data: { email: 'per_jon@example.test' },
-        })
-        if (!signedIn.ok()) throw new Error(`Jon could not sign in: ${await signedIn.text()}`)
         await use()
       } finally {
         await service.close()
@@ -131,8 +149,8 @@ export const test = base.extend<{ demoWeek: void }>({
   first visit loaded the page and every later one moved inside the running app, keeping what the
   journey had done so far. go does the same. In http mode a mock card's id becomes the service's,
   and the mock's flags become what they stand for: `?state=offline` takes the browser offline,
-  `?state=failed` makes the first try of a decision fail, and `?demo=last` decides every suggestion
-  but the one opened, through the service.
+  `?state=failed` makes the first try of a decision fail, `?demo=last` decides every suggestion
+  but the one opened, through the service, and `?demo=setup` starts on an empty workspace.
 */
 export async function go(page: Page, route: string) {
   const to = http ? await httpRoute(page, route) : { route }
@@ -173,6 +191,8 @@ async function httpRoute(
   query.delete('demo')
   query.delete('state')
   if (demo === 'last') await decideAllBut(page, path.split('/')[2] ?? '')
+  // A new install: the journey moves to a copy of an empty workspace, Jon signed in there.
+  else if (demo === 'setup') await startService(page, 'empty')
   else if (demo && demo !== 'week') throw new Error(`?demo=${demo} has no http meaning yet`)
   if (state === 'failed') await failFirstTry(page)
   const search = query.toString()

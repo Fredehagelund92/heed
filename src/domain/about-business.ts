@@ -10,9 +10,10 @@
 export const ABOUT_BUSINESS_MAX = 1200
 
 /**
- * The text a fresh Heed starts with (db/migrations/0001_baseline.sql), and what
- * Administration's reset puts back: what kind of business this is and the words models misread.
- * Neutral on purpose: no company's name, figures or deals, and no legal or regulatory conclusion.
+ * The worked example of the text, an outdoor-gear retailer: what the guide offers to start from
+ * (Start from the guide) and what Administration's reset puts back. A new install starts with no
+ * text (db/migrations/0010_about_starts_empty.sql); the demo seeds write this one. Neutral on
+ * purpose: no company's name, figures or deals, and no legal or regulatory conclusion.
  */
 export const ABOUT_BUSINESS_STARTER = [
   'We are an outdoor-gear retailer. We sell footwear, clothing, camping and climbing gear in our own stores, in our webshop and apps, and through marketplaces, in twelve markets.',
