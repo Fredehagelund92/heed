@@ -1029,7 +1029,7 @@ source keeps them, so a new publish or stop switch is read at once.
 What agents asked and what they got (FR-620), as topics and counts: never the words of a question
 and never who asked (FR-602, FR-613). Each `get_context` call keeps, with its topic, the answer
 state its reply gave (FR-349; none when the question could not be read) and the kind of agent
-that called, from FR-410's fixed list, never the name it gave itself (migration 0014).
+that called, from FR-410's fixed list, never the name it gave itself (migration 0015).
 Administrators read every domain and the calls with no domain; an owner reads the domains they
 own, and Usage is for administrators only. Every read is in `src/contract/observability.ts`.
 

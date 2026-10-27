@@ -440,7 +440,7 @@ append only. `term_changes` keeps one row per change to many terms with what Und
 maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
 grant on these tables.
 
-Observability (migration 0014). Each agent delivery keeps the answer state its reply gave
+Observability (migration 0015). Each agent delivery keeps the answer state its reply gave
 (`answer_state`: grounded, partial, conflict, stale, missing or failed; none when the question
 could not be read) and the kind of agent that called (`app_family`, FR-410's fixed list), never
 the name it gave itself; deliveries from before keep their resolver's status as their state.
