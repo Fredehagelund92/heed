@@ -88,7 +88,7 @@ The words follow [Copy](../design/copy.md), the same rules as the screens:
 
 1. Lead with the answer. One idea per sentence, in plain words, for readers whose first language is not English: no idioms, no contractions in labels.
 2. One word per thing, the screen's word, from the glossary (`src/domain/words.ts`): "context item", "owner", "suggestion", "domain", "agent".
-3. Bold is only for the words of a screen, exactly as the screen writes them: **Copy prompt**. The docs check fails when a bold phrase is not in the app.
+3. Bold is only for the words of a screen, exactly as the screen writes them: **Copy prompt**. The docs check fails when a bold phrase has no row in `tests/e2e-app/docs-controls.ts`, and that row's browser check fails when the control is not drawn on its screen.
 4. Never name the product in a sentence: write "it", "agents" or "your workspace". Commands and addresses keep their names.
 5. Never promise what is not built, and never write "soon".
 6. Plain hyphens, never an em dash, and British spelling.
@@ -101,7 +101,7 @@ The words follow [Copy](../design/copy.md), the same rules as the screens:
 - a page or What's new is missing, or a page is not one of the mockup's eleven
 - a link points at a page, a heading or a screen that does not exist
 - an include's Markdown is not the app's list as it is now (`npm run docs:sync` mends it)
-- a bold phrase is not on any of the app's screens
+- a bold phrase has no row in `tests/e2e-app/docs-controls.ts` (the page, the screen and how it is drawn); `docs-controls.spec.ts` then opens each screen and fails when the control is not there
 - a page uses a word the glossary retires, names the product, has an em dash or says "soon"
 - `llms.txt` misses a page, or the search does not find a page by its words
 

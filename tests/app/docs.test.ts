@@ -19,11 +19,12 @@ import { format, resolveConfig } from 'prettier'
 import { parse } from 'yaml'
 import { includeMarkdown } from '@/lib/docs-includes'
 import { CHANGES, DOC_PAGES, llmsTxt, searchDocs } from '@/lib/docs'
+import { docControls } from '../e2e-app/docs-controls.ts'
 
 /*
   The docs check (docs/help/README.md): mechanical, no model. Wrong docs are worse than none, so
   every page must read, keep to the mockup's eleven pages and What's new, name the app's controls in
-  the app's own words, link only to pages, headings and screens that exist, and hold the app's own
+  the app's own words (each bold one has a row in tests/e2e-app/docs-controls.ts, drawn by its spec), link only to pages, headings and screens that exist, and hold the app's own
   lists as they are now. `npm run docs:sync` writes the lists into the pages when they changed.
 */
 
@@ -70,25 +71,6 @@ function boldPhrases(blocks: readonly DocBlock[]): string[] {
         return []
     }
   })
-}
-
-/**
- * The app's own copy: every source file of the new web app but its demo data and the shadcn parts
- * as they ship, with its spaces evened out, so JSX text that wraps still matches.
- */
-function appCopy(): string {
-  const out: string[] = []
-  const skip = /(^|\/)(mock|ui)(\/|$)|\.gen\.ts$|\.d\.ts$/
-  const walk = (dir: string) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name)
-      if (skip.test(path.replace('src/app/', ''))) continue
-      if (entry.isDirectory()) walk(path)
-      else if (/\.tsx?$/.test(entry.name)) out.push(readFileSync(path, 'utf8'))
-    }
-  }
-  walk('src/app')
-  return out.join('\n').replace(/\s+/g, ' ')
 }
 
 /** The app's addresses as patterns, from its router: `/settings/$section` matches `/settings/agents`. */
@@ -173,14 +155,14 @@ describe('the docs check', () => {
     expect(wordsToChange(text).map((w) => `"${w.found}": write ${w.write}`)).toEqual([])
   })
 
-  it('names the app controls in the app own words: every bold phrase is on a screen', () => {
-    const copy = appCopy()
+  it('has a rendered check for every bold control: each is a row of docs-controls.ts', () => {
     const missing = files.flatMap(({ slug }) =>
       boldPhrases(pageBlocks(slug))
-        .filter((phrase) => !copy.includes(phrase.replace(/\s+/g, ' ').trim()))
+        .filter((phrase) => !docControls.some((c) => c.page === slug && c.phrase === phrase.trim()))
         .map((phrase) => `${slug}.md: **${phrase}**`),
     )
     expect(missing).toEqual([])
+    for (const c of docControls) expect(isScreen(c.at), `${c.page}.md: ${c.at}`).toBe(true)
   })
 
   it('opens the screen a page is about, and links only to screens that exist', () => {

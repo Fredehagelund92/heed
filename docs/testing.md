@@ -31,8 +31,9 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   [Security, scanning and the restore drill](security.md).
 - **Docs check (Vitest).** `tests/app/docs.test.ts` reads every page of the new app's documentation in
   `docs/help` (`docs/help/README.md`, "The docs check"): the mockup's eleven pages and What's new, their
-  links, the app's own lists they include, and every bold control, which must be on a screen of
-  `src/app`. `npm run docs:sync` mends an include that is out of date. `tests/unit/old-help.test.ts`
+  links, the app's own lists they include, and every bold control, which must have a row in
+  `tests/e2e-app/docs-controls.ts`; `tests/e2e-app/docs-controls.spec.ts` draws each row's screen
+  in the browser and finds the control on it. `npm run docs:sync` mends an include that is out of date. `tests/unit/old-help.test.ts`
   reads every help page of the old app in `docs/old-help`: its
   front matter, its kind's template, every link to a page, a heading, a picture or a screen, and
   every bold control name, which must be on one of the app's screens. `tests/e2e/docs.spec.ts`
