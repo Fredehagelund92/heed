@@ -645,7 +645,8 @@ synonym means what that one means.
   a sync gave its word to a metric or a dimension it does not mean (`source`), or what it means is
   no longer in the definitions (`missing`).
 - `POST /terms` takes `{ name, meaning? | sameAs?, areaId? }`, and `PUT /terms/{id}` the same with
-  the `revision` the person read. An owner of the term's domain or an admin writes it (403
+  the `revision` the person read; an edit that leaves out `areaId` keeps the term's domain, and only
+  an explicit null clears it. An owner of the term's domain or an admin writes it (403
   otherwise); a word with no domain is an admin's. One word has one meaning across the workspace:
   a word, compared trimmed, its spaces folded and case aside, that the vocabulary, the definitions
   source or another term already uses is refused with 409, `data.refusal` `{ code, holder, by }`
