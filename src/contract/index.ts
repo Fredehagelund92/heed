@@ -162,6 +162,20 @@ import {
   grantsAppliedSchema,
 } from './auth.ts'
 import {
+  createInvitesSchema,
+  inviteIdSchema,
+  inviteResentSchema,
+  inviteSchema,
+  invitesCreatedSchema,
+  memberIdSchema,
+  memberRemovedSchema,
+  memberSchema,
+  ownersSetSchema,
+  setOwnersSchema,
+  setRoleSchema,
+  soleOwnerSchema,
+} from './members.ts'
+import {
   activityListSchema,
   activityPageSchema,
   inboxChangeSchema,
@@ -1457,6 +1471,22 @@ export const contract = {
     list: read
       .route({ method: 'GET', path: '/areas', tags: ['reference'], summary: 'Domains, by name' })
       .output(z.array(areaSchema)),
+    setOwners: read
+      .route({
+        method: 'PUT',
+        path: '/areas/{areaId}/owners',
+        tags: ['roles'],
+        summary:
+          "Set a domain's owners, all of them, in one step (FR-804): its owners and admins may. Those not named stop owning it, those named start; a domain that has owners keeps at least one",
+      })
+      .errors({
+        FORBIDDEN: { message: 'Only its owners and admins add owners.' },
+        CONFLICT: {
+          message: 'A domain needs an owner. Add another owner first, then take this one off.',
+        },
+      })
+      .input(setOwnersSchema)
+      .output(ownersSetSchema),
     get: admin
       .route({
         method: 'GET',
@@ -1754,6 +1784,104 @@ export const contract = {
       })
       .input(testSourceSchema)
       .output(sourceCheckSchema),
+  },
+  // The people of the workspace as Heed v1 has them: Admin or Member, and the domains each owns.
+  members: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/members',
+        tags: ['roles'],
+        summary:
+          'Everyone in the workspace: their role (Admin or Member), the domains they own and when they last signed in',
+      })
+      .output(z.array(memberSchema)),
+    setRole: admin
+      .route({
+        method: 'POST',
+        path: '/members/{personId}/role',
+        tags: ['roles'],
+        summary:
+          "Make someone an Admin or a Member (FR-804); not one's own role, and the workspace keeps an active admin",
+      })
+      .errors({
+        CONFLICT: {
+          message: "You can't change your own role. Ask another admin.",
+        },
+      })
+      .input(setRoleSchema)
+      .output(changed),
+    remove: admin
+      .route({
+        method: 'POST',
+        path: '/members/{personId}/remove',
+        tags: ['roles'],
+        summary:
+          'Remove someone from the workspace: their roles end, they are signed out and their agents disconnected. Refused while a domain has them as its only owner, and for oneself. What they wrote stays, with their name',
+      })
+      .errors({
+        CONFLICT: {
+          message: 'Hand over first: they are the only owner of a domain.',
+          data: z.optional(soleOwnerSchema),
+        },
+      })
+      .input(memberIdSchema)
+      .output(memberRemovedSchema),
+    restore: admin
+      .route({
+        method: 'POST',
+        path: '/members/{personId}/restore',
+        tags: ['roles'],
+        summary:
+          'Undo a removal: the person is back, with the roles their last removal ended (those of a domain that still exists). They sign in again',
+      })
+      .input(memberIdSchema)
+      .output(changed),
+  },
+  invites: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/invites',
+        tags: ['roles'],
+        summary: 'The open invites: who, as what, owning which domains, sent when and by whom',
+      })
+      .output(z.array(inviteSchema)),
+    create: read
+      .route({
+        method: 'POST',
+        path: '/invites',
+        tags: ['roles'],
+        summary:
+          'Invite people by address, as an Admin or a Member owning some domains from the start (FR-417). An admin invites anyone; an owner invites a Member to the domains they own. Each new invite comes with its link, shown only here; an address already in the workspace or already invited is named, not invited again',
+      })
+      .errors({
+        FORBIDDEN: {
+          message:
+            'Only an admin invites people. An owner invites people to their own domains, but not as an admin.',
+        },
+      })
+      .input(createInvitesSchema)
+      .output(invitesCreatedSchema),
+    resend: read
+      .route({
+        method: 'POST',
+        path: '/invites/{id}/resend',
+        tags: ['roles'],
+        summary:
+          'Send an invite again, by its sender or an admin: a new link that works for another week, and the old one stops working',
+      })
+      .input(inviteIdSchema)
+      .output(inviteResentSchema),
+    revoke: read
+      .route({
+        method: 'POST',
+        path: '/invites/{id}/revoke',
+        tags: ['roles'],
+        summary: 'Take an invite back, by its sender or an admin: its link stops working',
+      })
+      .input(inviteIdSchema)
+      .output(z.object({ revoked: z.boolean() })),
   },
   people: {
     list: read

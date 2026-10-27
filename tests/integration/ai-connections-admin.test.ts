@@ -201,4 +201,24 @@ describe('an administrator and the agents people connected', () => {
     expect(await mcpStatus(app.access_token)).toBe(200)
     expect((await refresh(app)).status).toBe(200)
   })
+
+  it('ends every app of a person an administrator removes, at its next request', async () => {
+    const app = await connect('stranger', 'read feedback propose')
+    expect(await mcpStatus(app.access_token)).toBe(200)
+    const boss = await signedIn('admin')
+    const removed = await boss.api(
+      `/members/${people.stranger}/remove`,
+      {},
+      { 'idempotency-key': 'remove-stranger-0001' },
+    )
+    expect(removed.status, await removed.clone().text()).toBe(200)
+    expect(await mcpStatus(app.access_token)).toBe(401)
+    expect((await refresh(app)).status).toBe(400)
+    const revoked = await admin.query<{ reason: string }>(
+      `select details->>'reason' as reason from audit_log
+        where action='ai_client.revoked' and details->>'person'=$1`,
+      [people.stranger],
+    )
+    expect(revoked.rows).toEqual([{ reason: 'person_inactive' }])
+  })
 })

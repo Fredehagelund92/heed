@@ -88,6 +88,17 @@ export const policies = {
   'aiConnections.disconnect': 'admin',
   'aiConnections.disconnectPerson': 'admin',
   'me.get': 'read',
+  // People as Heed v1 has them: anyone signed in reads them and the open invites; the service and
+  // row security let an owner invite a member to their own domains, and set its owners.
+  'members.list': 'read',
+  'members.setRole': 'admin',
+  'members.remove': 'admin',
+  'members.restore': 'admin',
+  'invites.list': 'read',
+  'invites.create': 'read',
+  'invites.resend': 'read',
+  'invites.revoke': 'read',
+  'areas.setOwners': 'read',
   'people.list': 'read',
   'people.search': 'audit',
   'people.sheet': 'admin',

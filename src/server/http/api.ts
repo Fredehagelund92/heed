@@ -92,6 +92,15 @@ import {
   can,
   checkMutation,
   applyGrants,
+  createInvites,
+  listInvites,
+  listMembers,
+  removeMember,
+  resendInvite,
+  restoreMember,
+  revokeInvite,
+  setMemberRole,
+  setOwners,
   changeGrant,
   listGrants,
   sessionCookie,
@@ -282,6 +291,8 @@ export function createRouter({
       await context.review.checkSubmitted(submitted.id)
       return submitted
     }
+  const webOrigin = (request: FastifyRequest) =>
+    origins[0] ?? new URL(`${request.protocol}://${request.headers.host}`).origin
   const found = <T>(value: T | null): T => {
     if (value === null) throw new ORPCError('NOT_FOUND')
     return value
@@ -712,6 +723,9 @@ export function createRouter({
     },
     areas: {
       list: authorized.areas.list.handler(({ context }) => context.areas.list()),
+      setOwners: authorized.areas.setOwners.handler(({ context, input }) =>
+        setOwners(context.tx, input),
+      ),
       get: authorized.areas.get.handler(({ context, input }) => getArea(context.tx, input.id)),
       create: authorized.areas.create.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'areas.create', input, () =>
@@ -837,6 +851,36 @@ export function createRouter({
       ),
       test: authorized.sources.test.handler(({ context, input }) =>
         workspaceSources.test(context.tx, input),
+      ),
+    },
+    members: {
+      list: authorized.members.list.handler(({ context }) => listMembers(context.tx)),
+      setRole: authorized.members.setRole.handler(({ context, input }) =>
+        setMemberRole(context.tx, input),
+      ),
+      remove: authorized.members.remove.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'members.remove', input, async () => {
+          const removed = await removeMember(context.tx, input)
+          await login?.endPerson(context.tx, input.personId.toLowerCase())
+          return removed
+        }),
+      ),
+      restore: authorized.members.restore.handler(({ context, input }) =>
+        restoreMember(context.tx, input),
+      ),
+    },
+    // An invite's link is on the web app's public address: the first allowed origin, or the
+    // address this request came to when none is set.
+    invites: {
+      list: authorized.invites.list.handler(({ context }) => listInvites(context.tx)),
+      create: authorized.invites.create.handler(({ context, input }) =>
+        createInvites(context.tx, input, webOrigin(context.request)),
+      ),
+      resend: authorized.invites.resend.handler(({ context, input }) =>
+        resendInvite(context.tx, input.id, webOrigin(context.request)),
+      ),
+      revoke: authorized.invites.revoke.handler(({ context, input }) =>
+        revokeInvite(context.tx, input.id),
       ),
     },
     people: {

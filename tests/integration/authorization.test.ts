@@ -102,6 +102,7 @@ const all: Operation[] = contractOperations()
 const samples: Record<string, string> = {
   id: '00000000-0000-4000-8000-00000000abcd',
   areaId: 'finance',
+  personId: '00000000-0000-4000-8000-00000000abce',
   label: '2026-10-08.1',
   key: 'privacy.min_count',
   tool: 'get_facts',

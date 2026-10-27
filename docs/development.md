@@ -162,6 +162,13 @@ an attributed audit entry atomically. The people file bootstraps global roles on
 so restarting or signing in again never restores a revoked grant. The last active administrator cannot be revoked. Domain assignments are managed
 through the API, or come from the bulk demo seed. Every signed-in person is a contributor.
 
+People have two roles, Admin and Member; ownership lives on the domain (`POST /areas/{areaId}/owners`
+sets a domain's owners). Administrators list and change people under `/members` (`/members/{personId}/role`,
+`/remove`, `/restore`); removing a person waits while a domain has them as its only owner. Invites are under
+`/invites` (list, create, `/{id}/resend`, `/{id}/revoke`): an invite carries a role and owned domains,
+returns a link on the web app's address, is stored only as a token hash, expires after 7 days and is
+single use. `acceptInvite` matches on email at first sign-in; no sign-in path calls it yet.
+
 The library then shows the same 1,500 items as the mock, read from PostgreSQL. The dev and preview
 servers forward `/api/v1` to `HEED_API_URL` (default `http://127.0.0.1:3000`). Favourites and
 recently opened items stay in the browser with either binding: the service records who writes and
