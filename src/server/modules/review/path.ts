@@ -28,7 +28,7 @@ import type { ProposalRecord } from '../../../contract/proposals.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { reachOfDraft, type BundleCache } from '../answer/index.ts'
-import { publishEdition, type ServingBundle } from '../editions/index.ts'
+import { loadServingBundle, publishEdition, type ServingBundle } from '../editions/index.ts'
 import { forReader } from '../library/index.ts'
 import {
   acceptedOverlaps,
@@ -99,11 +99,7 @@ export function createReviewPath(
   }
   async function liveBundle(): Promise<ServingBundle> {
     const head = await liveHead()
-    if (!head)
-      throw new ORPCError('PRECONDITION_FAILED', {
-        message:
-          'Nothing is shared with agents yet. They get facts once an owner accepts the first one.',
-      })
+    if (!head) return loadServingBundle(tx, { seq: '0', label: '', overlay: '0' })
     return cache.bundle(tx, head)
   }
   async function stored(id: string): Promise<StoredVersion> {
@@ -537,14 +533,15 @@ export function createReviewPath(
         skip('not_read', "You haven't read it yet: it goes out once you have.")
         continue
       }
-      const r = await reading(p)
-      const { ready } = readinessOf(r, await relationsOf(r))
-      if (!ready.bulk) {
-        skip('needs_care', 'It needs a look of its own first, so it stays out.')
-        continue
-      }
       await tx.query('savepoint publish_read')
       try {
+        const r = await reading(p)
+        const { ready } = readinessOf(r, await relationsOf(r))
+        if (!ready.bulk) {
+          await tx.query('release savepoint publish_read')
+          skip('needs_care', 'It needs a look of its own first, so it stays out.')
+          continue
+        }
         const decided = await review.decide({
           id: p.id,
           revision: p.revision,
