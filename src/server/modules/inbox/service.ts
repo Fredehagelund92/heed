@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/client'
 import type { Card, Feed } from '../../../contract/inbox.ts'
 import { topicScope, topicWords } from '../../../domain/answer.ts'
+import { monthWords } from '../../../domain/dates.ts'
 import { visibleCount } from '../../../domain/gaps.ts'
 import {
   actionGroup,
@@ -50,6 +51,19 @@ const outcomeWords: Record<string, string> = {
   not_a_problem: 'Not a problem',
   not_written: 'Not something we write down',
 }
+
+/**
+ * The context a reported answer gave (FR-618): the items of the delivery the report names, in the
+ * order agents got them, each by the title of the very version agents got, and only a version
+ * whose audience lets the person read it (never a suggestion's unpublished text). No question and
+ * no person: a delivery keeps neither.
+ */
+const reportedItems = (feedback: string) => `coalesce((
+  select jsonb_agg(jsonb_build_object('id', d.id, 'title', iv.title) order by d.rank)
+    from deliveries dl
+    cross join lateral jsonb_to_recordset(dl.delivered) as d(id text, v int, rank int)
+    join item_versions iv on iv.item_id = d.id and iv.version_no = d.v
+   where dl.id = ${feedback}.delivery_id and cl_audience_allows(iv.audience_groups)), '[]'::jsonb)`
 
 export function createInboxFeedService(
   tx: Queryable,
@@ -179,7 +193,9 @@ export function createInboxFeedService(
         done: null,
         gapId: row.id,
         ref: row.ref,
-        title: bundle && scope ? topicWords(bundle, scope) : row.ref,
+        // What agents asked about, and the month: "Orders in Spain, October 2026".
+        title:
+          bundle && scope ? `${topicWords(bundle, scope)}, ${monthWords(row.month!)}` : row.ref,
         scope: {
           metrics: row.metrics,
           values: row.values,
@@ -199,8 +215,10 @@ export function createInboxFeedService(
       area: string
       verdict: 'wrong' | 'unclear'
       note: string | null
+      items: { id: string; title: string }[]
     }>(
-      `select f.id::text, f.created_hour::text as at, f.area_id as area, f.verdict::text as verdict, f.note
+      `select f.id::text, f.created_hour::text as at, f.area_id as area, f.verdict::text as verdict, f.note,
+              ${reportedItems('f')} as items
          from feedback f
         where f.verdict in ('wrong','unclear') and f.area_id=any($1::text[])
           and f.created_hour > now() - interval '90 days'
@@ -218,6 +236,7 @@ export function createInboxFeedService(
       feedbackId: row.id,
       verdict: row.verdict,
       note: row.note,
+      items: row.items,
     }))
   }
 
@@ -317,8 +336,10 @@ export function createInboxFeedService(
       at: string
       verdict: string
       note: string | null
+      items: { id: string; title: string }[]
     }>(
-      `select c.card, c.area_id as area, c.decided_at::text as at, f.verdict::text as verdict, f.note
+      `select c.card, c.area_id as area, c.decided_at::text as at, f.verdict::text as verdict, f.note,
+              ${reportedItems('f')} as items
          from card_states c join feedback f on 'feedback:'||f.id::text=c.card
         where c.area_id=any($1::text[]) and c.decided_at > now() - make_interval(days => $2)
         order by c.decided_at desc limit 100`,
@@ -335,6 +356,7 @@ export function createInboxFeedService(
         feedbackId: row.card.slice('feedback:'.length),
         verdict: row.verdict === 'wrong' ? 'wrong' : 'unclear',
         note: row.note,
+        items: row.items,
       })
     const notWritten = await tx.query<{
       id: string

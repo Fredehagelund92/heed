@@ -14,6 +14,7 @@ import {
   demoWarnings,
   termAreas,
 } from '../../src/web/mocks/cube-model.ts'
+import { ABOUT_BUSINESS_STARTER } from '../../src/domain/about-business.ts'
 import { contentDigest } from '../../src/domain/canonical.ts'
 import type { ContextItem } from '../../src/domain/item.ts'
 import { itemVersionDigests } from '../../src/domain/item-version.ts'
@@ -248,6 +249,14 @@ async function seedDefinitions(
       change_mark: sha256(member.ref),
     })),
   ])
+  // The demo company says what it is about: a new install starts with no text (0010), and the
+  // demo, the golden library and the assistant evals' About arm read the retailer's worked example.
+  await client.query(
+    `insert into settings_versions (key, version, value, reason)
+     select 'business.about', max(version) + 1, to_jsonb($1::text), 'demo: the outdoor-gear retailer'
+       from settings_versions where key = 'business.about'`,
+    [ABOUT_BUSINESS_STARTER],
+  )
   // The demo model is in this repository, so its Source tabs link to the model files.
   await client.query(
     `insert into settings_versions (key, version, value, reason)

@@ -109210,6 +109210,24 @@
                                     "type": "null"
                                   }
                                 ]
+                              },
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "title": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "title"
+                                  ]
+                                }
                               }
                             },
                             "required": [
@@ -109221,7 +109239,8 @@
                               "group",
                               "feedbackId",
                               "verdict",
-                              "note"
+                              "note",
+                              "items"
                             ]
                           },
                           {

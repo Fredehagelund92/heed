@@ -7,7 +7,7 @@ summary: Write the short background the assistant and agents get, so they know w
 audience: [administrator]
 minutes: 3
 owner: Product team
-reviewed: 2026-10-20
+reviewed: 2026-10-27
 screens: [/admin?section=business]
 related: [what-is-heed, mcp, glossary]
 ---
@@ -18,7 +18,7 @@ related: [what-is-heed, mcp, glossary]
 - Who: an admin.
 - You need: a few minutes, and the words your colleagues use that an outsider would misread.
 
-The assistant gets the text with every question. An agent, such as Claude Code, gets it when it connects through MCP, the connection AI agents use to check these facts. You start with a neutral text about an outdoor-gear retailer. You can keep it, change it or empty it.
+The assistant gets the text with every question. An agent, such as Claude Code, gets it when it connects through MCP, the connection AI agents use to check these facts. A new workspace starts with no text, so they get no background until you write one. A worked example, about an outdoor-gear retailer, is there to start from.
 
 ## Steps
 
@@ -36,7 +36,7 @@ The assistant gets the text with every question. An agent, such as Claude Code, 
 
 4. Read **What the assistant and agents get**. It's exactly what they'll be given, with the lines we put around your text. It follows what you type.
 
-5. To start again from the starter text, choose **Reset to the starter text**. Nothing changes until you save.
+5. To start from the worked example, an outdoor-gear retailer, choose **Reset to the starter text**, then make it yours. Nothing changes until you save.
 
 6. Under **Why**, say why you changed it, for the history log.
 

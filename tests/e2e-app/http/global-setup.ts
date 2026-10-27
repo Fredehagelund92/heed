@@ -9,11 +9,11 @@ import {
   localRoles,
 } from '../../../src/server/db/roles.ts'
 import { checkCards, queue, seedDemoWeek } from '../../app/http/demo-week.ts'
-import { workName } from './harness.ts'
+import { emptyName, workName } from './harness.ts'
 
 /*
   Once per run of the http journeys: a migrated database with the mockup's demo week, as the
-  template each journey copies (harness.ts), and the world file the journeys read to find the
+  template each journey copies (harness.ts), a migrated empty one for a new install, and the world file the journeys read to find the
   service's ids for the mock's cards (go.ts).
 */
 
@@ -28,7 +28,7 @@ export default async function setup() {
   const admin = new pg.Client({ connectionString: adminUrl })
   await admin.connect()
   const drop = async () => {
-    for (const name of [workName(template), template])
+    for (const name of [workName(template), emptyName(template), template])
       await admin.query(`drop database if exists ${identifier(name)} with (force)`)
   }
   try {
@@ -48,10 +48,15 @@ export default async function setup() {
     } finally {
       await client.end()
     }
+    // A new install: the migrated database alone, before anything is seeded into it.
+    await admin.query(
+      `create database ${identifier(emptyName(template))} template ${identifier(template)} owner ${identifier(localRoles.owner)}`,
+    )
     const ids = await seedDemoWeek(url.href)
     // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item.
     const world: Record<string, string> = {
       ...Object.fromEntries(queue.map((card) => [card, ids[card]])),
+      'flag-germany': ids['flag-germany'],
       ...checkCards(),
     }
     await mkdir(dirname(worldFile), { recursive: true })

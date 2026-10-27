@@ -140,7 +140,7 @@ describe('the Inbox', () => {
     expect(inbox.done).toEqual({ done: { label: 'Published', at: 'Today, 10:05' } })
   })
 
-  it('reviews a Not found card’s draft from that card, not as a card of its own', () => {
+  it('names a Not found card with a draft by its draft, reviewed like a suggestion', () => {
     const gap: Card = {
       ...base,
       id: 'gap:g1',
@@ -157,18 +157,43 @@ describe('the Inbox', () => {
       times: 9,
       draft: 'p9',
     }
-    const { cards } = inboxOf(
-      feed([gap, suggestion({ id: 'p9', proposalId: 'p9' })]),
+    const inbox = inboxOf(
+      feed([gap, suggestion({ id: 'proposal:p9', proposalId: 'p9', opened: true, read: true })]),
       'Jon Abara',
       domains,
       now,
     )
-    expect(cards.map((c) => c.id)).toEqual(['gap:g1'])
-    expect(cards[0]).toMatchObject({
+    // One card, named by the draft as its review and its discussion are; the draft's own suggestion
+    // card says it was opened and read.
+    expect(inbox.cards.map((c) => c.id)).toEqual(['p9'])
+    expect(inbox.cards[0]).toMatchObject({
       type: 'gap',
+      title: 'Orders in Spain, October 2026',
       primary: 'Review',
       line: 'Agents found nothing written down for this, 9 times this week.',
+      gap: { times: 9, draft: { id: 'p9', title: 'Orders in Spain, October 2026' } },
     })
+    expect(inbox.opened).toEqual({ p9: true })
+    expect(inbox.reviewed).toEqual({ p9: true })
+    // With no draft yet, the card keeps the service's name and writes context from the editor.
+    const [blank] = inboxOf(feed([{ ...gap, draft: null }]), 'Jon Abara', domains, now).cards
+    expect(blank).toMatchObject({ id: 'gap:g1', primary: 'Write context' })
+    // Once its draft is published, the card is done with it.
+    const published = inboxOf(
+      feed([
+        gap,
+        suggestion({
+          id: 'proposal:p9',
+          proposalId: 'p9',
+          done: { outcome: 'Published', at: at(23, 11, 0) },
+        }),
+      ]),
+      'Jon Abara',
+      domains,
+      now,
+    )
+    expect(published.done).toEqual({ p9: { label: 'Published', at: 'Today, 11:00' } })
+    expect(blank?.gap?.draft).toBeUndefined()
   })
 
   it('says a report as what was sent, without a name the service does not keep', () => {
@@ -179,6 +204,7 @@ describe('the Inbox', () => {
       feedbackId: 'f1',
       verdict: 'unclear',
       note: 'Is this Germany only, or every market?',
+      items: [],
     }
     expect(inboxOf(feed([flag]), 'Jon Abara', domains, now).cards[0]).toMatchObject({
       type: 'flag',
@@ -187,6 +213,31 @@ describe('the Inbox', () => {
       primary: 'Not a problem',
       secondary: [],
       flag: { reason: 'unclear', by: '' },
+    })
+  })
+
+  it('names a report by the context item the reported answer gave first', () => {
+    const flag: Card = {
+      ...base,
+      id: 'feedback:f2',
+      group: 'flag',
+      feedbackId: 'f2',
+      verdict: 'wrong',
+      note: null,
+      items: [
+        { id: 'itm_lag0001', title: 'Orders lags by one day in the source tool' },
+        { id: 'itm_other01', title: 'Another item' },
+      ],
+    }
+    expect(inboxOf(feed([flag]), 'Jon Abara', domains, now).cards[0]).toMatchObject({
+      id: 'feedback:f2',
+      type: 'flag',
+      title: 'Orders lags by one day in the source tool',
+      line: 'Reported wrong.',
+      primary: 'Open the context item',
+      secondary: ['Not a problem'],
+      factId: 'itm_lag0001',
+      flag: { reason: 'wrong', note: '', by: '' },
     })
   })
 
@@ -587,6 +638,47 @@ describe('the review', () => {
       after: "The provider sends {+Saturday's file on Sunday+}.",
       changes: 4,
     })
+  })
+
+  it('reads a Not found card’s draft as drafted for the owner, from the page it was drafted from', () => {
+    const r = reviewOf(
+      sheet(
+        {
+          mode: 'new',
+          gapId: 'g1',
+          writtenBy: 'assistant',
+          from: { personId: 'p_maria', name: 'Maria Lindqvist' },
+          tryIt: {
+            question: 'Orders in Spain',
+            before: { state: 'missing', say: 'Nothing is written down.', items: [] },
+            after: { state: 'grounded', say: 'Card payments failed.', items: [] },
+          },
+        },
+        {
+          mode: 'new',
+          blocks: [
+            {
+              kind: 'added',
+              field: 'sources',
+              url: 'https://status.payments.example/incidents/2026-10-14-spain',
+              quote: 'Card authorisations failed.',
+            },
+          ],
+        },
+      ),
+      'p9',
+      { times: 9 },
+    )
+    expect(r.from).toBe('Drafted for you')
+    expect(r.drafted).toEqual({
+      questions: 9,
+      scope: 'Orders in Spain',
+      from: 'the page at status.payments.example',
+    })
+    // Without the card's count, how many questions reach it this week.
+    expect(reviewOf(sheet({ gapId: 'g1', writtenBy: 'assistant' }), 'p9').drafted?.questions).toBe(
+      12,
+    )
   })
 
   it('carries an agent’s claims, the clash still to answer, and what a retirement archives', () => {

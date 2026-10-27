@@ -51,6 +51,15 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
 */
 
 const { client, url } = testDatabase()
+
+/** About our business as an admin writes it, a new version on top of what is there. */
+const writeAbout = (text: string) =>
+  client.query(
+    `insert into settings_versions (key, version, value, reason)
+     select 'business.about', max(version) + 1, to_jsonb($1::text), 'written for the test'
+       from settings_versions where key = 'business.about'`,
+    [text],
+  )
 const database = apiDatabase(url)
 const clock = systemClock('2026-10-08')
 const mock = createModelPort({ mode: 'mock' })
@@ -1891,7 +1900,9 @@ describe('how Heed works, from its help pages (FR-715)', () => {
   })
 
   it('keeps About our business as background: quoting it as a source is removed', async () => {
-    // A fresh Heed has the starter text (0065), so it is in the turn context, never a result.
+    // An admin wrote About our business (the guide's worked example): it is in the turn context,
+    // never a result.
+    await writeAbout(ABOUT_BUSINESS_STARTER)
     script = [
       toolCall('search_help', { query: 'What is Heed?' }),
       text(
@@ -2337,6 +2348,8 @@ describe('the assistant test cases (FR-710)', () => {
       'industry-marketplace-commission-event',
       'industry-market-or-selling-country',
     ])
+    // The demo company's text, as the demo seeds write it: a new install has none.
+    await writeAbout(ABOUT_BUSINESS_STARTER)
     const block = aboutBusinessBlock(ABOUT_BUSINESS_STARTER)!
     const arm = async (aboutBusiness: boolean) => {
       seen.length = 0

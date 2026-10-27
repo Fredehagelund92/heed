@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { TERMS } from '@/api/mock/data/terms'
+import { spainDraft } from '@/api/mock/data/drafts'
 import { reviews } from '@/api/mock/data/review'
 import { facts, people as worldPeople } from '@/api/mock/data/world'
 import type { Fact } from '@/model/items'
@@ -262,6 +263,8 @@ function newDraft(d: {
   source: string
   quote: string
   notToConclude: string
+  body?: string
+  until?: string
 }): Draft {
   const { metrics, values } = scopeOf(d.where)
   return {
@@ -269,13 +272,14 @@ function newDraft(d: {
     kind: d.kind,
     title: d.title,
     summary: d.summary,
+    ...(d.body ? { body: d.body } : {}),
     scope: {
       metrics: metrics.map((m) => `metric:${m}`),
       dimensions: [],
       dimensionValues: values.map((v) => ({ dimension: 'dim:market', value: `val:market/${v}` })),
     },
-    validity: { start: d.from, end: null },
-    reviewDate: '2027-03-01',
+    validity: { start: d.from, end: endOf(d.until) },
+    reviewDate: d.until ? null : '2027-03-01',
     evidence: [{ url: d.source, quote: d.quote, date: TODAY }],
     notToConclude: d.notToConclude,
   }
@@ -286,6 +290,7 @@ function newDraft(d: {
  * service's own order (newest first) is the mock's. Each is sent at its time today.
  */
 export const queue = [
+  'gap-spain',
   'sug-ines',
   'sug-ines-format',
   'sug-ines-link',
@@ -300,6 +305,9 @@ export type QueueCard = (typeof queue)[number]
 
 /** Who sends each suggestion, as the mock's people. */
 const sender: Record<QueueCard, string> = {
+  // The drafting helper drafts a Not found card's text; its suggestion is under the name of someone
+  // who owns no domain, so it waits in no owner's own list.
+  'gap-spain': 'Maria Lindqvist',
   'sug-ines': 'Ines Duarte',
   'sug-ines-format': 'Ines Duarte',
   'sug-ines-link': 'Ines Duarte',
@@ -313,7 +321,12 @@ const sender: Record<QueueCard, string> = {
 
 /** Everyone the service's sign-in offers in the demo week, by the seed's addresses. */
 export const devPeople = () =>
-  seedPeople.map((p) => ({ name: p.name, email: `${p.id}@example.test`, roles: [] as never[] }))
+  seedPeople.map((p) => ({
+    name: p.name,
+    email: `${p.id}@example.test`,
+    // The mock's admins are admins on a new install too, before any seed grants them anything.
+    roles: worldPeople.some((w) => w.name === p.name && w.admin) ? ['administrator' as const] : [],
+  }))
 
 type Inject = (
   method: 'GET' | 'POST',
@@ -410,6 +423,23 @@ async function sendSuggestions(databaseUrl: string): Promise<Record<QueueCard, s
           'Low orders in Poland for these days do not mean that customers ordered less. Wait until the data catches up before comparing Poland with other markets.',
       }),
     )
+    // What agents couldn't answer about Orders in Spain in October, drafted from a status page.
+    ids['gap-spain'] = await submit(
+      'gap-spain',
+      newDraft({
+        domain: 'sales',
+        kind: spainDraft.kind,
+        title: spainDraft.title,
+        summary: spainDraft.summary,
+        where: spainDraft.where,
+        from: spainDraft.valid.from!,
+        source: spainDraft.source,
+        quote: spainDraft.quote,
+        notToConclude: spainDraft.dontConclude,
+        body: spainDraft.body,
+        until: spainDraft.valid.until,
+      }),
+    )
     const clash = reviews.find((r) => r.id === 'sug-sofia-clash')!
     ids['sug-sofia-clash'] = await submit(
       'sug-sofia-clash',
@@ -489,9 +519,13 @@ async function seedTerms(client: pg.Client) {
 /**
  * Seeds an empty migrated database with the demo week, as a superuser: the library, Jon as an
  * admin as the mock has him, the terms and synonyms, the suggestions through the API, then who
- * wrote what and when each was sent. Returns each mock card's suggestion id on the service.
+ * wrote what and when each was sent, the report and the Not found card. Returns each mock card's id on the
+ * service: a suggestion's proposal (the Not found card's draft for gap-spain), and the report's card.
  */
-export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCard, string>> {
+export async function seedDemoWeek(
+  superuserUrl: string,
+): Promise<Record<QueueCard | 'flag-germany', string>> {
+  let flag: string | undefined
   const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
   await client.connect()
   try {
@@ -517,12 +551,60 @@ export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCa
       `update proposals set provenance='{"by":"agent","fields":{},"flags":[]}' where id=$1`,
       [ids['sug-agent']],
     )
-    // Someone reported an answer about Orders in Germany as unclear: anonymous until named reports
-    // come (P10).
+    // An agent's answer about Orders in Germany gave "Orders lags by one day in the source tool",
+    // and someone reported it as unclear from the chat: anonymous until named reports come (P10).
+    await after.query('select cl_ensure_delivery_partitions(2), cl_ensure_request_partitions(2)')
+    const [delivery] = (
+      await after.query<{ id: string }>(
+        `insert into deliveries (client_label, caller, edition_seq, overlay_seq, tool_schema_digest, scope, status, delivered)
+         select 'claude', 'agent', seq, 0, 'demo-week', '{}'::jsonb, 'matched', $1::jsonb from live_edition
+         returning id::text`,
+        [
+          JSON.stringify([
+            { id: serverItemId('itm_0tmqp7o1'), v: 1, rank: 1, label: 'Orders lags by one day' },
+          ]),
+        ],
+      )
+    ).rows
+    const [feedback] = (
+      await after.query<{ id: string }>(
+        `insert into feedback (delivery_id, verdict, note, client_label, area_id)
+         values ($1, 'unclear', 'Is this Germany only, or every market?', 'claude', 'area_sales')
+         returning id::text`,
+        [delivery!.id],
+      )
+    ).rows
+    flag = `feedback:${feedback!.id}`
+    // Agents asked about Orders in Spain for October 9 times this week and found nothing written
+    // down: the Not found card, with the draft the drafting helper made from a status page.
+    const [gap] = (
+      await after.query<{ id: string }>(
+        `with topic as (
+           insert into topics (key, area_id, metric_keys, value_keys, month)
+           values ('area_sales|orders|spain|2026-10', 'area_sales', '{metric:orders}', '{val:market/spain}', '2026-10-01')
+           returning id)
+         insert into gaps (topic_id, type, opened_by_case) select id, 'missing', 1 from topic
+         returning id::text`,
+      )
+    ).rows
     await after.query(
-      `insert into feedback (verdict, note, client_label, area_id)
-       values ('unclear', 'Is this Germany only, or every market?', 'claude', 'area_sales')`,
+      `insert into gap_weekly_counts (gap_id, week, no_item_calls)
+       values ($1, date_trunc('week', now() at time zone 'UTC')::date, 9)`,
+      [gap!.id],
     )
+    await after.query(
+      `update proposals set source_gap_id = $1, provenance = '{"by":"assistant","fields":{},"flags":[]}' where id = $2`,
+      [gap!.id, ids['gap-spain']],
+    )
+    await after.query('insert into gap_proposals (gap_id, proposal_id) values ($1, $2)', [
+      gap!.id,
+      ids['gap-spain'],
+    ])
+    // The workspace finished its setup: agents asked through MCP, and someone used Ask.
+    await after.query(
+      `insert into mcp_requests (client_label, tool, status, app_family) values ('claude', 'get_context', 'ok', 'claude_code')`,
+    )
+    await after.query(`insert into setup_marks (step) values ('ask') on conflict do nothing`)
     // Sent this morning, one minute apart, newest first in the mock's order.
     for (const [index, card] of queue.entries())
       await after.query(
@@ -532,5 +614,6 @@ export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCa
   } finally {
     await after.end()
   }
-  return ids
+  if (!flag) throw new Error('The report was not seeded')
+  return { ...ids, 'flag-germany': flag }
 }

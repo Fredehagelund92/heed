@@ -68,6 +68,8 @@ export const cardSchema = z.union([
     feedbackId: z.string(),
     verdict: z.enum(['wrong', 'unclear']),
     note: z.nullable(z.string()),
+    /** The context the reported answer gave, as agents got it, first first; empty when unknown. */
+    items: z.array(z.object({ id: z.string(), title: z.string() })),
   }),
   z.object({
     ...cardBase,

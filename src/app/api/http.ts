@@ -19,6 +19,7 @@ import type { Contract } from '@contract/index'
 import type { Feed } from '@contract/inbox'
 import { refusals } from '@contract/refusals'
 import type { ReviewSheet } from '@contract/review-path'
+import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
@@ -84,6 +85,8 @@ export const wiredMethods = [
   'returnReview',
   'undo',
   'getConnectReview',
+  'setAbout',
+  'completeSetupStep',
 ] as const satisfies readonly HeedApiMethod[]
 
 /**
@@ -270,20 +273,29 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
       signedIn(),
     ])
     const byId: Domains = Object.fromEntries(workspace.domains.map((d) => [d.id, d]))
+    readGaps(feed)
     return { ...inboxOf(feed, who.name, byId, new Date()), sent: [] }
   }
 
+  /** A Not found card's draft, by the draft's id, with its card: the app names the card by the draft. */
+  const gaps = new Map<string, { card: string; times: number | null }>()
+  const readGaps = (feed: Feed) => {
+    for (const c of feed.cards)
+      if (c.group === 'gap' && c.draft) gaps.set(c.draft, { card: c.id, times: c.times })
+  }
+
   /**
-   * The suggestions the person reviews, open and decided, each from its card: a Not found card's
-   * draft is reviewed from that card. Newest sent first, the order the review steps through.
+   * The suggestions the person reviews, open and decided, each under its card's id: a Not found
+   * card's draft too. Newest sent first, the order the review steps through.
    */
   async function reviews() {
     const feed: Feed = await readFeed()
-    const drafts = new Map(
-      feed.cards.flatMap((c) => (c.group === 'gap' && c.draft ? [[c.draft, c.id] as const] : [])),
+    readGaps(feed)
+    const drafts = new Set(
+      feed.cards.flatMap((c) => (c.group === 'gap' && c.draft ? [c.draft] : [])),
     )
     const wanted = [
-      ...[...drafts].map(([proposal, card]) => ({ card, proposal })),
+      ...[...drafts].map((proposal) => ({ card: proposal, proposal })),
       ...feed.cards.flatMap((c) =>
         c.group === 'suggestion' && !drafts.has(c.proposalId)
           ? [{ card: c.proposalId, proposal: c.proposalId }]
@@ -308,7 +320,7 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
       sent(a.sheet) < sent(b.sheet) ? 1 : sent(a.sheet) > sent(b.sheet) ? -1 : 0,
     )
     for (const s of sheets) refs.set(s.card, refOf(s.sheet))
-    return sheets.map((s) => reviewOf(s.sheet, s.card))
+    return sheets.map((s) => reviewOf(s.sheet, s.card, gaps.get(s.card)))
   }
 
   /** What deciding on a review needs, read again when this visit has not read it yet. */
@@ -320,7 +332,9 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
   }
 
   /** A decision on a card, by its outcome in the Inbox's words. */
-  const decideCard = async ({ card, outcome }: { card: string; outcome: string }) => {
+  const decideCard = async ({ card: id, outcome }: { card: string; outcome: string }) => {
+    // A Not found card with a draft is named by its draft: its decision is the gap card's.
+    const card = gaps.get(id)?.card ?? id
     const action = cardActions[outcome]
     if (!action) throw new ApiError('invalid', `A card can't be decided as “${outcome}”.`)
     const decided = await write('cards.decide', { card, action }, (o) =>
@@ -350,10 +364,26 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
     return { undo: done.undo }
   }
 
+  /** What the business is about, and its version, for an admin; null for anyone else. */
+  async function readAbout(): Promise<{ text: string; version: number } | null> {
+    if (!(await signedIn()).admin) return null
+    const setting = (await read(() => client.settings.list())).find(
+      (x) => x.key === 'business.about',
+    )
+    return {
+      text: typeof setting?.value === 'string' ? setting.value : '',
+      version: setting?.version ?? 0,
+    }
+  }
+
   const wired: Pick<HeedApi, (typeof wiredMethods)[number]> = {
+    // A workspace whose setup checklist is unfinished is a new install: the Inbox shows the
+    // checklist until it is done (docs/product.md, FR-816).
     getSession: async () => {
       try {
-        return asSession((await session()).me.name)
+        const { me: who } = await session()
+        const setup = await read(() => client.setup.state())
+        return { ...asSession(who.name), install: setup.done ? 'normal' : 'new' }
       } catch (error) {
         if (toApiError(error).kind === 'signed-out') {
           me = undefined
@@ -384,18 +414,38 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
       refs.clear()
       return asSession(signed.person.name)
     },
-    // What the business is about and the setup checklist come with the setup checklist's wiring.
+    // What the business is about is an admin's setting; the setup checklist's steps are read from
+    // what exists. Start from the guide fills in the worked example, an outdoor-gear retailer.
     getWorkspace: async () => {
-      const { domains, people } = (await readPeopleAndAreas()).workspace
+      const [{ workspace }, setup, about] = await Promise.all([
+        readPeopleAndAreas(),
+        read(() => client.setup.state()),
+        readAbout(),
+      ])
       return {
         name: '',
-        domains,
-        people,
-        about: '',
-        aboutTemplate: '',
-        setup: { done: {} },
+        domains: workspace.domains,
+        people: workspace.people,
+        about: about?.text ?? '',
+        aboutTemplate: ABOUT_BUSINESS_STARTER,
+        setup: { done: Object.fromEntries(setup.steps.map((s) => [s.id, s.done])) },
       }
     },
+    setAbout: async ({ text }) => {
+      const current = await readAbout()
+      if (!current)
+        throw new ApiError('forbidden', 'Only an admin says what the business is about.')
+      if (current.text === text) return
+      const input = {
+        key: 'business.about',
+        version: current.version,
+        value: text,
+        reason: 'About our business, written in Settings.',
+      }
+      await write('settings.set', input, (o) => client.settings.set(input, o))
+    },
+    // The service reads each step from what exists (setup.state): nothing to mark by hand.
+    completeSetupStep: () => Promise.resolve(),
     getVocabulary: async () => {
       const vocabulary = await read(() => client.vocabulary.get())
       const markets = vocabulary.dimensions.find((d) => d.id === 'market')?.values ?? []
@@ -534,9 +584,10 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
     getReviews: reviews,
     markOpened: async ({ ids }) => {
       // A suggestion's card is named by its bare proposal id; the service names it `proposal:<id>`.
+      // A Not found card named by its draft: opening it opens both.
       const cards = ids.flatMap((id) =>
         isUuid(id)
-          ? [`proposal:${id}`]
+          ? [`proposal:${id}`, ...(gaps.has(id) ? [gaps.get(id)!.card] : [])]
           : /^(proposal|gap|feedback|check|mention):/.test(id)
             ? [id]
             : [],

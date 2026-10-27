@@ -115,6 +115,7 @@ const markets = [
   'netherlands',
   'czechia',
   'greece',
+  'hungary',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -656,11 +657,14 @@ describe('the Inbox (docs/product.md, section 5)', () => {
     expect(groups).toContain('suggestion')
     const gap = f.cards.find((c) => c.id === `gap:${gapId}`)
     expect(gap).toMatchObject({ group: 'gap', times: 9, draft: null, opened: false })
-    expect(gap && 'title' in gap ? gap.title : '').toMatch(/Orders/)
+    // What agents asked about, and the month they asked about.
+    expect(gap && 'title' in gap ? gap.title : '').toMatch(/^Orders in Spain, October 2026$/)
     expect(f.cards.find((c) => c.id === `feedback:${feedbackId}`)).toMatchObject({
       group: 'flag',
       verdict: 'unclear',
       note: 'Is this Germany only?',
+      // A report with no answer it names says nothing about context.
+      items: [],
     })
     expect(f.cards.find((c) => c.id === `check:${dueItem}`)).toMatchObject({
       group: 'check',
@@ -671,6 +675,39 @@ describe('the Inbox (docs/product.md, section 5)', () => {
     expect(f.cards.findIndex((c) => c.group === 'gap')).toBeLessThan(firstSuggestion)
     const member = await feed('author')
     expect(member.cards).toEqual([])
+  })
+
+  it('names the context the reported answer gave, as agents got it, never a suggestion’s newer text', async () => {
+    const itemId = await live({ title: 'Hungary orders lag a day', ...inMarket('hungary') })
+    // A suggestion waits to retitle it; agents still get the published version.
+    await submitted(
+      { title: 'Hungary orders lag two days', ...inMarket('hungary') },
+      'author',
+      itemId,
+    )
+    const fb = await transaction(client, async () => {
+      await client.query('select cl_ensure_delivery_partitions(2)')
+      const [delivery] = (
+        await client.query<{ id: string }>(
+          `insert into deliveries (client_label, caller, edition_seq, overlay_seq, tool_schema_digest, scope, status, delivered)
+           select 'claude-code', 'agent', seq, 0, 'test', '{}'::jsonb, 'matched', $1::jsonb from live_edition
+           returning id::text`,
+          [JSON.stringify([{ id: itemId, v: 1, rank: 1, label: 'Hungary orders lag a day' }])],
+        )
+      ).rows
+      return (
+        await client.query<{ id: string }>(
+          `insert into feedback (delivery_id, verdict, note, client_label, area_id)
+           values ($1, 'wrong', null, 'claude-code', 'finance') returning id::text`,
+          [delivery!.id],
+        )
+      ).rows[0]!.id
+    })
+    expect((await feed()).cards.find((c) => c.id === `feedback:${fb}`)).toMatchObject({
+      group: 'flag',
+      verdict: 'wrong',
+      items: [{ id: itemId, title: 'Hungary orders lag a day' }],
+    })
   })
 
   it('marks cards opened for the person only', async () => {

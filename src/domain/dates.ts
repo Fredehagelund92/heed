@@ -60,6 +60,9 @@ const monthWord = (day: string) => {
   const name = monthNames[monthOf(day) - 1]!
   return `${name[0]!.toUpperCase()}${name.slice(1)}`
 }
+/** The month of a day, with its whole name, as the voice guide writes it: "October 2026". */
+export const monthWords = (day: string) => `${monthWord(day)} ${day.slice(0, 4)}`
+
 /** A day with its whole month name, as the voice guide writes it: "14 October 2026". */
 export const fullDayWords = (day: string) =>
   `${Number(day.slice(8, 10))} ${monthWord(day)} ${day.slice(0, 4)}`

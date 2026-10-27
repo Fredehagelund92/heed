@@ -440,6 +440,12 @@ append only. `term_changes` keeps one row per change to many terms with what Und
 maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
 grant on these tables: agents do not read terms yet.
 
+About our business starts empty (migration 0010). A new install gets an empty `business.about`
+version on top of the baseline's default, and so does an install whose text is still that
+untouched default (one version, which nobody changed); one where a person wrote or reset the
+text keeps it. The baseline's text, an outdoor-gear retailer, is the guide's worked example; the
+demo seeds (`db/seed/bulk.ts`) write it themselves.
+
 ## Evaluations
 
 A run of the evaluation runner records who it acts for (`requested_by`: whoever started it);
