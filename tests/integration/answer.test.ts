@@ -17,6 +17,7 @@ import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadServingBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { deliver } from '../../src/server/modules/evals/index.ts'
+import { scriptedWordsModel, type ModelPort } from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { labCases, phrasings } from '../server/domain/topics-lab.ts'
@@ -325,6 +326,109 @@ describe('Ask: a look-up', () => {
       payload: { question },
     })
     expect(response.statusCode).toBe(401)
+  })
+})
+
+describe('Ask with a real model (FR-701)', () => {
+  /** A service whose model port is live, serving the scripted words model for the assistant. */
+  const livePort: ModelPort = {
+    mode: 'live',
+    choose: () => scriptedWordsModel(),
+    otherLine: () => scriptedWordsModel(),
+    check: () => undefined,
+    creditsUsed: () => Promise.resolve(null),
+    webSearch: () => null,
+  }
+  const modelLogs: string[] = []
+  const withModel = buildApp({
+    database: apiDatabase(url),
+    logger: createLogger({
+      level: 'trace',
+      destination: {
+        write(line: string) {
+          modelLogs.push(line)
+        },
+      },
+    }),
+    jobs: idleJobs(),
+    clock: systemClock(today),
+    models: livePort,
+    devPeople: [{ name: 'maria', email: 'per_maria@example.test', roles: [] }],
+  })
+  let signedIn: Record<string, string> = {}
+  const lookup = async (question: string) => {
+    const response = await withModel.inject({
+      method: 'POST',
+      url: '/api/v1/ask/lookup',
+      headers: { ...signedIn, 'idempotency-key': randomUUID() },
+      payload: { question },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    return events(response.body)
+  }
+
+  beforeAll(async () => {
+    const response = await withModel.inject({
+      method: 'POST',
+      url: '/api/v1/auth/sign-in',
+      headers: { origin: 'http://localhost', 'x-heed-csrf': 'dev-sign-in' },
+      payload: { email: 'per_maria@example.test' },
+    })
+    signedIn = {
+      origin: 'http://localhost',
+      cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+      'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
+    }
+  })
+  afterAll(() => withModel.close())
+
+  it("writes the words from the engine's items after the answer, and changes nothing the engine decided", async () => {
+    const question = 'What were orders in Norway in August 2026?'
+    const sent = await lookup(question)
+    expect(sent.map((e) => (e.type === 'step' ? e.step.step : e.type)).slice(-2)).toEqual([
+      'answer',
+      'words',
+    ])
+    const answer = (sent.at(-2) as Extract<LookupEvent, { type: 'answer' }>).answer
+    const words = (sent.at(-1) as Extract<LookupEvent, { type: 'words' }>).text
+    expect(untimed(answer)).toEqual(
+      untimed(engine({ kind: 'live' }, live, { question }, { today })),
+    )
+    expect(words).toMatch(/\[1\]/)
+    for (const [, n] of words.matchAll(/\[(\d+)\]/g))
+      expect(Number(n)).toBeLessThanOrEqual(answer.items.length)
+  })
+
+  it('writes no words for an answer with nothing written down', async () => {
+    const sent = await lookup('What is our refund policy for gift cards?')
+    expect(sent.at(-1)?.type).toBe('answer')
+  })
+
+  it("counts the model's spend for the person, and keeps the question in no table and no log", async () => {
+    const marker = 'Larkspur'
+    const before = await tableContents(client, ['auth.sessions', 'public.setup_marks'])
+    const lines = modelLogs.length
+    const calls = async () =>
+      Number(
+        (
+          await client.query<{ n: string }>(
+            "select coalesce(sum(calls),0)::text as n from llm_spend_monthly where feature='assistant'",
+          )
+        ).rows[0]!.n,
+      )
+    const spent = await calls()
+    const sent = await lookup(`What were orders in Norway in August 2026 after the ${marker} sale?`)
+    expect(sent.at(-1)?.type).toBe('words')
+    expect(await calls()).toBe(spent + 1)
+    const after = await tableContents(client, ['auth.sessions', 'public.setup_marks'])
+    expect(
+      after
+        .filter((t) => !before.includes(t))
+        .map((t) => t.split(' ')[0])
+        .sort(),
+    ).toEqual(['public.llm_spend_daily', 'public.llm_spend_monthly'])
+    expect(after.join('\n')).not.toContain(marker)
+    expect(modelLogs.slice(lines).join('\n')).not.toContain(marker)
   })
 })
 

@@ -446,9 +446,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   async function lookUp(input: { question: string } & Partial<ReturnType<typeof lookupFields>>) {
     const events = await readPosted((o) => client.ask.lookup(input, o))
     let answer: Extract<LookupEvent, { type: 'answer' }>['answer'] | undefined
-    for await (const event of events) if (event.type === 'answer') answer = event.answer
+    // The words a real model wrote from the answer's items, when the service has one.
+    let written: string | undefined
+    for await (const event of events)
+      if (event.type === 'answer') answer = event.answer
+      else if (event.type === 'words') written = event.text
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
-    return answer
+    return { answer, written }
   }
 
   /** The look-up's fields from the @ chips: the metrics and the markets they name. */
@@ -488,7 +492,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       ...(scope?.length ? { scope } : {}),
     }
     try {
-      const answer = answerOf(await lookUp({ question: words, ...fields }), words, names, extra)
+      const looked = await lookUp({ question: words, ...fields })
+      const answer = answerOf(looked.answer, words, names, extra, looked.written)
       said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
       return answer
     } catch (error) {

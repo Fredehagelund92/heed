@@ -68,9 +68,12 @@ import {
   askedThisWeek,
   createBundleCache,
   lookupQuestion,
+  planWords,
   reachOfDraft,
   replayTopic,
   tryItRun,
+  wordsInputOf,
+  writeWords,
 } from '../modules/answer/index.ts'
 import {
   createDomainCache,
@@ -1312,7 +1315,32 @@ export function createRouter({
       lookup: authorized.ask.lookup.handler(async ({ context, input }) => {
         // The setup checklist's Ask step (FR-816): only that Ask was used, never what or by whom.
         await context.cards.askedOnce()
-        return lookupQuestion(context.tx, clock, answerBundles, input)
+        // With a real model, the assistant's model writes the words after the answer; like the
+        // assistant's turn, that call outlives the request's transaction and opens its own.
+        const plan = await planWords(context.tx, models, context.session!.person.id)
+        const log = context.request.log
+        return lookupQuestion(
+          context.tx,
+          clock,
+          answerBundles,
+          input,
+          plan
+            ? (answer) =>
+                writeWords(
+                  {
+                    database: forRequest(database, context.request.id),
+                    plan,
+                    // Names the failure only, never the question or the words.
+                    onError: (error) =>
+                      log.warn(
+                        { error: error instanceof Error ? error.name : 'unknown' },
+                        'ask words not written',
+                      ),
+                  },
+                  wordsInputOf(input.question, answer),
+                )
+            : undefined,
+        )
       }),
       asked: authorized.ask.asked.handler(({ context }) =>
         askedThisWeek(context.tx, clock, answerBundles),

@@ -112,6 +112,22 @@ export function answerOf(
   question: string,
   names: Names,
   extra: Pick<Answer, 'parts' | 'scope'> = {},
+  /**
+   * The words a real model wrote from the answer's items, when the service sent them: they take
+   * the place of Ask's own; the state, its note, the sources and what agents are told stay the
+   * engine's.
+   */
+  written?: string,
+): Answer {
+  const answer = engineAnswerOf(a, question, names, extra)
+  return written && a.items.length ? { ...answer, text: written } : answer
+}
+
+function engineAnswerOf(
+  a: AnswerResult,
+  question: string,
+  names: Names,
+  extra: Pick<Answer, 'parts' | 'scope'>,
 ): Answer {
   const scope = a.scope
   const metric = scope?.metrics[0] ? names.metric(scope.metrics[0]) : ''

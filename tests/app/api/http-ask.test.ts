@@ -116,6 +116,30 @@ describe("Ask's answer from the engine", () => {
     ).toBe('Online sales stopped. [1]')
   })
 
+  it("takes a real model's words when the service sent them, and keeps the engine's state, note and sources", () => {
+    const stale = result({
+      state: 'stale',
+      items: [
+        item('itm_a', 'Returns count refunds.', {
+          unverified: true,
+          unverifiedReason: 'past_review_date',
+        }),
+      ],
+    })
+    const written = 'Returns count only refunds that reached the bank [1].'
+    const a = answerOf(stale, 'Returns in Norway?', names, {}, written)
+    expect(a).toMatchObject({
+      text: written,
+      state: 'stale',
+      sources: ['itm_a'],
+      note: 'Based on 1 context item that may be out of date: its check date passed.',
+    })
+    // With nothing given, there are no model words to take.
+    expect(answerOf(result({ state: 'missing' }), 'Orders?', names, {}, written).text).not.toBe(
+      written,
+    )
+  })
+
   it('says no dates when the engine assumed today, and keeps the asker’s chips', () => {
     const scope = [{ id: 'market:Norway', label: 'Norway' }]
     const a = answerOf(

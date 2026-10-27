@@ -97,7 +97,8 @@ const result = (a: Answer, target: Target): AnswerResult => {
 
 /**
  * Ask's look-up (FR-701): the question on the live edition as get_context answers an agent, with
- * no model, each step as it is done and then the answer. The question is read in memory and never
+ * no model, each step as it is done and then the answer; then, given `words`, what a real model
+ * wrote from the answer's items. The question is read in memory and never
  * stored or logged (FR-602); the bundle is read before the first step, so the steps need no
  * database.
  */
@@ -106,6 +107,8 @@ export async function lookupQuestion(
   clock: Clock,
   cache: BundleCache,
   input: LookupInput,
+  /** The words a real model writes from the answer, or null (no model, or none that passed). */
+  words?: (answer: AnswerResult) => Promise<string | null>,
 ): Promise<AsyncGenerator<LookupEvent>> {
   const bundle = await liveBundle(tx, cache)
   const steps = lookUp(bundle, input, { today: clock.today(), now: clockMs })
@@ -124,6 +127,10 @@ export async function lookupQuestion(
       yield event
       // Let the stream send this step before the next one runs.
       await new Promise<void>((done) => setImmediate(done))
+      if (event.type === 'answer' && words) {
+        const text = await words(event.answer)
+        if (text) yield { type: 'words', text }
+      }
     }
   })()
 }

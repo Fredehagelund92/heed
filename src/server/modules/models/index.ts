@@ -38,6 +38,7 @@ export {
 } from './settings.ts'
 export { gradingTag, mentions, type GradingInput } from './mock.ts'
 export { streamResult } from './assistant-mock.ts'
+export { scriptedWordsModel } from './words-mock.ts'
 export {
   formatUsd,
   readSpendLimits,
