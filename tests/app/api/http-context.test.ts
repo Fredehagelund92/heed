@@ -402,6 +402,13 @@ describe("the editor's item, as the draft the service publishes", () => {
     })
   })
 
+  it('sends the default line when the what-not-to-conclude line is cleared', () => {
+    const cautious = { ...before, dontConclude: 'Do not read this as a trend.' }
+    expect(draftOf({ ...cautious, dontConclude: '' }, words, '2026-10-23', cautious)).toEqual({
+      notToConclude: 'cause not proven',
+    })
+  })
+
   it('writes the whole of a new item: its scope by key and its text with its mentions', () => {
     const draft = draftOf(
       {
