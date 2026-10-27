@@ -64,6 +64,9 @@ export const settingSchemas = {
   'limits.llm_monthly_cap_micros': micros,
   'limits.llm_feature_monthly_micros': z.partialRecord(z.enum(['eval', 'assistant']), micros),
   'limits.mentions_per_version': int(0, 50),
+  // How long after a decision its maker may undo it (FR-227). The screens offer Undo for 6
+  // seconds, so the window is never shorter.
+  'limits.undo_seconds': int(6, 300),
   'review.default_days': days,
   // An issue with no end date is asked "Is this still going on?" this many days after it starts.
   'review.open_issue_days': days,

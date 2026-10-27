@@ -8,11 +8,15 @@
 import { describe, expect, it } from 'vitest'
 import { heedApiMethods, type HeedApi, type HeedApiMethod } from '@/api/client'
 import { whenLabel } from '@/model/validity'
+import type { CardType, InboxCard } from '@/model/inbox'
 
 export type HeedApiConformance = {
   /** Someone the binding's sign-in offers, by name. */
   person: string
-  /** The methods the binding answers; a case that needs another is skipped. */
+  /**
+   * The methods the binding answers; a case that needs another is skipped. A binding that answers
+   * the Inbox's methods gives the person at least a suggestion and a Reported card in their Inbox.
+   */
   wired: readonly HeedApiMethod[]
 }
 
@@ -109,6 +113,79 @@ export function describeHeedApi(
           expect(new Set(d.sourceNames).size, d.name).toBe(d.sourceNames.length)
           if (d.type !== 'term') expect(d.synced, d.name).toBe(true)
         }
+      },
+    )
+
+    /** The first undecided card of this type in the person's own Inbox. */
+    async function cardOf(type: CardType): Promise<InboxCard> {
+      await api().signIn({ name: person, fresh: false })
+      const inbox = await api().inboxPage()
+      const card = inbox.cards.find((c) => c.type === type && c.for === person && !inbox.done[c.id])
+      expect(card, `a ${type} card for ${person}`).toBeDefined()
+      return card!
+    }
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'markOpened'))(
+      'keeps a card the person opened as opened',
+      async () => {
+        const card = await cardOf('suggestion')
+        await api().markOpened({ ids: [card.id] })
+        expect((await api().inboxPage()).opened[card.id]).toBe(true)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'markReviewed'))(
+      'keeps a suggestion the person read as read, so it can be published with others',
+      async () => {
+        const card = await cardOf('suggestion')
+        await api().markReviewed({ id: card.id })
+        expect((await api().inboxPage()).reviewed[card.id]).toBe(true)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'completeCard', 'undo'))(
+      'closes a report that is not a problem, and Undo opens it again',
+      async () => {
+        const card = await cardOf('flag')
+        const { undo } = await api().completeCard({ card: card.id, outcome: 'Not a problem' })
+        expect((await api().inboxPage()).done[card.id]?.label).toBe('Not a problem')
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[card.id]).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'publishReview', 'undo'))(
+      'publishes a suggestion, and Undo puts it back to wait',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const inbox = await api().inboxPage()
+        const reviews = await api().getReviews()
+        const plain = reviews.find(
+          (r) =>
+            !r.clash &&
+            r.mode !== 'retire' &&
+            inbox.cards.some((c) => c.id === r.id && c.for === person && !inbox.done[c.id]),
+        )
+        expect(plain, `a suggestion for ${person} with no clash`).toBeDefined()
+        const { undo } = await api().publishReview({ id: plain!.id })
+        expect((await api().inboxPage()).done[plain!.id]?.label).toBe('Published')
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[plain!.id]).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'returnReview', 'undo'))(
+      'returns a suggestion with a note, and Undo puts it back to wait',
+      async () => {
+        const card = await cardOf('suggestion')
+        const note = {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Which markets?' }] }],
+        }
+        const { undo } = await api().returnReview({ id: card.id, note })
+        expect((await api().inboxPage()).done[card.id]?.label).toBe('Returned')
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[card.id]).toBeUndefined()
       },
     )
 

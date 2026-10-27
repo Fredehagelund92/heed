@@ -15,7 +15,8 @@
 import { matchForm } from './quote-match.ts'
 
 /** How a claim reads against the copied sentence. */
-export type ClaimVerdict = 'same' | 'different' | 'check'
+export const claimVerdicts = ['same', 'different', 'check'] as const
+export type ClaimVerdict = (typeof claimVerdicts)[number]
 
 /** One claim: its words, the part of the sentence it was compared with (null: none), and how it reads. */
 export type ClaimRow = { claim: string; source: string | null; verdict: ClaimVerdict }

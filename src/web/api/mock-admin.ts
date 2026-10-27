@@ -294,6 +294,7 @@ const startingSettings: { key: SettingKey; value: unknown; reason: string }[] = 
     reason: 'default (FR-408)',
   },
   { key: 'limits.mentions_per_version', value: 50, reason: 'Default mention limit (FR-134)' },
+  { key: 'limits.undo_seconds', value: 15, reason: 'default (FR-227)' },
   {
     key: 'models.assistant',
     value: modelOf('claude-sonnet-5-5'),

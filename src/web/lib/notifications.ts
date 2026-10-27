@@ -57,6 +57,7 @@ export const topicPhrases: Record<StreamTopic, Phrase> = {
   'proposal.withdrawn': () => 'withdrew the proposal',
   'proposal.approved': () => 'accepted the proposal. It needs one more yes before agents get it',
   'proposal.decided': ({ state }) => decided[state ?? ''] ?? 'decided on the proposal',
+  'proposal.undone': () => 'undid the decision on the proposal',
   'edition.published': () => 'updated what agents get',
   'item.flagged': ({ state }) =>
     sourceStates[state ?? ''] ?? 'A definition this fact uses changed at its source',

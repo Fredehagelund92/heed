@@ -20,6 +20,7 @@ import { textFindings } from '../../../domain/draft.ts'
 import {
   clearsVerification,
   dimensionOfValue,
+  draftFromGap,
   draftFromTopic,
   gapHistoryActions,
   gapOrigin,
@@ -245,7 +246,7 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
     )
   }
 
-  return {
+  const service = {
     /**
      * FR-606 case 5: a person reports a gap about the scope they were looking at. The scope is
      * resolved on the live edition as get_facts resolves it, so a term outside the governed
@@ -432,22 +433,22 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
       return get(id)
     },
     /** FR-616: one action from a gap to a draft filled with the topic's scope. */
-    async startDraft(id: string, areaId?: string): Promise<ProposalRecord> {
+    async startDraft(id: string, areaId?: string, dated = false): Promise<ProposalRecord> {
       const gap = await row(id)
       const area = areaId ?? gap.areaId
       if (!area)
         throw new ORPCError('BAD_REQUEST', {
           message: 'This topic covers more than one domain. Choose the domain for the draft.',
         })
+      const topic = {
+        metricKeys: gap.metricKeys,
+        valueKeys: gap.valueKeys,
+        dimensionKeys: gap.dimensionKeys,
+      }
       const proposal = await createProposalsService(tx, clock, personId).create({
-        draft: draftFromTopic(
-          {
-            metricKeys: gap.metricKeys,
-            valueKeys: gap.valueKeys,
-            dimensionKeys: gap.dimensionKeys,
-          },
-          area,
-        ),
+        draft: dated
+          ? draftFromGap({ ...topic, month: gap.month }, area)
+          : draftFromTopic(topic, area),
         channel: 'form',
       })
       await tx.query('update proposals set source_gap_id = $1 where id = $2', [id, proposal.id])
@@ -470,6 +471,21 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
         ...(tests.length ? { tests: tests.map((test) => test.question) } : {}),
       })
       return proposal
+    },
+    /**
+     * A Not found card's draft (B7): the person's draft already started from the gap, or a new one
+     * with the gap's scope and its month as when it applies.
+     */
+    async scopeDraft(id: string, areaId?: string): Promise<ProposalRecord> {
+      await row(id)
+      const [started] = await tx.query<{ id: string }>(
+        `select p.id::text from gap_proposals g join proposals p on p.id=g.proposal_id
+          where g.gap_id=$1 and p.proposer_id=cl_person() and p.state='draft' and p.discarded_at is null
+          order by p.created_at desc limit 1`,
+        [id],
+      )
+      if (started) return createProposalsService(tx, clock, personId).get(started.id)
+      return service.startDraft(id, areaId, true)
     },
     /** FR-615. Every count of calls below the minimum is hidden (FR-614). */
     async dashboard(areaId: string, weeks = 8): Promise<Dashboard> {
@@ -628,6 +644,7 @@ export function createGapsService(tx: Queryable, clock: Clock, personId: string)
       }
     },
   }
+  return service
 }
 
 export type GapsService = ReturnType<typeof createGapsService>

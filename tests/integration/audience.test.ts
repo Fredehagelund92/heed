@@ -267,6 +267,7 @@ const reviewing = new Set([
   'proposals.preview',
   'review.queue',
   'review.get',
+  'review.sheet',
   'activity.list',
   'inbox.list',
   'audit.search',

@@ -132,3 +132,10 @@ grant update (restored_by, restored_at, restored_edition) on area_deletions to :
 -- models; an edition export reads which served versions its reader may see, with their digests.
 grant execute on function cl_audience_allows(text[]), cl_item_open(text), cl_version_open(uuid),
   cl_edition_versions(bigint) to :api;
+-- The Inbox and Undo (FR-227): a decision's undo is written once by its maker; a person keeps which
+-- cards they opened; a card closed for every owner is opened again by an undo; the setup checklist
+-- marks that Ask was used, never who or what.
+grant insert on decision_undos to :api;
+grant insert, update (read_at) on card_reads to :api;
+grant insert, delete on card_states to :api;
+grant insert on setup_marks to :api;

@@ -40,6 +40,7 @@ const reasonWords: Record<string, string> = {
   item_restored: 'Restored from the Bin',
   area_deleted: 'Domain deleted',
   area_restored: 'Domain restored',
+  decision_undone: 'A decision undone',
   rollback: 'Went back',
 }
 

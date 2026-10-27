@@ -161,6 +161,8 @@ function whoChanged(input: SentenceInput): string {
       return `Domain deleted ${by}`
     case 'area_restored':
       return `Domain restored ${by}`
+    case 'decision_undone':
+      return `A decision undone ${by}`
     case 'rollback':
       return `${capitalized(input.actor ?? 'we')} went back to ${input.restores ? `edition ${input.restores}` : 'an earlier edition'}`
     case 'vocabulary_changed':

@@ -60,6 +60,7 @@ const samples: Record<SettingKey, unknown> = {
   'limits.llm_monthly_cap_micros': 500_000_000,
   'limits.llm_feature_monthly_micros': { assistant: 250_000_000, eval: 250_000_000 },
   'limits.mentions_per_version': 50,
+  'limits.undo_seconds': 15,
   'review.default_days': 90,
   'review.open_issue_days': 14,
   'serving.max_overlay_age_seconds': 60,

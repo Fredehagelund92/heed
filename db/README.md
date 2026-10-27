@@ -374,6 +374,26 @@ suggestion, and when they read which version of it; only that person reads or wr
 `proposal_relations` keeps how a suggestion relates to a live item it clashes with (it replaces
 it, the two disagree, or they are unrelated): an owner of the suggestion's area or an
 administrator writes one row per answer, for the version under review, and rows never change.
+The owner's answer also goes on the version: a review edit may add to a version's replaced
+items and conflicts, its content unchanged, even when the owner wrote the suggestion
+(`proposals_guard_state`, migration 0006).
+
+The person who made a decision may undo it within `limits.undo_seconds` (migration 0006).
+`decision_undos` keeps one row per undone decision, by its maker as themselves inside the window
+(row security), and the `decision_undone` edition that served again what the decision changed;
+rows never change. An item leaves service in that edition only when it records an undo
+(`item_version_service_closing_authorized`), and an accepted proposal waits again only when its
+accept is undone in the same transaction (`proposals_guard_reopen`). A decision is never
+deleted: `decisions.round` counts how often its maker undid the same decision on the version
+before, so they may decide it again (`decisions_once_item`).
+
+The Inbox's cards are read from today's records; three tables keep the rest. `card_reads` keeps
+which cards a person opened, only for that person. `card_states` keeps a card closed for every
+owner of its domain, such as a report that is not a problem: an owner or an administrator closes
+it as themselves, and only they open it again, inside the undo window. A report is anonymous, so
+its card is named by text (`feedback:<id>`) and nothing joins a person to the report.
+`setup_marks` keeps when a step of the setup checklist first happened when nothing else records
+it (a question in Ask), never who or what.
 
 ## Evaluations
 

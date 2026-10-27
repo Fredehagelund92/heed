@@ -13,6 +13,7 @@ src/app/lib/cn-tables.gen.ts
 # Generated from src/contract by `npm run api:generate`
 docs/api/openapi.json
 src/web/api/contract.json
+src/app/api/contract.json
 **/__screenshots__
 tests/lint/fixtures
 registry/r

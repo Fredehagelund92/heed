@@ -478,6 +478,60 @@ vocabulary proposals also take an `Idempotency-Key`.
   gaps reach its owner from the start, with no state, start checks or go-live step. The stop
   switch above is the one way to hold a domain's items back for a while.
 
+## The review path and the Inbox
+
+Heed v1's one review screen and its Inbox (docs/product.md, sections 4 and 5) read and decide
+through these operations, typed in `src/contract/review-path.ts` and `src/contract/inbox.ts`.
+Writes need the session cookie, `Origin`, `x-heed-csrf` and an `Idempotency-Key`. A decision
+that can be taken back answers with an `undo` token for `POST /decisions/undo`.
+
+- `GET /review/{id}/sheet` is the review page's one read of a suggestion (FR-224): the change by
+  kind and the values that moved (`diff`), the stored Markdown line by line with the changed
+  words (`source`), and, for what an agent or the assistant wrote, each claim against the
+  sentence it copied (`claims`). It carries the clashes, the overlaps, the readiness line, the
+  person's read state and Try it: the suggestion's own question answered on the live edition
+  and with the suggestion in it, as agents would get it. A mention of an item the audience rule
+  hides from the reader reads as its words only.
+- A clash (FR-225) is a live item an agent would get in the same answer as the suggestion,
+  except the item it changes and those it already names as replaced or conflicting. Publish
+  waits until the owner says how each one relates: `replaces` (the new version replaces it, and
+  publishing archives it), `disagrees` (both stay, and agents get the conflict) or `unrelated`.
+  Overlaps (live items whose scope and dates overlap) are for information only.
+- `POST /review/{id}/publish` takes `{ revision, relations?, reason? }` and accepts the
+  suggestion, which publishes it, for an owner of its domain or an administrator; a clash with
+  no answer is 422. `POST /review/{id}/return` takes `{ revision, note }`: the suggestion goes
+  back to its writer, and the note is its first comment.
+- `POST /review/{id}/read` takes `{ itemVersionId }` and records that the person read that
+  version (FR-226); a version that is no longer the one under review is 409.
+  `POST /review/publish-read` takes `{ ids }` (up to 50) and publishes each suggestion the
+  person read that needs no look of its own, each as Publish would: a plain change, with no
+  clash, no claim to check, no new source and no new value without one. A retirement and a
+  draft for a Not found card always get their own look. It names every one it left out, with a code
+  (`not_read`, `needs_care`, `not_waiting`, `not_allowed` or `refused`), and one token undoes
+  them all.
+- `POST /decisions/undo` takes `{ token }` (FR-227). Only the person who decided undoes it, and
+  only within `limits.undo_seconds` (15 by default); twice is once (409). Undoing a publish is a
+  new `decision_undone` edition that serves again what the publish changed, and the suggestion
+  waits again; undoing a return sends it back to waiting. Nothing is deleted: the decision stays
+  as history, and a person may decide the same version again once they undid it.
+- `GET /inbox/feed?tab=needs|all` lists the person's cards by need: Not found (`gap`), Reported
+  (`flag`), Due for a check (`check`), then suggestions. An owner gets those of their domains, an
+  administrator every domain, anyone else none. Reported cards are the anonymous wrong or unclear
+  reports of the last 90 days, with no person. Under All come what the person sent that waits
+  on an owner and what was done in the last 14 days. `week` counts this week's agent questions,
+  each hidden under `privacy.min_count` (FR-614).
+- `POST /inbox/cards/read` takes `{ cards }`: the person opened them. `POST /inbox/cards/decide`
+  takes `{ card, action, reason? }`, the one decision a card offers: `not_written` for a Not
+  found card (the gap is set to `wont_fix`), `not_a_problem` for a Reported card (closed for
+  every owner), and `still_true` or `archive` for a Due for a check card (a recheck or a
+  retirement). Each answers with an undo token.
+- `POST /gaps/{id}/scope-draft` starts a draft from a Not found card's scope, dated to its month,
+  or returns the one the person already started from it.
+- `GET /setup` is the setup checklist of a new workspace (FR-816), read from what exists: what
+  the business is about, one context item, a question in Ask, an agent connected, and a source
+  of definitions. Ask keeps no record of its own (FR-602), so its step is a mark with no person or
+  question.
+
 ## Live updates, inbox and activity
 
 Every write records an event in `outbox_events` in its own transaction. The relay

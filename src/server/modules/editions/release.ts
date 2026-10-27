@@ -13,6 +13,7 @@ export type EditionReason =
   | 'item_restored'
   | 'area_deleted'
   | 'area_restored'
+  | 'decision_undone'
 
 /** What one edition changes. Every step is a guarded database function (FR-205). */
 export type EditionChange = {
