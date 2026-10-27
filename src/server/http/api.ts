@@ -85,6 +85,7 @@ import {
   type ReviewService,
 } from '../modules/review/index.ts'
 import { createInboxFeedService } from '../modules/inbox/index.ts'
+import { createCommentsService } from '../modules/comments/index.ts'
 import {
   can,
   checkMutation,
@@ -214,8 +215,14 @@ export function createRouter({
           const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
           const review = createReviewService(tx, clock)
           const gaps = createGapsService(tx, clock, session?.person.id ?? '')
-          const reviewPath = createReviewPath(tx, clock, answerBundles, review, (id) =>
-            proposals.get(id),
+          const comments = createCommentsService(tx)
+          const reviewPath = createReviewPath(
+            tx,
+            clock,
+            answerBundles,
+            review,
+            (id) => proposals.get(id),
+            comments,
           )
           return next({
             context: {
@@ -233,7 +240,9 @@ export function createRouter({
                 review,
                 path: reviewPath,
                 gaps,
+                comments,
               }),
+              comments,
               bin: createBinService(tx, clock, proposals),
               inbox: createInboxService(tx),
               activity: createActivityService(tx),
@@ -812,6 +821,39 @@ export function createRouter({
         retryWrite(context.tx, idempotencyKey(context), 'cards.decide', input, () =>
           context.cards.decide(input),
         ),
+      ),
+    },
+    comments: {
+      list: authorized.comments.list.handler(({ context, input }) => context.comments.list(input)),
+      create: authorized.comments.create.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'comments.create', input, () =>
+          context.comments.create(input),
+        ),
+      ),
+      edit: authorized.comments.edit.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'comments.edit', input, () =>
+          context.comments.edit(input),
+        ),
+      ),
+      remove: authorized.comments.remove.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'comments.remove', input, () =>
+          context.comments.remove(input),
+        ),
+      ),
+      markMentionsRead: authorized.comments.markMentionsRead.handler(({ context, input }) =>
+        context.comments.markMentionsRead(input),
+      ),
+    },
+    reactions: {
+      toggle: authorized.reactions.toggle.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'reactions.toggle', input, () =>
+          context.comments.toggleReaction(input),
+        ),
+      ),
+    },
+    threads: {
+      markRead: authorized.threads.markRead.handler(({ context, input }) =>
+        context.comments.markThreadRead(input),
       ),
     },
     decisions: {

@@ -212,6 +212,18 @@ import {
   catalogueTermInputSchema,
 } from './catalogue.ts'
 import { searchAllInputSchema, searchResultsSchema } from './search.ts'
+import {
+  commentIdSchema,
+  commentSchema as threadCommentSchema,
+  commentThreadsSchema,
+  createCommentSchema,
+  editCommentSchema,
+  listCommentsInputSchema,
+  removeCommentResultSchema,
+  threadInputSchema,
+  toggleReactionResultSchema,
+  toggleReactionSchema,
+} from './comments.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
 import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
@@ -328,6 +340,7 @@ export type {
 export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
 export { SEARCH_GROUP_MAX } from './search.ts'
 export type { SearchAllInput, SearchResults } from './search.ts'
+export type { Comment as ThreadComment, Thread } from './comments.ts'
 export type {
   Catalogue,
   CatalogueDefinition,
@@ -504,6 +517,14 @@ const areaRemovalRoute = admin.errors({
     message:
       "Someone changed this domain after you opened it, or it's the demo domain, which can't be deleted.",
     data: z.optional(z.object({ holdings: areaHoldingsSchema })),
+  },
+})
+
+/** A comment or a reaction: anyone signed in, on what they may read; words they may change are their own. */
+const commentWrite = read.errors({
+  UNPROCESSABLE_CONTENT: {
+    status: 422,
+    message: 'Check the comment, then try again.',
   },
 })
 
@@ -1628,6 +1649,80 @@ export const contract = {
       })
       .input(decideCardSchema)
       .output(decideCardResultSchema),
+  },
+  comments: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/comments',
+        tags: ['comments'],
+        summary:
+          'The threads on suggestions and context items the person may read: comments oldest first with their replies and reactions, the reactions on each subject, the newest reply since they last opened it, and the comments that mention them unread. Agents never read comments (FR-817)',
+      })
+      .input(listCommentsInputSchema)
+      .output(commentThreadsSchema),
+    create: commentWrite
+      .route({
+        method: 'POST',
+        path: '/comments',
+        tags: ['comments'],
+        summary:
+          'A comment on a suggestion or a context item, or a reply to one, by anyone who may read it; its mentions of people reach their Inbox (FR-817)',
+      })
+      .input(createCommentSchema)
+      .output(threadCommentSchema),
+    edit: commentWrite
+      .route({
+        method: 'PUT',
+        path: '/comments/{id}',
+        tags: ['comments'],
+        summary: "Changes a comment's words: its author only",
+      })
+      .input(editCommentSchema)
+      .output(threadCommentSchema),
+    remove: commentWrite
+      .route({
+        method: 'DELETE',
+        path: '/comments/{id}',
+        tags: ['comments'],
+        summary:
+          'Deletes a comment, its author only: one something answers keeps its place without its words, one nobody answered goes',
+      })
+      .input(commentIdSchema)
+      .output(removeCommentResultSchema),
+    markMentionsRead: read
+      .route({
+        method: 'POST',
+        path: '/comments/mentions/read',
+        tags: ['comments'],
+        summary:
+          'The person read the comments that mention them in a thread: their Inbox card goes',
+      })
+      .input(threadInputSchema)
+      .output(z.object({ marked: z.number() })),
+  },
+  reactions: {
+    toggle: commentWrite
+      .route({
+        method: 'POST',
+        path: '/reactions/toggle',
+        tags: ['comments'],
+        summary:
+          'Gives or takes back one of the five reactions, on a comment or on the suggestion or item itself',
+      })
+      .input(toggleReactionSchema)
+      .output(toggleReactionResultSchema),
+  },
+  threads: {
+    markRead: read
+      .route({
+        method: 'POST',
+        path: '/comments/threads/read',
+        tags: ['comments'],
+        summary: 'The person opened a thread: a reply before now is no longer new to them',
+      })
+      .input(threadInputSchema)
+      .output(z.object({ seenAt: z.string() })),
   },
   decisions: {
     undo: review

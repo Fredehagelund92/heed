@@ -39,16 +39,16 @@ export const cardKey = {
   gap: (id: string) => `gap:${id}`,
   feedback: (id: string) => `feedback:${id}`,
   check: (itemId: string) => `check:${itemId}`,
+  /** A thread with comments that mention the person: "mention:review:<id>", "mention:context:<id>". */
+  mention: (subject: string) => `mention:${subject}`,
 }
 
+type CardKind = 'proposal' | 'gap' | 'feedback' | 'check' | 'mention'
+
 /** What a card's name says it is, or null for a name that is none of them. */
-export function parseCardKey(
-  key: string,
-): { kind: 'proposal' | 'gap' | 'feedback' | 'check'; id: string } | null {
-  const match = /^(proposal|gap|feedback|check):(.+)$/.exec(key)
-  return match
-    ? { kind: match[1] as 'proposal' | 'gap' | 'feedback' | 'check', id: match[2]! }
-    : null
+export function parseCardKey(key: string): { kind: CardKind; id: string } | null {
+  const match = /^(proposal|gap|feedback|check|mention):(.+)$/.exec(key)
+  return match ? { kind: match[1] as CardKind, id: match[2]! } : null
 }
 
 /**

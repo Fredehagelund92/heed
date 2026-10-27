@@ -146,6 +146,15 @@ export const policies = {
   'inbox.feed': 'read',
   'cards.markRead': 'read',
   'cards.decide': 'propose',
+  // Comments (FR-817): anyone signed in, on what they may read; the service and row security keep
+  // edits and deletes to the author.
+  'comments.list': 'read',
+  'comments.create': 'read',
+  'comments.edit': 'read',
+  'comments.remove': 'read',
+  'comments.markMentionsRead': 'read',
+  'reactions.toggle': 'read',
+  'threads.markRead': 'read',
   'setup.state': 'read',
   'activity.list': 'read',
   'events.stream': 'read',

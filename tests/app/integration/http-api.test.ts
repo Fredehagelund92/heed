@@ -15,13 +15,14 @@ import { apiDatabase, testDatabase } from '../../integration/support.ts'
 
 // Someone the bulk seed knows, so the library they read is the seeded one.
 const person = { email: 'per_maria@example.test', name: 'Maria Lindqvist', roles: [] }
+const colleague = { email: 'per_tomas@example.test', name: 'Tomas Eriksen', roles: [] }
 const { client, url } = testDatabase({ seeded: true })
 const app = buildApp({
   database: apiDatabase(url),
   jobs: idleJobs(),
   logger: createLogger({ level: 'silent' }),
   clock: systemClock('2026-10-07'),
-  devPeople: [person],
+  devPeople: [person, colleague],
 })
 let api: HeedApi | undefined
 
@@ -50,6 +51,7 @@ afterAll(() => app.close())
 describeHeedApi('http binding on PostgreSQL', () => api!, {
   person: person.name,
   wired: wiredMethods,
+  colleague: colleague.name,
 })
 
 describe('the http binding', () => {

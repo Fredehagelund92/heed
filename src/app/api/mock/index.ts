@@ -174,7 +174,9 @@ export function createMockApi() {
   const copy = <T>(value: T): T => (value === undefined ? value : structuredClone(value))
   const read = <T>(method: HeedApiMethod, key: string, run: () => T) =>
     scenario.read(method, key, () => copy(run()))
-  const now = <T>(run: () => T) => Promise.resolve(copy(run()))
+  // A rule the mock keeps (only its author edits a comment) refuses as the service does: the
+  // promise rejects, never throws before it is returned.
+  const now = <T>(run: () => T) => new Promise<T>((resolve) => resolve(copy(run())))
 
   const api: HeedApi = {
     // Session and workspace
@@ -299,8 +301,8 @@ export function createMockApi() {
     reactToComment: ({ subject, id, emoji }) => now(() => comments.react(subject, id, emoji, me())),
     reactToSubject: ({ subject, emoji }) =>
       now(() => comments.reactToSubject(subject, emoji, me())),
-    editComment: ({ subject, id, content }) => now(() => comments.edit(subject, id, content)),
-    removeComment: ({ subject, id }) => now(() => comments.remove(subject, id)),
+    editComment: ({ subject, id, content }) => now(() => comments.edit(subject, id, content, me())),
+    removeComment: ({ subject, id }) => now(() => comments.remove(subject, id, me())),
     markThreadSeen: ({ subject }) => now(() => comments.seen(subject)),
     markMentionSeen: ({ subject }) => now(() => comments.seenMention(subject, me())),
 
@@ -390,7 +392,7 @@ export function createMockApi() {
         decideReview(id, 'Returned', () => {
           const subject: Subject = `review:${id}`
           const posted = comments.post(subject, me(), note, { returned: true })
-          return { also: () => comments.remove(subject, posted) }
+          return { also: () => comments.unpost(subject, posted) }
         }),
       ),
 
