@@ -86,6 +86,21 @@ names the role that checked it and the day, never a person, and `may_be_out_of_d
 FR-350) appear when they hold. A question about what a metric means ("What does net revenue
 mean?") also gets `definitions`. `reply_id` is what `report` takes.
 
+Terms and synonyms people write in Definitions (FR-138) reach agents too. A synonym of a metric or
+a dimension ("Purchases" for Orders) is one of its other names, so a question in that word is read
+as a question about the metric, in the words and in `metrics`. When the question uses a word a
+person defined, `terms` names it, up to five, each meaning once: `word` as the question has it,
+`name` and `kind` (`term`, `metric` or `dimension`) of what it names, `synonym: true` when the
+word is another name for it, a term's `meaning` as written, its `domain`, `written` (the role that
+wrote it, the owner of its domain or an admin, never the person, and the day) and `url`, its page
+in Definitions, with a line `Open in Heed - <name>: <url> - Written ...` in the text. `next` then
+says to read the words by them and never to give a term as a checked source. A term changes
+neither the items that apply nor the answer state: a question that only names a term ("What does
+peak season mean?") is still `need_more_detail`. Agents get the live terms whatever the edition, as
+they get the overlay, and from the next call after a person writes one: never a deleted term, a
+word a sync gave a second meaning (the conflict Definitions shows), a word the vocabulary already
+has, or a term of a stopped domain.
+
 With `response_format: "full"` (FR-342) the reply keeps the same fields and adds what it always
 carried: each item's version, body, validity, claim level, every source, owner, review stamp and
 links (FR-326, FR-331), `scope_used`, `dates_read` and `assumed_date`, the domains the question is
@@ -109,10 +124,13 @@ each named metric's or dimension's definition with where it comes from and what 
 why when nothing is found. It takes a `domain` (a name or an id), a `kind` (`event`, `warning`,
 `rule`, `guide`), a `window` and a `limit`, and lists titles and summaries under `context`, never a
 body. An unknown domain comes back with the closest match and every valid choice (FR-341); a
-domain named by another spelling is read as that domain (`src/domain/domain-match.ts`).
+domain named by another spelling is read as that domain (`src/domain/domain-match.ts`). The words
+of the query a person defined come back in `terms`, as for `get_context`.
 
 **`read_context`** reads one item in full (`context`): its text, every source, who checked it, its
-What not to conclude line and its outgoing links, with a page of the items that link to it.
+What not to conclude line and its outgoing links, with a page of the items that link to it. The
+words of its title, summary and text that a person defined come back in `terms`, as for
+`get_context`.
 
 **`report`** takes what the person says, after they say yes: `kind` is `missing`, `wrong`,
 `unclear` or `helped`, with the `reply_id` of a `get_context` reply, a `context_id` when it is about
@@ -675,7 +693,9 @@ synonym means what that one means.
   meaning's. `uncovered` of `measurable` have no context yet: agents asking about them get Not
   found.
 
-Agents do not read terms and synonyms yet: the serving role has no grant on them.
+Agents read the live terms and synonyms through `serving_terms()` (migration 0011), which names
+no person; the serving role has no grant on the terms tables. What they get is in the agent tools
+above (`terms`).
 
 ## Live updates, inbox and activity
 

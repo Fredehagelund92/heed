@@ -4,6 +4,7 @@ import { settingSchemas } from '../../../contract/admin.ts'
 import { termDomain } from '../../../domain/catalogue.ts'
 import type { CheckFlag, ClaimLevel, ItemKind, RiskLevel } from '../../../domain/item.ts'
 import type { AcceptedAs } from '../../../domain/served-review.ts'
+import { servedWords, type WrittenTerm } from '../../../domain/served-terms.ts'
 import type { Term } from '../../../domain/vocabulary.ts'
 import { connectorType } from '../connectors/index.ts'
 import type {
@@ -46,6 +47,16 @@ type Overlay = {
   flag: CheckFlag | null
 }
 type Metadata = Pick<ServingBundle, 'areas' | 'retired'>
+type WrittenRow = {
+  id: string
+  name: string
+  meaning: string | null
+  same_as: string | null
+  area_id: string | null
+  written_on: string
+  written_as: WrittenTerm['writtenAs']
+  conflict: boolean
+}
 type ReviewRow = {
   item_id: string
   accepted_on: string | null
@@ -119,15 +130,23 @@ export function createEditionSource(pool: pg.Pool, capacity = 4): EditionSource 
       const client = await pool.connect()
       try {
         await client.query('begin isolation level repeatable read read only')
-        const pointer = await client.query<{ seq: string; label: string; overlay: string }>(
-          `select e.seq::text,e.label,coalesce((select seq::text from serving_overlay),'0') as overlay
+        // The terms people write are read as they are now, whatever the edition, as the overlay
+        // is: a write to one, or a sync that gives a word a second meaning, is served on the next read.
+        const pointer = await client.query<{
+          seq: string
+          label: string
+          overlay: string
+          terms: string
+        }>(
+          `select e.seq::text,e.label,coalesce((select seq::text from serving_overlay),'0') as overlay,
+                  serving_terms_mark() as terms
            from editions e where e.sealed_at is not null and
            (case when $1::text is null then e.seq=(select seq from live_edition) else e.label=$1 end)`,
           [edition ?? null],
         )
         const head = pointer.rows[0]
         if (!head) throw new Error('Edition unavailable')
-        const key = `${head.seq}:${head.overlay}`
+        const key = `${head.seq}:${head.overlay}:${head.terms}`
         const cached = cache.get(key)
         if (cached && cached.expires > Date.now()) {
           await client.query('commit')
@@ -212,9 +231,14 @@ export async function loadServingBundle(
   const links = await tx.query<ServingBundle['links'][number]>('select * from serving_links($1)', [
     head.seq,
   ])
-  const metadata = (
-    await tx.query<{ doc: Metadata }>('select serving_metadata($1) as doc', [head.seq])
-  )[0]!.doc
+  // With it, in the same statement, the terms and synonyms people write in Definitions, as they
+  // are now (FR-138).
+  const [served] = await tx.query<{ doc: Metadata; written: WrittenRow[] }>(
+    `select serving_metadata($1) as doc,
+            coalesce((select json_agg(t) from serving_terms() t), '[]') as written`,
+    [head.seq],
+  )
+  const metadata = served!.doc
   const overlay = await tx.query<Overlay>(
     'select kind,scope,area_id,item_id,flag from v_overlay_on',
   )
@@ -226,7 +250,17 @@ export async function loadServingBundle(
       )
     ).map((row) => [row.key, row.area_id]),
   )
-  const terms = vocab.map((v) => ({
+  const written = served!.written.map((row): WrittenTerm => ({
+    id: row.id,
+    name: row.name,
+    meaning: row.meaning,
+    sameAs: row.same_as,
+    areaId: row.area_id,
+    writtenOn: row.written_on,
+    writtenAs: row.written_as,
+    conflict: row.conflict,
+  }))
+  const vocabulary = vocab.map((v) => ({
     key: v.key,
     kind: v.kind,
     parentKey: v.parent_key,
@@ -245,11 +279,20 @@ export async function loadServingBundle(
         }
       : null,
   }))
+  const stopped = {
+    all: overlay.some((o) => o.kind === 'stop_on' && o.scope === 'all'),
+    areas: overlay.filter((o) => o.kind === 'stop_on' && o.area_id).map((o) => o.area_id!),
+    items: overlay.filter((o) => o.kind === 'stop_on' && o.item_id).map((o) => o.item_id!),
+  }
+  // A synonym of a metric or a dimension is one of its other names; the words agents get.
+  const words = servedWords(vocabulary, written, stopped)
+  const terms = words.vocabulary
   const bundle: ServingBundle = {
     seq: head.seq,
     edition: head.label,
     overlay: head.overlay,
     terms,
+    written: words.written,
     links: links,
     areas: metadata.areas,
     retired: metadata.retired,
@@ -267,11 +310,7 @@ export async function loadServingBundle(
         .filter((v) => v.kind === 'metric')
         .map((v) => [v.key, v.parentKey ? [v.parentKey] : []]),
     ),
-    stopped: {
-      all: overlay.some((o) => o.kind === 'stop_on' && o.scope === 'all'),
-      areas: overlay.filter((o) => o.kind === 'stop_on' && o.area_id).map((o) => o.area_id!),
-      items: overlay.filter((o) => o.kind === 'stop_on' && o.item_id).map((o) => o.item_id!),
-    },
+    stopped,
     items: rows.map((row) => {
       const flags = overlay
         .filter((o) => o.kind === 'flag_on' && o.item_id === row.item_id)

@@ -153,7 +153,10 @@ grant insert, delete on item_owners to :api;
 grant insert, update (read_at) on item_reads to :api;
 grant insert, update (undone_at) on item_changes to :api;
 -- Terms and synonyms (FR-138): owners write the words of their domains, and never remove one; a change
--- to many terms is recorded once and undone by its maker. Agents read none of it yet.
+-- to many terms is recorded once and undone by its maker.
 grant insert, update (name, meaning, same_as_key, same_as_term, area_id, updated_by, deleted_at, deleted_with) on terms to :api;
 grant insert, update (undone_at) on term_changes to :api;
 grant execute on function cl_vocabulary_words() to :api;
+-- Agents read the live terms and synonyms through one function, which names no person (FR-138,
+-- FR-326); the serving role still has no grant on the terms tables.
+grant execute on function serving_terms(), serving_terms_mark() to :api, :serve;
