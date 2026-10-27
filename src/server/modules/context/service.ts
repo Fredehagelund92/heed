@@ -24,6 +24,7 @@ import {
 import type { Draft } from '../../../domain/draft.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
 import { related } from '../../../domain/links.ts'
+import type { ClashRelation } from '../../../domain/readiness.ts'
 import { kinds, type Kind } from '../../../domain/words.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -646,12 +647,18 @@ export function createContextService(
     draft: Draft
     itemId?: string | undefined
     reason?: string | undefined
+    draftId?: string | undefined
+    relations?: { itemId: string; relation: ClashRelation }[] | undefined
   }): Promise<PublishItemResult> {
-    const created = await proposals.create({
-      draft: input.draft,
-      ...(input.itemId ? { itemId: input.itemId } : {}),
-      ...(input.reason ? { reason: input.reason } : {}),
-    })
+    const created = input.draftId
+      ? await finish(input.draftId, input.draft, input.reason)
+      : await proposals.create({
+          draft: input.draft,
+          ...(input.itemId ? { itemId: input.itemId } : {}),
+          ...(input.reason ? { reason: input.reason } : {}),
+        })
+    // A draft that was started from an item changes that item.
+    const itemId = input.draftId ? (created.itemId ?? undefined) : input.itemId
     const submitted = await proposals.submit(created.id, created.revision)
     await review.checkSubmitted(submitted.id)
     const areaId = submitted.areaId!
@@ -661,18 +668,25 @@ export function createContextService(
     // It fails closed: a change whose item agents don't get now waits as a suggestion.
     const owns = (area: string) => mine.admin || mine.owns.includes(area)
     let fromOwned = true
-    if (input.itemId) {
+    if (itemId) {
       const [live] = await tx.query<{ areaId: string }>(
         `select v.area_id as "areaId" from item_version_service s join item_versions v on v.id = s.version_id
           where s.item_id = $1 and s.editions @> (select seq from live_edition)`,
-        [input.itemId],
+        [itemId],
       )
       fromOwned = !!live && owns(live.areaId)
     }
     if (!owns(areaId) || !fromOwned)
       return { published: false, proposalId: submitted.id, ownerIds: await domainOwners(areaId) }
     const current = await proposals.get(submitted.id)
-    const published = await path.publish({ id: current.id, revision: current.revision })
+    const published = await path.publish(
+      {
+        id: current.id,
+        revision: current.revision,
+        ...(input.relations?.length ? { relations: input.relations } : {}),
+      },
+      { clashesOnly: true },
+    )
     return {
       published: true,
       itemId: published.proposal.itemId!,
@@ -680,6 +694,16 @@ export function createContextService(
       edition: published.edition?.label ?? null,
       undo: published.undo,
     }
+  }
+
+  /** The person's own draft, with the words they finished it with: only its writer sends a draft. */
+  async function finish(id: string, draft: Draft, reason: string | undefined) {
+    const [row] = await tx.query<{ revision: number }>(
+      `select revision from proposals where id = $1 and subject = 'item' and state = 'draft'`,
+      [id],
+    )
+    if (!row) throw new ORPCError('NOT_FOUND', { message: "This draft isn't here any more." })
+    return proposals.save(id, row.revision, draft, reason)
   }
 
   /**

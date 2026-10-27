@@ -20,9 +20,9 @@ process.env.GOLDEN_WEB_ORIGIN = `http://localhost:${webPort}`
 
 export default defineConfig({
   testDir: 'tests/e2e-app',
-  // The Inbox, its quick view, the review and the setup checklist (P6b), Ask (P10); Help and the docs (P13);
-  // People, invites and owners (P8).
-  testMatch: /\/j(1|3|4|5|7|10|13|14|15|16|17|18|19|22|23|28)-[a-z0-9-]+\.spec\.ts$/,
+  // The Inbox, its quick view, the review and the setup checklist (P6b); Context, Definitions and
+  // the editor (P7c); Ask (P10); Help and the docs (P13); People, invites and owners (P8).
+  testMatch: /\/j(1|2|3|4|5|7|10|13|14|15|16|17|18|19|20|22|23|24|25|28)-[a-z0-9-]+\.spec\.ts$/,
   outputDir: 'test-results/golden-http/output',
   globalSetup: './tests/e2e-app/http/global-setup.ts',
   // The demo week's fixtures live with the app (src/app), under its path aliases.

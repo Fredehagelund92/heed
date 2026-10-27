@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { go, signInAs } from './go.ts'
+import { expect, go, signInAs, test } from './go.ts'
+import type { Page } from '@playwright/test'
 
 // J25: what a person does to many items at once, from one bar. Archive is the safe default, with
 // Undo; only drafts are deleted, after a confirmation that names them; what someone can't change is
@@ -204,7 +204,9 @@ test('Definitions change terms only: a synced metric is skipped, and a term take
   page,
 }) => {
   await go(page, '/definitions')
-  const names = await page.locator('tbody [data-row-open]').allInnerTexts()
+  const rows = page.locator('tbody [data-row-open]')
+  await expect(rows.first()).toBeVisible()
+  const names = await rows.allInnerTexts()
   const term = names.findIndex((t) => t.startsWith('Test account'))
   await boxes(page)
     .nth(term - 1)

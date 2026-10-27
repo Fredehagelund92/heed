@@ -8,7 +8,9 @@ import {
   identifier,
   localRoles,
 } from '../../../src/server/db/roles.ts'
-import { checkCards, queue, seedDemoWeek } from '../../app/http/demo-week.ts'
+import { spainDraft } from '@/api/mock/data/drafts'
+import { facts } from '@/api/mock/data/world'
+import { checkCards, queue, seedDemoWeek, serverItemId } from '../../app/http/demo-week.ts'
 import { emptyName, workName } from './harness.ts'
 
 /*
@@ -53,14 +55,18 @@ export default async function setup() {
       `create database ${identifier(emptyName(template))} template ${identifier(template)} owner ${identifier(localRoles.owner)}`,
     )
     const ids = await seedDemoWeek(url.href)
-    // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item.
+    // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item;
+    // and its context items, a draft by its proposal.
     const world: Record<string, string> = {
+      ...Object.fromEntries(facts.map((f) => [f.id, ids.drafts[f.id] ?? serverItemId(f.id)])),
       ...Object.fromEntries(queue.map((card) => [card, ids[card]])),
       'flag-germany': ids['flag-germany'],
       ...checkCards(),
     }
     await mkdir(dirname(worldFile), { recursive: true })
-    await writeFile(worldFile, JSON.stringify({ ids: world, queue }, null, 2))
+    // The items a journey publishes on the way, by their mock id: found by their title once made.
+    const published = { [spainDraft.id]: spainDraft.title }
+    await writeFile(worldFile, JSON.stringify({ ids: world, queue, published }, null, 2))
   } catch (error) {
     await drop()
     await admin.end()

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { expect, go, test } from './go.ts'
 
 // J20, synonyms as tags: a comma or Enter makes a tag at once, a word that means something else
 // says who has it and is never saved, Backspace selects then removes, Escape keeps what was made.

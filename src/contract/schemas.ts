@@ -74,6 +74,8 @@ export const libraryItemSchema = z.extend(indexedItemSchema, {
   chips: z.array(z.string()),
   /** Its own owners, by id, when not its domain's (item_owners); empty when its domain's owners answer for it. */
   owners: z.array(z.string()),
+  /** Whether the person opened it (item_reads): only opened items can be marked as checked together. */
+  opened: z.boolean(),
 })
 
 /** Every item the person may read, as one light index. Clients sort and filter it themselves. */

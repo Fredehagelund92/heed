@@ -6,6 +6,7 @@
  */
 import * as z from 'zod/mini'
 import { bulkActions, bulkRowSkipCodes } from '../domain/context-bulk.ts'
+import { clashRelations } from '../domain/readiness.ts'
 import { draftSchema } from '../domain/draft.ts'
 import { itemKinds, itemSchema } from '../domain/item.ts'
 import { itemTrusts } from '../domain/status.ts'
@@ -155,8 +156,28 @@ export const publishItemInputSchema = z.strictObject({
   draft: draftSchema,
   /** The item it changes; left out for a new item. */
   itemId: z.optional(itemIdSchema),
+  /**
+   * The person's own draft it finishes: the draft takes these words and is sent as itself, instead
+   * of a new suggestion beside it. Its item, when it changes one, is the draft's own.
+   */
+  draftId: z.optional(z.string().check(z.uuid())),
   /** What is wrong with the current version, for a suggested change. */
   reason: z.optional(z.string().check(z.maxLength(500))),
+  /**
+   * How it relates to each live item it clashes with, as the owner said in the editor: an owner's
+   * publish waits for every one (FR-225), as Publish in the review does. An answer for an item it
+   * does not clash with is left out.
+   */
+  relations: z.optional(
+    z
+      .array(
+        z.strictObject({
+          itemId: itemIdSchema,
+          relation: z.enum(clashRelations),
+        }),
+      )
+      .check(z.maxLength(20)),
+  ),
 })
 export const publishItemResultSchema = z.union([
   z.object({

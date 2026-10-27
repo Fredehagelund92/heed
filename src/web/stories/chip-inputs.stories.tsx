@@ -43,6 +43,7 @@ const library = {
       trust: 'current' as const,
       chips: [],
       owners: [],
+      opened: false,
     },
   ],
 }

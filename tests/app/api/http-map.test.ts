@@ -41,6 +41,7 @@ const row = (patch: Partial<LibraryItem> = {}): LibraryItem => ({
   trust: 'current',
   chips: ['Orders', 'Norway'],
   owners: [],
+  opened: false,
   ...patch,
 })
 
@@ -88,6 +89,13 @@ describe('reading the library index', () => {
         dontConclude: '',
       },
     ])
+  })
+
+  it('names the owners an item has of its own, and none when they are its domain’s', () => {
+    const [own] = factsOf([row({ owners: ['per_maria', 'per_jon'] })], names)
+    expect(own!.owners).toEqual(['Maria Lindqvist', 'Jon Abara'])
+    const [domain] = factsOf([row({ owners: ['per_jon'] })], names)
+    expect(domain!.owners).toBeUndefined()
   })
 
   it('names the owner only when they are not one of the domain’s owners', () => {
@@ -384,6 +392,7 @@ describe('the terms written here', () => {
             sameAs: { ref: 'metric:gross_sales', name: 'Gross sales', type: 'metric' },
             areaId: null,
             createdBy: 'per_jon',
+            createdAt: '2026-09-20T09:00:00.000Z',
           }),
         ],
         person,
@@ -409,6 +418,17 @@ describe('the terms written here', () => {
         by: 'Jon Abara',
         updated: '18 Sep 2026',
       },
+    ])
+  })
+
+  it('lists them in the order they were written, so other names read as they were added', () => {
+    const later = term({ name: 'Gross takings', createdAt: '2026-10-23T09:00:00.000Z' })
+    const first = term({ name: 'Sales value', createdAt: '2026-10-22T09:00:00.000Z' })
+    const same = term({ name: 'Peak', createdAt: '2026-10-22T09:00:00.000Z' })
+    expect(termDefinitionsOf([later, first, same], person).map((d) => d.name)).toEqual([
+      'Peak',
+      'Sales value',
+      'Gross takings',
     ])
   })
 

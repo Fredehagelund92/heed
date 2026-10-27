@@ -141,7 +141,9 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
                                 or (l.entry->>'reviewDate')::date < $1::date then 'needs_check'
                               else 'current' end,
                 'chips', coalesce(ch.names, '[]'),
-                'owners', coalesce(o.ids, '[]'))
+                'owners', coalesce(o.ids, '[]'),
+                'opened', exists (select 1 from item_reads r
+                                   where r.person_id = cl_person() and r.item_id = l.id))
                 order by l.id collate "C"), '[]') as items
          from listed l
          left join checked c on c.version_id = l.version_id

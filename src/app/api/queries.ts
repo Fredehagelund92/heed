@@ -396,6 +396,7 @@ export const invalidations: {
   removePerson: () => workspace,
   markViewed: () => [queryKeys.library],
   editItem: () => items,
+  restoreAsDraft: () => items,
   // A published item may answer a Not found card, and be the setup checklist's first item.
   saveItem: () => [...items, ...inbox, ...workspace, queryKeys.session],
   applyBulk: () => items,

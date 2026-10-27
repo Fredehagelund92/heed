@@ -111,6 +111,10 @@ export function ContextBulk({
       return
     }
     const input = {
+      action,
+      ...(opts.domain ? { domain: opts.domain } : {}),
+      ...(opts.kind ? { kind: opts.kind } : {}),
+      ...(opts.person ? { person: opts.person.name } : {}),
       patches: action === 'delete' ? {} : Object.fromEntries(plan.act.map((f) => [f.id, patch(f)])),
       remove: action === 'delete' ? plan.act.map((f) => f.id) : [],
       entry: {
