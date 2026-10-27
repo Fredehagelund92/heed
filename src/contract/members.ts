@@ -74,7 +74,8 @@ export const inviteSchema = z.object({
 
 /**
  * What happened to each address, in the order given: invited (with the link to share), already in
- * the workspace, or already invited (send that invite again instead).
+ * the workspace, already invited (send that invite again instead), or a removed person only an
+ * admin brings back (no invite made).
  */
 export const invitesCreatedSchema = z.object({
   results: z.array(
@@ -87,6 +88,7 @@ export const invitesCreatedSchema = z.object({
       }),
       z.object({ email: z.string(), outcome: z.literal('member'), personId: z.string() }),
       z.object({ email: z.string(), outcome: z.literal('pending'), invite: inviteSchema }),
+      z.object({ email: z.string(), outcome: z.literal('removed') }),
     ]),
   ),
 })

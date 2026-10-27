@@ -204,6 +204,26 @@ describe('inviting', () => {
     expect(stored.rows[0]!.token_hash).toBe(inviteTokenHash(newest))
   })
 
+  it('does not send an invite again for a sender who lost the authority to make it', async () => {
+    // The author owns no domain: an invite in their name stands for authority they no longer hold.
+    const made = await client.query<{ id: string }>(
+      `insert into invites (email,role,area_ids,invited_by,token_hash,expires_at)
+       values ('lost@larchwood.example','member','{finance}',$1,$2,now()+interval '7 days') returning id::text`,
+      [people.author, inviteTokenHash(randomUUID())],
+    )
+    const id = made.rows[0]!.id
+    const refused = await call(author, 'POST', `/invites/${id}/resend`, {})
+    expect(refused.statusCode, refused.body).toBe(403)
+    expect(refused.json()).toMatchObject({
+      message:
+        'Only an admin, or the sender while they still own the domains, sends an invite again.',
+    })
+    // Taking it back stays with the sender.
+    expect((await call(author, 'POST', `/invites/${id}/revoke`, {})).json()).toEqual({
+      revoked: true,
+    })
+  })
+
   it('takes an invite back, by its sender or an admin; a taken-back invite is not accepted', async () => {
     const [omar] = (await openInvites(admin)).filter((i) => i.email === 'omar@larchwood.example')
     expect((await call(owner, 'POST', `/invites/${omar!.id}/revoke`, {})).statusCode).toBe(403)
@@ -251,15 +271,17 @@ describe('accepting', () => {
       "update area_assignments set valid_at=tstzrange(lower(valid_at),now(),'[)') where person_id=$1 and valid_at @> now()",
       [people.stranger],
     )
-    // An owner's invite does not bring back someone an admin removed.
+    // An owner cannot invite someone an admin removed: no invite is made, and the owner is told.
     const byOwner = await invite(owner, {
       emails: ['stranger@example.test'],
       role: 'member',
       areaIds: ['finance'],
     })
-    linkOf(byOwner[0]!)
+    expect(byOwner).toEqual([{ email: 'stranger@example.test', outcome: 'removed' }])
+    expect(
+      (await client.query("select 1 from invites where email='stranger@example.test'")).rowCount,
+    ).toBe(0)
     expect(await accept('stranger@example.test', 'Ignored')).toBeNull()
-    await call(admin, 'POST', `/invites/${(byOwner[0] as { invite: Invite }).invite.id}/revoke`, {})
     const results = await invite(admin, {
       emails: ['stranger@example.test'],
       role: 'admin',
@@ -306,6 +328,58 @@ describe('accepting', () => {
     expect(again[0]).toMatchObject({ outcome: 'invited' })
     linkOf(again[0]!)
     expect(await accept('late@larchwood.example')).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('accepts nothing from a sender who is no longer an admin, and only the domains still owned', async () => {
+    const sender = randomUUID()
+    await client.query(
+      "insert into people (id,email,display_name) values ($1,'sender@larchwood.example','Sender')",
+      [sender],
+    )
+    await client.query(
+      "insert into global_role_grants (person_id,role) values ($1,'administrator')",
+      [sender],
+    )
+    await client.query(
+      "insert into area_assignments (area_id,person_id,role) values ('finance',$1,'owner'),('marketing',$1,'owner')",
+      [sender],
+    )
+    const insert = (email: string, role: string, areas: string[]) =>
+      client.query(
+        `insert into invites (email,role,area_ids,invited_by,token_hash,expires_at)
+         values ($1,$2,$3,$4,$5,now()+interval '7 days')`,
+        [email, role, areas, sender, inviteTokenHash(randomUUID())],
+      )
+    await insert('lostadmin@larchwood.example', 'admin', [])
+    await insert('lostone@larchwood.example', 'member', ['finance', 'marketing'])
+    await insert('lostall@larchwood.example', 'member', ['finance'])
+    const end = (table: string, where: string) =>
+      client.query(
+        `update ${table} set valid_at=tstzrange(lower(valid_at),now(),'[)') where person_id=$1 and valid_at @> now() ${where}`,
+        [sender],
+      )
+    await end('global_role_grants', '')
+    await end('area_assignments', "and area_id='finance'")
+    // No longer an admin, and still an owner of marketing: the admin invite stands for nothing,
+    // the two-domain invite gives marketing only, and an invite to a lost domain gives nothing.
+    expect(await accept('lostadmin@larchwood.example')).toBeNull()
+    expect(await accept('lostall@larchwood.example')).toBeNull()
+    const person = await accept('lostone@larchwood.example')
+    expect(person).toMatch(/^[0-9a-f-]{36}$/)
+    const owns = await client.query(
+      "select area_id from area_assignments where person_id=$1 and role='owner' and valid_at @> now()",
+      [person],
+    )
+    expect(owns.rows).toEqual([{ area_id: 'marketing' }])
+    const open = (await openInvites(admin)).map((i) => i.email)
+    expect(open).toEqual(
+      expect.arrayContaining(['lostadmin@larchwood.example', 'lostall@larchwood.example']),
+    )
+    expect(open).not.toContain('lostone@larchwood.example')
+    const made = await client.query(
+      "select 1 from people where email in ('lostadmin@larchwood.example','lostall@larchwood.example')",
+    )
+    expect(made.rowCount).toBe(0)
   })
 })
 

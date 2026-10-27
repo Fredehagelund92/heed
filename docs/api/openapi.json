@@ -102303,6 +102303,21 @@
                               "outcome",
                               "invite"
                             ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "email": {
+                                "type": "string"
+                              },
+                              "outcome": {
+                                "const": "removed"
+                              }
+                            },
+                            "required": [
+                              "email",
+                              "outcome"
+                            ]
                           }
                         ]
                       }

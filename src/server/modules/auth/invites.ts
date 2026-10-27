@@ -31,6 +31,8 @@ const iso = (column: string) =>
 const inviteColumns = `i.id::text, i.email, i.role, i.area_ids as "areaIds", i.invited_by::text as "invitedBy",
   ${iso('i.sent_at')} as "sentAt", ${iso('i.expires_at')} as "expiresAt", i.expires_at <= now() as expired`
 const open = 'i.accepted_at is null and i.revoked_at is null'
+const resendRefused =
+  'Only an admin, or the sender while they still own the domains, sends an invite again.'
 const gone = () =>
   new ORPCError('NOT_FOUND', {
     message: "We couldn't find this invite. It may have been accepted or taken back.",
@@ -87,6 +89,16 @@ export async function createInvites(
       results.push({ email, outcome: 'member', personId: member.id })
       continue
     }
+    if (!actor.admin) {
+      const [gone] = await tx.query(
+        'select 1 from people where email=$1 and deactivated_at is not null and erased_at is null',
+        [email],
+      )
+      if (gone) {
+        results.push({ email, outcome: 'removed' })
+        continue
+      }
+    }
     const [pending] = await tx.query<Invite>(
       `select ${inviteColumns} from invites i where i.email=$1 and ${open}`,
       [email],
@@ -116,13 +128,22 @@ export async function createInvites(
   return { results }
 }
 
-/** Sends an invite again, by its sender or an admin: a new link for another week; the old one stops. */
+/**
+ * Sends an invite again, by an admin or by its sender while they could still make it (a Member
+ * invite to domains they still own): a new link for another week; the old one stops. */
 export async function resendInvite(
   tx: Queryable,
   id: string,
   webOrigin: string,
 ): Promise<InviteResent> {
   await visibleOpen(tx, id)
+  const [allowed] = await tx.query(
+    `select 1 from invites i
+      where i.id=$1 and (cl_is_admin_now()
+            or (i.role='member' and cardinality(i.area_ids) > 0 and cl_owns_all(i.area_ids)))`,
+    [id],
+  )
+  if (!allowed) throw new ORPCError('FORBIDDEN', { message: resendRefused })
   const token = newToken()
   const [invite] = await tx.query<Invite>(
     `with sent as (
@@ -131,10 +152,7 @@ export async function resendInvite(
      select ${inviteColumns} from sent i`,
     [id, inviteTokenHash(token), INVITE_DAYS],
   )
-  if (!invite)
-    throw new ORPCError('FORBIDDEN', {
-      message: 'Only whoever sent an invite, or an admin, sends it again.',
-    })
+  if (!invite) throw new ORPCError('FORBIDDEN', { message: resendRefused })
   await record(tx, 'invite.resent', invite)
   return { invite, link: inviteLink(webOrigin, token) }
 }

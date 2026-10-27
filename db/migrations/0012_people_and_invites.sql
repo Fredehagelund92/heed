@@ -86,7 +86,11 @@ create policy invites_insert on public.invites for insert
                      or (role = 'member' and cardinality(area_ids) > 0 and public.cl_owns_all(area_ids))));
 create policy invites_update on public.invites for update
     using (public.cl_is_admin_now() or invited_by = public.cl_person())
-    with check (accepted_at is null and (revoked_at is null or revoked_by = public.cl_person()));
+    with check (accepted_at is null
+                and ((revoked_at is not null and revoked_by = public.cl_person())
+                     or (revoked_at is null
+                         and (public.cl_is_admin_now()
+                              or (role = 'member' and cardinality(area_ids) > 0 and public.cl_owns_all(area_ids))))));
 
 -- Owners give and end the ownership of their own domains; every other role stays an admin's.
 drop policy assignments_insert on public.area_assignments;
@@ -100,7 +104,10 @@ create policy assignments_update on public.area_assignments for update
 -- Accepts the open invite of an address that a sign-in has just proven, once: makes the person, or
 -- on an admin's invite brings back one who was removed, gives the invite's role and the ownership
 -- of each of its domains that still exists, and closes it. Returns the person, or null when the
--- address has no open invite that is still in time (or one that may not bring them back). Runs as
+-- address has no open invite that is still in time, or one whose sender has since lost the
+-- authority to make it (an admin invite needs a sender who is still an admin; a member invite
+-- gives ownership only of the domains its sender is still an owner of, or any if still an admin,
+-- and nothing at all when the sender is neither). Runs as
 -- the owner: nobody is signed in yet. Takes the role lock first, as every role change does
 -- (src/server/modules/auth/roles.ts).
 create function auth.accept_invite(p_email text, p_name text) returns uuid
@@ -113,6 +120,8 @@ declare
   erased boolean;
   removed boolean;
   area text;
+  areas text[];
+  sender_admin boolean;
   name text := nullif(btrim(p_name), '');
 begin
   perform pg_advisory_xact_lock(hashtextextended('heed.roles', 0));
@@ -123,7 +132,13 @@ begin
   select id, erased_at is not null, deactivated_at is not null into person, erased, removed
     from people where email = invite.email;
   -- An erased person never comes back; one an admin removed comes back only on an admin's invite.
-  if erased or (removed and not cl_is_admin(invite.invited_by, now())) then return null; end if;
+  sender_admin := cl_is_admin(invite.invited_by, now());
+  if erased or (removed and not sender_admin) then return null; end if;
+  select coalesce(array_agg(a.id order by a.id), '{}') into areas from areas a
+   where a.id = any(invite.area_ids) and a.archived_at is null
+     and (sender_admin or cl_has_area_role(invite.invited_by, a.id, 'owner', now()));
+  if invite.role = 'admin' and not sender_admin then return null; end if;
+  if invite.role = 'member' and not sender_admin and cardinality(areas) = 0 then return null; end if;
   if person is null then
     insert into people(email, display_name) values (invite.email, coalesce(name, invite.email))
       returning id into person;
@@ -141,7 +156,7 @@ begin
       values (invite.invited_by, 'person', 'role.granted', 'person', person::text,
               jsonb_build_object('role', 'administrator'), 'Invited', 'named');
   end if;
-  for area in select a.id from areas a where a.id = any(invite.area_ids) and a.archived_at is null order by a.id loop
+  foreach area in array areas loop
     if not cl_has_area_role(person, area, 'owner', now()) then
       insert into area_assignments(area_id, person_id, role, granted_by) values (area, person, 'owner', invite.invited_by);
       insert into audit_log(actor_id, actor_kind, action, area_id, subject_type, subject_id, details, reason, source)
