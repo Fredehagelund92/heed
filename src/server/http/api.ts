@@ -84,6 +84,7 @@ import {
   createReviewService,
   type ReviewService,
 } from '../modules/review/index.ts'
+import { createContextService } from '../modules/context/index.ts'
 import { createInboxFeedService } from '../modules/inbox/index.ts'
 import { createCommentsService } from '../modules/comments/index.ts'
 import {
@@ -224,11 +225,19 @@ export function createRouter({
             (id) => proposals.get(id),
             comments,
           )
+          const library = createLibraryService(tx, clock)
           return next({
             context: {
               tx,
               session,
-              library: createLibraryService(tx, clock),
+              library,
+              context: createContextService(tx, clock, answerBundles, {
+                library,
+                proposals,
+                review,
+                path: reviewPath,
+                readPage,
+              }),
               catalogue: createCatalogueService(tx, clock),
               areas: createAreasService(tx),
               people: createPeopleService(tx),
@@ -587,6 +596,40 @@ export function createRouter({
       links: authorized.items.links.handler(async ({ input, context }) =>
         found(await context.library.getLinks(input.id)),
       ),
+      page: authorized.items.page.handler(async ({ input, context }) =>
+        found(await context.context.page(input.id)),
+      ),
+      markRead: authorized.items.markRead.handler(({ input, context }) =>
+        context.context.markRead(input.id),
+      ),
+      related: authorized.items.related.handler(async ({ input, context }) =>
+        found(await context.context.related(input.id)),
+      ),
+      restoreAsDraft: authorized.items.restoreAsDraft.handler(({ input, context }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'items.restoreAsDraft', input, () =>
+          context.context.restoreAsDraft(input),
+        ),
+      ),
+      publish: authorized.items.publish.handler(({ input, context }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'items.publish', input, () =>
+          context.context.publish(input),
+        ),
+      ),
+      bulkPlan: authorized.items.bulkPlan.handler(({ input, context }) =>
+        context.context.plan(input),
+      ),
+      bulkApply: authorized.items.bulkApply.handler(({ input, context }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'items.bulkApply', input, () =>
+          context.context.bulkApply(input),
+        ),
+      ),
+      changes: authorized.items.changes.handler(({ context }) => context.context.changes()),
+      deleted: authorized.items.deleted.handler(({ context }) => context.context.deleted()),
+    },
+    drafts: {
+      fromText: authorized.drafts.fromText.handler(({ input, context }) =>
+        context.context.draftFromText(input.text),
+      ),
     },
     library: {
       index: authorized.library.index.handler(({ context }) => context.library.getIndex()),
@@ -865,6 +908,7 @@ export function createRouter({
           ]
           if (kind === 'decision' || kind === 'decisions')
             return context.path.undoDecisions(ids.split(','))
+          if (kind === 'change') return context.context.undoChange(ids)
           return context.cards.undoCard(input.token)
         }),
       ),

@@ -410,6 +410,19 @@ it, marked by that person only. `thread_reads` keeps when a person last opened a
 only. Agents never read any of it: the serving and analytics roles have no grant on these tables,
 and no edition or serving function reads them.
 
+Context (migration 0008). A context item's kind is part of each version (`item_versions.kind`),
+as its domain and words are; every version before 0008 took its item's kind, and `items.kind`
+stays as the kind it was created with. A version's content digest always held its kind, so
+sealed editions verify as before. A version written without a kind takes the kind of the
+version it follows (`item_versions_kind`). `item_owners` names who answers for an item beside
+its domain's owners: an owner of the item's domain or an administrator writes it, and each
+person named owns that domain or is an administrator (row security). `item_reads` keeps which
+items a person opened, only for that person. `item_changes` keeps one row per change to many
+items at once, with what Undo needs; only its maker marks it undone, once, inside
+`limits.undo_seconds`, and a deletion is read only by its maker and administrators. A deleted
+draft records who deleted it (`proposals.discarded_by`), and only that person brings it back,
+inside the same window and with nothing else changed (`proposals_guard_state`).
+
 ## Evaluations
 
 A run of the evaluation runner records who it acts for (`requested_by`: whoever started it);

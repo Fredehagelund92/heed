@@ -6,6 +6,7 @@
 export {
   askedThisWeek,
   createBundleCache,
+  liveBundle as liveServingBundle,
   lookupQuestion,
   reachOfDraft,
   replayTopic,

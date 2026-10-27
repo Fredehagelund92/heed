@@ -42,6 +42,7 @@ const library = {
       lastChecked: null,
       trust: 'current' as const,
       chips: [],
+      owners: [],
     },
   ],
 }

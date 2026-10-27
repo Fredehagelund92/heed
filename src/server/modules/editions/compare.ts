@@ -64,11 +64,11 @@ function classified(pairs: string, left: string, extra = ''): string {
            when vb.is_recheck and va.core_digest=vb.core_digest then 'checked'
            when va.content_digest=vb.content_digest then 'resaved'
            else 'changed' end as change,
-      coalesce(vb.title,va.title) as title,coalesce(vb.area_id,va.area_id) as "areaId",i.kind::text as kind,
+      coalesce(vb.title,va.title) as title,coalesce(vb.area_id,va.area_id) as "areaId",coalesce(vb.kind,va.kind)::text as kind,
       coalesce(vb.risk,va.risk)::text as "riskLevel",va.id::text as "fromId",va.version_no as "fromNo",
       vb.id::text as "toId",vb.version_no as "toNo",
       not (cl_version_open(p.a) and cl_version_open(p.b)) as withheld
-    from (${pairs}) p join items i on i.id=p.item_id
+    from (${pairs}) p
     left join item_versions va on va.id=p.a left join item_versions vb on vb.id=p.b`
 }
 

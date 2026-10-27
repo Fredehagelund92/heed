@@ -48,6 +48,7 @@ export const topicPhrases: Record<StreamTopic, Phrase> = {
   'proposal.created': () => 'started a draft',
   'proposal.saved': () => 'saved a draft',
   'proposal.discarded': () => 'discarded a draft',
+  'proposal.restored': () => 'brought back a deleted draft',
   'proposal.submitted': () => 'sent a proposal for review',
   'proposal.checked': () => 'We checked a proposal',
   'proposal.claimed': () => 'claimed the review',

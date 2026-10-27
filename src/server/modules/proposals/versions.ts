@@ -15,8 +15,8 @@ export async function insertVersion(
     `insert into item_versions
     (item_id,version_no,supersedes_version_id,area_id,title,summary,body,summary_markup,body_markup,
      risk,claim,claim_authority,claim_quote,owner_id,proposer_id,created_via,valid_from,valid_until,
-     review_date,not_to_conclude,content_digest,core_digest,is_recheck,edited_by)
-    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,decode($21,'hex'),decode($22,'hex'),$23,$24) returning id`,
+     review_date,not_to_conclude,content_digest,core_digest,is_recheck,edited_by,kind)
+    values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,decode($21,'hex'),decode($22,'hex'),$23,$24,$25) returning id`,
     [
       itemId,
       number!.n,
@@ -42,6 +42,7 @@ export async function insertVersion(
       digests.core,
       options.recheck ?? false,
       options.editedBy ?? null,
+      version.kind,
     ],
   )
   const id = row!.id
@@ -114,7 +115,7 @@ export function readVersions(tx: Queryable, ids: readonly string[]): Promise<Sto
       v.supersedes_version_id::text as supersedes,v.is_recheck as "isRecheck",
       v.audience_groups as "audienceGroups",encode(v.content_digest,'hex') as digest,
       jsonb_build_object(
-      'kind',i.kind,'areaId',v.area_id,'title',v.title,'summary',v.summary,
+      'kind',v.kind,'areaId',v.area_id,'title',v.title,'summary',v.summary,
       'mentions',coalesce((select jsonb_agg(jsonb_build_object('field',m.field,'position',m.position,
         'target',coalesce(m.term_key,'item:'||m.item_id,'area:'||m.area_id),'label',m.label) order by m.field,m.position)
         from item_version_mentions m where m.version_id=v.id),'[]'),
@@ -132,7 +133,7 @@ export function readVersions(tx: Queryable, ids: readonly string[]): Promise<Sto
       'conflicts',coalesce((select jsonb_agg(other_item_id order by other_item_id) from item_version_conflicts where version_id=v.id),'[]')) ||
       jsonb_strip_nulls(jsonb_build_object('body',v.body,'summaryMarkup',v.summary_markup,'bodyMarkup',v.body_markup,
         'claimAuthority',v.claim_authority,'claimQuote',v.claim_quote)) as version
-    from item_versions v join items i on i.id=v.item_id where v.id=any($1::uuid[]) order by v.item_id,v.version_no`,
+    from item_versions v where v.id=any($1::uuid[]) order by v.item_id,v.version_no`,
     [ids],
   )
 }

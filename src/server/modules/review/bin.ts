@@ -29,7 +29,7 @@ import { insertDecision, isAdmin } from './records.ts'
 /** Proposal states a reviewer still decides: none can be accepted while the item is in the Bin. */
 const OPEN_STATES = `('submitted','in_review','changes_requested')`
 
-const entryFields = `b.item_id as "itemId",i.kind::text as kind,v.area_id as "areaId",v.title,
+const entryFields = `b.item_id as "itemId",v.kind::text as kind,v.area_id as "areaId",v.title,
   v.version_no as version,b.reason,b.binned_by::text as "binnedBy",
   to_char(b.binned_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS"Z"') as "binnedAt",
   b.binned_edition is not null as "wasLive",
@@ -37,7 +37,7 @@ const entryFields = `b.item_id as "itemId",i.kind::text as kind,v.area_id as "ar
   (select count(*)::int from proposals p where p.item_id=b.item_id and p.discarded_at is null
     and p.state in ${OPEN_STATES}) as "openProposals"`
 // An item the audience rule hides counts as absent from the Bin too (0083).
-const entryFrom = `from item_bin b join items i on i.id=b.item_id
+const entryFrom = `from item_bin b
   join item_versions v on v.id=b.version_id and cl_version_open(v.id)
   join areas a on a.id=b.area_id`
 

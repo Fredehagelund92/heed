@@ -717,6 +717,7 @@ const actionNames: Record<string, string> = {
   'proposal.commented': 'Comment added',
   'proposal.withdrawn': 'Proposal withdrawn',
   'proposal.discarded': 'Draft discarded',
+  'proposal.restored': 'Deleted draft brought back',
   'proposal.test_attached': 'Test question added to a proposal',
   'proposal.test_detached': 'Test question removed from a proposal',
   'proposal.decided': 'Proposal decided',

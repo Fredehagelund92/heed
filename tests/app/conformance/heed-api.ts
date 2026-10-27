@@ -120,6 +120,65 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getLibrary', 'itemPage'))(
+      "reads a context item's page: the item and its versions, newest first",
+      async () => {
+        const live = await signedIn()
+        const item = (await live.getLibrary()).items.find((f) => f.status === 'Live')!
+        const page = await live.itemPage({ id: item.id })
+        expect(page?.item).toMatchObject({ id: item.id, title: item.title, kind: item.kind })
+        expect(page?.history.length).toBeGreaterThan(0)
+        const numbers = page!.history.map((v) => v.v)
+        expect(numbers).toEqual([...numbers].sort((a, b) => b - a))
+        expect(await live.itemPage({ id: 'itm_nothere001' })).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'applyBulk', 'undo'))(
+      'archives items together, and Undo puts exactly them back',
+      async () => {
+        const live = await signedIn()
+        const [a, b] = (await live.getLibrary()).items.filter((f) => f.status === 'Live')
+        const archive = { status: 'Archived' as const }
+        const { done, failed, undo } = await live.applyBulk({
+          patches: { [a!.id]: archive, [b!.id]: archive },
+          remove: [],
+          entry: {
+            id: 'conformance-archive',
+            on: '2026-10-23',
+            who: person,
+            what: 'archived',
+            summary: `Archived “${a!.title}” and 1 more.`,
+            items: [a!, b!].map((f) => ({ id: f.id, title: f.title, domain: f.domain })),
+          },
+        })
+        expect({ done: [...done].sort(), failed }).toEqual({
+          done: [a!.id, b!.id].sort(),
+          failed: [],
+        })
+        const status = async (id: string) =>
+          (await live.getLibrary()).items.find((f) => f.id === id)?.status
+        expect(await status(a!.id)).toBe('Archived')
+        await live.undo({ token: undo })
+        expect(await status(a!.id)).toBe('Live')
+        expect(await status(b!.id)).toBe('Live')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'draftFromText'))(
+      'makes a draft from pasted text, with words to check',
+      async () => {
+        const fact = await (
+          await signedIn()
+        ).draftFromText({
+          text: 'Orders in Norway paused from 3 October 2026 while the payment provider moved.',
+        })
+        expect(fact.title).not.toBe('')
+        expect(fact.summary).not.toBe('')
+        expect(['event', 'issue', 'note', 'guide']).toContain(fact.kind)
+      },
+    )
+
     /** The first undecided card of this type in the person's own Inbox. */
     async function cardOf(type: CardType): Promise<InboxCard> {
       await api().signIn({ name: person, fresh: false })

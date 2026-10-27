@@ -1402,15 +1402,29 @@ export function createReviewService(tx: Queryable, clock: Clock) {
      * CON-211: an owner records "checked, still correct". The new version keeps the content and
      * takes the current change marks and a new review date; the edition clears the needs-check flag.
      */
-    async recheck(itemId: string, reason: string) {
+    async recheck(
+      itemId: string,
+      reason: string,
+      /**
+       * Heed v1's Mark as checked (FR-139): an admin checks too, and a check is recorded even when
+       * nothing else moved, since who checked it, and when, is what people read.
+       */
+      { v1 = false }: { v1?: boolean } = {},
+    ) {
       await lockReleases(tx)
       plainReason(reason)
       const live = await liveStored(itemId)
       const roles = await rolesIn(tx, live.version.areaId)
-      const capacity = roles.has('owner') ? 'owner' : null
+      const capacity: Capacity | null = roles.has('owner')
+        ? 'owner'
+        : v1 && (await isAdmin(tx))
+          ? 'administrator'
+          : null
       if (!capacity)
         throw new ORPCError('FORBIDDEN', {
-          message: 'Only an owner of the domain can check this fact again.',
+          message: v1
+            ? 'Only an owner of the domain or an admin can check this fact again.'
+            : 'Only an owner of the domain can check this fact again.',
         })
       const marks = await tx.query<{ ref: string; mark: string; missing: boolean }>(
         `select r.ref,d.change_mark as mark,coalesce(d.missing_since_snapshot is not null,true) as missing
@@ -1445,6 +1459,7 @@ export function createReviewService(tx: Queryable, clock: Clock) {
             : live.version.reviewDate,
       }
       if (
+        !v1 &&
         !flag?.on &&
         version.reviewDate === live.version.reviewDate &&
         canonicalJson(version.changeMarks) === canonicalJson(live.version.changeMarks)

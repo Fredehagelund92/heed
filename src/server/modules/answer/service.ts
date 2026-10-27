@@ -80,7 +80,8 @@ export function createBundleCache(capacity = 4, ttl = 15_000, now = () => Date.n
 }
 export type BundleCache = ReturnType<typeof createBundleCache>
 
-async function liveBundle(tx: Queryable, cache: BundleCache): Promise<ServingBundle> {
+/** What agents get now, from the cache; refused when nothing is shared yet. */
+export async function liveBundle(tx: Queryable, cache: BundleCache): Promise<ServingBundle> {
   const head = await liveHead(tx)
   if (!head) throw nothingLive()
   return cache.bundle(tx, head)
