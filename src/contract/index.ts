@@ -228,6 +228,20 @@ import {
 } from './catalogue.ts'
 import { searchAllInputSchema, searchResultsSchema } from './search.ts'
 import {
+  definitionCoverageSchema,
+  deletedTermSchema,
+  termChangeResultSchema,
+  termCreateInputSchema,
+  termIdsInputSchema,
+  termListSchema,
+  termMoveInputSchema,
+  termRefusalSchema,
+  termRestoreResultSchema,
+  termSchema,
+  termUpdateInputSchema,
+  termVersionSchema,
+} from './terms.ts'
+import {
   commentIdSchema,
   commentSchema as threadCommentSchema,
   commentThreadsSchema,
@@ -364,6 +378,18 @@ export type {
   CatalogueTermDetail,
   CatalogueValue,
 } from './catalogue.ts'
+export type {
+  DefinitionCoverage,
+  DeletedTerm,
+  Term,
+  TermChangeResult,
+  TermCreateInput,
+  TermList,
+  TermRefusalData,
+  TermRestoreResult,
+  TermUpdateInput,
+  TermVersion,
+} from './terms.ts'
 export type {
   AuditEntry,
   ClientPolicy,
@@ -542,6 +568,19 @@ const commentWrite = read.errors({
     message: 'Check the comment, then try again.',
   },
 })
+
+/**
+ * A term or a synonym an owner writes (FR-138): a word that already means something is refused,
+ * naming what it means and who gave it that meaning.
+ */
+const termWrite = read.meta({ scope: 'propose' }).errors({
+  CONFLICT: {
+    message:
+      'This word already means something here, or someone changed the term after you opened it.',
+    data: z.optional(z.object({ refusal: termRefusalSchema })),
+  },
+})
+const termId = z.object({ id: z.string().check(z.uuid()) })
 
 const owner = read.meta({ scope: 'propose' }).errors({
   UNPROCESSABLE_CONTENT: {
@@ -1317,6 +1356,102 @@ export const contract = {
       .errors({ NOT_FOUND: { message: "We couldn't find this metric or dimension." } })
       .input(catalogueTermInputSchema)
       .output(catalogueTermDetailSchema),
+  },
+  terms: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/terms',
+        tags: ['library'],
+        summary:
+          'The terms and synonyms written here, by name, each with how much live context is about it and any conflict (FR-138)',
+      })
+      .output(termListSchema),
+    create: termWrite
+      .route({
+        method: 'POST',
+        path: '/terms',
+        tags: ['library'],
+        summary:
+          'Write a term with its own meaning, or another name for a metric, a dimension or a term; a word that already means something is refused, naming who has it (FR-138)',
+      })
+      .input(termCreateInputSchema)
+      .output(termSchema),
+    update: termWrite
+      .route({
+        method: 'PUT',
+        path: '/terms/{id}',
+        tags: ['library'],
+        summary:
+          "Change a term's word, meaning, what it is another name for, or domain, by an owner of its domain or an admin (FR-138)",
+      })
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this term. Someone may have deleted it." },
+      })
+      .input(termUpdateInputSchema)
+      .output(termSchema),
+    delete: read
+      .meta({ scope: 'propose' })
+      .route({
+        method: 'POST',
+        path: '/terms/delete',
+        tags: ['library'],
+        summary:
+          'Delete terms, with the synonyms that point at them; the rest are left as they were, with why, and one Undo takes it back',
+      })
+      .input(termIdsInputSchema)
+      .output(termChangeResultSchema),
+    move: read
+      .meta({ scope: 'propose' })
+      .route({
+        method: 'POST',
+        path: '/terms/move',
+        tags: ['library'],
+        summary:
+          'Move terms to another domain, with their synonyms; the rest are left as they were, with why, and one Undo takes it back',
+      })
+      .input(termMoveInputSchema)
+      .output(termChangeResultSchema),
+    restore: termWrite
+      .route({
+        method: 'POST',
+        path: '/terms/restore',
+        tags: ['library'],
+        summary:
+          'Bring deleted terms back, with the synonyms deleted with them; a word that means something else by now stays deleted, with why',
+      })
+      .input(termIdsInputSchema)
+      .output(termRestoreResultSchema),
+    deleted: read
+      .route({
+        method: 'GET',
+        path: '/terms/deleted',
+        tags: ['library'],
+        summary:
+          'Terms that were deleted, newest first, with who deleted them and the synonyms that went with them: Settings, Advanced, Deleted',
+      })
+      .output(z.array(deletedTermSchema)),
+    history: read
+      .route({
+        method: 'GET',
+        path: '/terms/{id}/history',
+        tags: ['library'],
+        summary: "A term's versions, newest first: what each write made of it, and who wrote it",
+      })
+      .errors({ NOT_FOUND: { message: "We couldn't find this term." } })
+      .input(termId)
+      .output(z.array(termVersionSchema)),
+  },
+  definitions: {
+    coverage: read
+      .route({
+        method: 'GET',
+        path: '/definitions/coverage',
+        tags: ['library'],
+        summary:
+          'What agents can be asked about with nothing written down: each metric and term with its own meaning, and how many live context items are about it',
+      })
+      .output(definitionCoverageSchema),
   },
   areas: {
     list: read

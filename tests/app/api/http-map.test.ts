@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { CatalogueTerm, LibraryItem, Thread } from '@contract/index'
+import type { CatalogueTerm, LibraryItem, Term, Thread } from '@contract/index'
 import {
   bodyFromService,
   bodyToService,
@@ -8,7 +8,9 @@ import {
   definitionsOf,
   factsOf,
   hitsOf,
+  refusalOf,
   statusOf,
+  termDefinitionsOf,
   validityOf,
   type Names,
   type People,
@@ -349,5 +351,90 @@ describe('reading comments', () => {
     expect(read.mentionSeen).toEqual({
       'review:0f8fad5b-d9cb-469f-a165-70867728950e|Ines Duarte': true,
     })
+  })
+})
+
+describe('the terms written here', () => {
+  const term = (patch: Partial<Term> = {}): Term => ({
+    id: '00000000-0000-4000-8000-000000000001',
+    name: 'Peak season',
+    meaning: '15 November to 31 December.',
+    sameAs: null,
+    areaId: 'area_marketing',
+    createdBy: 'per_tomas',
+    createdAt: '2026-09-18T09:00:00.000Z',
+    updatedBy: 'per_tomas',
+    updatedAt: '2026-09-18T09:00:00.000Z',
+    revision: 1,
+    items: 2,
+    conflict: null,
+    canChange: false,
+    ...patch,
+  })
+  const person = (id: string) => (id === 'per_tomas' ? 'Tomas Eriksen' : 'Jon Abara')
+
+  it('reads a term and a synonym as definitions, by who wrote them', () => {
+    expect(
+      termDefinitionsOf(
+        [
+          term(),
+          term({
+            name: 'GMV',
+            meaning: null,
+            sameAs: { ref: 'metric:gross_sales', name: 'Gross sales', type: 'metric' },
+            areaId: null,
+            createdBy: 'per_jon',
+          }),
+        ],
+        person,
+      ),
+    ).toEqual([
+      {
+        name: 'Peak season',
+        type: 'term',
+        definition: '15 November to 31 December.',
+        synced: false,
+        sourceNames: [],
+        domain: 'area_marketing',
+        by: 'Tomas Eriksen',
+        updated: '18 Sep 2026',
+      },
+      {
+        name: 'GMV',
+        type: 'term',
+        definition: '',
+        sameAs: 'Gross sales',
+        synced: false,
+        sourceNames: [],
+        by: 'Jon Abara',
+        updated: '18 Sep 2026',
+      },
+    ])
+  })
+
+  it("reads a refused word as the synonym box's reason, and nothing else as one", () => {
+    expect(
+      refusalOf({
+        status: 409,
+        message: '“Turnover” is already another name for Net revenue, added by Sofia Brandt.',
+        data: { refusal: { code: 'taken', holder: 'Net revenue', by: 'Sofia Brandt' } },
+      }),
+    ).toEqual({
+      ok: false,
+      why: 'taken',
+      reason: '“Turnover” is already another name for Net revenue, added by Sofia Brandt.',
+      holder: 'Net revenue',
+      by: 'Sofia Brandt',
+    })
+    expect(
+      refusalOf({
+        status: 409,
+        message: 'Net revenue is already called “net sales”.',
+        data: { refusal: { code: 'here', holder: 'Net revenue', by: null } },
+      }),
+    ).not.toHaveProperty('by')
+    expect(refusalOf({ status: 409, message: 'Someone changed this term.' })).toBeNull()
+    expect(refusalOf({ status: 403, message: 'No.', data: { refusal: {} } })).toBeNull()
+    expect(refusalOf(new Error('offline'))).toBeNull()
   })
 })

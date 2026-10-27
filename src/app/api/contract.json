@@ -1370,6 +1370,154 @@
       }
     }
   },
+  "terms": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/terms",
+          "tags": [
+            "library"
+          ],
+          "summary": "The terms and synonyms written here, by name, each with how much live context is about it and any conflict (FR-138)"
+        }
+      }
+    },
+    "create": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/terms",
+          "tags": [
+            "library"
+          ],
+          "summary": "Write a term with its own meaning, or another name for a metric, a dimension or a term; a word that already means something is refused, naming who has it (FR-138)"
+        }
+      }
+    },
+    "update": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "PUT",
+          "path": "/terms/{id}",
+          "tags": [
+            "library"
+          ],
+          "summary": "Change a term's word, meaning, what it is another name for, or domain, by an owner of its domain or an admin (FR-138)"
+        }
+      }
+    },
+    "delete": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/terms/delete",
+          "tags": [
+            "library"
+          ],
+          "summary": "Delete terms, with the synonyms that point at them; the rest are left as they were, with why, and one Undo takes it back"
+        }
+      }
+    },
+    "move": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/terms/move",
+          "tags": [
+            "library"
+          ],
+          "summary": "Move terms to another domain, with their synonyms; the rest are left as they were, with why, and one Undo takes it back"
+        }
+      }
+    },
+    "restore": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/terms/restore",
+          "tags": [
+            "library"
+          ],
+          "summary": "Bring deleted terms back, with the synonyms deleted with them; a word that means something else by now stays deleted, with why"
+        }
+      }
+    },
+    "deleted": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/terms/deleted",
+          "tags": [
+            "library"
+          ],
+          "summary": "Terms that were deleted, newest first, with who deleted them and the synonyms that went with them: Settings, Advanced, Deleted"
+        }
+      }
+    },
+    "history": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/terms/{id}/history",
+          "tags": [
+            "library"
+          ],
+          "summary": "A term's versions, newest first: what each write made of it, and who wrote it"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "coverage": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/definitions/coverage",
+          "tags": [
+            "library"
+          ],
+          "summary": "What agents can be asked about with nothing written down: each metric and term with its own meaning, and how many live context items are about it"
+        }
+      }
+    }
+  },
   "areas": {
     "list": {
       "~orpc": {

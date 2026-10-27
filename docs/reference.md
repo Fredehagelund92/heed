@@ -629,6 +629,51 @@ Mark as checked records a check even when nothing else moved, for an owner of th
 admin; `POST /proposals/{id}/discard` and `POST /items/{id}/recheck` keep their own rules for the
 earlier screens.
 
+## Terms and synonyms
+
+Definitions (docs/product.md, section 3) keeps the words people write beside the metrics and
+dimensions the definitions source syncs, which stay read only (FR-138). These operations are typed
+in `src/contract/terms.ts`. Writes need the session cookie, `Origin`, `x-heed-csrf` and an
+`Idempotency-Key`. A term is a word with its own `meaning`; a synonym is another name for a metric,
+a dimension or a term (`sameAs`: `metric:<id>`, `dim:<id>` or `term:<id>`), and a synonym of a
+synonym means what that one means.
+
+- `GET /terms` lists the terms and synonyms, by word. Each says who wrote it and when, its
+  `revision`, its domain (a synonym's is what it means), how many live context items are about it
+  (`items`: those agents get whose words use the term or one of its synonyms; null for a synonym),
+  whether the person may change it (`canChange`), and its `conflict`, when it misleads agents now:
+  a sync gave its word to a metric or a dimension it does not mean (`source`), or what it means is
+  no longer in the definitions (`missing`).
+- `POST /terms` takes `{ name, meaning? | sameAs?, areaId? }`, and `PUT /terms/{id}` the same with
+  the `revision` the person read. An owner of the term's domain or an admin writes it (403
+  otherwise); a word with no domain is an admin's. One word has one meaning across the workspace:
+  a word, compared trimmed, its spaces folded and case aside, that the vocabulary, the definitions
+  source or another term already uses is refused with 409, `data.refusal` `{ code, holder, by }`
+  and a sentence that names who has it. `here`: what it would mean is already called that;
+  `source`: a metric's or a dimension's name, other name, or the source's name for one; `taken`:
+  another term's synonym, with who added it; `term`: a term with its own meaning, with who wrote it.
+  An edit that keeps the word and what it means still saves when a later sync gave the word a
+  second meaning; the conflict stays shown until its owner renames it. A term other words point at
+  keeps its own meaning.
+- `POST /terms/delete` takes `{ ids }` and `POST /terms/move` takes `{ ids, areaId }`, up to 200
+  terms. A deleted term takes the synonyms that point at it with it; a moved one takes them to its
+  new domain, and a synonym moves only with what it means. What the person may not change is left
+  as it was, in `skipped` with why. One `terms:<id>` token undoes the whole change within
+  `limits.undo_seconds`, for its maker only.
+- `GET /terms/deleted` lists the deleted terms, newest first, with who deleted them and the
+  synonyms that went with them, for the domain's owners, admins and whoever deleted them.
+  `POST /terms/restore` takes `{ ids }` and brings each back with its synonyms; a word that means
+  something else by now stays deleted, in `skipped` with why. A term is never removed.
+- `GET /terms/{id}/history` is a term's versions, newest first: what each write made of it
+  (`created`, `edited`, `moved`, `deleted`, `restored`) and who wrote it.
+- `GET /definitions/coverage` is coverage first: each metric and each term with its own meaning,
+  with how many live context items are about it, those with none first. A metric's items are
+  those that apply to it; a dimension is about every item, and a synonym's context is its
+  meaning's. `uncovered` of `measurable` have no context yet: agents asking about them get Not
+  found.
+
+Agents do not read terms and synonyms yet: the serving role has no grant on them.
+
 ## Live updates, inbox and activity
 
 Every write records an event in `outbox_events` in its own transaction. The relay

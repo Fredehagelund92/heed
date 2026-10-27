@@ -12,6 +12,10 @@ import type { CardType, InboxCard } from '@/model/inbox'
 import { mentionNotesOf, type Subject } from '@/model/comments'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import { readiness } from '@/model/review'
+import { findDefinition, meaningOf, type Definition } from '@/lib/definitions'
+
+/** Two names for the same word: case aside. */
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
 export type HeedApiConformance = {
   /** Someone the binding's sign-in offers, by name. */
@@ -119,6 +123,147 @@ export function describeHeedApi(
           expect(new Set(d.sourceNames).size, d.name).toBe(d.sourceNames.length)
           if (d.type !== 'term') expect(d.synced, d.name).toBe(true)
         }
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getDefinitions'))(
+      'lists the terms written here: each by who wrote it, a synonym naming a definition in the list',
+      async () => {
+        const all = await (await signedIn()).getDefinitions()
+        const terms = all.filter((d) => d.type === 'term')
+        expect(terms.length).toBeGreaterThan(0)
+        for (const t of terms) {
+          expect(t.synced, t.name).toBe(false)
+          expect(t.by, t.name).toBeTruthy()
+          if (t.sameAs) {
+            expect(findDefinition(all, t.sameAs), t.name).toBeDefined()
+            expect(t.definition, t.name).toBe('')
+          } else expect(t.definition, t.name).not.toBe('')
+        }
+        expect(terms.some((t) => t.sameAs)).toBe(true)
+        expect(terms.some((t) => !t.sameAs)).toBe(true)
+      },
+    )
+
+    it.skipIf(
+      lacks('signIn', 'getWorkspace', 'getDefinitions', 'addSynonym', 'removeTerm', 'undo'),
+    )(
+      'adds another name for a definition once, refuses a word another term has, naming who wrote it, and takes it back',
+      async () => {
+        const live = await signedIn()
+        const me = (await live.getWorkspace()).people.find((p) => p.name === person)!
+        const all = await live.getDefinitions()
+        const metric = all.find(
+          (d) => d.type === 'metric' && !!d.domain && me.owns.includes(d.domain),
+        )!
+        const word = `Conformance ${metric.name}`
+        expect(await live.addSynonym({ target: metric.name, word })).toEqual({
+          ok: true,
+          created: true,
+        })
+        const after = await live.getDefinitions()
+        expect(findDefinition(after, word)).toMatchObject({
+          type: 'term',
+          sameAs: metric.name,
+          synced: false,
+          by: person,
+        })
+        // The same word again, whatever its case, is said already: never saved twice.
+        expect(
+          await live.addSynonym({ target: metric.name, word: word.toUpperCase() }),
+        ).toMatchObject({ ok: false, why: 'here', holder: metric.name })
+        // A word another synonym has means something else.
+        const taken = after.find(
+          (d) =>
+            d.sameAs &&
+            meaningOf(after, d).name !== metric.name &&
+            !after.some((x) => x.synced && x.sourceNames.some((n) => same(n, d.name))),
+        )!
+        const refused = await live.addSynonym({ target: metric.name, word: taken.name })
+        expect(refused).toMatchObject({ ok: false, why: 'taken', by: taken.by })
+        expect(refused.ok ? '' : refused.reason).toContain(
+          `“${taken.name}” is already another name for`,
+        )
+        expect(await live.addSynonym({ target: metric.name, word: '  ' })).toMatchObject({
+          ok: false,
+          why: 'empty',
+        })
+        // Removing it, and Undo.
+        const { undo } = await live.removeTerm({ name: word })
+        expect(findDefinition(await live.getDefinitions(), word)).toBeUndefined()
+        await live.undo({ token: undo })
+        expect(findDefinition(await live.getDefinitions(), word)).toMatchObject({
+          sameAs: metric.name,
+        })
+        await live.removeTerm({ name: word })
+      },
+    )
+
+    it.skipIf(
+      lacks(
+        'signIn',
+        'getWorkspace',
+        'getDefinitions',
+        'saveTerm',
+        'addSynonym',
+        'moveTerms',
+        'deleteTerms',
+        'undo',
+      ),
+    )(
+      'writes a term and renames it, moves it, and deletes it with its synonyms, each with Undo',
+      async () => {
+        const live = await signedIn()
+        const { domains, people } = await live.getWorkspace()
+        const home = people.find((p) => p.name === person)!.owns[0]!
+        const away = domains.find((d) => d.id !== home)!.id
+        const named = async (name: string) => findDefinition(await live.getDefinitions(), name)
+        const term = (name: string, domain: string): Definition => ({
+          name,
+          type: 'term',
+          definition: 'The weeks the suite runs.',
+          synced: false,
+          sourceNames: [],
+          domain,
+          by: person,
+          updated: '',
+        })
+        await live.saveTerm({ term: term('Conformance season', home) })
+        expect(await named('Conformance season')).toMatchObject({
+          type: 'term',
+          definition: 'The weeks the suite runs.',
+          domain: home,
+          by: person,
+        })
+        await live.saveTerm({
+          previous: 'Conformance season',
+          term: term('Conformance weeks', home),
+        })
+        expect(await named('Conformance season')).toBeUndefined()
+        expect(await live.addSynonym({ target: 'Conformance weeks', word: 'Suite weeks' })).toEqual(
+          { ok: true, created: true },
+        )
+
+        const moved = await live.moveTerms({ names: ['Conformance weeks'], domain: away })
+        expect((await named('Conformance weeks'))?.domain).toBe(away)
+        await live.undo({ token: moved.undo })
+        expect((await named('Conformance weeks'))?.domain).toBe(home)
+
+        const entry = {
+          id: 'conformance-delete-terms',
+          on: '2026-10-23',
+          who: person,
+          what: 'deleted' as const,
+          summary: 'Deleted “Conformance weeks”.',
+          items: [{ id: 'Conformance weeks', title: 'Conformance weeks' }],
+        }
+        const deleted = await live.deleteTerms({ names: ['Conformance weeks'], entry })
+        expect(await named('Conformance weeks')).toBeUndefined()
+        expect(await named('Suite weeks')).toBeUndefined()
+        await live.undo({ token: deleted.undo })
+        expect(await named('Conformance weeks')).toMatchObject({ domain: home })
+        expect(await named('Suite weeks')).toMatchObject({ sameAs: 'Conformance weeks' })
+        await live.deleteTerms({ names: ['Conformance weeks'], entry })
       },
     )
 

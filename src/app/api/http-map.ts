@@ -1,13 +1,15 @@
 /**
  * The http binding's reading of the service's answers into the shapes the screens read: the
- * library index into context items, the catalogue into definitions, search everywhere into its
- * groups, and the threads into comments. Pure, so the rules are tested without a service.
+ * library index into context items, the catalogue and the terms into definitions, a refused word
+ * into the synonym box's reason, search everywhere into its groups, and the threads into comments. Pure, so the rules are tested without a service.
  */
 import type { JSONContent } from '@tiptap/core'
 import type {
   CatalogueTerm,
   LibraryItem,
   SearchResults,
+  Term,
+  TermRefusalData,
   Thread,
   ThreadComment,
 } from '@contract/index'
@@ -16,7 +18,7 @@ import type {
   CommentReaction,
   CommentReply,
 } from '@/components/templates/comment-box/types'
-import type { Definition } from '@/lib/definitions'
+import type { Definition, SynonymCheck } from '@/lib/definitions'
 import type { Comments, Subject } from '@/model/comments'
 import type { Fact, Kind, Status } from '@/model/items'
 import { shiftDate } from '@domain/validity'
@@ -95,6 +97,44 @@ export function definitionsOf(terms: readonly CatalogueTerm[]): Definition[] {
       : {}),
     updated: term.shelf.lastUpdated ? dateLabel(term.shelf.lastUpdated.slice(0, 10)) : '',
   }))
+}
+
+/** The terms and synonyms written here as definitions: a synonym names what it means. */
+export function termDefinitionsOf(
+  terms: readonly Term[],
+  person: (id: string) => string,
+): Definition[] {
+  return terms.map((term) => ({
+    name: term.name,
+    type: 'term',
+    definition: term.meaning ?? '',
+    ...(term.sameAs ? { sameAs: term.sameAs.name } : {}),
+    synced: false,
+    sourceNames: [],
+    ...(term.areaId ? { domain: term.areaId } : {}),
+    by: person(term.createdBy),
+    updated: dateLabel(term.updatedAt.slice(0, 10)),
+  }))
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/**
+ * A word the service refused because it already means something, as the synonym box says it: what
+ * it means and who gave it that meaning. Null for any other failure.
+ */
+export function refusalOf(error: unknown): Exclude<SynonymCheck, { ok: true }> | null {
+  if (!isRecord(error) || error.status !== 409 || !isRecord(error.data)) return null
+  const refusal = error.data.refusal as TermRefusalData | undefined
+  if (!isRecord(refusal) || typeof error.message !== 'string') return null
+  return {
+    ok: false,
+    why: refusal.code,
+    reason: error.message,
+    holder: refusal.holder,
+    ...(refusal.by ? { by: refusal.by } : {}),
+  }
 }
 
 /** Search everywhere's groups in the app's words. */
