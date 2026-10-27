@@ -17,6 +17,9 @@ interface Config {
   username?: string
 }
 
+/** The id of the chosen folder itself, as a scope: every file in it unless a deeper folder takes it. */
+const TOP = '.'
+
 const markdown = /\.(md|markdown)$/i
 
 /** A path in the repository from one inside the chosen folder. */
@@ -57,8 +60,8 @@ const suggestedDomain = (folder: string) => {
 export function scopeOf(scopes: readonly ChosenScope[], path: string): ChosenScope | null {
   let found: ChosenScope | null = null
   for (const scope of scopes) {
-    const inside = scope.id === '' || path === scope.id || path.startsWith(`${scope.id}/`)
-    if (inside && (!found || scope.id.length > found.id.length)) found = scope
+    const inside = scope.id === TOP || path === scope.id || path.startsWith(`${scope.id}/`)
+    if (inside && (!found || (found.id === TOP || scope.id.length > found.id.length))) found = scope
   }
   return found
 }
@@ -142,7 +145,7 @@ export const runtime = defineRuntime<Config>({
         ...((await tree.files()).some(
           (file) => !file.path.includes('/') && markdown.test(file.path),
         )
-          ? [{ id: '', title: top || 'Top of the repository', suggestedDomain: null }]
+          ? [{ id: TOP, title: top || 'Top of the repository', suggestedDomain: null }]
           : []),
         ...(await tree.folders()).map((folder) => ({
           id: folder,

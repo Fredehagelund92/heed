@@ -356,6 +356,14 @@ export class ContentPipeline {
         // A draft the checks refuse is not offered; nothing it began is kept.
         if (!(error instanceof ORPCError)) throw error
         await tx.query('rollback to savepoint content_document')
+        if (
+          await withdraw(
+            document.id,
+            previous,
+            'The document changed, and cannot be suggested any more.',
+          )
+        )
+          counts.withdrawn++
         await skip(document, mark, 'not_valid')
         await tx.query('release savepoint content_document')
       }

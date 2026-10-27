@@ -37,7 +37,7 @@ describe('Markdown in Git', () => {
 
   it('puts a file in the deepest chosen folder it is in', () => {
     const scopes = [
-      { id: '', title: 'docs', domain: 'general' },
+      { id: '.', title: 'docs', domain: 'general' },
       { id: 'sales', title: 'docs/sales', domain: 'sales' },
       { id: 'sales/emea', title: 'docs/sales/emea', domain: 'emea' },
     ]
