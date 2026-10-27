@@ -10,6 +10,7 @@ import type { ProposalRecord } from '@contract/proposals'
 import type { TermVersion } from '@contract/terms'
 import type { Draft } from '@domain/draft'
 import type { Vocabulary as ServiceVocabulary } from '@domain/item'
+import { defaultNotToConclude } from '@domain/proposal-rules'
 import { parseMentions, serializeMentions, type MentionPart } from '@domain/mentions'
 import { shiftDate } from '@domain/validity'
 import { mentionParts, mentionToken, parseMentionId } from '@/lib/mentions'
@@ -369,7 +370,7 @@ export function draftOf(fact: Fact, words: Words, today: string, before?: Fact):
     draft.validity = { start: fact.valid.from ?? today, end: endOf(fact.valid.until) }
   if (changed('source') || changed('quote'))
     draft.evidence = fact.source ? [{ url: fact.source, quote: fact.quote, date: today }] : []
-  if (changed('dontConclude') && fact.dontConclude) draft.notToConclude = fact.dontConclude
+  if (changed('dontConclude')) draft.notToConclude = fact.dontConclude || defaultNotToConclude
   return draft
 }
 
