@@ -15,6 +15,7 @@ import {
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import type { BundleCache } from '../answer/index.ts'
+import type { CommentsService } from '../comments/index.ts'
 import type { ServingBundle } from '../editions/index.ts'
 import type { GapsService } from '../gaps/index.ts'
 import { loadProposal, type ReviewPath, type ReviewService } from '../review/index.ts'
@@ -24,10 +25,11 @@ import { loadProposal, type ReviewPath, type ReviewService } from '../review/ind
   domain for an administrator), made from today's records and grouped by need. Not found: open
   gaps of those domains. Reported: anonymous feedback that said an answer was wrong or unclear,
   until an owner says it is not a problem (decided 26 October 2026; named reports follow with
-  P10). Due for a check: live items whose check date passed or whose definition changed.
-  Suggestions: those waiting for a decision. Under All, the person's own suggestions that wait on
-  an owner, and what was decided in the last two weeks. Saved questions and mentions join when
-  they exist (P12, P9).
+  P10). Mentioned you: threads where a comment mentions the person and they haven't read it,
+  whatever domain it is in. Due for a check: live items whose check date passed or whose
+  definition changed. Suggestions: those waiting for a decision. Under All, the person's own
+  suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions
+  join when they exist (P12).
 
   Counts from agents are counts only, with no words and no person (FR-602), and a count under the
   minimum is hidden (FR-614).
@@ -53,7 +55,12 @@ export function createInboxFeedService(
   tx: Queryable,
   clock: Clock,
   cache: BundleCache,
-  deps: { review: ReviewService; path: ReviewPath; gaps: GapsService },
+  deps: {
+    review: ReviewService
+    path: ReviewPath
+    gaps: GapsService
+    comments: Pick<CommentsService, 'mentionCards' | 'markMentionsRead'>
+  },
 ) {
   async function liveBundle(): Promise<ServingBundle | null> {
     const [head] = await tx.query<Head>(
@@ -357,6 +364,23 @@ export function createInboxFeedService(
     return cards
   }
 
+  /** One card for each thread with comments that mention the person, unread. */
+  async function mentions(): Promise<Card[]> {
+    return (await deps.comments.mentionCards()).map((m) => ({
+      id: cardKey.mention(m.subject),
+      group: 'mention' as const,
+      areaId: m.areaId,
+      at: m.at,
+      opened: false,
+      done: null,
+      subject: m.subject,
+      title: m.title,
+      commentId: m.commentId,
+      from: m.from,
+      excerpt: m.excerpt,
+    }))
+  }
+
   async function waiting(): Promise<Feed['waiting']> {
     return tx.query<Feed['waiting'][number]>(
       `select p.id::text as "proposalId", coalesce(v.title,p.draft->>'title','Untitled') as title,
@@ -421,11 +445,14 @@ export function createInboxFeedService(
       let cards = [
         ...(await gaps(bundle, min)),
         ...(await flags(areas)),
+        ...(await mentions()),
         ...(await checks(bundle, areas)),
         ...(await suggestions(areas)),
       ]
-      const seen = await opened(cards.filter((c) => c.group !== 'suggestion').map((c) => c.id))
-      cards = cards.map((c) => (c.group === 'suggestion' ? c : { ...c, opened: seen.has(c.id) }))
+      // A suggestion's card is opened by its read receipt, and a mention's by reading the thread.
+      const ownRead = (c: Card) => c.group === 'suggestion' || c.group === 'mention'
+      const seen = await opened(cards.filter((c) => !ownRead(c)).map((c) => c.id))
+      cards = cards.map((c) => (ownRead(c) ? c : { ...c, opened: seen.has(c.id) }))
       const waits = tab === 'all' ? await waiting() : []
       if (tab === 'all') {
         const open = new Set(cards.map((c) => c.id))
@@ -445,7 +472,14 @@ export function createInboxFeedService(
       for (const card of new Set(cards)) {
         const key = parseCardKey(card)
         if (!key) continue
-        if (key.kind === 'proposal') {
+        if (key.kind === 'mention') {
+          // Opening a mention's card is reading the comments that mention the person there.
+          const read = await deps.comments
+            .markMentionsRead({ subject: key.id })
+            .then(() => true)
+            .catch(() => false)
+          if (!read) continue
+        } else if (key.kind === 'proposal') {
           const p = await loadProposal(tx, key.id).catch(() => null)
           if (!p) continue
           await tx.query(

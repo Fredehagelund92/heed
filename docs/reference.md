@@ -499,8 +499,10 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   Overlaps (live items whose scope and dates overlap) are for information only.
 - `POST /review/{id}/publish` takes `{ revision, relations?, reason? }` and accepts the
   suggestion, which publishes it, for an owner of its domain or an administrator; a clash with
-  no answer is 422. `POST /review/{id}/return` takes `{ revision, note }`: the suggestion goes
-  back to its writer, and the note is its first comment.
+  no answer is 422. `POST /review/{id}/return` takes `{ revision, note, body? }`: the suggestion
+  goes back to its writer, and the note is its first comment, marked returned (`body` is the
+  note as the comment box wrote it, with its mentions; without it the comment is the note's
+  words).
 - `POST /review/{id}/read` takes `{ itemVersionId }` and records that the person read that
   version (FR-226); a version that is no longer the one under review is 409.
   `POST /review/publish-read` takes `{ ids }` (up to 50) and publishes each suggestion the
@@ -512,15 +514,19 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
 - `POST /decisions/undo` takes `{ token }` (FR-227). Only the person who decided undoes it, and
   only within `limits.undo_seconds` (15 by default); twice is once (409). Undoing a publish is a
   new `decision_undone` edition that serves again what the publish changed, and the suggestion
-  waits again; undoing a return sends it back to waiting. Nothing is deleted: the decision stays
-  as history, and a person may decide the same version again once they undid it.
+  waits again; undoing a return sends it back to waiting and takes its note out of the comments.
+  The decision stays as history, and a person may decide the same version again once they undid
+  it.
 - `GET /inbox/feed?tab=needs|all` lists the person's cards by need: Not found (`gap`), Reported
-  (`flag`), Due for a check (`check`), then suggestions. An owner gets those of their domains, an
-  administrator every domain, anyone else none. Reported cards are the anonymous wrong or unclear
+  (`flag`), Mentioned you (`mention`), Due for a check (`check`), then suggestions. An owner gets
+  those of their domains, an administrator every domain, anyone else none; a Mentioned you card
+  is the person's own, in any domain: one for each thread with a comment that mentions them and
+  that they haven't read, named `mention:<subject>`. Reported cards are the anonymous wrong or unclear
   reports of the last 90 days, with no person. Under All come what the person sent that waits
   on an owner and what was done in the last 14 days. `week` counts this week's agent questions,
   each hidden under `privacy.min_count` (FR-614).
-- `POST /inbox/cards/read` takes `{ cards }`: the person opened them. `POST /inbox/cards/decide`
+- `POST /inbox/cards/read` takes `{ cards }`: the person opened them (a Mentioned you card:
+  they read the comments that mention them there). `POST /inbox/cards/decide`
   takes `{ card, action, reason? }`, the one decision a card offers: `not_written` for a Not
   found card (the gap is set to `wont_fix`), `not_a_problem` for a Reported card (closed for
   every owner), and `still_true` or `archive` for a Due for a check card (a recheck or a
@@ -531,6 +537,42 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   the business is about, one context item, a question in Ask, an agent connected, and a source
   of definitions. Ask keeps no record of its own (FR-602), so its step is a mark with no person or
   question.
+
+## Comments, reactions and mentions
+
+People talk about a suggestion or a context item in a thread under it (FR-817; docs/product.md,
+section 4), through these operations, typed in `src/contract/comments.ts`. A thread is named as
+the app names it: `review:<suggestion id>` or `context:<item id>`. Anyone who may read the
+suggestion or the item reads its thread and writes in it; people edit and delete only their own
+words. Agents never read any of it: the serving role has no grant on these tables, and nothing an
+edition holds is built from them. Writes need the session cookie, `Origin`, `x-heed-csrf` and an
+`Idempotency-Key`.
+
+- A comment is the comment box's small document (Tiptap's JSON): paragraphs, bullet and numbered
+  lists, bold, italic, inline code, line breaks, and mentions of people as
+  `{ "type": "mention", "attrs": { "id": "person:<id>", "label": "<name>" } }`. Up to 2,000
+  characters of words and 20 people. Anything else is refused (400), and a mention of someone not
+  in the workspace is 422 (`src/domain/comments.ts`).
+- `GET /comments?subject=` reads one thread; without `subject`, every thread the person may read
+  that holds a comment or a reaction. A thread has its comments oldest first, each with its
+  replies (one level), its reactions, `editedAt`, and `deleted` for one deleted while something
+  answers it, whose words are gone. It also has the reactions on the suggestion or item itself,
+  `newReply` (the newest reply by someone else since the person last opened the thread or wrote
+  in it, in a thread they wrote in or a suggestion they sent) and `mentions` (the comments there
+  that mention them and that they haven't read).
+- `POST /comments` takes `{ subject, body, parentId? }`; writing in a thread is opening it.
+  `PUT /comments/{id}` takes `{ body }` and `DELETE /comments/{id}` deletes it, for its author only
+  (403 for anyone else, 409 once deleted). A deleted comment that a later one answers keeps its
+  place without its words (`removed: "kept"`), with its reactions and mentions gone; one nobody
+  answered goes (`removed: "gone"`).
+- `POST /reactions/toggle` takes `{ subject, commentId?, emoji }` and gives or takes back one of
+  the five reactions (👍 Agree, 👀 Looking, ✅ Done, 🤔 Not sure, 🙏 Thanks), once per person, on a
+  comment or on the suggestion or item itself; any other emoji is 400, and the database refuses
+  one too.
+- `POST /comments/threads/read` takes `{ subject }`: the person opened the thread, so no reply
+  before now is new to them. `POST /comments/mentions/read` takes `{ subject }`: they read the
+  comments that mention them there, and the Mentioned you card goes.
+- The history log names who created, edited or deleted which comment, never its words.
 
 ## Live updates, inbox and activity
 

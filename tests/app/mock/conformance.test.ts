@@ -10,4 +10,8 @@ beforeEach(() => {
   api = createMockApi().api
 })
 
-describeHeedApi('mock binding', () => api, { person: 'Jon Abara', wired: heedApiMethods })
+describeHeedApi('mock binding', () => api, {
+  person: 'Jon Abara',
+  wired: heedApiMethods,
+  colleague: 'Tomas Eriksen',
+})

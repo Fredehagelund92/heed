@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest'
 import { heedApiMethods, type HeedApi, type HeedApiMethod } from '@/api/client'
 import { whenLabel } from '@/model/validity'
 import type { CardType, InboxCard } from '@/model/inbox'
+import { mentionNotesOf, type Subject } from '@/model/comments'
+import { plainOf } from '@/components/templates/comment-box/utils'
 
 export type HeedApiConformance = {
   /** Someone the binding's sign-in offers, by name. */
@@ -18,12 +20,14 @@ export type HeedApiConformance = {
    * the Inbox's methods gives the person at least a suggestion and a Reported card in their Inbox.
    */
   wired: readonly HeedApiMethod[]
+  /** Someone else the sign-in offers, by name: the comments' second voice. */
+  colleague: string
 }
 
 export function describeHeedApi(
   name: string,
   getApi: () => HeedApi,
-  { person, wired }: HeedApiConformance,
+  { person, wired, colleague }: HeedApiConformance,
 ) {
   const api = () => getApi()
   const lacks = (...methods: HeedApiMethod[]) => methods.some((m) => !wired.includes(m))
@@ -188,6 +192,132 @@ export function describeHeedApi(
         expect((await api().inboxPage()).done[card.id]).toBeUndefined()
       },
     )
+
+    /* ---------- comments ---------- */
+
+    const comments = [
+      'signIn',
+      'getLibrary',
+      'getComments',
+      'postComment',
+    ] as const satisfies readonly HeedApiMethod[]
+    /** A paragraph of words, and a mention of someone when given. */
+    const said = (words: string, mention?: string) => ({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'text', text: words },
+            ...(mention
+              ? [{ type: 'mention', attrs: { id: `person:${mention}`, label: mention } }]
+              : []),
+          ],
+        },
+      ],
+    })
+    /** A live item's thread, signed in as `who`, and words of this run so a case finds its own. */
+    async function threadAs(who: string) {
+      await api().signIn({ name: who, fresh: false })
+      const item = (await api().getLibrary()).items.find((f) => f.status === 'Live')!
+      return { subject: `context:${item.id}` as Subject, mark: Math.random().toString(36).slice(2) }
+    }
+    const find = async (subject: Subject, id: string) =>
+      ((await api().getComments()).threads[subject] ?? [])
+        .flatMap((c) => [c, ...(c.replies ?? [])])
+        .find((c) => c.id === id)
+
+    it.skipIf(lacks(...comments))(
+      'posts a comment and a reply on a context item, by their author, and reads them back',
+      async () => {
+        const { subject, mark } = await threadAs(person)
+        const { id } = await api().postComment({ subject, content: said(`Still true? ${mark}`) })
+        await api().signIn({ name: colleague, fresh: false })
+        const reply = await api().postComment({
+          subject,
+          content: said(`Yes ${mark}`),
+          parentId: id,
+        })
+        const thread = (await api().getComments()).threads[subject] ?? []
+        const top = thread.find((c) => c.id === id)
+        expect(top).toMatchObject({ author: person })
+        expect(plainOf(top!.content)).toBe(`Still true? ${mark}`)
+        expect(top!.when).not.toBe('')
+        expect(top!.replies?.map((r) => [r.id, r.author, plainOf(r.content)])).toEqual([
+          [reply.id, colleague, `Yes ${mark}`],
+        ])
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'editComment', 'removeComment'))(
+      'lets only the author edit and delete, and keeps a deleted comment that is answered',
+      async () => {
+        const { subject, mark } = await threadAs(person)
+        const { id } = await api().postComment({ subject, content: said(`First ${mark}`) })
+        await api().signIn({ name: colleague, fresh: false })
+        await expect(
+          api().editComment({ subject, id, content: said(`Mine ${mark}`) }),
+        ).rejects.toMatchObject({ kind: 'forbidden' })
+        await expect(api().removeComment({ subject, id })).rejects.toMatchObject({
+          kind: 'forbidden',
+        })
+        await api().postComment({ subject, content: said(`Agreed ${mark}`), parentId: id })
+        await api().signIn({ name: person, fresh: false })
+        await api().editComment({ subject, id, content: said(`Second ${mark}`) })
+        const edited = await find(subject, id)
+        expect(edited).toMatchObject({ edited: true })
+        expect(plainOf(edited!.content)).toBe(`Second ${mark}`)
+        await api().removeComment({ subject, id })
+        expect(await find(subject, id)).toMatchObject({ deleted: true })
+        const alone = await api().postComment({ subject, content: said(`Never mind ${mark}`) })
+        await api().removeComment({ subject, id: alone.id })
+        expect(await find(subject, alone.id)).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'reactToComment', 'reactToSubject'))(
+      'gives and takes back one of the five reactions, and no other',
+      async () => {
+        const { subject, mark } = await threadAs(person)
+        const mine = (list: { emoji: string; by: string[] }[] | undefined) =>
+          (list ?? []).filter((r) => r.by.includes(person)).map((r) => r.emoji)
+        const before = mine((await api().getComments()).reactions[subject])
+        const emoji = before.includes('🙏') ? '🤔' : '🙏'
+        await api().reactToSubject({ subject, emoji })
+        expect(mine((await api().getComments()).reactions[subject])).toContain(emoji)
+        await api().reactToSubject({ subject, emoji })
+        expect(mine((await api().getComments()).reactions[subject])).not.toContain(emoji)
+        const { id } = await api().postComment({ subject, content: said(`Shipped ${mark}`) })
+        await api().reactToComment({ subject, id, emoji: '✅' })
+        expect(mine((await find(subject, id))!.reactions)).toEqual(['✅'])
+        await expect(api().reactToSubject({ subject, emoji: '🎉' as '👍' })).rejects.toMatchObject({
+          kind: 'invalid',
+        })
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'markMentionSeen'))(
+      'brings a mention to the person mentioned until they read it',
+      async () => {
+        const { subject, mark } = await threadAs(person)
+        const { id } = await api().postComment({
+          subject,
+          content: said(`Can you check? ${mark} `, colleague),
+        })
+        await api().signIn({ name: colleague, fresh: false })
+        const notes = mentionNotesOf(await api().getComments()).get(colleague) ?? []
+        expect(notes.find((n) => n.id === id)).toMatchObject({ subject, from: person })
+        await api().markMentionSeen({ subject })
+        const after = mentionNotesOf(await api().getComments()).get(colleague) ?? []
+        expect(after.some((n) => n.subject === subject)).toBe(false)
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'markThreadSeen'))('opens a thread', async () => {
+      const { subject } = await threadAs(person)
+      await api().markThreadSeen({ subject })
+      expect((await api().getComments()).newReplies[subject]).toBeUndefined()
+    })
 
     it.skipIf(lacks('signIn'))('refuses someone the sign-in does not offer', async () => {
       await expect(api().signIn({ name: 'Nobody Here', fresh: false })).rejects.toMatchObject({

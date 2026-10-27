@@ -24,7 +24,10 @@ const cardBase = {
   done: z.nullable(z.object({ outcome: z.string(), at: z.string() })),
 }
 
-/** One card, by what happened (the mockup's groups: Not found, Reported, Due for a check, Suggestions). */
+/**
+ * One card, by what happened (the mockup's groups: Not found, Reported, Mentioned you, Due for a
+ * check, Suggestions).
+ */
 export const cardSchema = z.union([
   z.object({
     ...cardBase,
@@ -63,6 +66,18 @@ export const cardSchema = z.union([
     feedbackId: z.string(),
     verdict: z.enum(['wrong', 'unclear']),
     note: z.nullable(z.string()),
+  }),
+  z.object({
+    ...cardBase,
+    group: z.literal('mention'),
+    /** The thread, as the app names it: "review:<suggestion id>" or "context:<item id>". */
+    subject: z.string(),
+    /** What the thread hangs on: the suggestion's or the item's title. */
+    title: z.string(),
+    /** The newest comment there that mentions the person and that they haven't read. */
+    commentId: z.string(),
+    from: z.object({ personId: z.string(), name: z.nullable(z.string()) }),
+    excerpt: z.string(),
   }),
   z.object({
     ...cardBase,

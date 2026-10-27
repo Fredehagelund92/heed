@@ -395,6 +395,21 @@ its card is named by text (`feedback:<id>`) and nothing joins a person to the re
 `setup_marks` keeps when a step of the setup checklist first happened when nothing else records
 it (a question in Ask), never who or what.
 
+Comments, reactions and mentions (FR-817, migration 0007) hang on a suggestion (`proposal_id`) or a
+context item (`item_id`), exactly one. `comments` keeps the comment box's document as JSON, checked
+by the service; whoever may read what a comment hangs on reads it (`cl_comment_subject_open`, which
+runs under the reader's own row security, and never for a read with no person), anyone writes one
+there as themselves, and only its author changes its words or deletes it. A reply answers a comment
+of its own, one level, on the same subject (`comments_guard`); what a comment hangs on, its author
+and its time never change, and a delete that keeps its place empties its words for good and takes
+its reactions and mentions with it (`comments_clear_reactions`). A return with a note is the
+suggestion's comment of kind `returned`, tied to its decision, and leaves with the decision's undo.
+`reactions` takes one of five emoji, once per person, on a comment, an item or a suggestion.
+`comment_mentions` keeps the people a comment mentions, written by its author, and when each saw
+it, marked by that person only. `thread_reads` keeps when a person last opened a thread, for them
+only. Agents never read any of it: the serving and analytics roles have no grant on these tables,
+and no edition or serving function reads them.
+
 ## Evaluations
 
 A run of the evaluation runner records who it acts for (`requested_by`: whoever started it);

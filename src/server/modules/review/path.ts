@@ -46,6 +46,7 @@ import {
   rolesIn,
   type LoadedProposal,
 } from './records.ts'
+import type { CommentsService } from '../comments/index.ts'
 import type { ReviewService } from './service.ts'
 
 /*
@@ -84,6 +85,8 @@ export function createReviewPath(
   review: ReviewService,
   /** The proposal as its write API reads it, for the reach of its draft. */
   proposalRecord: (id: string) => Promise<ProposalRecord>,
+  /** Where a return's note becomes the suggestion's first comment, and goes again on its undo. */
+  comments: Pick<CommentsService, 'returned' | 'unreturn'>,
 ) {
   let person: string | undefined
   async function me() {
@@ -473,7 +476,12 @@ export function createReviewPath(
     return { proposal: decided.proposal, edition: decided.edition, undo: `decision:${decision}` }
   }
 
-  async function returnWithNote(input: { id: string; revision: number; note: string }) {
+  async function returnWithNote(input: {
+    id: string
+    revision: number
+    note: string
+    body?: Record<string, unknown> | undefined
+  }) {
     const p = await loadProposal(tx, input.id)
     if (p.action === 'retire')
       throw new ORPCError('CONFLICT', {
@@ -488,6 +496,7 @@ export function createReviewPath(
       comment: note,
     })
     const decision = await lastDecision(p.id, ['request_changes'])
+    await comments.returned(p.id, decision, note, input.body)
     return { proposal: decided.proposal, undo: `decision:${decision}` }
   }
 
@@ -564,7 +573,7 @@ export function createReviewPath(
    * Takes back decisions their maker made within the window (FR-227), in one new edition that
    * serves again what they changed: a publish's earlier version (or no item, for a new one) and
    * the items it replaced; an archive's item. A suggestion whose publish is undone waits again; a
-   * returned one too, and its note stays in the discussion.
+   * returned one too, and its note leaves its comments (the history keeps the decision).
    */
   async function undoDecisions(ids: readonly string[]): Promise<{ edition: string | null }> {
     const seconds = await undoSeconds(tx)
@@ -606,7 +615,10 @@ export function createReviewPath(
     const serve: string[] = []
     const close: string[] = []
     for (const d of rows) {
-      if (d.outcome === 'request_changes') continue
+      if (d.outcome === 'request_changes') {
+        await comments.unreturn(d.id)
+        continue
+      }
       if (d.outcome === 'retire') {
         // An archive: the archived version comes back, unless something else is live for it now.
         if (await liveVersionId(tx, d.itemId))

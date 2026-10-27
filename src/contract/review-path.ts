@@ -14,6 +14,7 @@ import { changeKinds, docFields, marks } from '../domain/doc-diff.ts'
 import { itemKinds } from '../domain/item.ts'
 import { clashRelations, readinessStates } from '../domain/readiness.ts'
 import { reachSchema } from './answer.ts'
+import { commentInputBodySchema } from './comments.ts'
 import { editionSchema, reviewProposalSchema } from './review.ts'
 
 const markSchema = z.enum(marks)
@@ -242,6 +243,8 @@ export const returnInputSchema = z.strictObject({
   revision: z.number().check(z.int(), z.minimum(1)),
   /** The note for the sender: it becomes the first comment of the suggestion's discussion. */
   note: z.string().check(z.trim(), z.minLength(1), z.maxLength(2000)),
+  /** The note as the comment box wrote it, with its mentions; left out, the comment is its words. */
+  body: z.optional(commentInputBodySchema),
 })
 export const returnResultSchema = z.object({
   proposal: reviewProposalSchema,

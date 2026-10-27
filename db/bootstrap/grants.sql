@@ -139,3 +139,11 @@ grant insert on decision_undos to :api;
 grant insert, update (read_at) on card_reads to :api;
 grant insert, delete on card_states to :api;
 grant insert on setup_marks to :api;
+-- Comments, reactions and mentions (FR-817): people write their own, edit and delete their own, react
+-- once with each of five, mark the mentions of them seen and keep when they last opened a thread.
+-- Agents never read any of it: nothing here is granted to the serving or the analytics role.
+grant insert, update (body, edited_at, deleted_at), delete on comments to :api;
+grant insert, update (seen_at), delete on comment_mentions to :api;
+grant insert, delete on reactions to :api;
+grant insert, update (seen_at) on thread_reads to :api;
+grant execute on function cl_comment_subject_open(text, uuid) to :api;

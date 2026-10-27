@@ -40,7 +40,12 @@ it('keeps every decision as its first round, and adds what the Inbox and undo ke
       return v.id
     })
 
-    expect(await migrate(client)).toBe(1)
+    // Up to 0006 only: later migrations have their own tests.
+    await copyFile(
+      new URL('0006_inbox_and_undo.sql', migrationDirectory),
+      join(before, '0006_inbox_and_undo.sql'),
+    )
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(1)
 
     expect(
       (
@@ -75,7 +80,7 @@ it('keeps every decision as its first round, and adds what the Inbox and undo ke
       "select 1 from proposal_transitions where from_state='accepted' and to_state='submitted'",
     )
     expect(transitions.rowCount).toBe(1)
-    expect(await migrate(client)).toBe(0)
+    expect(await migrate(client, pathToFileURL(`${before}/`))).toBe(0)
   } finally {
     await rm(before, { recursive: true })
   }

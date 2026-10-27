@@ -1940,6 +1940,124 @@
       }
     }
   },
+  "comments": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/comments",
+          "tags": [
+            "comments"
+          ],
+          "summary": "The threads on suggestions and context items the person may read: comments oldest first with their replies and reactions, the reactions on each subject, the newest reply since they last opened it, and the comments that mention them unread. Agents never read comments (FR-817)"
+        }
+      }
+    },
+    "create": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/comments",
+          "tags": [
+            "comments"
+          ],
+          "summary": "A comment on a suggestion or a context item, or a reply to one, by anyone who may read it; its mentions of people reach their Inbox (FR-817)"
+        }
+      }
+    },
+    "edit": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "PUT",
+          "path": "/comments/{id}",
+          "tags": [
+            "comments"
+          ],
+          "summary": "Changes a comment's words: its author only"
+        }
+      }
+    },
+    "remove": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "DELETE",
+          "path": "/comments/{id}",
+          "tags": [
+            "comments"
+          ],
+          "summary": "Deletes a comment, its author only: one something answers keeps its place without its words, one nobody answered goes"
+        }
+      }
+    },
+    "markMentionsRead": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/comments/mentions/read",
+          "tags": [
+            "comments"
+          ],
+          "summary": "The person read the comments that mention them in a thread: their Inbox card goes"
+        }
+      }
+    }
+  },
+  "reactions": {
+    "toggle": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/reactions/toggle",
+          "tags": [
+            "comments"
+          ],
+          "summary": "Gives or takes back one of the five reactions, on a comment or on the suggestion or item itself"
+        }
+      }
+    }
+  },
+  "threads": {
+    "markRead": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/comments/threads/read",
+          "tags": [
+            "comments"
+          ],
+          "summary": "The person opened a thread: a reply before now is no longer new to them"
+        }
+      }
+    }
+  },
   "decisions": {
     "undo": {
       "~orpc": {
