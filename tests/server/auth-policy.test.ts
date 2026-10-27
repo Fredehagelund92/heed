@@ -27,6 +27,12 @@ const maintainOperations = [
   'quality.history',
   // The replay of a topic: the service narrows it to the owners of the topic's domains.
   'obs.replay',
+  // Observability's reads and saved views: the service narrows them to the owner's domains.
+  'obs.agents',
+  'obs.feedback',
+  'obs.views.list',
+  'obs.views.save',
+  'obs.views.remove',
   'quality.compare',
   'quality.feedback',
   'quality.ratings',
@@ -60,6 +66,8 @@ const maintainOperations = [
   'gaps.unlinkTest',
 ]
 const adminOperations = [
+  // Usage: tool calls, kinds of agent and model spend, for administrators only.
+  'obs.usage',
   'vocabulary.candidates',
   'vocabulary.proposeBatch',
   'roles.list',

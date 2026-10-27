@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { replyStatus } from '../../domain/answer-state.ts'
+import { replyStatus, stateOfStatus } from '../../domain/answer-state.ts'
 import { canonicalJson } from '../../domain/canonical.ts'
 import { noGroups } from '../../domain/item.ts'
 import { agentKinds, kindFilters } from '../../domain/mcp-text.ts'
@@ -1163,6 +1163,8 @@ export function createToolService(
               ? { ...resolution.scope, today, max_items: scoped.max_items, max_bytes: limit }
               : null,
             status: resolution.status,
+            // What Observability counts (FR-620): the state the reply gave, as it was given.
+            state: stateOfStatus(statusNow()),
             delivered: items.map((i, rank) => ({
               id: i.id,
               v: i.version,

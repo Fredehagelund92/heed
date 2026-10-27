@@ -9,7 +9,8 @@
  * with their reactions and mentions, the Inbox and the review (the golden plan's P6b), Ask on the
  * answer engine, with the person's chats kept in their browser (P10, http-ask.ts), and People:
  * Admin and Member, a domain's owners, invites with their links, removing someone, and how the
- * sign-in screen signs people in (P8, http-people.ts). Every other method answers `not-available`
+ * sign-in screen signs people in (P8, http-people.ts), and Observability's Overview, Questions with
+ * its replay and saved views, Feedback and Usage (P12). Every other method answers `not-available`
  * until the pull request that wires its screen (P9 to P13). The conformance suite
  * (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in
  * `X-Heed-CSRF`, as the service requires, and a retry key, kept until the service answers; the
@@ -71,6 +72,16 @@ import {
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
 import { peopleOf } from './http-people'
+import {
+  emptyObs,
+  familyOf,
+  obsAgentsOf,
+  obsFeedbackOf,
+  obsUsageOf,
+  replayOf,
+  savedViewOf,
+  type ReplayTopic,
+} from './http-obs'
 import {
   bodyToService,
   commentsOf,
@@ -164,6 +175,11 @@ export const wiredMethods = [
   'deleteChat',
   'reportAnswer',
   'getMyReports',
+  'observabilityPage',
+  'replayTopic',
+  'getSavedViews',
+  'saveView',
+  'removeView',
 ] as const satisfies readonly HeedApiMethod[]
 
 /**
@@ -172,10 +188,9 @@ export const wiredMethods = [
  * writes stay not available, and the conformance suite does not count them as wired.
  */
 const pending: Partial<HeedApi> = {
-  // Saved questions and their check come with Observability (P12).
+  // Saved questions and their check come with Observability's second part (P12b).
   getSavedQuestions: () => Promise.resolve([]),
   getSavedCheck: () => Promise.resolve({ run: 'idle', checked: 0 }),
-  getSavedViews: () => Promise.resolve([]),
   // Settings and the agents connected (P11a).
   getSettings: () => Promise.resolve({ links: false, figures: {}, contacts: {}, connected: [] }),
   listAgentConnections: () => Promise.resolve([]),
@@ -226,6 +241,17 @@ async function orNull<T>(call: () => Promise<T>): Promise<T | null> {
 
 const randomKey = () => globalThis.crypto.randomUUID()
 
+/** A topic as the pages name it: "Orders in Norway"; with no metric, "Norway, no metric named". */
+const topicNameOf = (
+  t: { metric: string; where: string; named?: string },
+  markets: readonly string[],
+) =>
+  t.named === 'none' || !t.metric
+    ? `${t.where}, no metric named`
+    : markets.includes(t.where)
+      ? `${t.metric} in ${t.where}`
+      : `${t.metric}, ${t.where === 'All markets' ? 'all markets' : t.where}`
+
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
@@ -255,6 +281,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   let calendar = { today: new Date().toISOString().slice(0, 10), shift: 0 }
   /** The live vocabulary's words, read once a session: a scope and a mention are named by them. */
   let words: Promise<Words> | undefined
+  /** The topics Observability listed, by id, so the answer panel can name what it replays. */
+  const listedTopics = new Map<string, ReplayTopic>()
 
   async function read<T>(call: () => Promise<T>): Promise<T> {
     try {
@@ -1323,6 +1351,64 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
           ? { outcome: reportOutcomeWords(r.outcome.kind, new Date(r.outcome.at)) }
           : {}),
       }))
+    },
+
+    // Observability: the service discloses every count (FR-614); this binding only names things.
+    // Quality and Alerts read their own lists (saved questions, alerts), which come with P12b.
+    observabilityPage: async ({ section, range, domain, agent }) => {
+      const now = new Date()
+      if (section === 'overview' || section === 'questions') {
+        const family = agent ? familyOf(agent) : undefined
+        const view = await read(() =>
+          client.obs.agents({
+            range,
+            ...(domain ? { areaId: domain } : {}),
+            ...(family ? { agent: family } : {}),
+          }),
+        )
+        const page = obsAgentsOf(view, range)
+        for (const t of [...page.topics, ...page.notFound.topics]) {
+          const named = { metric: t.metric, where: t.where, month: t.month }
+          listedTopics.set(t.id, { ...named, name: topicNameOf(t, page.markets) })
+        }
+        return page
+      }
+      if (section === 'feedback')
+        return obsFeedbackOf(
+          await read(() => client.obs.feedback({ range, ...(domain ? { areaId: domain } : {}) })),
+          range,
+          now,
+        )
+      if (section === 'usage')
+        return obsUsageOf(await read(() => client.obs.usage({ range })), range, now)
+      return emptyObs(range)
+    },
+    replayTopic: async ({ topic, when }) => {
+      const named = listedTopics.get(topic)
+      if (!named || !isUuid(topic)) return null
+      const run = async (at: 'now' | 'before') => {
+        try {
+          // A POST, as the engine's runs are, so it carries the session's token; it changes nothing.
+          const input = { topic, when: at }
+          return await write('obs.replay', input, (o) => client.obs.replay(input, o))
+        } catch (error) {
+          // Nothing was published before what agents get now: there is no before to compare with.
+          if (at === 'before' && toApiError(error).status === 412) return null
+          throw error
+        }
+      }
+      const [now, before] = await Promise.all([run('now'), run('before')])
+      const shown = when === 'before' ? (before ?? now!) : now!
+      return replayOf(shown, named, when === 'before' ? now : before, now!.answer.edition)
+    },
+    getSavedViews: async () => (await read(() => client.obs.views.list())).map(savedViewOf),
+    saveView: async ({ name, filters }) => {
+      const input = { name, filters }
+      const saved = await write('obs.views.save', input, (o) => client.obs.views.save(input, o))
+      return { id: saved.id }
+    },
+    removeView: async ({ id }) => {
+      await write('obs.views.remove', { id }, (o) => client.obs.views.remove({ id }, o))
     },
   }
 

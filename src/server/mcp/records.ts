@@ -1,3 +1,4 @@
+import type { AnswerState } from '../../domain/answer-state.ts'
 import type { AppFamily } from '../../domain/app-family.ts'
 import type { GapTopic } from '../../domain/gap-reports.ts'
 import type { ResolvedScope } from '../../domain/scope.ts'
@@ -14,6 +15,10 @@ export type DeliveryRecord = {
   topic: Topic | null
   scope: (ResolvedScope & { today: string; max_items: number; max_bytes: number }) | null
   status: Resolution['status']
+  /** The answer state the reply gave (FR-349); null when the question could not be read. */
+  state: AnswerState | null
+  /** The kind of agent that called, stamped by the gateway; the name itself is never kept. */
+  family?: AppFamily
   delivered: { id: string; v: number; rank: number; label: string }[]
   withheld: Resolution['withheld']
   cut: boolean

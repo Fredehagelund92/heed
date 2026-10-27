@@ -2,7 +2,7 @@ import { askQuestion } from '@/api/mock/data/ask'
 import type { AnswerState, AskedRow } from '@/model/ask'
 import { week } from '@/api/mock/data/inbox'
 import { obsData } from '@/api/mock/data/observability'
-import { groupCount, HIDE_UNDER, observability, type Topic } from '@/model/observability'
+import { groupCount, HIDE_UNDER, observability, type Topic } from '@/api/mock/obs-engine'
 import { markets } from '@/api/mock/data/world'
 import type { Fact } from '@/model/items'
 

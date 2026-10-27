@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { obsData } from '@/api/mock/data/observability'
-import { found, observability, shownCount, statusOf, total } from '@/model/observability'
+import { found, observability, shownCount, statusOf, total } from '@/api/mock/obs-engine'
 import { week } from '@/api/mock/data/inbox'
 import { savedSeed } from '@/api/mock/data/saved-questions'
 import { savedCounts } from '@/model/saved-questions'

@@ -1,6 +1,5 @@
 import { ArrowUpRightIcon, BellIcon, PlusIcon, UsersIcon } from '@/components/icons'
-import { useQuery } from '@tanstack/react-query'
-import { observabilityPageQuery, useAlerts, useWrite } from '@/api/queries'
+import { useAlerts, useWrite } from '@/api/queries'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -20,7 +19,7 @@ import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { lastOf, rulesFor, thresholdOf, type AlertSettings, type Rule } from '@/model/alerts'
 import type { DomainId } from '@/model/items'
-import { OBS_PURPOSE, useObsView } from '@/lib/obs'
+import { OBS_PURPOSE, useObsPageQuery, useObsView } from '@/lib/obs'
 import { useDomains, useMe } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
@@ -32,7 +31,7 @@ const ADD_REASON =
   'The eight rules are fixed for now. Your own rules, and email and chat, come later.'
 
 export function AlertsPage() {
-  const load = useQuery(observabilityPageQuery('alerts'))
+  const load = useObsPageQuery('alerts')
   return (
     <ObsPage section="alerts">
       <Loadable

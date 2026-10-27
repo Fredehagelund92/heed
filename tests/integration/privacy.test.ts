@@ -24,6 +24,10 @@ const columns = {
     'cut',
     'response_bytes',
     'duration_ms',
+    // What Observability counts (FR-620): the answer state, and the kind of agent from FR-410's
+    // fixed list, never the name it gave itself.
+    'answer_state',
+    'app_family',
   ],
   topics: ['id', 'key', 'area_id', 'metric_keys', 'value_keys', 'month', 'dimension_keys'],
   gaps: [

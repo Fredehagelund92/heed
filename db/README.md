@@ -440,6 +440,16 @@ append only. `term_changes` keeps one row per change to many terms with what Und
 maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
 grant on these tables.
 
+Observability (migration 0015). Each agent delivery keeps the answer state its reply gave
+(`answer_state`: grounded, partial, conflict, stale, missing or failed; none when the question
+could not be read) and the kind of agent that called (`app_family`, FR-410's fixed list), never
+the name it gave itself; deliveries from before keep their resolver's status as their state.
+`observability_views` keeps the views people save on Questions for everyone in the workspace: a
+name, unique whatever its case, filters and who saved it, never a question. `cl_gaps_detect()`
+counts case 1 of FR-606 across a month edge: no-item calls in the period about one domain,
+metrics, values and dimensions count together whatever month their dates start in, and the gap
+stays on one topic of that scope, whose weekly counts add up every month of it.
+
 Serving terms (migration 0011). Agents read the live terms through `serving_terms()`, a security
 definer function the API and serving roles may run: each word with its own meaning or what it
 means, its domain, the day it was last written and the role it was written in (`owner` or

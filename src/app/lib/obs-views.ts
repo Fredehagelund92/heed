@@ -1,11 +1,4 @@
-import {
-  HIDE_UNDER,
-  monthName,
-  SHOWN,
-  STATE_WORDS,
-  type Shown,
-  type Topic,
-} from '@/model/observability'
+import { monthName, SHOWN, STATE_WORDS, type Shown, type Topic } from '@/model/observability'
 import type { DomainId } from '@/model/items'
 import type { Domains } from '@/model/people'
 
@@ -29,13 +22,16 @@ export type SavedView = {
   custom?: boolean
 }
 
-/** The five every workspace starts with: what most often needs a look. */
+/**
+ * The five every workspace starts with: what most often needs a look. A topic is in a view as the
+ * binding says, from what a reader may see: a hidden count puts it in no view.
+ */
 export const BUILT_IN: (SavedView & { has: (t: Topic) => boolean })[] = [
   { id: 'all', name: 'All topics', filters: {}, has: () => true },
-  { id: 'not-covered', name: 'Not found', filters: {}, has: (t) => t.week.missing >= 3 },
-  { id: 'disagree', name: 'Conflict', filters: {}, has: (t) => t.week.conflict > 0 },
-  { id: 'stale', name: 'Outdated', filters: {}, has: (t) => t.week.stale > 0 },
-  { id: 'reported', name: 'Reported', filters: {}, has: (t) => !!t.reported },
+  { id: 'not-covered', name: 'Not found', filters: {}, has: (t) => t.in.notFound },
+  { id: 'disagree', name: 'Conflict', filters: {}, has: (t) => t.in.answers.includes('conflict') },
+  { id: 'stale', name: 'Outdated', filters: {}, has: (t) => t.in.answers.includes('stale') },
+  { id: 'reported', name: 'Reported', filters: {}, has: (t) => t.in.reported },
 ]
 
 /** A topic's gap, as the Gap status filter reads it. */
@@ -44,7 +40,7 @@ export const gapOf = (t: Topic): Gap | undefined =>
     ? 'draft'
     : t.gap?.label === 'A suggestion waits'
       ? 'suggestion'
-      : t.gap || t.week.missing >= HIDE_UNDER
+      : t.gap || t.in.notFound
         ? 'none'
         : undefined
 export const GAP_WORDS: Record<Gap, string> = {
@@ -53,11 +49,15 @@ export const GAP_WORDS: Record<Gap, string> = {
   none: 'No draft yet',
 }
 
+/** Whether a topic was answered so, as far as a reader can see. */
+const answered = (t: Topic, s: Shown) =>
+  t.in.answers.includes(s) || (s === 'missing' && t.in.notFound)
+
 /** Whether a topic passes the filters (the time and the search are applied apart). */
-export function passes(t: Topic & { counts: Record<Shown, number> }, f: Filters) {
+export function passes(t: Topic, f: Filters) {
   if (f.domain && t.domain !== f.domain) return false
   if (f.month && t.month !== f.month) return false
-  if (f.answer?.length && !f.answer.some((s) => t.counts[s] > 0)) return false
+  if (f.answer?.length && !f.answer.some((s) => answered(t, s))) return false
   if (f.gap?.length && !f.gap.includes(gapOf(t) as Gap)) return false
   return true
 }

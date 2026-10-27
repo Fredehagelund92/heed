@@ -1,8 +1,6 @@
 import type { CSSProperties } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { observabilityPageQuery } from '@/api/queries'
-import { useObservability } from '@/lib/obs'
-import type { ObsData } from '@/model/observability'
+import { useObservability, useObsPageQuery } from '@/lib/obs'
+import type { UsageData } from '@/model/observability'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -28,7 +26,7 @@ import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { LineChart } from '@/components/obs/charts'
 import { Kpi, RangeSwitch } from '@/components/obs/controls'
 import { AGENT_TOOLS } from '@/lib/agents'
-import { money } from '@/model/observability'
+import { HIDE_UNDER, money, shownCount } from '@/model/observability'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { ObsPage } from '@/pages/observability'
 
@@ -37,15 +35,10 @@ import { ObsPage } from '@/pages/observability'
 // web reads and answer tests, from the ledger, against the caps that stop a feature and say why.
 // Agents are counted by kind: the name an agent gives itself maps to a fixed list and is not kept.
 
-/** How a range and the review flag scale the week the board draws. */
-const scaleOf = (range: number, state: string) =>
-  (range === 7 ? 1 : range === 30 ? 4.3 : 12.9) *
-  (state === 'busy' ? 3.4 : state === 'quiet' ? 0.03 : 1)
-
 const SPEND_FILL = ['var(--primary)', 'var(--chart-3)', 'var(--chart-2)']
 
 export function UsagePage() {
-  const load = useQuery(observabilityPageQuery('usage'))
+  const load = useObsPageQuery('usage')
   return (
     <ObsPage section="usage">
       <Loadable
@@ -89,24 +82,16 @@ function Usage() {
       </Frame>
     )
 
-  const k = scaleOf(view.range, view.state)
-  const n = (v: number) => Math.round(v * k)
-  const tools = obs.data.toolCalls.map((t) => ({
-    ...t,
-    calls: n(t.calls),
-    answered: n(t.answered),
-    detail: n(t.detail),
-    nothing: n(t.nothing),
-    failed: n(t.failed),
-  }))
+  const usage = obs.data.usage!
+  const tools = usage.tools
   const calls = tools.reduce((a, t) => a + t.calls, 0)
-  const unread = n(2)
-  const agents = obs.data.agentCalls
-    .map((a) => ({ ...a, calls: n(a.calls) }))
-    .filter((a) => a.calls > 0)
-  const speed = obs.speedOf(view.range)
+  const unread = usage.couldNotRead
+  const agents = usage.agents
+  const speed = usage.speed
   const median = middle(speed.median)
   const p95 = middle(speed.p95)
+  const change =
+    usage.before && calls ? Math.round(((calls - usage.before) / usage.before) * 100) : null
 
   return (
     <Frame>
@@ -120,30 +105,32 @@ function Usage() {
           icon={<WrenchIcon />}
           label="Tool calls"
           value={calls.toLocaleString('en')}
-          change={view.range === 7 && view.state === 'normal' ? '+8%' : undefined}
+          change={change !== null ? `${change > 0 ? '+' : ''}${change}%` : undefined}
           tone="up"
           sub={`by ${agents.length} kinds of agent`}
         />
         <Kpi
           icon={<TimerIcon />}
           label="Median reply"
-          value={median}
-          unit="ms"
-          sub={`95 of 100 under ${p95} ms`}
+          value={median ?? '-'}
+          unit={median === null ? undefined : 'ms'}
+          sub={p95 === null ? 'no replies timed' : `95 of 100 under ${p95} ms`}
         />
         <Kpi
           icon={<CircleAlertIcon />}
           label="Could not be read"
-          value={unread}
-          change={view.range === 7 && view.state === 'normal' ? '-1' : undefined}
-          tone="up"
-          sub={`${calls ? ((unread / calls) * 100).toFixed(1) : '0'}% of calls`}
+          value={shownCount(unread)}
+          sub={
+            unread === null || unread < HIDE_UNDER
+              ? 'a count under 5 is hidden'
+              : `${calls ? ((unread / calls) * 100).toFixed(1) : '0'}% of calls`
+          }
         />
         <Kpi
           icon={<CoinsIcon />}
           label="Model spend"
-          value={money(obs.data.spend.total)}
-          sub={`of ${money(obs.data.spend.cap).replace('.00', '')} this month`}
+          value={money(usage.spend.total)}
+          sub={`of ${money(usage.spend.cap).replace('.00', '')} this month`}
         />
       </div>
 
@@ -168,8 +155,17 @@ function Usage() {
             />
             <LineChart
               series={[
-                { name: 'Median', values: speed.median, color: 'var(--primary)' },
-                { name: '95 of 100', values: speed.p95, color: 'var(--chart-2)' },
+                // A day or week with no reply timed draws at zero.
+                {
+                  name: 'Median',
+                  values: speed.median.map((v) => v ?? 0),
+                  color: 'var(--primary)',
+                },
+                {
+                  name: '95 of 100',
+                  values: speed.p95.map((v) => v ?? 0),
+                  color: 'var(--chart-2)',
+                },
               ]}
               labels={speed.labels}
               max={150}
@@ -202,9 +198,7 @@ function Usage() {
                         {a.name}
                       </span>
                     </td>
-                    <td className="h-11 px-4 text-right tabular-nums">
-                      {a.calls.toLocaleString('en')}
-                    </td>
+                    <td className="h-11 px-4 text-right tabular-nums">{shownCount(a.calls)}</td>
                     <td className="h-11 px-4 text-right whitespace-nowrap text-muted-foreground md:pr-5">
                       {a.last}
                     </td>
@@ -229,10 +223,10 @@ function Usage() {
   )
 }
 
-/** The middle value of a few: the median of the days' medians. */
-function middle(values: number[]) {
-  const v = [...values].sort((a, b) => a - b)
-  return v[Math.floor(v.length / 2)]
+/** The middle value of a few: the median of the days' medians; null when none was timed. */
+function middle(values: (number | null)[]) {
+  const v = values.filter((x): x is number => x !== null).sort((a, b) => a - b)
+  return v.length ? v[Math.floor(v.length / 2)]! : null
 }
 
 /** A link out of the page, quiet, at a section's right end. */
@@ -266,7 +260,7 @@ function SeriesLegend({ items }: { items: { name: string; color: string }[] }) {
 }
 
 /** The tools, one row each. On a narrow page the four results fold into one line under the name. */
-function Tools({ tools }: { tools: ObsData['toolCalls'] }) {
+function Tools({ tools }: { tools: UsageData['tools'] }) {
   const what = (name: string) =>
     AGENT_TOOLS.find((t) => t.name === name)
       ?.what.replace(/\.$/, '')
@@ -335,23 +329,23 @@ function Spend() {
       <div className="px-4 md:px-5">
         <p className="flex items-baseline gap-1.5">
           <span className="text-2xl font-semibold tracking-tight tabular-nums">
-            {money(obs.data.spend.total)}
+            {money(obs.data.usage!.spend.total)}
           </span>
           <span className="text-sm text-muted-foreground">
-            of {money(obs.data.spend.cap).replace('.00', '')} this month
+            of {money(obs.data.usage!.spend.cap).replace('.00', '')} this month
           </span>
         </p>
         <div
           className="mt-2 flex h-3 w-full gap-px overflow-hidden rounded-xs bg-muted"
           aria-hidden
         >
-          {obs.data.spend.parts.map((p, i) => (
+          {obs.data.usage!.spend.parts.map((p, i) => (
             <span
               key={p.name}
               className="bg-(--swatch)"
               style={
                 {
-                  width: `${(p.amount / obs.data.spend.cap) * 100}%`,
+                  width: `${(p.amount / obs.data.usage!.spend.cap) * 100}%`,
                   '--swatch': SPEND_FILL[i],
                 } as CSSProperties
               }
@@ -359,7 +353,7 @@ function Spend() {
           ))}
         </div>
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-          {obs.data.spend.parts.map((p, i) => (
+          {obs.data.usage!.spend.parts.map((p, i) => (
             <li key={p.name} className="flex items-center gap-1.5">
               <span
                 aria-hidden
@@ -384,7 +378,7 @@ function Spend() {
           </tr>
         </thead>
         <tbody>
-          {obs.data.spend.limits.map((l) => (
+          {obs.data.usage!.spend.limits.map((l) => (
             <tr key={l.name} className="border-t">
               <td className="h-11 px-4 md:pl-5">{l.name}</td>
               <td className="h-11 px-4 text-right tabular-nums">{money(l.used)}</td>

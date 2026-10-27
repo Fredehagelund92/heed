@@ -3522,6 +3522,104 @@
     }
   },
   "obs": {
+    "agents": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/observability/agents",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Overview's and Questions' read: what agents asked in a range and how it was answered, per day, per topic and per kind of agent; counts and scopes only, small counts hidden (FR-614, FR-620)"
+        }
+      }
+    },
+    "feedback": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/observability/feedback",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Feedback's read: what agents and people reported about answers in a range, and the answers people marked good; no person named, small counts hidden (FR-614, FR-620)"
+        }
+      }
+    },
+    "usage": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/observability/usage",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Usage's read, for administrators: tool calls and how they ended, calls by kind of agent, reply times, and model spend against the caps (FR-410, FR-620)"
+        }
+      }
+    },
+    "views": {
+      "list": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "maintain"
+          },
+          "route": {
+            "method": "GET",
+            "path": "/observability/views",
+            "tags": [
+              "quality"
+            ],
+            "summary": "The views people saved on Questions, for everyone in the workspace: a name and filters, never a question"
+          }
+        }
+      },
+      "save": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "maintain"
+          },
+          "route": {
+            "method": "POST",
+            "path": "/observability/views",
+            "tags": [
+              "quality"
+            ],
+            "summary": "Save Questions' filters as a view everyone in the workspace has as a tab"
+          }
+        }
+      },
+      "remove": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "maintain"
+          },
+          "route": {
+            "method": "DELETE",
+            "path": "/observability/views/{id}",
+            "tags": [
+              "quality"
+            ],
+            "summary": "Remove a saved view: only whoever saved it, or an administrator"
+          }
+        }
+      }
+    },
     "replay": {
       "~orpc": {
         "errorMap": {},

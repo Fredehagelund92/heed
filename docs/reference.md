@@ -1023,3 +1023,54 @@ date; else `grounded`.
 
 The bundles are read once and kept for 15 seconds by edition and overlay, as the agents' edition
 source keeps them, so a new publish or stop switch is read at once.
+
+## Observability
+
+What agents asked and what they got (FR-620), as topics and counts: never the words of a question
+and never who asked (FR-602, FR-613). Each `get_context` call keeps, with its topic, the answer
+state its reply gave (FR-349; none when the question could not be read) and the kind of agent
+that called, from FR-410's fixed list, never the name it gave itself (migration 0015).
+Administrators read every domain and the calls with no domain; an owner reads the domains they
+own, and Usage is for administrators only. Every read is in `src/contract/observability.ts`.
+
+A view counts back from yesterday, the last full day: 7, 30 or 90 days (`range`), and the same
+length before it to compare with. Every count goes through `src/domain/observability.ts` before
+it leaves the service (FR-614): a count from one to just under `privacy.min_count` is `null`,
+and no count is given when a hidden one could be worked out from it by subtraction. Everything
+asked in a view, and what found nothing, are always counted when they reach the minimum (a view
+under it is `quiet`, with no counts at all). To keep them, finer counts are hidden first: a
+topic keeps its total before its answer states, a domain its total before its topics, and an
+answer state its total before a bar of the chart; a total over a topic's months is hidden itself
+(`atLeast` is what its shown months add up to: "13+"). The topics, the chart and its numbers are
+disclosed in one pass, so a count on one never gives away a count on another. A view narrowed to
+one kind of agent also hides any count that differs from the same count over every agent by a
+hidden one. A topic is in Questions' views of conflicts and of what may be out of date only as
+far as its shown counts say, and in the view of what found nothing when its subject (the topic
+over its months) found nothing at least the minimum times.
+
+- `GET /observability/agents` (Overview and Questions): `range`, and `areaId` to narrow the numbers
+  and the chart to one domain, or `agent` (a kind of agent, administrators only). It answers with
+  `state` (`empty` when no agent asked anything in the domains read, `quiet`, or `normal`), the
+  numbers (`asked`, by answer state, and the range before), the bars (a day each for 7 and 30
+  days, a week each for 90, counted back from the last day), every topic of the range in the
+  domains the reader sees (its metric, values and month as the definitions name them, its counts,
+  which views it is in, and what waits for its gap in the Inbox: the draft written from it, a
+  suggestion, or nothing yet), the subjects (a topic over its months) and the domains,
+  `notFound` (what found nothing at least the minimum times in the last 7 days, its months counted
+  together, FR-606 case 1), the calls that could not be read (no topic, so no domain: an
+  administrator's whole view only), what was published in the range, and the kinds of agent that
+  asked (administrators only).
+- `GET /observability/feedback` (Feedback): `range` and `areaId`. What agents reported about
+  answers, each with its kind of agent and where it stands (`inbox` while its Reported card waits,
+  `fine` when an owner closed it as not a problem, `looked` otherwise), and the reports people made
+  from Try it and the assistant, which name nobody; and the answers people marked good in the
+  assistant, a week each for 14 weeks, and good and wrong in the range (FR-712).
+- `GET /observability/usage` (Usage, administrators): `range`. Each tool's calls and how they
+  ended (answered, needed more detail, found nothing, failed), the calls of each kind of agent
+  with its last hour, reply times (the median and 95 of 100, a day each for 7 days, a week each
+  otherwise) and this month's model spend by feature against the caps (NFR-062).
+- `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
+  `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
+  workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,
+  a domain, a kind of agent, what waits in the Inbox, a month), never a question. Only whoever saved
+  a view, or an administrator, removes it.

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from '@/model/observability'
+import { SHOWN, shownSum, STATE_WORDS, type Counts, type Shown } from '@/model/observability'
 import { ArrivedAfterWait } from '@/lib/loading'
 
 // Observability's charts, small SVG on the app's own tokens. One rule for colour: blue is the one
@@ -119,7 +119,7 @@ export function StackedBars({
   }, [grow])
   const H = height
   const pad = { l: 28, r: 8, t: 18, b: 22 }
-  const max = niceMax(Math.max(...bars.map((b) => total(b.counts)), 1))
+  const max = niceMax(Math.max(...bars.map((b) => shownSum(b.counts)), 1))
   const plotW = W - pad.l - pad.r
   const plotH = H - pad.t - pad.b
   const slot = plotW / bars.length
@@ -225,14 +225,15 @@ export function StackedBars({
       {tip && (
         <div className="pointer-events-none absolute top-2 right-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
           <p className="mb-1 font-medium">
-            {tip.label}: {total(tip.counts)} asked
+            {tip.label}: {shownSum(tip.counts)}
+            {SHOWN.some((s) => tip.counts[s] === null) ? '+' : ''} asked
           </p>
           <ul className="flex flex-col gap-0.5">
-            {SHOWN.filter((s) => tip.counts[s]).map((s) => (
+            {SHOWN.filter((s) => tip.counts[s] !== 0).map((s) => (
               <li key={s} className="flex items-center gap-1.5">
                 <Swatch state={s} />
                 <span className="flex-1 text-muted-foreground">{STATE_WORDS[s]}</span>
-                <span className="tabular-nums">{tip.counts[s]}</span>
+                <span className="tabular-nums">{tip.counts[s] ?? 'Hidden'}</span>
               </li>
             ))}
           </ul>
@@ -263,7 +264,7 @@ export function StackedBars({
                 {marks.some((m) => m.index === i) ? ', published' : ''}
               </th>
               {SHOWN.map((s) => (
-                <td key={s}>{b.counts[s]}</td>
+                <td key={s}>{b.counts[s] ?? 'Hidden'}</td>
               ))}
             </tr>
           ))}
@@ -399,10 +400,33 @@ export function Sparkline({ values, className }: { values: number[]; className?:
   )
 }
 
-/** How a topic was answered, as one bar split by state. */
-export function MixBar({ counts, className }: { counts: Counts; className?: string }) {
-  const n = total(counts) || 1
+/**
+ * How a topic was answered, as one bar split by state. A hidden count draws nothing of its own:
+ * what is left of the bar is the hidden ones together, never one of them.
+ */
+export function MixBar({
+  counts,
+  of,
+  className,
+}: {
+  counts: Counts
+  /**
+   * The total, when it shows. When what found nothing shows too, the answer states hidden under it
+   * are the context found, drawn together in a lighter Checked; otherwise the bar's end stays empty.
+   */
+  of?: number | null
+  className?: string
+}) {
+  const n = of || shownSum(counts) || 1
   const hatch = useHatchId()
+  // What found context in states too small to show on their own: never one of them.
+  const rest = of && counts.missing !== null ? of - shownSum(counts) : 0
+  const parts = SHOWN.flatMap((st) => [
+    ...(st === 'missing' && rest > 0
+      ? [{ key: 'rest', w: rest, fill: 'var(--primary)', opacity: 0.45 }]
+      : []),
+    { key: st, w: counts[st] ?? 0, fill: fillOf(st, hatch), opacity: 1 },
+  ])
   return (
     <svg
       aria-hidden
@@ -411,18 +435,19 @@ export function MixBar({ counts, className }: { counts: Counts; className?: stri
       viewBox="0 0 100 8"
     >
       <Hatch id={hatch} />
-      {SHOWN.map((st, i) => {
-        // Where this state starts: the share of the ones before it.
-        const x = SHOWN.slice(0, i).reduce((acc, k) => acc + (counts[k] / n) * 100, 0)
-        const w = (counts[st] / n) * 100
+      {parts.map((p, i) => {
+        // Where this part starts: the share of the ones before it.
+        const x = parts.slice(0, i).reduce((acc, q) => acc + (q.w / n) * 100, 0)
+        const w = (p.w / n) * 100
         return (
           <rect
-            key={st}
+            key={p.key}
             x={x}
             y={0}
             width={Math.max(0, w - 0.4)}
             height={8}
-            fill={fillOf(st, hatch)}
+            fill={p.fill}
+            opacity={p.opacity}
           />
         )
       })}
@@ -549,18 +574,19 @@ export function LineChart({
   )
 }
 
-/** One series as bars: a count a week. */
+/** One series as bars: a count a week. A hidden count (null) draws no bar and reads "Fewer than 5". */
 export function Bars({
-  values,
+  values: counts,
   labels,
   caption,
   height = 170,
 }: {
-  values: number[]
+  values: (number | null)[]
   labels: string[]
   caption: string
   height?: number
 }) {
+  const values = counts.map((v) => v ?? 0)
   const [box, W] = useWidth(520)
   const H = height
   const pad = { l: 28, r: 6, t: 10, b: 22 }
@@ -619,10 +645,10 @@ export function Bars({
       <table className="sr-only">
         <caption>{caption}</caption>
         <tbody>
-          {values.map((v, i) => (
+          {counts.map((v, i) => (
             <tr key={i}>
               <th scope="row">{labels[i]}</th>
-              <td>{v}</td>
+              <td>{v ?? 'Fewer than 5'}</td>
             </tr>
           ))}
         </tbody>

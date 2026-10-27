@@ -194,7 +194,11 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     let resultStatus: ResultStatus | null = null
     let responseBytes = 0
     reply.raw.once('finish', () => {
-      for (const record of pending) queue.enqueue(record)
+      // A delivery is counted by the kind of agent that asked (FR-410), as its request is.
+      for (const record of pending)
+        queue.enqueue(
+          record.kind === 'delivery' ? { ...record, value: { ...record.value, family } } : record,
+        )
       const duration = performance.now() - started
       metrics?.mcpRequest({ tool: name ?? 'protocol', status, appFamily: family }, duration / 1000)
       queue.enqueue({

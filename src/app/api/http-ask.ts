@@ -243,7 +243,6 @@ export function askedWeekOf(asked: Asked | null, names: Names): AskedWeek {
         where: markets.length ? markets.map(names.value).join(' and ') : 'All markets',
         ...(r.area ? { domain: r.area } : {}),
         month: month.slice(0, 7),
-        week: { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
       },
       title: r.title,
       question: questionAbout(r.title),

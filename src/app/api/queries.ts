@@ -7,7 +7,7 @@ import {
   type QueryKey,
 } from '@tanstack/react-query'
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
-import { isPageRead } from '@/api/client'
+import { isPageRead, type ObsPageInput } from '@/api/client'
 import type { AskInput } from '@/model/ask'
 
 // Reads and writes as the screens use them: one query factory per read, keyed in one place, and
@@ -51,8 +51,8 @@ export const queryKeys = {
   figures: ['readFigure'] as const,
   agentConnections: ['listAgentConnections'] as const,
   connectReview: ['getConnectReview'] as const,
-  observability: ['getObservability'] as const,
-  observabilityPage: (section: string) => ['observabilityPage', section] as const,
+  observabilityPage: (input: ObsPageInput) => ['observabilityPage', input] as const,
+  observabilityPages: ['observabilityPage'] as const,
   replay: (topic: string, when: string) => ['replayTopic', topic, when] as const,
   replays: ['replayTopic'] as const,
   readQuestion: (question: string) => ['readQuestion', question] as const,
@@ -219,13 +219,10 @@ export const readQuestionQuery = (question: string) =>
     staleTime: Infinity,
   })
 
-export const observabilityQuery = () =>
-  queryOptions({ queryKey: queryKeys.observability, queryFn: () => api.getObservability() })
-
-export const observabilityPageQuery = (section: string) =>
+export const observabilityPageQuery = (input: ObsPageInput) =>
   queryOptions({
-    queryKey: queryKeys.observabilityPage(section),
-    queryFn: () => api.observabilityPage({ section }),
+    queryKey: queryKeys.observabilityPage(input),
+    queryFn: () => api.observabilityPage(input),
   })
 
 export const replayQuery = (topic: string, when: 'now' | 'before') =>
@@ -261,7 +258,6 @@ export const sharedQueries = () => [
   inboxQuery(),
   reviewsQuery(),
   savedQuestionsQuery(),
-  observabilityQuery(),
   alertsQuery(),
   savedViewsQuery(),
   askExamplesQuery(),
@@ -283,7 +279,6 @@ export const useDefinitions = () => useSuspenseQuery(definitionsQuery()).data
 export const useInbox = () => useSuspenseQuery(inboxQuery()).data
 export const useReviews = () => useSuspenseQuery(reviewsQuery()).data
 export const useSavedQuestions = () => useSuspenseQuery(savedQuestionsQuery()).data
-export const useObservabilityData = () => useSuspenseQuery(observabilityQuery()).data
 export const useAlerts = () => useSuspenseQuery(alertsQuery()).data
 export const useSavedViews = () => useSuspenseQuery(savedViewsQuery()).data
 export const useAskExamples = () => useSuspenseQuery(askExamplesQuery()).data
@@ -334,7 +329,6 @@ type Read =
   | 'listAgentConnections'
   | 'checkConnect'
   | 'getConnectReview'
-  | 'getObservability'
   | 'observabilityPage'
   | 'replayTopic'
 export type WriteOperation = Exclude<HeedApiMethod, Read>

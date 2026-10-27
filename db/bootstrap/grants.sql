@@ -178,3 +178,6 @@ grant select, insert, delete on auth.oidc_requests to :api;
 grant select, insert, update (last_signed_in_at) on auth.identities to :api;
 grant update (expires_at, last_seen_at) on auth.sessions to :api;
 grant execute on function auth.join_by_group(text, text), auth.sync_group_admin(uuid, boolean), auth.invite_by_token(text) to :api;
+-- Observability (FR-620): the views people save on Questions are kept for everyone in the workspace
+-- and removed by whoever saved them; nothing in them names a question or who asked.
+grant insert, delete on observability_views to :api;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { obsData } from '@/api/mock/data/observability'
-import { groupCount, observability, total, visibleTotal } from '@/model/observability'
+import { groupCount, observability, total, visibleTotal } from '@/api/mock/obs-engine'
 
 const { data, couldNotRead, notFoundGroups, rollUp, topicKey, topicName, topicsOf, topicTitle } =
   observability(obsData('normal'))

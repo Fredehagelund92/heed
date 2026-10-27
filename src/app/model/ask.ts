@@ -1,6 +1,6 @@
 import type { MentionRef } from '@/lib/mentions'
-import type { Topic } from './observability'
 import { ANSWER_LINES } from '@/lib/help-content'
+import type { DomainId } from './items'
 
 // An answer in Ask as the app reads it (src/app/api): its state, its words with numbered sources,
 // and what it was read as. Pure types and the words each state is said with.
@@ -144,7 +144,8 @@ export function reportOutcomeWords(kind: ReportOutcomeKind, at: Date) {
 export const ASKED_ROWS = 4
 
 export type AskedRow = {
-  topic: Topic
+  /** The topic it is: its id, its domain when it has one, its metric and market as named, its month. */
+  topic: { id: string; domain?: DomainId; metric: string; where: string; month?: string }
   /** What the row says: "Orders in Norway". */
   title: string
   /** What a click asks. */

@@ -61,6 +61,17 @@ import {
   undoResultSchema,
 } from './review-path.ts'
 import {
+  obsAgentsInputSchema,
+  obsAgentsSchema,
+  obsFeedbackInputSchema,
+  obsFeedbackSchema,
+  obsUsageInputSchema,
+  obsUsageSchema,
+  obsViewRemoveInputSchema,
+  obsViewSaveInputSchema,
+  obsViewSchema,
+} from './observability.ts'
+import {
   askedSchema,
   lookupEventSchema,
   lookupInputSchema,
@@ -2773,6 +2784,68 @@ export const contract = {
       .output(reachSchema),
   },
   obs: {
+    agents: maintainRead
+      .route({
+        method: 'GET',
+        path: '/observability/agents',
+        tags: ['quality'],
+        summary:
+          "Overview's and Questions' read: what agents asked in a range and how it was answered, per day, per topic and per kind of agent; counts and scopes only, small counts hidden (FR-614, FR-620)",
+      })
+      .input(obsAgentsInputSchema)
+      .output(obsAgentsSchema),
+    feedback: maintainRead
+      .route({
+        method: 'GET',
+        path: '/observability/feedback',
+        tags: ['quality'],
+        summary:
+          "Feedback's read: what agents and people reported about answers in a range, and the answers people marked good; no person named, small counts hidden (FR-614, FR-620)",
+      })
+      .input(obsFeedbackInputSchema)
+      .output(obsFeedbackSchema),
+    usage: admin
+      .route({
+        method: 'GET',
+        path: '/observability/usage',
+        tags: ['quality'],
+        summary:
+          "Usage's read, for administrators: tool calls and how they ended, calls by kind of agent, reply times, and model spend against the caps (FR-410, FR-620)",
+      })
+      .input(obsUsageInputSchema)
+      .output(obsUsageSchema),
+    views: {
+      list: maintainRead
+        .route({
+          method: 'GET',
+          path: '/observability/views',
+          tags: ['quality'],
+          summary:
+            'The views people saved on Questions, for everyone in the workspace: a name and filters, never a question',
+        })
+        .output(z.array(obsViewSchema)),
+      save: maintainRead
+        .errors({
+          CONFLICT: { message: 'A view with this name is already saved. Name it another way.' },
+        })
+        .route({
+          method: 'POST',
+          path: '/observability/views',
+          tags: ['quality'],
+          summary: "Save Questions' filters as a view everyone in the workspace has as a tab",
+        })
+        .input(obsViewSaveInputSchema)
+        .output(obsViewSchema),
+      remove: maintainRead
+        .route({
+          method: 'DELETE',
+          path: '/observability/views/{id}',
+          tags: ['quality'],
+          summary: 'Remove a saved view: only whoever saved it, or an administrator',
+        })
+        .input(obsViewRemoveInputSchema)
+        .output(z.object({ removed: z.boolean() })),
+    },
     replay: maintainRead
       .errors({
         PRECONDITION_FAILED: {

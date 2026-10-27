@@ -222,6 +222,12 @@ export const policies = {
   'ask.lookup': 'read',
   'ask.asked': 'read',
   'engine.reach': 'propose',
+  'obs.agents': 'maintain',
+  'obs.feedback': 'maintain',
+  'obs.usage': 'admin',
+  'obs.views.list': 'maintain',
+  'obs.views.save': 'maintain',
+  'obs.views.remove': 'maintain',
   'obs.replay': 'maintain',
   'schema.item': 'public',
 } as const

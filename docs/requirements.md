@@ -93,6 +93,7 @@ Where two requirements disagree, the changed one, the new one and the mockup win
 | FR-307, FR-339, FR-340, FR-348 | Withdrawn | `improve_question`, `domain_overview`, `what_changed` and `search_help` leave the tool list. |
 | FR-121, FR-332 | Changed | `suggest_context` is on, with the scope granted at consent. After the person says yes, it sends the suggestion to the owner's review (it no longer only saves a draft); it never publishes. `get_related` is on, with its own switch ("Let agents follow links"), one step at a time. |
 | FR-602, FR-603 | Changed | From agents, still no question text. Words a person sends on purpose (a suggestion, a named report, a saved question, a comment) are kept with their name. Ask chats stay in the person's browser. |
+| FR-601 | Changed | A delivery record also keeps the answer state its reply gave and the kind of agent that called, so Observability can count them. |
 | FR-604, FR-606 | Changed | Case 1 of FR-606 counts across a month edge. The month stays in the topic's key. |
 | FR-615, FR-517 | Changed | The Observability pages and the domain page's health line replace the domain dashboard and the weekly scorecard to a chat tool. Alerts are Inbox cards. |
 | FR-701 to FR-715 | Changed | Ask (a page and a dock), using the answer engine for the state line and sources and the model only for words. History, Share, Where and Asked this week. |
@@ -561,7 +562,7 @@ The rule for this area: the system records who writes and decides, and never who
 
 | ID | Requirement | Priority | Status |
 | --- | --- | --- | --- |
-| FR-601 | Each `get_facts` call must create one delivery record. The record must hold a random id, the time to the hour, the client label, the edition, the scope used and the topic. It must also hold the items delivered, the items left out (with reasons), the check-report status, the digest of the tool descriptions and the audience groups that apply. | First build | Kept |
+| FR-601 | Each `get_facts` call must create one delivery record. The record must hold a random id, the time to the hour, the client label, the edition, the scope used and the topic. It must also hold the items delivered, the items left out (with reasons), the check-report status, the digest of the tool descriptions and the audience groups that apply. (Amended 27 Oct 2026: it must also hold the answer state the reply gave (FR-349), none when the question could not be read, and the kind of agent that called, from the fixed list of FR-410, never the name the agent gives itself.) | First build | Changed |
 | FR-602 | The system must not store the text of a question in any table, log or export. It may use the text in memory to find the scope and the topic. The only free text it stores is the short notes of FR-611. | First build | Changed |
 | FR-603 | The system must not store assistant conversations on the server, except text that the person saves into a draft or proposal. | First build | Changed |
 | FR-604 | A topic must come from the scope used: domain, metrics (or metric group), dimension values, dimensions named without a value, and calendar month. The first build must use no free-text topics. | First build | Changed |
@@ -580,7 +581,7 @@ The rule for this area: the system records who writes and decides, and never who
 | FR-617 | The system should export counts, never person-level data, for the organisation's own dashboards. | Later | Kept |
 | FR-618 | The system should rank topics by how often people ask about them compared with how many items cover them. | Later | Kept |
 | FR-619 | The system may group free-text notes into topics, with a minimum count. | Later | Kept |
-| FR-620 | The system must offer observability pages over counts and scopes only: Overview, Questions, Quality, Feedback, Usage and Alerts. Admins see all domains; owners see their own. A count under five reads "Fewer than 5". | First build | New |
+| FR-620 | The system must offer observability pages over counts and scopes only: Overview, Questions, Quality, Feedback, Usage and Alerts. Admins see all domains; owners see their own. A count under five reads "Fewer than 5", and no count is shown when a hidden one could be worked out from the counts shown with it by subtraction (FR-614). | First build | New |
 | FR-621 | Alert rules must raise cards in the Inbox. An administrator turns rules on and off and sets thresholds. An owner mutes a rule for their own domains. No alert sends an email. | First build | New |
 | FR-622 | A person must be able to send a named report from Ask: the part that is wrong and, optionally, the correction. It goes to the owner as a Reported card and the outcome returns to that chat. | First build | New |
 

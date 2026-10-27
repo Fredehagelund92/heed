@@ -7,11 +7,13 @@ import {
   ScanSearchIcon,
 } from '@/components/icons'
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { replayQuery, useObservabilityData } from '@/api/queries'
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
+import type { ObsPageInput } from '@/api/client'
+import { observabilityPageQuery, replayQuery } from '@/api/queries'
 import {
   observability,
   RANGES,
+  type ObsData,
   type Observability,
   type ObsState,
   type Range,
@@ -73,10 +75,12 @@ export const OBS_TITLES = Object.fromEntries(
   OBS_SECTIONS.flatMap((g) => g.items.map((i) => [i.id, i.title])),
 ) as Record<ObsSection, string>
 
-export type ObsView = View & { state: ObsState; owned: DomainId[] | null; label: string }
+/** The view in the address: its range, and a domain or a kind of agent; an owner's own domains. */
+export type ObsAddress = View & { owned: DomainId[] | null; label: string }
+export type ObsView = ObsAddress & { state: ObsState }
 
-/** What the page shows: the range and filters from the address, an owner's own domains, and the review flag. */
-export function useObsView(): ObsView {
+/** What the address asks for: the range and filters, and an owner's own domains. */
+export function useObsAddress(): ObsAddress {
   const { query } = useRoute()
   const me = useMe()
   const range = (Number(query.get('range')) as Range) || 7
@@ -85,26 +89,48 @@ export function useObsView(): ObsView {
   // An owner always sees one of their own domains.
   const domain = owned ? (asked && owned.includes(asked) ? asked : owned[0]) : (asked ?? undefined)
   const agent = me.admin ? (query.get('agent') ?? undefined) : undefined
-  // The review flag (?state=empty, quiet or busy) is the mock's: its data says which it is.
-  const state: ObsState = useObservabilityData().state
-  const label = range === 7 ? 'this week' : `the last ${range} days`
   return {
     range: RANGES.includes(range) ? range : 7,
     domain,
     agent,
-    scale: state === 'busy' ? 3.4 : undefined,
-    state,
     owned,
-    label,
+    label: range === 7 ? 'this week' : `the last ${range} days`,
   }
+}
+
+/**
+ * What a page reads for its view. Questions reads every domain the person sees, so its filters can
+ * count them; the other pages read the domain in the address.
+ */
+export const obsPageInput = (section: ObsSection, a: ObsAddress): ObsPageInput => ({
+  section,
+  range: a.range,
+  ...(section !== 'questions' && a.domain ? { domain: a.domain } : {}),
+  ...(a.agent ? { agent: a.agent } : {}),
+})
+
+/** A page's own read, which its loading state shows. */
+export const useObsPageQuery = (section: ObsSection) =>
+  useQuery(observabilityPageQuery(obsPageInput(section, useObsAddress())))
+
+/** The page in the address, which its own read loaded before anything under it draws. */
+function useObsData(): ObsData {
+  const { parts } = useRoute()
+  const section = (parts[1] && parts[1] in OBS_PURPOSE ? parts[1] : 'overview') as ObsSection
+  return useSuspenseQuery(observabilityPageQuery(obsPageInput(section, useObsAddress()))).data
+}
+
+/** The view of a page that has loaded: what the address asks for, and what its data says it is. */
+export function useObsView(): ObsView {
+  return { ...useObsAddress(), state: useObsData().state }
 }
 
 /** A topic run again (`now`, or before the last publish); undefined until it has run. */
 export const useReplay = (topic: string, when: 'now' | 'before') =>
   useQuery(replayQuery(topic, when)).data ?? undefined
 
-/** Observability's counts over its data as it stands (the shared read), for any view. */
+/** Observability's reading of the page's data, for the view in the address. */
 export function useObservability(): Observability {
-  const data = useObservabilityData()
+  const data = useObsData()
   return React.useMemo(() => observability(data), [data])
 }

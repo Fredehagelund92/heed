@@ -2,16 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { obsData } from '@/api/mock/data/observability'
 import { changedSteps, replay } from '@/api/mock/replay'
 import { createWorkspace } from '@/api/mock/workspace'
+import { obsPage } from '@/api/mock/obs-page'
 import { BUILT_IN, filtersFrom, filtersTo, passes, sentence } from '@/lib/obs-views'
-import { observability } from '@/model/observability'
+import { observability } from '@/api/mock/obs-engine'
 import { afterAnswer, NEXT } from '@/model/replay'
 
 // The answer panel's replay runs Ask's own lookup on a topic's scope, so it says what an agent
 // gets now, step by step, with nothing recorded; and Questions' views and filters read the same way.
 
-const { data, topicsOf } = observability(obsData('normal'))
+const { data } = observability(obsData('normal'))
 const TOPICS = data.topics
 const topic = (id: string) => TOPICS.find((t) => t.id === id)!
+/** The week's topics as an admin's page reads them, every count disclosed. */
+const page = obsPage(obsData('normal'), { range: 7 }, { admin: true, owns: [] })
 const domains = createWorkspace().domainMap()
 
 describe('a replay', () => {
@@ -53,17 +56,22 @@ describe('a replay', () => {
     expect(changedSteps(topic('orders-spain'))).toEqual([])
   })
 
-  it('counts what agents did after, never who', () => {
-    expect(afterAnswer(topic('orders-spain'))).toBe(
-      '2 agents sent a report about it. 0 followed a link. 1 asked again with other dates.',
+  it('says what happened after, never who and never a count under 5', () => {
+    const spain = page.topics.find((t) => t.id === 'orders-spain')!
+    expect(afterAnswer(spain)).toBe(
+      'Nobody reported an answer about it. It found nothing 5 or more times, so it waits in the Inbox: draft ready.',
     )
+    const revenue = page.topics.find((t) => t.id === 'net-revenue-norway')!
+    expect(afterAnswer(revenue)).toBe('Someone reported an answer about it.')
   })
 })
 
 describe("Questions' views and filters", () => {
-  const all = topicsOf({ range: 7 })
-  it('start with five views that count 16, 4, 3, 4 and 1 exact topics', () => {
-    expect(BUILT_IN.map((v) => all.filter(v.has).length)).toEqual([16, 4, 3, 4, 1])
+  const all = page.topics
+  // A view counts what a reader can see: a month of a subject over several is in the views its
+  // subject's counts say, so September of Orders in Norway is in Outdated with October.
+  it('start with five views that count 16, 4, 3, 5 and 1 exact topics', () => {
+    expect(BUILT_IN.map((v) => all.filter(v.has).length)).toEqual([16, 4, 3, 5, 1])
   })
 
   it('filter by answer, domain and gap', () => {
