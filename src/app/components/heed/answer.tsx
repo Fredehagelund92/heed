@@ -37,7 +37,7 @@ import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { figureQuery, useWrite } from '@/api/queries'
+import { figureQuery, myReportsQuery, useWrite } from '@/api/queries'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
@@ -652,8 +652,11 @@ function SomethingWrong({
   onSent: () => void
 }) {
   const domains = useDomains()
+  const write = useWrite()
   const [part, setPart] = React.useState(facts[0]?.id ?? 'answer')
-  const fact = facts.find((f) => f.id === part)
+  const [sending, setSending] = React.useState(false)
+  // The answer itself is filed on its first source, so it reaches that domain's owners.
+  const fact = facts.find((f) => f.id === part) ?? facts[0]
   const domain = fact?.domain ?? 'sales'
 
   return (
@@ -661,7 +664,27 @@ function SomethingWrong({
       className="flex animate-in flex-col gap-4 rounded-surface border border-input bg-background p-4 duration-(--dur-3) fade-in-0 slide-in-from-top-1"
       onSubmit={(e) => {
         e.preventDefault()
-        onSent()
+        const form = new FormData(e.currentTarget)
+        const text = (name: string) => {
+          const value = form.get(name)
+          return typeof value === 'string' ? value.trim() : ''
+        }
+        setSending(true)
+        write('reportAnswer', {
+          question: answer.question,
+          part,
+          sources: answer.sources,
+          what: text('what'),
+          correction: text('correction') || undefined,
+          link: text('link') || undefined,
+        })
+          .then(onSent)
+          .catch(() =>
+            toast.error("The report wasn't sent", {
+              description: 'Nothing was lost: try again in a moment.',
+            }),
+          )
+          .finally(() => setSending(false))
       }}
     >
       <div>
@@ -693,16 +716,26 @@ function SomethingWrong({
         </FieldSet>
         <Field>
           <FieldLabel htmlFor={`what-${answer.id}`}>What's wrong?</FieldLabel>
-          <Textarea id={`what-${answer.id}`} defaultValue={answer.correction?.note} required />
+          <Textarea
+            id={`what-${answer.id}`}
+            name="what"
+            defaultValue={answer.correction?.note}
+            required
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor={`correct-${answer.id}`}>Correct version (optional)</FieldLabel>
-          <Textarea id={`correct-${answer.id}`} defaultValue={answer.correction?.correct} />
+          <Textarea
+            id={`correct-${answer.id}`}
+            name="correction"
+            defaultValue={answer.correction?.correct}
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor={`link-${answer.id}`}>Link (optional)</FieldLabel>
           <Input
             id={`link-${answer.id}`}
+            name="link"
             type="url"
             defaultValue={answer.correction?.link}
             placeholder="https://"
@@ -713,7 +746,9 @@ function SomethingWrong({
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
-        <Button type="submit">Send to the owner of {domains[domain]?.name}</Button>
+        <Button type="submit" disabled={sending}>
+          Send to the owner of {domains[domain]?.name}
+        </Button>
       </div>
     </form>
   )
@@ -921,7 +956,12 @@ export function AnswerBody({
   )
   const [rated, setRated] = React.useState<'up' | 'down' | null>(null)
   const [wrong, setWrong] = React.useState(!!answer.correction)
-  const [report, setReport] = React.useState(answer.report)
+  const [sentNow, setSentNow] = React.useState(answer.report)
+  // A report the person sent about this answer, here or before: what the owners did comes back.
+  const mine = useQuery({ ...myReportsQuery(), enabled: !draft }).data?.find(
+    (r) => r.question.toLowerCase() === answer.question.toLowerCase(),
+  )
+  const report = mine ? { on: mine.on, outcome: mine.outcome } : sentNow
   // Saving a question is for the owners of the domain it is about, and admins.
   const me = useMe()
   const saveDomain = facts[0]?.domain ?? me.owns.find((d) => d !== 'sandbox') ?? 'sales'
@@ -1063,7 +1103,7 @@ export function AnswerBody({
                 onClose={() => setWrong(false)}
                 onSent={() => {
                   setWrong(false)
-                  setReport({ on: 'just now' })
+                  setSentNow({ on: 'just now' })
                 }}
               />
             )}

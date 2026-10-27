@@ -1,4 +1,4 @@
-import { expect, go, inMockUntil, test } from './go.ts'
+import { expect, go, test } from './go.ts'
 
 // J3: someone asks, gets an answer that says how sure it is, and reports a part that is wrong.
 test('someone asks, then reports a wrong part', async ({ page }) => {
@@ -8,16 +8,14 @@ test('someone asks, then reports a wrong part', async ({ page }) => {
   await box.pressSequentially('Do Norway orders include gift-card money?')
   await box.press('Enter')
   await expect(page.getByText('Conflict', { exact: true }).first()).toBeVisible()
-  await inMockUntil('P10b', 'named reports, sent from Ask to the owner', async () => {
-    await page.getByRole('button', { name: 'Something wrong?' }).click()
-    await page
-      .getByRole('textbox', { name: "What's wrong?" })
-      .fill('Gift cards are paid out separately since October.')
-    await page.getByRole('button', { name: /^Send to the owner of/ }).click()
-    await expect(
-      page.getByRole('status').filter({ hasText: 'You reported this just now' }),
-    ).toBeVisible()
-  })
+  await page.getByRole('button', { name: 'Something wrong?' }).click()
+  await page
+    .getByRole('textbox', { name: "What's wrong?" })
+    .fill('Gift cards are paid out separately since October.')
+  await page.getByRole('button', { name: /^Send to the owner of/ }).click()
+  await expect(
+    page.getByRole('status').filter({ hasText: 'You reported this just now' }),
+  ).toBeVisible()
 })
 
 test('a question that names nothing gets Not found, with its short sentence', async ({ page }) => {

@@ -750,6 +750,34 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'ask', 'reportAnswer', 'getMyReports'))(
+      "sends a named report on an answer, and lists it as the person's own, sent just now",
+      async () => {
+        const a = await signedIn()
+        const answer = await a.ask({ question: 'Do Norway orders include gift-card money?' })
+        expect(answer.sources.length).toBeGreaterThan(0)
+        const { id } = await a.reportAnswer({
+          question: answer.question,
+          part: answer.sources[0]!,
+          sources: answer.sources,
+          what: 'Gift cards are paid out separately since October.',
+        })
+        const [latest] = await a.getMyReports()
+        expect(latest).toMatchObject({ id, question: answer.question, on: 'just now' })
+        expect(latest!.outcome).toBeUndefined()
+        // The answer itself is filed on its first source.
+        const itself = await a.reportAnswer({
+          question: answer.question,
+          part: 'answer',
+          sources: answer.sources,
+          what: 'Both cannot be true.',
+          correction: 'Norway orders leave gift cards out.',
+          link: 'https://wiki.example/norway-orders',
+        })
+        expect((await a.getMyReports())[0]?.id).toBe(itself.id)
+      },
+    )
+
     it.skipIf(lacks('signIn'))('refuses someone the sign-in does not offer', async () => {
       await expect(api().signIn({ name: 'Nobody Here', fresh: false })).rejects.toMatchObject({
         kind: 'not-found',

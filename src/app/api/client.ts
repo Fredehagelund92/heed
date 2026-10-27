@@ -13,7 +13,7 @@
 import type { JSONContent } from '@tiptap/core'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
-import type { Answer, AskedWeek, AskInput, Example, Thread } from '@/model/ask'
+import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@/model/ask'
 import type { Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
@@ -333,6 +333,21 @@ export interface HeedApi {
   saveChat: (input: { id: string; question: string }) => Promise<void>
   renameChat: (input: { id: string; title: string }) => Promise<void>
   deleteChat: (input: { id: string }) => Promise<Undoable>
+  /**
+   * Tells the owners what is wrong with an answer, with the person's name (FR-622): the question,
+   * the part (a source's item id, or `answer` for the answer itself, filed on its first source),
+   * what is wrong and, optionally, the correct version and a link. Nothing else of the chat is sent.
+   */
+  reportAnswer: (input: {
+    question: string
+    part: string
+    sources: string[]
+    what: string
+    correction?: string
+    link?: string
+  }) => Promise<{ id: string }>
+  /** The person's own reports from Ask, newest first, each with what the owners did after it. */
+  getMyReports: () => Promise<SentReport[]>
 
   // Observability: what agents asked and how it was answered, as scopes and counts only
   getObservability: () => Promise<ObsData>
@@ -462,6 +477,8 @@ export const heedApiMethods = [
   'saveChat',
   'renameChat',
   'deleteChat',
+  'reportAnswer',
+  'getMyReports',
   'getObservability',
   'observabilityPage',
   'replayTopic',

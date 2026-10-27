@@ -105,6 +105,41 @@ export type AskInput = {
   reread?: { dates?: string }
 }
 
+/** What the owners did after a named report, the first of them. */
+export type ReportOutcomeKind = 'not_a_problem' | 'checked' | 'changed' | 'archived'
+
+/** A report the person sent from Ask: when, and what the owners did after it, in words. */
+export type SentReport = {
+  id: string
+  /** The question it was about, as asked: the chat shows the outcome under that answer. */
+  question: string
+  /** When it was sent, as the chat says it: "just now", "today", "on 23 Oct". */
+  on: string
+  /** What the owners did, once they did: "Checked again on 16 Oct after your report: still true." */
+  outcome?: string
+}
+
+const SHORT = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
+const shortDay = (at: Date) => `${at.getDate()} ${SHORT[at.getMonth()]}`
+
+/** When a report was sent, as "You reported this ..." finishes. */
+export function reportedOn(at: Date, now: Date) {
+  if (now.getTime() - at.getTime() < 2 * 60_000) return 'just now'
+  if (at.toDateString() === now.toDateString()) return 'today'
+  return `on ${shortDay(at)}`
+}
+
+/** What the owners did after a report, as the chat says it. */
+export function reportOutcomeWords(kind: ReportOutcomeKind, at: Date) {
+  const on = shortDay(at)
+  return {
+    checked: `Checked again on ${on} after your report: still true.`,
+    changed: `Changed on ${on} after your report. Agents get the new version.`,
+    archived: `Archived on ${on} after your report. Agents no longer get it.`,
+    not_a_problem: `Looked at on ${on} after your report: not a problem. The context item stays as it is.`,
+  }[kind]
+}
+
 /** How many topics show at first; the rest open in place under More asked this week. */
 export const ASKED_ROWS = 4
 

@@ -43,7 +43,7 @@ import {
   warehouseHas,
 } from './data/integrations'
 import { figureFor } from './data/figures'
-import type { AskInput } from '@/model/ask'
+import { reportedOn, type AskInput } from '@/model/ask'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { createSaved } from './saved'
@@ -170,6 +170,9 @@ export function createMockApi() {
       parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,
     }
   }
+
+  /** The reports the person sent from Ask this visit, newest first. */
+  const reports: { id: string; question: string; at: Date }[] = []
 
   const copy = <T>(value: T): T => (value === undefined ? value : structuredClone(value))
   const read = <T>(method: HeedApiMethod, key: string, run: () => T) =>
@@ -417,6 +420,17 @@ export function createMockApi() {
     saveChat: ({ id, question }) => now(() => chats.add(id, question)),
     renameChat: ({ id, title }) => now(() => chats.rename(id, title)),
     deleteChat: ({ id }) => now(() => remember(chats.remove(id))),
+    // A named report waits in this visit's memory; the demo's owners don't act on it here.
+    reportAnswer: ({ question }) =>
+      now(() => {
+        const id = `report-${reports.length + 1}`
+        reports.unshift({ id, question, at: new Date() })
+        return { id }
+      }),
+    getMyReports: () =>
+      now(() =>
+        reports.map((r) => ({ id: r.id, question: r.question, on: reportedOn(r.at, new Date()) })),
+      ),
 
     // Observability
     getObservability: () => now(() => obsData(scenario.obsState())),

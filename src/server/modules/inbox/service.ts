@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/client'
 import type { Card, Feed } from '../../../contract/inbox.ts'
+import type { ReportOutcome } from '../../../contract/reports.ts'
 import { topicScope, topicWords } from '../../../domain/answer.ts'
 import { monthWords } from '../../../domain/dates.ts'
 import { visibleCount } from '../../../domain/gaps.ts'
@@ -25,8 +26,9 @@ import { loadProposal, type ReviewPath, type ReviewService } from '../review/ind
   The Inbox of Heed v1 (docs/product.md, section 5): the cards of the domains a person owns (every
   domain for an administrator), made from today's records and grouped by need. Not found: open
   gaps of those domains. Reported: anonymous feedback that said an answer was wrong or unclear,
-  until an owner says it is not a problem (decided 26 October 2026; named reports follow with
-  P10). Mentioned you: threads where a comment mentions the person and they haven't read it,
+  until an owner says it is not a problem (decided 26 October 2026), and named reports from Ask,
+  with who sent them, until an owner closes one or checks, changes or archives its item (FR-622).
+  Mentioned you: threads where a comment mentions the person and they haven't read it,
   whatever domain it is in. Due for a check: live items whose check date passed or whose
   definition changed. Suggestions: those waiting for a decision. Under All, the person's own
   suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions
@@ -50,6 +52,14 @@ const outcomeWords: Record<string, string> = {
   recheck: 'Checked',
   not_a_problem: 'Not a problem',
   not_written: 'Not something we write down',
+}
+
+/** What the owners did after a named report, in the word the Inbox shows beside its done card. */
+const reportWords: Record<ReportOutcome, string> = {
+  not_a_problem: 'Not a problem',
+  checked: 'Checked',
+  changed: 'Changed',
+  archived: 'Archived',
 }
 
 /**
@@ -233,10 +243,67 @@ export function createInboxFeedService(
       at: row.at,
       opened: false,
       done: null,
+      source: 'agent' as const,
       feedbackId: row.id,
       verdict: row.verdict,
       note: row.note,
+      by: null,
+      question: null,
+      correction: null,
+      link: null,
       items: row.items,
+    }))
+  }
+
+  /**
+   * Named reports from Ask (FR-622) in the person's domains, with who sent them: the open ones,
+   * which wait until an owner acts, or (`done`) those an owner acted on in the last two weeks. An
+   * owner acts by closing it as not a problem, or by checking, changing or archiving its item.
+   */
+  async function reports(areas: readonly string[], which: 'open' | 'done'): Promise<Card[]> {
+    const rows = await tx.query<{
+      id: string
+      at: string
+      area: string
+      what: string
+      question: string
+      correction: string | null
+      link: string | null
+      by: string
+      item: string
+      title: string | null
+      outcome: ReportOutcome | null
+      decided: string | null
+    }>(
+      `select r.id::text, r.created_at::text as at, r.area_id as area, r.what, r.question, r.correction,
+              r.link, r.person_id::text as by, r.item_id as item,
+              (select v.title from item_version_service s join item_versions v on v.id = s.version_id
+                where s.item_id = r.item_id and cl_audience_allows(v.audience_groups)
+                order by lower(s.editions) desc limit 1) as title,
+              o.outcome, o.decided_at::text as decided
+         from reports r left join lateral cl_report_outcome(r.id) o on true
+        where r.area_id = any($1::text[]) and r.created_at > now() - interval '90 days'
+          and ${which === 'open' ? 'o.outcome is null' : 'o.decided_at > now() - make_interval(days => $2)'}
+        order by r.created_at desc, r.id limit 100`,
+      which === 'open' ? [areas] : [areas, doneDays],
+    )
+    return rows.map((row): Card => ({
+      id: cardKey.report(row.id),
+      group: 'flag',
+      areaId: row.area,
+      at: row.decided ?? row.at,
+      opened: which === 'done',
+      done:
+        row.outcome && row.decided ? { outcome: reportWords[row.outcome], at: row.decided } : null,
+      source: 'ask',
+      feedbackId: row.id,
+      verdict: 'wrong',
+      note: row.what,
+      by: row.by,
+      question: row.question,
+      correction: row.correction,
+      link: row.link,
+      items: row.title ? [{ id: row.item, title: row.title }] : [],
     }))
   }
 
@@ -353,11 +420,17 @@ export function createInboxFeedService(
         at: row.at,
         opened: true,
         done: { outcome: outcomeWords.not_a_problem!, at: row.at },
+        source: 'agent',
         feedbackId: row.card.slice('feedback:'.length),
         verdict: row.verdict === 'wrong' ? 'wrong' : 'unclear',
         note: row.note,
+        by: null,
+        question: null,
+        correction: null,
+        link: null,
         items: row.items,
       })
+    cards.push(...(await reports(areas, 'done')))
     const notWritten = await tx.query<{
       id: string
       ref: string
@@ -472,6 +545,7 @@ export function createInboxFeedService(
       let cards = [
         ...(await gaps(bundle, min)),
         ...(await flags(areas)),
+        ...(await reports(areas, 'open')),
         ...(await mentions()),
         ...(await checks(bundle, areas)),
         ...(await suggestions(areas)),
@@ -528,8 +602,8 @@ export function createInboxFeedService(
     /** A card's one decision (FR-616, FR-618, CON-211, FR-218), with a token that undoes it (FR-227). */
     async decide(input: { card: string; action: CardAction; reason?: string | undefined }) {
       const key = parseCardKey(input.card)
-      const kindOf = { gap: 'gap', flag: 'feedback', check: 'check' } as const
-      if (!key || key.kind !== kindOf[actionGroup[input.action]])
+      const kindsOf = { gap: ['gap'], flag: ['feedback', 'report'], check: ['check'] } as const
+      if (!key || !(kindsOf[actionGroup[input.action]] as readonly string[]).includes(key.kind))
         throw new ORPCError('UNPROCESSABLE_CONTENT', {
           message: "This card doesn't offer that decision.",
         })
@@ -543,7 +617,9 @@ export function createInboxFeedService(
       }
       if (input.action === 'not_a_problem') {
         const [row] = await tx.query<{ area: string | null }>(
-          `select area_id as area from feedback where id=$1 and verdict in ('wrong','unclear')`,
+          key.kind === 'report'
+            ? `select area_id as area from reports where id::text=$1`
+            : `select area_id as area from feedback where id=$1 and verdict in ('wrong','unclear')`,
           [key.id],
         )
         if (!row?.area) throw new ORPCError('NOT_FOUND')

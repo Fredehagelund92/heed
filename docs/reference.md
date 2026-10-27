@@ -545,7 +545,11 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   is the person's own, in any domain: one for each thread with a comment that mentions them and
   that they haven't read, named `mention:<subject>`. Reported cards are the anonymous wrong or unclear
   reports of the last 90 days, with no person; each names the context the reported answer gave
-  (`items`), the version agents got and only one the person may read. A Not found card's title
+  (`items`), the version agents got and only one the person may read. Beside them come the named
+  reports from Ask of the last 90 days (`source: ask`, named `report:<id>`), with who sent each
+  (`by`), the question, what is wrong (`note`), the correct version and the link they gave, and
+  the item they are about; one waits until an owner closes it or checks, changes or archives its
+  item, and is then done with that outcome. A Not found card's title
   names what agents asked about and the month: "Orders in Spain, October 2026". Under All come what the person sent that waits
   on an owner and what was done in the last 14 days. A suggestion's card says whether the
   person read the version under review (`read`), so it may go out with the others they read.
@@ -554,14 +558,35 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   they read the comments that mention them there). `POST /inbox/cards/decide`
   takes `{ card, action, reason? }`, the one decision a card offers: `not_written` for a Not
   found card (the gap is set to `wont_fix`), `not_a_problem` for a Reported card (closed for
-  every owner), and `still_true` or `archive` for a Due for a check card (a recheck or a
-  retirement). Each answers with an undo token.
+  every owner, a named report too), and `still_true` or `archive` for a Due for a check card (a
+  recheck or a retirement). Each answers with an undo token.
 - `POST /gaps/{id}/scope-draft` starts a draft from a Not found card's scope, dated to its month,
   or returns the one the person already started from it.
 - `GET /setup` is the setup checklist of a new workspace (FR-816), read from what exists: what
   the business is about, one context item, a question in Ask, an agent connected, and a source
   of definitions. Ask keeps no record of its own (FR-602), so its step is a mark with no person or
   question.
+
+## Named reports
+
+A person tells the owners from Ask that an answer is wrong, with their name (FR-622; docs/product.md,
+section 9), through these operations, typed in `src/contract/reports.ts`. A report keeps only what
+the person sent on purpose: the question, the part that is wrong (one context item of the answer,
+or the answer itself, filed on its first item), what is wrong and, optionally, the correct version
+and a web address. It is filed in the item's domain and reaches that domain's owners as a Reported
+card. Its sender, the owners of its domain and administrators read it; nobody else does, and
+agents never read it: the serving role has no grant on it, and nothing an edition holds is built
+from it.
+
+- `POST /reports` takes `{ question, itemId, part, what, correction?, link? }` (`part` is `item`
+  or `answer`; texts up to 2,000 characters) and answers `{ id, at }` only, so the answer a retry
+  replays never holds the words. An item the person may not read is not found. A person's reports
+  share the per-minute limit of their gap reports (FR-408). Writes need the session cookie,
+  `Origin`, `x-heed-csrf` and an `Idempotency-Key`.
+- `GET /reports/mine` lists the person's own reports of the last 90 days, newest first, each with
+  its question and `outcome`: null while nobody has acted on it, else the first of what the owners
+  did after it, `not_a_problem` (its card closed), `checked`, `changed` or `archived` (its item),
+  and when. Ask shows it under the answer it was about.
 
 ## Comments, reactions and mentions
 

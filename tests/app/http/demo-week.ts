@@ -25,13 +25,12 @@ import { idleJobs } from '../../server/idle-jobs.ts'
   wait for Jon Abara, owner of Sales (data/review.ts), sent through the service's own API by the
   people who send them in the mock. The texts are the mock's, so the review shows the same change;
   what the service computes from them (the difference, the claims, the Ready line) is its own. The
-  report on Orders in Germany comes in as the anonymous feedback the service keeps today. What
+  report on Orders in Germany comes in as Maria Lindqvist's named report from Ask. What
   agents asked this week comes in as the topics and counts the service keeps (Asked this week).
 
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
   27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
-  withdraws his retirement (P9), the Not found card and its draft (part 2 of P6b), and who sent the
-  report (P10). Draft items, which no API keeps yet, stay out too (P7).
+  withdraws his retirement (P9). Draft items, which no API keeps yet, stay out too (P7).
 
   The terms and synonyms people wrote in Definitions are the mock's too, each by its writer. A
   synonym of a synonym (Takings, for Turnover) means what that one means, as the service keeps it,
@@ -712,30 +711,20 @@ export async function seedDemoWeek(
       `update proposals set provenance='{"by":"agent","fields":{},"flags":[]}' where id=$1`,
       [ids['sug-agent']],
     )
-    // An agent's answer about Orders in Germany gave "Orders lags by one day in the source tool",
-    // and someone reported it as unclear from the chat: anonymous until named reports come (P10).
     await after.query('select cl_ensure_delivery_partitions(2), cl_ensure_request_partitions(2)')
-    const [delivery] = (
+    // Maria asked Ask about Orders in Germany, got "Orders lags by one day in the source tool",
+    // and reported it with her name, as the mockup's Observability lists it ("Maria Lindqvist,
+    // from Ask"). Sent after every seeded decision, so nothing an owner did answers it yet.
+    const [report] = (
       await after.query<{ id: string }>(
-        `insert into deliveries (client_label, caller, edition_seq, overlay_seq, tool_schema_digest, scope, status, delivered)
-         select 'claude', 'agent', seq, 0, 'demo-week', '{}'::jsonb, 'matched', $1::jsonb from live_edition
+        `insert into reports (person_id, area_id, item_id, part, question, what)
+         values ($1, 'area_sales', $2, 'item', 'Why are Germany orders low for yesterday?',
+                 'Is this Germany only, or every market?')
          returning id::text`,
-        [
-          JSON.stringify([
-            { id: serverItemId('itm_0tmqp7o1'), v: 1, rank: 1, label: 'Orders lags by one day' },
-          ]),
-        ],
+        [seedPersonId(personId('Maria Lindqvist')), serverItemId('itm_0tmqp7o1')],
       )
     ).rows
-    const [feedback] = (
-      await after.query<{ id: string }>(
-        `insert into feedback (delivery_id, verdict, note, client_label, area_id)
-         values ($1, 'unclear', 'Is this Germany only, or every market?', 'claude', 'area_sales')
-         returning id::text`,
-        [delivery!.id],
-      )
-    ).rows
-    flag = `feedback:${feedback!.id}`
+    flag = `report:${report!.id}`
     // Agents asked about Orders in Spain for October 9 times this week and found nothing written
     // down: the Not found card, with the draft the drafting helper made from a status page.
     const [gap] = (
