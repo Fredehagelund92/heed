@@ -138,7 +138,7 @@
     "dev:server": "node --env-file-if-exists=.env.local --watch src/server/main.ts",
     "start:server": "node --env-file-if-exists=.env.local src/server/main.ts",
     "typecheck": "tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.server.json --noEmit",
-    "lint": "node --max-old-space-size=4096 node_modules/eslint/bin/eslint.js . && npm run lint:css",
+    "lint": "node --max-old-space-size=8192 node_modules/eslint/bin/eslint.js . && npm run lint:css",
     "lint:css": "stylelint \"src/**/*.css\"",
     "lint:words": "node scripts/check-plain-words.ts",
     "format": "prettier --write .",
