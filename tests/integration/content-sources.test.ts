@@ -566,6 +566,32 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     expect(last!.warnings.map((w) => w.code)).toContain('too_many_removals')
   })
 
+  it('withdraws the old suggestion of a changed document whose new one the checks refuse', async () => {
+    const onboarding = 'docs/people/onboarding.md'
+    expect((await open(sourceId)).map((s) => s.document)).toContain(onboarding)
+    await host.commit('handbook', {
+      'docs/people/onboarding.md': doc('Onboarding', 'Orders are reviewed every week.'),
+    })
+    await client.query("update areas set archived_at = now() where id = 'finance'")
+    try {
+      const result = await read()
+      expect(result.connectors[sourceId]).toMatchObject({ withdrawn: 1 })
+    } finally {
+      await client.query("update areas set archived_at = null where id = 'finance'")
+    }
+    expect((await open(sourceId)).map((s) => s.document)).not.toContain(onboarding)
+    const [kept] = (
+      await client.query<{ state: string; skip_reason: string | null }>(
+        `select state, skip_reason from connector_documents where source_id=$1 and document_id=$2`,
+        [sourceId, onboarding],
+      )
+    ).rows
+    expect(kept).toEqual({ state: 'skipped', skip_reason: 'not_valid' })
+    expect(
+      (await suggestions(sourceId)).filter((s) => s.document === onboarding).at(-1)?.state,
+    ).toBe('withdrawn')
+  })
+
   it('reads as nobody in its own transaction, which may write only its own suggestions', async () => {
     // Row security: a transaction that names no source may not write a suggestion nobody proposed.
     await expect(
