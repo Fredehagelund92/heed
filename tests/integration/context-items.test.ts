@@ -190,6 +190,18 @@ describe('publishing in one step (FR-137)', () => {
     expect(p.state).toBe('submitted')
   })
 
+  it("never moves an item out of a domain the person doesn't own in one step", async () => {
+    const item = await live()
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'stranger', {
+        itemId: item,
+        draft: { areaId: 'marketing', ownerId: people.stranger },
+      }),
+    )
+    expect(r).toMatchObject({ published: false })
+    expect(await served(item)).toMatchObject({ n: 1, area: 'finance' })
+  })
+
   it('refuses a draft the checks refuse, and keeps nothing', async () => {
     const before = await client.query('select count(*)::int as n from proposals')
     const r = await call('POST', '/items/publish', 'owner', {

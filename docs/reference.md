@@ -611,7 +611,7 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   `get_related` follows them on what agents get now, with how each relates. Neighbours the person
   may not see are counted in `withheld`, never named.
 - `POST /items/publish` takes `{ draft, itemId?, reason? }` (FR-137). An owner of the draft's
-  domain or an admin publishes it in one step, through the same checks and clash gate as the
+  domain (and, for a change, of the item's domain now) or an admin publishes it in one step, through the same checks and clash gate as the
   review; anyone else's goes to the domain's owners as a suggestion (`published: false`, with
   `ownerIds`). A publish the checks refuse keeps nothing.
 - `POST /drafts/from-text` takes `{ text }`: a draft read from pasted text, or from the page a

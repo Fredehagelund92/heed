@@ -656,7 +656,11 @@ export function createContextService(
     await review.checkSubmitted(submitted.id)
     const areaId = submitted.areaId!
     const mine = await me()
-    if (!mine.admin && !mine.owns.includes(areaId))
+    // A change to an item is the person's to publish only where they own both its domain now and
+    // the one it goes to, as a move in the Context list is.
+    const from = input.itemId ? (await library.getIndexRow(input.itemId))?.areaId : undefined
+    const owns = (area: string | undefined) => !area || mine.admin || mine.owns.includes(area)
+    if (!owns(areaId) || !owns(from))
       return { published: false, proposalId: submitted.id, ownerIds: await domainOwners(areaId) }
     const current = await proposals.get(submitted.id)
     const published = await path.publish({ id: current.id, revision: current.revision })
