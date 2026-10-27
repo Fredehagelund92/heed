@@ -84,7 +84,7 @@ export type Review = {
   /** Drafted for a Not found card: how many questions it answers, and what it was drafted from. Nobody wrote it. */
   drafted?: { questions: number; scope: string; from: string }
   /** A suggestion a sync created from a document: where it came from, and the quote Heed kept. */
-  synced?: { tool: 'Google Drive'; folder: string; doc: string; read: string; quote: string }
+  synced?: { tool: string; folder: string; doc: string; read: string; quote: string }
   /** One sentence: what changes, said before any mark is shown. */
   summary: string
   /** Counts by kind, for the summary line. */

@@ -125,7 +125,43 @@ export async function openIssueDays(tx: Queryable): Promise<number> {
   return setting?.days ?? 14
 }
 
+/**
+ * A content source's read (CON-603): the source, the read and the document a suggestion is made
+ * from. It writes as nobody, in the read's own transaction (`cl.source_id`).
+ */
+export interface SourceAuthor {
+  source: string
+  read: string
+  document: string
+}
+
 export function createProposalsService(tx: Queryable, clock: Clock, personId: string) {
+  return proposalsService(tx, clock, personId, null)
+}
+
+/**
+ * The proposals a content source's read writes (CON-603): created by nobody, through the same
+ * defaults and checks as any proposal, with the channel `source`, submitted to the domain's
+ * owners, and withdrawn when the document changes or goes. It never decides one (CON-604): it
+ * has no decision to make. Its owners are told once per read, so its events go to no Inbox.
+ */
+export function createSourceProposals(tx: Queryable, clock: Clock, author: SourceAuthor) {
+  const service = proposalsService(tx, clock, null, author)
+  return {
+    get: (id: string) => service.get(id),
+    create: (...input: Parameters<typeof service.create>) => service.create(...input),
+    submit: (id: string, revision: number) => service.submit(id, revision),
+    withdraw: (id: string, revision: number, reason: string) =>
+      service.withdraw(id, revision, reason),
+  }
+}
+
+function proposalsService(
+  tx: Queryable,
+  clock: Clock,
+  personId: string | null,
+  author: SourceAuthor | null,
+) {
   async function get(id: string, lock = false): Promise<ProposalRecord> {
     const [row] = await tx.query<ProposalRecord>(
       `select ${fields} from proposals where id=$1 and discarded_at is null${lock ? ' for update' : ''}`,
@@ -155,7 +191,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
   function proposerOnly(p: ProposalRecord) {
     if (p.proposerId !== personId) throw new ORPCError('FORBIDDEN')
   }
-  async function owner(area: string, actor = personId) {
+  async function owner(area: string, actor: string | null = personId) {
     const rows = await tx.query(
       `select 1 from area_assignments a join people p on p.id=a.person_id
       where a.area_id=$1 and a.person_id=$2 and a.role='owner' and a.valid_at @> now()
@@ -178,26 +214,34 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
       'insert into proposal_events(proposal_id,actor_id,kind,data) values($1,cl_person(),$2,$3)',
       [p.id, kind, JSON.stringify(data)],
     )
-    await tx.query(
-      `insert into outbox_events(topic,area_id,aggregate_type,aggregate_id,payload)
+    // A read tells its owners once, for all it did (source.suggested), not once per suggestion.
+    if (author === null)
+      await tx.query(
+        `insert into outbox_events(topic,area_id,aggregate_type,aggregate_id,payload)
       values($1,$2,'proposal',$3,$4)`,
+        [
+          `proposal.${kind}`,
+          p.areaId,
+          p.id,
+          // Ids and states only. A hand-over names its new reviewer, who gets the inbox item.
+          JSON.stringify({
+            id: p.id,
+            state: p.state,
+            revision: p.revision,
+            ...(typeof data.personId === 'string' ? { personId: data.personId } : {}),
+          }),
+        ],
+      )
+    await tx.query(
+      `insert into audit_log(actor_id,actor_kind,action,area_id,subject_type,subject_id,details)
+      values(cl_person(),$5,$1,$2,'proposal',$3,$4)`,
       [
         `proposal.${kind}`,
         p.areaId,
         p.id,
-        // Ids and states only. A hand-over names its new reviewer, who gets the inbox item.
-        JSON.stringify({
-          id: p.id,
-          state: p.state,
-          revision: p.revision,
-          ...(typeof data.personId === 'string' ? { personId: data.personId } : {}),
-        }),
+        JSON.stringify({ revision: p.revision, ...(author ? { source: author.source } : {}) }),
+        author ? 'service' : 'person',
       ],
-    )
-    await tx.query(
-      `insert into audit_log(actor_id,actor_kind,action,area_id,subject_type,subject_id,details)
-      values(cl_person(),'person',$1,$2,'proposal',$3,$4)`,
-      [`proposal.${kind}`, p.areaId, p.id, JSON.stringify({ revision: p.revision })],
     )
   }
   async function audit(p: ProposalRecord, action: string, details: Record<string, unknown>) {
@@ -372,6 +416,9 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
     const [draft] = await forReader(tx, [row.draft])
     return draft!
   }
+  /** A read's suggestion comes through `source`; a person's through the channel they used. */
+  const channelOf = (input: z.infer<typeof createProposalSchema>): ProposalRecord['channel'] =>
+    author ? 'source' : (input.channel ?? 'form')
   async function prepare(input: z.infer<typeof createProposalSchema>) {
     let source: Draft = {}
     let itemId = input.itemId
@@ -391,7 +438,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
       source = prior.draft
     }
     const draft = await defaults({ ...source, ...input.draft }, undefined, source.scope)
-    const checks = await checkDraft(tx, draft, personId, input.channel ?? 'form', itemId ?? null)
+    const checks = await checkDraft(tx, draft, personId, channelOf(input), itemId ?? null)
     return { draft, itemId: itemId ?? null, checks }
   }
   /** A rescue's draft and level 1 findings, without storing anything: the Restore dialog's preview. */
@@ -460,12 +507,12 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
     ) {
       const { draft, itemId, checks } = await prepare(input)
       rejectSensitive(draft)
-      const channel = input.channel ?? 'form'
+      const channel = channelOf(input)
       const action = itemId ? 'change' : 'create'
       const reason = changeReason(input.reason, action)
       const [p] = await tx.query<ProposalRecord>(
-        `insert into proposals(action,area_id,item_id,proposer_id,channel,draft,draft_saved_at,draft_findings,derived_from,import_batch_id,provenance,answers_round,reason)
-        values($1,$2,$3,cl_person(),$4,$5,now(),$6,$7,$8,$9,$10,$11) returning ${fields}`,
+        `insert into proposals(action,area_id,item_id,proposer_id,channel,draft,draft_saved_at,draft_findings,derived_from,import_batch_id,provenance,answers_round,reason,source_id,source_read_id,source_document_id)
+        values($1,$2,$3,cl_person(),$4,$5,now(),$6,$7,$8,$9,$10,$11,$12,$13,$14) returning ${fields}`,
         [
           action,
           draft.areaId,
@@ -478,6 +525,9 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
           options.provenance ? JSON.stringify(options.provenance(draft)) : null,
           options.answersRound ?? null,
           reason,
+          author?.source ?? null,
+          author?.read ?? null,
+          author?.document ?? null,
         ],
       )
       await event(

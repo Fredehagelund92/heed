@@ -182,13 +182,33 @@ export const clashSchema = z.object({
 
 export const reviewIdInputSchema = z.object({ id: z.string().check(z.uuid()) })
 
+/**
+ * Where a suggestion a content source's read made comes from (CON-603, CON-611): the source and
+ * the tool it reads, the scope and document, the read that made it, and the document's quote. A
+ * suggestion a person sent has none.
+ */
+export const syncedSchema = z.object({
+  source: z.object({ id: z.string(), name: z.string(), tool: z.string() }),
+  /** The scope the document is in, as the source names it (a folder). */
+  scope: z.string(),
+  document: z.object({ title: z.string(), link: z.string() }),
+  read: z.object({ id: z.string(), at: z.string() }),
+  /** At most 500 characters of the document: all the core keeps of it (CON-605). */
+  quote: z.string(),
+})
+export type Synced = z.infer<typeof syncedSchema>
+
 /** The review page's one read. */
 export const reviewSheetSchema = z.object({
   proposal: reviewProposalSchema,
   mode: z.enum(['new', 'edit', 'retire']),
-  /** Who sent it, by name, and whether an AI agent or the assistant wrote it for them. */
-  from: z.object({ personId: z.string(), name: z.nullable(z.string()) }),
-  writtenBy: z.nullable(z.enum(['agent', 'assistant'])),
+  /**
+   * Who sent it, by name, and whether an AI agent or the assistant wrote it for them; null when
+   * a content source's read made it, which `synced` names.
+   */
+  from: z.nullable(z.object({ personId: z.string(), name: z.nullable(z.string()) })),
+  writtenBy: z.nullable(z.enum(['agent', 'assistant', 'source'])),
+  synced: z.nullable(syncedSchema),
   /** Started from a Not found card, by the card's gap. */
   gapId: z.nullable(z.string()),
   /** The reason the sender gave, if any. */

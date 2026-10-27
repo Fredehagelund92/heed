@@ -222,6 +222,7 @@ import {
   connectorListingSchema,
   flaggedItemSchema,
   sourceCheckSchema,
+  sourceReadSchema,
   sourceIdInputSchema,
   sourceListSchema,
   sourceSettingsSchema,
@@ -1808,6 +1809,24 @@ export const contract = {
       })
       .input(testSourceSchema)
       .output(sourceCheckSchema),
+    // Read again (CON-115): one source read now, at the job's next turn, whatever its schedule.
+    read: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this source." },
+        CONFLICT: { message: 'This source is switched off. Switch it on to read it.' },
+        SERVICE_UNAVAILABLE: {
+          message: "The job runner isn't running. Ask the data team to start it.",
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/sources/{id}/read',
+        successStatus: 202,
+        tags: ['sources'],
+        summary: 'Read one source now, whatever its schedule (Read again)',
+      })
+      .input(sourceIdInputSchema)
+      .output(sourceReadSchema),
   },
   // The people of the workspace as Heed v1 has them: Admin or Member, and the domains each owns.
   members: {

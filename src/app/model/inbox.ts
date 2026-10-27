@@ -56,7 +56,7 @@ export type InboxCard = {
   /** Raised by the saved-question alert: the questions that answer worse now, from Quality's one list. */
   look?: { questions: string[] }
   /** Created by a sync from a document, never by a person. */
-  source?: { tool: 'Google Drive'; folder: string; doc: string; read: string }
+  source?: { tool: string; folder: string; doc: string; read: string }
 }
 
 export type Waiting = {

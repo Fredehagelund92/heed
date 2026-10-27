@@ -8,7 +8,10 @@ import type {
   TestSourceInput,
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
+import { durationSeconds } from '../../../domain/connector-manifest.ts'
+import type { ChosenScope } from '../../../domain/connector-runtime.ts'
 import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
+import { durationText } from '../../../domain/source-schedule.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
 import type { RegisteredConnector } from './platform.ts'
@@ -49,9 +52,13 @@ interface Row {
   revision: number
   changed_at: Date | null
   changed_by: string | null
+  scopes: ChosenScope[]
+  schedule_seconds: number | null
+  next_read_at: Date | null
 }
 
-const columns = 'id, type, name, config, secret_ref, revision, changed_at, changed_by::text'
+const columns = `id, type, name, config, secret_ref, revision, changed_at, changed_by::text, scopes,
+  extract(epoch from schedule)::int as schedule_seconds, next_read_at`
 
 const invalid = (problems: readonly FieldProblem[]): never => {
   throw new ORPCError('UNPROCESSABLE_CONTENT', {
@@ -119,9 +126,8 @@ export function createWorkspaceSources({
   /** The connectors, and the sources the server's own configuration selects (their ids). */
   registry: Pick<ConnectorRegistry, 'connectors' | 'list'>
 }) {
-  // An admin adds definition sources today; content sources come with their pipeline.
-  const addable = () =>
-    registry.connectors().filter((connector) => connector.manifest.kind === 'definitions')
+  // An admin adds a source of any connector: definitions, or content with its pipeline.
+  const addable = () => registry.connectors()
   const typeOf = (type: string) => addable().find((candidate) => candidate.manifest.id === type)
   const secretKeys = (connector: RegisteredConnector) =>
     connector.manifest.secrets.map((secret) => secret.key)
@@ -148,6 +154,9 @@ export function createWorkspaceSources({
         key,
         set: held !== null && typeof held[key] === 'string',
       })),
+      scopes: row.scopes,
+      schedule: row.schedule_seconds === null ? null : durationText(row.schedule_seconds),
+      nextReadAt: row.next_read_at?.toISOString() ?? null,
       changedAt: row.changed_at?.toISOString() ?? null,
       changedBy: row.changed_by,
     }
@@ -212,6 +221,59 @@ export function createWorkspaceSources({
     return (parsed as { config: SourceConfig }).config
   }
 
+  /**
+   * The scopes and the schedule, checked: a content source covers at least one scope, each once
+   * and each in a Heed domain (CON-601, CON-602); a definition source has none. A schedule is at
+   * or above its connector's minimum and reads the source before it goes out of date (CON-115).
+   */
+  async function checkPlan(
+    tx: Queryable,
+    connector: RegisteredConnector,
+    scopes: readonly ChosenScope[],
+    schedule: string | null,
+  ): Promise<{ scopes: ChosenScope[]; scheduleSeconds: number | null }> {
+    const { manifest } = connector
+    const problems: FieldProblem[] = []
+    if (manifest.kind === 'definitions' && scopes.length)
+      problems.push({ field: 'scopes', message: 'A definitions source reads all it can see.' })
+    if (manifest.kind === 'content' && !scopes.length)
+      problems.push({
+        field: 'scopes',
+        message: 'Choose at least one folder to read, and the domain its documents go to.',
+      })
+    if (new Set(scopes.map((scope) => scope.id)).size !== scopes.length)
+      problems.push({ field: 'scopes', message: 'Choose each folder once.' })
+    const domains = [...new Set(scopes.map((scope) => scope.domain))]
+    if (domains.length) {
+      const found = await tx.query<{ id: string }>(
+        'select id from areas where id = any($1::text[]) and archived_at is null',
+        [domains],
+      )
+      const known = new Set(found.map((row) => row.id))
+      for (const id of domains)
+        if (!known.has(id))
+          problems.push({ field: 'scopes', message: `${id} isn't a domain in ${productName}.` })
+    }
+    let scheduleSeconds: number | null = null
+    if (schedule !== null) {
+      scheduleSeconds = durationSeconds(schedule)
+      const minimum = durationSeconds(manifest.schedule.minimum)
+      const stale = durationSeconds(manifest.staleAfter)
+      if (!Number.isFinite(scheduleSeconds) || scheduleSeconds < minimum)
+        problems.push({
+          field: 'schedule',
+          message: `Read it at most every ${durationText(minimum)}: the connector allows no more often.`,
+        })
+      else if (scheduleSeconds > stale)
+        problems.push({
+          field: 'schedule',
+          message: `Read it at least every ${durationText(stale)}, or it goes out of date between reads.`,
+        })
+    }
+    if (problems.length) invalid(problems)
+    return { scopes: [...scopes], scheduleSeconds }
+  }
+
   async function workspaceRow(tx: Queryable, id: string, lock = false): Promise<Row | null> {
     const [row] = await tx.query<Row>(
       `select ${columns} from connectors where id = $1 and origin = 'workspace'${lock ? ' for update' : ''}`,
@@ -265,6 +327,7 @@ export function createWorkspaceSources({
       const connector = typeOf(input.type)
       if (!connector) invalid([{ field: 'type', message: "We can't add a source of this type." }])
       const config = await checkInput(tx, connector!, input, true)
+      const plan = await checkPlan(tx, connector!, input.scopes ?? [], input.schedule ?? null)
       await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.sources.add', 0))")
       const existing = await tx.query<{ id: string }>('select id from connectors')
       const id = sourceIdFrom(
@@ -282,8 +345,10 @@ export function createWorkspaceSources({
         hooks.onRollback(() => secrets.remove(written))
       }
       const [row] = await tx.query<Row>(
-        `insert into connectors (id, kind, type, name, config, secret_ref, interface_version, origin, revision, changed_at, changed_by)
-         values ($1, $2, $3, $4, $5, $6, $7, 'workspace', 1, now(), cl_person())
+        `insert into connectors (id, kind, type, name, config, secret_ref, interface_version, origin, revision,
+           changed_at, changed_by, scopes, schedule, stale_after)
+         values ($1, $2, $3, $4, $5, $6, $7, 'workspace', 1, now(), cl_person(), $8,
+           make_interval(secs => $9), make_interval(secs => $10))
          returning ${columns}`,
         [
           id,
@@ -293,6 +358,9 @@ export function createWorkspaceSources({
           JSON.stringify(config),
           ref,
           connector!.writtenTo,
+          JSON.stringify(plan.scopes),
+          plan.scheduleSeconds,
+          durationSeconds(connector!.manifest.staleAfter),
         ],
       )
       await recordAudit(tx, {
@@ -304,6 +372,10 @@ export function createWorkspaceSources({
           version: connector!.manifest.version,
           name: input.name.trim(),
           config,
+          ...(plan.scopes.length ? { scopes: plan.scopes } : {}),
+          ...(plan.scheduleSeconds === null
+            ? {}
+            : { schedule: durationText(plan.scheduleSeconds) }),
           secrets: Object.fromEntries(Object.keys(input.secrets).map((key) => [key, 'set'])),
           reason: input.reason,
         },
@@ -325,6 +397,16 @@ export function createWorkspaceSources({
       if (!connector)
         invalid([{ field: 'type', message: "We can't change a source of this type." }])
       const config = await checkInput(tx, connector!, input, false)
+      const plan = await checkPlan(
+        tx,
+        connector!,
+        input.scopes ?? row.scopes,
+        input.schedule === undefined
+          ? row.schedule_seconds === null
+            ? null
+            : durationText(row.schedule_seconds)
+          : input.schedule,
+      )
       if (row.revision !== input.revision)
         throw new ORPCError('CONFLICT', {
           message:
@@ -352,9 +434,19 @@ export function createWorkspaceSources({
       }
       const [saved] = await tx.query<Row>(
         `update connectors set name = $2, config = $3, secret_ref = $4, revision = revision + 1,
-           changed_at = now(), changed_by = cl_person()
+           changed_at = now(), changed_by = cl_person(), scopes = $5,
+           schedule = make_interval(secs => $6),
+           -- A change applies from the next read, which the job's next turn makes.
+           next_read_at = null
          where id = $1 returning ${columns}`,
-        [row.id, input.name.trim(), JSON.stringify(config), ref],
+        [
+          row.id,
+          input.name.trim(),
+          JSON.stringify(config),
+          ref,
+          JSON.stringify(plan.scopes),
+          plan.scheduleSeconds,
+        ],
       )
       await recordAudit(tx, {
         action: 'source.changed',
@@ -365,6 +457,12 @@ export function createWorkspaceSources({
           to: saved!.revision,
           name: input.name.trim(),
           config,
+          ...(input.scopes === undefined ? {} : { scopes: plan.scopes }),
+          ...(input.schedule === undefined
+            ? {}
+            : {
+                schedule: plan.scheduleSeconds === null ? null : durationText(plan.scheduleSeconds),
+              }),
           secrets: Object.fromEntries([
             ...Object.keys(input.secrets).map((key) => [key, 'replaced']),
             ...forgotten.map((key) => [key, 'removed']),
@@ -416,6 +514,15 @@ export function createWorkspaceSources({
           return failed(error instanceof SourceReadError ? error.warnings : [])
         }
       if (steps.some((step) => step.status === 'failed')) return failed([], steps)
+      // A content connector says what it may cover; nothing is read or drafted (CON-604).
+      if (connector!.manifest.kind === 'content') {
+        try {
+          const scopes = (await connector!.discover?.(settings)) ?? []
+          return { ...failed([], steps), ok: true, scopes }
+        } catch (error) {
+          return failed(error instanceof SourceReadError ? error.warnings : [], steps)
+        }
+      }
       return testRead(tx, connector!.source(settings), steps)
     },
   }

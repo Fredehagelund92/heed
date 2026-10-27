@@ -45,7 +45,11 @@ export const jobOverviewSchema = z.object({
  * folder is not in it, the secret is not in the store, or the fetch failed otherwise. An
  * interface 3 connector's read may also fail because it sent what the contract does not allow or
  * took longer than its limit, and is in part when it sent more records than its limit; its own
- * warnings are namespaced (`<connector>.<code>`) and worded in its manifest.
+ * warnings are namespaced (`<connector>.<code>`) and worded in its manifest. A content source's
+ * read names each document it did not offer and why (it appears to name people, holds a secret,
+ * names nothing in the vocabulary, holds no words, or is longer than a read takes), and is in
+ * part when it held more text than one read takes, or would have withdrawn more suggestions than
+ * a read may at once. A tool that asks to be called less often is `rate_limited`.
  */
 export const sourceWarningCodes = [
   'unsupported_file',
@@ -70,6 +74,15 @@ export const sourceWarningCodes = [
   'invalid_output',
   'timed_out',
   'too_many_records',
+  'document_names_people',
+  'document_holds_secret',
+  'document_no_scope',
+  'document_empty',
+  'document_not_valid',
+  'document_too_large',
+  'too_much_text',
+  'too_many_removals',
+  'rate_limited',
 ] as const
 export type SourceWarningCode = (typeof sourceWarningCodes)[number]
 

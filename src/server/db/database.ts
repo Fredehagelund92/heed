@@ -29,12 +29,14 @@ export interface Database extends Queryable {
   stats?(): PoolStats
   /**
    * One transaction as the person (`cl.person_id`). With a request id (`cl.request_id`), every
-   * history entry it writes carries the id that the request's log lines carry (NFR-071).
+   * history entry it writes carries the id that the request's log lines carry (NFR-071). With a
+   * source (`cl.source_id`) and no person, it is a content source's read, which row security lets
+   * write that source's suggestions (CON-603); a person's request never names one.
    */
   transaction<T>(
     personId: string | null,
     work: (tx: Queryable) => Promise<T>,
-    options?: { requestId?: string },
+    options?: { requestId?: string; source?: string },
   ): Promise<T>
   close(): Promise<void>
 }
@@ -43,7 +45,8 @@ export interface Database extends Queryable {
 export function forRequest(database: Database, requestId: string): Database {
   return {
     ...database,
-    transaction: (personId, work) => database.transaction(personId, work, { requestId }),
+    transaction: (personId, work, options) =>
+      database.transaction(personId, work, { ...options, requestId }),
   }
 }
 
@@ -64,8 +67,11 @@ export function databaseFromPool(pool: pg.Pool): Database {
         // One round trip opens the transaction and names it: a busy server pays for each trip.
         const person = client.escapeLiteral(personId ?? '')
         const request = client.escapeLiteral(options?.requestId ?? '')
+        if (options?.source !== undefined && personId !== null)
+          throw new Error('A source reads as no person')
+        const source = client.escapeLiteral(options?.source ?? '')
         await client.query(
-          `begin; select set_config('cl.person_id', ${person}, true), set_config('cl.request_id', ${request}, true)`,
+          `begin; select set_config('cl.person_id', ${person}, true), set_config('cl.request_id', ${request}, true), set_config('cl.source_id', ${source}, true)`,
         )
         const result = await work({
           async query<Row extends pg.QueryResultRow>(text: string, values?: unknown[]) {

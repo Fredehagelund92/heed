@@ -57,8 +57,11 @@ const externalSchema = z.strictObject({
 export type ExternalSource = z.infer<typeof externalSchema>
 
 export const provenanceSchema = z.strictObject({
-  /** Who wrote the draft for the person: an AI agent over MCP, or the built-in assistant. */
-  by: z.enum(['agent', 'assistant']),
+  /**
+   * Who wrote the draft: an AI agent over MCP or the built-in assistant, for the person; or a
+   * content source's read, from a document, for nobody (CON-603).
+   */
+  by: z.enum(['agent', 'assistant', 'source']),
   fields: z.partialRecord(z.enum(markedFields), z.enum(fieldMarks)),
   flags: z.array(flagSchema).check(z.maxLength(20)),
   /** The evidence entries taken from web pages Heed read; absent when there are none. */

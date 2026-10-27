@@ -80,7 +80,7 @@ export async function previewProposal(
  */
 export function candidateBundle(
   bundle: ServingBundle,
-  candidate: { id: string; versionNo: number; proposerId: string; version: ItemVersion },
+  candidate: { id: string; versionNo: number; proposerId: string | null; version: ItemVersion },
 ): ServingBundle {
   const { id, version: v } = candidate
   const item: ServingItem = {

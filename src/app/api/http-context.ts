@@ -205,7 +205,7 @@ export function factOfDraft(
     valid,
     when: whenLabel(valid),
     status: 'Draft',
-    by: names.person(proposal.proposerId),
+    by: proposal.proposerId === null ? '' : names.person(proposal.proposerId),
     checkedBy: '',
     checkedOn: '',
     source: evidence?.url ?? '',

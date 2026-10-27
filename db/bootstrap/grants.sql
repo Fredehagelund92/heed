@@ -181,3 +181,9 @@ grant execute on function auth.join_by_group(text, text), auth.sync_group_admin(
 -- Observability (FR-620): the views people save on Questions are kept for everyone in the workspace
 -- and removed by whoever saved them; nothing in them names a question or who asked.
 grant insert, delete on observability_views to :api;
+-- Content sources (CON-601 to CON-611): a read keeps what it knew about each document, never its text, and
+-- counts on its read what it did; its own transaction names the source it reads for (cl_source), which row
+-- security lets write that source's suggestions and nothing else.
+grant insert, update on connector_documents to :api;
+grant update (status, warnings, cursor, documents_seen, suggested, replaced, withdrawn, waiting, skipped) on connector_snapshots to :api;
+grant execute on function cl_source() to :api;

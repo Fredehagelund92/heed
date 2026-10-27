@@ -189,8 +189,11 @@ export function AddConnectorPage({ connector }: { connector: string | undefined 
         />
       </PageContent>
     )
-  if (connector === undefined) return <ConnectorList listings={listings.data} />
-  const listing = listings.data.find((candidate) => candidate.manifest.id === connector)
+  // This form has no step to choose a content source's folders, which the new web app's connect
+  // flow has: here an admin adds definition sources only.
+  const addable = listings.data.filter((candidate) => candidate.manifest.kind === 'definitions')
+  if (connector === undefined) return <ConnectorList listings={addable} />
+  const listing = addable.find((candidate) => candidate.manifest.id === connector)
   if (!listing) return <UnknownConnector />
   return (
     <PageContent width="reading" className="gap-8" data-slot="source-form">

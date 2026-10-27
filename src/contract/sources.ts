@@ -103,6 +103,24 @@ export const sourceConfigSchema = z.record(
   ]),
 )
 
+/**
+ * A scope an admin chose for a content source (a folder, space or page), with the one domain its
+ * documents go to (CON-602). Its id is the connector's, as discover gave it.
+ */
+export const chosenScopeSchema = z.strictObject({
+  id: z.string().check(z.minLength(1), z.maxLength(500)),
+  title: z.string().check(z.minLength(1), z.maxLength(300)),
+  domain: z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/)),
+})
+const chosenScopesSchema = z.array(chosenScopeSchema).check(z.maxLength(200))
+export type ChosenScopeInput = z.infer<typeof chosenScopeSchema>
+
+/**
+ * How often a source is read (CON-115), as an ISO 8601 duration of days, hours and minutes
+ * (`PT1H`, `P1D`); never under its connector's minimum.
+ */
+const scheduleSchema = z.string().check(z.regex(/^P(?=\d|T\d)(\d+D)?(T(?=\d)(\d+H)?(\d+M)?)?$/))
+
 /** A secret as written in the form: kept in the server's secret store, never sent back. */
 const secretsSchema = z.record(fieldKey, z.string().check(z.minLength(1), z.maxLength(4096)))
 
@@ -119,6 +137,12 @@ export const sourceSettingsSchema = z.object({
   revision: z.number(),
   config: sourceConfigSchema,
   secrets: z.array(z.object({ key: z.string(), set: z.boolean() })),
+  /** The scopes chosen for a content source, each with its domain; none for definitions. */
+  scopes: chosenScopesSchema,
+  /** How often it is read; null for its connector's default. */
+  schedule: z.nullable(scheduleSchema),
+  /** When it is read next, ISO 8601 in UTC; null until its first read. */
+  nextReadAt: z.nullable(time),
   /** When it was added or last changed, ISO 8601 in UTC, and by whom (a person's id). */
   changedAt: z.nullable(time),
   changedBy: z.nullable(z.string()),
@@ -129,12 +153,18 @@ export const sourceIdInputSchema = z.strictObject({ id: sourceId })
 // Trimmed by the service, which refuses one that is only spaces.
 const sourceName = z.string().check(z.minLength(1), z.maxLength(80))
 
-/** Adds a source of a connector, with its settings, its secrets and why. */
+/**
+ * Adds a source of a connector, with its settings, its secrets and why; a content source with
+ * the scopes chosen for it, each mapped to a domain (CON-602), and either with how often it is
+ * read (its connector's default when left out).
+ */
 export const addSourceSchema = z.strictObject({
   type: connectorId,
   name: sourceName,
   config: sourceConfigSchema,
   secrets: secretsSchema,
+  scopes: z.optional(chosenScopesSchema),
+  schedule: z.optional(z.nullable(scheduleSchema)),
   reason,
 })
 
@@ -148,13 +178,17 @@ export const updateSourceSchema = z.strictObject({
   name: sourceName,
   config: sourceConfigSchema,
   secrets: secretsSchema,
+  /** Left out, the chosen scopes stay as they are. */
+  scopes: z.optional(chosenScopesSchema),
+  /** Left out, the schedule stays; null goes back to the connector's default. */
+  schedule: z.optional(z.nullable(scheduleSchema)),
   reason,
 })
 
 /**
  * Tries settings without keeping them or changing anything: the connector's check, then for a
- * definitions connector one read. With the id of a source already added, a secret left out is
- * the one in the store.
+ * definitions connector one read, and for a content connector what it may cover (discover). With
+ * the id of a source already added, a secret left out is the one in the store.
  */
 export const testSourceSchema = z.strictObject({
   id: z.optional(sourceId),
@@ -179,6 +213,21 @@ export const sourceCheckSchema = z.object({
   metrics: z.number(),
   dimensions: z.number(),
   warnings: z.array(z.object({ code: z.string(), target: z.string() })),
+  /**
+   * For a content connector, the scopes an admin may choose (folders, spaces or pages), each
+   * with the domain it most likely belongs to; absent for definitions.
+   */
+  scopes: z.optional(
+    z.array(
+      z.object({ id: z.string(), title: z.string(), suggestedDomain: z.nullable(z.string()) }),
+    ),
+  ),
+})
+
+/** A read of one source queued now (Read again, CON-115). */
+export const sourceReadSchema = z.object({
+  id: z.string(),
+  status: z.literal('queued'),
 })
 
 export type ConnectorListing = z.infer<typeof connectorListingSchema>

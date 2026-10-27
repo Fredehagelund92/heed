@@ -399,6 +399,7 @@ export const channelText: Record<CreationChannel, string> = {
   command_line: 'With the command-line tool',
   mcp: 'Through an agent',
   import: 'In an import',
+  source: 'From a document a content source read',
 }
 
 export function formatCount(count: number, noun = 'fact'): string {

@@ -59,7 +59,8 @@ export const itemVersionSchema = z
     riskLevel: itemSchema.shape.riskLevel,
     audience: z.object({ kind: z.literal('everyone') }),
     ownerId: text(limits.ownerId),
-    proposerId: text(limits.ownerId),
+    /** Who proposed it; null for a version a content source's read made (CON-603). */
+    proposerId: z.nullable(text(limits.ownerId)),
     createdVia: z.enum(creationChannels),
     notToConclude: text(limits.notToConclude),
     replaces: z.array(z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))),
@@ -78,6 +79,10 @@ export const itemVersionSchema = z
       (value) =>
         !value.scope.dimensionValues.some((row) => value.scope.dimensions.includes(row.dimension)),
       'A dimension with any value cannot also list its values',
+    ),
+    z.refine(
+      (value) => (value.createdVia === 'source') === (value.proposerId === null),
+      'A version has a proposer unless a content source made it',
     ),
     z.refine(
       (value) => value.validity.end !== null || value.reviewDate !== null,

@@ -50,7 +50,7 @@ export function Discussion({
 }: {
   events: readonly ProposalEvent[] | undefined
   pending: boolean
-  proposerId: string
+  proposerId: string | null
   area: { ownerIds: readonly string[] } | null
   nameOf: (personId: string) => string | null
   viewerId: string

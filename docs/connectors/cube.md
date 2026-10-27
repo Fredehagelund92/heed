@@ -78,9 +78,10 @@ CUBE_MODEL_DIR=/path/to/cube/model npm run connectors:sync
 The command reads `.env.local`, including `DATABASE_URL`. It prints the snapshot id, status,
 number of definitions, metric domain coverage (`cube`, `override`, `none`), the items it flagged
 and unflagged, and how many stale-link and domain notices it sent. A failed read is recorded and
-exits with status 1. The service runs the same refresh every hour as the `connectors.sync` job;
-an administrator starts one at any time with Read again on the source's page in Sources (or
-`POST /api/v1/operations/jobs/connectors.sync/run`), and `GET /api/v1/operations` shows each
+exits with status 1. The service runs the same refresh every hour as the `connectors.sync` job
+(each source on its own schedule, hourly for Cube); an administrator starts one at any time with
+Read again on the source's page in Sources (`POST /api/v1/sources/{id}/read`, or
+`POST /api/v1/operations/jobs/connectors.sync/run` for every source), and `GET /api/v1/operations` shows each
 source's health (last read and its warnings, current and missing definitions, domain coverage,
 flagged items and stale links), its views, its renames, its recent reads and, for a source this
 server reads, its server settings. Sources and Operations show the same answer.

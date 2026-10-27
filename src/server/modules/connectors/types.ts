@@ -3,6 +3,7 @@ import type { SettingKey } from '../../../contract/admin.ts'
 import { sourceWarningCodes, type SourceServerSettingKey } from '../../../contract/operations.ts'
 import type { Interface2Declaration } from '../../../domain/connector-manifest.ts'
 import type { SourceConfig } from '../../../contract/sources.ts'
+import type { SourceErrorClass } from '../../../domain/connector-runtime.ts'
 
 /** The connector interface this build speaks (CON-109): docs/connectors.md, contract v2. */
 export const INTERFACE_VERSION = 2
@@ -168,8 +169,20 @@ export const sourceFailureSchema = z.object({
 })
 export class SourceReadError extends Error {
   readonly warnings: SourceWarning[]
-  constructor(warnings: SourceWarning[]) {
-    super('Definition source could not be read')
+  /**
+   * Why, for the schedule (CON-115): `transient` clears by itself and is tried again sooner, with
+   * backoff; anything else waits for the next read, or for an administrator.
+   */
+  readonly errorClass: SourceErrorClass
+  /** Seconds the tool asked to wait before it is read again. */
+  readonly retryAfter: number | undefined
+  constructor(
+    warnings: SourceWarning[],
+    failure: { class?: SourceErrorClass; retryAfter?: number } = {},
+  ) {
+    super('Source could not be read')
     this.warnings = warnings
+    this.errorClass = failure.class ?? 'config'
+    this.retryAfter = failure.retryAfter
   }
 }

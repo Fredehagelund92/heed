@@ -175,7 +175,7 @@ export function createReviewService(tx: Queryable, clock: Clock) {
   async function capacityFor(
     area: string,
     wanted: Capacity | undefined,
-    proposerId: string,
+    proposerId: string | null,
   ): Promise<Capacity> {
     const { person: decider, admin, roles } = await deciderIn(tx, area)
     person ??= decider

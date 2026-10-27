@@ -24,7 +24,7 @@ export type ResolverItem = {
   body?: string
   conflicts: readonly string[]
   replacedBy?: string
-  proposerId: string
+  proposerId: string | null
 }
 export type EditionBundle = {
   edition: string

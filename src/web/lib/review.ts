@@ -77,7 +77,7 @@ export type QueueRow = {
   riskLevel: RiskLevel | null
   claimedBy: string | null
   claimedByName: string | null
-  proposerId: string
+  proposerId: string | null
   proposerName: string
   /** The day a decision is due. */
   dueOn: string | null

@@ -44,7 +44,7 @@ export type RiskLevel = (typeof riskLevels)[number]
 export const claimLevels = ['fact_only', 'effect_stated'] as const
 export type ClaimLevel = (typeof claimLevels)[number]
 
-/** How an item version was created (FR-103). */
+/** How an item version was created (FR-103). `source`: a content source's read, not a person (CON-603). */
 export const creationChannels = [
   'form',
   'assistant',
@@ -52,8 +52,18 @@ export const creationChannels = [
   'command_line',
   'mcp',
   'import',
+  'source',
 ] as const
 export type CreationChannel = (typeof creationChannels)[number]
+/** The channels a person writes through: every one but a content source's read. */
+export const personChannels = [
+  'form',
+  'assistant',
+  'chat',
+  'command_line',
+  'mcp',
+  'import',
+] as const satisfies readonly CreationChannel[]
 
 /** An accepted item is served. A retired item stays in history and is never served. */
 export const itemStatuses = ['accepted', 'retired'] as const

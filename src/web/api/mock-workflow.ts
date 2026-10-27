@@ -793,7 +793,7 @@ export function createMockWorkflow(start: MockWorld) {
   /** Deleted domains by id, with their names: their items cannot leave the Bin (FR-814). */
   const deletedAreas = new Map<string, string>()
   const openStates: readonly ProposalState[] = ['submitted', 'in_review', 'changes_requested']
-  const personName = (id: string) =>
+  const personName = (id: string | null) =>
     world.people.find((person) => person.id === id)?.name ?? 'Someone'
 
   /**
@@ -896,8 +896,8 @@ export function createMockWorkflow(start: MockWorld) {
       team,
       recipients: [
         ...new Set([
-          ...open.map((proposal) => proposal.proposerId),
-          ...drafts.map((draft) => draft.proposerId),
+          ...open.flatMap((proposal) => proposal.proposerId ?? []),
+          ...drafts.flatMap((draft) => draft.proposerId ?? []),
           ...team.map((role) => role.personId),
         ]),
       ],
@@ -1146,7 +1146,7 @@ export function createMockWorkflow(start: MockWorld) {
       case 'proposal.commented':
         // A term without an area is the administrators' to decide, and so to discuss.
         return [
-          proposal.proposerId,
+          ...(proposal.proposerId ?? []),
           ...(proposal.claimedBy || proposal.areaId !== null
             ? reviewers
             : world.people
@@ -1155,7 +1155,7 @@ export function createMockWorkflow(start: MockWorld) {
         ]
       case 'proposal.claimed':
       case 'proposal.decided':
-        return [proposal.proposerId]
+        return proposal.proposerId ? [proposal.proposerId] : []
       case 'proposal.handed_over':
         return typeof personId === 'string' ? [personId] : []
       default:
@@ -1241,7 +1241,7 @@ export function createMockWorkflow(start: MockWorld) {
   ])
 
   /** Level 1: the format and the scope against the live vocabulary (checks.ts). */
-  function checkDraft(draft: Draft, proposerId: string, channel: ProposalRecord['channel']) {
+  function checkDraft(draft: Draft, proposerId: string | null, channel: ProposalRecord['channel']) {
     const result = formatDraft(draft, proposerId, channel)
     const findings: Finding[] = [...result.findings]
     for (const key of [
@@ -2036,7 +2036,7 @@ export function createMockWorkflow(start: MockWorld) {
      * returns it, and a step of its revision.
      */
     function discussed(id: string): {
-      proposal: Proposal & { proposerId: string }
+      proposal: Proposal & { proposerId: string | null }
       subject: 'item' | 'vocabulary'
       record: () => ProposalRecord
       bump: () => void
@@ -2172,7 +2172,7 @@ export function createMockWorkflow(start: MockWorld) {
     function capacityFor(
       areaId: string,
       wanted: Capacity | undefined,
-      proposerId: string,
+      proposerId: string | null,
     ): Capacity {
       const roles = rolesIn(areaId)
       const admin = isAdmin()

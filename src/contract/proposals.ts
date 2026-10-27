@@ -3,7 +3,13 @@ import { draftSchema } from '../domain/draft.ts'
 import { provenanceSchema } from '../domain/provenance.ts'
 import { proposalStates } from '../domain/proposal-state.ts'
 import { questionIdSchema } from '../domain/golden-question.ts'
-import { claimLevels, creationChannels, itemKinds, riskLevels } from '../domain/item.ts'
+import {
+  claimLevels,
+  creationChannels,
+  itemKinds,
+  personChannels,
+  riskLevels,
+} from '../domain/item.ts'
 import { servedLinkStatuses } from '../domain/links.ts'
 import { calendarDateSchema } from '../domain/validity.ts'
 import { proposalActions } from '../domain/proposal.ts'
@@ -31,7 +37,7 @@ export const createProposalSchema = z.strictObject({
   reason: z.optional(changeReasonSchema),
   itemId: z.optional(z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))),
   derivedFrom: z.optional(z.string().check(z.uuid())),
-  channel: z.optional(z.enum(creationChannels)),
+  channel: z.optional(z.enum(personChannels)),
 })
 export const saveDraftSchema = z.strictObject({
   ...proposalMutationSchema.shape,
@@ -56,7 +62,8 @@ export const proposalRecordSchema = z.object({
    */
   reason: z.nullable(z.string()),
   vocabulary: z.nullable(termSchema),
-  proposerId: z.string(),
+  /** Who proposed it; null when a content source's read made it (CON-603). */
+  proposerId: z.nullable(z.string()),
   channel: z.enum(creationChannels),
   revision: z.number(),
   /** Item form content only; empty for proposals without an item draft. */

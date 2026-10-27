@@ -11,15 +11,25 @@ import { connectorConfigDomains, parseConnectorConfig } from '../../../domain/co
 import {
   checkReportSchema,
   runtimeMessageSchema,
+  scopeSchema,
   SourceError,
   type CheckReport,
+  type ChosenScope,
   type ConnectorModule,
   type ConnectorRuntime,
   type GuardedFetch,
   type RuntimeContext,
+  type Scope,
+  type SourceDocument,
 } from '../../../domain/connector-runtime.ts'
+import {
+  DOCUMENT_TEXT_MAX,
+  READ_TEXT_MAX,
+  unreadDocumentCodes,
+} from '../../../domain/content-document.ts'
 import type { SourceConfig } from '../../../contract/sources.ts'
 import { sourceWarningCodes } from '../../../contract/operations.ts'
+import { guardedGit } from './egress-git.ts'
 import { isFetchableAddress } from './git.ts'
 import {
   INTERFACE_VERSION,
@@ -56,6 +66,35 @@ export interface StoredSource {
   name: string
   config: SourceConfig
   secrets: Readonly<Record<string, string>> | null
+  /** The scopes an administrator chose, each with its domain; none for a definition source. */
+  scopes?: readonly ChosenScope[]
+}
+
+/**
+ * One read of a content source, its messages checked and gathered: the documents, whose text
+ * lives in memory for this read only (CON-605), the tombstones of a delta read, the documents it
+ * saw but did not hand over (too long), its warnings, and how it ended.
+ */
+export interface ContentRead {
+  version: string
+  complete: boolean
+  cursor?: string
+  documents: SourceDocument[]
+  deleted: string[]
+  /** Documents the read saw and left out: they are not gone, only not read this time. */
+  unread: string[]
+  warnings: SourceWarning[]
+}
+
+/** A stored content source of a connector: what the content pipeline reads. */
+export interface ContentSource {
+  readonly id: string
+  readonly type: string
+  readonly name: string
+  readonly manifest: ConnectorManifest
+  readonly scopes: readonly ChosenScope[]
+  /** One read, a full one when the cursor is null; a failure is a `SourceReadError`. */
+  read(context: { cursor: string | null }): Promise<ContentRead>
 }
 
 /** A connector as the registry keeps it: what Sources lists, checks, adds and reads. */
@@ -70,8 +109,12 @@ export interface RegisteredConnector {
   readonly secretsBoundTo: readonly string[]
   /** The source for stored settings, read by the definitions pipeline. */
   source(stored: StoredSource): DefinitionSource
+  /** The source for stored settings, read by the content pipeline; content connectors only. */
+  content?(stored: StoredSource): ContentSource
   /** The runtime's own check, ordered steps that change nothing; absent for interface 2. */
   check?(stored: StoredSource): Promise<CheckReport>
+  /** The scopes an administrator may choose, each with a suggested domain; changes nothing. */
+  discover?(stored: StoredSource): Promise<Scope[]>
 }
 
 /** Why the registry would not start: every problem with every connector it was given. */
@@ -155,13 +198,14 @@ function contextFor(
 ): RuntimeContext {
   return {
     config: stored.config,
-    scopes: [],
+    scopes: stored.scopes ?? [],
     cursor,
     secret: (key) =>
       manifest.secrets.some((secret) => secret.key === key)
         ? (stored.secrets?.[key] ?? null)
         : null,
     fetch: guardedFetch(manifest, stored.config, signal),
+    git: guardedGit(manifest, stored.config, stored.secrets),
     signal,
     log: quietLog,
     now: () => new Date(),
@@ -172,9 +216,15 @@ function contextFor(
 function failureOf(manifest: ConnectorManifest, error: unknown, signal: AbortSignal) {
   if (error instanceof SourceReadError) return error
   if (error instanceof SourceError && knownWarning(manifest, error.code))
-    return new SourceReadError([{ code: error.code, target: error.target }])
+    return new SourceReadError([{ code: error.code, target: error.target }], {
+      class: error.errorClass,
+      ...(error.retryAfter === undefined ? {} : { retryAfter: error.retryAfter }),
+    })
   if (signal.aborted)
-    return new SourceReadError([{ code: 'timed_out', target: `${manifest.limits.timeoutSeconds}` }])
+    return new SourceReadError(
+      [{ code: 'timed_out', target: `${manifest.limits.timeoutSeconds}` }],
+      { class: 'transient' },
+    )
   // Anything else says nothing about the tool, and could hold what it read: it is not kept.
   return new SourceReadError([{ code: 'invalid_output', target: manifest.id }])
 }
@@ -251,6 +301,124 @@ function runtimeSource(
   }
 }
 
+/**
+ * A stored content source of a runtime's: a read's messages are checked one by one and gathered.
+ * A document must be in a chosen scope, sent once, under the record limit; a tombstone comes only
+ * from a connector that sends them; a definition never. Anything else fails the read with
+ * `invalid_output` and keeps nothing, like a definitions read.
+ */
+function runtimeContent(
+  manifest: ConnectorManifest,
+  runtime: ConnectorRuntime,
+  stored: StoredSource,
+): ContentSource {
+  const scopes = stored.scopes ?? []
+  return {
+    id: stored.id,
+    type: manifest.id,
+    name: stored.name,
+    manifest,
+    scopes,
+    async read({ cursor }) {
+      const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+      if (stored.secrets === null && manifest.secrets.length)
+        throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
+      const chosen = new Set(scopes.map((scope) => scope.id))
+      const documents: SourceDocument[] = []
+      const deleted = new Set<string>()
+      const unread: string[] = []
+      const warnings: SourceWarning[] = []
+      const ids = new Set<string>()
+      const invalid = () => new SourceReadError([{ code: 'invalid_output', target: manifest.id }])
+      const warn = (warning: SourceWarning) => {
+        if (warnings.length < 1_000) warnings.push(warning)
+      }
+      let text = 0
+      let capped = false
+      try {
+        const messages = runtime.read(contextFor(manifest, { ...stored, scopes }, cursor, signal))
+        for await (const raw of messages) {
+          if (signal.aborted) throw signal.reason
+          const parsed = runtimeMessageSchema.safeParse(raw)
+          if (!parsed.success) throw invalid()
+          const message = parsed.data
+          if (message.type === 'progress') continue
+          if (message.type === 'warning') {
+            if (!knownWarning(manifest, message.code)) throw invalid()
+            warn({ code: message.code, target: message.target })
+            if (unreadDocumentCodes.includes(message.code)) unread.push(message.target)
+            continue
+          }
+          if (message.type === 'end')
+            return {
+              version: message.version,
+              complete: message.complete && !capped,
+              ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+              documents,
+              deleted: [...deleted].filter((id) => !ids.has(id)),
+              unread,
+              warnings,
+            }
+          if (message.type === 'deleted') {
+            if (manifest.capabilities.deletions === 'full-listing') throw invalid()
+            deleted.add(message.id)
+            continue
+          }
+          if (message.type !== 'document') throw invalid()
+          const { document } = message
+          if (!chosen.has(document.scope) || ids.has(document.id)) throw invalid()
+          ids.add(document.id)
+          if (documents.length + unread.length >= manifest.limits.maxRecords) {
+            if (!capped) warn({ code: 'too_many_records', target: `${manifest.limits.maxRecords}` })
+            capped = true
+            continue
+          }
+          const length = document.text.length
+          if (length > DOCUMENT_TEXT_MAX) {
+            warn({ code: 'document_too_large', target: document.id })
+            unread.push(document.id)
+            continue
+          }
+          if (text + length > READ_TEXT_MAX) {
+            if (!capped) warn({ code: 'too_much_text', target: `${READ_TEXT_MAX}` })
+            capped = true
+            continue
+          }
+          text += length
+          documents.push(document)
+        }
+      } catch (error) {
+        throw failureOf(manifest, error, signal)
+      }
+      // A read that never says it ended may have stopped anywhere: it is not kept.
+      throw invalid()
+    },
+  }
+}
+
+/** A content connector's scopes, checked; a failure is a `SourceReadError`, as for a read. */
+async function discoverOf(
+  manifest: ConnectorManifest,
+  runtime: ConnectorRuntime,
+  stored: StoredSource,
+): Promise<Scope[]> {
+  if (!runtime.discover) return []
+  const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+  if (stored.secrets === null && manifest.secrets.length)
+    throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
+  try {
+    const scopes = await runtime.discover(contextFor(manifest, stored, null, signal))
+    if (!Array.isArray(scopes) || scopes.length > 200) throw new Error('too many scopes')
+    const checked = scopes.map((scope) => scopeSchema.parse(scope))
+    if (new Set(checked.map((scope) => scope.id)).size !== checked.length)
+      throw new Error('a scope twice')
+    return checked
+  } catch (error) {
+    const failure = failureOf(manifest, error, signal)
+    throw failure
+  }
+}
+
 /** A connector written to interface 3: its manifest's rules, then its runtime's own. */
 export function fromModule(module: ConnectorModule): RegisteredConnector {
   const { manifest, runtime } = module
@@ -266,6 +434,12 @@ export function fromModule(module: ConnectorModule): RegisteredConnector {
     domains: (config) => connectorConfigDomains(manifest, config),
     secretsBoundTo: secretsBoundTo(manifest),
     source: (stored) => runtimeSource(manifest, runtime, stored),
+    ...(manifest.kind === 'content'
+      ? {
+          content: (stored: StoredSource) => runtimeContent(manifest, runtime, stored),
+          discover: (stored: StoredSource) => discoverOf(manifest, runtime, stored),
+        }
+      : {}),
     async check(stored) {
       const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
       if (stored.secrets === null && manifest.secrets.length)

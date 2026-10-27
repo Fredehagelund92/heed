@@ -41,8 +41,9 @@ before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are n
 
 The service also runs its scheduled jobs (pg-boss on the same database): `partitions.ensure` and
 `retention.run` each night (UTC), `outbox.relay` every minute (a backstop for the live relay, see
-[Live updates](reference.md#live-updates-inbox-and-activity)), `gaps.detect` every 15 minutes, `connectors.sync` every hour (reads the definition source,
-see [Definition sources](reference.md#definition-sources)), `evals.work` and `evals.retrieval` every minute, `evals.weekly` on
+[Live updates](reference.md#live-updates-inbox-and-activity)), `gaps.detect` every 15 minutes, `connectors.sync` every five minutes (reads each source that is
+due on its own schedule, hourly for a definition source by default, see [Definition
+sources](reference.md#definition-sources)), `evals.work` and `evals.retrieval` every minute, `evals.weekly` on
 Mondays (see [Evaluations](evaluations.md)), and `jobs.watchdog` every five minutes. A schedule that came
 due while the service was stopped runs once when it starts again. `GET /api/v1/operations` shows each job's last success and last error, the queue, connectors and
 model spending. For each connector it also shows source health: the last read and its warnings,

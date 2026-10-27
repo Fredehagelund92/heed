@@ -875,6 +875,26 @@ export function createRouter({
       test: authorized.sources.test.handler(({ context, input }) =>
         workspaceSources.test(context.tx, input),
       ),
+      read: authorized.sources.read.handler(async ({ context, input }) => {
+        const [row] = await context.tx.query<{ enabled: boolean }>(
+          'select enabled from connectors where id = $1',
+          [input.id],
+        )
+        if (!row) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this source." })
+        if (!row.enabled)
+          throw new ORPCError('CONFLICT', {
+            message: 'This source is switched off. Switch it on to read it.',
+          })
+        // Due now, on its own connection: the job may start before this request's transaction ends.
+        await database.query('update connectors set next_read_at = now() where id = $1', [input.id])
+        const result = await jobs.runNow('connectors.sync')
+        if (result.outcome === 'unknown_job' || result.outcome === 'not_running')
+          throw new ORPCError('SERVICE_UNAVAILABLE', {
+            message: "The job runner isn't running. Ask the data team to start it.",
+          })
+        // Already waiting or running: the job's next turn reads it.
+        return { id: input.id, status: 'queued' as const }
+      }),
     },
     members: {
       list: authorized.members.list.handler(({ context }) => listMembers(context.tx)),
@@ -1185,6 +1205,9 @@ export function createRouter({
         }
       }),
       run: authorized.operations.run.handler(async ({ input }) => {
+        // Running the sources' job by hand reads every source now, whatever its schedule.
+        if (input.job === 'connectors.sync')
+          await database.query('update connectors set next_read_at = now() where enabled')
         const result = await jobs.runNow(input.job)
         switch (result.outcome) {
           case 'queued':

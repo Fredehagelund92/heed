@@ -95,6 +95,7 @@ describe('the registry of connectors', () => {
       registry.connectors().map((connector) => [connector.manifest.id, connector.writtenTo]),
     ).toEqual([
       ['static-definitions', 3],
+      ['git-markdown', 3],
       ['cube', 2],
     ])
     // The demo type has no form, so it is not a connector to add; its words still come from it.
@@ -296,13 +297,14 @@ describe("a runtime's fetch", () => {
 })
 
 describe('the sources admins add, over the registry', () => {
-  it('lists every connector of a kind admins add, with its manifest', () => {
+  it('lists every connector admins add, of both kinds, with its manifest', () => {
     const service = createWorkspaceSources({
       secrets: noSecretStore,
       registry: new ConnectorRegistry([]),
     })
     expect(service.types().map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
       ['static-definitions', 3],
+      ['git-markdown', 3],
       ['cube', 2],
     ])
   })

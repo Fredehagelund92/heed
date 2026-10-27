@@ -74,6 +74,7 @@ const channelWords: Record<CreationChannel, string> = {
   mcp: 'an agent',
   import: 'an import',
   command_line: 'the command line',
+  source: 'a content source',
 }
 
 /** Missing names are explicit, never internal identifiers or a guessed service actor. */

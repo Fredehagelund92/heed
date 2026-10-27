@@ -225,7 +225,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // machine, and CI measures about 0.6 KB more): the new web app in src/app is the approved mockup,
 // built on Base UI 1.9, and the repository keeps one version of each package, so the front end
 // moves with it. Nothing of the front end's own changed.
-const budgetKb = { js: 208.0, css: 23.8 }
+// Raised JS from 208.0 to 209.0 with content connectors (208.6 KB on CI): the words for the nine
+// new read warnings (documents left out and why, too much text, too many removals, rate limits)
+// live in lib/sources.ts, which the shell's sources crumb and the Inbox already import.
+const budgetKb = { js: 209.0, css: 23.8 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({

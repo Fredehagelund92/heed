@@ -436,7 +436,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -445,7 +452,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -669,7 +677,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -1255,7 +1264,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -1264,7 +1280,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -1488,7 +1505,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -2092,7 +2110,14 @@
                             ]
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "channel": {
                             "enum": [
@@ -2101,7 +2126,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -2325,7 +2351,8 @@
                                   "by": {
                                     "enum": [
                                       "agent",
-                                      "assistant"
+                                      "assistant",
+                                      "source"
                                     ],
                                     "type": "string"
                                   },
@@ -2935,7 +2962,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -2944,7 +2978,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -3168,7 +3203,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -3710,7 +3746,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -3719,7 +3762,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -3943,7 +3987,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -4529,7 +4574,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -4538,7 +4590,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -4762,7 +4815,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -5546,7 +5600,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -5555,7 +5616,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -5779,7 +5841,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -6365,7 +6428,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -6374,7 +6444,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -6598,7 +6669,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -7161,7 +7233,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -7170,7 +7249,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -7394,7 +7474,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -7980,7 +8061,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -7989,7 +8077,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -8213,7 +8302,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -8776,7 +8866,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -8785,7 +8882,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -9009,7 +9107,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -9595,7 +9694,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -9604,7 +9710,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -9828,7 +9935,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -10396,7 +10504,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -10405,7 +10520,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -10629,7 +10745,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -11215,7 +11332,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -11224,7 +11348,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -11448,7 +11573,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -12017,7 +12143,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -12026,7 +12159,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -12250,7 +12384,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -12836,7 +12971,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -12845,7 +12987,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -13069,7 +13212,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -13856,7 +14000,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -13865,7 +14016,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -14089,7 +14241,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -14662,7 +14815,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -14671,7 +14831,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -14895,7 +15056,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -15481,7 +15643,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -15490,7 +15659,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -15714,7 +15884,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -16505,7 +16676,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -16514,7 +16692,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -16738,7 +16917,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -17623,7 +17803,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -17632,7 +17819,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -17856,7 +18044,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -19292,7 +19481,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -19301,7 +19497,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -19525,7 +19722,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -20298,7 +20496,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -20307,7 +20512,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -20531,7 +20737,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -21322,7 +21529,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -21331,7 +21545,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -21555,7 +21770,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -22337,7 +22553,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -22346,7 +22569,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -22570,7 +22794,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -23063,7 +23288,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -23072,7 +23304,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -23166,25 +23399,32 @@
                       "type": "string"
                     },
                     "from": {
-                      "type": "object",
-                      "properties": {
-                        "personId": {
-                          "type": "string"
-                        },
-                        "name": {
-                          "anyOf": [
-                            {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "personId": {
                               "type": "string"
                             },
-                            {
-                              "type": "null"
+                            "name": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
+                          },
+                          "required": [
+                            "personId",
+                            "name"
                           ]
+                        },
+                        {
+                          "type": "null"
                         }
-                      },
-                      "required": [
-                        "personId",
-                        "name"
                       ]
                     },
                     "writtenBy": {
@@ -23192,9 +23432,84 @@
                         {
                           "enum": [
                             "agent",
-                            "assistant"
+                            "assistant",
+                            "source"
                           ],
                           "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "synced": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string"
+                                },
+                                "tool": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "name",
+                                "tool"
+                              ]
+                            },
+                            "scope": {
+                              "type": "string"
+                            },
+                            "document": {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string"
+                                },
+                                "link": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "title",
+                                "link"
+                              ]
+                            },
+                            "read": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "at": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "at"
+                              ]
+                            },
+                            "quote": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "scope",
+                            "document",
+                            "read",
+                            "quote"
+                          ]
                         },
                         {
                           "type": "null"
@@ -24600,6 +24915,7 @@
                     "mode",
                     "from",
                     "writtenBy",
+                    "synced",
                     "gapId",
                     "note",
                     "diff",
@@ -27079,7 +27395,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -27088,7 +27411,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -28551,7 +28875,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -28560,7 +28891,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -31145,7 +31477,14 @@
                         ]
                       },
                       "proposerId": {
-                        "type": "string"
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "channel": {
                         "enum": [
@@ -31154,7 +31493,8 @@
                           "chat",
                           "command_line",
                           "mcp",
-                          "import"
+                          "import",
+                          "source"
                         ],
                         "type": "string"
                       },
@@ -32527,7 +32867,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -32536,7 +32883,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -33836,7 +34184,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -37228,7 +37577,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -37237,7 +37593,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -38537,7 +38894,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -39984,7 +40342,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -39993,7 +40358,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -42736,7 +43102,14 @@
                             ]
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "channel": {
                             "enum": [
@@ -42745,7 +43118,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -44312,7 +44686,14 @@
                             ]
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "channel": {
                             "enum": [
@@ -44321,7 +44702,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -44545,7 +44927,8 @@
                                   "by": {
                                     "enum": [
                                       "agent",
-                                      "assistant"
+                                      "assistant",
+                                      "source"
                                     ],
                                     "type": "string"
                                   },
@@ -47327,7 +47710,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -47336,7 +47726,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -48686,7 +49077,14 @@
                           ]
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "channel": {
                           "enum": [
@@ -48695,7 +49093,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -51083,7 +51482,8 @@
                                             "chat",
                                             "command_line",
                                             "mcp",
-                                            "import"
+                                            "import",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -51999,7 +52399,8 @@
                                       "chat",
                                       "command_line",
                                       "mcp",
-                                      "import"
+                                      "import",
+                                      "source"
                                     ],
                                     "type": "string"
                                   },
@@ -52543,7 +52944,8 @@
                                         "chat",
                                         "command_line",
                                         "mcp",
-                                        "import"
+                                        "import",
+                                        "source"
                                       ],
                                       "type": "string"
                                     },
@@ -52914,7 +53316,8 @@
                                       "chat",
                                       "command_line",
                                       "mcp",
-                                      "import"
+                                      "import",
+                                      "source"
                                     ],
                                     "type": "string"
                                   },
@@ -53562,7 +53965,14 @@
                             "type": "string"
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "createdVia": {
                             "enum": [
@@ -53571,7 +53981,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -55912,7 +56323,8 @@
                                           "chat",
                                           "command_line",
                                           "mcp",
-                                          "import"
+                                          "import",
+                                          "source"
                                         ],
                                         "type": "string"
                                       },
@@ -64198,7 +64610,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -64776,7 +65189,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -66064,7 +66478,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -67512,7 +67927,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -67521,7 +67943,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -67745,7 +68168,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -72499,7 +72923,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -72508,7 +72939,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -72732,7 +73164,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -76644,7 +77077,8 @@
                             "chat",
                             "command_line",
                             "mcp",
-                            "import"
+                            "import",
+                            "source"
                           ],
                           "type": "string"
                         },
@@ -93590,7 +94024,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -93599,7 +94040,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -93823,7 +94265,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -94409,7 +94852,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -94418,7 +94868,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -94642,7 +95093,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -95202,7 +95654,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -95211,7 +95670,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -95435,7 +95895,8 @@
                             "by": {
                               "enum": [
                                 "agent",
-                                "assistant"
+                                "assistant",
+                                "source"
                               ],
                               "type": "string"
                             },
@@ -96021,7 +96482,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -96030,7 +96498,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -96254,7 +96723,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },
@@ -99012,6 +99482,56 @@
                         ]
                       }
                     },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "domain": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]{1,39}$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "domain"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "schedule": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nextReadAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "changedAt": {
                       "anyOf": [
                         {
@@ -99040,6 +99560,9 @@
                     "revision",
                     "config",
                     "secrets",
+                    "scopes",
+                    "schedule",
+                    "nextReadAt",
                     "changedAt",
                     "changedBy"
                   ]
@@ -99376,6 +99899,46 @@
                       "maxLength": 4096
                     }
                   },
+                  "scopes": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "domain": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{1,39}$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "domain"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "schedule": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "reason": {
                     "type": "string",
                     "minLength": 1,
@@ -99473,6 +100036,56 @@
                         ]
                       }
                     },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "domain": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]{1,39}$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "domain"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "schedule": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nextReadAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "changedAt": {
                       "anyOf": [
                         {
@@ -99501,6 +100114,9 @@
                     "revision",
                     "config",
                     "secrets",
+                    "scopes",
+                    "schedule",
+                    "nextReadAt",
                     "changedAt",
                     "changedBy"
                   ]
@@ -99925,6 +100541,46 @@
                       "maxLength": 4096
                     }
                   },
+                  "scopes": {
+                    "type": "array",
+                    "maxItems": 200,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "title": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "domain": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]{1,39}$"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "title",
+                        "domain"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "schedule": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?)?$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "reason": {
                     "type": "string",
                     "minLength": 1,
@@ -100022,6 +100678,56 @@
                         ]
                       }
                     },
+                    "scopes": {
+                      "type": "array",
+                      "maxItems": 200,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 500
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 300
+                          },
+                          "domain": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]{1,39}$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "domain"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "schedule": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^P(?=\\d|T\\d)(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?)?$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "nextReadAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "changedAt": {
                       "anyOf": [
                         {
@@ -100050,6 +100756,9 @@
                     "revision",
                     "config",
                     "secrets",
+                    "scopes",
+                    "schedule",
+                    "nextReadAt",
                     "changedAt",
                     "changedBy"
                   ]
@@ -100574,6 +101283,35 @@
                           "target"
                         ]
                       }
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "suggestedDomain": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title",
+                          "suggestedDomain"
+                        ]
+                      }
                     }
                   },
                   "required": [
@@ -100890,6 +101628,350 @@
                             "findings"
                           ]
                         }
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sources/{id}/read": {
+      "post": {
+        "operationId": "sources.read",
+        "summary": "Read one source now, whatever its schedule (Read again)",
+        "tags": [
+          "sources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{1,39}$"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "const": "queued"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find this source."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "This source is switched off. Switch it on to read it."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "503",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "SERVICE_UNAVAILABLE"
+                        },
+                        "status": {
+                          "const": 503
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "The job runner isn't running. Ask the data team to start it."
+                        },
+                        "data": {}
                       },
                       "required": [
                         "defined",
@@ -106516,7 +107598,14 @@
                       ]
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "channel": {
                       "enum": [
@@ -106525,7 +107614,8 @@
                         "chat",
                         "command_line",
                         "mcp",
-                        "import"
+                        "import",
+                        "source"
                       ],
                       "type": "string"
                     },
@@ -108301,7 +109391,14 @@
                             ]
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "channel": {
                             "enum": [
@@ -108310,7 +109407,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -109684,7 +110782,14 @@
                             ]
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "channel": {
                             "enum": [
@@ -109693,7 +110798,8 @@
                               "chat",
                               "command_line",
                               "mcp",
-                              "import"
+                              "import",
+                              "source"
                             ],
                             "type": "string"
                           },
@@ -112493,25 +113599,32 @@
                                 ]
                               },
                               "from": {
-                                "type": "object",
-                                "properties": {
-                                  "personId": {
-                                    "type": "string"
-                                  },
-                                  "name": {
-                                    "anyOf": [
-                                      {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "personId": {
                                         "type": "string"
                                       },
-                                      {
-                                        "type": "null"
+                                      "name": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
                                       }
+                                    },
+                                    "required": [
+                                      "personId",
+                                      "name"
                                     ]
+                                  },
+                                  {
+                                    "type": "null"
                                   }
-                                },
-                                "required": [
-                                  "personId",
-                                  "name"
                                 ]
                               },
                               "writtenBy": {
@@ -112519,9 +113632,84 @@
                                   {
                                     "enum": [
                                       "agent",
-                                      "assistant"
+                                      "assistant",
+                                      "source"
                                     ],
                                     "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "synced": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "source": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "tool": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name",
+                                          "tool"
+                                        ]
+                                      },
+                                      "scope": {
+                                        "type": "string"
+                                      },
+                                      "document": {
+                                        "type": "object",
+                                        "properties": {
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "link": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "title",
+                                          "link"
+                                        ]
+                                      },
+                                      "read": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "at": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "at"
+                                        ]
+                                      },
+                                      "quote": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "source",
+                                      "scope",
+                                      "document",
+                                      "read",
+                                      "quote"
+                                    ]
                                   },
                                   {
                                     "type": "null"
@@ -112561,6 +113749,7 @@
                               "itemId",
                               "from",
                               "writtenBy",
+                              "synced",
                               "read",
                               "care"
                             ]
@@ -144610,7 +145799,14 @@
                                   ]
                                 },
                                 "proposerId": {
-                                  "type": "string"
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
                                 },
                                 "channel": {
                                   "enum": [
@@ -144619,7 +145815,8 @@
                                     "chat",
                                     "command_line",
                                     "mcp",
-                                    "import"
+                                    "import",
+                                    "source"
                                   ],
                                   "type": "string"
                                 },
@@ -144843,7 +146040,8 @@
                                         "by": {
                                           "enum": [
                                             "agent",
-                                            "assistant"
+                                            "assistant",
+                                            "source"
                                           ],
                                           "type": "string"
                                         },

@@ -1,11 +1,11 @@
-import type { ConnectorModule } from '../../../domain/connector-runtime.ts'
+import type { ChosenScope, ConnectorModule } from '../../../domain/connector-runtime.ts'
 import type { SourceConfig } from '../../../contract/sources.ts'
 import { builtInConnectors } from '../../../connectors/index.ts'
 import type { Config } from '../../config/env.ts'
 import type { Queryable } from '../../db/database.ts'
 import { createCubeSource, cubeConnectorType } from './cube.ts'
 import { createDemoSource, demoConnectorType } from './demo.ts'
-import { registerConnectors, type RegisteredConnector } from './platform.ts'
+import { registerConnectors, type ContentSource, type RegisteredConnector } from './platform.ts'
 import { noSecretStore, SecretStoreError, type SecretStore } from './secrets.ts'
 import { INTERFACE_VERSION, type ConnectorType, type DefinitionSource } from './types.ts'
 
@@ -36,6 +36,7 @@ interface Row {
   name: string
   config: SourceConfig
   secret_ref: string | null
+  scopes: ChosenScope[]
 }
 
 /**
@@ -118,11 +119,11 @@ export class ConnectorRegistry {
     }
   }
 
-  /** The sources admins added that are switched on, made by their connectors. */
+  /** The definition sources admins added that are switched on, made by their connectors. */
   async added(database: Queryable): Promise<DefinitionSource[]> {
     const rows = await database.query<Row>(
-      `select id, type, name, config, secret_ref from connectors
-        where origin = 'workspace' and enabled order by id`,
+      `select id, type, name, config, secret_ref, scopes from connectors
+        where origin = 'workspace' and enabled and kind = 'definition_source' order by id`,
     )
     const sources: DefinitionSource[] = []
     for (const row of rows) {
@@ -137,6 +138,32 @@ export class ConnectorRegistry {
       })
       checkSource(source)
       sources.push(source)
+    }
+    return sources
+  }
+
+  /**
+   * The content sources admins added that are switched on, made by their connectors with the
+   * scopes chosen for them (CON-601).
+   */
+  async contents(database: Queryable): Promise<ContentSource[]> {
+    const rows = await database.query<Row>(
+      `select id, type, name, config, secret_ref, scopes from connectors
+        where origin = 'workspace' and enabled and kind = 'context_source' order by id`,
+    )
+    const sources: ContentSource[] = []
+    for (const row of rows) {
+      const connector = this.#connectors.get(row.type)
+      if (!connector?.content) continue
+      sources.push(
+        connector.content({
+          id: row.id,
+          name: row.name,
+          config: row.config,
+          secrets: await this.secretsOf(row.secret_ref),
+          scopes: row.scopes,
+        }),
+      )
     }
     return sources
   }

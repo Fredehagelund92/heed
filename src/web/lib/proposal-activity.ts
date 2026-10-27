@@ -334,7 +334,11 @@ export function latestDecision(
 }
 
 /** The proposer's newest reply after a moment, such as a request for changes. */
-export function replyAfter(events: readonly ProposalEvent[], proposerId: string, at: string) {
+export function replyAfter(
+  events: readonly ProposalEvent[],
+  proposerId: string | null,
+  at: string,
+) {
   const replies = events.flatMap((event) => {
     const said = text(event.data.text)
     return event.kind === 'commented' &&
@@ -487,7 +491,7 @@ export type DiscussionComment = {
 export function discussionOf(
   events: readonly ProposalEvent[],
   context: {
-    proposerId: string
+    proposerId: string | null
     area: { ownerIds: readonly string[] } | null
   },
 ): DiscussionComment[] {

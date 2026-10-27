@@ -264,7 +264,7 @@ export async function runChecks(
 
 export type DraftToCheck = {
   draft: Draft
-  proposerId: string
+  proposerId: string | null
   channel: ItemVersion['createdVia']
   itemId: string | null
   /** Names a new item's place in the candidate edition: the proposal id, or any unique key. */
