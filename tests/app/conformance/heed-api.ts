@@ -13,6 +13,7 @@ import { mentionNotesOf, type Subject } from '@/model/comments'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import { readiness } from '@/model/review'
 import { findDefinition, meaningOf, type Definition } from '@/lib/definitions'
+import { emailOf } from '@/model/people'
 
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
@@ -341,6 +342,119 @@ export function describeHeedApi(
         expect(me.owns.length).toBeGreaterThan(0)
         for (const id of me.owns)
           expect(domains.find((d) => d.id === id)?.owners, id).toContain(person)
+      },
+    )
+
+    it.skipIf(
+      lacks(
+        'signIn',
+        'getWorkspace',
+        'invite',
+        'readInvite',
+        'resendInvite',
+        'removePerson',
+        'undo',
+      ),
+    )(
+      'invites with a link, lists the invite as owning its domains, and takes it back',
+      async () => {
+        const live = await signedIn()
+        const before = await live.getWorkspace()
+        const domain = before.people.find((p) => p.name === person)!.owns[0]!
+        const email = `invited.${Date.now()}@larchwood.example`
+        const made = await live.invite({ emails: [email, email], admin: false, owns: [domain] })
+        expect(made.links.map((l) => l.email)).toEqual([email])
+        const token = /#\/signin\?invite=([A-Za-z0-9_-]{43})$/.exec(made.links[0]!.link)?.[1]
+        expect(token, made.links[0]!.link).toBeDefined()
+        expect(await live.readInvite({ token: token! })).toMatchObject({
+          email,
+          admin: false,
+          domains: [before.domains.find((d) => d.id === domain)!.name],
+        })
+        const after = await live.getWorkspace()
+        expect(after.people.find((p) => p.name === email)).toMatchObject({
+          invited: true,
+          admin: false,
+          owns: [domain],
+        })
+        expect(after.domains.find((d) => d.id === domain)!.owners).toContain(email)
+        // Someone here already, and an open invite, are named, not invited again.
+        const mine = emailOf(after.people.find((p) => p.name === person)!)
+        const again = await live.invite({ emails: [email, mine], admin: false, owns: [] })
+        expect(again.links).toEqual([])
+        expect(again.skipped).toEqual([
+          { email, why: 'pending' },
+          { email: mine, why: 'member' },
+        ])
+        // Sending it again gives a new link; the old one opens nothing.
+        const resent = await live.resendInvite({ name: email })
+        expect(resent.link).not.toBe(made.links[0]!.link)
+        expect(await live.readInvite({ token: token! })).toBeNull()
+        // Taken back, it is gone; Undo invites them again.
+        const taken = await live.removePerson({ name: email })
+        expect(taken).toMatchObject({ removed: true })
+        expect((await live.getWorkspace()).people.some((p) => p.name === email)).toBe(false)
+        await live.undo({ token: (taken as { undo: string }).undo })
+        expect((await live.getWorkspace()).people.find((p) => p.name === email)).toMatchObject({
+          invited: true,
+          owns: [domain],
+        })
+        await live.removePerson({ name: email })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'setOwner', 'setAdmin', 'removePerson', 'undo'))(
+      'changes owners and roles, keeps an owner on every domain, and removes with Undo',
+      async () => {
+        const live = await signedIn()
+        const { domains, people } = await live.getWorkspace()
+        const domain = people.find((p) => p.name === person)!.owns[0]!
+        // A colleague becomes an owner, and stops being one.
+        expect(await live.setOwner({ name: colleague, domain, own: true })).toEqual({ done: true })
+        expect((await live.getWorkspace()).domains.find((d) => d.id === domain)!.owners).toContain(
+          colleague,
+        )
+        expect(await live.setOwner({ name: colleague, domain, own: false })).toEqual({ done: true })
+        // The only owner of a domain stays.
+        const sole = domains.find(
+          (d) => d.owners.length === 1 && people.some((p) => p.name === d.owners[0] && !p.invited),
+        )
+        if (sole)
+          expect(
+            await live.setOwner({ name: sole.owners[0]!, domain: sole.id, own: false }),
+          ).toEqual({
+            done: false,
+            last: true,
+          })
+        // An admin makes a colleague an admin, and a member again.
+        await live.setAdmin({ name: colleague, admin: true })
+        expect((await live.getWorkspace()).people.find((p) => p.name === colleague)!.admin).toBe(
+          true,
+        )
+        await live.setAdmin({ name: colleague, admin: false })
+        expect((await live.getWorkspace()).people.find((p) => p.name === colleague)!.admin).toBe(
+          false,
+        )
+        // Someone who owns a domain alone hands over first; anyone else goes, and Undo brings them back.
+        const alone = people.find(
+          (p) =>
+            p.name !== person &&
+            !p.invited &&
+            domains.some((d) => d.owners.length === 1 && d.owners[0] === p.name),
+        )
+        if (alone) {
+          const refused = await live.removePerson({ name: alone.name })
+          expect(refused).toMatchObject({ removed: false })
+          expect((refused as { alone: string[] }).alone.length).toBeGreaterThan(0)
+        }
+        const leaver = people.find(
+          (p) => p.name !== person && !p.invited && !p.owns.length && !p.admin,
+        )!
+        const removed = await live.removePerson({ name: leaver.name })
+        expect(removed).toMatchObject({ removed: true })
+        expect((await live.getWorkspace()).people.some((p) => p.name === leaver.name)).toBe(false)
+        await live.undo({ token: (removed as { undo: string }).undo })
+        expect((await live.getWorkspace()).people.some((p) => p.name === leaver.name)).toBe(true)
       },
     )
 

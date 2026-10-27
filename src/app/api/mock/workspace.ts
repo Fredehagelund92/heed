@@ -1,3 +1,5 @@
+import { inviteLinkOf } from '@contract/members'
+import type { Invited } from '@/api/client'
 import type { Fact } from '@/model/items'
 import {
   describe,
@@ -59,6 +61,15 @@ export function createWorkspace() {
     }),
   )
   const order = [...domainIds]
+  /** The address each invite link's token opens. */
+  const links = new Map<string, string>()
+  const linkFor = (email: string, origin: string) => {
+    const token = Array.from(globalThis.crypto.getRandomValues(new Uint8Array(43)), (b) =>
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'.charAt(b % 64),
+    ).join('')
+    links.set(token, email)
+    return inviteLinkOf(origin, token)
+  }
   const people = seedPeople.map((p) => ({
     ...p,
     owns: [...p.owns],
@@ -133,10 +144,19 @@ export function createWorkspace() {
       p.role = describe(p, domains)
     },
 
-    /** Invite people by address: a member or an admin, owners of the chosen domains from the start. */
-    invite(emails: string[], admin: boolean, owns: string[]) {
+    /**
+     * Invite people by address: a member or an admin, owners of the chosen domains from the start.
+     * Each new invite gets a link, as the service gives one; an address already here is left out.
+     */
+    invite(emails: string[], admin: boolean, owns: string[], origin: string): Invited {
+      const result: Invited = { links: [], skipped: [] }
       for (const email of emails) {
-        if (people.some((p) => emailOf(p) === email)) continue
+        const known = people.find((p) => emailOf(p) === email)
+        if (known) {
+          result.skipped.push({ email, why: known.invited ? 'pending' : 'member' })
+          continue
+        }
+        result.links.push({ email, link: linkFor(email, origin) })
         people.push({
           name: email,
           email,
@@ -149,6 +169,29 @@ export function createWorkspace() {
         for (const d of owns) if (domains[d]) domains[d].owners = [...domains[d].owners, email]
       }
       syncOwnership()
+      return result
+    },
+
+    /** Sends an invite again: a new link, and the old one stops working. */
+    resendInvite(name: string, origin: string) {
+      const p = people.find((x) => x.name === name && x.invited)
+      if (!p) return null
+      for (const [token, email] of links) if (email === emailOf(p)) links.delete(token)
+      return linkFor(emailOf(p), origin)
+    },
+
+    /** What an invite link's token opens: its address, role and domains; null for any other. */
+    readInvite(token: string) {
+      const email = links.get(token)
+      const p = email ? people.find((x) => x.invited && emailOf(x) === email) : undefined
+      if (!p) return null
+      return {
+        email: emailOf(p),
+        admin: p.admin,
+        domains: order
+          .filter((d) => domains[d]?.owners.includes(p.name))
+          .map((d) => domains[d]!.name),
+      }
     },
 
     /** Take back an invite, or remove someone; only when they own no domain alone. Undo puts them back. */

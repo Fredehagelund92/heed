@@ -179,11 +179,16 @@ export function createMockApi() {
     scenario.read(method, key, () => copy(run()))
   // A rule the mock keeps (only its author edits a comment) refuses as the service does: the
   // promise rejects, never throws before it is returned.
+  /** The app's own address, which an invite link leads back to. */
+  const origin = () => globalThis.location?.origin ?? 'http://localhost'
   const now = <T>(run: () => T) => new Promise<T>((resolve) => resolve(copy(run())))
 
   const api: HeedApi = {
     // Session and workspace
     getSession: () => now(() => ({ user: state.user, install: state.install, fresh: state.fresh })),
+    // The demo signs in with the person picker; an invite link opens the invite it names.
+    getSignInMethod: () => now(() => ({ kind: 'picker' as const })),
+    readInvite: ({ token }) => now(() => workspace.readInvite(token)),
     listSignInPeople: () => now(() => signInPeople),
     signIn: ({ name, fresh }) => {
       if (!signInPeople.includes(name))
@@ -219,7 +224,13 @@ export function createMockApi() {
           : { done: true as const },
       ),
     setAdmin: ({ name, admin }) => now(() => workspace.setAdmin(name, admin)),
-    invite: ({ emails, admin, owns }) => now(() => workspace.invite(emails, admin, owns)),
+    invite: ({ emails, admin, owns }) => now(() => workspace.invite(emails, admin, owns, origin())),
+    resendInvite: ({ name }) =>
+      now(() => {
+        const link = workspace.resendInvite(name, origin())
+        if (!link) throw new ApiError('not-found', `${name} has no open invite.`)
+        return { link }
+      }),
     removePerson: ({ name }) =>
       now(() => {
         const result = workspace.removePerson(name)

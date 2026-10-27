@@ -17,6 +17,8 @@ import type { AskInput } from '@/model/ask'
 export const queryKeys = {
   session: ['getSession'] as const,
   signInPeople: ['listSignInPeople'] as const,
+  signInMethod: ['getSignInMethod'] as const,
+  invite: ['readInvite'] as const,
   workspace: ['getWorkspace'] as const,
   vocabulary: ['getVocabulary'] as const,
   activity: (name: string) => ['getActivity', name] as const,
@@ -64,6 +66,23 @@ export const queryKeys = {
 
 export const sessionQuery = () =>
   queryOptions({ queryKey: queryKeys.session, queryFn: () => api.getSession() })
+
+/** How this workspace signs people in: the picker, or the company's provider. */
+export const signInMethodQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.signInMethod,
+    queryFn: () => api.getSignInMethod(),
+    staleTime: Infinity,
+  })
+
+/** What an invite link's token opens, for the sign-in screen. */
+export const inviteQuery = (token: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.invite, token],
+    queryFn: () => api.readInvite({ token }),
+    staleTime: Infinity,
+    retry: false,
+  })
 
 export const signInPeopleQuery = () =>
   queryOptions({
@@ -283,6 +302,8 @@ type Read =
   | 'getWorkspace'
   | 'getVocabulary'
   | 'getActivity'
+  | 'getSignInMethod'
+  | 'readInvite'
   | 'getLibrary'
   | 'searchAll'
   | 'contextPage'
@@ -371,6 +392,7 @@ export const invalidations: {
   setOwner: () => workspace,
   setAdmin: () => workspace,
   invite: () => workspace,
+  resendInvite: () => workspace,
   removePerson: () => workspace,
   markViewed: () => [queryKeys.library],
   editItem: () => items,

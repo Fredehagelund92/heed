@@ -173,9 +173,31 @@ export type BulkChange = {
   entry: LogEntry
 }
 
+/**
+ * How this workspace signs people in: the person picker (a demo, or development), or the company's
+ * OpenID Connect provider, by its name, with the address that starts a sign-in.
+ */
+export type SignInMethod = { kind: 'picker' } | { kind: 'oidc'; name: string; start: string }
+
+/** What an open invite's link says on the sign-in screen: the domains by name, read signed out. */
+export type InviteNote = { email: string; admin: boolean; domains: string[] }
+
+/**
+ * What inviting did: a link for each address invited (sent to them by whoever invites, while
+ * Heed sends no email), and each address left out, with why.
+ */
+export type Invited = {
+  links: { email: string; link: string }[]
+  skipped: { email: string; why: 'member' | 'pending' | 'removed' }[]
+}
+
 export interface HeedApi {
   // Session and workspace
   getSession: () => Promise<Session>
+  /** How people sign in here. Needs no session. */
+  getSignInMethod: () => Promise<SignInMethod>
+  /** What an invite link's token opens, or null for a link that opens no invite. Needs no session. */
+  readInvite: (input: { token: string }) => Promise<InviteNote | null>
   /** The people the demo's sign-in offers, by name. Needs no session. */
   listSignInPeople: () => Promise<string[]>
   /** Signs in as one of them; `fresh` starts as a new install. */
@@ -206,7 +228,9 @@ export interface HeedApi {
   }) => Promise<{ done: true } | { done: false; last: true }>
   setAdmin: (input: { name: string; admin: boolean }) => Promise<void>
   /** Invites people by address: a member or an admin, owners of the chosen domains from the start. */
-  invite: (input: { emails: string[]; admin: boolean; owns: DomainId[] }) => Promise<void>
+  invite: (input: { emails: string[]; admin: boolean; owns: DomainId[] }) => Promise<Invited>
+  /** Sends an invite again: a new link, and the old one stops working. */
+  resendInvite: (input: { name: string }) => Promise<{ link: string }>
   /**
    * Takes back an invite or removes someone, unless they own a domain alone: those domains come
    * back instead, to hand over first.
@@ -412,6 +436,8 @@ export interface HeedApi {
 /** Every method of `HeedApi`, once. The compiler checks the list is complete. */
 export const heedApiMethods = [
   'getSession',
+  'getSignInMethod',
+  'readInvite',
   'listSignInPeople',
   'signIn',
   'signOut',
@@ -426,6 +452,7 @@ export const heedApiMethods = [
   'setOwner',
   'setAdmin',
   'invite',
+  'resendInvite',
   'removePerson',
   'getLibrary',
   'searchAll',

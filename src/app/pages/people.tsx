@@ -35,6 +35,7 @@ import { domainHue } from '@/lib/tones'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { href, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
+import type { Invited } from '@/api/client'
 import { activityQuery, useSession, useWrite } from '@/api/queries'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
 import { useMe } from '@/lib/workspace'
@@ -93,6 +94,38 @@ function Locked({ reason, children }: { reason?: string; children: React.ReactEl
 const valid = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
 
 /** Invite people: their addresses, a role, and the domains they own from the start. */
+const copy = (text: string) =>
+  navigator.clipboard.writeText(text).then(
+    () => toast('Copied'),
+    () => toast('Copy this link', { description: text }),
+  )
+
+/**
+ * What inviting did, as a toast: the link to send each person (Heed sends no email yet), and who
+ * was left out because they are here or invited already.
+ */
+function toastInvited({ links, skipped }: Invited) {
+  const left = skipped.length
+    ? ` ${skipped.map((s) => s.email).join(', ')} ${skipped.length === 1 ? 'is' : 'are'} here or invited already.`
+    : ''
+  if (!links.length) {
+    toast('Nobody new to invite', { description: left.trim() })
+    return
+  }
+  toast(links.length === 1 ? 'Invited' : `Invited ${links.length} people`, {
+    description: `Send ${links.length === 1 ? 'them the link' : 'each their link'} to sign in. It works for 7 days.${left}`,
+    action: {
+      label: links.length === 1 ? 'Copy link' : 'Copy links',
+      onClick: () =>
+        void copy(
+          links.length === 1
+            ? links[0]!.link
+            : links.map((l) => `${l.email}: ${l.link}`).join('\n'),
+        ),
+    },
+  })
+}
+
 export function InviteDialog({
   open,
   onOpenChange,
@@ -130,10 +163,7 @@ export function InviteDialog({
           onSubmit={(e) => {
             e.preventDefault()
             if (!emails.length || bad.length) return
-            void write('invite', { emails, admin, owns })
-            toast(emails.length === 1 ? 'Invited' : `Invited ${emails.length} people`, {
-              description: 'They get an email with a link to sign in.',
-            })
+            void write('invite', { emails, admin, owns }).then(toastInvited)
             setText('')
             onOpenChange(false)
           }}
@@ -250,7 +280,14 @@ function PersonSheet({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => toast('Invite sent again', { description: emailOf(p) })}
+                onClick={() =>
+                  void write('resendInvite', { name: p.name }).then(({ link }) =>
+                    toast('New invite link', {
+                      description: `${emailOf(p)}. The old link stops working; send them this one.`,
+                      action: { label: 'Copy link', onClick: () => void copy(link) },
+                    }),
+                  )
+                }
               >
                 Resend
               </Button>

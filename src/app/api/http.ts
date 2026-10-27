@@ -6,9 +6,10 @@
  * Wired so far: the session, the workspace's people and domains, the library list, the
  * definitions with the terms and synonyms written here and their writes (P7b), search everywhere,
  * comments with their reactions and mentions, the Inbox and the review (the golden plan's P6b),
- * and Ask on the answer engine, with the person's chats kept in their browser (P10, http-ask.ts).
- * Every other method answers `not-available` until the pull request that wires its screen
- * (P7 to P13). The conformance suite
+ * Ask on the answer engine, with the person's chats kept in their browser (P10, http-ask.ts),
+ * and People: Admin and Member, a domain's owners, invites with their links, removing someone,
+ * and how the sign-in screen signs people in (P8, http-people.ts). Every other method answers
+ * `not-available` until the pull request that wires its screen (P7 to P13). The conformance suite
  * (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in
  * `X-Heed-CSRF`, as the service requires, and a retry key, kept until the service answers; the
  * session cookie is HttpOnly, so the token is read from `auth.session`.
@@ -44,6 +45,7 @@ import {
   type Shelf,
 } from './http-ask'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
+import { peopleOf } from './http-people'
 import {
   bodyToService,
   commentsOf,
@@ -69,11 +71,19 @@ type CallContext = { headers?: Record<string, string> }
 /** The methods this binding answers so far. */
 export const wiredMethods = [
   'getSession',
+  'getSignInMethod',
+  'readInvite',
   'listSignInPeople',
   'signIn',
   'signOut',
   'getWorkspace',
   'getVocabulary',
+  'setOwner',
+  'setAdmin',
+  'invite',
+  'resendInvite',
+  'removePerson',
+  'updateDomain',
   'getLibrary',
   'getDefinitions',
   'saveTerm',
@@ -507,7 +517,150 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
+  /* ---------- people ---------- */
+
+  /** A member of the workspace by name, as People names them. */
+  async function memberNamed(name: string) {
+    const member = (await read(() => client.members.list())).find((m) => m.name === name)
+    if (!member) throw new ApiError('not-found', `${name} isn't in the workspace any more.`)
+    return member
+  }
+  /** An open invite by its address, which People names it by. */
+  const inviteTo = async (email: string) =>
+    (await read(() => client.invites.list())).find((i) => i.email === email)
+
+  /** Sets a domain's owners by id; false when it would leave the domain without one. */
+  async function setOwnerIds(areaId: string, personIds: string[]) {
+    const input = { areaId, personIds: [...new Set(personIds)] }
+    try {
+      await write('areas.setOwners', input, (o) => client.areas.setOwners(input, o))
+      return true
+    } catch (error) {
+      if (toApiError(error).kind === 'conflict') return false
+      throw error
+    }
+  }
+  const ownerIdsOf = async (areaId: string) => {
+    const area = (await read(() => client.areas.list())).find((a) => a.id === areaId)
+    if (!area)
+      throw new ApiError('not-found', "We couldn't find this domain. It may have been deleted.")
+    return area.ownerIds
+  }
+
+  /** What Undo puts back after a removal or a revoked invite, by its token. */
+  const peopleUndos = new Map<string, () => Promise<unknown>>()
+  const rememberUndo = (work: () => Promise<unknown>) => {
+    const token = `people:${randomKey()}`
+    peopleUndos.set(token, work)
+    return token
+  }
+
   const wired: Pick<HeedApi, (typeof wiredMethods)[number]> = {
+    // Owners set their own domain's owners, admins any (areas.setOwners). Someone invited owns the
+    // domains of their invite once they sign in, so their ownership is the invite's.
+    setOwner: async ({ name, domain, own }) => {
+      if (await inviteTo(name))
+        throw new ApiError(
+          'invalid',
+          `${name} owns the domains of their invite once they sign in. Take the invite back to change it.`,
+        )
+      const member = await memberNamed(name)
+      const current = await ownerIdsOf(domain)
+      const next = own ? [...current, member.id] : current.filter((id) => id !== member.id)
+      if (!next.length && current.length) return { done: false, last: true }
+      return (await setOwnerIds(domain, next)) ? { done: true } : { done: false, last: true }
+    },
+    setAdmin: async ({ name, admin }) => {
+      const input = {
+        personId: (await memberNamed(name)).id,
+        role: admin ? 'admin' : 'member',
+      } as const
+      await write('members.setRole', input, (o) => client.members.setRole(input, o))
+    },
+    // Each new invite's link goes back to whoever invites: Heed sends no email yet.
+    invite: async ({ emails, admin, owns }) => {
+      const input = {
+        emails,
+        role: admin ? ('admin' as const) : ('member' as const),
+        areaIds: owns,
+      }
+      const made = await write('invites.create', input, (o) => client.invites.create(input, o))
+      return {
+        links: made.results.flatMap((r) =>
+          r.outcome === 'invited' ? [{ email: r.email, link: r.link }] : [],
+        ),
+        skipped: made.results.flatMap((r) =>
+          r.outcome === 'invited' ? [] : [{ email: r.email, why: r.outcome }],
+        ),
+      }
+    },
+    resendInvite: async ({ name }) => {
+      const invite = await inviteTo(name)
+      if (!invite) throw new ApiError('not-found', `${name} has no open invite any more.`)
+      const sent = await write('invites.resend', { id: invite.id }, (o) =>
+        client.invites.resend({ id: invite.id }, o),
+      )
+      return { link: sent.link }
+    },
+    // Removing waits while a domain has them as its only owner: those domains come back to hand
+    // over first. Undo brings the person back with the roles the removal ended, or invites again.
+    removePerson: async ({ name }) => {
+      const invite = await inviteTo(name)
+      if (invite) {
+        await write('invites.revoke', { id: invite.id }, (o) =>
+          client.invites.revoke({ id: invite.id }, o),
+        )
+        const again = { emails: [invite.email], role: invite.role, areaIds: invite.areaIds }
+        return {
+          removed: true,
+          undo: rememberUndo(() =>
+            write('invites.create', again, (o) => client.invites.create(again, o)),
+          ),
+        }
+      }
+      const personId = (await memberNamed(name)).id
+      // The domains they own alone are the refusal's answer, not a failure.
+      const alone = await write('members.remove', { personId }, async (o) => {
+        try {
+          await client.members.remove({ personId }, o)
+          return null
+        } catch (error) {
+          const data = (error as { data?: { areas?: unknown } }).data
+          if (Array.isArray(data?.areas) && data.areas.length) return data.areas as string[]
+          throw error
+        }
+      })
+      if (alone) return { removed: false, alone }
+      return {
+        removed: true,
+        undo: rememberUndo(() =>
+          write('members.restore', { personId }, (o) => client.members.restore({ personId }, o)),
+        ),
+      }
+    },
+    // A domain's owners, as its page sets them. Its name and text come with the domains' pull
+    // request; an invited owner is the invite's until they sign in.
+    updateDomain: async ({ id, owners, name, text }) => {
+      if (owners !== undefined) {
+        const members = await read(() => client.members.list())
+        const ids = owners.flatMap((o) => members.find((m) => m.name === o)?.id ?? [])
+        if (!ids.length && (await ownerIdsOf(id)).length)
+          throw new ApiError(
+            'conflict',
+            'A domain needs an owner. Add another owner first, then take this one off.',
+          )
+        if (!(await setOwnerIds(id, ids)))
+          throw new ApiError(
+            'conflict',
+            'A domain needs an owner. Add another owner first, then take this one off.',
+          )
+      }
+      if (name !== undefined || text !== undefined)
+        throw new ApiError(
+          'not-available',
+          "The service doesn't change a domain's name or text yet (updateDomain).",
+        )
+    },
     // A workspace whose setup checklist is unfinished is a new install: the Inbox shows the
     // checklist until it is done (docs/product.md, FR-816).
     getSession: async () => {
@@ -545,18 +698,52 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       refs.clear()
       return asSession(signed.person.name)
     },
+    getSignInMethod: async () => {
+      const method = await read(() => client.auth.methods())
+      return method.method === 'oidc' && method.start
+        ? {
+            kind: 'oidc' as const,
+            name: method.name ?? 'your company account',
+            start: method.start,
+          }
+        : { kind: 'picker' as const }
+    },
+    readInvite: async ({ token }) => {
+      try {
+        const invite = await read(() => client.invites.lookup({ token }))
+        return {
+          email: invite.email,
+          admin: invite.role === 'admin',
+          domains: invite.areas.map((a) => a.name),
+        }
+      } catch (error) {
+        // A link that opens no invite, or isn't one: the same answer.
+        const kind = toApiError(error).kind
+        if (kind === 'not-found' || kind === 'invalid') return null
+        throw error
+      }
+    },
     // What the business is about is an admin's setting; the setup checklist's steps are read from
     // what exists. Start from the guide fills in the worked example, an outdoor-gear retailer.
+    // The people are the workspace's members, Admin or Member, and its open invites.
     getWorkspace: async () => {
-      const [{ workspace }, setup, about] = await Promise.all([
+      const [{ workspace }, setup, about, members, invites] = await Promise.all([
         readPeopleAndAreas(),
         read(() => client.setup.state()),
         readAbout(),
+        read(() => client.members.list()),
+        read(() => client.invites.list()),
       ])
+      const { people, domains } = peopleOf({
+        members,
+        invites,
+        domains: workspace.domains,
+        now: new Date(),
+      })
       return {
         name: '',
-        domains: workspace.domains,
-        people: workspace.people,
+        domains,
+        people,
         about: about?.text ?? '',
         aboutTemplate: ABOUT_BUSINESS_STARTER,
         setup: { done: Object.fromEntries(setup.steps.map((s) => [s.id, s.done])) },
@@ -764,6 +951,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     undo: async ({ token }) => {
       // A deleted chat is put back in the browser, where it is kept.
       if (chats.undo(token)) return
+      // A removal or a revoked invite is put back by its own call.
+      const person = peopleUndos.get(token)
+      if (person) {
+        peopleUndos.delete(token)
+        await person()
+        return
+      }
       await write('decisions.undo', { token }, (o) => client.decisions.undo({ token }, o))
       // What it put back waits again under a new revision.
       refs.clear()
