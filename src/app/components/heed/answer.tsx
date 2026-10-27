@@ -910,8 +910,14 @@ export function AnswerBody({
     () =>
       draft
         ? [draft]
-        : (answer.sources.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fact[]),
-    [draft, answer.sources, all],
+        : answer.sources.flatMap((id) => {
+            const f = all.find((x) => x.id === id)
+            // The answer carries the line its owner copied, and what not to conclude, when the
+            // library does not.
+            const cited = answer.cited?.[id]
+            return f ? [cited ? { ...f, ...cited } : f] : []
+          }),
+    [draft, answer.sources, answer.cited, all],
   )
   const [rated, setRated] = React.useState<'up' | 'down' | null>(null)
   const [wrong, setWrong] = React.useState(!!answer.correction)

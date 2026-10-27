@@ -5,8 +5,9 @@
  *
  * Wired so far: the session, the workspace's people and domains, the library list, the
  * definitions with the terms and synonyms written here and their writes (P7b), search everywhere,
- * comments with their reactions and mentions, and the Inbox and the review (the golden plan's
- * P6b). Every other method answers `not-available` until the pull request that wires its screen
+ * comments with their reactions and mentions, the Inbox and the review (the golden plan's P6b),
+ * and Ask on the answer engine, with the person's chats kept in their browser (P10, http-ask.ts).
+ * Every other method answers `not-available` until the pull request that wires its screen
  * (P7 to P13). The conformance suite
  * (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in
  * `X-Heed-CSRF`, as the service requires, and a retry key, kept until the service answers; the
@@ -15,6 +16,7 @@
 import { createORPCClient } from '@orpc/client'
 import type { AnyContractRouter, ContractRouterClient } from '@orpc/contract'
 import { OpenAPILink } from '@orpc/openapi-client/fetch'
+import type { Asked, LookupEvent } from '@contract/answer'
 import type { Contract } from '@contract/index'
 import type { Feed } from '@contract/inbox'
 import { refusals } from '@contract/refusals'
@@ -27,6 +29,19 @@ import type { Domains } from '@/model/people'
 import routes from './contract.json' with { type: 'json' }
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Session } from './client'
 import { ApiError, toApiError } from './errors'
+import {
+  answerOf,
+  askedWeekOf,
+  browserShelf,
+  createChatShelf,
+  examplesOf,
+  failedAnswer,
+  lookupFields,
+  namesOf,
+  nothingLiveAnswer,
+  type ReadScope,
+  type Shelf,
+} from './http-ask'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
 import {
   bodyToService,
@@ -44,6 +59,8 @@ export type HttpApiOptions = {
   /** Absolute URL of the API, with its version prefix: `https://host/api/v1`. */
   baseUrl: string
   fetch?: typeof globalThis.fetch
+  /** Where the person's Ask chats are kept: the browser's local storage by default. */
+  shelf?: Shelf
 }
 
 type CallContext = { headers?: Record<string, string> }
@@ -87,6 +104,14 @@ export const wiredMethods = [
   'getConnectReview',
   'setAbout',
   'completeSetupStep',
+  'readQuestion',
+  'ask',
+  'askedThisWeek',
+  'getAskExamples',
+  'listChats',
+  'saveChat',
+  'renameChat',
+  'deleteChat',
 ] as const satisfies readonly HeedApiMethod[]
 
 /**
@@ -99,9 +124,6 @@ const pending: Partial<HeedApi> = {
   getSavedQuestions: () => Promise.resolve([]),
   getSavedCheck: () => Promise.resolve({ run: 'idle', checked: 0 }),
   getSavedViews: () => Promise.resolve([]),
-  // Ask, its examples and the person's chats, kept in the browser (P10).
-  getAskExamples: () => Promise.resolve([]),
-  listChats: () => Promise.resolve([]),
   // Settings and the agents connected (P11a).
   getSettings: () => Promise.resolve({ links: false, figures: {}, contacts: {}, connected: [] }),
   listAgentConnections: () => Promise.resolve([]),
@@ -133,7 +155,7 @@ const randomKey = () => globalThis.crypto.randomUUID()
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
-export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
+export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedApi {
   const link = new OpenAPILink<CallContext>(routes as unknown as AnyContractRouter, {
     url: baseUrl,
     headers: ({ context }) => context.headers ?? {},
@@ -200,6 +222,21 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
       const failure = toApiError(error)
       if (!failure.retryable) pendingKeys.delete(id)
       throw failure
+    }
+  }
+
+  /**
+   * A read the service takes as a POST, so a question's words travel in the body and never in an
+   * address: like a change, it carries the session's token, but needs no retry key.
+   */
+  async function readPosted<T>(call: (options: { context: CallContext }) => Promise<T>) {
+    const send = (token: string) =>
+      read(() => call({ context: { headers: { 'x-heed-csrf': token } } }))
+    try {
+      return await send(csrfToken ?? (await session()).csrfToken)
+    } catch (error) {
+      if (!csrfRefused(error)) throw error
+      return send((await session()).csrfToken)
     }
   }
 
@@ -373,6 +410,88 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
     return {
       text: typeof setting?.value === 'string' ? setting.value : '',
       version: setting?.version ?? 0,
+    }
+  }
+
+  /* ---------- Ask ---------- */
+
+  const chats = createChatShelf(shelf ?? browserShelf())
+  /** What each question's first answer said, for its chat's line in the history search. */
+  const said = new Map<string, string>()
+  /** The scope each offered question asks with, by its words, so a click gets its row's state. */
+  const offeredScopes = new Map<string, ReadScope>()
+
+  const readVocabulary = () => read(() => client.vocabulary.get())
+
+  /** Asked this week, or nothing while nothing is shared with agents yet. */
+  async function readAsked(): Promise<Asked | null> {
+    try {
+      const asked = await read(() => client.ask.asked())
+      for (const e of examplesOf(asked)) offeredScopes.set(e.question.toLowerCase(), e.scope)
+      return asked
+    } catch (error) {
+      if (toApiError(error).status === 412) return null
+      throw error
+    }
+  }
+
+  /** The engine's answer to a question: its steps run on the service, the answer is the last event. */
+  async function lookUp(input: { question: string } & Partial<ReturnType<typeof lookupFields>>) {
+    const events = await readPosted((o) => client.ask.lookup(input, o))
+    let answer: Extract<LookupEvent, { type: 'answer' }>['answer'] | undefined
+    for await (const event of events) if (event.type === 'answer') answer = event.answer
+    if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
+    return answer
+  }
+
+  /** The look-up's fields from the @ chips: the metrics and the markets they name. */
+  function chipFields(
+    scope: { id: string }[] | undefined,
+    names: ReturnType<typeof namesOf>,
+  ): Partial<ReturnType<typeof lookupFields>> {
+    const picked = (kind: string) =>
+      (scope ?? []).flatMap((m) =>
+        m.id.startsWith(`${kind}:`) ? [m.id.slice(kind.length + 1)] : [],
+      )
+    const metrics = [...picked('metric'), ...picked('term')].flatMap(
+      (n) => names.metricKey(n) ?? [],
+    )
+    const markets = picked('market').flatMap((n) => names.marketKey(n) ?? [])
+    return {
+      ...(metrics.length ? { metrics } : {}),
+      ...(markets.length
+        ? { dimension_filters: [{ dimension: 'dim:market', values: markets }] }
+        : {}),
+    }
+  }
+
+  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example }) => {
+    let words = question
+    let offered = offeredScopes.get(question.toLowerCase())
+    if (example) {
+      const found = examplesOf(await readAsked()).find((e) => e.id === example)
+      if (!found) throw new ApiError('not-found', 'This question is not offered any more.')
+      words = found.question
+      offered = found.scope
+    }
+    const names = namesOf(await readVocabulary())
+    const fields = scope?.length ? chipFields(scope, names) : offered ? lookupFields(offered) : {}
+    const extra = {
+      ...(parts?.some((p) => typeof p !== 'string') ? { parts } : {}),
+      ...(scope?.length ? { scope } : {}),
+    }
+    try {
+      const answer = answerOf(await lookUp({ question: words, ...fields }), words, names, extra)
+      said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
+      return answer
+    } catch (error) {
+      const failure = toApiError(error)
+      // Nothing is shared with agents yet: no context, so nothing applies.
+      if (failure.status === 412) return { ...nothingLiveAnswer(words), ...extra }
+      // The check could not run: Not checked, which is not the same as nothing written down.
+      if (failure.kind === 'failed' || failure.kind === 'unanswered')
+        return { ...failedAnswer(words), ...extra }
+      throw failure
     }
   }
 
@@ -631,12 +750,38 @@ export function createHttpApi({ baseUrl, fetch }: HttpApiOptions): HeedApi {
       return { undo: done.undo }
     },
     undo: async ({ token }) => {
+      // A deleted chat is put back in the browser, where it is kept.
+      if (chats.undo(token)) return
       await write('decisions.undo', { token }, (o) => client.decisions.undo({ token }, o))
       // What it put back waits again under a new revision.
       refs.clear()
     },
     // The live line's state a review address shows is the mock's own: never on the service.
     getConnectReview: () => Promise.resolve(null),
+
+    // Ask: the engine on the live edition, and the person's chats in their browser.
+    readQuestion: async ({ question }) => {
+      const reading = await readPosted((o) => client.tryIt.read({ question }, o))
+      return {
+        metric:
+          reading.about.find((t) => t.kind === 'metric' || t.kind === 'metric_group')?.name ?? '',
+        markets: reading.about
+          .filter((t) => t.kind === 'dimension_value' && t.dimension === 'Market')
+          .map((t) => t.name),
+      }
+    },
+    ask,
+    askedThisWeek: async () => {
+      const [asked, vocabulary] = await Promise.all([readAsked(), readVocabulary()])
+      return askedWeekOf(asked, namesOf(vocabulary))
+    },
+    getAskExamples: async () =>
+      examplesOf(await readAsked()).map(({ scope: _scope, ...example }) => example),
+    listChats: async () => chats.list((await signedIn()).id),
+    saveChat: async ({ id, question }) =>
+      chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
+    renameChat: async ({ id, title }) => chats.rename((await signedIn()).id, id, title),
+    deleteChat: async ({ id }) => chats.remove((await signedIn()).id, id),
   }
 
   return Object.fromEntries(

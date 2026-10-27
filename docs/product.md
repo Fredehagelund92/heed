@@ -85,6 +85,8 @@ The quick view never publishes. The review is a full-screen page inside the app,
 | Ask in the dock beside another page | `<page>?dock=ask`                           |
 | History                             | the left side of `/ask`; a sheet on a phone |
 
+The empty Ask shows Asked this week. Until agents have asked anything, it offers up to four first questions instead, made from what the workspace has written: the scopes of its published context items, then its metrics. A workspace with nothing written yet gets no first questions, only the empty page's words. Under a finished answer, Ask next offers what agents asked most this week, each with the state it would get.
+
 ### Context
 
 | Screen                        | Address                        |

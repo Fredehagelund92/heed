@@ -42,6 +42,11 @@ export type Answer = {
   /** Plain sentences; [n] points at sources[n - 1]. */
   text: string
   sources: string[]
+  /**
+   * What the answer carries of each source, by item id, when the library does not: the line its
+   * owner copied from where it comes from, and what not to conclude from it.
+   */
+  cited?: Record<string, { quote: string; dontConclude: string }>
   said: string
   leftOut?: string
   times?: number
@@ -62,7 +67,13 @@ export type Answer = {
 /** A question as words and mentions: "Why did @Orders drop in @Norway?" */
 export type QuestionPart = string | MentionRef
 
-export type Example = { id: string; label: string; question: string }
+export type Example = {
+  id: string
+  label: string
+  question: string
+  /** One of the questions a new workspace's empty Ask starts with. */
+  starter?: boolean
+}
 
 /** When a chat was, as the history groups them. */
 export type Day = 'Today' | 'Yesterday' | 'Earlier'
@@ -119,5 +130,10 @@ export type AskedWeek = {
   rows: AskedRow[]
   /** Calls about topics asked fewer than 5 times: counted, never shown. */
   hidden: number
-  asked: number
+  /**
+   * Every call this week; null when fewer than 5, or when it would give a small count away beside
+   * the rows (then `askedAtLeast` is what the rows show together).
+   */
+  asked: number | null
+  askedAtLeast?: number
 }

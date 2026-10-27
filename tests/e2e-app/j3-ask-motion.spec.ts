@@ -1,5 +1,8 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
-import { go } from './go.ts'
+import type { Locator, Page } from '@playwright/test'
+import { expect, go, test } from './go.ts'
+
+/** The six state words, as an answer's line says one. */
+const STATE = /^(Checked|Partial|Not found|Conflict|Outdated|Not checked)$/
 
 // J3, how an answer arrives: written over a second or two, stoppable, and at once with reduced motion.
 
@@ -35,10 +38,10 @@ test('Stop leaves an unfinished answer, said as such', async ({ page }) => {
   await expect(log.getByText(/Stopped while/)).toBeVisible()
   // The notice and Ask again come into view; no source count is claimed.
   await expect(log.getByRole('button', { name: 'Ask again', exact: true })).toBeInViewport()
-  await expect(log.getByText('Checked', { exact: true })).toHaveCount(0)
+  await expect(log.getByText(STATE)).toHaveCount(0)
   await expect(log.getByText(/\d+ sources?$/)).toHaveCount(0)
   await log.getByRole('button', { name: 'Ask again', exact: true }).click()
-  await until(page, log.getByText('Checked', { exact: true }))
+  await until(page, log.getByText(STATE).first())
 })
 
 test('Escape stops an answer being written', async ({ page }) => {
@@ -58,10 +61,17 @@ test('Escape stops an answer being written', async ({ page }) => {
 test('a question that is already a chat opens that chat, typed or picked', async ({ page }) => {
   await go(page, '/ask?n=dedupe')
   const rows = page.getByRole('navigation', { name: 'Chats' }).locator('[data-open]')
-  const before = await rows.count()
-  await ask(page, 'Why did orders in Norway drop in August?')
-  await expect(page).toHaveURL(/example=grounded/)
-  await expect(rows).toHaveCount(before)
+  const question = 'Why did orders in Norway drop in August?'
+  // The mock's history already has this question as a chat; a new history gets it now.
+  await ask(page, question)
+  await expect(page).toHaveURL(/[?&](example|chat)=/)
+  const chat = new RegExp(`[?&]${/[?&]((?:example|chat)=[^&]+)/.exec(page.url())![1]}(&|$)`)
+  const count = await rows.count()
+  await page.getByRole('button', { name: 'New chat' }).first().click()
+  await expect(page).not.toHaveURL(chat)
+  await ask(page, question)
+  await expect(page).toHaveURL(chat)
+  await expect(rows).toHaveCount(count)
 })
 
 test('with reduced motion the answer is there at once, finished', async ({ page }) => {
@@ -69,6 +79,8 @@ test('with reduced motion the answer is there at once, finished', async ({ page 
   await go(page, '/ask?n=reduced')
   await ask(page, 'Why did orders in Norway really drop in August?')
   const log = page.getByRole('log')
+  // The answer joins the chat once it is read (on the service, once the service answered).
+  await expect(log.locator('[data-turn]')).toHaveCount(1)
   await expect(log.getByText(/^\d+ sources?$/)).toBeVisible({ timeout: 300 })
   await expect(log.getByText('Looking up context…')).toHaveCount(0)
 })

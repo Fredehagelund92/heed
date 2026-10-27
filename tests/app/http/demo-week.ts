@@ -25,7 +25,8 @@ import { idleJobs } from '../../server/idle-jobs.ts'
   wait for Jon Abara, owner of Sales (data/review.ts), sent through the service's own API by the
   people who send them in the mock. The texts are the mock's, so the review shows the same change;
   what the service computes from them (the difference, the claims, the Ready line) is its own. The
-  report on Orders in Germany comes in as the anonymous feedback the service keeps today.
+  report on Orders in Germany comes in as the anonymous feedback the service keeps today. What
+  agents asked this week comes in as the topics and counts the service keeps (Asked this week).
 
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
   27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
@@ -517,6 +518,166 @@ async function seedTerms(client: pg.Client) {
 }
 
 /**
+ * What agents asked this week, as the service keeps it: topics and their counts, never the words
+ * (FR-602). The mock's topics (data/observability.ts), 142 calls in all, on the service's own
+ * vocabulary: the mock's Revenue group is Gross sales here, its Black Friday is all markets, its
+ * Repeat purchases is Repeat purchase rate, and Orders in Germany is one month. Net revenue in
+ * Norway is 12 and 5 rather than 13 and 4: beside its row's "13+", the total would give the 4
+ * away, so the service would hide it (FR-614). Orders in Spain is the Not found card's topic,
+ * seeded with it.
+ */
+export const askedThisWeek: {
+  area: string | null
+  metric: string | null
+  market: string | null
+  month: string
+  calls: number
+  nothing: number
+}[] = [
+  {
+    area: 'area_sales',
+    metric: 'orders',
+    market: 'norway',
+    month: '2026-10',
+    calls: 24,
+    nothing: 1,
+  },
+  {
+    area: 'area_sales',
+    metric: 'orders',
+    market: 'norway',
+    month: '2026-09',
+    calls: 7,
+    nothing: 0,
+  },
+  {
+    area: 'area_sales',
+    metric: 'net_revenue',
+    market: 'norway',
+    month: '2026-10',
+    calls: 12,
+    nothing: 1,
+  },
+  {
+    area: 'area_sales',
+    metric: 'net_revenue',
+    market: 'norway',
+    month: '2026-09',
+    calls: 5,
+    nothing: 0,
+  },
+  {
+    area: 'area_sales',
+    metric: 'gross_sales',
+    market: 'norway',
+    month: '2026-10',
+    calls: 5,
+    nothing: 0,
+  },
+  {
+    area: 'area_sales',
+    metric: 'units_sold',
+    market: null,
+    month: '2026-10',
+    calls: 12,
+    nothing: 1,
+  },
+  { area: null, metric: null, market: 'norway', month: '2026-10', calls: 5, nothing: 0 },
+  {
+    area: 'area_marketing',
+    metric: 'discount_cost',
+    market: null,
+    month: '2026-10',
+    calls: 14,
+    nothing: 0,
+  },
+  {
+    area: 'area_sales',
+    metric: 'orders',
+    market: 'poland',
+    month: '2026-10',
+    calls: 13,
+    nothing: 6,
+  },
+  {
+    area: 'area_sales',
+    metric: 'orders',
+    market: 'spain',
+    month: '2026-10',
+    calls: 12,
+    nothing: 9,
+  },
+  {
+    area: 'area_sales',
+    metric: 'orders',
+    market: 'germany',
+    month: '2026-10',
+    calls: 6,
+    nothing: 6,
+  },
+  {
+    area: 'area_marketing',
+    metric: 'cost_per_acquisition',
+    market: 'germany',
+    month: '2026-10',
+    calls: 10,
+    nothing: 0,
+  },
+  {
+    area: 'area_customer_value',
+    metric: 'new_customers',
+    market: 'norway',
+    month: '2026-10',
+    calls: 6,
+    nothing: 0,
+  },
+  {
+    area: 'area_paid_media',
+    metric: 'return_on_ad_spend',
+    market: 'sweden',
+    month: '2026-10',
+    calls: 6,
+    nothing: 0,
+  },
+  {
+    area: 'area_customer_value',
+    metric: 'repeat_purchase_rate',
+    market: null,
+    month: '2026-10',
+    calls: 5,
+    nothing: 1,
+  },
+]
+
+async function seedAskedThisWeek(client: pg.Client) {
+  for (const t of askedThisWeek) {
+    const metrics = t.metric ? [`metric:${t.metric}`] : []
+    const values = t.market ? [`val:market/${t.market}`] : []
+    const key = [t.area ?? '', t.metric ?? '', t.market ?? '', t.month].join('|')
+    // The Not found card's topic is already there: its counts join it.
+    const [topic] = (
+      await client.query<{ id: string }>(
+        `insert into topics (key, area_id, metric_keys, value_keys, month)
+         values ($1, $2, $3, $4, $5::date)
+         on conflict (key) do update set key = excluded.key
+         returning id::text`,
+        [key, t.area, metrics, values, `${t.month}-01`],
+      )
+    ).rows
+    for (const [status, calls, nothing] of [
+      ['matched', t.calls - t.nothing, 0],
+      ['no_match', t.nothing, t.nothing],
+    ] as const)
+      if (calls)
+        await client.query(
+          `insert into topic_week_counts (topic_id, week, status, calls, no_item_calls)
+           values ($1, date_trunc('week', $5::date)::date, $2, $3, $4)`,
+          [topic!.id, status, calls, nothing, TODAY],
+        )
+  }
+}
+
+/**
  * Seeds an empty migrated database with the demo week, as a superuser: the library, Jon as an
  * admin as the mock has him, the terms and synonyms, the suggestions through the API, then who
  * wrote what and when each was sent, the report and the Not found card. Returns each mock card's id on the
@@ -592,6 +753,7 @@ export async function seedDemoWeek(
        values ($1, date_trunc('week', now() at time zone 'UTC')::date, 9)`,
       [gap!.id],
     )
+    await seedAskedThisWeek(after)
     await after.query(
       `update proposals set source_gap_id = $1, provenance = '{"by":"assistant","fields":{},"flags":[]}' where id = $2`,
       [gap!.id, ids['gap-spain']],

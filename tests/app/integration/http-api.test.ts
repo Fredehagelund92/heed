@@ -26,27 +26,28 @@ const app = buildApp({
   devPeople: devPeople(),
 })
 let api: HeedApi | undefined
+let base = ''
+let address = ''
+// A browser keeps the session cookie and sends its origin; this jar does both.
+let cookie = ''
+const jar: typeof fetch = async (request, init) => {
+  const headers = new Headers(
+    init?.headers ?? (request instanceof Request ? request.headers : undefined),
+  )
+  if (cookie) headers.set('cookie', cookie)
+  headers.set('origin', address)
+  const response = await fetch(request, { ...init, headers })
+  const set = response.headers.getSetCookie()
+  if (set.length) cookie = set.map((c) => c.split(';')[0]).join('; ')
+  return response
+}
 
 beforeAll(async () => {
   await client.query('reset role')
   await seedDemoWeek(url)
-  const address = await app.listen({ host: '127.0.0.1', port: 0 })
-  // A browser keeps the session cookie and sends its origin; this jar does both.
-  let cookie = ''
-  api = createHttpApi({
-    baseUrl: `${address}/api/v1`,
-    fetch: async (request, init) => {
-      const headers = new Headers(
-        init?.headers ?? (request instanceof Request ? request.headers : undefined),
-      )
-      if (cookie) headers.set('cookie', cookie)
-      headers.set('origin', address)
-      const response = await fetch(request, { ...init, headers })
-      const set = response.headers.getSetCookie()
-      if (set.length) cookie = set.map((c) => c.split(';')[0]).join('; ')
-      return response
-    },
-  })
+  address = await app.listen({ host: '127.0.0.1', port: 0 })
+  base = `${address}/api/v1`
+  api = createHttpApi({ baseUrl: base, fetch: jar })
 }, 120_000)
 afterAll(() => app.close())
 
@@ -65,6 +66,38 @@ describe('the http binding', () => {
       () => api!.searchAll({ q: 'orders' }),
     ])
       await expect(read()).rejects.toMatchObject({ kind: 'signed-out' })
+  })
+
+  it('shows an owner the draft that waits on a Not found topic of their domain, and nobody else', async () => {
+    await api!.signIn({ name: OWNER.name, fresh: false })
+    const spain = (await api!.askedThisWeek()).rows.find((r) => r.title === 'Orders in Spain')!
+    expect(spain).toMatchObject({ state: 'missing', count: '12' })
+    expect(spain.next?.label).toBe('Write it')
+    expect(spain.next?.href).toMatch(/^\/context\/new\?gap=[0-9a-f-]{36}$/)
+    await api!.signIn({ name: 'Ines Duarte', fresh: false })
+    const asInes = (await api!.askedThisWeek()).rows.find((r) => r.title === 'Orders in Spain')!
+    expect(asInes.next).toBeUndefined()
+  })
+
+  it("keeps the person's chats in their browser: no chat is sent to the service", async () => {
+    await api!.signIn({ name: OWNER.name, fresh: false })
+    const sent: string[] = []
+    const watched = createHttpApi({
+      baseUrl: base,
+      fetch: async (request, init) => {
+        const body = request instanceof Request ? await request.clone().text() : ''
+        sent.push(`${String(request instanceof Request ? request.url : request)} ${body}`)
+        return jar(request, init)
+      },
+    })
+    await watched.getSession()
+    await watched.saveChat({ id: 'chat-private', question: 'Is the Quillfeather deal in?' })
+    await watched.renameChat({ id: 'chat-private', title: 'Quillfeather in October' })
+    const { undo } = await watched.deleteChat({ id: 'chat-private' })
+    await watched.undo({ token: undo })
+    expect((await watched.listChats()).map((t) => t.title)).toContain('Quillfeather in October')
+    expect(sent.length).toBeGreaterThan(0)
+    expect(sent.join('\n')).not.toContain('Quillfeather')
   })
 
   it('answers a method it does not offer yet as not available', async () => {

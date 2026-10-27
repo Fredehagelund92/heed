@@ -154,7 +154,7 @@ export const test = base.extend<{ demoWeek: void }>({
 */
 export async function go(page: Page, route: string) {
   const to = http ? await httpRoute(page, route) : { route }
-  if (page.url().startsWith('http')) await moveTo(page, to.route)
+  if (page.url().startsWith('http') && !to.load) await moveTo(page, to.route)
   else await page.goto(to.route)
   await to.after?.()
 }
@@ -177,7 +177,7 @@ export async function signInAs(page: Page, name: string) {
 async function httpRoute(
   page: Page,
   route: string,
-): Promise<{ route: string; after?: () => Promise<void> }> {
+): Promise<{ route: string; after?: () => Promise<void>; load?: boolean }> {
   const url = new URL(route, 'http://app')
   const path = url.pathname
     .split('/')
@@ -198,6 +198,8 @@ async function httpRoute(
   const search = query.toString()
   return {
     route: `${path}${search ? `?${search}` : ''}`,
+    // Another workspace on another service: the app loads again, as the mock starts afresh.
+    ...(demo === 'setup' ? { load: true } : {}),
     ...(state === 'offline'
       ? {
           // Offline once the page and what it loads on demand are in, as the mock's flag is.

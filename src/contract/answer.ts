@@ -46,6 +46,10 @@ export const answerItemSchema = z.object({
   unverifiedReason: z.nullable(z.enum(['needs_check', 'source_missing', 'past_review_date'])),
   restrictions: z.array(z.object({ dimension: z.string(), values: z.array(z.string()) })),
   conflictsWith: z.array(z.string()),
+  /** The line its owner copied from its first source; null when none was copied. */
+  quote: z.nullable(z.string()),
+  /** What not to conclude from it, when its writer said; null for the default. */
+  notToConclude: z.nullable(z.string()),
 })
 export const leftOutSchema = z.object({
   id: z.string(),
@@ -170,10 +174,26 @@ export const askedSchema = z.object({
       state: answerStateSchema,
       /** How many items the answer gives. */
       items: z.number(),
+      /**
+       * For the owners of the topic's domains and administrators: the Not found card open on it,
+       * and its draft when one waits. Null for anyone else, and when nothing is open.
+       */
+      gap: z.nullable(z.object({ card: z.string(), draft: z.nullable(z.string()) })),
     }),
   ),
   /** Calls about topics not listed, themselves hidden under the minimum. */
   hidden: z.nullable(z.number()),
+  /**
+   * Every call this week; null under the minimum, and when what it adds over the rows' counts
+   * would give a small month away (FR-614). `askedAtLeast` is what the rows show together.
+   */
+  asked: z.nullable(z.number()),
+  askedAtLeast: z.number(),
+  /**
+   * A workspace's first questions, made from what it has written: the scopes of its live context
+   * items, then the metrics of its vocabulary, at most four, each with the scope a click asks.
+   */
+  starters: z.array(z.object({ title: z.string(), scope: readScopeSchema })),
 })
 export type Asked = z.infer<typeof askedSchema>
 

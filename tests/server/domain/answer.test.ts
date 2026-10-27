@@ -6,6 +6,7 @@ import {
   lookUp,
   NEAR_MISSES_SHOWN,
   reach,
+  startersOf,
   topicScope,
   topicWords,
   type AnswerBundle,
@@ -90,7 +91,34 @@ describe('the steps', () => {
         unverifiedReason: null,
         restrictions: [],
         conflictsWith: [],
+        quote: null,
+        notToConclude: null,
       },
+    ])
+  })
+
+  it("carry each item's first copied source line and what its writer said not to conclude", () => {
+    const result = answer(
+      bundleOf([
+        orders('itm_00000001', {
+          evidence: [
+            { url: 'https://a.example', quote: ' ' },
+            { url: 'https://b.example', quote: 'Held at the border from 4 August.' },
+          ],
+          notToConclude: 'Fewer orders do not mean fewer customers.',
+        } as Partial<ResolverItem>),
+        orders('itm_00000002', { notToConclude: 'cause not proven' } as Partial<ResolverItem>),
+      ]),
+      ask,
+      { today },
+    )
+    expect(result.items.map((i) => [i.id, i.quote, i.notToConclude])).toEqual([
+      [
+        'itm_00000001',
+        'Held at the border from 4 August.',
+        'Fewer orders do not mean fewer customers.',
+      ],
+      ['itm_00000002', null, null],
     ])
   })
 })
@@ -316,6 +344,60 @@ describe('Asked this week', () => {
     expect(topics[0]!.months).toEqual([])
     expect(topics[0]!.count).toBe(6)
     expect(topicScope(topics[0]!).window.start).toBe('2026-10-01')
+  })
+})
+
+describe("a workspace's first questions", () => {
+  it('are the scopes of its live items, a metric and the first value each, then its metrics, four at most', () => {
+    const scopes = startersOf(
+      bundleOf([
+        orders('itm_00000001'),
+        orders('itm_00000002'),
+        source({
+          id: 'itm_00000003',
+          scope: { metrics: [], dimensions: [], dimensionValues: [] },
+        }),
+      ]),
+      '2026-10-23',
+    )
+    const month = { start: '2026-10-01', end: '2026-11-01' }
+    expect(scopes[0]).toEqual({
+      metrics: ['metric:orders'],
+      filters: { 'dim:market': ['val:market/norway'] },
+      window: month,
+    })
+    // The same scope twice is offered once; an item about nothing is not a question.
+    expect(scopes.filter((s) => s.filters['dim:market'])).toHaveLength(1)
+    expect(scopes.length).toBeLessThanOrEqual(4)
+    for (const s of scopes.slice(1)) {
+      expect(s.metrics).toHaveLength(1)
+      expect(s.window).toEqual(month)
+    }
+  })
+
+  it('never come from an item an agent would not be given: for a group, or stopped', () => {
+    const norway = orders('itm_00000001', {
+      audience: { kind: 'groups', groups: ['finance'] },
+    })
+    const spain = orders('itm_00000002', {
+      scope: {
+        metrics: ['metric:orders'],
+        dimensions: [],
+        dimensionValues: [{ dimension: 'dim:market', value: 'val:market/spain' }],
+      },
+    })
+    const markets = (b: AnswerBundle) =>
+      startersOf(b, '2026-10-23').flatMap((s) => s.filters['dim:market'] ?? [])
+    expect(markets(bundleOf([norway, spain]))).toEqual(['val:market/spain'])
+    expect(
+      markets(
+        bundleOf([norway, spain], { stopped: { all: false, areas: [], items: ['itm_00000002'] } }),
+      ),
+    ).toEqual([])
+  })
+
+  it('are none while nothing is live', () => {
+    expect(startersOf(bundleOf([]), '2026-10-23')).toEqual([])
   })
 })
 
