@@ -9,27 +9,27 @@ import { migrate, migrationDirectory } from '../../src/server/db/migrate.ts'
 import { testDatabase } from './support.ts'
 
 /*
-  0009_about_starts_empty.sql: About our business starts empty. An install whose text is still the
+  0010_about_starts_empty.sql: About our business starts empty. An install whose text is still the
   untouched default gets an empty version; one where a person changed the text keeps theirs. Each
-  case needs a database of its own, at 0008, then migrated to 0009.
+  case needs a database of its own, at 0009, then migrated to 0010.
 */
 
 const untouched = testDatabase({ unmigrated: true })
 const changed = testDatabase({ unmigrated: true })
 
-/** The migrations before 0009, then 0009 alone, so a later migration never changes the result. */
+/** The migrations before 0010, then 0010 alone, so a later migration never changes the result. */
 async function upTo(
   client: pg.Client,
   before: (client: pg.Client) => Promise<void> = async () => {},
 ) {
-  const dir = await mkdtemp(join(tmpdir(), 'heed-migration-0008-'))
-  const names = (await readdir(migrationDirectory)).filter((n) => /^000[1-8]_.*\.sql$/.test(n))
+  const dir = await mkdtemp(join(tmpdir(), 'heed-migration-0009-'))
+  const names = (await readdir(migrationDirectory)).filter((n) => /^000[1-9]_.*\.sql$/.test(n))
   for (const name of names) await copyFile(new URL(name, migrationDirectory), join(dir, name))
-  expect(await migrate(client, pathToFileURL(`${dir}/`))).toBe(8)
+  expect(await migrate(client, pathToFileURL(`${dir}/`))).toBe(9)
   await before(client)
   await copyFile(
-    new URL('0009_about_starts_empty.sql', migrationDirectory),
-    join(dir, '0009_about_starts_empty.sql'),
+    new URL('0010_about_starts_empty.sql', migrationDirectory),
+    join(dir, '0010_about_starts_empty.sql'),
   )
   expect(await migrate(client, pathToFileURL(`${dir}/`))).toBe(1)
 }
