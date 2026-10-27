@@ -32,8 +32,9 @@ the front end until it replaces it. Its pages read their data through one typed 
 mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
 `?slow=1`, `?demo=` and the rest), and the http binding talks to the service. Run it with
 `npm run dev:app` on the mock; `VITE_API_MODE=http npm run dev:app` takes the http binding, which
-answers the session, the library list, the definitions and search everywhere so far; each other
-screen is wired by its own change. `npm run dev`, `docker compose up` and the Docker image still
+answers the session, Context and the editor, Definitions, search, comments, the Inbox and reviews,
+setup and Ask so far; each other screen is wired by its own change (`wiredMethods` in
+`src/app/api/http.ts` lists them). `npm run dev`, `docker compose up` and the Docker image still
 serve the front end in `src/web`.
 
 The **back end** is the service in `src/server`: a Fastify app with configuration, logging and a
