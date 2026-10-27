@@ -11,6 +11,6 @@
       "@contract/*": ["./src/contract/*"]
     }
   },
-  "include": ["src/app", "tests/app"],
+  "include": ["src/app", "tests/app", "tests/e2e-app/http"],
   "exclude": ["tests/app/e2e"]
 }

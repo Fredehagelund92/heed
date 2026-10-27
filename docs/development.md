@@ -170,7 +170,20 @@ decides, never what a person reads.
 Both bindings pass one conformance suite (`tests/conformance/context-api.ts`): the mock in
 `npm test`, the http binding against PostgreSQL in `npm run test:integration`. The new web app's
 two bindings do the same with `tests/app/conformance/heed-api.ts`, the http one for the methods it
-wires so far (`wiredMethods` in `src/app/api/http.ts`).
+wires so far (`wiredMethods` in `src/app/api/http.ts`), on the mockup's demo week
+(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items and the suggestions waiting
+for Jon Abara, sent through the service's own API. Reads whose screens a later pull request wires
+answer what the service holds for them today, which is nothing, so the shell and the Inbox draw;
+their writes are not available yet.
+
+The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
+`npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox and the review so
+far) on an http mode build against the service, one at a time, each on its own copy of the demo
+week seeded once into a template database. It needs a local PostgreSQL 18 and a superuser's
+connection in `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server). The
+specs read the mock's card ids, the queue and its counts through `tests/e2e-app/go.ts`, which
+gives the service's in http mode; a step that needs a later pull request's server work is
+skipped in http mode only, naming that pull request.
 `npm run test:e2e:api` runs a Playwright smoke test of an http mode build against the service; it
 needs a migrated, seeded database named by `E2E_DATABASE_URL` (default: the local development
 database), and CI runs it on a PostgreSQL 18 container. Its service signs in the people in
@@ -231,7 +244,7 @@ tests/
   e2e/            Playwright: layout, shell, axe, screenshots
   e2e-api/        Playwright: the front end in http mode against the service
   app/            Vitest, the new web app (src/app); its HeedApi suite (conformance/), its http run (integration/)
-  e2e-app/        Playwright: the new web app's golden job specs and axe, on its mock build
+  e2e-app/        Playwright: the new web app's golden job specs and axe, on its mock build and in http mode (http/)
   conformance/    the ContextApi suite that both API bindings pass
 docs/help/        the help pages, Markdown with SVG pictures, shown at /docs and on GitHub (its README)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
@@ -279,6 +292,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run test:e2e`                              | Playwright against a production build made for tests (layout, shell, axe; screenshots only if baselines exist, on Linux)                                                                                                              |
 | `npm run test:e2e:app`                          | Playwright: the new web app's golden job specs (`tests/e2e-app`) against its production build, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                                  |
 | `npm run test:e2e:api`                          | Playwright against an http mode build and the service (needs a seeded database, `E2E_DATABASE_URL`)                                                                                                                                   |
+| `npm run test:e2e:golden-http`                  | Playwright: the golden job specs whose screens are wired, on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                                                    |
 | `npm run registry:build` / `registry:validate`  | Build or validate `registry.json`                                                                                                                                                                                                     |
 | `npm run check`                                 | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
 

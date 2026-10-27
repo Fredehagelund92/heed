@@ -149,6 +149,7 @@
     "test:e2e": "playwright test",
     "test:e2e:api": "playwright test -c playwright.api.config.ts",
     "test:e2e:app": "playwright test -c playwright.app.config.ts",
+    "test:e2e:golden-http": "playwright test -c playwright.golden-http.config.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "check": "npm run typecheck && npm run lint && npm run lint:words && npm run format:check && npm test",

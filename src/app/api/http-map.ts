@@ -19,6 +19,7 @@ import type {
 import type { Definition } from '@/lib/definitions'
 import type { Comments, Subject } from '@/model/comments'
 import type { Fact, Kind, Status } from '@/model/items'
+import { shiftDate } from '@domain/validity'
 import { dateLabel, whenLabel, type Validity } from '@/model/validity'
 import type { SearchHits } from './client'
 
@@ -38,11 +39,14 @@ export function statusOf(row: Pick<LibraryItem, 'status' | 'trust'>): Status {
   return row.trust === 'needs_check' ? 'Needs checking' : 'Live'
 }
 
-/** The service's dates (an open end, and an issue that is still going on) as the app's. */
+/**
+ * The service's dates as the app's: its end is the first day the item no longer applies, so the
+ * last day it applies is the day before. An open end of an issue that is still going on says so.
+ */
 export function validityOf(row: Pick<LibraryItem, 'validity' | 'reviewQuestion'>): Validity {
   return {
     from: row.validity.start,
-    ...(row.validity.end ? { until: row.validity.end } : {}),
+    ...(row.validity.end ? { until: shiftDate(row.validity.end, -1) } : {}),
     ...(row.reviewQuestion === 'still_going_on' ? { ongoing: true } : {}),
   }
 }

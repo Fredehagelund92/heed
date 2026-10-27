@@ -1,0 +1,484 @@
+import { randomUUID } from 'node:crypto'
+import pg from 'pg'
+import { reviews } from '@/api/mock/data/review'
+import { facts, people as worldPeople } from '@/api/mock/data/world'
+import type { Fact } from '@/model/items'
+import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
+import { reviewQuestion, type ContextItem } from '../../../src/domain/item.ts'
+import { defaultNotToConclude } from '../../../src/domain/proposal-rules.ts'
+import type { Draft } from '../../../src/domain/draft.ts'
+import { shiftDate } from '../../../src/domain/validity.ts'
+import { buildApp } from '../../../src/server/app.ts'
+import { systemClock } from '../../../src/server/clock.ts'
+import { calendarDateTypes, databaseFromPool } from '../../../src/server/db/database.ts'
+import { localRoles } from '../../../src/server/db/roles.ts'
+import { createLogger } from '../../../src/server/observability/logger.ts'
+import { definitionRefOf, demoDefinitions } from '../../../src/web/mocks/cube-model.ts'
+import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/reference-data.ts'
+import { idleJobs } from '../../server/idle-jobs.ts'
+
+/*
+  The mockup's demo week on the real service, for the golden journeys in http mode: Larchwood
+  Outdoor's context items (src/app/api/mock/data/world.ts) as a library, and the suggestions that
+  wait for Jon Abara, owner of Sales (data/review.ts), sent through the service's own API by the
+  people who send them in the mock. The texts are the mock's, so the review shows the same change;
+  what the service computes from them (the difference, the claims, the Ready line) is its own. The
+  report on Orders in Germany comes in as the anonymous feedback the service keeps today.
+
+  What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
+  27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
+  withdraws his retirement (P9), the Not found card and its draft (part 2 of P6b), and who sent the
+  report (P10). Draft items, which no API keeps yet, stay out too (P7).
+*/
+
+/** The service's today in the demo week: the mock's days are 22 and 23 October 2026. */
+export const TODAY = '2026-10-23'
+
+/** The person whose Inbox the journeys open, as the mock starts signed in. */
+export const OWNER = { name: 'Jon Abara', email: 'per_jon@example.test' }
+
+/** A mock id as the service takes it: `itm_` and 8 to 16 letters or digits. */
+export const serverItemId = (id: string) => `itm_${id.slice(4).replace(/[^a-z0-9]/g, '')}`
+
+const areaOf = (domain: string) => `area_${domain}`
+const metricOf = (name: string) => vocabulary.metrics.find((m) => m.name === name)
+const marketValues = vocabulary.dimensions.find((d) => d.id === 'market')!.values
+const marketOf = (name: string) => marketValues.find((v) => v.name === name)
+const marks = new Map(demoDefinitions.map((d) => [d.ref, d.changeMark]))
+const personId = (name: string) => {
+  const p = seedPeople.find((x) => x.name === name)
+  if (!p) throw new Error(`${name} is not one of the seeded people`)
+  return p.id
+}
+/** A mention as the mock stores it, `[@ id="..." label="Words"]`, read as its words. */
+const plain = (text: string) => text.replace(/\[@ id="[^"]*" label="([^"]*)"\]/g, '$1')
+/** The mock's "3 Oct 2026" as a calendar day. */
+function isoDay(label: string, fallback: string) {
+  const t = Date.parse(`${label} 12:00 UTC`)
+  return Number.isNaN(t) ? fallback : new Date(t).toISOString().slice(0, 10)
+}
+
+/** What an item applies to, by the library's ids: its metrics, and its markets as values. */
+function scopeOf(where: readonly string[]) {
+  const metrics = where.flatMap((w) => metricOf(w)?.id ?? [])
+  const values = where.flatMap((w) => marketOf(w)?.id ?? [])
+  return { metrics, values }
+}
+
+/**
+ * A text as the service keeps it: a summary of at most 280 characters, the rest in the body. A
+ * longer one keeps its first sentence as the summary, so both sides of a change split alike.
+ */
+function split(text: string): { summary: string; body?: string } {
+  if ([...text].length <= 280) return { summary: text }
+  const end = text.indexOf('. ') + 1
+  return { summary: text.slice(0, end), body: text.slice(end + 1) }
+}
+
+/** The service's end of a window: the first day it no longer applies, the day after the last. */
+const endOf = (until: string | undefined) => (until ? shiftDate(until, 1) : null)
+
+/** What changes about an item before the week starts, so its suggestion shows the mock's change. */
+type Before = { summary?: string; body?: string | null; source?: string; until?: string }
+/** A suggested version: the fields it changes. */
+type After = { summary?: string; body?: string | null; source?: string; until?: string }
+
+const reviewText = (id: string) => {
+  const r = reviews.find((x) => x.id === id)
+  if (!r) throw new Error(`No review ${id} in the mock`)
+  // The mock writes the source and the dates into its stored text as a line of their own.
+  const strip = (s: string) =>
+    s
+      .split('\n\n')
+      .filter((p) => !/^(Source|When): /.test(p))
+      .join('\n\n')
+  return { r, before: strip(r.source.before), after: strip(r.source.after) }
+}
+
+/** The edits Ines Duarte sends from a chat, by their mock card, with what they change. */
+const edits: { card: string; item: string; before: Before; after: After }[] = (() => {
+  const units = reviewText('sug-ines')
+  const format = reviewText('sug-ines-format')
+  const order = reviewText('sug-ines-order')
+  const long = reviewText('sug-ines-long')
+  const link = reviews.find((r) => r.id === 'sug-ines-link')!
+  const linkBlock = link.blocks.find((b) => b.kind === 'Link' && 'before' in b) as {
+    before: string
+    after: string
+  }
+  const unitsLink = units.r.blocks.find((b) => b.kind === 'Link' && 'before' in b) as {
+    before: string
+    after: string
+  }
+  return [
+    {
+      card: 'sug-ines',
+      item: 'itm_s90n5xps',
+      before: { summary: units.before, source: unitsLink.before },
+      after: { summary: units.after, source: unitsLink.after },
+    },
+    {
+      card: 'sug-ines-format',
+      item: 'itm_norway_stop',
+      before: { body: format.before },
+      after: { body: format.after },
+    },
+    {
+      card: 'sug-ines-link',
+      item: 'itm_ra39ow6c',
+      before: { source: linkBlock.before },
+      after: { source: linkBlock.after },
+    },
+    {
+      card: 'sug-ines-order',
+      item: 'itm_kcy22j54',
+      before: { body: order.before },
+      after: { body: order.after },
+    },
+    {
+      card: 'sug-ines-long',
+      item: 'itm_2a1wp53q',
+      before: { summary: long.before },
+      after: { summary: long.after },
+    },
+    {
+      card: 'sug-ines-dates',
+      item: 'itm_spe2w9kh',
+      before: { until: '2026-05-19' },
+      after: { until: '2026-05-26' },
+    },
+  ]
+})()
+
+/** The checks that are due, by item: a date that passed, or a definition that changed. */
+const due: Record<string, { card: string; reviewDate?: string; checkFlag?: 'needs_check' }> = {
+  itm_ra39ow6c: { card: 'check-returns', reviewDate: '2026-10-02' },
+  itm_kcy22j54: { card: 'check-margin', checkFlag: 'needs_check' },
+  itm_pfet8zj3: { card: 'check-italy', reviewDate: '2026-09-18' },
+}
+
+/** Each mock card due for a check, by the service's card for it. */
+export const checkCards = () =>
+  Object.fromEntries(
+    Object.entries(due).map(([item, d]) => [d.card, `check:${serverItemId(item)}`]),
+  )
+
+/** One mock context item as the library's item, with the text its week's suggestion starts from. */
+function itemOf(f: Fact): ContextItem {
+  const before = edits.find((e) => e.item === f.id)?.before ?? {}
+  const { metrics, values } = scopeOf(f.where)
+  const references = metrics.map((id) =>
+    definitionRefOf({
+      key: `metric:${id}`,
+      group: vocabulary.metrics.find((m) => m.id === id)!.group,
+    }),
+  )
+  const checked = isoDay(f.checkedOn, '2026-06-01')
+  const start = f.valid.from ?? '2025-01-01'
+  const end = endOf(before.until ?? f.valid.until)
+  const text = split(plain(before.summary ?? f.summary))
+  const body =
+    before.body === undefined ? (text.body ?? (f.body ? plain(f.body) : undefined)) : before.body
+  const area = areas.find((a) => a.id === areaOf(f.domain))!
+  return {
+    id: serverItemId(f.id),
+    kind: f.kind,
+    areaId: area.id,
+    status: f.status === 'Archived' ? 'retired' : 'accepted',
+    version: 1,
+    title: f.title,
+    summary: text.summary,
+    ...(body ? { body } : {}),
+    references,
+    scope: {
+      metrics,
+      dimensions: [],
+      dimensionValues: values.map((value) => ({ dimension: 'market', value })),
+    },
+    validity: { start, end },
+    reviewDate: due[f.id]?.reviewDate ?? (end ? null : '2027-03-01'),
+    reviewQuestion: reviewQuestion({ kind: f.kind, validity: { end } }),
+    evidence: [{ url: before.source ?? f.source, quote: f.quote, date: checked }],
+    checkFlag: due[f.id]?.checkFlag ?? null,
+    claimLevel: 'fact_only',
+    riskLevel: 'normal',
+    notToConclude: f.dontConclude || defaultNotToConclude,
+    audience: { kind: 'everyone' },
+    ownerId: area.ownerIds[0]!,
+    changeMarks: Object.fromEntries(references.map((ref) => [ref, marks.get(ref)!])),
+    createdVia: 'form',
+    proposerId: area.ownerIds[0]!,
+    createdAt: `${checked}T08:00:00Z`,
+    updatedAt: `${checked}T09:00:00Z`,
+  }
+}
+
+/** The library of the demo week: every live and archived item of the mock world. */
+export const demoLibrary = (): ContextItem[] =>
+  facts.filter((f) => f.status !== 'Draft').map(itemOf)
+
+/** A context item as a suggestion's whole new version, with `after` applied. */
+function draftOf(item: ContextItem, after: After): Draft {
+  const text = after.summary === undefined ? null : split(after.summary)
+  const body = text?.body ?? (after.body === undefined ? item.body : (after.body ?? undefined))
+  return {
+    areaId: item.areaId,
+    kind: item.kind,
+    title: item.title,
+    summary: text?.summary ?? item.summary,
+    ...(body ? { body } : {}),
+    scope: {
+      metrics: item.scope.metrics.map((m) => `metric:${m}`),
+      dimensions: [],
+      dimensionValues: item.scope.dimensionValues.map((v) => ({
+        dimension: `dim:${v.dimension}`,
+        value: `val:${v.dimension}/${v.value}`,
+      })),
+    },
+    validity: {
+      start: item.validity.start,
+      end: after.until ? endOf(after.until) : item.validity.end,
+    },
+    reviewDate: item.reviewDate,
+    evidence: [{ ...item.evidence[0]!, url: after.source ?? item.evidence[0]!.url }],
+    notToConclude: item.notToConclude,
+  }
+}
+
+/** A new item a person suggests, from a mock suggestion's draft. */
+function newDraft(d: {
+  domain: string
+  kind: ContextItem['kind']
+  title: string
+  summary: string
+  where: string[]
+  from: string
+  source: string
+  quote: string
+  notToConclude: string
+}): Draft {
+  const { metrics, values } = scopeOf(d.where)
+  return {
+    areaId: areaOf(d.domain),
+    kind: d.kind,
+    title: d.title,
+    summary: d.summary,
+    scope: {
+      metrics: metrics.map((m) => `metric:${m}`),
+      dimensions: [],
+      dimensionValues: values.map((v) => ({ dimension: 'dim:market', value: `val:market/${v}` })),
+    },
+    validity: { start: d.from, end: null },
+    reviewDate: '2027-03-01',
+    evidence: [{ url: d.source, quote: d.quote, date: TODAY }],
+    notToConclude: d.notToConclude,
+  }
+}
+
+/**
+ * The suggestions of the week in the order the mock's review queue shows them, newest first, so the
+ * service's own order (newest first) is the mock's. Each is sent at its time today.
+ */
+export const queue = [
+  'sug-ines',
+  'sug-ines-format',
+  'sug-ines-link',
+  'sug-ines-order',
+  'sug-ines-long',
+  'sug-ines-dates',
+  'sug-agent',
+  'sug-sofia-clash',
+  'sug-lars-retire',
+] as const
+export type QueueCard = (typeof queue)[number]
+
+/** Who sends each suggestion, as the mock's people. */
+const sender: Record<QueueCard, string> = {
+  'sug-ines': 'Ines Duarte',
+  'sug-ines-format': 'Ines Duarte',
+  'sug-ines-link': 'Ines Duarte',
+  'sug-ines-order': 'Ines Duarte',
+  'sug-ines-long': 'Ines Duarte',
+  'sug-ines-dates': 'Ines Duarte',
+  'sug-agent': 'Kofi Mensah',
+  'sug-sofia-clash': 'Sofia Brandt',
+  'sug-lars-retire': 'Lars Dahl',
+}
+
+/** Everyone the service's sign-in offers in the demo week, by the seed's addresses. */
+export const devPeople = () =>
+  seedPeople.map((p) => ({ name: p.name, email: `${p.id}@example.test`, roles: [] as never[] }))
+
+type Inject = (
+  method: 'GET' | 'POST',
+  path: string,
+  who: string,
+  payload?: object,
+) => Promise<Record<string, unknown>>
+
+/** Sends the week's suggestions through the service's API, each as the person the mock names. */
+async function sendSuggestions(databaseUrl: string): Promise<Record<QueueCard, string>> {
+  const pool = new pg.Pool({
+    connectionString: databaseUrl,
+    max: 2,
+    options: `-c role=${localRoles.api}`,
+    types: calendarDateTypes,
+  })
+  pool.on('error', () => undefined)
+  const app = buildApp({
+    database: databaseFromPool(pool),
+    jobs: idleJobs(),
+    logger: createLogger({ level: 'silent' }),
+    clock: systemClock(TODAY),
+    devPeople: devPeople(),
+  })
+  const sessions = new Map<string, Record<string, string>>()
+  const signIn = async (name: string) => {
+    const known = sessions.get(name)
+    if (known) return known
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/sign-in',
+      headers: { origin: 'http://localhost', 'x-heed-csrf': 'dev-sign-in' },
+      payload: { email: `${personId(name)}@example.test` },
+    })
+    if (response.statusCode !== 200) throw new Error(`${name} could not sign in: ${response.body}`)
+    const headers = {
+      origin: 'http://localhost',
+      cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
+      'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
+    }
+    sessions.set(name, headers)
+    return headers
+  }
+  const call: Inject = async (method, path, who, payload) => {
+    const response = await app.inject({
+      method,
+      url: '/api/v1' + path,
+      headers: { ...(await signIn(who)), 'idempotency-key': randomUUID() },
+      ...(payload ? { payload } : {}),
+    })
+    if (response.statusCode !== 200)
+      throw new Error(`${method} ${path} as ${who}: ${response.statusCode} ${response.body}`)
+    return response.json<Record<string, unknown>>()
+  }
+  /**
+   * A suggestion sent the way the mock's card says: from a chat or the editor. A change carries
+   * its note; the service keeps no reason for a new item.
+   */
+  const submit = async (card: QueueCard, draft: Draft, itemId?: string) => {
+    const r = reviews.find((x) => x.id === card)!
+    const p = await call('POST', '/proposals', sender[card], {
+      draft,
+      channel: r.via === 'editor' ? 'form' : 'chat',
+      ...(itemId ? { itemId, ...(r.note ? { reason: r.note } : {}) } : {}),
+    })
+    const who = sender[card]
+    await call('POST', `/proposals/${p.id as string}/submit`, who, { revision: p.revision })
+    return p.id as string
+  }
+  try {
+    const library = new Map(demoLibrary().map((item) => [item.id, item]))
+    const ids = {} as Record<QueueCard, string>
+    for (const edit of edits) {
+      const item = library.get(serverItemId(edit.item))!
+      ids[edit.card as QueueCard] = await submit(
+        edit.card as QueueCard,
+        draftOf(item, edit.after),
+        item.id,
+      )
+    }
+    const agent = reviews.find((r) => r.id === 'sug-agent')!
+    ids['sug-agent'] = await submit(
+      'sug-agent',
+      newDraft({
+        domain: 'sales',
+        kind: 'issue',
+        title: agent.title,
+        summary: agent.source.after,
+        where: ['Orders', 'Poland'],
+        from: '2026-10-14',
+        source: 'https://status.example/payments/poland',
+        quote: agent.claims!.sentence,
+        notToConclude:
+          'Low orders in Poland for these days do not mean that customers ordered less. Wait until the data catches up before comparing Poland with other markets.',
+      }),
+    )
+    const clash = reviews.find((r) => r.id === 'sug-sofia-clash')!
+    ids['sug-sofia-clash'] = await submit(
+      'sug-sofia-clash',
+      newDraft({
+        domain: 'sales',
+        kind: 'note',
+        title: clash.title,
+        summary: clash.source.after,
+        where: ['Orders', 'Norway'],
+        from: '2026-11-01',
+        source: 'https://wiki.example/finance/store-credit-2026-11',
+        quote: 'From 1 November 2026, store credit and gift cards are not booked as orders.',
+        notToConclude: 'Lower Norway orders from November 2026 do not mean fewer purchases.',
+      }),
+    )
+    const retire = reviews.find((r) => r.id === 'sug-lars-retire')!
+    const retired = await call(
+      'POST',
+      `/items/${serverItemId(retire.retire!.factId)}/retire-proposals`,
+      sender['sug-lars-retire'],
+      { reason: retire.retire!.reason },
+    )
+    ids['sug-lars-retire'] =
+      (retired.proposal as { id: string } | undefined)?.id ?? (retired.id as string)
+    return ids
+  } finally {
+    // Closing the app ends its pool.
+    await app.close()
+  }
+}
+
+/**
+ * Seeds an empty migrated database with the demo week, as a superuser: the library, Jon as an
+ * admin as the mock has him, the suggestions through the API, then who wrote what and when each was
+ * sent. Returns each mock card's suggestion id on the service.
+ */
+export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCard, string>> {
+  const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
+  await client.connect()
+  try {
+    await bulkSeed(client, demoLibrary(), {
+      conflicts: [[serverItemId('itm_gift_store_credit'), serverItemId('itm_gift_card_only')]],
+    })
+    const admins = worldPeople.filter((p) => p.admin).map((p) => seedPersonId(personId(p.name)))
+    await client.query(
+      `insert into global_role_grants (person_id, role)
+       select unnest($1::uuid[]), 'administrator' on conflict do nothing`,
+      [admins],
+    )
+  } finally {
+    await client.end()
+  }
+  const ids = await sendSuggestions(superuserUrl)
+  const after = new pg.Client({ connectionString: superuserUrl })
+  await after.connect()
+  try {
+    // An agent wrote Kofi's, sent with his OK.
+    await after.query(
+      `update proposals set provenance='{"by":"agent","fields":{},"flags":[]}' where id=$1`,
+      [ids['sug-agent']],
+    )
+    // Someone reported an answer about Orders in Germany as unclear: anonymous until named reports
+    // come (P10).
+    await after.query(
+      `insert into feedback (verdict, note, client_label, area_id)
+       values ('unclear', 'Is this Germany only, or every market?', 'claude', 'area_sales')`,
+    )
+    // Sent this morning, one minute apart, newest first in the mock's order.
+    for (const [index, card] of queue.entries())
+      await after.query(
+        `update proposals set submitted_at=$2::timestamptz, created_at=$2::timestamptz where id=$1`,
+        [ids[card], `${TODAY}T09:${String(12 - index).padStart(2, '0')}:00Z`],
+      )
+  } finally {
+    await after.end()
+  }
+  return ids
+}

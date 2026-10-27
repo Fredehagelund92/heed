@@ -11,13 +11,15 @@ import { whenLabel } from '@/model/validity'
 import type { CardType, InboxCard } from '@/model/inbox'
 import { mentionNotesOf, type Subject } from '@/model/comments'
 import { plainOf } from '@/components/templates/comment-box/utils'
+import { readiness } from '@/model/review'
 
 export type HeedApiConformance = {
   /** Someone the binding's sign-in offers, by name. */
   person: string
   /**
    * The methods the binding answers; a case that needs another is skipped. A binding that answers
-   * the Inbox's methods gives the person at least a suggestion and a Reported card in their Inbox.
+   * the Inbox's methods gives the person, an owner, at least a suggestion, two plain changes, a
+   * suggestion to archive something, a Reported card and a card due for a check in their Inbox.
    */
   wired: readonly HeedApiMethod[]
   /** Someone else the sign-in offers, by name: the comments' second voice. */
@@ -176,6 +178,63 @@ export function describeHeedApi(
         expect(fact.title).not.toBe('')
         expect(fact.summary).not.toBe('')
         expect(['event', 'issue', 'note', 'guide']).toContain(fact.kind)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace'))(
+      'names the domains with their owners, and the people with what they own',
+      async () => {
+        const { domains, people } = await (await signedIn()).getWorkspace()
+        expect(domains.length).toBeGreaterThan(0)
+        const names = people.map((p) => p.name)
+        expect(names).toContain(person)
+        for (const d of domains) {
+          expect(d.name, d.id).not.toBe('')
+          for (const owner of d.owners) expect(names, d.id).toContain(owner)
+        }
+        const me = people.find((p) => p.name === person)!
+        expect(me.owns.length).toBeGreaterThan(0)
+        for (const id of me.owns)
+          expect(domains.find((d) => d.id === id)?.owners, id).toContain(person)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getVocabulary'))(
+      'lists the metrics, the dimensions and the markets questions name',
+      async () => {
+        const vocabulary = await (await signedIn()).getVocabulary()
+        expect(vocabulary.metrics.map((m) => m.name)).toContain('Orders')
+        expect(vocabulary.markets).toContain('Norway')
+        expect(new Set(vocabulary.markets).size).toBe(vocabulary.markets.length)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getInbox', 'inboxPage', 'getReviews'))(
+      "reads the same Inbox both ways, and a review for each of the person's suggestions",
+      async () => {
+        const live = await signedIn()
+        const [inbox, page] = [await live.getInbox(), await live.inboxPage()]
+        expect(inbox.cards.map((c) => c.id)).toEqual(page.cards.map((c) => c.id))
+        const mine = inbox.cards.filter((c) => c.for === person)
+        const reviews = await live.getReviews()
+        expect(new Set(reviews.map((r) => r.id)).size).toBe(reviews.length)
+        for (const card of mine.filter((c) => c.type === 'suggestion'))
+          expect(
+            reviews.map((r) => r.id),
+            card.id,
+          ).toContain(card.id)
+        for (const r of reviews) {
+          expect(r.title, r.id).not.toBe('')
+          expect(['edit', 'new', 'retire'], r.id).toContain(r.mode)
+          for (const c of r.counts) expect(c.n, r.id).toBeGreaterThan(0)
+        }
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getConnectReview'))(
+      'shows no live line of a connect review outside one',
+      async () => {
+        expect(await (await signedIn()).getConnectReview()).toBeNull()
       },
     )
 
@@ -377,6 +436,58 @@ export function describeHeedApi(
       await api().markThreadSeen({ subject })
       expect((await api().getComments()).newReplies[subject]).toBeUndefined()
     })
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'decideCard', 'undo'))(
+      'checks a card that is due as still true, and Undo makes it due again',
+      async () => {
+        const card = await cardOf('check')
+        const { undo } = await api().decideCard({ card: card.id, outcome: 'Checked' })
+        expect((await api().inboxPage()).done[card.id]?.label).toBe('Checked')
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[card.id]).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'markReviewed', 'publishReviews', 'undo'))(
+      'publishes the plain changes the person read together, and Undo puts all back',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const inbox = await api().inboxPage()
+        const plain = (await api().getReviews())
+          .filter(
+            (r) =>
+              readiness(r).bulk &&
+              inbox.cards.some((c) => c.id === r.id && c.for === person && !inbox.done[c.id]),
+          )
+          .slice(0, 2)
+        expect(plain, `two plain changes for ${person}`).toHaveLength(2)
+        for (const r of plain) await api().markReviewed({ id: r.id })
+        const { undo } = await api().publishReviews({ ids: plain.map((r) => r.id) })
+        const after = await api().inboxPage()
+        for (const r of plain) expect(after.done[r.id]?.label, r.id).toBe('Published')
+        await api().undo({ token: undo })
+        const back = await api().inboxPage()
+        for (const r of plain) expect(back.done[r.id], r.id).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'archiveReview', 'undo'))(
+      'archives what a suggestion to archive names, and Undo brings it back',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const inbox = await api().inboxPage()
+        const retire = (await api().getReviews()).find(
+          (r) =>
+            r.mode === 'retire' &&
+            inbox.cards.some((c) => c.id === r.id && c.for === person && !inbox.done[c.id]),
+        )
+        expect(retire, `a suggestion to archive for ${person}`).toBeDefined()
+        const { undo } = await api().archiveReview({ id: retire!.id })
+        expect((await api().inboxPage()).done[retire!.id]?.label).toBe('Archived')
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[retire!.id]).toBeUndefined()
+      },
+    )
 
     it.skipIf(lacks('signIn'))('refuses someone the sign-in does not offer', async () => {
       await expect(api().signIn({ name: 'Nobody Here', fresh: false })).rejects.toMatchObject({

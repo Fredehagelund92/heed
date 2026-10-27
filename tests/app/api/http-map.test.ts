@@ -55,11 +55,11 @@ describe('reading the library index', () => {
     expect(statusOf(row({ status: 'retired', trust: 'ended' }))).toBe('Archived')
   })
 
-  it('keeps the dates, and an issue that is still going on', () => {
+  it('keeps the dates, the day before the end as the last one, and an issue still going on', () => {
     expect(validityOf(row())).toEqual({ from: '2026-08-04' })
     expect(validityOf(row({ validity: { start: '2026-08-04', end: '2026-09-01' } }))).toEqual({
       from: '2026-08-04',
-      until: '2026-09-01',
+      until: '2026-08-31',
     })
     expect(validityOf(row({ reviewQuestion: 'still_going_on' }))).toEqual({
       from: '2026-08-04',

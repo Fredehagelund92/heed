@@ -266,11 +266,9 @@ function BlockBody({ block }: { block: Block }) {
   }
 }
 
-/** Was and now, with a small timeline of the days it now applies. */
+/** Was and now, with a small timeline of the days it now applies when the change stays in one month. */
 function DatesChange({ block }: { block: Extract<Block, { kind: 'Dates' }> }) {
-  const start = 10
-  const end = 31
-  const at = (d: number) => `${((d - start) / (end - start)) * 100}%`
+  const span = block.span
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -282,36 +280,55 @@ function DatesChange({ block }: { block: Extract<Block, { kind: 'Dates' }> }) {
           {block.after}
         </span>
       </div>
+      {span && <DatesTimeline span={span} />}
+    </div>
+  )
+}
+
+/** The days it applied and the days it now applies, on a strip of the month, and what that means. */
+function DatesTimeline({ span }: { span: NonNullable<Extract<Block, { kind: 'Dates' }>['span']> }) {
+  const start = span.from - 2
+  const end = Math.max(span.was, span.now) + 5
+  const at = (d: number) => `${((d - start) / (end - start)) * 100}%`
+  const longer = span.now > span.was
+  const [low, high] = longer ? [span.was, span.now] : [span.now, span.was]
+  const days = `${low + 1} to ${high} ${span.month}`
+  return (
+    <>
       <div aria-hidden className="relative h-10">
         <div className="absolute inset-x-0 top-3 h-px bg-border" />
         <div
           className="absolute top-1.5 h-3 rounded-sm bg-muted-foreground/40"
           style={{
-            left: at(block.span.from),
-            width: `calc(${at(block.span.was)} - ${at(block.span.from)})`,
+            left: at(span.from),
+            width: `calc(${at(Math.min(span.was, span.now))} - ${at(span.from)})`,
           }}
         />
         <div
-          className="absolute top-1.5 h-3 rounded-r-sm bg-(image:--hatch-add) ring-1 ring-[var(--mark-add-line)] ring-inset"
-          style={{
-            left: at(block.span.was),
-            width: `calc(${at(block.span.now)} - ${at(block.span.was)})`,
-          }}
+          className={cn(
+            'absolute top-1.5 h-3 rounded-r-sm ring-1 ring-inset',
+            longer
+              ? 'bg-(image:--hatch-add) ring-[var(--mark-add-line)]'
+              : 'bg-[var(--mark-del)] ring-[var(--mark-del-line)]',
+          )}
+          style={{ left: at(low), width: `calc(${at(high)} - ${at(low)})` }}
         />
-        {[block.span.from, block.span.was, block.span.now].map((d) => (
+        {[span.from, span.was, span.now].map((d) => (
           <span
             key={d}
             className="absolute top-6 -translate-x-1/2 text-2xs text-muted-foreground tabular-nums"
             style={{ left: at(d) }}
           >
-            {d} May
+            {d} {span.month}
           </span>
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        One more week: agents get it for questions about 20 to 26 May too.
+        {longer
+          ? `${high - low === 7 ? 'One more week: a' : 'A'}gents get it for questions about ${days} too.`
+          : `Agents no longer get it for questions about ${days}.`}
       </p>
-    </div>
+    </>
   )
 }
 

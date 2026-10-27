@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { cardIn, expect, go, test } from './go.ts'
 
 // J13, the review's keys: they never act while you type. Esc in a note closes the note and keeps
 // it; only then does Esc leave. "?" lists the keys, and the Command-Enter hint shows only when the
@@ -11,7 +10,7 @@ test('typing j and k in a note stays on the item, and Esc keeps the note', async
   const note = page.getByRole('textbox', { name: 'A note for Ines Duarte' })
   await note.pressSequentially('check the jk source')
   await page.keyboard.press('Escape')
-  await expect(page).toHaveURL(/\/inbox\/sug-ines\/review/)
+  await expect(page).toHaveURL(new RegExp(`/inbox/${cardIn('sug-ines')}/review`))
   await expect(note).toBeHidden()
   await expect(page.getByText('Your note for Ines is kept.')).toBeVisible()
   await page.getByRole('button', { name: 'Return with a note' }).first().click()
@@ -20,7 +19,7 @@ test('typing j and k in a note stays on the item, and Esc keeps the note', async
   // Command-Enter in the note posts the note; it never publishes another item.
   await page.keyboard.press('ControlOrMeta+Enter')
   await expect(page.getByText('Returned to Ines Duarte')).toBeVisible()
-  await expect(page).toHaveURL(/sug-ines\/review/)
+  await expect(page).toHaveURL(new RegExp(`${cardIn('sug-ines')}/review`))
 })
 
 test('Esc with nothing open goes back to the Inbox; ? lists the keys', async ({ page }) => {
@@ -33,7 +32,7 @@ test('Esc with nothing open goes back to the Inbox; ? lists the keys', async ({ 
   await page.keyboard.press('Escape')
   await expect(keys).toBeHidden()
   await page.keyboard.press('Escape')
-  await expect(page).toHaveURL(/\/inbox\?card=sug-ines-link/)
+  await expect(page).toHaveURL(new RegExp(`/inbox\\?card=${cardIn('sug-ines-link')}`))
 })
 
 test('the Command-Enter hint shows only where the key acts', async ({ page }) => {
