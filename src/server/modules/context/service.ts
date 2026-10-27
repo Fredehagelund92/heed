@@ -658,9 +658,18 @@ export function createContextService(
     const mine = await me()
     // A change to an item is the person's to publish only where they own both its domain now and
     // the one it goes to, as a move in the Context list is.
-    const from = input.itemId ? (await library.getIndexRow(input.itemId))?.areaId : undefined
-    const owns = (area: string | undefined) => !area || mine.admin || mine.owns.includes(area)
-    if (!owns(areaId) || !owns(from))
+    // It fails closed: a change whose item agents don't get now waits as a suggestion.
+    const owns = (area: string) => mine.admin || mine.owns.includes(area)
+    let fromOwned = true
+    if (input.itemId) {
+      const [live] = await tx.query<{ areaId: string }>(
+        `select v.area_id as "areaId" from item_version_service s join item_versions v on v.id = s.version_id
+          where s.item_id = $1 and s.editions @> (select seq from live_edition)`,
+        [input.itemId],
+      )
+      fromOwned = !!live && owns(live.areaId)
+    }
+    if (!owns(areaId) || !fromOwned)
       return { published: false, proposalId: submitted.id, ownerIds: await domainOwners(areaId) }
     const current = await proposals.get(submitted.id)
     const published = await path.publish({ id: current.id, revision: current.revision })
