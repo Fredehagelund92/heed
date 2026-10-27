@@ -2,7 +2,7 @@
 
 > **Superseded for the new web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the code, the plain-words lint and the old front end still point to it, and it still governs the old front end until the switch to the new one. Where the two differ, Copy wins.
 
-This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
+This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/old-help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
 
@@ -77,7 +77,7 @@ The rename covers only what people read. Code, API fields, the database, address
 Two checks hold every text to the glossary, and both read `src/domain/words-v1.ts`:
 
 - **The lint rule `heed/plain-words`** (`eslint.plain-words.js`) reads the strings, template text and JSX text people read in `src/web`. On the server it reads the notifications and the message of every error the service answers with. The `say` sentence (`src/domain/say.ts`) is checked against the glossary by `tests/server/mcp/say.test.ts`. The text the MCP gives models (instructions, tool descriptions and `next`) keeps its words.
-- **The docs check** (`tests/unit/docs.test.ts`) reads the help pages the same way: titles, summaries and every line, without code.
+- **The docs check** (`tests/unit/old-help.test.ts`) reads the help pages the same way: titles, summaries and every line, without code.
 
 Each reports three things, with what to write instead:
 
@@ -96,7 +96,7 @@ The rule warns while the screens are rewritten (voice plan, slices V4 to V7). `p
 - **A file has a word more often than its count, or a new file has any.** The change added old words. The message lists every word in that file with what to write instead. Write the new text in the glossary's words; never raise a count to make it pass. A fixed word never makes room for a new one: counts are kept for each word.
 - **A file has fewer than its count.** The check passes and prints a note. Run `npm run lint:words -- --update` when convenient to lower the baseline; no change has to touch `plain-words.baseline.json` to pass.
 
-To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/web/components/review docs/help/editions.md`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
+To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/web/components/review docs/old-help/editions.md`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
 
 ## Before you ask for review
 

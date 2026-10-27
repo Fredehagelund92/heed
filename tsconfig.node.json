@@ -8,6 +8,7 @@
   "include": [
     "vite.config.ts",
     "vite.app.config.ts",
+    "vite.docs.config.ts",
     "vitest.config.ts",
     "eslint.class-rules.d.ts",
     "eslint.plain-words.d.ts",

@@ -47,13 +47,13 @@ retailer that sells in twelve real countries.
 ## How it works
 
 <p align="center">
-  <img alt="The loop: anyone writes a fact, the owner checks it, agents get it at once, agents read it before answering, and a question that found nothing counts as a gap that people fill." src="docs/help/images/heed-loop.svg" width="640">
+  <img alt="The loop: anyone writes a fact, the owner checks it, agents get it at once, agents read it before answering, and a question that found nothing counts as a gap that people fill." src="docs/old-help/images/heed-loop.svg" width="640">
 </p>
 
 1. **Write.** Anyone writes a short fact: what happened, where it applies, from when, and how we know.
 2. **Review.** The owner of the domain checks it. Four checks run first, so a change doesn't make answers worse.
 3. **Share.** Once accepted, agents get it at once, in a new edition. Every change is dated and kept.
-4. **Use.** Your agent asks Heed over [MCP](docs/help/mcp.md) and gets the facts that apply, with sources.
+4. **Use.** Your agent asks Heed over [MCP](docs/old-help/mcp.md) and gets the facts that apply, with sources.
 5. **Learn.** When no fact applies, the question counts as a gap, without recording who asked.
 
 Heed holds facts, not numbers. [Cube](https://cube.dev) defines your metrics and returns the figures; a fact
@@ -91,7 +91,7 @@ choose a demo person and **Allow**. Ask _"How did orders in Norway change in Oct
   </picture>
 </p>
 
-[Set up an agent](docs/help/connect-an-agent.md) has the details, the [five-minute tour](docs/help/tour.md)
+[Set up an agent](docs/old-help/connect-an-agent.md) has the details, the [five-minute tour](docs/old-help/tour.md)
 walks through the product, and [docs/demo.md](docs/demo.md) is the Norway story as a script.
 
 ### Use your own data
@@ -125,13 +125,13 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 - **Owners, not a free-for-all.** Every fact belongs to one domain, and that domain's owner accepts it,
   whatever its risk. Nothing reaches an agent on its own.
 - **Checked before it ships.** Three checks run on every proposal, including test questions that must still
-  find the right fact. [Review a proposal](docs/help/review-a-proposal.md).
+  find the right fact. [Review a proposal](docs/old-help/review-a-proposal.md).
 - **Editions.** Agents read a fixed, dated set of accepted facts. Compare two editions, go back to an earlier
-  one, or stop one fact, one domain or everything at once. [Editions](docs/help/editions.md).
+  one, or stop one fact, one domain or everything at once. [Editions](docs/old-help/editions.md).
 - **An MCP server.** Six tools, all on by default: _Get context for a question_, _Find context_, _Read a
   fact_, _Tell the owner_, _Send a suggestion_ and _Follow links_. Each answer starts with an answer line
   (Checked, Partial, Not found, Conflict, Outdated or Not checked). Agents sign in as the person and see only what
-  that person can read. [MCP](docs/help/mcp.md).
+  that person can read. [MCP](docs/old-help/mcp.md).
 - **No AI picks the facts.** Rules choose what applies from the question's metrics, markets and dates, so the
   same question gets the same facts until someone accepts a change. **Try a question** shows exactly that.
 - **Gaps.** Questions that found nothing are counted by topic, so people write the fact that's missing. Heed
@@ -159,14 +159,14 @@ source, and its owner checks it. It doesn't watch people: it counts questions by
 
 ## Docs
 
-| Use it                                                     | Run and build it                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------------------- |
-| [What is Heed](docs/help/what-is-heed.md)                  | [Run and operate the service](docs/operations.md): setup and settings |
-| [A five-minute tour](docs/help/tour.md)                    | [MCP and API reference](docs/reference.md)                            |
-| [Add your first fact](docs/help/add-your-first-context.md) | [How AI sign-in works](docs/ai-sign-in.md)                            |
-| [Set up an agent](docs/help/connect-an-agent.md)           | [Evaluations and the golden set](docs/evaluations.md)                 |
-| [Common questions](docs/help/common-questions.md)          | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)  |
-| [All help pages](docs/help/README.md)                      | [Security, scanning and the restore drill](docs/security.md)          |
+| Use it                                                         | Run and build it                                                      |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [What is Heed](docs/old-help/what-is-heed.md)                  | [Run and operate the service](docs/operations.md): setup and settings |
+| [A five-minute tour](docs/old-help/tour.md)                    | [MCP and API reference](docs/reference.md)                            |
+| [Add your first fact](docs/old-help/add-your-first-context.md) | [How AI sign-in works](docs/ai-sign-in.md)                            |
+| [Set up an agent](docs/old-help/connect-an-agent.md)           | [Evaluations and the golden set](docs/evaluations.md)                 |
+| [Common questions](docs/old-help/common-questions.md)          | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)  |
+| [All help pages](docs/old-help/README.md)                      | [Security, scanning and the restore drill](docs/security.md)          |
 
 The help pages are also the app's own Docs, at `/docs`. [Requirements](docs/requirements.md) says what Heed must
 do, and [Writing a connector](docs/connectors/authoring.md) how to read another source.
@@ -183,7 +183,7 @@ Heed is **pre-1.0**. Expect rough edges and breaking changes.
 - It runs on one computer, or on one container host. Sign-in is the demo sign-in: anyone can be an admin, so
   keep it off the internet. Company sign-in is not built yet.
 - Claude Code is the agent that connects today. Other agents that use MCP need Heed at an address on the internet; see
-  [Set up an agent](docs/help/connect-an-agent.md).
+  [Set up an agent](docs/old-help/connect-an-agent.md).
 - The demo runs on scripted mock models and spends nothing. The assistant and test runs can use Anthropic,
   directly or through Vercel's AI Gateway, chosen by an admin.
 - Built with TypeScript on Node 26, Fastify, PostgreSQL 18, React 19 and the official MCP SDK.

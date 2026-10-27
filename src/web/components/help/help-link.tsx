@@ -6,7 +6,7 @@ import type { HelpTarget } from '@/lib/help'
 import { cn } from '@/lib/utils'
 
 /*
-  Help in context (docs/help/README.md, "Help in context"): a quiet link where a person stalls,
+  Help in context (docs/old-help/README.md, "Help in context"): a quiet link where a person stalls,
   in the words of the question they have ("What is an MCP?"). It opens a card beside it (a
   sheet on a phone) with the few lines of the help page that answer it and a way to the whole
   page, so the person stays on the screen they were using. The card and the pages are chunks of

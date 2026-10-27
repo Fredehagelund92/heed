@@ -39,7 +39,7 @@ export type NavTo =
  * with no group is reached from the palette, its shortcut or the user menu: a person's own
  * Settings open from the user menu. The assistant is a place: its entry opens it full screen, and
  * the launcher in the corner docks it beside another page instead (contract 9.8). Try it is not a
- * place. Docs, Heed's help pages, sit last, behind a divider of their own (docs/help).
+ * place. Docs, Heed's help pages, sit last, behind a divider of their own (docs/old-help).
  */
 export type NavGroup = 'main' | 'manage' | 'help'
 
@@ -223,7 +223,7 @@ export const navItems: readonly NavItem[] = [
       'token',
     ],
   },
-  // Heed's help pages, for everyone (docs/help). They open in docs mode, with a sidebar of their own.
+  // Heed's help pages, for everyone (docs/old-help). They open in docs mode, with a sidebar of their own.
   {
     id: 'docs',
     title: 'Docs',

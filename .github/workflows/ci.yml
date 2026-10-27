@@ -106,6 +106,12 @@ jobs:
           npm run size
       - name: Build the new app (src/app)
         run: npm run build:app
+      - name: Build the docs site (docs/help) and check its pages and index
+        run: |
+          npm run docs:build
+          for f in index get-started tools changelog; do test -s "dist/docs/$f.html"; done
+          grep -q '^- \[Privacy\](/docs/privacy): ' dist/docs/llms.txt
+          test -s dist/docs/llms-full.txt
 
   seal:
     # FR-525: a pull request may not change the sealed held-out cases together with src/, nor open

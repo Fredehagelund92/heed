@@ -31,7 +31,7 @@ import { cn } from '@/lib/utils'
 import { DocBlocks, DocLink, ReadingTime } from './doc-parts'
 
 /*
-  A page of the docs (docs/help/README.md, "How a page is made"): the document template, its
+  A page of the docs (docs/old-help/README.md, "How a page is made"): the document template, its
   title in the paper with one quiet line of what it is (its kind, reading time and who it is
   for), a concept's answer in one minute in a box under it, the body in the reading type, and the
   page rail with On this page, Related, the page's owner and the day it was last checked, and

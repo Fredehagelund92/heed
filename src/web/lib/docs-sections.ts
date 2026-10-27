@@ -2,7 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import { helpSectionIds, helpSections, type HelpSectionId } from '@domain/help-sections'
 
 /*
-  The Docs area's sections (docs/help/README.md): the docs' tree lists every page under them, in
+  The Docs area's sections (docs/old-help/README.md): the docs' tree lists every page under them, in
   this order (docs mode, contract 8.11), and a section's own address (`?section=`, the end of a
   help page's trail) lists its pages. Only the names live in the first load; the pages
   themselves are read by `lib/docs.ts`, a chunk of its own that the docs route, its loader and

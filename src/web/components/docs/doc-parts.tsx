@@ -16,7 +16,7 @@ import { docKindNames, docPicture, type DocKind } from '@/lib/docs'
 import { cn } from '@/lib/utils'
 
 /*
-  The parts of the Docs area (docs/help/README.md): a page's blocks in the page's reading type,
+  The parts of the Docs area (docs/old-help/README.md): a page's blocks in the page's reading type,
   its pictures drawn inline in the app's tokens, the kind badge and the reading time.
 */
 

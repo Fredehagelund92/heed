@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { openPage, settle, themes, widths } from './support'
 
 /*
-  The Docs area (docs/help) in docs mode (contract 8.11): the app's sidebar folds to its rail and
+  The Docs area (docs/old-help) in docs mode (contract 8.11): the app's sidebar folds to its rail and
   the docs' own sidebar opens beside it, with Back, a search field and every page in a
   tree under its section; below 1024 wide a bar under the header opens the same tree as a
   drawer. The docs home and its reading path, a section's own address, a concept, a guide and

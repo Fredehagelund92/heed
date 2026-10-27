@@ -201,7 +201,7 @@ describe('where a banned word may show', () => {
     expect(
       said(`export const a = 'Compare two editions'`, 'src/web/components/editions/x.tsx'),
     ).toEqual([])
-    expect(allowedIn('docs/help/editions.md')).toContain('edition')
+    expect(allowedIn('docs/old-help/editions.md')).toContain('edition')
     expect(allowedIn('src/web/components/library/x.tsx')).toEqual([])
     // "live edition" stays banned there too.
     expect(

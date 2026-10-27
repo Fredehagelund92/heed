@@ -3,12 +3,12 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { openPage, settle, themes, widths } from './support'
 
 /*
-  Help in context (docs/help/README.md, "Help in context"): on each screen where people stall, a
+  Help in context (docs/old-help/README.md, "Help in context"): on each screen where people stall, a
   help link in the words of their question opens a card with the few lines of the help page that
   answer it and Read the whole page; on a phone the card is a sheet. Every link below is opened
   as the person who sees the screen, with axe on the open card in both appearances, and the
   whole page at the heading it names. That every link's page and heading exist is the docs check
-  (tests/unit/docs.test.ts).
+  (tests/unit/old-help.test.ts).
 */
 
 const [desktop, , phone] = widths

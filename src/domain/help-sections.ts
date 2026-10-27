@@ -1,5 +1,5 @@
 /*
-  The sections of Heed's help pages (docs/help/README.md), in order: the docs' tree lists every
+  The sections of Heed's help pages (docs/old-help/README.md), in order: the docs' tree lists every
   page under them. Apart from the page model (help-pages.ts) so the app's first load, which shows
   the sections in the sidebar, carries only these names.
 */

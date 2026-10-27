@@ -1,7 +1,10 @@
 import { configDefaults, defineConfig } from 'vitest/config'
+import { helpDocs } from './scripts/docs-plugin.ts'
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  // The documentation's pages (docs/help), as the app reads them.
+  plugins: [helpDocs()],
   test: {
     projects: [
       {

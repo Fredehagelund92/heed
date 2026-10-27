@@ -110,7 +110,7 @@ const settingsStories = (page: Page) =>
 const homeStories = (page: Page) => storiesWhere(page, (entry) => entry.title === 'Pages/Home')
 /**
  * The Docs area in docs mode: its home, a section, search and the tree's keys, a concept, a guide,
- * the glossary and the phone's drawer (docs/help).
+ * the glossary and the phone's drawer (docs/old-help).
  */
 const docsStories = (page: Page) => storiesWhere(page, (entry) => entry.title === 'Pages/Docs')
 /** Help in context: the help link in a sentence, after a heading, in an empty state, open. */

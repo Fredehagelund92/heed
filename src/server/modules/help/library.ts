@@ -16,9 +16,9 @@ import { productName } from '../../brand.ts'
 
 /**
  * Heed's help pages as the service reads them: the same files the Docs area draws
- * (docs/help/*.md), read from the repository once, when the service starts, through the page
+ * (docs/old-help/*.md), read from the repository once, when the service starts, through the page
  * model the app uses (domain/help-pages.ts). A page that cannot be read is left out and named in
- * `problems`, which the service logs; the docs check (tests/unit/docs.test.ts) keeps it from
+ * `problems`, which the service logs; the docs check (tests/unit/old-help.test.ts) keeps it from
  * being merged. A page writes {{product}} where it names the product; the service's name
  * (src/server/brand.ts) goes in after parsing, as in the app.
  */
@@ -31,7 +31,7 @@ export type HelpLibrary = {
 
 /** The folder of the pages in this checkout, worked out when the pages are read. */
 export const helpFolderPath = () =>
-  fileURLToPath(new URL('../../../../docs/help/', import.meta.url))
+  fileURLToPath(new URL('../../../../docs/old-help/', import.meta.url))
 
 /** Reads every page of a folder of help pages (README.md is the folder's own page, not help). */
 export function readHelpLibrary(folder = helpFolderPath()): HelpLibrary {

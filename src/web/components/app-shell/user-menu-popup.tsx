@@ -123,7 +123,7 @@ export function UserMenuPopup({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        {/* Heed's help pages, also in the sidebar (docs/help). */}
+        {/* Heed's help pages, also in the sidebar (docs/old-help). */}
         <DropdownMenuGroup>
           <DropdownMenuItem render={<Link to="/docs" />}>
             <BookOpenIcon />

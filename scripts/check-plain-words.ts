@@ -23,7 +23,7 @@ import { compareToBaseline, countWords, type WordCounts } from './plain-words-ba
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const baselineFile = join(root, 'plain-words.baseline.json')
-const helpFolder = 'docs/help'
+const helpFolder = 'docs/old-help'
 
 type Finding = { path: string; where: string; message: string; found: string }
 
