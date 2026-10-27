@@ -1,6 +1,6 @@
 import type {
   Catalogue,
-  LibraryItem,
+  IndexedItem,
   CatalogueDefinition,
   CatalogueSource,
   CatalogueTerm,
@@ -82,7 +82,7 @@ export function createCatalogueService(
       sources: (Omit<CatalogueSource, 'tool'> & { type: string })[]
       mentions: { key: string; items: number }[]
       gaps: string[][]
-      items: LibraryItem[]
+      items: IndexedItem[]
     }>(
       `with vocabulary as materialized (
          select t.key, t.kind::text as kind, t.parent_key as "parentKey", t.name, t.aliases,

@@ -87,7 +87,7 @@ export const definitionsSearch = lenient(z.object({ domain: text, setup: text })
 
 export const definitionEditorSearch = lenient(z.object({ sameAs: text }))
 
-export const settingsSearch = lenient(z.object({ step: digits, setup: text }))
+export const settingsSearch = lenient(z.object({ step: digits, setup: text, person: text }))
 
 export const observabilitySearch = lenient(
   z.object({

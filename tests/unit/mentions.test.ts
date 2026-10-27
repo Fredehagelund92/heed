@@ -55,6 +55,9 @@ const library: LibraryIndex = {
       ownerId: 'per_jon',
       proposerId: 'per_maria',
       updatedAt: '2026-10-01T00:00:00Z',
+      lastChecked: null,
+      trust: 'current',
+      chips: [],
     },
     {
       id: 'itm_gone0001',
@@ -72,6 +75,9 @@ const library: LibraryIndex = {
       ownerId: 'per_jon',
       proposerId: 'per_maria',
       updatedAt: '2026-10-01T00:00:00Z',
+      lastChecked: null,
+      trust: 'ended',
+      chips: [],
     },
   ],
 }

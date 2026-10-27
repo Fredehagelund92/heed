@@ -39,6 +39,9 @@ const library = {
       ownerId: 'per_jon',
       proposerId: 'per_maria',
       updatedAt: '2026-10-01T00:00:00Z',
+      lastChecked: null,
+      trust: 'current' as const,
+      chips: [],
     },
   ],
 }

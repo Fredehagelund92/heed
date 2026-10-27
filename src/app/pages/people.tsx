@@ -33,7 +33,7 @@ import { emailOf, soleOwnerOf, type Person } from '@/model/people'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { domainHue } from '@/lib/tones'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
-import { href } from '@/lib/router'
+import { href, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import { activityQuery, useSession, useWrite } from '@/api/queries'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
@@ -457,7 +457,18 @@ export function People() {
   const { fresh } = useSession()
   const [q, setQ] = React.useState('')
   const [inviting, setInviting] = React.useState(false)
-  const [open, setOpen] = React.useState<string | null>(null)
+  // Search everywhere opens someone's sheet with ?person=.
+  const asked = useRoute().query.get('person')
+  const [open, setOpen] = React.useState<string | null>(asked)
+  const [lastAsked, setLastAsked] = React.useState(asked)
+  if (asked !== lastAsked) {
+    setLastAsked(asked)
+    if (asked) setOpen(asked)
+  }
+  const close = () => {
+    setOpen(null)
+    if (asked) setQuery({ person: undefined })
+  }
   // A new install has only the person who set it up.
   const everyone = fresh ? people.filter((p) => p.name === me.name) : people
   const shown = everyone.filter((p) =>
@@ -565,7 +576,7 @@ export function People() {
         )}
       </FrameSection>
       <InviteDialog key={String(inviting)} open={inviting} onOpenChange={setInviting} />
-      <PersonSheet p={current} onOpenChange={(o) => !o && setOpen(null)} />
+      <PersonSheet p={current} onOpenChange={(o) => !o && close()} />
     </Frame>
   )
 }

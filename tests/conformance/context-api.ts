@@ -8,7 +8,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { ContextItem } from '../../src/domain/item.ts'
 import { mentionsInFields } from '../../src/domain/mentions.ts'
-import { addDays, itemDisplayStatus, needsALook } from '../../src/domain/status.ts'
+import { addDays, itemDisplayStatus, itemTrust, needsALook } from '../../src/domain/status.ts'
 import { ITEMS_PAGE_MAX } from '../../src/contract/limits.ts'
 import type { ContextApi, LibraryItem } from '../../src/web/api/client.ts'
 import { generateItems, versionDays } from '../../src/web/mocks/items.ts'
@@ -53,6 +53,22 @@ function normalized<T extends Partial<ContextItem>>(item: T): T {
       : {}),
   }
 }
+
+const vocabularyNames = new Map<string, string>([
+  ...vocabulary.metrics.map((m) => [`metric:${m.id}`, m.name] as const),
+  ...vocabulary.dimensions.flatMap((d) => [
+    [`dim:${d.id}`, d.name] as const,
+    ...d.values.map((v) => [`val:${d.id}/${v.id}`, v.name] as const),
+  ]),
+])
+const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
+/** The index's chips: metrics, dimensions, then values, each by key, by their vocabulary names. */
+const scopeChips = (scope: ContextItem['scope']) =>
+  [
+    ...scope.metrics.map((id) => `metric:${id}`).sort(byKey),
+    ...scope.dimensions.map((id) => `dim:${id}`).sort(byKey),
+    ...scope.dimensionValues.map((v) => `val:${v.dimension}/${v.value}`).sort(byKey),
+  ].map((key) => vocabularyNames.get(key) ?? key)
 
 const matches = (needle: string) => (item: ContextItem) =>
   item.title.toLowerCase().includes(needle) || item.summary.toLowerCase().includes(needle)
@@ -196,8 +212,20 @@ export function describeContextApi(
           ownerId: personId(item.ownerId),
           proposerId: personId(item.proposerId),
           updatedAt: item.updatedAt,
+          // The day of the current version's acceptance. The two demo histories name different
+          // owners as the one who accepted it, so only that someone did is compared.
+          lastChecked: { on: versionDays(item).at(-1)!.accepted, personId: 'someone' },
+          trust: itemTrust(item, FIXTURE_TODAY),
+          chips: scopeChips(item.scope),
         })
-      expect(index.items.map(normalized)).toEqual([...items].sort(byId).map(projection))
+      for (const row of index.items) expect(row.lastChecked?.personId, row.id).toBeTruthy()
+      const someone = (row: LibraryItem): LibraryItem => ({
+        ...row,
+        lastChecked: row.lastChecked && { ...row.lastChecked, personId: 'someone' },
+      })
+      expect(index.items.map((row) => normalized(someone(row)))).toEqual(
+        [...items].sort(byId).map(projection),
+      )
     })
 
     it('counts how much of the library is current, today as the index shows it', async () => {

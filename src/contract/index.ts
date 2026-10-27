@@ -189,6 +189,7 @@ import {
   catalogueTermDetailSchema,
   catalogueTermInputSchema,
 } from './catalogue.ts'
+import { searchAllInputSchema, searchResultsSchema } from './search.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
 import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
@@ -303,6 +304,8 @@ export type {
   Upkeep,
 } from './quality.ts'
 export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
+export { SEARCH_GROUP_MAX } from './search.ts'
+export type { SearchAllInput, SearchResults } from './search.ts'
 export type {
   Catalogue,
   CatalogueDefinition,
@@ -981,6 +984,18 @@ export const contract = {
       })
       .input(servedReviewsInputSchema)
       .output(z.array(servedReviewSchema)),
+  },
+  search: {
+    all: read
+      .route({
+        method: 'GET',
+        path: '/search',
+        tags: ['library'],
+        summary:
+          'Search everywhere: items, definitions, domains and people whose names have the words, a few of each, best match first',
+      })
+      .input(searchAllInputSchema)
+      .output(searchResultsSchema),
   },
   bin: {
     list: admin

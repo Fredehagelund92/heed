@@ -42,6 +42,23 @@ export function itemDisplayStatus(item: StatusInput, today: string): ItemDisplay
 }
 
 /**
+ * Whether an item can be trusted today, as the library index says it and `library.freshness`
+ * counts it: `ended` once it is retired or its last day has passed, `needs_check` while a source
+ * flag is on or its review date has passed, else `current`.
+ */
+export const itemTrusts = ['current', 'needs_check', 'ended'] as const
+export type ItemTrust = (typeof itemTrusts)[number]
+
+export function itemTrust(
+  item: Pick<ContextItem, 'status' | 'validity' | 'reviewDate' | 'checkFlag'>,
+  today: string,
+): ItemTrust {
+  if (item.status === 'retired' || hasEnded(item, today)) return 'ended'
+  if (item.checkFlag || (item.reviewDate !== null && item.reviewDate < today)) return 'needs_check'
+  return 'current'
+}
+
+/**
  * "Needs a look" (contract open question 11): re-check due, source changed or source missing.
  * These are the items an owner should look at again.
  */

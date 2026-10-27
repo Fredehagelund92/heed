@@ -6,6 +6,7 @@
 import * as z from 'zod/mini'
 import { itemKinds, itemSchema, itemStatuses } from '../domain/item.ts'
 import { mentionTargetSchema } from '../domain/mentions.ts'
+import { itemTrusts } from '../domain/status.ts'
 import { ITEMS_PAGE_MAX } from './limits.ts'
 
 export { API_PREFIX, INCOMING_LINKS_MAX, ITEMS_PAGE_MAX } from './limits.ts'
@@ -36,10 +37,10 @@ export const itemsPageSchema = z.object({
 })
 
 /**
- * One row of the library index: what the list, the search and the quick switcher need, without
- * the body, the evidence or the change marks.
+ * The item's own fields in a library index row: what the list, the search and the quick switcher
+ * need, without the body, the evidence or the change marks. The catalogue counts over these.
  */
-export const libraryItemSchema = z.pick(itemSchema, {
+export const indexedItemSchema = z.pick(itemSchema, {
   id: true,
   kind: true,
   areaId: true,
@@ -55,6 +56,22 @@ export const libraryItemSchema = z.pick(itemSchema, {
   ownerId: true,
   proposerId: true,
   updatedAt: true,
+})
+
+/** One row of the library index: the item's fields and what the list's columns read from them. */
+export const libraryItemSchema = z.extend(indexedItemSchema, {
+  /**
+   * The last time someone confirmed the current version: its acceptance, which a recheck
+   * ("checked, still correct") renews. Null when no decision is on record.
+   */
+  lastChecked: z.nullable(z.object({ on: isoDate, personId: z.string() })),
+  /** Whether it can be trusted today (`itemTrust`), the rule `library.freshness` counts by. */
+  trust: z.enum(itemTrusts),
+  /**
+   * Its scope as people read it: the metrics, then the dimensions, then the values, each by key,
+   * named as the live vocabulary names them (the key's id when the vocabulary has no name).
+   */
+  chips: z.array(z.string()),
 })
 
 /** Every item the person may read, as one light index. Clients sort and filter it themselves. */
@@ -161,6 +178,7 @@ export const itemLinksSchema = z.object({
 export type ItemSort = (typeof itemSorts)[number]
 export type ListItemsParams = z.infer<typeof listItemsInputSchema>
 export type ItemsPage = z.infer<typeof itemsPageSchema>
+export type IndexedItem = z.infer<typeof indexedItemSchema>
 export type LibraryItem = z.infer<typeof libraryItemSchema>
 export type LibraryIndex = z.infer<typeof libraryIndexSchema>
 export type LibraryFreshnessParams = z.infer<typeof libraryFreshnessInputSchema>

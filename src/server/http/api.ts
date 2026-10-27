@@ -556,6 +556,9 @@ export function createRouter({
         context.library.getReviews(input.ids),
       ),
     },
+    search: {
+      all: authorized.search.all.handler(({ context, input }) => context.library.search(input.q)),
+    },
     bin: {
       list: authorized.bin.list.handler(({ context }) => context.bin.list()),
       get: authorized.bin.get.handler(({ context, input }) => context.bin.get(input.id)),

@@ -343,6 +343,7 @@ describe('the API over HTTP', () => {
       '/roles/grant',
       '/roles/revoke',
       '/schema/item',
+      '/search',
       '/serving/stops',
       '/settings',
       '/settings/{key}',

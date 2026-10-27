@@ -856,6 +856,22 @@
       }
     }
   },
+  "search": {
+    "all": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/search",
+          "tags": ["library"],
+          "summary": "Search everywhere: items, definitions, domains and people whose names have the words, a few of each, best match first"
+        }
+      }
+    }
+  },
   "bin": {
     "list": {
       "~orpc": {

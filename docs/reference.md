@@ -278,6 +278,13 @@ definition as the source last read it (the description copy, never a calculation
 about it, counted per term in the same answer. `GET /api/v1/catalogue/{kind}/{id}` reads one,
 a dimension with its values. Both read as the library does.
 
+`GET /api/v1/library` is the library index: every item the person may read, with what a list's
+columns read from it. `lastChecked` is the last acceptance of the current version (a recheck is
+one), `trust` is `current`, `needs_check` or `ended` by the rule `GET /api/v1/library/freshness`
+counts by, and `chips` is the scope by name. `GET /api/v1/search?q=` is search everywhere, for
+the command palette: items, definitions (by name or another name), domains and people whose names
+have the words, at most five of each, a name that starts with the words first.
+
 The "where it applies" picker reads `GET /api/v1/vocabulary/search` (a page of metrics and
 dimensions, with per dimension "any value", a count and a few values; a page at a time inside one
 dimension). A scope can

@@ -13,8 +13,9 @@ import { apiDatabase, testDatabase } from '../../integration/support.ts'
   one the mock binding passes (tests/app/mock/conformance.test.ts), for the methods wired so far.
 */
 
-const person = { email: 'jon.abara@example.test', name: 'Jon Abara', roles: [] }
-const { url } = testDatabase()
+// Someone the bulk seed knows, so the library they read is the seeded one.
+const person = { email: 'per_maria@example.test', name: 'Maria Lindqvist', roles: [] }
+const { client, url } = testDatabase({ seeded: true })
 const app = buildApp({
   database: apiDatabase(url),
   jobs: idleJobs(),
@@ -25,6 +26,7 @@ const app = buildApp({
 let api: HeedApi | undefined
 
 beforeAll(async () => {
+  await client.query('reset role')
   const address = await app.listen({ host: '127.0.0.1', port: 0 })
   // A browser keeps the session cookie and sends its origin; this jar does both.
   let cookie = ''
@@ -51,6 +53,16 @@ describeHeedApi('http binding on PostgreSQL', () => api!, {
 })
 
 describe('the http binding', () => {
+  it('answers the reads it offers as signed out without a session', async () => {
+    await api!.signOut().catch(() => undefined)
+    for (const read of [
+      () => api!.getLibrary(),
+      () => api!.getDefinitions(),
+      () => api!.searchAll({ q: 'orders' }),
+    ])
+      await expect(read()).rejects.toMatchObject({ kind: 'signed-out' })
+  })
+
   it('answers a method it does not offer yet as not available', async () => {
     const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
     expect(unwired.length).toBeGreaterThan(0)

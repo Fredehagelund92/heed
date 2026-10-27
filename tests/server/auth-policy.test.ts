@@ -165,6 +165,7 @@ const readOperations = [
   'library.index',
   'library.freshness',
   'library.reviews',
+  'search.all',
   'catalogue.list',
   'catalogue.get',
   'items.list',
