@@ -188,10 +188,12 @@ their writes are not available yet.
 
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
-setup checklist, People, Context, Definitions, the editor and Observability so far) on an http mode build against the
-service, one at a time, each on its own copy of the demo week seeded once into a template
-database; a journey that starts as a new install (`?demo=setup`, or Observability's `?state=empty`) gets a
-copy of an empty workspace instead, and `?demo=week` brings it back to the demo week. It needs a local PostgreSQL 18 and a superuser's connection in
+setup checklist, People, Context, Definitions, the editor, Observability, and comments with their
+reactions and mentions so far) on an http mode build against the service, one at a time, each on its
+own copy of the demo week seeded once into a template database; a journey that starts as a new
+install (`?demo=setup`, or Observability's `?state=empty`) gets a copy of an empty workspace
+instead, and `?demo=week` brings it back to the demo week. It needs a local PostgreSQL 18 and a
+superuser's connection in
 `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server); it serves the app
 on port 4175 and the service on 3110, or on `PW_GOLDEN_WEB_PORT` and `PW_GOLDEN_API_PORT` when
 another run uses those. The specs read the mock's card, item and topic ids, the queue and its counts

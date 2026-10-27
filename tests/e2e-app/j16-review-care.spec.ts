@@ -23,7 +23,7 @@ test("a new date with no source says it isn't checked; one with a new source pag
 })
 
 test('a withdrawn retirement closes; archiving asks first, from the key too', async ({ page }) => {
-  untilInHttp('P9', 'the comments in which Lars withdraws his suggestion')
+  untilInHttp('P9c', 'the comments in which Lars withdraws his suggestion')
   await go(page, '/inbox/sug-lars-retire/review')
   const decide = page.getByRole('complementary', { name: 'Try it and decide' })
   await expect(page.getByRole('region', { name: 'What the thread decided' })).toContainText(

@@ -21,9 +21,11 @@ import { apiDatabase, servingPool, testDatabase, transaction } from './support.t
 /*
   Agents never read comments (FR-817; docs/product.md, section 9, rule 5). People comment on a
   live context item, and on a suggestion that changes it, with words that contradict it; a reply,
-  a mention and reactions too. Then an owner publishes, which seals a new edition while those
+  a mention and reactions too, and what the screens add: an edit that writes the words again, and
+  a return whose note is the suggestion's first comment. Then an owner publishes, which seals a new edition while those
   comments stand. Every tool an agent may call answers about the item, and no reply holds a word
-  of any comment. Three more locks: the serving and analytics roles may read none of the comment
+  of any comment, and neither does what people read of the same answers (Ask, and Try it on a
+  suggestion). Three more locks: the serving and analytics roles may read none of the comment
   tables; the edition the agents read is built without them; and no code on the agents' read path
   names them.
 */
@@ -122,6 +124,8 @@ const words = (text: string, mention?: Who) => ({
 let wire: Client
 let item: string
 let sealed: string
+/** The suggestion that changes the item, with a comment on it, still waiting. */
+let change: ProposalRecord
 
 beforeAll(async () => {
   await foundation(admin)
@@ -181,7 +185,7 @@ beforeAll(async () => {
   )
   await ok(call('POST', '/reactions/toggle', 'admin', { subject, emoji: '👍' }))
   await ok(call('POST', '/reactions/toggle', 'owner', { subject, commentId: top.id, emoji: '🤔' }))
-  const change = await submitted(
+  change = await submitted(
     {
       summary:
         'Orders in Norway leave out the 312 accounts our teams use to test the webshop, and the returns team.',
@@ -192,6 +196,26 @@ beforeAll(async () => {
     call('POST', '/comments', 'owner', {
       subject: `review:${change.id}`,
       body: words(contradiction),
+    }),
+  )
+  // An edit writes the words again; a return's note is the first comment of its suggestion.
+  await ok(
+    call('PUT', `/comments/${top.id}`, 'stranger', {
+      body: words(`${contradiction} Edited to be sure.`),
+    }),
+  )
+  const returned = await submitted(
+    {
+      summary:
+        'Orders in Norway leave out the 312 accounts our teams use to test the webshop, and support.',
+    },
+    item,
+  )
+  await ok(
+    call('POST', `/review/${returned.id}/return`, 'owner', {
+      revision: returned.revision,
+      note: contradiction,
+      body: words(contradiction, 'author'),
     }),
   )
 
@@ -282,6 +306,30 @@ it('gives agents the item, and no word of a comment, from every tool', async () 
         calls.map((c) => c.name),
         name,
       ).toContain(name)
+})
+
+it("gives people's Ask and Try it, built on the same answers, no word of a comment", async () => {
+  const scope = {
+    metrics: ['metric:orders'],
+    dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
+  }
+  const reads: [string, object][] = [
+    ['/ask/lookup', { question: 'Orders in Norway 2026' }],
+    ['/ask/lookup', { question: 'test accounts in Norway' }],
+    ['/try-it', scope],
+    ['/try-it', { ...scope, draft: change.id }],
+  ]
+  for (const [path, body] of reads) {
+    const response = await call('POST', path, 'owner', body)
+    expect(response.statusCode, `${path}: ${response.body}`).toBe(200)
+    for (const words of [canary, 'This is wrong', 'Edited to be sure'])
+      expect(response.body, `${path} ${JSON.stringify(body)}`).not.toContain(words)
+  }
+  // The items people read there are the item, with its own words.
+  const tried = await ok<{ result: { items?: { id: string }[] } }>(
+    call('POST', '/try-it', 'owner', scope),
+  )
+  expect(tried.result.items?.map((i) => i.id)).toContain(item)
 })
 
 it('builds the edition agents read without the comments', async () => {
