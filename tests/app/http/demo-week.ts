@@ -1,9 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
+import type { JSONContent } from '@tiptap/core'
+import type { CommentItem, CommentReaction } from '@/components/templates/comment-box/types'
+import { text } from '@/components/templates/comment-box/utils'
+import { seedComments, seedReactions } from '@/api/mock/data/comments'
 import { TERMS } from '@/api/mock/data/terms'
 import { spainDraft } from '@/api/mock/data/drafts'
 import { reviews } from '@/api/mock/data/review'
 import { facts, people as worldPeople } from '@/api/mock/data/world'
+import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
 import { reviewQuestion, type ContextItem } from '../../../src/domain/item.ts'
@@ -29,10 +34,19 @@ import { seedObservability } from './demo-observability.ts'
   report on Orders in Germany comes in as Maria Lindqvist's named report from Ask. What
   agents asked this week comes in as the topics and counts the service keeps (Asked this week).
 
+  The comments are the mock's threads (data/comments.ts), each written, answered, reacted to,
+  edited and deleted through the API by the person the mock names, then dated as the mock dates
+  them. Tomas's mention of Jon on the Marketing item waits in Jon's Inbox as "Mentioned you"; Jon
+  has read every other thread, so no reply is new to him.
+
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
-  27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
-  withdraws his retirement (P9). The mock's drafts are drafts on the service too: each started by
-  the person the mock names, never sent.
+  27 October 2026): the two suggestions a Google Drive read makes (P11b), and the thread in which
+  Lars withdraws his retirement, since the service has no withdrawal in the comments yet (P9c).
+  Jon's own suggestion to Marketing, and Tomas's question on it, stay out too: Jon is an admin, so
+  on the service it would wait in his own review queue. So does Tomas's thread on Sofia's
+  suggestion: on the service a waiting suggestion is read by its sender, its domain's owners and
+  the admins, and Tomas owns Marketing, not Sales. The mock's drafts are drafts on the service
+  too: each started by the person the mock names, never sent.
 
   What agents asked over the weeks Observability counts, and what they reported, are the mock's
   too (demo-observability.ts), as delivery and request records with no question and no person.
@@ -334,7 +348,7 @@ export const devPeople = () =>
   }))
 
 type Inject = (
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'DELETE',
   path: string,
   who: string,
   payload?: object,
@@ -368,9 +382,11 @@ export const demoDrafts = () => facts.filter((f) => f.status === 'Draft')
  * Sends the week's suggestions through the service's API, each as the person the mock names, and
  * starts the mock's drafts. Returns each suggestion's proposal, and each draft's by its mock id.
  */
-async function sendSuggestions(
-  databaseUrl: string,
-): Promise<{ ids: Record<QueueCard, string>; drafts: Record<string, string> }> {
+async function sendSuggestions(databaseUrl: string): Promise<{
+  ids: Record<QueueCard, string>
+  drafts: Record<string, string>
+  comments: DatedComment[]
+}> {
   const pool = new pg.Pool({
     connectionString: databaseUrl,
     max: 2,
@@ -506,10 +522,121 @@ async function sendSuggestions(
       })
       drafts[f.id] = started.id as string
     }
-    return { ids, drafts }
+    const comments = await seedThreads(call, ids)
+    return { ids, drafts, comments }
   } finally {
     // Closing the app ends its pool.
     await app.close()
+  }
+}
+
+/** A mock day and time ("Today, 08:50", "Yesterday, 14:20", "16 Oct") in the demo week. */
+function atOf(when: string): string {
+  const [day = '', time = '12:00'] = when.split(', ')
+  const date =
+    day === 'Today'
+      ? TODAY
+      : day === 'Yesterday'
+        ? shiftDate(TODAY, -1)
+        : isoDay(`${day} ${TODAY.slice(0, 4)}`, TODAY)
+  return `${date}T${time}:00Z`
+}
+
+/** A seeded comment's id on the service, and when the mock says it was written and edited. */
+type DatedComment = { id: string; at: string; edited: boolean }
+
+/** The mock's threads the service does not hold (see the note at the top). */
+const leftOut = new Set<Subject>([
+  'review:sug-lars-retire',
+  'review:sug-jon',
+  'review:sug-sofia-clash',
+])
+
+/** The threads the service holds, by the mock's subject. */
+const seededThreads = (Object.keys(seedComments) as Subject[]).filter((s) => !leftOut.has(s))
+
+/** A mock subject as the service names it: a suggestion by its proposal, an item by its id. */
+function serviceSubject(subject: Subject, ids: Record<QueueCard, string>): string {
+  const [kind, id = ''] = subject.split(':')
+  if (kind === 'context') return `context:${serverItemId(id)}`
+  const proposal = ids[id as QueueCard]
+  if (!proposal) throw new Error(`${subject} is not a suggestion on the service`)
+  return `review:${proposal}`
+}
+
+/** A comment as the service takes it: a mention names its person by id. */
+function serviceBody(node: JSONContent): JSONContent {
+  if (node.type === 'mention') {
+    const label = String(node.attrs?.label ?? '')
+    return { type: 'mention', attrs: { id: `person:${seedPersonId(personId(label))}`, label } }
+  }
+  return node.content ? { ...node, content: node.content.map(serviceBody) } : node
+}
+
+/**
+ * The mock's threads, written through the API by the people who write them in the mock: each
+ * comment and its replies in order, the reactions on them and on what they hang on, the edit and
+ * the deletion. Jon then opens each thread, as he has read them in the mock, which leaves the
+ * mentions of him unread. Returns each comment's time in the mock, for the seed to date it.
+ */
+async function seedThreads(call: Inject, ids: Record<QueueCard, string>) {
+  const dated: DatedComment[] = []
+  const deleted: { id: string; by: string }[] = []
+  const react = async (subject: string, list: CommentReaction[] = [], commentId?: string) => {
+    for (const r of list)
+      for (const who of r.by)
+        await call('POST', '/reactions/toggle', who, {
+          subject,
+          emoji: r.emoji,
+          ...(commentId ? { commentId } : {}),
+        })
+  }
+  const write = async (subject: string, c: CommentItem, parentId?: string) => {
+    // A deleted comment had words once; the deletion takes them away.
+    const body = c.deleted ? serviceBody(text('A comment taken back.')) : serviceBody(c.content)
+    const posted = await call('POST', '/comments', c.author, {
+      subject,
+      body,
+      ...(parentId ? { parentId } : {}),
+    })
+    const id = posted.id as string
+    dated.push({ id, at: atOf(c.when), edited: Boolean(c.edited) })
+    if (c.deleted) deleted.push({ id, by: c.author })
+    else await react(subject, c.reactions, id)
+    return id
+  }
+  for (const mockSubject of seededThreads) {
+    const subject = serviceSubject(mockSubject, ids)
+    for (const c of seedComments[mockSubject] ?? []) {
+      const id = await write(subject, c)
+      for (const r of c.replies ?? []) await write(subject, r, id)
+    }
+  }
+  for (const [mockSubject, list] of Object.entries(seedReactions) as [Subject, CommentReaction[]][])
+    if (!leftOut.has(mockSubject)) await react(serviceSubject(mockSubject, ids), list)
+  // Deleted once the thread has answered them, so each keeps its place.
+  for (const d of deleted) await call('DELETE', `/comments/${d.id}`, d.by)
+  for (const mockSubject of seededThreads)
+    await call('POST', '/comments/threads/read', OWNER.name, {
+      subject: serviceSubject(mockSubject, ids),
+    })
+  return dated
+}
+
+/** Dates the seeded comments as the mock does; an edited one was edited two hours later. */
+async function dateComments(client: pg.Client, comments: readonly DatedComment[]) {
+  // The comments' guard keeps a comment's time as it was written: dated here as the seed's owner.
+  await client.query('set session_replication_role = replica')
+  try {
+    for (const c of comments)
+      await client.query(
+        `update comments set created_at=$2::timestamptz,
+                edited_at=case when $3 then $2::timestamptz + interval '2 hours' end
+          where id=$1`,
+        [c.id, c.at, c.edited],
+      )
+  } finally {
+    await client.query('set session_replication_role = origin')
   }
 }
 
@@ -751,7 +878,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   } finally {
     await client.end()
   }
-  const { ids, drafts } = await sendSuggestions(superuserUrl)
+  const { ids, drafts, comments } = await sendSuggestions(superuserUrl)
   const after = new pg.Client({ connectionString: superuserUrl })
   await after.connect()
   try {
@@ -760,6 +887,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
       `update proposals set provenance='{"by":"agent","fields":{},"flags":[]}' where id=$1`,
       [ids['sug-agent']],
     )
+    await dateComments(after, comments)
     await after.query('select cl_ensure_delivery_partitions(2), cl_ensure_request_partitions(2)')
     // Maria asked Ask about Orders in Germany, got "Orders lags by one day in the source tool",
     // and reported it with her name, as the mockup's Observability lists it ("Maria Lindqvist,

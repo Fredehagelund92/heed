@@ -14,7 +14,7 @@ import {
   Undo2Icon,
 } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, midSentence } from '@/lib/utils'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
 import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
@@ -467,7 +467,7 @@ function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
           </p>
           <blockquote className="text-sm italic">“{r.retire.withdrawn.quote}”</blockquote>
           <p className="text-xs text-muted-foreground">
-            {r.retire.withdrawn.by}, {r.retire.withdrawn.when.toLowerCase()}. Archive is still
+            {r.retire.withdrawn.by}, {midSentence(r.retire.withdrawn.when)}. Archive is still
             possible, but no longer the suggestion.
           </p>
         </section>
@@ -1112,8 +1112,7 @@ function Decision({
           outcome
         ) : done ? (
           <p className="flex min-h-11 items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}
-            .
+            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {midSentence(done.at)}.
           </p>
         ) : (
           <>
@@ -1185,8 +1184,7 @@ function Decision({
           outcome
         ) : done ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {done.at.toLowerCase()}
-            .
+            <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {midSentence(done.at)}.
           </p>
         ) : returning ? (
           // The note is the first comment of the suggestion's thread, so the reply lands in the same place.
@@ -1656,7 +1654,9 @@ export function ReviewPage({ id }: { id: string }) {
                     key={r.id}
                     subject={`review:${r.id}`}
                     me={me.name}
-                    owners={domains.sales?.owners ?? []}
+                    owners={
+                      domains[state.cards.find((c) => c.id === r.id)?.domain ?? '']?.owners ?? []
+                    }
                     note={
                       r.agent
                         ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`

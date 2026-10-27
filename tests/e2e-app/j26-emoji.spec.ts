@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
-import { go } from './go.ts'
+import type { Locator, Page } from '@playwright/test'
+import { expect, go, test } from './go.ts'
 
 // J26: emoji where people talk to each other. ':' and two letters opens the same list as '@' (one
 // popover, one keyboard model), the five reactions and what was used lately first; Enter inserts the
@@ -102,4 +102,89 @@ test('on a phone the list is a sheet across the width', async ({ page }) => {
   const sheet = page.locator('[cmdk-root]').filter({ has: emojiList(page) })
   await expect(sheet).toBeVisible()
   expect(Math.round((await sheet.boundingBox())!.width)).toBe(390)
+})
+
+// Where people talk, the talk itself: a comment with a mention, its reaction, edit and deletion,
+// each kept by the service in http mode; a mention waits in the Inbox until it is read; and a
+// return's note is the suggestion's first comment.
+
+test('a comment names a person, takes a reaction, and is edited and deleted', async ({ page }) => {
+  await go(page, '/context/itm_norway_stop')
+  const box = page.getByRole('textbox', { name: 'Write a comment' })
+  await box.click()
+  await page.keyboard.type('Does the returns form change this, @Sof')
+  await page.getByRole('option', { name: /Sofia Brandt/ }).click()
+  await page.keyboard.type('?')
+  await page.keyboard.press('ControlOrMeta+Enter')
+  const mine = page.getByRole('article', { name: 'Jon Abara, Just now' })
+  await expect(mine).toContainText('Does the returns form change this, Sofia Brandt')
+  await expect(box).toHaveText('')
+
+  await mine.getByRole('button', { name: 'Add a reaction' }).click()
+  await page.getByRole('button', { name: 'Thanks', exact: true }).click()
+  await expect(mine.getByRole('button', { name: /^Thanks, 1: / })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+
+  // Kept, not only drawn: away and back, the comment and its reaction are still there.
+  await go(page, '/inbox')
+  await go(page, '/context/itm_norway_stop')
+  await expect(mine).toContainText('Sofia Brandt')
+  await expect(mine.getByRole('button', { name: /^Thanks, 1: / })).toBeVisible()
+
+  await mine.getByRole('button', { name: "More for Jon Abara's comment" }).click()
+  await page.getByRole('menuitem', { name: 'Edit' }).click()
+  const edit = page.getByRole('textbox', { name: 'Edit your comment' })
+  await edit.press('ControlOrMeta+a')
+  await page.keyboard.type('Does the returns form change this?')
+  await page.keyboard.press('ControlOrMeta+Enter')
+  await expect(mine).toContainText('Does the returns form change this?')
+  await expect(mine).not.toContainText('Sofia Brandt')
+  await expect(mine).toContainText('edited')
+
+  await mine.getByRole('button', { name: "More for Jon Abara's comment" }).click()
+  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  // The toast, not the deleted reply the thread already shows.
+  await expect(
+    page.getByRole('region', { name: /^Notifications/ }).getByText('Comment deleted'),
+  ).toBeVisible()
+  await expect(mine).toHaveCount(0)
+  await go(page, '/inbox')
+  await go(page, '/context/itm_norway_stop')
+  await expect(page.getByRole('textbox', { name: 'Write a comment' })).toBeVisible()
+  await expect(mine).toHaveCount(0)
+})
+
+test('a mention of you waits in the Inbox until you read it', async ({ page }) => {
+  await go(page, '/inbox')
+  const title = 'Regulator paused price promotions in Norway on 9 May 2026'
+  const row = page.locator('[data-row]').filter({ hasText: title })
+  await expect(row).toContainText('Tomas Eriksen')
+  await row.click()
+  await expect(page.getByText(/^Tomas Eriksen mentioned you, /)).toBeVisible()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect(page.getByText('The comment stays in the thread.')).toBeVisible()
+  await expect(row).toHaveCount(0)
+  // Read for good: the Inbox read again from the start no longer has it.
+  await go(page, '/ask')
+  await go(page, '/inbox')
+  await expect(page.locator('[data-row]').first()).toBeVisible()
+  await expect(row).toHaveCount(0)
+})
+
+test("a return's note is the suggestion's first comment", async ({ page }) => {
+  await go(page, '/inbox/sug-ines/review')
+  const decide = page.getByRole('complementary', { name: 'Try it and decide' })
+  await decide.getByRole('button', { name: 'Return with a note' }).click()
+  await page
+    .getByRole('textbox', { name: 'A note for Ines Duarte' })
+    .pressSequentially('Which page says 340?')
+  await decide.getByRole('button', { name: 'Return to Ines' }).click()
+  await expect(decide.getByText('Returned to Ines Duarte')).toBeVisible()
+  const comments = page.getByRole('region', { name: /^Comments/ })
+  const first = comments.getByRole('article').first()
+  await expect(first).toContainText('Returned with a note')
+  await expect(first).toContainText('Owner')
+  await expect(first).toContainText('Which page says 340?')
 })

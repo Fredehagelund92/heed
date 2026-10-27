@@ -21,7 +21,7 @@ import {
   TriangleAlertIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, midSentence } from '@/lib/utils'
 import { DomainBadge, FieldDiff } from '@/components/heed/bits'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/model/integrations'
@@ -139,7 +139,7 @@ function meta(row: InboxRow, reviews: Review[]) {
   if (row.kind === 'mention') return `Mentioned by ${row.note.from}`
   if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
-  if (done) return `${done.label}, ${done.at.toLowerCase()}`
+  if (done) return `${done.label}, ${midSentence(done.at)}`
   const s = card.suggestion
   const from = card.source
     ? `${card.source.tool}, ${card.source.folder}`
@@ -186,7 +186,7 @@ function NewReply({ id }: { id: string }) {
     <div className="mb-5 flex flex-col gap-1.5 border-l-2 border-primary/60 py-0.5 pl-3 text-sm">
       <p className="flex items-center gap-1.5 font-medium">
         <MessageSquareTextIcon className="size-3.5" aria-hidden />
-        New reply from {reply.from}, {reply.when.toLowerCase()}
+        New reply from {reply.from}, {midSentence(reply.when)}
       </p>
       <p className="line-clamp-3 text-muted-foreground">{reply.excerpt}</p>
       <a
@@ -272,7 +272,7 @@ function InboxList({
               <li className="flex h-10 items-center gap-2 bg-band px-4 text-xs @md:px-6">
                 <ToolLogo c={connectorById('google-drive')!} size="sm" />
                 <span className="truncate font-medium">
-                  From {source.tool}, {source.read.toLowerCase()}
+                  From {source.tool}, {midSentence(source.read)}
                 </span>
                 <span className="shrink-0 text-muted-foreground @max-md:hidden">
                   {fromRead} new {fromRead === 1 ? 'suggestion' : 'suggestions'}
@@ -558,11 +558,11 @@ function CardDetail({
         {review ? (
           // One author line with the time; the summary below is the only other heading-like text.
           <CardDescription>
-            <Sender r={review} when={card.when.toLowerCase()} />
+            <Sender r={review} when={midSentence(card.when)} />
           </CardDescription>
         ) : (
           <CardDescription>
-            {cardTypeLabel[card.type]}, {card.when.toLowerCase()}. {from(card)}
+            {cardTypeLabel[card.type]}, {midSentence(card.when)}. {from(card)}
           </CardDescription>
         )}
         <Toolbar onStep={onStep} onBack={onBack}>
@@ -635,7 +635,7 @@ function CardDetail({
           <>
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <CircleCheckIcon className="size-4" aria-hidden /> {done.label},{' '}
-              {done.at.toLowerCase()}.
+              {midSentence(done.at)}.
             </p>
             {note && <MentionDone subject={note.subject} next={next} />}
           </>
@@ -699,7 +699,7 @@ function MentionBlock({
     <div className="mb-5 flex flex-col gap-1.5 border-l-2 border-primary/60 py-0.5 pl-3 text-sm">
       <p className="flex items-center gap-1.5 font-medium">
         <AtSignIcon className="size-3.5" aria-hidden />
-        {note.from} mentioned you, {note.when.toLowerCase()}
+        {note.from} mentioned you, {midSentence(note.when)}
       </p>
       <p className="line-clamp-3 text-muted-foreground">{note.excerpt}</p>
       {href && (

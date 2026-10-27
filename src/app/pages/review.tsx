@@ -1,5 +1,5 @@
 import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from '@/components/icons'
-import { cn } from '@/lib/utils'
+import { cn, midSentence } from '@/lib/utils'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
@@ -39,8 +39,8 @@ export function Sender({ r, when }: { r: Review; when?: string }) {
         <ToolLogo c={connectorById('google-drive')!} size="sm" />
         <span>
           From <span className="font-medium text-foreground">{r.synced.tool}</span>,{' '}
-          {r.synced.folder}, read {(when ?? r.synced.read).toLowerCase()}. Created by the read, not
-          by a person.
+          {r.synced.folder}, read {midSentence(when ?? r.synced.read)}. Created by the read, not by
+          a person.
         </span>
       </p>
     )

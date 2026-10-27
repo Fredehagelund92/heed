@@ -75,7 +75,7 @@ export const claimsToCheck = (id: 'sug-agent') =>
 
 /**
  * How the queue ends in each mode once every suggestion is decided. The mock closes Lars's
- * withdrawn retirement; on the service, which keeps no withdrawal yet (P9), it is archived, and
+ * withdrawn retirement; on the service, which keeps no withdrawal in the comments yet (P9c), it is archived, and
  * the two suggestions a Google Drive read makes are not there yet (P11b).
  */
 export const allHandled = () =>
