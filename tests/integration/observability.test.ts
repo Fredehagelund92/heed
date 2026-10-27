@@ -376,6 +376,34 @@ describe('Overview and Questions (obs.agents)', () => {
     expect(cursor.topics.find((t) => t.id === topics['orders-sweden'])!.total).toBeNull()
     expectPrivate(cursor)
   })
+
+  it('does not let the last 7 days of one kind of agent be subtracted from all to reveal a small count', async () => {
+    const rows = (family: string, n: number) =>
+      client.query(
+        `insert into deliveries (delivered_hour, client_label, caller, edition_seq, overlay_seq,
+                                 tool_schema_digest, topic_id, scope, status, answer_state, app_family)
+         select '2026-10-17T10:00:00Z', 'subtraction', 'agent', $1, 0, 'digest', $2, '{}', 'no_match', 'missing', $3
+           from generate_series(1, $4)`,
+        [edition, topics['orders-sweden'], family, n],
+      )
+    await rows('cursor', 5)
+    await rows('claude_code', 2)
+    try {
+      const sweden = (v: ObsAgents) =>
+        v.notFound.find((s) => s.topics.includes(topics['orders-sweden']!))
+      const all = await ok<ObsAgents>('admin', '/observability/agents?range=30')
+      const cursor = await ok<ObsAgents>('admin', '/observability/agents?range=30&agent=cursor')
+      expectPrivate(all)
+      expectPrivate(cursor)
+      expect(sweden(all)).toBeDefined()
+      // Cursor made 5 of the 7: the 2 left over by the other agents would show, so its total is hidden.
+      expect(sweden(cursor)?.total ?? null).toBeNull()
+      for (const t of cursor.notFoundTopics.filter((t) => t.id === topics['orders-sweden']))
+        expect(t.total).toBeNull()
+    } finally {
+      await client.query(`delete from deliveries where client_label = 'subtraction'`)
+    }
+  })
 })
 
 describe('Usage (obs.usage)', () => {

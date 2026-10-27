@@ -307,11 +307,16 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         input.range === 7
           ? now
           : byTopic(await topicCounts(all.areas, admin, weekStart, end, agent))
+      const weekWhole =
+        agent && input.range !== 7
+          ? byTopic(await topicCounts(all.areas, admin, weekStart, end))
+          : null
       const weekCounted: TopicCounts[] = [...week.values()].map((t) => ({
         id: t.id,
         domain: t.area,
         subject: subjectOf(t),
         counts: t.counts,
+        ...(weekWhole ? { whole: weekWhole.get(t.id)?.counts ?? t.counts } : {}),
       }))
       const weekView = input.range === 7 ? view : topicView(weekCounted, least)
       const missingOf = new Map<string, number>()
