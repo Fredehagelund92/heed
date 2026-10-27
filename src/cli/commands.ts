@@ -16,6 +16,7 @@ import { type EditionExport, verifyEditionExport } from '../domain/edition-expor
 import { offlineFindings, readItemFile } from '../domain/item-file.ts'
 import { itemJsonSchema } from '../domain/item-version.ts'
 import { createClient, type HeedClient } from './client.ts'
+import { operatorInvite } from './invite.ts'
 
 export type Io = {
   stdout(text: string): void
@@ -32,6 +33,11 @@ Commands that need no service:
                       the live edition: use import, which is a dry run by default.
   schema              Print the JSON Schema of the item format, mentions included.
   verify <file>       Recompute the digests of an edition export.
+
+Commands that use the database directly (the owner's address in DATABASE_URL_MIGRATE):
+  invite <email>      Invite someone, and print the link to send them. --admin makes them an
+                      Admin; --domain <id> (repeatable) makes them an owner of that domain. This
+                      is how the first admin of an install that signs in with OIDC gets in.
 
 Commands that use the service:
   draft <file>        Save one item as a draft proposal. --submit sends it for review.
@@ -80,6 +86,8 @@ export const options = {
   to: { type: 'string' },
   action: { type: 'string' },
   request: { type: 'string' },
+  admin: { type: 'boolean', default: false },
+  domain: { type: 'string', multiple: true },
 } as const
 
 type Values = ReturnType<
@@ -185,6 +193,7 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
         return ok ? 0 : 1
       }
     }
+    if (command === 'invite') return await invite(one('email address'), values, io, print)
     if (!['draft', 'import', 'import-tests', 'export', 'audit'].includes(command))
       throw new UsageError(`Unknown command: ${command}`)
     const client = await connect(values, io)
@@ -415,5 +424,45 @@ async function audit(
     io.stderr(`The history log's hash chain breaks at entry ${chain.firstBadSeq}\n`)
     return 1
   }
+  return 0
+}
+
+async function invite(
+  email: string,
+  values: Values,
+  io: Io,
+  print: (lines: string[], json: unknown) => void,
+): Promise<number> {
+  if (!/^[^@\s]+@[^@\s]+$/.test(email.trim()))
+    throw new UsageError(`${email} is not an email address`)
+  const databaseUrl = io.env.DATABASE_URL_MIGRATE
+  if (!databaseUrl)
+    throw new UsageError(
+      "Set DATABASE_URL_MIGRATE to the database owner's address (db/README.md): an invite from here is made in the database.",
+    )
+  const webOrigin =
+    values.origin ?? io.env.CL_WEB_ORIGINS?.split(',')[0]?.trim() ?? DEFAULT_WEB_ORIGINS[0]
+  const result = await operatorInvite({
+    databaseUrl,
+    webOrigin,
+    email,
+    admin: values.admin,
+    domains: values.domain ?? [],
+  })
+  if (result.outcome === 'member') {
+    print([`${email} is in the workspace already.`], result)
+    return 1
+  }
+  if (result.outcome === 'unknown_domain') {
+    print([`There is no domain ${result.domain}.`], result)
+    return 1
+  }
+  print(
+    [
+      `Invited ${email}${values.admin ? ' as an Admin' : ''}. Send them this link; it works until ${result.expiresAt}:`,
+      result.link,
+    ],
+    result,
+  )
   return 0
 }

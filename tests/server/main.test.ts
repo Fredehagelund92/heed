@@ -49,6 +49,6 @@ describe('the service entry point', { timeout: 30_000 }, () => {
   it('refuses to start with invalid configuration and says why', async () => {
     const server = start({ NODE_ENV: 'production', DATABASE_URL: 'postgres://localhost/x' })
     expect(await server.exited).toBe(1)
-    expect(server.output()).toContain('CL_AUTH: Dev sign-in is refused when NODE_ENV=production')
+    expect(server.output()).toContain('CL_OIDC_ISSUER: Required when CL_AUTH=oidc')
   })
 })

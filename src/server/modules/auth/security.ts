@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify'
 import { ORPCError } from '@orpc/client'
 import { refusals } from '../../../contract/refusals.ts'
-import type { Session } from './dev-sign-in.ts'
+import type { Session } from './sessions.ts'
 
 /** Full origin comparison includes scheme and port; proxy headers never establish trust. */
 export function checkMutation(

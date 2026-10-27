@@ -94,3 +94,14 @@ export type AssignmentInput = z.infer<typeof assignmentInputSchema>
 export type GrantChange = z.infer<typeof grantChangeSchema>
 export type ApplyGrantsInput = z.infer<typeof applyGrantsSchema>
 export type GrantsApplied = z.infer<typeof grantsAppliedSchema>
+/**
+ * How this workspace signs people in (CL_AUTH, FR-416): with the company's OpenID Connect
+ * provider, or the picker (`dev` locally, `demo` for demos). For `oidc`, the provider's name for
+ * the button and the address that starts a sign-in (add `returnTo` with a path of the web app).
+ */
+export const signInMethodSchema = z.object({
+  method: z.enum(['dev', 'demo', 'oidc']),
+  name: z.nullable(z.string()),
+  start: z.nullable(z.string()),
+})
+export type SignInMethod = z.infer<typeof signInMethodSchema>

@@ -519,7 +519,7 @@ Each section has its own table. Priority is *First build* or *Later*.
 | FR-413 | The MCP server must offer no tool without sign-in. In the first build it runs locally. Reach from the internet over public HTTPS belongs to the hosting stage. [OQ-4] | First build | Kept |
 | FR-414 | Access to tools must depend on three scopes: read, feedback and propose. | First build | Kept |
 | FR-415 | Every list or search tool must limit the size of a response and must support paging. This includes neighbour lists. | First build | Kept |
-| FR-416 | The system must support sign-in with any OpenID Connect provider, with a mapping from the provider's groups to the roles Admin and Member. The demo person picker must work only in demo mode. | First build | New |
+| FR-416 | The system must support sign-in with any OpenID Connect provider, with a mapping from the provider's groups to the roles Admin and Member. The demo person picker must work only in demo mode, and production must refuse it. A person may sign in when their account is linked, when they are active or invited and the provider has verified their address, or when they are in a mapped group; everyone else must get the same refusal. A browser session must end after an idle limit and at an absolute end (12 hours and 7 days by default). | First build | New |
 | FR-417 | An administrator must be able to invite people by email address with a role and the domains they own. An invite is accepted on first sign-in, and can be resent or revoked. | First build | New |
 
 ### 5.5 Testing changes

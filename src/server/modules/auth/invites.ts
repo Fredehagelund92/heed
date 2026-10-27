@@ -2,8 +2,10 @@ import { createHash, randomBytes } from 'node:crypto'
 import { ORPCError } from '@orpc/client'
 import {
   INVITE_DAYS,
+  inviteLinkOf,
   type CreateInvitesInput,
   type Invite,
+  type InviteLookup,
   type InviteResent,
   type InvitesCreated,
 } from '../../../contract/members.ts'
@@ -23,8 +25,7 @@ const newToken = () => randomBytes(32).toString('base64url')
 export const inviteTokenHash = (token: string) => createHash('sha256').update(token).digest('hex')
 
 /** Where an invite's link leads: the sign-in screen of the web app, which names the invite. */
-export const inviteLink = (webOrigin: string, token: string) =>
-  `${webOrigin}/#/signin?invite=${encodeURIComponent(token)}`
+export const inviteLink = inviteLinkOf
 
 const iso = (column: string) =>
   `to_char(${column} at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`
@@ -203,4 +204,26 @@ async function record(tx: Queryable, action: string, invite: Invite) {
      values(cl_person(),'person',$1,'invite',$2,$3::jsonb,'named')`,
     [action, invite.id, JSON.stringify({ role: invite.role, areas: invite.areaIds })],
   )
+}
+
+/**
+ * What an invite link says on the sign-in screen, by its token: the address, the role and the
+ * domains still there, while the invite is open and in time. Every other token, whatever the
+ * reason (never sent, sent again since, taken back, used, too old), gets the same answer.
+ */
+export async function lookupInvite(tx: Queryable, token: string): Promise<InviteLookup> {
+  const [row] = await tx.query<{
+    email: string
+    role: InviteLookup['role']
+    areas: InviteLookup['areas']
+    expiresAt: string
+  }>(
+    `select email, role, areas, ${iso('expires_at')} as "expiresAt" from auth.invite_by_token($1)`,
+    [inviteTokenHash(token)],
+  )
+  if (!row)
+    throw new ORPCError('NOT_FOUND', {
+      message: "This invite link doesn't work any more. Ask whoever invited you for a new one.",
+    })
+  return row
 }

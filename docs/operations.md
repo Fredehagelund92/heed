@@ -62,10 +62,12 @@ label counts exactly, for operators holding the metrics token, unlike Health and
 
 Configuration comes from the environment, read once at start-up by
 `src/server/config/env.ts`; `.env.example` lists every variable. The service refuses to start
-and names each bad variable when one is wrong. `CL_AUTH=dev` (the only sign-in mode for now) is
-refused when `NODE_ENV=production`. Allowed identities come from `CL_DEV_PEOPLE_FILE`
-(default `db/seed/people.local.yml`). Requests need an explicit cookie sign-in; the old
-`CL_DEV_PERSON` setting no longer signs requests in.
+and names each bad variable when one is wrong. `CL_AUTH` is `oidc` (company sign-in with
+OpenID Connect, the default in production; set up as docs/ai-sign-in.md says), `dev` (the
+default elsewhere) or `demo`: both pick a person from `CL_DEV_PEOPLE_FILE` (default
+`db/seed/people.local.yml`), and production refuses both. Requests need an explicit cookie
+sign-in; the old `CL_DEV_PERSON` setting no longer signs requests in. A browser session ends after
+`CL_SESSION_IDLE_HOURS` unused (12) and `CL_SESSION_MAX_DAYS` after sign-in (7).
 `CL_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
 `CL_PRODUCT_NAME` (default `Heed`) is the name the app, the help pages and the assistant's text
 say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is

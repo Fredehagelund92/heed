@@ -31,6 +31,8 @@ describe('loadConfig', () => {
         connectionDays: 30,
       },
       auth: 'dev',
+      oidc: null,
+      sessions: { idleHours: 12, maxDays: 7 },
       devPeopleFile: 'db/seed/people.local.yml',
       webOrigins: ['http://localhost:5173', 'http://localhost:4173'],
       fixedToday: undefined,
@@ -136,10 +138,82 @@ describe('loadConfig', () => {
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/)
   })
 
-  it('refuses dev sign-in in production', () => {
+  it('refuses the dev and demo pickers in production, where OIDC is the default', () => {
+    for (const [auth, word] of [
+      ['dev', 'Dev'],
+      ['demo', 'Demo'],
+    ])
+      expect(() =>
+        loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production', CL_AUTH: auth }),
+      ).toThrow(`CL_AUTH: ${word} sign-in is refused when NODE_ENV=production; use CL_AUTH=oidc`)
     expect(() => loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production' })).toThrow(
-      /CL_AUTH: Dev sign-in is refused when NODE_ENV=production/,
+      /CL_OIDC_ISSUER: Required when CL_AUTH=oidc[\s\S]*CL_OIDC_CLIENT_ID: Required when CL_AUTH=oidc/,
     )
+    const production = loadConfig({
+      DATABASE_URL: databaseUrl,
+      NODE_ENV: 'production',
+      CL_OIDC_ISSUER: 'https://login.example.com/realms/acme',
+      CL_OIDC_CLIENT_ID: 'heed',
+    })
+    expect(production.auth).toBe('oidc')
+    expect(production.oidc).toEqual({
+      issuer: 'https://login.example.com/realms/acme',
+      clientId: 'heed',
+      clientSecretFile: null,
+      redirectUrl: 'http://localhost:3000/api/v1/auth/oidc/callback',
+      scopes: 'openid email profile',
+      groupsClaim: 'groups',
+      adminGroups: [],
+      memberGroups: [],
+      name: null,
+    })
+  })
+
+  it('reads the OIDC settings, and refuses a provider address that is not https', () => {
+    expect(
+      loadConfig({
+        DATABASE_URL: databaseUrl,
+        CL_AUTH: 'oidc',
+        CL_OIDC_ISSUER: 'https://idp.example.com',
+        CL_OIDC_CLIENT_ID: 'heed',
+        CL_OIDC_CLIENT_SECRET_FILE: '/run/secrets/oidc',
+        CL_OIDC_REDIRECT_URL: 'https://heed.example.com/api/v1/auth/oidc/callback',
+        CL_OIDC_SCOPES: 'openid  email profile groups',
+        CL_OIDC_ADMIN_GROUPS: 'heed-admins, platform',
+        CL_OIDC_MEMBER_GROUPS: 'everyone',
+        CL_OIDC_NAME: 'Okta',
+        CL_SESSION_IDLE_HOURS: '8',
+        CL_SESSION_MAX_DAYS: '30',
+      }),
+    ).toMatchObject({
+      auth: 'oidc',
+      oidc: {
+        clientSecretFile: '/run/secrets/oidc',
+        scopes: 'openid email profile groups',
+        adminGroups: ['heed-admins', 'platform'],
+        memberGroups: ['everyone'],
+        name: 'Okta',
+      },
+      sessions: { idleHours: 8, maxDays: 30 },
+    })
+    const oidc = { DATABASE_URL: databaseUrl, CL_AUTH: 'oidc', CL_OIDC_CLIENT_ID: 'heed' }
+    expect(() => loadConfig({ ...oidc, CL_OIDC_ISSUER: 'http://idp.example.com' })).toThrow(
+      /CL_OIDC_ISSUER: Expected https/,
+    )
+    expect(() =>
+      loadConfig({ ...oidc, CL_OIDC_ISSUER: 'https://idp.example.com', CL_OIDC_SCOPES: 'email' }),
+    ).toThrow(/CL_OIDC_SCOPES: Expected openid/)
+    expect(() =>
+      loadConfig({
+        DATABASE_URL: databaseUrl,
+        CL_SESSION_IDLE_HOURS: '48',
+        CL_SESSION_MAX_DAYS: '1',
+      }),
+    ).toThrow(/CL_SESSION_IDLE_HOURS/)
+    expect(loadConfig({ DATABASE_URL: databaseUrl, CL_AUTH: 'demo' })).toMatchObject({
+      auth: 'demo',
+      oidc: null,
+    })
   })
 
   it('reads the dev people file and a fixed day, and refuses bad values', () => {

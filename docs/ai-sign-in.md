@@ -181,14 +181,140 @@ token it signed is refused at once, and apps get new ones with their refresh tok
 
 Known limits of the first build: disconnecting refuses access tokens at once only in the process
 that disconnected (one process today; several instances need a shared list, or they wait out the
-ten minutes); rate counts live in one process; a deactivated person's access token works until it
-expires (at most ten minutes), and their refresh fails. After a restart the service reads the
+ten minutes); rate counts live in one process. Removing a person from the workspace ends their
+connections in the same step (`person_inactive`), so their access tokens are refused at once. After a restart the service reads the
 disconnects of the last eleven minutes; until it has, it refuses every access token issued before
 it started (apps get new ones with their refresh tokens), and it tries again every 30 seconds.
 
+## Signing in to the web app with your company's provider (OIDC)
+
+People sign in to the web app with the company's OpenID Connect provider (FR-416): Okta, Microsoft
+Entra ID, Google, Keycloak, Auth0 or any other that publishes a discovery document. There is no
+provider-specific code. SAML providers work through an OIDC broker (Keycloak, Dex, or the
+provider's own OIDC bridge); Heed speaks OIDC only. The agent sign-in above then signs a person in
+through the same web session.
+
+### Set it up
+
+1. At the provider, register a web application: the authorization code flow, the redirect address
+   `https://<your Heed address>/api/v1/auth/oidc/callback` (or the one in `CL_OIDC_REDIRECT_URL`),
+   and the scopes `openid email profile` (add the provider's groups scope for group mapping).
+   Either a public client (PKCE, no secret) or a confidential one with a secret.
+2. Set `CL_AUTH=oidc` (the default in production), `CL_OIDC_ISSUER` and `CL_OIDC_CLIENT_ID`. For a
+   confidential client, write the secret to a file only the service's user may read and name it:
+   `printf %s "$SECRET" > oidc-secret && chmod 600 oidc-secret`, then
+   `CL_OIDC_CLIENT_SECRET_FILE=oidc-secret`. The service refuses a file others may read, and never
+   reads the secret from an environment value.
+3. Invite the first admin: `DATABASE_URL_MIGRATE=<the owner's address> npm run heed -- invite
+you@company.example --admin` prints a link that works for a week. Or map an admin group
+   (`CL_OIDC_ADMIN_GROUPS`). After that, admins invite everyone else in Settings, People.
+4. Serve the web app and this service on the same host (one origin behind your proxy is simplest):
+   the session cookie the callback sets belongs to that host.
+
+| Variable                     | Default                                                        | Meaning                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `CL_AUTH`                    | `oidc` in production; `dev` elsewhere                          | `oidc`, or the picker from `CL_DEV_PEOPLE_FILE`: `dev` locally, `demo` for demos. Production refuses both pickers. |
+| `CL_OIDC_ISSUER`             | none (required for `oidc`)                                     | The provider's issuer, exactly as its discovery document names it.                                                 |
+| `CL_OIDC_CLIENT_ID`          | none (required for `oidc`)                                     | This app's client id at the provider.                                                                              |
+| `CL_OIDC_CLIENT_SECRET_FILE` | none: a public client                                          | An owner-only file (mode 0600) with a confidential client's secret.                                                |
+| `CL_OIDC_REDIRECT_URL`       | the origin of `MCP_RESOURCE_URL`, `/api/v1/auth/oidc/callback` | The redirect address registered at the provider.                                                                   |
+| `CL_OIDC_SCOPES`             | `openid email profile`                                         | What to ask for; `openid` is required.                                                                             |
+| `CL_OIDC_GROUPS_CLAIM`       | `groups`                                                       | The ID token claim that lists the person's groups.                                                                 |
+| `CL_OIDC_ADMIN_GROUPS`       | none                                                           | Groups whose members may sign in without an invite, as an Admin. Comma-separated.                                  |
+| `CL_OIDC_MEMBER_GROUPS`      | none                                                           | Groups whose members may sign in without an invite, as a Member. Comma-separated.                                  |
+| `CL_OIDC_NAME`               | "your company account"                                         | The provider's name on the sign-in button, such as Okta.                                                           |
+| `CL_SESSION_IDLE_HOURS`      | `12`                                                           | A browser session ends after this many hours unused.                                                               |
+| `CL_SESSION_MAX_DAYS`        | `7`                                                            | A browser session ends this many days after sign-in, used or not.                                                  |
+
+### Who may sign in
+
+- A person whose account at the provider is linked to them: the link is made at their first
+  sign-in and found by the provider's issuer and subject afterwards, so a changed address at the
+  provider still signs in the same person. Someone an admin removed is refused, until an admin
+  invites their address again: the invite, by the verified address, brings back the same person
+  on the same link.
+- An active person, or an address with an open invite, by an email address the provider says it
+  has verified (`email_verified`). The invite is accepted then: the person is made, with its role
+  and domains (Settings, People; FR-417).
+- A member of a mapped group: they join as a Member, or an Admin for the admin group. An Admin
+  role the admin group gave ends at a sign-in outside the group, unless no other admin would be
+  left; an Admin role given any other way is not the group's to end. Someone an admin removed does
+  not come back through a group, only on an admin's invite.
+
+Anyone else is sent back to the sign-in screen with one plain answer (`not_allowed`), the same
+whether the address is unknown, removed, or already linked to another account. People who
+signed in with the dev picker keep their rows and roles: their first OIDC sign-in by a verified
+address that matches links their account.
+
+### How a sign-in goes
+
+`GET /api/v1/auth/oidc/start?returnTo=<path>` reads the provider's discovery document (kept an
+hour), stores the sign-in for ten minutes (the SHA-256 of a random `state`, a random `nonce`, a
+PKCE verifier, the path to go back to) tied to this browser by the cookie `heed_oidc_browser`
+(HttpOnly, SameSite=Lax, on the callback's path, ten minutes), and sends the browser to the
+provider with `S256` as the PKCE method. The callback takes the stored sign-in by its state and
+deletes it whatever happens next, checks the browser cookie, the provider's `iss` (RFC 9207),
+exchanges the code with the verifier (and the secret, in the Authorization header, for a
+confidential client), and checks the ID token: its signature by the provider's published keys
+(RSA, RSA-PSS, ECDSA or EdDSA; never `none` or a shared-secret algorithm), the issuer, the audience
+(this client), the authorized party when there are several audiences, the expiry and issue time
+(a minute of clock skew), and the nonce. It then makes a new session, ends the one the browser had,
+and sends the browser to the path it started from on the first `CL_WEB_ORIGINS` origin, or to
+`/#/signin?error=<reason>` with `cancelled`, `expired`, `unavailable`, `failed`,
+`email_unverified` or `not_allowed`.
+
+`GET /api/v1/auth/methods` tells the sign-in screen which way this install signs in;
+`GET /api/v1/invites/lookup?token=` tells it what an invite link says (the address, the role, the
+domains), and answers every other link alike.
+
+### Threat note: company sign-in
+
+- **Stolen or replayed authorization code.** Useless without the PKCE verifier, which never leaves
+  the server; the provider takes a code once. The callback's address, which holds the code, sends
+  no referrer and is never cached; logs drop query strings.
+- **Login CSRF and a sign-in finished in someone else's browser.** The stored sign-in is found by
+  its random state and must come back to the browser that started it (its cookie's SHA-256); it is
+  deleted at first use, so a replay, a link sent to someone else or a second tab is refused.
+- **Token substitution and replay.** The nonce in the ID token must be the one stored for this
+  sign-in; the audience must be this client and, with several audiences, the authorized party too.
+- **Mix-up attack.** The provider's `iss` with the code must be the configured issuer, and is
+  required when the provider says it sends one.
+- **Forged ID token.** Only keys from the provider's key set (read again once when a token names
+  an unknown key), only asymmetric algorithms the provider lists; `alg: none`, HMAC, a foreign key,
+  another issuer and an expired token are refused.
+- **Session fixation.** Every sign-in makes a new session token and CSRF token and ends the
+  session the browser had; a session id planted before sign-in is worth nothing after it.
+- **Session theft.** The session cookie is HttpOnly, SameSite=Strict, Secure when the redirect
+  address is https, and kept only as its SHA-256. A session ends after the idle limit and at its
+  absolute end, and at once when the person is removed; every change still needs the session's
+  CSRF token and an allowed origin.
+- **Account takeover by email.** An address is trusted only when the provider says it is verified,
+  and once an account is linked the person is found by the provider's subject, never by address
+  again; another account with the same address is refused.
+- **Who is invited, who is in (enumeration).** Every refused person gets the same answer; an
+  invite link's lookup answers the same for every token that does not open an invite; invites are
+  accepted only by the verified address they name.
+- **Privilege from stale invites and groups.** An invite gives only what its sender may still give
+  when it is accepted; an Admin role from the admin group ends when the person leaves the group.
+- **Open redirect.** The callback goes back only to a path on the first web origin; anything else
+  goes to `/`.
+- **Secret handling.** The client secret is read from an owner-only file at start and never
+  logged; an operator invite needs the database owner's credential. Sign-in log lines
+  (`event: web_sign_in`) carry the result and a reason code only, never a code, a token, a state,
+  an address or an account.
+- **Server-side request forgery.** The service calls only the configured issuer's discovery
+  document and the addresses it names, over https (http on this computer only, for tests), without
+  redirects, with a time limit.
+
+Known limits: signing out ends the Heed session, not the session at the provider; the provider's
+groups are read from the ID token only (not the userinfo endpoint), so a provider that sends them
+elsewhere needs a claim mapping there; a provider that never says an address is verified (some
+directories leave `email_verified` out of the ID token) signs nobody in, because Heed links no
+account by an unverified address, and trusting such a provider's addresses would be a setting to
+add; audience groups for items (FR-405) are not read from the provider yet.
+
 ## Out of scope
 
-A company identity provider (OpenID Connect) as the identity connector; the Connect page's
-content; hosting and reach from the internet over public HTTPS (FR-413, OQ-4); private-use URI
+The Connect page's content; hosting and reach from the internet over public HTTPS (FR-413, OQ-4); private-use URI
 schemes for redirects; confidential clients and `private_key_jwt`; token introspection;
 per-app scopes or tools beyond the shared `signed-in` client policy.

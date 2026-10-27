@@ -1,10 +1,19 @@
-import { createHash, randomBytes } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { parse } from 'yaml'
 import * as z from 'zod'
-import type { Principal, SignInPerson } from '../../../contract/auth.ts'
+import type { SignInPerson } from '../../../contract/auth.ts'
 import type { Queryable } from '../../db/database.ts'
-import { initialsOf, toPerson } from './people.ts'
+import { initialsOf } from './people.ts'
+import {
+  currentSession,
+  defaultLifetime,
+  endSession,
+  principalFor,
+  startSession,
+  type Session,
+  type SessionLifetime,
+  type SessionMethod,
+} from './sessions.ts'
 
 const personSchema = z
   .object({
@@ -24,48 +33,20 @@ export type DevPerson = z.infer<typeof personSchema>
 export async function readDevPeople(path: string): Promise<DevPerson[]> {
   return peopleSchema.parse(parse(await readFile(path, 'utf8')))
 }
-export const SESSION_COOKIE = 'heed_session'
-export function sessionToken(cookie: string | undefined): string | undefined {
-  const values =
-    cookie
-      ?.split(';')
-      .map((v) => v.trim())
-      .filter((v) => v.startsWith(`${SESSION_COOKIE}=`)) ?? []
-  if (values.length !== 1) return undefined
-  const token = values[0]!.slice(SESSION_COOKIE.length + 1)
-  return /^[a-f0-9]{64}$/.test(token) ? token : undefined
-}
-const hash = (token: string) => createHash('sha256').update(token).digest('hex')
-export const sessionCookie = (token: string, secure: boolean, age = 28800) =>
-  `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secure ? '; Secure' : ''}`
-
-/** The person of a live session, or null; one indexed read, without the person's roles. */
-export async function sessionPersonId(
-  tx: Queryable,
-  cookie: string | undefined,
-): Promise<string | null> {
-  const token = sessionToken(cookie)
-  if (!token) return null
-  const [row] = await tx.query<{ personId: string }>(
-    'select person_id::text as "personId" from auth.sessions where token_hash=$1 and expires_at > now()',
-    [hash(token)],
-  )
-  return row?.personId ?? null
-}
-
-export interface Session {
-  person: Principal
-  csrfToken: string
-}
 export interface SignIn {
+  /** How this install signs people in (CL_AUTH). */
+  readonly method: SessionMethod
+  readonly lifetime: SessionLifetime
   people: readonly DevPerson[]
   /**
    * Who the sign-in screen offers, in the file's order, with the roles each holds now and the
-   * domains of those roles. A person not signed in yet shows the roles the file gives them.
+   * domains of those roles. A person not signed in yet shows the roles the file gives them. None
+   * when people sign in with their company's provider.
    */
   choices(tx: Queryable): Promise<SignInPerson[]>
   initialize(tx: Queryable): Promise<void>
   currentSession(tx: Queryable, cookie: string | undefined): Promise<Session | null>
+  /** The picker's sign-in, by email; null when there is no picker or nobody by that address. */
   signIn(
     tx: Queryable,
     email: string,
@@ -79,40 +60,24 @@ export interface SignIn {
   groups(tx: Queryable, personId: string): Promise<readonly string[]>
 }
 /**
- * A person with the roles they hold now, as columns of one row: every request reads it before it
- * does anything else, so it is one round trip, not one per kind of role.
+ * The picker (CL_AUTH=dev, or demo for demos): a person chooses whom to be from a local file.
+ * Refused in production, where people sign in with their company's provider.
  */
-const principalColumns = `p.id::text as id, p.display_name as name,
-  coalesce((select array_agg(g.role::text order by g.role) from global_role_grants g
-             where g.person_id=p.id and g.valid_at @> now()), '{}') as roles,
-  coalesce((select json_agg(json_build_object('areaId', a.area_id, 'role', a.role) order by a.area_id, a.role)
-             from area_assignments a where a.person_id=p.id and a.valid_at @> now()), '[]') as assignments`
-const activePerson = 'p.deactivated_at is null and p.erased_at is null'
-type PrincipalRow = {
-  id: string
-  name: string
-  roles: Principal['permissions']['roles']
-  assignments: Principal['permissions']['assignments']
-}
-const toPrincipal = (row: PrincipalRow): Principal => ({
-  ...toPerson(row),
-  permissions: { roles: row.roles, assignments: row.assignments },
-})
-
-export async function principalFor(tx: Queryable, id: string): Promise<Principal | null> {
-  const [row] = await tx.query<PrincipalRow>(
-    `select ${principalColumns} from people p where p.id=$1 and ${activePerson}`,
-    [id],
-  )
-  return row ? toPrincipal(row) : null
-}
 export function createDevSignIn(
   people: readonly DevPerson[],
   nodeEnv = process.env.NODE_ENV,
+  options: { method?: 'dev' | 'demo'; lifetime?: SessionLifetime } = {},
 ): SignIn {
-  if (nodeEnv === 'production') throw new Error('Dev sign-in is refused when NODE_ENV=production')
+  const method = options.method ?? 'dev'
+  if (nodeEnv === 'production')
+    throw new Error(
+      `${method === 'dev' ? 'Dev' : 'Demo'} sign-in is refused when NODE_ENV=production`,
+    )
+  const lifetime = options.lifetime ?? defaultLifetime
   const allowed = people.length ? peopleSchema.parse(people) : []
   const auth: SignIn = {
+    method,
+    lifetime,
     people: allowed,
     async choices(tx) {
       const known = await tx.query<{ id: string; email: string; name: string }>(
@@ -161,18 +126,7 @@ export function createDevSignIn(
           person.roles,
         ])
     },
-    async currentSession(tx, cookie) {
-      const token = sessionToken(cookie)
-      if (!token) return null
-      // The session and its person in one read, as every request starts with it.
-      const [row] = await tx.query<PrincipalRow & { csrfToken: string }>(
-        `select s.csrf_token as "csrfToken", ${principalColumns}
-           from auth.sessions s join people p on p.id=s.person_id and ${activePerson}
-          where s.token_hash=$1 and s.expires_at > now()`,
-        [hash(token)],
-      )
-      return row ? { person: toPrincipal(row), csrfToken: row.csrfToken } : null
-    },
+    currentSession: (tx, cookie) => currentSession(tx, cookie, lifetime),
     async signIn(tx, email, cookie) {
       if (!allowed.some((p) => p.email === email)) return null
       await auth.initialize(tx)
@@ -183,21 +137,9 @@ export function createDevSignIn(
       if (!row) return null
       const person = await principalFor(tx, row.id)
       if (!person) return null
-      await auth.signOut(tx, cookie)
-      await tx.query('delete from auth.sessions where expires_at <= now()')
-      const token = randomBytes(32).toString('hex')
-      const csrfToken = randomBytes(32).toString('hex')
-      await tx.query(
-        "insert into auth.sessions(token_hash,person_id,csrf_token,expires_at) values($1,$2,$3,now()+interval '8 hours')",
-        [hash(token), person.id, csrfToken],
-      )
-      await tx.query('update people set last_signed_in_at=now() where id=$1', [person.id])
-      return { token, session: { person, csrfToken } }
+      return startSession(tx, person, method, lifetime, cookie)
     },
-    async signOut(tx, cookie) {
-      const token = sessionToken(cookie)
-      if (token) await tx.query('delete from auth.sessions where token_hash=$1', [hash(token)])
-    },
+    signOut: endSession,
     groups: () => Promise.resolve([]),
   }
   return auth
