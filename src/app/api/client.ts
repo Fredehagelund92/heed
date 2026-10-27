@@ -117,8 +117,16 @@ export type Inbox = {
    * seconds, or they marked it read. Only these can be published together.
    */
   reviewed: Record<string, boolean>
-  /** This week's questions from agents, as counts: no question text, no names. */
-  week: { asked: number; found: number; nothing: number; mostAbout: string }
+  /**
+   * This week's questions from agents, as counts: no question text, no names. A count under the
+   * minimum is null, and so is what most questions that found nothing were about.
+   */
+  week: {
+    asked: number | null
+    found: number | null
+    nothing: number | null
+    mostAbout: string | null
+  }
   /** The comments that mention the person and that they haven't read, with what they hang on. */
   mentions: (MentionNote & { title: string })[]
 }

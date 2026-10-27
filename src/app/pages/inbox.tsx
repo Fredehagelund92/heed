@@ -422,7 +422,8 @@ function useActions(card: InboxCard) {
           ? navigate(`/inbox/${card.id}/review`)
           : navigate('/context/new', { metric: card.gap?.scope[0], market: card.gap?.scope[1] })
       case 'flag':
-        return openDock('context', card.factId, { flag: card.id })
+        // A report that names no context item has one thing to decide.
+        return card.factId ? openDock('context', card.factId, { flag: card.id }) : notAProblem()
       case 'look':
         return navigate(`/observability/quality?domain=${card.domain}`)
       case 'check':
@@ -439,6 +440,13 @@ function useActions(card: InboxCard) {
         })
     }
   }
+  function notAProblem() {
+    run({
+      outcome: 'Not a problem',
+      message: 'Report closed',
+      description: 'The context item stays as it is.',
+    })
+  }
   const secondary: Record<string, () => void> = {
     'Not something we write down': () =>
       run({
@@ -446,12 +454,7 @@ function useActions(card: InboxCard) {
         message: 'Closed',
         description: 'Agents keep saying honestly that nothing is written down.',
       }),
-    'Not a problem': () =>
-      run({
-        outcome: 'Not a problem',
-        message: 'Report closed',
-        description: 'The context item stays as it is.',
-      }),
+    'Not a problem': notAProblem,
     Edit: () => navigate(`/context/${card.factId}/edit`),
     Archive: () =>
       run({
@@ -462,7 +465,7 @@ function useActions(card: InboxCard) {
       }),
   }
   // Only what writes needs the connection; Review and Edit only open a page.
-  const writes = card.type === 'check'
+  const writes = card.type === 'check' || (card.type === 'flag' && !card.factId)
   return { primary, secondary, online, writes }
 }
 
@@ -486,7 +489,9 @@ function from(card: InboxCard) {
       ? `From an agent, sent with ${s.from}'s OK.`
       : `From ${s.from}, ${s.via === 'editor' ? 'written in the editor' : `from ${s.via}`}.`
   if (card.flag)
-    return `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
+    return card.flag.by
+      ? `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
+      : 'From a chat with an agent. Only the words that were sent are kept, not who sent them.'
   if (card.look) return 'From an alert, after the check that runs after every change.'
   return 'From an automatic check.'
 }
@@ -963,11 +968,16 @@ function Setup() {
 /** What agents asked this week, in counts only: the quiet sign that it is working. */
 function WeekLine() {
   const { week } = useInbox()
+  if (week.asked === 0) return <>Agents asked nothing this week.</>
+  if (week.asked === null) return <>This week agents asked fewer than 5 times.</>
+  if (week.found === null || week.nothing === null)
+    return <>This week agents asked {week.asked} times.</>
+  const most = week.mostAbout ? `, most about ${week.mostAbout}` : ''
   return (
     <>
       <span className="max-sm:hidden">
         This week agents asked {week.asked} times. {week.found} found checked context;{' '}
-        {week.nothing} found nothing written down, most about {week.mostAbout}.
+        {week.nothing} found nothing written down{most}.
       </span>
       <span className="sm:hidden">
         Agents asked {week.asked} times this week; {week.nothing} found nothing written down.

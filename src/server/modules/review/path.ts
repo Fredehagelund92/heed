@@ -117,6 +117,16 @@ export function createReviewPath(
     return row?.id ?? null
   }
 
+  /** The version of an item agents got last, live or not. */
+  async function lastServedId(itemId: string): Promise<string | null> {
+    const [row] = await tx.query<{ id: string }>(
+      `select version_id::text as id from item_version_service where item_id=$1
+        order by lower(editions) desc limit 1`,
+      [itemId],
+    )
+    return row?.id ?? null
+  }
+
   /** A version as the difference reads it, its scope in the names agents know. */
   function sideOf(v: ItemVersion, bundle: Pick<ServingBundle, 'terms'>): DocSide {
     const name = (key: string) => bundle.terms.find((t) => t.key === key)?.name ?? key
@@ -151,7 +161,10 @@ export function createReviewPath(
     const bundle = await liveBundle()
     const gapId = await gapOf(p)
     if (p.action === 'retire') {
-      const live = p.itemId ? await liveVersionId(tx, p.itemId) : null
+      // Once archived, the item is no longer live: the review shows the version it archived.
+      const live = p.itemId
+        ? ((await liveVersionId(tx, p.itemId)) ?? (await lastServedId(p.itemId)))
+        : null
       const version = live ? await stored(live) : null
       if (!version) throw new ORPCError('NOT_FOUND')
       const without: ServingBundle = {
@@ -183,13 +196,19 @@ export function createReviewPath(
     })
     const scope = ownScope(candidate, after.itemId)
     // A clash: a live item agents would get in the same answer, that the suggestion neither
-    // changes nor already names as replaced or conflicting (FR-225, decided 26 October 2026).
+    // changes nor already names as replaced or conflicting (FR-225, decided 26 October 2026). An
+    // edit whose difference is only formatting, only order or only dates is no clash and has no
+    // clash check; an edit that changes anything else besides still has one.
     const named = new Set([after.itemId, ...after.version.replaces, ...after.version.conflicts])
-    const clashes = scope
-      ? answer(candidate as AnswerBundle, { scope }, { today: clock.today() })
-          .items.map((item) => item.id)
-          .filter((id) => !named.has(id))
-      : []
+    const only = before
+      ? docDiff(sideOf(before.version, candidate), sideOf(after.version, candidate)).only
+      : null
+    const clashes =
+      scope && only !== 'formatting' && only !== 'order' && only !== 'dates'
+        ? answer(candidate as AnswerBundle, { scope }, { today: clock.today() })
+            .items.map((item) => item.id)
+            .filter((id) => !named.has(id))
+        : []
     return {
       p,
       mode: before ? ('edit' as const) : ('new' as const),

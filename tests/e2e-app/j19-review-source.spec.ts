@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { expect, go, test } from './go.ts'
 
 // J19, the Source view: a labelled toggle named "View source"; removed lines before added ones,
 // and inside them only the changed words marked.

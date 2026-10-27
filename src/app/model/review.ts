@@ -1,3 +1,5 @@
+import type { AnswerState } from './ask'
+
 // A suggestion's review as the app reads it (src/app/api): the change split into blocks by kind,
 // what agents say before and after, and what to watch for. Pure types and the rules that follow
 // from a review's fields; in Heed the blocks come from diffing the parsed document (words,
@@ -60,10 +62,14 @@ export type Block =
       field: string
       before: string
       after: string
-      span: { from: number; was: number; now: number }
+      /**
+       * The days of the month it starts, ended and now ends, for the small timeline; left out
+       * when the change spans more than one month.
+       */
+      span?: { from: number; was: number; now: number; month: string }
     }
 
-export type Answer = { state: 'grounded' | 'missing' | 'conflict'; text: string }
+export type Answer = { state: AnswerState; text: string }
 
 export type Review = {
   /** The Inbox card this review is for. */
@@ -108,6 +114,13 @@ export type Review = {
   tryIt: { question: string; before: Answer; after: Answer; reach: number }
   /** The stored markdown, for the Source view. */
   source: { before: string; after: string }
+  /**
+   * The Ready line as the service says it, where the service decides the publish rules: it holds
+   * over the one worked out here from the fields above.
+   */
+  ready?: Readiness
+  /** How long the change must be on screen to count as read, as the service says it. */
+  readMs?: number
 }
 
 /** Needs care before publishing: an unverified claim, or a clash with live context. */
@@ -131,7 +144,7 @@ export function careLine(r: Review) {
  * second and a half for a date to eight seconds for a long rewording.
  */
 export const readTime = (r: Review) =>
-  Math.min(8000, Math.max(1500, 1000 + 12 * r.source.after.length))
+  r.readMs ?? Math.min(8000, Math.max(1500, 1000 + 12 * r.source.after.length))
 
 /** An edit's new numbers and dates that come without a source: no new source page came with them. */
 function unsourced(r: Review) {
@@ -155,6 +168,8 @@ export type Readiness = { ok: boolean; title: string; text: string; bulk: boolea
  * answer to a clash, once given.
  */
 export function readiness(r: Review, relation?: { hint: string } | null): Readiness {
+  // The service's line, unless the owner has just answered a clash here: Publish then sends it.
+  if (r.ready && !(r.clash && relation)) return r.ready
   const n = claimsToCheck(r)
   const no = (x: Omit<Readiness, 'bulk'>): Readiness => ({ ...x, bulk: false })
   if (r.drafted)

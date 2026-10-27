@@ -97,10 +97,13 @@ export function createInboxFeedService(
       id: string
       at: string
       opened: boolean
+      read: boolean
       name: string | null
     }>(
       `select p.id::text, coalesce(p.submitted_at,p.created_at)::text as at,
               exists(select 1 from review_reads r where r.proposal_id=p.id and r.person_id=cl_person()) as opened,
+              exists(select 1 from review_reads r where r.proposal_id=p.id and r.person_id=cl_person()
+                        and r.read_at is not null and r.item_version_id is not distinct from p.item_version_id) as read,
               (select display_name as name from people where id=p.proposer_id) as name
          from proposals p
         where p.subject='item' and p.state in ('submitted','in_review') and p.discarded_at is null
@@ -126,6 +129,7 @@ export function createInboxFeedService(
         itemId: p.itemId,
         from: { personId: p.proposerId, name: row.name },
         writtenBy: p.provenance?.by ?? null,
+        read: row.read,
         care,
       })
     }
@@ -303,6 +307,7 @@ export function createInboxFeedService(
         itemId: p.itemId,
         from: { personId: p.proposerId, name: null },
         writtenBy: p.provenance?.by ?? null,
+        read: false,
         care: { claims: 0, clash: false },
       })
     }

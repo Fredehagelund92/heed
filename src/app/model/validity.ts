@@ -4,14 +4,21 @@
 // to the real data is a change of source, not of every screen.
 
 import type { Validity as ServerValidity } from '@domain/item'
+import { shiftDate } from '@domain/validity'
 
-/** When a context item applies: ISO dates, either open. `ongoing` says an open end is still going on. */
+/**
+ * When a context item applies: ISO dates, either open. `until` is the last day it applies, as
+ * "12 to 19 May 2026" reads. `ongoing` says an open end is still going on.
+ */
 export type Validity = { from?: string; until?: string; ongoing?: boolean }
 
-/** The same window in the server's words: `from` is its start and `until` its end; both stay open when absent. */
+/**
+ * The same window in the server's words: `from` is its start, and its end is the first day it no
+ * longer applies, the day after `until`; both stay open when absent.
+ */
 export const toServerValidity = (v: Validity): Partial<ServerValidity> => ({
   ...(v.from ? { start: v.from } : {}),
-  ...(v.until ? { end: v.until } : {}),
+  ...(v.until ? { end: shiftDate(v.until, 1) } : {}),
 })
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

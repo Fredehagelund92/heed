@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { go } from './go.ts'
+import type { Page } from '@playwright/test'
+import { card, cardIn, expect, go, settle, test } from './go.ts'
 
 // J15, "Publish the ones you've read": opening and leaving is not reading. The whole change on
 // screen for a few seconds, or Mark as read, is. Bulk publish lists what it publishes, and Undo
@@ -27,10 +27,10 @@ test('opening and leaving does not count as read', async ({ page }) => {
   await hold(page)
   await page.clock.runFor(1000)
   await page.keyboard.press('j')
-  await expect(page).toHaveURL(/sug-ines-long/)
+  await expect(page).toHaveURL(new RegExp(cardIn('sug-ines-long')))
   await page.clock.runFor(1000)
   await page.keyboard.press('j')
-  await expect(page).toHaveURL(/sug-ines-dates/)
+  await expect(page).toHaveURL(new RegExp(cardIn('sug-ines-dates')))
   await expect(bulk(page)).toHaveText('Read one to publish it')
 })
 
@@ -47,7 +47,7 @@ test('a few seconds on the whole change counts; bulk lists them, and Undo restor
   ).toBeVisible()
   // The link change in between needs its own look: it is never part of the bulk.
   await page.keyboard.press('j')
-  await expect(page).toHaveURL(/sug-ines-link/)
+  await expect(page).toHaveURL(new RegExp(cardIn('sug-ines-link')))
   await expect(page.getByRole('button', { name: 'Mark as read' })).toHaveCount(0)
   await page.keyboard.press('j')
   await page.getByRole('button', { name: 'Mark as read' }).click()
@@ -59,11 +59,11 @@ test('a few seconds on the whole change counts; bulk lists them, and Undo restor
     /What to rule out before explaining a jump in Gross margin/,
   ])
   await confirm.getByRole('button', { name: 'Publish 2' }).click()
-  await page.clock.runFor(700)
+  await settle(page, 700)
   await expect(page.getByText('Published 2')).toBeVisible()
   await expect(page.getByRole('button', { name: /^Done / })).toHaveCount(2)
   await page.getByRole('button', { name: 'Undo' }).click()
-  await page.clock.runFor(500)
+  await settle(page, 500)
   await expect(page.getByRole('button', { name: /^Done / })).toHaveCount(0)
   await expect(page.getByText('Published, just now')).toHaveCount(0)
   await expect(page.getByText('Back: 2 waiting again')).toBeVisible()
@@ -76,16 +76,16 @@ test('the ones opened but not yet counted can be marked read at once', async ({ 
   await go(page, '/inbox/sug-ines-order/review')
   await hold(page)
   await page.keyboard.press('j')
-  await expect(page).toHaveURL(/sug-ines-long/)
+  await expect(page).toHaveURL(new RegExp(cardIn('sug-ines-long')))
   await page.getByRole('button', { name: "Mark the 2 I've opened as read" }).click()
   await expect(bulk(page)).toHaveText("Publish the 2 you've read")
 })
 
 test("the Inbox's dot goes once a card is opened", async ({ page }) => {
   await go(page, '/inbox?card=sug-ines-link')
-  const row = page.locator('[data-row="sug-ines-link"]')
+  const row = page.locator(`[data-row="${card('sug-ines-link')}"]`)
   await expect(row.getByLabel('Not opened yet')).toHaveCount(0)
-  const other = page.locator('[data-row="sug-ines-order"]')
+  const other = page.locator(`[data-row="${card('sug-ines-order')}"]`)
   await expect(other.getByLabel('Not opened yet')).toHaveCount(1)
   await go(page, '/inbox/sug-ines-order/review')
   // The change's heading, not the read line: that one goes once the change counts as read.

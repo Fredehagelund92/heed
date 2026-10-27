@@ -342,6 +342,61 @@ jobs:
             test-results/e2e-app
           retention-days: 7
 
+  golden-http:
+    # The golden job specs whose screens are wired (tests/e2e-app), in http mode: an http mode
+    # build of the new web app against the service and the mockup's demo week, on a PostgreSQL 18
+    # container. Each journey copies the demo week from a template, so they run one at a time.
+    name: 'New app: golden job specs in http mode (PostgreSQL 18, Playwright)'
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # The container's superuser creates the roles and the template; each journey's service takes
+    # the application role.
+    env:
+      GOLDEN_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Playwright's browser, cached by the lockfile
+        id: browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: Golden job specs in http mode
+        run: npm run test:e2e:golden-http
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-report-golden-http
+          path: |
+            playwright-report/golden-http
+            test-results/golden-http
+          retention-days: 7
+
   mockup:
     # The clickable mockup in apps/mockup, its own npm package with its own lockfile. It runs when
     # the mockup changes and in every full run, once apps/mockup exists.
@@ -393,7 +448,8 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, check, seal, service, library-api, storybook, e2e, app, mockup, security]
+    needs:
+      [scope, check, seal, service, library-api, storybook, e2e, app, golden-http, mockup, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -421,6 +477,7 @@ jobs:
           expect storybook "$APP"
           expect e2e "$APP"
           expect app "$APP"
+          expect golden-http "$APP"
           expect mockup "$MOCKUP"
           if [ "$failed" = true ]; then
             echo "::error::A job failed, was cancelled, or did not run when it should have."

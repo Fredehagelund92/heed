@@ -39,6 +39,8 @@ export const cardSchema = z.union([
     itemId: z.nullable(z.string()),
     from: z.object({ personId: z.string(), name: z.nullable(z.string()) }),
     writtenBy: z.nullable(z.enum(['agent', 'assistant'])),
+    /** The person read the version under review: it may go out with the others they read (FR-226). */
+    read: z.boolean(),
     /** What needs care before publishing: claims to check, and whether it clashes with live context. */
     care: z.object({ claims: z.number(), clash: z.boolean() }),
   }),

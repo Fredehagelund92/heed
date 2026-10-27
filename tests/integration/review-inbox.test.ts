@@ -110,6 +110,11 @@ const markets = [
   'poland',
   'austria',
   'ireland',
+  'portugal',
+  'belgium',
+  'netherlands',
+  'czechia',
+  'greece',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -354,6 +359,122 @@ describe('a clash with live context (FR-225)', () => {
     )
     expect(conflicts.rows).toEqual([{ other: theirs }])
   })
+
+  async function coAnswered(market: string) {
+    const scope = { ...inMarket(market), validity: { start: '2026-01-01', end: null } }
+    const a = await live({
+      ...scope,
+      title: `${market} orders count store credit`,
+      summary: `Orders in ${market} include orders paid with store credit.`,
+    })
+    const next = await submitted({
+      ...scope,
+      title: `${market} orders lag a day`,
+      summary: `Orders in ${market} arrive a day late from the payment provider.`,
+    })
+    await ok<Published>(
+      publish(next.id, next.revision, { relations: [{ itemId: a, relation: 'unrelated' }] }),
+    )
+    return { scope, a, b: next.itemId! }
+  }
+
+  it('shows the live item an edit of one of two co-answered items now contradicts as a clash', async () => {
+    const { scope, a, b } = await coAnswered('portugal')
+    const edit = await submitted(
+      {
+        ...scope,
+        title: 'portugal orders leave out store credit',
+        summary: 'Orders in portugal leave out store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.mode).toBe('edit')
+    expect(s.clashes.map((c) => c.itemId)).toEqual([b])
+    expect(s.readiness).toMatchObject({ state: 'clash', publishable: false })
+    expect((await publish(edit.id, edit.revision)).statusCode).toBe(422)
+  })
+
+  it('finds no clash in an edit that only changes formatting, and finds it for a new item', async () => {
+    const { scope, a, b } = await coAnswered('netherlands')
+    const edit = await submitted(
+      {
+        ...scope,
+        title: 'netherlands orders count store credit',
+        summary: 'Orders in netherlands **include** orders paid with store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.mode).toBe('edit')
+    expect(s.clashes).toEqual([])
+    expect(s.readiness).toMatchObject({ publishable: true })
+    expect(s.readiness.state).not.toBe('clash')
+    const fresh = await submitted({
+      ...scope,
+      title: 'netherlands orders leave out store credit',
+      summary: 'Orders in netherlands leave out store credit from 1 November 2026.',
+    })
+    expect((await sheet(fresh.id)).clashes.map((c) => c.itemId).sort()).toEqual([a, b].sort())
+  })
+
+  it('finds no clash in an edit that only changes dates', async () => {
+    const { scope, a } = await coAnswered('czechia')
+    const edit = await submitted(
+      {
+        ...scope,
+        validity: { start: '2026-01-01', end: '2027-01-01' },
+        title: 'czechia orders count store credit',
+        summary: 'Orders in czechia include orders paid with store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.mode).toBe('edit')
+    expect(s.clashes).toEqual([])
+    expect(s.readiness).toMatchObject({ publishable: true })
+    expect(s.readiness.state).not.toBe('clash')
+  })
+
+  it('shows a clash in an edit that changes dates and words', async () => {
+    const { scope, a, b } = await coAnswered('greece')
+    const edit = await submitted(
+      {
+        ...scope,
+        validity: { start: '2026-01-01', end: '2027-01-01' },
+        title: 'greece orders leave out store credit',
+        summary: 'Orders in greece leave out store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.clashes.map((c) => c.itemId)).toEqual([b])
+    expect(s.readiness).toMatchObject({ state: 'clash', publishable: false })
+  })
+})
+
+describe('a suggestion to archive', () => {
+  it('archives the item, and its review still reads once it is archived', async () => {
+    const itemId = await live({ title: 'Belgium orders lag a day', ...inMarket('belgium') })
+    const proposal = await ok<ProposalRecord>(
+      call('POST', `/items/${itemId}/retire-proposals`, 'author', {
+        reason: 'The provider sends the files on time again.',
+      }),
+    )
+    const before = await sheet(proposal.id)
+    expect(before.mode).toBe('retire')
+    expect(before.readiness).toMatchObject({ state: 'archive', publishable: true })
+    await ok<Published>(publish(proposal.id, before.proposal.revision))
+    expect(await served(itemId)).toBeNull()
+    const after = await sheet(proposal.id)
+    expect(after.mode).toBe('retire')
+    expect(after.proposal.state).toBe('accepted')
+    expect(after.canPublish).toBe(false)
+  })
 })
 
 describe('reading, publishing what was read, and undo (FR-226, FR-227)', () => {
@@ -381,6 +502,14 @@ describe('reading, publishing what was read, and undo (FR-226, FR-227)', () => {
       (await call('POST', `/review/${rc.id}/read`, 'owner', { itemVersionId: ra.itemVersionId }))
         .statusCode,
     ).toBe(409)
+    // The Inbox says which suggestions the owner read, and which they only opened.
+    const cards = (await feed()).cards
+    const card = (id: string) => cards.find((c) => c.id === `proposal:${id}`)
+    expect([ra, rb, rc].map((p) => card(p.id))).toMatchObject([
+      { read: true, opened: true },
+      { read: true, opened: true },
+      { read: false, opened: true },
+    ])
     const result = await ok<{
       published: { id: string }[]
       skipped: { id: string; code: string }[]

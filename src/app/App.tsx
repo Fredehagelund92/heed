@@ -312,7 +312,8 @@ function Gate() {
 /**
  * The shared reads every screen uses (the session, the workspace, the library), loaded once before
  * anything is drawn, so a screen reads them from the cache and never waits. Signed out, only the
- * session: the sign-in page and the documentation need nothing else.
+ * session: the sign-in page and the documentation need nothing else. A read that failed does not
+ * hold the app back: a screen that needs it shows the failure in its own frame.
  */
 function Loaded({ children }: { children: React.ReactNode }) {
   const session = useQuery(sessionQuery())
@@ -321,7 +322,7 @@ function Loaded({ children }: { children: React.ReactNode }) {
     queries: sharedQueries().map((q) => ({ ...q, enabled: signedIn })),
   })
   if (!session.data) return null
-  if (signedIn && rest.some((q) => q.data === undefined)) return null
+  if (signedIn && rest.some((q) => q.data === undefined && !q.isError)) return null
   return children
 }
 

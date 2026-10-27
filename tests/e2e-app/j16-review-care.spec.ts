@@ -1,14 +1,14 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { card, claimsToCheck, expect, go, test, untilInHttp } from './go.ts'
 
 // J16, saying what needs care before anyone publishes: the quick view and the Inbox row show the
 // claims to check; an edit's Ready line says its numbers weren't checked; a withdrawn retirement
 // shows the thread's outcome, and archiving always asks first, from the button or the key.
 
 test('the quick view and the row show the claims to check before Review', async ({ page }) => {
+  const claims = `${claimsToCheck('sug-agent')} claims to check`
   await go(page, '/inbox?card=sug-agent')
-  await expect(page.getByText('2 claims to checkbefore publishing')).toBeVisible()
-  await expect(page.locator('[data-row="sug-agent"]').getByLabel('2 claims to check')).toBeVisible()
+  await expect(page.getByText(`${claims}before publishing`)).toBeVisible()
+  await expect(page.locator(`[data-row="${card('sug-agent')}"]`).getByLabel(claims)).toBeVisible()
 })
 
 test("a new date with no source says it isn't checked; one with a new source page doesn't", async ({
@@ -23,6 +23,7 @@ test("a new date with no source says it isn't checked; one with a new source pag
 })
 
 test('a withdrawn retirement closes; archiving asks first, from the key too', async ({ page }) => {
+  untilInHttp('P9', 'the comments in which Lars withdraws his suggestion')
   await go(page, '/inbox/sug-lars-retire/review')
   const decide = page.getByRole('complementary', { name: 'Try it and decide' })
   await expect(page.getByRole('region', { name: 'What the thread decided' })).toContainText(

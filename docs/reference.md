@@ -485,7 +485,9 @@ through these operations, typed in `src/contract/review-path.ts` and `src/contra
 Writes need the session cookie, `Origin`, `x-heed-csrf` and an `Idempotency-Key`. A decision
 that can be taken back answers with an `undo` token for `POST /decisions/undo`.
 
-- `GET /review/{id}/sheet` is the review page's one read of a suggestion (FR-224): the change by
+- `GET /review/{id}/sheet` is the review page's one read of a suggestion (FR-224), waiting or
+  decided; a suggestion to archive shows the version it archives, and once archived the version
+  it archived. The read holds the change by
   kind and the values that moved (`diff`), the stored Markdown line by line with the changed
   words (`source`), and, for what an agent or the assistant wrote, each claim against the
   sentence it copied (`claims`). It carries the clashes, the overlaps, the readiness line, the
@@ -493,7 +495,9 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
   hides from the reader reads as its words only.
 - A clash (FR-225) is a live item an agent would get in the same answer as the suggestion,
-  except the item it changes and those it already names as replaced or conflicting. Publish
+  except the item it changes and those it already names as replaced or conflicting. An edit
+  whose difference is only formatting, only order or only a change of dates has no clash; an edit
+  that changes anything else as well (wording, added, removed, a link) clashes as for any other. Publish
   waits until the owner says how each one relates: `replaces` (the new version replaces it, and
   publishing archives it), `disagrees` (both stay, and agents get the conflict) or `unrelated`.
   Overlaps (live items whose scope and dates overlap) are for information only.
@@ -523,8 +527,9 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   is the person's own, in any domain: one for each thread with a comment that mentions them and
   that they haven't read, named `mention:<subject>`. Reported cards are the anonymous wrong or unclear
   reports of the last 90 days, with no person. Under All come what the person sent that waits
-  on an owner and what was done in the last 14 days. `week` counts this week's agent questions,
-  each hidden under `privacy.min_count` (FR-614).
+  on an owner and what was done in the last 14 days. A suggestion's card says whether the
+  person read the version under review (`read`), so it may go out with the others they read.
+  `week` counts this week's agent questions, each hidden under `privacy.min_count` (FR-614).
 - `POST /inbox/cards/read` takes `{ cards }`: the person opened them (a Mentioned you card:
   they read the comments that mention them there). `POST /inbox/cards/decide`
   takes `{ card, action, reason? }`, the one decision a card offers: `not_written` for a Not

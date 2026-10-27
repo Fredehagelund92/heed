@@ -1,5 +1,5 @@
-import { devices, expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { devices } from '@playwright/test'
+import { claimsToCheck, cardIn, expect, go, place, test } from './go.ts'
 
 // J17, the review on a phone: the decision bar says the state in words and where you are, its
 // actions are 44px, and nothing you can press is under 44px.
@@ -10,11 +10,11 @@ test('the bar says the state and the place, with full-size actions', async ({ pa
   await go(page, '/inbox/sug-agent/review')
   const publish = page.getByRole('button', { name: 'Publish anyway' }).last()
   await expect(publish).toBeVisible()
-  await expect(page.getByText('2 claims to check').last()).toBeVisible()
-  await expect(page.getByText('8 of 12').last()).toBeVisible()
+  await expect(page.getByText(`${claimsToCheck('sug-agent')} claims to check`).last()).toBeVisible()
+  await expect(page.getByText(place('sug-agent')).last()).toBeVisible()
   expect((await publish.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await page.getByRole('button', { name: 'Next suggestion' }).click()
-  await expect(page).toHaveURL(/sug-sofia-clash/)
+  await expect(page).toHaveURL(new RegExp(cardIn('sug-sofia-clash')))
 })
 
 test('no control is under 44px', async ({ page }) => {

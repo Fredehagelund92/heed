@@ -331,7 +331,7 @@ export const reviews: Review[] = [
         field: 'When',
         before: '12 to 19 May 2026',
         after: '12 to 26 May 2026',
-        span: { from: 12, was: 19, now: 26 },
+        span: { from: 12, was: 19, now: 26, month: 'May' },
       },
     ],
     unchanged: ['Title', 'What agents should know', 'Kind', 'Where', 'Source', "Don't conclude"],
