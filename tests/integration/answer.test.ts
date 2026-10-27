@@ -336,7 +336,10 @@ describe('Ask keeps no question (FR-602, FR-603)', () => {
       `Why did orders in Norway drop after the ${marker} audit?`,
       `What should I know about ${marker} in Spain?`,
     ]
-    const before = await tableContents(client, ['auth.sessions'])
+    // The setup checklist's mark that Ask was used (no person, no words) is the one thing a look-up
+    // may write, the first time only.
+    const kept = ['auth.sessions', 'public.setup_marks']
+    const before = await tableContents(client, kept)
     const lines = logs.length
     for (const question of asked) {
       expect((await call('POST', '/ask/lookup', 'maria', { question })).statusCode).toBe(200)
@@ -353,7 +356,12 @@ describe('Ask keeps no question (FR-602, FR-603)', () => {
     }
     expect(JSON.stringify(await ok<Asked>('GET', '/ask/asked', 'maria'))).not.toContain(marker)
     // Nothing changed anywhere: no count, no topic, no record of who asked.
-    expect(await tableContents(client, ['auth.sessions'])).toEqual(before)
+    expect(await tableContents(client, kept)).toEqual(before)
+    expect(
+      (await client.query<{ step: string }>('select step from setup_marks')).rows.map(
+        (r) => r.step,
+      ),
+    ).toContain('ask')
     expect((await tableContents(client)).join('\n')).not.toContain(marker)
     expect(logs.slice(lines).join('\n')).not.toContain(marker)
   })
