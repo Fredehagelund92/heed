@@ -38,6 +38,7 @@ const row = (patch: Partial<LibraryItem> = {}): LibraryItem => ({
   lastChecked: { on: '2026-10-03', personId: 'per_jon' },
   trust: 'current',
   chips: ['Orders', 'Norway'],
+  owners: [],
   ...patch,
 })
 

@@ -14,6 +14,21 @@ import {
   personSheetSchema,
 } from './people.ts'
 import {
+  deletedDraftSchema,
+  draftFromTextInputSchema,
+  draftFromTextSchema,
+  itemBulkInputSchema,
+  itemBulkPlanSchema,
+  itemBulkResultSchema,
+  itemChangeSchema,
+  itemPageSchema,
+  publishItemInputSchema,
+  publishItemResultSchema,
+  relatedSchema,
+  restoreAsDraftInputSchema,
+  restoredDraftSchema,
+} from './context.ts'
+import {
   historyEntrySchema,
   itemLinksSchema,
   itemsPageSchema,
@@ -1047,6 +1062,108 @@ export const contract = {
       .errors(notFound)
       .input(itemId)
       .output(itemLinksSchema),
+    page: read
+      .route({
+        method: 'GET',
+        path: '/items/{id}/page',
+        tags: ['library'],
+        summary:
+          "A context item's page: the item, what its list row reads, its owners and its history, newest first",
+      })
+      .errors(notFound)
+      .input(itemId)
+      .output(itemPageSchema),
+    markRead: read
+      .route({
+        method: 'POST',
+        path: '/items/{id}/read',
+        tags: ['library'],
+        summary: 'The person opened an item: only opened items can be marked as checked together',
+      })
+      .errors(notFound)
+      .input(itemId)
+      .output(z.object({ read: z.boolean() })),
+    related: read
+      .route({
+        method: 'GET',
+        path: '/items/{id}/related',
+        tags: ['library'],
+        summary:
+          'Context related to an item, one step away, as get_related follows it: what people see in Related',
+      })
+      .errors(notFound)
+      .input(itemId)
+      .output(relatedSchema),
+    restoreAsDraft: proposal
+      .route({
+        method: 'POST',
+        path: '/items/{id}/restore-draft',
+        tags: ['library'],
+        summary:
+          'Restore an earlier version as a draft, for an owner of its domain or an admin; what agents get does not change (FR-140)',
+      })
+      .errors(notFound)
+      .input(restoreAsDraftInputSchema)
+      .output(restoredDraftSchema),
+    publish: review
+      .route({
+        method: 'POST',
+        path: '/items/publish',
+        tags: ['library'],
+        summary:
+          "Publish in one step as an owner of the draft's domain or an admin; anyone else sends it to the owners as a suggestion (FR-137)",
+      })
+      .errors(notFound)
+      .input(publishItemInputSchema)
+      .output(publishItemResultSchema),
+    bulkPlan: read
+      .route({
+        method: 'POST',
+        path: '/items/bulk/plan',
+        tags: ['library'],
+        summary:
+          'What a change to many items would do: the rows it acts on, and the rows it leaves alone and why (FR-139)',
+      })
+      .input(itemBulkInputSchema)
+      .output(itemBulkPlanSchema),
+    bulkApply: review
+      .route({
+        method: 'POST',
+        path: '/items/bulk',
+        tags: ['library'],
+        summary:
+          'Change many items at once: each row it may change is done or failed, the rest skipped with why, with one Undo (FR-139)',
+      })
+      .input(itemBulkInputSchema)
+      .output(itemBulkResultSchema),
+    changes: read
+      .route({
+        method: 'GET',
+        path: '/context/changes',
+        tags: ['library'],
+        summary: 'Changes made to many items at once, newest first: the History log',
+      })
+      .output(z.array(itemChangeSchema)),
+    deleted: admin
+      .route({
+        method: 'GET',
+        path: '/context/deleted',
+        tags: ['library'],
+        summary: 'Drafts that were deleted, newest first, with who deleted them and when',
+      })
+      .output(z.array(deletedDraftSchema)),
+  },
+  drafts: {
+    fromText: proposal
+      .route({
+        method: 'POST',
+        path: '/drafts/from-text',
+        tags: ['library'],
+        summary:
+          'A draft read from pasted text or a link, with no model: the fields it could read, and those it guessed',
+      })
+      .input(draftFromTextInputSchema)
+      .output(draftFromTextSchema),
   },
   library: {
     index: read

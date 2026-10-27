@@ -581,8 +581,8 @@ export async function restoreArea(
       { batch: true, reason: input.reason ?? null },
     )
   const binnedItems = await tx.query<{ id: string; title: string; kind: ItemKind }>(
-    `select b.item_id as id, v.title, i.kind::text as kind
-       from item_bin b join item_versions v on v.id = b.version_id join items i on i.id = b.item_id
+    `select b.item_id as id, v.title, v.kind::text as kind
+       from item_bin b join item_versions v on v.id = b.version_id
       where b.area_id = $1 and b.restored_at is null and cl_version_open(b.version_id)
       order by b.binned_at desc, b.item_id collate "C"`,
     [input.id],

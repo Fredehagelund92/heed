@@ -147,3 +147,8 @@ grant insert, update (seen_at), delete on comment_mentions to :api;
 grant insert, delete on reactions to :api;
 grant insert, update (seen_at) on thread_reads to :api;
 grant execute on function cl_comment_subject_open(text, uuid) to :api;
+-- Context (FR-137, FR-139): owners of an item are named and removed by its domain's owners; a person
+-- keeps which items they opened; a change to many items is recorded once and undone by its maker.
+grant insert, delete on item_owners to :api;
+grant insert, update (read_at) on item_reads to :api;
+grant insert, update (undone_at) on item_changes to :api;

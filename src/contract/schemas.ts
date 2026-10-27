@@ -72,6 +72,8 @@ export const libraryItemSchema = z.extend(indexedItemSchema, {
    * named as the live vocabulary names them (the key's id when the vocabulary has no name).
    */
   chips: z.array(z.string()),
+  /** Its own owners, by id, when not its domain's (item_owners); empty when its domain's owners answer for it. */
+  owners: z.array(z.string()),
 })
 
 /** Every item the person may read, as one light index. Clients sort and filter it themselves. */

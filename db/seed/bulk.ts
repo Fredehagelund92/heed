@@ -534,6 +534,7 @@ export async function bulkSeed(
           id,
           item_id: i.id,
           version_no: version.version,
+          kind: i.kind,
           supersedes_version_id: previous,
           area_id: i.areaId,
           title: i.title,

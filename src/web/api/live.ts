@@ -36,6 +36,7 @@ export const streamTopics = [
   'proposal.commented',
   'proposal.withdrawn',
   'proposal.discarded',
+  'proposal.restored',
   'proposal.approved',
   'proposal.decided',
   'proposal.undone',
@@ -78,6 +79,7 @@ export const liveInvalidations: Record<StreamTopic, (event: StreamEvent) => Quer
   'proposal.created': aroundDraft,
   'proposal.saved': aroundDraft,
   'proposal.discarded': aroundDraft,
+  'proposal.restored': aroundDraft,
   'proposal.submitted': aroundProposal,
   'proposal.checked': (event) => [
     queryKeys.proposalEvents(subjectId(event)),

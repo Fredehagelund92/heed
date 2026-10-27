@@ -352,7 +352,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
   async function seedItem(id: string): Promise<Draft> {
     const [row] = await tx.query<{ draft: Draft }>(
       `select jsonb_build_object(
-      'kind',i.kind,'areaId',v.area_id,'title',v.title,'summary',v.summary,'scope',jsonb_build_object(
+      'kind',v.kind,'areaId',v.area_id,'title',v.title,'summary',v.summary,'scope',jsonb_build_object(
         'metrics',coalesce((select jsonb_agg(metric_key order by metric_key) from item_version_metrics where version_id=v.id),'[]'),
         'dimensions',coalesce((select jsonb_agg(dimension_key order by dimension_key) from item_version_dimensions where version_id=v.id),'[]'),
         'dimensionValues',coalesce((select jsonb_agg(jsonb_build_object('dimension',dimension_key,'value',value_key) order by value_key) from item_version_dimension_values where version_id=v.id),'[]')),
@@ -363,7 +363,7 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
       'claimLevel',v.claim,'riskLevel',v.risk,'audience',jsonb_build_object('kind','everyone'),
       'notToConclude',v.not_to_conclude,'replaces','[]'::jsonb,'conflicts',coalesce((select jsonb_agg(other_item_id order by other_item_id) from item_version_conflicts where version_id=v.id),'[]')) ||
       jsonb_strip_nulls(jsonb_build_object('ownerId',v.owner_id,'body',v.body,'summaryMarkup',v.summary_markup,'bodyMarkup',v.body_markup,'claimAuthority',v.claim_authority,'claimQuote',v.claim_quote)) as draft
-      from item_version_service s join item_versions v on v.id=s.version_id join items i on i.id=s.item_id
+      from item_version_service s join item_versions v on v.id=s.version_id
       where s.item_id=$1 and s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)`,
       [id],
     )
@@ -565,26 +565,19 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
         )
         item = created!.id
       } else {
-        const [base] = await tx.query<{ kind: string; id: string }>(
-          `select i.kind,v.id from items i join item_version_service s on s.item_id=i.id join item_versions v on v.id=s.version_id
-          where i.id=$1 and s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)`,
+        const [base] = await tx.query<{ id: string }>(
+          `select v.id from item_version_service s join item_versions v on v.id=s.version_id
+          where s.item_id=$1 and s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)`,
           [item],
         )
-        // A resubmitted create has no live version yet.
-        if (p.action === 'change' && !rescue && (!base || base.kind !== v.kind))
-          throw new ORPCError('CONFLICT', {
-            message: "The accepted fact is gone, or it's now a different kind.",
-          })
+        // A resubmitted create has no live version yet. A change may change the kind (FR-139).
+        if (p.action === 'change' && !rescue && !base)
+          throw new ORPCError('CONFLICT', { message: 'The accepted fact is gone.' })
         if (rescue && base)
           throw new ORPCError('CONFLICT', {
             message:
               'Agents get this fact again since it was restored, so this proposal is out of date.',
           })
-        const [identity] = await tx.query<{ kind: string }>('select kind from items where id=$1', [
-          item,
-        ])
-        if (identity?.kind !== v.kind)
-          throw new ORPCError('CONFLICT', { message: "A fact can't change its kind." })
         previous ??= base?.id ?? rescue?.versionId ?? null
       }
       const version = await insertVersion(tx, item, v, previous)
@@ -724,11 +717,19 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
      * The author, or an administrator, discards a draft that was never sent (withdraw is for a
      * sent proposal). The row stays for its timeline and audit entries, and reads as not found.
      */
-    async discard(id: string, revision: number) {
+    async discard(
+      id: string,
+      revision: number,
+      /** Heed v1's Context list (FR-139): an owner of the draft's domain deletes it too. */
+      { byDomainOwners = false }: { byDomainOwners?: boolean } = {},
+    ) {
       const p = await current(id, revision)
       if (p.proposerId !== personId) {
-        const [admin] = await tx.query<{ ok: boolean }>('select cl_is_admin_now() as ok')
-        if (!admin?.ok) throw new ORPCError('FORBIDDEN')
+        const [may] = await tx.query<{ ok: boolean }>(
+          'select cl_is_admin_now() or ($2 and cl_is_owner_now($1)) as ok',
+          [p.areaId, byDomainOwners],
+        )
+        if (!may?.ok) throw new ORPCError('FORBIDDEN')
       }
       if (p.state !== 'draft')
         throw new ORPCError('CONFLICT', {
@@ -867,8 +868,8 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
       )
       const own = await tx.query<Overlapping>(
         `select p.id::text,p.number::float8 as number,coalesce(v.title,p.draft->>'title','Untitled proposal') as title,
-           coalesce(i.kind::text,p.draft->>'kind','note') as kind,p.state::text as state
-         from proposals p left join item_versions v on v.id=p.item_version_id left join items i on i.id=p.item_id
+           coalesce(v.kind::text,p.draft->>'kind','note') as kind,p.state::text as state
+         from proposals p left join item_versions v on v.id=p.item_version_id
          where p.proposer_id=cl_person() and p.subject='item' and p.action in ('create','change') and p.discarded_at is null
            and p.state in ('draft','submitted','in_review','changes_requested') and coalesce(cl_scopes_overlap($1::jsonb,p.draft),false)
          order by p.number limit 20`,
@@ -887,8 +888,8 @@ export function createProposalsService(tx: Queryable, clock: Clock, personId: st
       const accepted = await acceptedOverlaps(tx, p.draft, p.itemId)
       const proposals = await tx.query<Overlapping & { own: boolean }>(
         `select p.id::text,p.number::float8 as number,coalesce(v.title,p.draft->>'title','Untitled proposal') as title,
-           coalesce(i.kind::text,p.draft->>'kind','note') as kind,p.state::text as state,p.proposer_id=cl_person() as own
-         from proposals p left join item_versions v on v.id=p.item_version_id left join items i on i.id=p.item_id
+           coalesce(v.kind::text,p.draft->>'kind','note') as kind,p.state::text as state,p.proposer_id=cl_person() as own
+         from proposals p left join item_versions v on v.id=p.item_version_id
          where p.id<>$1 and p.subject='item' and p.action in ('create','change') and p.discarded_at is null
            and p.state in ('draft','submitted','in_review','changes_requested') and cl_scopes_overlap($2::jsonb,p.draft)
          order by p.number`,

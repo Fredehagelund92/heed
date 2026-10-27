@@ -574,6 +574,56 @@ edition holds is built from them. Writes need the session cookie, `Origin`, `x-h
   comments that mention them there, and the Mentioned you card goes.
 - The history log names who created, edited or deleted which comment, never its words.
 
+## Context
+
+Heed v1's Context list, a context item's page, the editor and Settings, Advanced (docs/product.md,
+section 3) read and change items through these operations, typed in `src/contract/context.ts`.
+Writes need the session cookie, `Origin`, `x-heed-csrf` and an `Idempotency-Key`. A change that
+can be taken back answers with an `undo` token for `POST /decisions/undo`.
+
+- `GET /items/{id}/page` is a context item's page: the item as published, what its list row
+  reads (`lastChecked`, `trust`, `chips`), its own `owners` and its `history`, newest first. Each
+  entry is a version agents got (`published`, `wording`, `link`, `dates`, `checked`, `moved`,
+  `retyped`) with the field it changed and its words before and after, or what changed beside
+  the versions (`archived`, `owners`). `canChange` says whether the person may change it.
+- `POST /items/{id}/read` records that the person opened an item, in the quick view or on its
+  page. Mark as checked takes only items the person opened.
+- `POST /items/bulk/plan` and `POST /items/bulk` take `{ action, rows, areaId?, kind?, personId? }`
+  (FR-139), up to 200 rows: published items by id and drafts by their proposal's id. `action` is
+  `archive`, `delete` (drafts only), `domain`, `kind`, `owner_add`, `owner_set` or `check`.
+  Owners of an item's domain and admins change it, and a domain is moved into only by its owners
+  and admins (403 otherwise). The plan names the rows it acts on and each other row with a code
+  (`not_found`, `not_allowed`, `archived`, `draft`, `published`, `same_domain`, `same_kind`,
+  `not_owner_there`, `already_owner`, `only_owner`, `not_opened`), a few words (`why`) and a
+  sentence (`message`). The change does each row it may in full or not at all: an archive is a
+  retire decision, a move or a new kind is a change its owner publishes through the review's
+  checks and gate, a check is a recheck, and a deletion discards the draft. A row that fails
+  stays as it was, in `failed` with why, to try again. One `change:<id>` token undoes the whole
+  change within `limits.undo_seconds`, for its maker only.
+- `GET /context/changes` is the History log: each change to many items, newest first, with what
+  it did in one sentence. An item the audience rule hides from the reader is counted in
+  `withheld`, never named, and then the sentence says only how many items changed. `GET /context/deleted` lists the drafts that were deleted, with who
+  deleted them and when (admins). Published context is archived, never deleted.
+- `POST /items/{id}/restore-draft` takes `{ version }` (FR-140): an owner of the item's domain or
+  an admin gets a draft of a change with that version's words, dates and sources. What agents
+  get does not change until the draft is published.
+- `GET /items/{id}/related` is Related on a context item: its neighbours one step away, as
+  `get_related` follows them on what agents get now, with how each relates. Neighbours the person
+  may not see are counted in `withheld`, never named.
+- `POST /items/publish` takes `{ draft, itemId?, reason? }` (FR-137). An owner of the draft's
+  domain or an admin publishes it in one step, through the same checks and clash gate as the
+  review; anyone else's goes to the domain's owners as a suggestion (`published: false`, with
+  `ownerIds`). A publish the checks refuse keeps nothing.
+- `POST /drafts/from-text` takes `{ text }`: a draft read from pasted text, or from the page a
+  single link points to, with no model. It fills the words, a kind and dates by rule and where
+  it applies by the vocabulary's names, and lists in `unsure` what it guessed.
+
+A context item's kind belongs to each version (migration 0007), so Change kind keeps its id,
+history and links. In a change to many items, an owner of a draft's domain may delete it, and
+Mark as checked records a check even when nothing else moved, for an owner of the domain or an
+admin; `POST /proposals/{id}/discard` and `POST /items/{id}/recheck` keep their own rules for the
+earlier screens.
+
 ## Live updates, inbox and activity
 
 Every write records an event in `outbox_events` in its own transaction. The relay
