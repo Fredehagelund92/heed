@@ -56,7 +56,10 @@ async function api(name: string, method: 'GET' | 'POST', path: string, payload?:
 const thisMonth = () => new Date().toISOString().slice(0, 7) + '-01'
 const thisHour = () => new Date().toISOString().slice(0, 13) + ':00:00Z'
 
-/** A topic of its own for each test, so tests sharing the database never see each other's counts. */
+/**
+ * A topic of its own for each test, so tests sharing the database never see each other's counts:
+ * case 1 counts a scope over its months, so each topic has a metric of its own too.
+ */
 async function topic(options: { area?: string | null; metric?: string; month?: string } = {}) {
   const key = `test|${randomUUID()}`
   const result = await client.query<{ id: string }>(
@@ -64,7 +67,7 @@ async function topic(options: { area?: string | null; metric?: string; month?: s
     [
       key,
       options.area === undefined ? 'finance' : options.area,
-      [options.metric ?? 'metric:orders'],
+      [options.metric ?? `metric:orders_${randomUUID().slice(0, 8)}`],
       ['val:market/norway'],
       options.month ?? thisMonth(),
     ],
@@ -188,6 +191,8 @@ describe('week counts (FR-605)', () => {
           },
           scope: null,
           status: 'no_match',
+          state: 'missing',
+          family: 'claude_code',
           delivered: [],
           withheld: [],
           cut: false,
@@ -220,6 +225,35 @@ describe('gap detection (FR-606, FR-609)', () => {
     await detect()
     expect(await gapsOf(reached)).toHaveLength(1)
     expect(await weekly(gap!.id)).toEqual([{ reports: 0, no_item_calls: 5 }])
+  })
+
+  it('counts no-item calls about one scope across a month edge as one gap (FR-606 case 1)', async () => {
+    const metric = `metric:edge_${randomUUID().slice(0, 8)}`
+    const october = await topic({ metric, month: '2030-10-01' })
+    const november = await topic({ metric, month: '2030-11-01' })
+    const elsewhere = await topic({ metric, month: '2030-11-01', area: null })
+    await deliveries(october, 3)
+    await deliveries(november, 3)
+    // Another domain's calls about the same metric are another scope.
+    await deliveries(elsewhere, 4)
+    await detect()
+    // Three calls about 30 October and three about 1 November make one gap, on the latest month.
+    expect(await gapsOf(october)).toEqual([])
+    const [gap] = await gapsOf(november)
+    expect(gap).toMatchObject({ type: 'missing', status: 'open', opened_by_case: 1 })
+    expect(await weekly(gap!.id)).toEqual([{ reports: 0, no_item_calls: 6 }])
+    expect(await gapsOf(elsewhere)).toEqual([])
+    // More calls about October keep to the scope's one gap, and count in it.
+    await deliveries(october, 2)
+    await detect()
+    expect(await gapsOf(october)).toEqual([])
+    expect(await gapsOf(november)).toHaveLength(1)
+    expect(await weekly(gap!.id)).toEqual([{ reports: 0, no_item_calls: 8 }])
+    // Each month alone stays under the threshold: no gap without the month edge either way.
+    const alone = await topic({ month: '2030-10-01' })
+    await deliveries(alone, 4)
+    await detect()
+    expect(await gapsOf(alone)).toEqual([])
   })
 
   it('counts report_gap as case 2, one gap under simultaneous reports', async () => {
@@ -449,7 +483,7 @@ describe('retention of notes (FR-612)', () => {
 
 describe('gaps over the API', () => {
   async function smallGap() {
-    const t = await topic()
+    const t = await topic({ metric: 'metric:orders' })
     const id = (
       await client.query<{ id: string }>(
         "select cl_gap_touch($1,'missing',2::smallint,now(),null,1,'Needs a market comparison.','report_gap') as id",
@@ -485,7 +519,7 @@ describe('gaps over the API', () => {
   })
 
   async function shownGap() {
-    const t = await topic()
+    const t = await topic({ metric: 'metric:orders' })
     await deliveries(t, 5)
     const id = (
       await client.query<{ id: string }>(
@@ -1001,7 +1035,7 @@ describe('dashboards (FR-614, FR-615)', () => {
       "insert into area_assignments (area_id,person_id,role) values ('dash',$1,'owner')",
       [people.owner],
     )
-    const busy = await topic({ area: 'dash' })
+    const busy = await topic({ area: 'dash', metric: 'metric:orders' })
     await deliveries(busy, 6, { status: 'matched', items: 1 })
     await deliveries(busy, 2, { status: 'no_match' })
     const quiet = await topic({ area: 'dash', metric: 'metric:quiet' })

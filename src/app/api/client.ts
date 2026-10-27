@@ -32,7 +32,7 @@ import type {
 } from '@/model/integrations'
 import type { Connected, LivePhase } from '@/lib/connect'
 import type { Filters, SavedView } from '@/lib/obs-views'
-import type { ObsData } from '@/model/observability'
+import type { ObsData, Range } from '@/model/observability'
 import type { Replay, When } from '@/model/replay'
 import type { Domain, Person } from '@/model/people'
 import type { Review } from '@/model/review'
@@ -72,6 +72,9 @@ export type Vocabulary = {
 
 /** A few quiet lines on what someone did lately. */
 export type Activity = { what: string; when: string }
+
+/** What an Observability page reads: its page, its range, and a domain or a kind of agent. */
+export type ObsPageInput = { section: string; range: Range; domain?: DomainId; agent?: string }
 
 /** The result of a write that can be taken back: pass `undo` to `HeedApi.undo`. */
 export type Undoable = { undo: string }
@@ -397,9 +400,12 @@ export interface HeedApi {
   getMyReports: () => Promise<SentReport[]>
 
   // Observability: what agents asked and how it was answered, as scopes and counts only
-  getObservability: () => Promise<ObsData>
-  /** An Observability page's own read: `section` is the page (overview, questions, and so on). */
-  observabilityPage: (input: { section: string }) => Promise<ObsData>
+  /**
+   * An Observability page's own read for a view: `section` is the page (overview, questions, and
+   * so on), with its range, and a domain or a kind of agent. Every count is as the reader may see
+   * it: a count under 5 is null, and none gives a hidden one away (FR-614).
+   */
+  observabilityPage: (input: ObsPageInput) => Promise<ObsData>
   /** The views people saved on Questions, beyond the five every workspace starts with. */
   getSavedViews: () => Promise<SavedView[]>
   saveView: (input: { name: string; filters: Filters }) => Promise<{ id: string }>
@@ -530,7 +536,6 @@ export const heedApiMethods = [
   'deleteChat',
   'reportAnswer',
   'getMyReports',
-  'getObservability',
   'observabilityPage',
   'replayTopic',
   'getSavedViews',

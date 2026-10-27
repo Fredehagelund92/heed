@@ -68,7 +68,7 @@ const chip =
 function mentionTone(kind: string, key: string) {
   if (kind === 'metric' || kind === 'dimension' || kind === 'term' || kind === 'market')
     return chipTone(kind)
-  if (kind === 'domain') return chipTone('domain', domainHue[key])
+  if (kind === 'domain') return chipTone('domain', domainHue(key))
   return chipTone('neutral')
 }
 

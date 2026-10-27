@@ -61,7 +61,7 @@ function OwnedChips({ p }: { p: Person }) {
         <TagChip
           key={d}
           tone="domain"
-          hue={domainHue[d] ?? null}
+          hue={domainHue(d)}
           icon={<DomainDot id={d} className="size-2" />}
         >
           {domains[d]?.name}

@@ -41,10 +41,18 @@ export type Replay = {
   before: { label: string; title: string }
 }
 
-/** What agents did after the answer this week, as counts. */
-export function afterAnswer(t: Topic) {
-  const reports = t.week.missing >= 5 ? 2 : t.reported ? 1 : 0
-  const followed = t.week.grounded > 10 ? 3 : 0
-  const again = t.week.missing ? 1 : 0
-  return `${reports} ${reports === 1 ? 'agent' : 'agents'} sent a report about it. ${followed} followed a link. ${again} asked again with other dates.`
+/**
+ * What happened after the answer in the range, never who and never a count under 5: whether
+ * someone reported an answer about it, and whether what found nothing made a Not found card.
+ */
+export function afterAnswer(t: Pick<Topic, 'in' | 'gap'>) {
+  const reported = t.in.reported
+    ? 'Someone reported an answer about it.'
+    : 'Nobody reported an answer about it.'
+  const found = t.in.notFound
+    ? t.gap
+      ? ` It found nothing 5 or more times, so it waits in the Inbox: ${t.gap.label.toLowerCase()}.`
+      : ' It found nothing 5 or more times, so it waits in the Inbox.'
+    : ''
+  return `${reported}${found}`
 }

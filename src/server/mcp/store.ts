@@ -27,11 +27,11 @@ export function createAnonymousStore(pool: pg.Pool): AnonymousStore {
           )
         if (deliveries.length)
           await client.query(
-            `insert into deliveries (id,delivered_hour,client_label,caller,edition_seq,overlay_seq,tool_schema_digest,scope,status,delivered,withheld,cut,response_bytes,duration_ms,topic_id)
+            `insert into deliveries (id,delivered_hour,client_label,caller,edition_seq,overlay_seq,tool_schema_digest,scope,status,answer_state,app_family,delivered,withheld,cut,response_bytes,duration_ms,topic_id)
              select d.id, d.hour, d.client, d.caller::caller_kind, d.edition, d.overlay, d.digest, coalesce(d.scope, '{}'),
-                    d.status::delivery_status, d.delivered, d.withheld, d.cut, d.bytes, d.duration, t.id
+                    d.status::delivery_status, d.state, coalesce(d.family, 'unknown'), d.delivered, d.withheld, d.cut, d.bytes, d.duration, t.id
                from jsonb_to_recordset($1) as d(id uuid, hour timestamptz, client text, caller text, edition bigint,
-                      overlay bigint, digest text, scope jsonb, status text, delivered jsonb, withheld jsonb, cut boolean,
+                      overlay bigint, digest text, scope jsonb, status text, state text, family text, delivered jsonb, withheld jsonb, cut boolean,
                       bytes int, duration int, topic text)
                left join topics t on t.key = d.topic`,
             [JSON.stringify(deliveries.map((d) => ({ ...d, topic: d.topic?.key ?? null })))],

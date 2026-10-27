@@ -18,6 +18,7 @@ import { createLogger } from '../../../src/server/observability/logger.ts'
 import { definitionRefOf, demoDefinitions } from '../../../src/web/mocks/cube-model.ts'
 import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/reference-data.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
+import { seedObservability } from './demo-observability.ts'
 
 /*
   The mockup's demo week on the real service, for the golden journeys in http mode: Larchwood
@@ -32,6 +33,9 @@ import { idleJobs } from '../../server/idle-jobs.ts'
   27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
   withdraws his retirement (P9). The mock's drafts are drafts on the service too: each started by
   the person the mock names, never sent.
+
+  What agents asked over the weeks Observability counts, and what they reported, are the mock's
+  too (demo-observability.ts), as delivery and request records with no question and no person.
 
   The terms and synonyms people wrote in Definitions are the mock's too, each by its writer. A
   synonym of a synonym (Takings, for Turnover) means what that one means, as the service keeps it,
@@ -555,10 +559,11 @@ async function seedTerms(client: pg.Client) {
 }
 
 /** What the demo week's mock ids are on the service. */
-export type DemoWeekIds = Record<QueueCard | 'flag-germany', string> & {
-  /** Each draft's proposal, by the draft's mock id. */
-  drafts: Record<string, string>
-}
+export type DemoWeekIds = Record<QueueCard | 'flag-germany', string> &
+  Record<`topic.${string}`, string> & {
+    /** Each draft's proposal, by the draft's mock id. */
+    drafts: Record<string, string>
+  }
 
 /**
  * What agents asked this week, as the service keeps it: topics and their counts, never the words
@@ -729,6 +734,7 @@ async function seedAskedThisWeek(client: pg.Client) {
  */
 export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   let flag: string | undefined
+  let topics: Map<string, string> | undefined
   const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
   await client.connect()
   try {
@@ -799,6 +805,8 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
       `insert into mcp_requests (client_label, tool, status, app_family) values ('claude', 'get_context', 'ok', 'claude_code')`,
     )
     await after.query(`insert into setup_marks (step) values ('ask') on conflict do nothing`)
+    // What agents asked over the weeks Observability counts, and what they reported (P12).
+    topics = await seedObservability(after)
     // Sent this morning, one minute apart, newest first in the mock's order.
     for (const [index, card] of queue.entries())
       await after.query(
@@ -809,5 +817,10 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
     await after.end()
   }
   if (!flag) throw new Error('The report was not seeded')
-  return { ...ids, 'flag-germany': flag, drafts }
+  return {
+    ...ids,
+    'flag-germany': flag,
+    drafts,
+    ...Object.fromEntries([...(topics ?? [])].map(([mock, id]) => [`topic.${mock}`, id])),
+  }
 }

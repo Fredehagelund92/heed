@@ -9,6 +9,7 @@ import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
 import { obsData } from './data/observability'
+import { obsPage } from './obs-page'
 import { BEFORE, changedSteps, replay } from './replay'
 import { reviews } from './data/review'
 import {
@@ -465,9 +466,12 @@ export function createMockApi() {
       ),
 
     // Observability
-    getObservability: () => now(() => obsData(scenario.obsState())),
-    observabilityPage: ({ section }) =>
-      read('observabilityPage', section, () => obsData(scenario.obsState())),
+    observabilityPage: ({ section, ...view }) =>
+      read('observabilityPage', JSON.stringify([section, view]), () => {
+        const person = workspace.people().find((p) => p.name === me())
+        const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
+        return obsPage(obsData(scenario.obsState()), view, reader)
+      }),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {

@@ -1,7 +1,6 @@
 import * as React from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { observabilityPageQuery, useSavedViews, useWrite } from '@/api/queries'
-import { useObservability } from '@/lib/obs'
+import { useSavedViews, useWrite } from '@/api/queries'
+import { useObservability, useObsPageQuery } from '@/lib/obs'
 import {
   ArrowUpDownIcon,
   BookmarkIcon,
@@ -41,11 +40,10 @@ import {
   GROUPINGS,
   monthName,
   monthShort,
+  groupCount,
   RANGES,
   SHOWN,
-  shownCount,
   STATE_WORDS,
-  total,
   type Grouping,
   type Shown,
   type Sort,
@@ -85,7 +83,7 @@ const toggle = <T,>(list: T[] | undefined, v: T) => {
 }
 
 export function QuestionsPage() {
-  const load = useQuery(observabilityPageQuery('questions'))
+  const load = useObsPageQuery('questions')
   return (
     <ObsPage section="questions">
       <Loadable
@@ -121,7 +119,7 @@ function Questions() {
   const builtIn = BUILT_IN.find((v) => v.id === viewId) ?? (custom ? undefined : BUILT_IN[0])
   const set = (f: Filters) => setQuery(filtersTo(f))
 
-  const all = view.state === 'empty' ? [] : obs.topicsOf({ ...view, domain: undefined })
+  const all = view.state === 'empty' || view.state === 'quiet' ? [] : obs.data.topics
   const inView = all.filter(
     (t) =>
       (builtIn ? builtIn.has(t) : true) &&
@@ -139,13 +137,23 @@ function Questions() {
     onEscape: () => !!peeked,
   })
   const said = sentence(filters, domains)
-  const asked = rows.reduce((n, t) => n + total(t.counts), 0)
+  // What the rows add up to: the domains' own counts when every topic of a domain is here.
+  const byDomain = [...new Set(rows.map((t) => t.domain))].map((d) =>
+    obs.domainGroup(
+      d,
+      rows.filter((t) => t.domain === d),
+    ),
+  )
+  const asked = groupCount({
+    visible: byDomain.every((g) => g.visible !== null)
+      ? byDomain.reduce((n, g) => n + g.visible!, 0)
+      : null,
+    shown: byDomain.reduce((n, g) => n + (g.visible ?? g.shown), 0),
+  })
   const topics = group === 'none' ? rows.length : obs.rollUp(rows).length
   // Calls that could not be read have no topic, so they show only when nothing narrows the list.
   const unread =
-    !said.length && !text && (builtIn?.id ?? 'all') === 'all' && !custom
-      ? obs.couldNotRead(view)
-      : 0
+    !said.length && !text && (builtIn?.id ?? 'all') === 'all' && !custom ? obs.data.couldNotRead : 0
   const viewCount = (has: (t: (typeof all)[number]) => boolean) =>
     all.filter((t) => has(t) && passes(t, { domain: filters.domain })).length
 
@@ -370,7 +378,7 @@ function Questions() {
       />
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t px-4 py-2.5 text-xs text-muted-foreground md:px-5">
         <span>
-          {topics} {topics === 1 ? 'topic' : 'topics'} - {shownCount(asked)} calls{' '}
+          {topics} {topics === 1 ? 'topic' : 'topics'} - {rows.length ? asked : 0} calls{' '}
           {view.label === 'this week' ? 'in 7 days' : `in ${view.range} days`}. A count under 5
           shows as “fewer than 5”.
         </span>
@@ -394,14 +402,14 @@ function FilterMenu({
   const domainIds = useDomainList().map((d) => d.id)
   const obs = useObservability()
   const view = useObsView()
-  const all = obs.topicsOf({ ...view, domain: undefined })
+  const all = obs.data.topics
   const n = (f: Filters) => all.filter((t) => passes(t, f)).length
   const on =
     (filters.answer?.length ?? 0) +
     (filters.gap?.length ?? 0) +
     (filters.domain && !owned ? 1 : 0) +
     (filters.agent ? 1 : 0)
-  const sum = obs.numbersOf(view).counts
+  const sum = obs.data.numbers.counts
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -467,7 +475,9 @@ function FilterMenu({
                     <span className="flex w-full items-center gap-2">
                       <Swatch state={s} />
                       <span className="flex-1">{STATE_WORDS[s]}</span>
-                      <span className="text-xs text-muted-foreground tabular-nums">{sum[s]}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {sum[s] === null ? '' : sum[s].toLocaleString('en-GB')}
+                      </span>
                     </span>
                   </DropdownMenuCheckboxItem>
                 ))}

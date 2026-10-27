@@ -5,7 +5,7 @@ import { obsData } from '@/api/mock/data/observability'
 import { ASKED_ROWS } from '@/model/ask'
 
 const TOPICS = obsData('normal').topics
-import { HIDE_UNDER, total } from '@/model/observability'
+import { HIDE_UNDER, total } from '@/api/mock/obs-engine'
 
 describe('asked this week', () => {
   const w = askedThisWeek()

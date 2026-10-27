@@ -126,6 +126,10 @@ it('delivers accepted PostgreSQL content over MCP using only serving-role privil
     edition_seq: edition,
     client_label: 'claude-code',
     status: 'matched',
+    // What Observability counts (FR-620): the state the reply gave, and the kind of agent from
+    // the name the client gave itself, which is not on the list.
+    answer_state: 'grounded',
+    app_family: 'other',
   })
   expect((await admin.query('select * from mcp_requests')).rows.length).toBeGreaterThan(0)
   await expect(pool.query('select * from item_versions')).rejects.toThrow(/permission denied/)

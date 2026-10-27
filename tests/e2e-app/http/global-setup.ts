@@ -61,12 +61,24 @@ export default async function setup() {
       ...Object.fromEntries(facts.map((f) => [f.id, ids.drafts[f.id] ?? serverItemId(f.id)])),
       ...Object.fromEntries(queue.map((card) => [card, ids[card]])),
       'flag-germany': ids['flag-germany'],
+      ...Object.fromEntries(Object.entries(ids).filter(([k]) => k.startsWith('topic.'))),
       ...checkCards(),
     }
+    // What the answer panel compares with: before the last publish, by the live edition's day.
+    const seeded = new pg.Client({ connectionString: url.href })
+    await seeded.connect()
+    const [live] = (
+      await seeded.query<{ label: string }>(
+        'select e.label from editions e join live_edition l on l.seq = e.seq',
+      )
+    ).rows
+    await seeded.end()
+    const day = new Date(`${live!.label.slice(0, 10)}T00:00:00Z`)
+    const before = `Before ${day.getUTCDate()} ${day.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' })}`
     await mkdir(dirname(worldFile), { recursive: true })
     // The items a journey publishes on the way, by their mock id: found by their title once made.
     const published = { [spainDraft.id]: spainDraft.title }
-    await writeFile(worldFile, JSON.stringify({ ids: world, queue, published }, null, 2))
+    await writeFile(worldFile, JSON.stringify({ ids: world, queue, published, before }, null, 2))
   } catch (error) {
     await drop()
     await admin.end()

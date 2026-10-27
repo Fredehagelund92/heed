@@ -1,6 +1,6 @@
 import { stateLabel, type Answer } from '@/model/ask'
 import { servedToAgents, type Fact } from '@/model/items'
-import { monthName, monthShort, observability, type Topic } from '@/model/observability'
+import { monthName, monthShort, observability, type Topic } from '@/api/mock/obs-engine'
 import { NEXT, type ReplayStep, type When } from '@/model/replay'
 import { answerFor } from './data/ask'
 import { obsData } from './data/observability'

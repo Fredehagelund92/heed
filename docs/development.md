@@ -188,15 +188,16 @@ their writes are not available yet.
 
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
-setup checklist, People, Context, Definitions and the editor so far) on an http mode build against the
+setup checklist, People, Context, Definitions, the editor and Observability so far) on an http mode build against the
 service, one at a time, each on its own copy of the demo week seeded once into a template
-database; a journey that starts as a new install (`?demo=setup`) gets a copy of an empty
-workspace instead. It needs a local PostgreSQL 18 and a superuser's connection in
+database; a journey that starts as a new install (`?demo=setup`, or Observability's `?state=empty`) gets a
+copy of an empty workspace instead, and `?demo=week` brings it back to the demo week. It needs a local PostgreSQL 18 and a superuser's connection in
 `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server); it serves the app
 on port 4175 and the service on 3110, or on `PW_GOLDEN_WEB_PORT` and `PW_GOLDEN_API_PORT` when
-another run uses those. The specs read the mock's card and item ids, the queue and its counts
+another run uses those. The specs read the mock's card, item and topic ids, the queue and its counts
 through `tests/e2e-app/go.ts`, which gives the service's in http mode; a step that needs a later
-pull request's server work is skipped in http mode only, naming that pull request.
+pull request's server work is skipped in http mode only, naming that pull request, and so is a step
+of a review flag only the mock has (`?state=quiet`).
 `npm run test:e2e:api` runs a Playwright smoke test of an http mode build against the service; it
 needs a migrated, seeded database named by `E2E_DATABASE_URL` (default: the local development
 database), and CI runs it on a PostgreSQL 18 container. Its service signs in the people in

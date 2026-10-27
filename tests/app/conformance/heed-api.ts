@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { heedApiMethods, type HeedApi, type HeedApiMethod } from '@/api/client'
+import type { ObsData } from '@/model/observability'
 import { whenLabel } from '@/model/validity'
 import type { CardType, InboxCard } from '@/model/inbox'
 import { mentionNotesOf, type Subject } from '@/model/comments'
@@ -1117,6 +1118,145 @@ export function describeHeedApi(
           link: 'https://wiki.example/norway-orders',
         })
         expect((await a.getMyReports())[0]?.id).toBe(itself.id)
+      },
+    )
+
+    /** FR-614 on a page: no count from one to four, and no shown total that gives one away. */
+    const expectDisclosed = (page: ObsData) => {
+      const fine = (n: number | null) => n === null || n === 0 || n >= 5
+      const left = (total: number, parts: (number | null)[]) =>
+        total - parts.reduce<number>((a, b) => a + (b ?? 0), 0)
+      const counts = [
+        page.numbers.asked,
+        page.couldNotRead,
+        ...page.agents.map((a) => a.count),
+        ...page.bars.flatMap((b) => Object.values(b.counts)),
+        ...page.topics.flatMap((t) => [t.total, ...Object.values(t.counts)]),
+        ...page.subjects.flatMap((g) => [g.total, ...Object.values(g.counts)]),
+        ...page.domains.map((d) => d.total),
+      ]
+      for (const n of counts) expect(fine(n), `a count of ${n}`).toBe(true)
+      const byId = new Map(page.topics.map((t) => [t.id, t]))
+      for (const t of page.topics)
+        if (t.total !== null) expect(fine(left(t.total, Object.values(t.counts))), t.id).toBe(true)
+      for (const g of page.subjects) {
+        for (const id of g.topics) expect(byId.has(id), `${g.key} names ${id}`).toBe(true)
+        if (g.total !== null)
+          expect(
+            fine(
+              left(
+                g.total,
+                g.topics.map((id) => byId.get(id)!.total),
+              ),
+            ),
+            g.key,
+          ).toBe(true)
+      }
+    }
+
+    it.skipIf(lacks('signIn', 'observabilityPage'))(
+      'counts what agents asked as topics and counts, never one under 5 nor one worked out from the rest',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        for (const range of [7, 30, 90] as const) {
+          const page = await api().observabilityPage({ section: 'overview', range })
+          expect(page.state, `${range} days`).toBe('normal')
+          expect(page.numbers.asked, `${range} days`).toBeGreaterThanOrEqual(5)
+          expect(page.bars).toHaveLength(range === 90 ? 13 : range)
+          expect(new Set(page.topics.map((t) => t.id)).size).toBe(page.topics.length)
+          expectDisclosed(page)
+        }
+        const questions = await api().observabilityPage({ section: 'questions', range: 7 })
+        expect(questions.topics.length).toBeGreaterThan(0)
+        for (const t of questions.topics) {
+          expect(t.month, t.id).toMatch(/^\d{4}-\d{2}$/)
+          expect(t.where, t.id).not.toBe('')
+        }
+        expectDisclosed(questions)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilityPage', 'getWorkspace'))(
+      'narrows the numbers to a domain, and keeps every topic the person sees for Questions',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const all = await api().observabilityPage({ section: 'overview', range: 7 })
+        const owned = (await api().getWorkspace()).domains.find((d) => d.owners.includes(person))!
+        const one = await api().observabilityPage({
+          section: 'overview',
+          range: 7,
+          domain: owned.id,
+        })
+        expect(one.numbers.asked).not.toBeNull()
+        expect(one.numbers.asked!).toBeLessThan(all.numbers.asked!)
+        expect(one.topics.map((t) => t.id).sort()).toEqual(all.topics.map((t) => t.id).sort())
+        expectDisclosed(one)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilityPage', 'getWorkspace'))(
+      "lists what was reported about answers, an agent's by its kind and never by a person's name",
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const page = await api().observabilityPage({ section: 'feedback', range: 7 })
+        const names = (await api().getWorkspace()).people.map((p) => p.name)
+        expect(page.feedback?.reports.length).toBeGreaterThan(0)
+        for (const r of page.feedback!.reports.filter((x) => x.agent))
+          expect(names, r.id).not.toContain(r.from)
+        for (const n of [page.feedback!.week.good, page.feedback!.week.wrong])
+          expect(n === null || n === 0 || n >= 5).toBe(true)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilityPage'))(
+      'counts tool calls by tool and by kind of agent, and the spend against its cap',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const page = await api().observabilityPage({ section: 'usage', range: 7 })
+        const usage = page.usage!
+        expect(usage.tools.length).toBeGreaterThan(0)
+        for (const t of usage.tools)
+          expect(t.answered + t.detail + t.nothing + t.failed, t.name).toBeLessThanOrEqual(t.calls)
+        for (const a of usage.agents) expect(a.calls === null || a.calls >= 5, a.name).toBe(true)
+        expect(usage.spend.total).toBeLessThanOrEqual(usage.spend.cap)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getSavedViews', 'saveView', 'removeView'))(
+      'saves a view of Questions for everyone, and removes it',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const name = `Found nothing ${Date.now()}`
+        const { id } = await api().saveView({ name, filters: { answer: ['missing'] } })
+        const saved = (await api().getSavedViews()).find((v) => v.id === id)
+        expect(saved).toMatchObject({ name, filters: { answer: ['missing'] }, by: person })
+        await api().removeView({ id })
+        expect((await api().getSavedViews()).some((v) => v.id === id)).toBe(false)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilityPage', 'replayTopic'))(
+      'replays a topic step by step, on what agents get now and before the last publish',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const page = await api().observabilityPage({ section: 'questions', range: 7 })
+        const topic = page.topics.find((t) => t.total !== null)!
+        const now = await api().replayTopic({ topic: topic.id, when: 'now' })
+        expect(now!.steps.map((s) => s.key)).toEqual([
+          'scope',
+          'looked',
+          'left',
+          'checked',
+          'said',
+          'next',
+        ])
+        expect(['grounded', 'partial', 'missing', 'conflict', 'stale', 'failed']).toContain(
+          now!.answer.state,
+        )
+        expect(now!.before.label).toMatch(/^Before \d{1,2} [A-Z][a-z]{2}$/)
+        const before = await api().replayTopic({ topic: topic.id, when: 'before' })
+        expect(before!.steps).toHaveLength(6)
+        expect(await api().replayTopic({ topic: 'no-such-topic', when: 'now' })).toBeNull()
       },
     )
 

@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { useDomains } from '@/lib/workspace'
-import { useQuery } from '@tanstack/react-query'
-import { observabilityPageQuery } from '@/api/queries'
-import { useObservability } from '@/lib/obs'
+import { useObservability, useObsPageQuery } from '@/lib/obs'
 import {
   ArrowUpRightIcon,
   BotIcon,
@@ -37,7 +35,7 @@ const STATE_ICON: Record<ReportState, typeof FlagIcon> = {
 }
 
 export function FeedbackPage() {
-  const load = useQuery(observabilityPageQuery('feedback'))
+  const load = useObsPageQuery('feedback')
   return (
     <ObsPage section="feedback">
       <Loadable
@@ -56,15 +54,14 @@ function Feedback() {
   const obs = useObservability()
   const view = useObsView()
   const [tab, setTab] = React.useState<'all' | ReportState>('all')
-  const reports =
-    view.state === 'empty'
-      ? []
-      : obs.data.reports.filter((r) => !view.owned || view.owned.includes(r.domain))
+  const feedback = obs.data.feedback
+  // The binding gives the reports of the domains the person sees.
+  const reports = view.state === 'empty' || !feedback ? [] : feedback.reports
   const shown = reports.filter((r) => tab === 'all' || r.state === tab)
   const weeks = view.range === 90 ? 13 : 8
-  const scale = view.range === 7 ? 1 : view.range === 30 ? 4.3 : 12.9
-  const good = view.state === 'empty' ? 0 : Math.round(obs.data.feedbackWeek.good * scale)
-  const wrong = view.state === 'empty' ? 0 : Math.round(obs.data.feedbackWeek.wrong * scale)
+  const good = feedback?.week.good ?? null
+  const wrong = feedback?.week.wrong ?? null
+  const goodBefore = feedback?.week.goodBefore ?? null
   const people = reports.filter((r) => !r.agent).length
   const agents = reports.filter((r) => r.agent).length
   if (view.state === 'empty')
@@ -97,15 +94,29 @@ function Feedback() {
           icon={<ThumbsUpIcon />}
           label="Good answer"
           value={shownCount(good)}
-          change={view.range === 7 ? `+${obs.data.feedbackWeek.goodChange}` : undefined}
+          change={
+            good !== null && goodBefore !== null && good !== goodBefore
+              ? `${good > goodBefore ? '+' : ''}${good - goodBefore}`
+              : undefined
+          }
           tone="up"
           sub={`${view.label}, in Ask`}
         />
         <Kpi
           icon={<ThumbsDownIcon />}
           label="Something was wrong"
-          value={wrong < 5 ? <span className="text-xl">Fewer than 5</span> : wrong}
-          sub={wrong < 5 ? 'a count under 5 is hidden' : `${view.label}, in Ask`}
+          value={
+            wrong === null || (wrong > 0 && wrong < 5) ? (
+              <span className="text-xl">Fewer than 5</span>
+            ) : (
+              wrong
+            )
+          }
+          sub={
+            wrong === null || (wrong > 0 && wrong < 5)
+              ? 'a count under 5 is hidden'
+              : `${view.label}, in Ask`
+          }
         />
         {/* Reports are sent on purpose and carry a name, so their count hides nobody: it shows as it is. */}
         <Kpi
@@ -172,8 +183,8 @@ function Feedback() {
                         {r.title}
                       </a>
                       <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-                        <DomainDot id={r.domain} />
-                        {domains[r.domain]?.name} - {r.line}
+                        {r.domain && <DomainDot id={r.domain} />}
+                        {r.domain ? domains[r.domain]?.name : 'No domain'} - {r.line}
                       </p>
                     </div>
                     {/* On a narrow page the state and who sent it go under the title. */}
@@ -213,8 +224,8 @@ function Feedback() {
           >
             <div className="px-3 pb-3">
               <Bars
-                values={obs.data.goodByWeek.values.slice(-weeks)}
-                labels={obs.data.goodByWeek.labels.slice(-weeks)}
+                values={(feedback?.goodByWeek.values ?? []).slice(-weeks)}
+                labels={(feedback?.goodByWeek.labels ?? []).slice(-weeks)}
                 caption="Good answers, by week"
               />
             </div>

@@ -17,12 +17,25 @@ export const toneHue: Record<Exclude<Tone, 'neutral' | 'domain'>, number> = {
   warn: 70,
 }
 
-export const domainHue: Record<DomainId, number | null> = {
+const hues: Record<DomainId, number | null> = {
   sales: 255,
   marketing: 35,
   customer_value: 300,
   paid_media: 165,
   sandbox: null,
+}
+
+/**
+ * A domain's hue: the demo world's own, by its id as the mock names it or as the service does
+ * (`area_sales`), and for any other domain one picked from its id, the same every time. The sandbox
+ * has none.
+ */
+export function domainHue(id: DomainId): number | null {
+  const plain = id.replace(/^area_/, '')
+  if (plain in hues) return hues[plain]!
+  let h = 0
+  for (const c of plain) h = (h * 31 + c.charCodeAt(0)) % 360
+  return h
 }
 
 /** What a plain "applies to" word is: a metric, a market, a domain, or a word of the author's own. */

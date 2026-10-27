@@ -22,7 +22,7 @@ import { ReadingCard } from '@/components/heed/reading'
 import { DockStepper } from '@/components/heed/list'
 import { BarRows } from '@/components/obs/charts'
 import { SaveQuestion } from '@/components/obs/save-question'
-import { shownCount, total, type Shown, type Topic, monthName } from '@/model/observability'
+import { shownCount, type Counts, type Shown, type Topic, monthName } from '@/model/observability'
 import { openDock } from '@/lib/dock'
 import { useObsView } from '@/lib/obs'
 import { afterAnswer, type ReplayStep, type When } from '@/model/replay'
@@ -67,10 +67,10 @@ export function AnswerPanel({ id }: { id: string }) {
       : 'overview'
   ) as Tab
   const when: When = query.get('when') === 'before' ? 'before' : 'now'
-  const counts = obs.topicCounts(t, view)
-  const asked = total(counts)
+  const counts = t.counts
+  const asked = t.total
   const warnings = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
-    (s) => counts[s] > 0,
+    (s) => t.in.answers.includes(s) || (s === 'missing' && t.in.notFound),
   )
   const question = `What should I know about ${obs.topicName(t)} in ${monthName(t.month)}?`
   const write =
@@ -123,8 +123,13 @@ export function AnswerPanel({ id }: { id: string }) {
         <div className="mt-2 flex flex-wrap items-center gap-2 px-4 @md:px-5">
           <StateLine state={now.answer.state} className="text-xs" />
           <span className="text-dense text-muted-foreground">
-            Asked {shownCount(asked)} times {view.label}.
-            {counts.missing ? ` ${shownCount(counts.missing)} not found.` : ''}
+            Asked {asked === null && t.atLeast ? `${t.atLeast}+` : shownCount(asked)} times{' '}
+            {view.label}.
+            {counts.missing === null
+              ? ' How many found nothing is hidden.'
+              : counts.missing !== 0
+                ? ` ${shownCount(counts.missing)} not found.`
+                : ''}
           </span>
         </div>
         <div
@@ -165,7 +170,7 @@ export function AnswerPanel({ id }: { id: string }) {
           aria-labelledby={`ap-tab-${tab}`}
           className="px-4 py-4 @md:px-5"
         >
-          {tab === 'overview' && <OverviewTab t={t} asked={asked} />}
+          {tab === 'overview' && <OverviewTab t={t} />}
           {tab === 'steps' && <StepsTab t={t} when={when} />}
           {tab === 'warnings' && <WarningsTab t={t} counts={counts} />}
         </div>
@@ -174,14 +179,12 @@ export function AnswerPanel({ id }: { id: string }) {
   )
 }
 
-function OverviewTab({ t, asked }: { t: Topic; asked: number }) {
-  const obs = useObservability()
+function OverviewTab({ t }: { t: Topic }) {
   const now = useReplay(t.id, 'now')
   const before = useReplay(t.id, 'before')
   const [compare, setCompare] = React.useState(false)
   if (!now || !before) return null
   const same = strip(now.answer.text) === strip(before.answer.text)
-  const share = (n: number) => Math.round((n / 142) * asked)
   return (
     <div className="flex flex-col gap-5">
       <div className="rounded-lg bg-muted/60 px-3.5 py-3 text-sm">
@@ -195,12 +198,14 @@ function OverviewTab({ t, asked }: { t: Topic; asked: number }) {
           aria-expanded={compare}
           onClick={() => setCompare((c) => !c)}
         >
-          {compare ? 'Hide the compare' : `Compare with what agents got before 20 Oct`}
+          {compare
+            ? 'Hide the compare'
+            : `Compare with what agents got ${before.before.label.toLowerCase()}`}
         </button>
         {compare &&
           (same ? (
             <p className="mt-2 text-sm text-muted-foreground">
-              The same before the publish on 20 Oct: nothing it reads changed.
+              The same {before.before.label.toLowerCase()}: nothing it reads changed.
             </p>
           ) : (
             <div className="mt-2 grid gap-px overflow-hidden rounded-md border bg-border text-sm @md:grid-cols-2">
@@ -215,17 +220,23 @@ function OverviewTab({ t, asked }: { t: Topic; asked: number }) {
             </div>
           ))}
       </div>
-      <div>
-        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Asked by</p>
-        <BarRows
-          quiet
-          caption="Asked by, by kind of agent"
-          rows={obs.data.agents.slice(0, 3).map((a) => {
-            const n = Math.max(1, share(a.week))
-            return { key: a.name, name: a.name, label: a.name, value: n, display: shownCount(n) }
-          })}
-        />
-      </div>
+      {/* The kinds of agent that asked, when the binding has them: a count under 5 is hidden. */}
+      {t.agents && t.agents.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Asked by</p>
+          <BarRows
+            quiet
+            caption="Asked by, by kind of agent"
+            rows={t.agents.map((a) => ({
+              key: a.name,
+              name: a.name,
+              label: a.name,
+              value: a.count ?? 0,
+              display: shownCount(a.count),
+            }))}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -366,10 +377,10 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
   )
 }
 
-function WarningsTab({ t, counts }: { t: Topic; counts: Record<Shown, number> }) {
+function WarningsTab({ t, counts }: { t: Topic; counts: Counts }) {
   const obs = useObservability()
   const kinds = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
-    (s) => counts[s] > 0,
+    (s) => t.in.answers.includes(s) || (s === 'missing' && t.in.notFound),
   )
   const why: Record<Shown, string> = {
     missing: 'Agents asked and nothing applies.',
@@ -378,7 +389,8 @@ function WarningsTab({ t, counts }: { t: Topic; counts: Record<Shown, number> })
     stale: 'An item it answers from has a check date that passed.',
     grounded: '',
   }
-  const times = (n: number) => (n < 5 ? 'fewer than 5 times' : `${n} times`)
+  // A hidden count may be one under 5, or one hidden so that none is given away: say neither.
+  const times = (n: number | null) => (n === null ? 'a hidden number of times' : `${n} times`)
   if (!kinds.length)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">

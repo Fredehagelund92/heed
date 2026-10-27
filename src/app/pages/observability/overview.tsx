@@ -1,8 +1,6 @@
 import * as React from 'react'
 import { useDomains } from '@/lib/workspace'
-import { useQuery } from '@tanstack/react-query'
-import { observabilityPageQuery } from '@/api/queries'
-import { useObservability } from '@/lib/obs'
+import { useObservability, useObsPageQuery } from '@/lib/obs'
 import type { Observability } from '@/model/observability'
 import type { Domains } from '@/model/people'
 import {
@@ -37,15 +35,16 @@ import { BarRows, Legend, StackedBars } from '@/components/obs/charts'
 import { Kpi, ObsControls } from '@/components/obs/controls'
 import {
   dateLabel,
+  dayLabel,
   GROUPINGS,
   groupCount,
   HIDE_UNDER,
   monthsLabel,
+  noCounts,
+  SHOWN,
   shownCount,
-  total,
-  visibleTotal,
   type Grouping,
-  type TopicRow,
+  type Topic,
   type View,
 } from '@/model/observability'
 import {
@@ -81,8 +80,7 @@ const questionsHref = (v: View, extra: Record<string, string | undefined> = {}) 
   })
 
 export function OverviewPage() {
-  const load = useQuery(observabilityPageQuery('overview'))
-  const view = useObsView()
+  const load = useObsPageQuery('overview')
   return (
     <ObsPage section="overview">
       <Loadable
@@ -90,16 +88,18 @@ export function OverviewPage() {
         what="the counts"
         skeleton={<ObsSkeleton section="overview" kpis={4} body="overview" />}
       >
-        {view.state === 'empty' ? (
-          <NothingConnected />
-        ) : view.state === 'quiet' ? (
-          <TooFew view={view} />
-        ) : (
-          <Overview view={view} />
-        )}
+        <OverviewOf />
       </Loadable>
     </ObsPage>
   )
+}
+
+/** The page for what its data says: nothing asked yet, too few to count, or the counts. */
+function OverviewOf() {
+  const view = useObsView()
+  if (view.state === 'empty') return <NothingConnected />
+  if (view.state === 'quiet') return <TooFew view={view} />
+  return <Overview view={view} />
 }
 
 function Head({
@@ -132,17 +132,18 @@ function Head({
 function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
   const domains = useDomains()
   const obs = useObservability()
-  const n = obs.numbersOf(view)
-  const bars = obs.barsOf(view)
+  const n = obs.numbers()
+  const bars = obs.data.bars
   const saved = savedCounts(useSavedQuestions(), view.domain)
-  const topics = obs.topicsOf(view)
+  // The top topics are the domain's the numbers are about, or every one.
+  const topics = obs.data.topics.filter((t) => !view.domain || t.domain === view.domain)
   // Top topics grouped as Questions groups them: metric and market by default, the month kept inside.
   const { query } = useRoute()
   const grouping: Grouping =
     query.get('group') === 'none' ? 'none' : query.get('group') === 'domain' ? 'domain' : 'metric'
   const top = topRows(obs, domains, topics, grouping)
-  const unread = obs.couldNotRead(view)
-  const pubs = obs.publishesIn(view)
+  const unread = obs.data.couldNotRead
+  const pubs = obs.data.publishes
   const marks = pubs
     .map((p) => ({
       index: bars.findIndex((b, i) => (b.at ?? 0) <= p.at && (bars[i + 1]?.at ?? Infinity) > p.at),
@@ -150,7 +151,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
     }))
     .filter((m) => m.index >= 0)
   // Found nothing five or more times in 7 days, whatever the range, counted across a month edge.
-  const nothing = obs.notFoundGroups(view)
+  const nothing = obs.notFoundGroups(view.domain)
   const before = view.range === 7 ? 'the 7 days before' : `the ${view.range} days before`
   return (
     <Frame>
@@ -159,23 +160,29 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
         <Kpi
           icon={<MessageSquareIcon />}
           label="Asked"
-          value={shownCount(n.asked)}
-          change={n.asked >= HIDE_UNDER ? `${pct(n.askedChange)}%` : undefined}
+          value={n.asked === null ? '-' : shownCount(n.asked)}
+          change={n.askedChange !== null ? `${pct(n.askedChange)}%` : undefined}
           tone="up"
           sub={
-            n.asked >= HIDE_UNDER
-              ? `vs ${n.askedBefore.toLocaleString('en-GB')} ${before}`
-              : undefined
+            n.asked === null
+              ? 'hidden: it would give a count under 5 away'
+              : n.askedBefore !== null
+                ? `vs ${n.askedBefore.toLocaleString('en-GB')} ${before}`
+                : undefined
           }
           href={questionsHref(view)}
         />
         <Kpi
           icon={<CircleCheckIcon />}
           label="Found checked context"
-          value={`${n.foundShare}%`}
+          value={n.foundShare === null ? '-' : `${n.foundShare}%`}
           change={n.foundChange ? `${pct(n.foundChange)} pts` : undefined}
           tone="up"
-          sub={`${n.found.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')}`}
+          sub={
+            n.found !== null && n.asked !== null
+              ? `${n.found.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')}`
+              : 'counts under 5 are hidden'
+          }
           href={questionsHref(view, { answer: 'found' })}
         />
         <Kpi
@@ -184,7 +191,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
           value={shownCount(n.nothing)}
           // A count under 5 shows no change and no share either: they would give the number away.
           change={
-            n.nothing < HIDE_UNDER
+            n.nothing === null || n.nothing < HIDE_UNDER || n.nothingChange === null
               ? undefined
               : n.nothingChange < 0
                 ? `${-n.nothingChange} fewer`
@@ -193,7 +200,11 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                   : undefined
           }
           tone="warn"
-          sub={n.nothing < HIDE_UNDER ? undefined : `${n.nothingShare}% of questions`}
+          sub={
+            n.nothing === null || n.nothing < HIDE_UNDER || n.nothingShare === null
+              ? undefined
+              : `${n.nothingShare}% of questions`
+          }
           href={questionsHref(view, { answer: 'missing' })}
         />
         <Kpi
@@ -247,14 +258,15 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                   label: g.name,
                   value: g.visible ?? g.shown,
                   display: groupCount(g),
-                  hatch: g.total ? g.counts.missing / g.total : 0,
+                  // What found nothing, as a share, only when both counts show.
+                  hatch: g.visible && g.counts.missing !== null ? g.counts.missing / g.visible : 0,
                   href: g.id
                     ? questionsHref(view, { dock: `topic.${g.id}` })
                     : questionsHref(view, { group: 'domain' }),
                 }))}
               />
               <Legend states={['grounded', 'missing']} />
-              {unread > 0 && (
+              {unread !== 0 && unread !== null && (
                 <p className="flex items-start gap-2 border-t pt-3 text-xs text-muted-foreground">
                   <CircleHelpIcon className="mt-px size-3.5 shrink-0" aria-hidden />
                   <span>
@@ -301,7 +313,8 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                     <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
                       {t.domain && <DomainDot id={t.domain} />}
                       {t.domain ? domains[t.domain]?.name : 'No domain'} - asked {groupCount(t)}{' '}
-                      times, not found {shownCount(t.counts.missing)}
+                      times, not found{' '}
+                      {t.counts.missing === null ? '(hidden)' : shownCount(t.counts.missing)}
                       {t.months.length > 1
                         ? `, across ${monthsLabel(t.months)}, counted together`
                         : ''}
@@ -361,11 +374,11 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                   <BarRows
                     quiet
                     caption="Questions by kind of agent"
-                    rows={obs.agentsOf(view).map((a) => ({
+                    rows={obs.data.agents.map((a) => ({
                       key: a.name,
                       name: a.name,
                       label: a.name,
-                      value: a.count,
+                      value: a.count ?? 0,
                       display: shownCount(a.count),
                       onClick: () => setQuery({ agent: a.name }),
                     }))}
@@ -421,10 +434,14 @@ function NothingConnected() {
       <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-(--cols-split-6-5)">
         <div aria-hidden className="px-4 py-6 opacity-50 md:px-5">
           <StackedBars
-            bars={obs.barsOf({ range: 7 }).map((b) => ({
-              ...b,
-              counts: { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
-            }))}
+            bars={Array.from({ length: 7 }, (_, i) => {
+              const at = obs.data.last - (6 - i) * 86_400_000
+              return {
+                label: dayLabel(at),
+                at,
+                counts: { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
+              }
+            })}
             caption="No questions yet"
             height={160}
           />
@@ -516,9 +533,13 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
 }
 
 /** Top topics in a grouping: each exact scope with its month, metric and market (months joined), or a domain. */
-function topRows(obs: Observability, domains: Domains, topics: TopicRow[], grouping: Grouping) {
+function topRows(obs: Observability, domains: Domains, topics: Topic[], grouping: Grouping) {
   if (grouping === 'none')
-    return topics.map((t) => ({ ...obs.rollUp([t])[0]!, name: obs.topicTitle(t), id: t.id }))
+    return topics.map((t) => ({
+      ...obs.single(t),
+      name: obs.topicTitle(t),
+      id: t.id,
+    }))
   const groups = obs.rollUp(topics).map((g) => ({ ...g, id: g.rows[0]!.id }))
   if (grouping === 'metric') return groups
   const by = new Map<string, typeof groups>()
@@ -526,30 +547,18 @@ function topRows(obs: Observability, domains: Domains, topics: TopicRow[], group
   return [...by.entries()]
     .map(([d, gs]) => {
       const rows = gs.flatMap((g) => g.rows)
-      const sum = rows.reduce((n, r) => n + total(r.counts), 0)
-      const shown = rows.reduce(
-        (n, r) => n + (total(r.counts) >= HIDE_UNDER ? total(r.counts) : 0),
-        0,
-      )
-      const counts = gs.reduce(
-        (c, g) => ({
-          grounded: c.grounded + g.counts.grounded,
-          partial: c.partial + g.counts.partial,
-          conflict: c.conflict + g.counts.conflict,
-          stale: c.stale + g.counts.stale,
-          missing: c.missing + g.counts.missing,
-        }),
-        { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
-      )
+      const counts = noCounts()
+      for (const k of SHOWN)
+        counts[k] = gs.every((g) => g.counts[k] !== null)
+          ? gs.reduce((n, g) => n + g.counts[k]!, 0)
+          : null
       return {
-        ...gs[0],
+        ...gs[0]!,
+        ...obs.domainGroup(d ? d : undefined, rows),
         key: d || 'none',
         name: d ? (domains[d]?.name ?? 'No domain') : 'No domain',
         rows,
         counts,
-        total: sum,
-        shown,
-        visible: visibleTotal(sum, shown),
         id: undefined,
       }
     })

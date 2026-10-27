@@ -37,6 +37,8 @@ type World = {
   queue: string[]
   /** The items a journey publishes on the way, by their mock id, with their titles. */
   published: Record<string, string>
+  /** What the answer panel compares with: before the last publish. */
+  before: string
 }
 let world: World | undefined
 /** The http world: the service's ids for the mock's cards, from the global setup. */
@@ -51,6 +53,12 @@ export const cardIn = (id: string) =>
   card(id)
     .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     .replace(/:/g, '(?::|%3A)')
+
+/** A mock topic's id in this mode, as the answer panel's address names it (`dock=topic.<id>`). */
+export const topicId = (id: string) => (http ? (httpWorld().ids[`topic.${id}`] ?? id) : id)
+
+/** What the answer panel compares with: before the last publish, as each mode's library has it. */
+export const beforeLastPublish = () => (http ? httpWorld().before : 'Before 20 Oct')
 
 /** The review's queue in this mode. */
 export const queue = () => (http ? httpWorld().queue : mockQueue)
@@ -86,20 +94,34 @@ export async function inMockUntil(pr: string, what: string, step: () => Promise<
   base.info().annotations.push({ type: 'skipped step', description: `Needs ${what} (${pr})` })
 }
 
+/**
+ * One step of what the mock alone has, with no meaning on the service (a review flag such as
+ * `?state=quiet`, too few questions to count): it runs on the mock, and in http mode it is left
+ * out, said in the report, while the rest of the journey runs.
+ */
+export async function onMockOnly(what: string, step: () => Promise<void>) {
+  if (!http) return step()
+  base.info().annotations.push({ type: 'skipped step', description: `The mock's own ${what}` })
+}
+
 /** The app's own origin, which the service takes changes from. */
 const origin = process.env.GOLDEN_WEB_ORIGIN ?? ''
+
+/** The workspace the service answers on now: the demo week, or a new install. */
+let workspace: 'week' | 'empty' = 'week'
 
 /**
  * A fresh copy of a workspace on its own service, with Jon signed in, as the mock starts. The
  * harness reads the app's demo week under the app's aliases (tsconfig.app.json), so it is loaded
  * by name, in http mode only.
  */
-async function startService(page: Page, workspace: 'week' | 'empty') {
+async function startService(page: Page, on: 'week' | 'empty') {
   const harness = './http/harness.ts'
   const { freshService } = (await import(harness)) as {
     freshService: (workspace: 'week' | 'empty') => Promise<{ close: () => Promise<void> }>
   }
-  const service = await freshService(workspace)
+  const service = await freshService(on)
+  workspace = on
   const signedIn = await page.request.post('/api/v1/auth/sign-in', {
     headers: { 'x-heed-csrf': 'dev-sign-in', origin },
     data: { email: 'per_jon@example.test' },
@@ -160,8 +182,10 @@ export const test = base.extend<{ demoWeek: void }>({
   `?demo=setup` starts on an empty workspace.
 */
 export async function go(page: Page, route: string) {
+  const was = workspace
   const to = http ? await httpRoute(page, route) : { route }
-  if (page.url().startsWith('http') && !to.load) await moveTo(page, to.route)
+  // On another workspace the app reads everything again, as a fresh visit does.
+  if (page.url().startsWith('http') && !to.load && was === workspace) await moveTo(page, to.route)
   else await page.goto(to.route)
   await to.after?.()
 }
@@ -212,6 +236,10 @@ async function httpRoute(
   if (demo === 'last') await decideAllBut(page, path.split('/')[2] ?? '')
   // A new install: the journey moves to a copy of an empty workspace, Jon signed in there.
   else if (demo === 'setup') await startService(page, 'empty')
+  // Observability with nothing asked yet is a new install too.
+  else if (state === 'empty' && path.startsWith('/observability')) await startService(page, 'empty')
+  // Back to the demo week from a new install.
+  else if (demo === 'week' && workspace === 'empty') await startService(page, 'week')
   else if (demo && demo !== 'week') throw new Error(`?demo=${demo} has no http meaning yet`)
   if (state === 'failed') await failFirstTry(page)
   if (bulk === 'fail') await failLastRowOnce(page)

@@ -49,7 +49,7 @@ import { savedCheckQuery, useWrite } from '@/api/queries'
 import { savedCounts, type SavedQuestion, type SavedResult } from '@/model/saved-questions'
 import { useSavedQuestions } from '@/api/queries'
 import type { DomainId } from '@/model/items'
-import { OBS_PURPOSE, useObsView } from '@/lib/obs'
+import { OBS_PURPOSE, useObsPageQuery, useObsView } from '@/lib/obs'
 import { href, setQuery, useRoute } from '@/lib/router'
 import { useOnline } from '@/lib/send'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
@@ -74,9 +74,10 @@ const GROUPS: { result: SavedResult; title: string; icon: typeof CheckIcon }[] =
 export function QualityPage() {
   // A check that stands elsewhere (running, failed) starts the page afresh.
   const check = useQuery(savedCheckQuery()).data
+  const page = useObsPageQuery('quality').data
   return (
     <ObsPage section="quality">
-      {check && <Quality key={JSON.stringify(check)} run={check} />}
+      {check && page && <Quality key={JSON.stringify(check)} run={check} />}
     </ObsPage>
   )
 }

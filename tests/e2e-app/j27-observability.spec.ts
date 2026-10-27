@@ -1,14 +1,32 @@
-import { expect, test } from '@playwright/test'
-import { go, signInAs } from './go.ts'
+import {
+  beforeLastPublish,
+  card,
+  expect,
+  go,
+  inMockUntil,
+  mode,
+  onMockOnly,
+  signInAs,
+  test,
+  topicId,
+  untilInHttp,
+} from './go.ts'
 
 // J27: Observability, what agents asked and what they got. One row at the sidebar's foot for admins
 // and owners, between Help and Settings; it swaps the sidebar to its own menu, as Settings does.
+// Saved questions, their check and the alerts come with the second part of P12 (P12b).
+
+/** The reports Feedback lists this week: on the service, only what agents sent (named ones: P10). */
+const reports = () => (mode === 'http' ? 6 : 9)
+/** Tool calls in the last 30 days: the mock scales its week, the service counts its weeks. */
+const toolCalls30 = () => (mode === 'http' ? '1,330' : '1,342')
 
 test('the row sits between Help and Settings and swaps the sidebar to its own menu', async ({
   page,
 }) => {
   await go(page, '/inbox')
   const sidebar = page.locator('[data-sidebar=sidebar]').first()
+  await expect(sidebar.getByRole('link', { name: 'Observability' })).toBeVisible()
   const foot = await sidebar.locator('[data-slot=sidebar-menu-item]').allInnerTexts()
   const at = foot.findIndex((t) => t.trim() === 'Observability')
   expect(foot[at - 1]?.trim()).toBe('Help')
@@ -26,7 +44,9 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   ])
     await expect(sidebar.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
   // Quality's badge counts what needs a look, from the saved questions.
-  await expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2')
+  await inMockUntil('P12b', 'saved questions', () =>
+    expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2'),
+  )
   await sidebar.getByRole('link', { name: 'Back to app' }).click()
   await expect(page).toHaveURL(/\/inbox/)
 })
@@ -61,26 +81,28 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await expect(page.getByRole('link', { name: /Found checked context/ })).toContainText('82%')
   await expect(page.getByRole('link', { name: /^Not found/ })).toContainText('2 fewer')
   // One source for saved questions: 9 same of 12.
-  await expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(
-    /9\s*same\s*of 12/,
+  await inMockUntil('P12b', 'saved questions', () =>
+    expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(/9\s*same\s*of 12/),
   )
-  // The chart's numbers, for a screen reader, with the publish marked.
+  // The chart's numbers, for a screen reader.
   await expect(page.locator('table caption', { hasText: 'Questions per day' })).toHaveCount(1)
-  await expect(
-    page
-      .locator('table')
-      .filter({ hasText: 'Questions per day' })
-      .getByRole('rowheader', { name: /published/ }),
-  ).toHaveCount(1)
   // What found nothing goes to the Inbox, where its draft or suggestion waits.
   await expect(page.getByRole('link', { name: 'Draft ready' })).toHaveAttribute(
     'href',
-    '/inbox?card=gap-spain',
+    `/inbox?card=${card('gap-spain')}`,
   )
 
   await page.getByRole('radio', { name: '30 days' }).click()
   await expect(page).toHaveURL(/range=30/)
   await expect(page.getByRole('heading', { name: 'Questions per day' })).toBeVisible()
+  // A publish in the range is marked on its day.
+  await expect(
+    page
+      .locator('table')
+      .filter({ hasText: 'Questions per day' })
+      .getByRole('rowheader', { name: /published/ })
+      .first(),
+  ).toBeVisible()
   await page.getByRole('radio', { name: '90 days' }).click()
   await expect(page.getByRole('heading', { name: 'Questions per week' })).toBeVisible()
 
@@ -95,10 +117,13 @@ test("Overview: nothing connected, too few to show, and an owner's own domain", 
   await go(page, '/observability?state=empty')
   await expect(page.getByRole('heading', { name: 'No agent has asked anything yet' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect an agent' })).toBeVisible()
-  await go(page, '/observability?state=quiet')
-  await expect(page.getByText('Too few questions to show')).toBeVisible()
-  await expect(page.getByText('Fewer than 5').first()).toBeVisible()
+  await onMockOnly('review flag for too few questions', async () => {
+    await go(page, '/observability?state=quiet')
+    await expect(page.getByText('Too few questions to show')).toBeVisible()
+    await expect(page.getByText('Fewer than 5').first()).toBeVisible()
+  })
 
+  await go(page, '/observability?demo=week')
   await signInAs(page, 'Tomas Eriksen')
   await go(page, '/observability')
   await expect(page.getByText('What agents asked about Marketing this week')).toBeVisible()
@@ -167,35 +192,45 @@ test('The answer panel replays a topic: what an agent gets, the steps, and what 
   await panel.getByRole('tab', { name: /Warnings/ }).click()
   await expect(panel.getByRole('link', { name: 'Open' })).toHaveAttribute(
     'href',
-    '/inbox?card=gap-spain',
+    `/inbox?card=${card('gap-spain')}`,
   )
   // The way forward: the draft, Ask with the question, and saving it.
   await expect(panel.getByRole('link', { name: 'Write context for this' })).toHaveAttribute(
     'href',
-    '/inbox?card=gap-spain',
+    `/inbox?card=${card('gap-spain')}`,
   )
   await expect(panel.getByRole('link', { name: 'Try it' })).toHaveAttribute('href', /\/ask\?q=/)
-  // J moves to the next topic, as in every peek.
+  // J moves to the next topic, as in every peek: the row under it in the table.
   await panel.getByRole('tab', { name: 'Overview' }).click()
+  const order = await page.locator('tbody [data-row-open]').allInnerTexts()
+  const next = order[order.findIndex((t) => t.startsWith('Orders in Spain')) + 1]!
   await page.keyboard.press('j')
   await expect(
-    panel.getByRole('heading', { name: /^Cost per acquisition in Germany/ }),
+    panel.getByRole('heading', { name: new RegExp(`^${next.split('\n')[0]!.split(',')[0]}`) }),
   ).toBeVisible()
 })
 
 test('The replay runs on what agents got before the last publish', async ({ page }) => {
-  await go(page, '/observability/questions?dock=topic.units-sold-all')
+  await go(page, '/observability/questions')
+  await go(page, `/observability/questions?dock=topic.${topicId('units-sold-all')}`)
   const panel = page.locator('[data-slot=resizable-panel]').last()
-  await panel.getByRole('button', { name: 'Compare with what agents got before 20 Oct' }).click()
-  await expect(panel.getByText('Before 20 Oct', { exact: true })).toBeVisible()
+  const before = beforeLastPublish()
+  await panel
+    .getByRole('button', { name: `Compare with what agents got ${before.toLowerCase()}` })
+    .click()
+  // Side by side when the publish changed what it reads, else said to be the same.
+  await expect(
+    panel.getByText(before, { exact: true }).or(panel.getByText(/^The same before/)),
+  ).toBeVisible()
   await panel.getByRole('tab', { name: 'Steps' }).click()
-  await panel.getByRole('radio', { name: 'Before 20 Oct' }).click()
+  await panel.getByRole('radio', { name: before }).click()
   await expect(page).toHaveURL(/when=before/)
 })
 
 test('Quality: the one list, grouped by result, with before and now and Keep the new answer', async ({
   page,
 }) => {
+  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/observability/quality')
   for (const [name, n] of [
     ['Needs a look', '2'],
@@ -223,6 +258,7 @@ test('Quality: the one list, grouped by result, with before and now and Keep the
 })
 
 test('Quality: no saved questions yet, a failed check, and offline', async ({ page }) => {
+  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/observability/quality?state=empty')
   await expect(page.getByText('No saved questions yet')).toBeVisible()
   await go(page, '/observability/quality?quality=failed')
@@ -239,6 +275,7 @@ test('Quality: no saved questions yet, a failed check, and offline', async ({ pa
 test('Saved questions are saved from Ask, counted everywhere from one list, and checked in the review', async ({
   page,
 }) => {
+  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/ask?example=grounded')
   await page.getByRole('button', { name: 'Save question' }).first().click()
   await expect(page.getByText('Should answer from')).toBeVisible()
@@ -282,18 +319,18 @@ test("Feedback: what was said about answers, reports by state, and nobody's name
   await expect(page.getByText('Something was wrong').locator('..').locator('..')).toContainText(
     'Fewer than 5',
   )
-  const reports = page.getByRole('tablist', { name: 'Reports' })
-  await expect(reports.getByRole('tab', { name: /^All 9/ })).toHaveAttribute(
+  const tabs = page.getByRole('tablist', { name: 'Reports' })
+  await expect(tabs.getByRole('tab', { name: new RegExp(`^All ${reports()}`) })).toHaveAttribute(
     'aria-selected',
     'true',
   )
-  await reports.getByRole('tab', { name: /^In the Inbox 1/ }).click()
+  await tabs.getByRole('tab', { name: /^In the Inbox 1/ }).click()
   const panel = page.getByRole('tabpanel')
   await expect(panel.getByRole('listitem')).toHaveCount(1)
   await expect(
     panel.getByRole('link', { name: 'Orders lags by one day in the source tool' }),
-  ).toHaveAttribute('href', '/inbox?card=flag-germany')
-  await reports.getByRole('tab', { name: /^All/ }).click()
+  ).toHaveAttribute('href', `/inbox?card=${card('flag-germany')}`)
+  await tabs.getByRole('tab', { name: /^All/ }).click()
   // An agent's report carries its kind, never a person's name.
   await expect(
     panel.getByRole('listitem').filter({ hasText: 'From an agent' }).first(),
@@ -326,7 +363,9 @@ test('Usage: tools with their results, agents by kind, and spend against the cap
   // A longer range counts more calls; the spend stays this month's.
   await page.getByRole('radio', { name: '30 days' }).click()
   await expect(page).toHaveURL(/range=30/)
-  await expect(page.getByText('Tool calls').locator('..').locator('..')).toContainText('1,342')
+  await expect(page.getByText('Tool calls').locator('..').locator('..')).toContainText(
+    toolCalls30(),
+  )
   await go(page, '/observability/usage?state=empty')
   await expect(page.getByText('No agent has called yet')).toBeVisible()
 })
@@ -334,6 +373,7 @@ test('Usage: tools with their results, agents by kind, and spend against the cap
 test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, mute for owners', async ({
   page,
 }) => {
+  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/observability/alerts')
   await expect(page.getByRole('switch')).toHaveCount(8)
   await expect(

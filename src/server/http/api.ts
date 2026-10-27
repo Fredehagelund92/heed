@@ -127,6 +127,7 @@ import {
 import { createGapsService, gapReportsPerMinute } from '../modules/gaps/index.ts'
 import { createLibraryService } from '../modules/library/index.ts'
 import { createQualityService } from '../modules/quality/index.ts'
+import { createObservabilityService } from '../modules/observability/index.ts'
 import { createVocabularyService } from '../modules/vocabulary/index.ts'
 import type { LoginServer } from '../modules/oauth/index.ts'
 import type { PageReader } from '../modules/web/index.ts'
@@ -278,6 +279,7 @@ export function createRouter({
               sources: createSourcesService(tx),
               evals: createEvalsService(tx, { port: models, clock }),
               quality: createQualityService(tx, clock),
+              observability: createObservabilityService(tx, clock),
               hooks,
             },
           })
@@ -1352,6 +1354,24 @@ export function createRouter({
       ),
     },
     obs: {
+      agents: authorized.obs.agents.handler(({ context, input }) =>
+        context.observability.agents(input),
+      ),
+      feedback: authorized.obs.feedback.handler(({ context, input }) =>
+        context.observability.feedback(input),
+      ),
+      usage: authorized.obs.usage.handler(({ context, input }) =>
+        context.observability.usage(input),
+      ),
+      views: {
+        list: authorized.obs.views.list.handler(({ context }) => context.observability.views()),
+        save: authorized.obs.views.save.handler(({ context, input }) =>
+          context.observability.saveView(input),
+        ),
+        remove: authorized.obs.views.remove.handler(({ context, input }) =>
+          context.observability.removeView(input),
+        ),
+      },
       replay: authorized.obs.replay.handler(({ context, input }) =>
         replayTopic(context.tx, clock, answerBundles, input),
       ),

@@ -79,7 +79,8 @@ export function WhereChip({
   const domains = useDomains()
   const kind = kindOfWhere(w, vocabulary, domains)
   const Icon = whereIcon[kind]
-  const hue = kind === 'domain' ? domainHue[domainIdByName(w, domains)!] : undefined
+  const domain = kind === 'domain' ? domainIdByName(w, domains) : undefined
+  const hue = domain ? domainHue(domain) : undefined
   return (
     <TagChip
       tone={kind}
@@ -96,7 +97,7 @@ export function WhereChip({
 
 /** A domain's dot: its hue, or a neutral ring for the sandbox. */
 export function DomainDot({ id, className }: { id: DomainId; className?: string }) {
-  const h = domainHue[id]
+  const h = domainHue(id)
   return (
     <span
       aria-hidden

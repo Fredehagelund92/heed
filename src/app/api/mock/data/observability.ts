@@ -9,7 +9,7 @@ import {
   type Publish,
   type Report,
   type Topic,
-} from '@/model/observability'
+} from '../obs-engine'
 import type { DomainId } from '@/model/items'
 import { markets } from './world'
 
