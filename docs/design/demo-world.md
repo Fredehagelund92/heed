@@ -306,9 +306,10 @@ Where it lives:
 
 - `src/domain/about-business.ts`: the starter text, line by line.
 - `db/migrations/0001_baseline.sql`: the first version of `business.about`, with the reason
-  "default: the starter text, an outdoor-gear retailer".
-- `docs/help/tell-heed-about-your-business.md`: "a neutral text about an outdoor-gear retailer",
-  with the examples _First-time buyer: a customer whose first paid order falls in the period_
+  "default: the starter text, an outdoor-gear retailer". A new install starts with no text
+  (`db/migrations/0009_about_starts_empty.sql`); the demo seeds write this one.
+- `docs/help/tell-heed-about-your-business.md`: "a worked example, about an outdoor-gear
+  retailer", with the examples _First-time buyer: a customer whose first paid order falls in the period_
   and "what first-time buyer, gross margin, marketplace commission or return mean here".
 - The golden set's industry cases (section 13.2).
 
