@@ -45,6 +45,13 @@ const jar: typeof fetch = async (request, init) => {
 beforeAll(async () => {
   await client.query('reset role')
   await seedDemoWeek(url)
+  // The conformance suite sends more than the default 600 requests a minute as one person; the
+  // request limit is not what this file tests.
+  await client.query(
+    `insert into settings_versions (key, version, value, reason)
+     select 'limits.api_rate_per_minute', coalesce(max(version), 0) + 1, '{"person": 10000, "ip": 10000}', 'conformance'
+       from settings_versions where key = 'limits.api_rate_per_minute'`,
+  )
   address = await app.listen({ host: '127.0.0.1', port: 0 })
   base = `${address}/api/v1`
   api = createHttpApi({ baseUrl: base, fetch: jar })
