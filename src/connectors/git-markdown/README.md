@@ -21,7 +21,8 @@ read never publishes: an owner does (CON-604).
 1. Fetches the one commit the branch or tag names, read only, through `ctx.git`
    ([security](../../../docs/connectors/security.md#git)), and removes it afterwards.
 2. Lists the `.md` and `.markdown` files of the chosen folders. A file belongs to the deepest
-   chosen folder it is in.
+   chosen folder it is in. The folder itself is offered as `.` when it holds Markdown files of its
+   own.
 3. Sends each as a document: its path is its id, its first top heading (or its file name) is its
    title, the commit's time is when it changed, and its link is the file at that commit.
 4. Ends with the commit as its version and its cursor. Every read is a full listing: a file that

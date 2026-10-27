@@ -61,7 +61,7 @@ export function scopeOf(scopes: readonly ChosenScope[], path: string): ChosenSco
   let found: ChosenScope | null = null
   for (const scope of scopes) {
     const inside = scope.id === TOP || path === scope.id || path.startsWith(`${scope.id}/`)
-    if (inside && (!found || (found.id === TOP || scope.id.length > found.id.length))) found = scope
+    if (inside && (!found || found.id === TOP || scope.id.length > found.id.length)) found = scope
   }
   return found
 }
