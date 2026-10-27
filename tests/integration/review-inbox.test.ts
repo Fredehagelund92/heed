@@ -113,6 +113,8 @@ const markets = [
   'portugal',
   'belgium',
   'netherlands',
+  'czechia',
+  'greece',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -416,6 +418,42 @@ describe('a clash with live context (FR-225)', () => {
       summary: 'Orders in netherlands leave out store credit from 1 November 2026.',
     })
     expect((await sheet(fresh.id)).clashes.map((c) => c.itemId).sort()).toEqual([a, b].sort())
+  })
+
+  it('finds no clash in an edit that only changes dates', async () => {
+    const { scope, a } = await coAnswered('czechia')
+    const edit = await submitted(
+      {
+        ...scope,
+        validity: { start: '2026-01-01', end: '2027-01-01' },
+        title: 'czechia orders count store credit',
+        summary: 'Orders in czechia include orders paid with store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.mode).toBe('edit')
+    expect(s.clashes).toEqual([])
+    expect(s.readiness).toMatchObject({ publishable: true })
+    expect(s.readiness.state).not.toBe('clash')
+  })
+
+  it('shows a clash in an edit that changes dates and words', async () => {
+    const { scope, a, b } = await coAnswered('greece')
+    const edit = await submitted(
+      {
+        ...scope,
+        validity: { start: '2026-01-01', end: '2027-01-01' },
+        title: 'greece orders leave out store credit',
+        summary: 'Orders in greece leave out store credit.',
+      },
+      'author',
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.clashes.map((c) => c.itemId)).toEqual([b])
+    expect(s.readiness).toMatchObject({ state: 'clash', publishable: false })
   })
 })
 
