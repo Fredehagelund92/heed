@@ -384,6 +384,13 @@ describe('changing a term', () => {
     })
   })
 
+  it('keeps its domain when an update leaves the domain out, and clears it only when told to', async () => {
+    const t = await own()
+    const kept = await ok<Term>(update('owner', t, { areaId: undefined, meaning: 'Said again.' }))
+    expect(kept).toMatchObject({ areaId: 'finance', meaning: 'Said again.' })
+    expect(await ok<Term>(update('admin', kept, { areaId: null }))).toMatchObject({ areaId: null })
+  })
+
   it('keeps the meaning of a term other words point at, and never points a word at itself', async () => {
     const t = await own()
     await term('owner', { name: fresh(), sameAs: `term:${t.id}` })

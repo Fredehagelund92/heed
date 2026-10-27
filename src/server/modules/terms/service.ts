@@ -406,7 +406,10 @@ export function createTermsService(tx: Queryable) {
       throw new ORPCError('CONFLICT', {
         message: 'Someone changed this word after you opened it. Look at it again, then try again.',
       })
-    const fields = await fieldsOf(input, row.id)
+    const fields = await fieldsOf(
+      { ...input, areaId: input.areaId === undefined ? row.areaId : input.areaId },
+      row.id,
+    )
     if (fields.areaId !== row.areaId && !(await mayWrite(fields.areaId)))
       throw new ORPCError('FORBIDDEN', { message: await forbidden(fields.areaId) })
     if (fields.point) {
