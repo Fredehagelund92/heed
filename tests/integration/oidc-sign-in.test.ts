@@ -262,8 +262,11 @@ describe('who may sign in', () => {
     const back = await signIn(account)
     expect((await me(back.person))?.id).toBe(id)
     expect(
-      (await client.query('select count(*)::int as n from auth.identities where person_id=$1', [id]))
-        .rows[0].n,
+      (
+        await client.query('select count(*)::int as n from auth.identities where person_id=$1', [
+          id,
+        ])
+      ).rows[0].n,
     ).toBe(1)
   })
 
