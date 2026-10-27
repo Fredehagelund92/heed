@@ -18,7 +18,7 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
   const w = useQuery(askedWeekQuery()).data
   // The four most asked; the rest open in place, so the empty page stays calm.
   const [all, setAll] = React.useState(false)
-  if (!w) return null
+  if (!w?.rows.length) return null
   const more = w.rows.length - ASKED_ROWS
   const rows = all ? w.rows : w.rows.slice(0, ASKED_ROWS)
   return (
@@ -31,7 +31,8 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
           Asked this week
         </h3>
         <p className="text-xs text-muted-foreground">
-          Agents asked {w.asked} times. Counts only, never the words or who asked.
+          Agents asked {w.asked === null ? 'fewer than 5' : w.asked} times. Counts only, never the
+          words or who asked.
         </p>
       </div>
       <ul>

@@ -32,10 +32,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  askedWeekQuery,
   askQuery,
   useAskExamples,
   useInbox,
-  useObservabilityData,
   useSession,
   useWrite,
 } from '@/api/queries'
@@ -52,7 +52,6 @@ import { TruncatedText } from '@/components/heed/truncated'
 import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { StateLine } from '@/components/heed/bits'
-import { shownCount, total } from '@/model/observability'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. Mock answers only:
@@ -125,7 +124,7 @@ function Suggestions({
  * function that answers it, so a dead end shows before you reach it.
  */
 function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => void }) {
-  const { topics } = useObservabilityData()
+  const week = useQuery(askedWeekQuery()).data
   const answers = useQueries({ queries: items.map((question) => askQuery({ question })) })
   if (!items.length || answers.some((q) => !q.data)) return null
   return (
@@ -135,11 +134,14 @@ function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => vo
       </p>
       {items.map((q, i) => {
         const a = answers[i]!.data!
-        const topic = topics.find((t) => t.metric === a.metric && t.where === a.markets[0])
+        // How often agents asked about it this week, from Asked this week's own counts.
+        const row = week?.rows.find(
+          (r) => r.topic.metric === a.metric && r.topic.where === a.markets[0],
+        )
         const detail = a.sources.length
           ? `${a.sources.length} ${a.sources.length === 1 ? 'item' : 'items'}`
-          : a.state === 'missing' && topic
-            ? `asked ${shownCount(total(topic.week))} times this week`
+          : a.state === 'missing' && row
+            ? `asked ${row.count} times this week`
             : ''
         return (
           <button
@@ -169,8 +171,6 @@ function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => vo
     </div>
   )
 }
-
-const STARTERS = ['grounded', 'missing', 'conflict', 'stale']
 
 export function AskChat({
   initial,
@@ -240,6 +240,9 @@ export function AskChat({
   const [touch] = React.useState(() => window.matchMedia('(pointer: coarse)').matches)
   const { fresh } = useSession()
   const examples = useAskExamples()
+  // What agents asked this week; with nothing asked yet (a new workspace), its starters instead.
+  const week = useQuery(askedWeekQuery()).data
+  const starters = examples.filter((e) => e.starter).map((e) => e.question)
   const queryClient = useQueryClient()
   const add = async (asked: string | AskQuestion) => {
     const {
@@ -377,12 +380,12 @@ export function AskChat({
                   are.
                 </p>
               </div>
-              {/* What agents asked this week; a new workspace, with nothing asked yet, gets four starters instead. */}
+              {/* What agents asked this week; a new workspace, with nothing asked yet, gets its starters instead. */}
               {!draft &&
-                (fresh ? (
+                (fresh || (week && !week.rows.length) ? (
                   <Suggestions
                     grid
-                    items={STARTERS.map((id) => examples.find((e) => e.id === id)!.question)}
+                    items={starters.slice(0, 4)}
                     onPick={(q) => onStarter?.(q) || void add(q)}
                   />
                 ) : (

@@ -143768,6 +143768,26 @@
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "quote": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "notToConclude": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -143782,7 +143802,9 @@
                               "unverified",
                               "unverifiedReason",
                               "restrictions",
-                              "conflictsWith"
+                              "conflictsWith",
+                              "quote",
+                              "notToConclude"
                             ]
                           }
                         },
@@ -144158,6 +144180,26 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "quote": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "notToConclude": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -144172,7 +144214,9 @@
                                         "unverified",
                                         "unverifiedReason",
                                         "restrictions",
-                                        "conflictsWith"
+                                        "conflictsWith",
+                                        "quote",
+                                        "notToConclude"
                                       ]
                                     }
                                   }
@@ -145613,6 +145657,26 @@
                                                 "items": {
                                                   "type": "string"
                                                 }
+                                              },
+                                              "quote": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "notToConclude": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
                                               }
                                             },
                                             "required": [
@@ -145627,7 +145691,9 @@
                                               "unverified",
                                               "unverifiedReason",
                                               "restrictions",
-                                              "conflictsWith"
+                                              "conflictsWith",
+                                              "quote",
+                                              "notToConclude"
                                             ]
                                           }
                                         }
@@ -146118,6 +146184,26 @@
                                             "items": {
                                               "type": "string"
                                             }
+                                          },
+                                          "quote": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "notToConclude": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
                                           }
                                         },
                                         "required": [
@@ -146132,7 +146218,9 @@
                                           "unverified",
                                           "unverifiedReason",
                                           "restrictions",
-                                          "conflictsWith"
+                                          "conflictsWith",
+                                          "quote",
+                                          "notToConclude"
                                         ]
                                       }
                                     },
@@ -146513,6 +146601,26 @@
                                                       "items": {
                                                         "type": "string"
                                                       }
+                                                    },
+                                                    "quote": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "notToConclude": {
+                                                      "anyOf": [
+                                                        {
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
                                                     }
                                                   },
                                                   "required": [
@@ -146527,7 +146635,9 @@
                                                     "unverified",
                                                     "unverifiedReason",
                                                     "restrictions",
-                                                    "conflictsWith"
+                                                    "conflictsWith",
+                                                    "quote",
+                                                    "notToConclude"
                                                   ]
                                                 }
                                               }
@@ -147205,6 +147315,35 @@
                           },
                           "items": {
                             "type": "number"
+                          },
+                          "gap": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "card": {
+                                    "type": "string"
+                                  },
+                                  "draft": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "card",
+                                  "draft"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           }
                         },
                         "required": [
@@ -147215,7 +147354,8 @@
                           "count",
                           "atLeast",
                           "state",
-                          "items"
+                          "items",
+                          "gap"
                         ]
                       }
                     },
@@ -147228,12 +147368,89 @@
                           "type": "null"
                         }
                       ]
+                    },
+                    "asked": {
+                      "anyOf": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "starters": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "scope": {
+                            "type": "object",
+                            "properties": {
+                              "metrics": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "filters": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string"
+                                },
+                                "additionalProperties": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "window": {
+                                "type": "object",
+                                "properties": {
+                                  "start": {
+                                    "type": "string"
+                                  },
+                                  "end": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "start",
+                                  "end"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "metrics",
+                              "filters",
+                              "window"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "title",
+                          "scope"
+                        ]
+                      }
                     }
                   },
                   "required": [
                     "week",
                     "rows",
-                    "hidden"
+                    "hidden",
+                    "asked",
+                    "starters"
                   ]
                 }
               }
@@ -148313,6 +148530,26 @@
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "quote": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "notToConclude": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
                               }
                             },
                             "required": [
@@ -148327,7 +148564,9 @@
                               "unverified",
                               "unverifiedReason",
                               "restrictions",
-                              "conflictsWith"
+                              "conflictsWith",
+                              "quote",
+                              "notToConclude"
                             ]
                           }
                         },
@@ -148703,6 +148942,26 @@
                                           "items": {
                                             "type": "string"
                                           }
+                                        },
+                                        "quote": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "notToConclude": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
                                         }
                                       },
                                       "required": [
@@ -148717,7 +148976,9 @@
                                         "unverified",
                                         "unverifiedReason",
                                         "restrictions",
-                                        "conflictsWith"
+                                        "conflictsWith",
+                                        "quote",
+                                        "notToConclude"
                                       ]
                                     }
                                   }

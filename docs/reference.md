@@ -934,7 +934,9 @@ question and why it did not reach the answer: the resolver's reasons `source_vis
 about an asked metric with other `dates`, other `values` or a `dimension` the question did not
 name, ten at most, the rest counted in `leftOutMore`; an item for another group is only counted,
 in `forAnotherGroup`, and never named, not even by its id), `checked` (the answer
-state) and `said`. Its state is one of the six (FR-349), in this order: `failed` when the checks
+state) and `said`. Each item given carries the line its owner copied from its first source
+(`quote`) and what its writer said not to conclude (`notToConclude`, null for the default), which
+Ask's Show me where it says that walks a sentence back to. Its state is one of the six (FR-349), in this order: `failed` when the checks
 could not run; `missing` when nothing was given or the question could not be read; `conflict`
 when given items disagree; `partial` when an asked metric or value has no item that covers it in
 full (`uncovered` names them) or the dates were assumed; `stale` when a given item may be out of
@@ -951,7 +953,14 @@ date; else `grounded`.
   Counts only (FR-614): a month under `privacy.min_count` never shows on its own, a row's `count`
   is null when a total would give such a month away (its `atLeast` is what the shown months add up
   to), a row that shows under the minimum is not listed, and `hidden` counts the calls of the rows
-  not listed, itself hidden under the minimum.
+  not listed, itself hidden under the minimum. `asked` counts every call of the week, the
+  Inbox's own count, hidden under the minimum. For the owners of a row's domains and
+  administrators, a row whose state is Not found names the Not found card open on its topic and
+  the draft that waits on it (`gap`); for anyone else it is null. `starters` are the workspace's
+  first questions, made from what it has written (decided 27 October 2026): the scope of each live
+  context item (a metric and the first value it names), then the vocabulary's metrics, four at
+  most, each at the month of today; none while nothing is live. Ask offers them while nothing
+  has been asked yet.
 - `POST /engine/reach` (the editor's and the review's "12 questions agents asked this week would
   get it"): a draft (a proposal's id the person may read). Each topic asked at least the minimum
   times this week is answered for its month with the draft in the live edition, and the topics

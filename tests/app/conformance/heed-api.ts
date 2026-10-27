@@ -650,6 +650,106 @@ export function describeHeedApi(
       },
     )
 
+    /* ---------- Ask ---------- */
+
+    const states = ['grounded', 'partial', 'missing', 'conflict', 'stale', 'failed']
+
+    it.skipIf(lacks('signIn', 'readQuestion'))(
+      'reads a question as a metric and its markets, with no model',
+      async () => {
+        const read = await (
+          await signedIn()
+        ).readQuestion({ question: 'How did orders in Norway and Spain do in September?' })
+        expect(read.metric).toBe('Orders')
+        expect(read.markets).toEqual(expect.arrayContaining(['Norway', 'Spain']))
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask', 'getLibrary'))(
+      'answers a question with its state, numbered sources from the library and what agents are told',
+      async () => {
+        const a = await signedIn()
+        const answer = await a.ask({ question: 'Why did orders in Norway drop in August?' })
+        const library = new Set((await a.getLibrary()).items.map((f) => f.id))
+        expect(states).toContain(answer.state)
+        expect(answer).toMatchObject({ metric: 'Orders', markets: ['Norway'] })
+        expect(answer.sources.length).toBeGreaterThan(0)
+        for (const id of answer.sources) expect(library.has(id), id).toBe(true)
+        // Every [n] in the words points at a source.
+        for (const [, n] of answer.text.matchAll(/\[(\d+)\]/g))
+          expect(Number(n)).toBeLessThanOrEqual(answer.sources.length)
+        expect(answer.said).not.toBe('')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      'answers a question that names nothing as Not found, with no sources',
+      async () => {
+        const answer = await (
+          await signedIn()
+        ).ask({ question: 'What is our refund policy for gift cards?' })
+        expect(answer.state).toBe('missing')
+        expect(answer.sources).toEqual([])
+        expect(answer.text).not.toBe('')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'askedThisWeek', 'ask'))(
+      'lists what agents asked this week, most first and 5 times or more, each with the state Ask gives it',
+      async () => {
+        const a = await signedIn()
+        const week = await a.askedThisWeek()
+        expect(week.rows.length).toBeGreaterThan(0)
+        expect(week.asked).toBeGreaterThanOrEqual(5)
+        const times = week.rows.map((r) => r.times)
+        expect(times).toEqual([...times].sort((x, y) => y - x))
+        for (const r of week.rows) {
+          expect(r.times, r.title).toBeGreaterThanOrEqual(5)
+          expect(states, r.title).toContain(r.state)
+        }
+        // Asking a row gets the state its row shows.
+        for (const r of week.rows.slice(0, 4))
+          expect((await a.ask({ question: r.question })).state, r.title).toBe(r.state)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getAskExamples', 'ask'))(
+      'offers questions to ask, and asking one by its id answers its words',
+      async () => {
+        const a = await signedIn()
+        const examples = await a.getAskExamples()
+        expect(examples.length).toBeGreaterThan(0)
+        for (const e of examples.slice(0, 3)) {
+          const byId = await a.ask({ example: e.id })
+          const byWords = await a.ask({ question: e.question })
+          expect(byId.question, e.id).toBe(e.question)
+          expect(byId.state, e.id).toBe(byWords.state)
+          expect(byId.sources, e.id).toEqual(byWords.sources)
+        }
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'listChats', 'saveChat', 'renameChat', 'deleteChat', 'undo'))(
+      "keeps the person's chats: a new one first in Today, renamed, deleted, and Undo puts it back",
+      async () => {
+        const a = await signedIn()
+        const id = `chat-${Date.now()}`
+        await a.saveChat({ id, question: 'How did orders in Spain change in October 2026?' })
+        const [first] = await a.listChats()
+        expect(first).toMatchObject({
+          id,
+          question: 'How did orders in Spain change in October 2026?',
+          day: 'Today',
+        })
+        await a.renameChat({ id, title: 'Spain in October' })
+        expect((await a.listChats()).find((t) => t.id === id)?.title).toBe('Spain in October')
+        const { undo } = await a.deleteChat({ id })
+        expect((await a.listChats()).some((t) => t.id === id)).toBe(false)
+        await a.undo({ token: undo })
+        expect((await a.listChats()).find((t) => t.id === id)?.title).toBe('Spain in October')
+      },
+    )
+
     it.skipIf(lacks('signIn'))('refuses someone the sign-in does not offer', async () => {
       await expect(api().signIn({ name: 'Nobody Here', fresh: false })).rejects.toMatchObject({
         kind: 'not-found',

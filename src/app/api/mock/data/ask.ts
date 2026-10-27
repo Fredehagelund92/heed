@@ -18,6 +18,7 @@ export const examples: Example[] = [
   {
     id: 'grounded',
     label: stateLabel.grounded,
+    starter: true,
     question: 'Why did orders in Norway drop in August?',
   },
   {
@@ -28,16 +29,19 @@ export const examples: Example[] = [
   {
     id: 'missing',
     label: stateLabel.missing,
+    starter: true,
     question: 'How did orders in Spain change in October 2026?',
   },
   {
     id: 'conflict',
     label: stateLabel.conflict,
+    starter: true,
     question: 'Do Norway orders include gift-card money?',
   },
   {
     id: 'stale',
     label: stateLabel.stale,
+    starter: true,
     question: 'Why did Norway returns drop at the end of April?',
   },
   {

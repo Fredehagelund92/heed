@@ -17,6 +17,7 @@
  * never part of the answer (FR-602).
  */
 import { visibleCount, visibleTotal } from './gaps.ts'
+import { ownCaveat } from './proposal-rules.ts'
 import { audienceAllows, noGroups, type ItemKind } from './item.ts'
 import {
   compareIds,
@@ -59,7 +60,14 @@ export type AnswerState = (typeof answerStates)[number]
 export const ANSWER_MAX_ITEMS = 20
 
 /** An item of the bundle as the engine needs it: what the resolver reads, its kind and title. */
-export type AnswerSource = ResolverItem & { kind: ItemKind; title: string }
+export type AnswerSource = ResolverItem & {
+  kind: ItemKind
+  title: string
+  /** Where it comes from: each source's address and the line its owner copied from it. */
+  evidence?: readonly { url: string; quote: string }[]
+  /** What not to conclude from it (FR-104). */
+  notToConclude?: string
+}
 /** An edition bundle with its vocabulary: the live edition, a past one, or one with a draft in it. */
 export type AnswerBundle = Omit<EditionBundle, 'items'> & {
   items: readonly AnswerSource[]
@@ -109,6 +117,10 @@ export type AnswerItem = {
   restrictions: Match['restrictions']
   /** The items given with it that it disagrees with. */
   conflictsWith: string[]
+  /** The line its owner copied from its first source, which Where walks a sentence back to. */
+  quote: string | null
+  /** What not to conclude from it, when its writer said; null for the default "cause not proven". */
+  notToConclude: string | null
 }
 
 /**
@@ -371,6 +383,8 @@ export function* lookUp(
       unverifiedReason: match.unverified ? reason : null,
       restrictions: match.restrictions,
       conflictsWith: item.conflicts.filter((id) => givenIds.has(id)).sort(compareIds),
+      quote: item.evidence?.find((e) => e.quote.trim())?.quote ?? null,
+      notToConclude: ownCaveat(item.notToConclude),
     }
   })
   yield step({ step: 'looked_up', ms: lap(), status: resolution.status, items })
@@ -581,6 +595,32 @@ export function askedTopics(
       minimum,
     ),
   }
+}
+
+/**
+ * A workspace's first questions in Ask, made from what it has written (decided 27 October 2026):
+ * the scope of each live context item, a metric and the first value it names, then the metrics of
+ * the vocabulary on their own, at most `count`, each at the month of `today`. With nothing live
+ * there are none.
+ */
+export function startersOf(bundle: AnswerBundle, today: string, count = 4): ResolvedScope[] {
+  const month = `${today.slice(0, 7)}-01`
+  const seen = new Set<string>()
+  const scopes: ResolvedScope[] = []
+  const add = (metrics: string[], values: string[]) => {
+    const key = [...metrics, ...values].join('|')
+    if (!key || seen.has(key) || scopes.length >= count) return
+    seen.add(key)
+    scopes.push(topicScope({ metrics, values, dimensions: [], month }))
+  }
+  if (!bundle.items.length) return []
+  for (const item of bundle.items)
+    add(
+      item.scope.metrics.slice(0, 1),
+      item.scope.dimensionValues.slice(0, 1).map((v) => v.value),
+    )
+  for (const term of bundle.terms) if (term.kind === 'metric') add([term.key], [])
+  return scopes
 }
 
 /** A row of Asked this week in words, as get_context says a scope: "Orders in Norway". */

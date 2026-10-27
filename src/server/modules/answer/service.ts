@@ -15,12 +15,15 @@ import {
   askedTopics,
   lookUp,
   reach,
+  startersOf,
   topicScope,
   topicWords,
   type Answer,
   type AnswerAsk,
   type TopicCount,
 } from '../../../domain/answer.ts'
+import { compareIds } from '../../../domain/resolver.ts'
+import { visibleCount } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { tryIt } from '../agents/index.ts'
@@ -188,11 +191,47 @@ async function topicsOfWeek(
   return { week: week!.week, topics }
 }
 
+/** An open Not found card the reader manages, by its topic's parts, with its draft. */
+type OpenGap = {
+  id: string
+  area: string | null
+  metrics: string[]
+  values: string[]
+  dimensions: string[]
+  month: string
+  draft: string | null
+}
+const partsKey = (t: Pick<OpenGap, 'area' | 'metrics' | 'values' | 'dimensions'>) =>
+  [
+    t.area ?? '',
+    [...t.metrics].sort(compareIds).join(','),
+    [...t.values].sort(compareIds).join(','),
+    [...t.dimensions].sort(compareIds).join(','),
+  ].join('|')
+
+/**
+ * The Not found cards open on the topics the reader manages (`cl_manages_topic`, administrators
+ * and the owners of the topic's domains), latest month first, with the draft that waits on each.
+ */
+async function openGaps(tx: Queryable): Promise<OpenGap[]> {
+  return tx.query<OpenGap>(
+    `select g.id::text, t.area_id as area, t.metric_keys as metrics, t.value_keys as values,
+            t.dimension_keys as dimensions, t.month::text as month,
+            (select p.id::text from gap_proposals gp join proposals p on p.id=gp.proposal_id
+              where gp.gap_id=g.id and p.discarded_at is null order by p.created_at desc limit 1) as draft
+       from gaps g join topics t on t.id=g.topic_id
+      where g.status in ('open','proposal_made') and cl_manages_topic(t.area_id, t.metric_keys)
+      order by t.month desc, g.id`,
+  )
+}
+
 /**
  * Asked this week (FR-714): the topics agents asked about most this week, one row per metric,
  * market and dimension with its months joined, each with the state Ask gives it now on the live
  * edition for its latest month. Counts only, never the words, and a count under the minimum is
- * never shown or given away by a total (FR-614).
+ * never shown or given away by a total (FR-614). An owner sees the Not found card open on a
+ * topic of their domain. Beside them, the workspace's first questions, made from what it has
+ * written, for when nothing has been asked yet.
  */
 export async function askedThisWeek(
   tx: Queryable,
@@ -201,13 +240,16 @@ export async function askedThisWeek(
 ): Promise<Asked> {
   const bundle = await liveBundle(tx, cache)
   const today = clock.today()
+  const minimum = await minimumCount(tx)
   const { week, topics } = await topicsOfWeek(tx, today)
-  const asked = askedTopics(topics, await minimumCount(tx), today)
+  const asked = askedTopics(topics, minimum, today)
+  const gaps = await openGaps(tx)
   return {
     week,
     rows: asked.topics.map((topic) => {
       const scope = topicScope(topic)
       const now = answer(bundle, { scope }, { today })
+      const gap = now.state === 'missing' ? gaps.find((g) => partsKey(g) === topic.key) : undefined
       return {
         title: topicWords(bundle, scope),
         area: topic.area,
@@ -217,9 +259,18 @@ export async function askedThisWeek(
         atLeast: topic.atLeast,
         state: now.state,
         items: now.items.length,
+        gap: gap ? { card: `gap:${gap.id}`, draft: gap.draft } : null,
       }
     }),
     hidden: asked.hidden,
+    asked: visibleCount(
+      topics.reduce((sum, t) => sum + t.calls, 0),
+      minimum,
+    ),
+    starters: startersOf(bundle, today).map((scope) => ({
+      title: topicWords(bundle, scope),
+      scope,
+    })),
   }
 }
 

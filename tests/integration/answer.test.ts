@@ -10,7 +10,8 @@ import type {
   TryItRun,
 } from '../../src/contract/answer.ts'
 import type { PreviewReply, ProposalRecord } from '../../src/contract/proposals.ts'
-import { answer, topicScope } from '../../src/domain/answer.ts'
+import { answer, startersOf, topicScope } from '../../src/domain/answer.ts'
+import { ownCaveat } from '../../src/domain/proposal-rules.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadServingBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
@@ -277,6 +278,17 @@ describe('Ask: a look-up', () => {
     expect(asAnswered(result)).toEqual(asGiven(await deliver(live, systemClock(today), asked)))
   })
 
+  it("carries each item's copied source line and what not to conclude, for Where", async () => {
+    const sent = events((await call('POST', '/ask/lookup', 'maria', { question })).body)
+    const result = (sent.at(-1) as Extract<LookupEvent, { type: 'answer' }>).answer
+    for (const item of result.items) {
+      const served = live.items.find((i) => i.id === item.id)!
+      expect(item.quote, item.id).toBe(served.evidence.find((e) => e.quote.trim())?.quote ?? null)
+      expect(item.notToConclude, item.id).toBe(ownCaveat(served.notToConclude))
+    }
+    expect(result.items.some((item) => item.quote)).toBe(true)
+  })
+
   it('records nothing and never keeps or logs the question', async () => {
     const secret = 'Why did orders in Norway drop when the warehouse in Bergen flooded?'
     const before = await tableContents(client, ['auth.sessions'])
@@ -312,6 +324,37 @@ describe('Ask: a look-up', () => {
       payload: { question },
     })
     expect(response.statusCode).toBe(401)
+  })
+})
+
+describe('Ask keeps no question (FR-602, FR-603)', () => {
+  it('stores and logs none of the words of a question asked in Ask, read for its scope, or offered back', async () => {
+    // A word nothing else in the database holds, so finding it anywhere means the question was kept.
+    const marker = 'Quillfeather'
+    const asked = [
+      `Why did orders in Norway drop after the ${marker} audit?`,
+      `What should I know about ${marker} in Spain?`,
+    ]
+    const before = await tableContents(client, ['auth.sessions'])
+    const lines = logs.length
+    for (const question of asked) {
+      expect((await call('POST', '/ask/lookup', 'maria', { question })).statusCode).toBe(200)
+      expect(
+        (
+          await call('POST', '/ask/lookup', 'jon', {
+            question,
+            metrics: ['metric:orders'],
+            dimension_filters: [{ dimension: 'dim:market', values: ['val:market/spain'] }],
+          })
+        ).statusCode,
+      ).toBe(200)
+      expect((await call('POST', '/try-it/read', 'maria', { question })).statusCode).toBe(200)
+    }
+    expect(JSON.stringify(await ok<Asked>('GET', '/ask/asked', 'maria'))).not.toContain(marker)
+    // Nothing changed anywhere: no count, no topic, no record of who asked.
+    expect(await tableContents(client, ['auth.sessions'])).toEqual(before)
+    expect((await tableContents(client)).join('\n')).not.toContain(marker)
+    expect(logs.slice(lines).join('\n')).not.toContain(marker)
   })
 })
 
@@ -400,6 +443,18 @@ describe('Asked this week', () => {
       expect([row.state, row.items]).toEqual([tried.answer!.state, tried.answer!.items.length])
     }
     expect(JSON.stringify(asked)).not.toMatch(/per_|@example/)
+  })
+
+  it("counts every call, the Inbox's own total, and keeps a small total hidden", async () => {
+    // 12 + 3 + 9 + 3 + 4 calls this week.
+    expect((await ok<Asked>('GET', '/ask/asked', 'kofi')).asked).toBe(31)
+  })
+
+  it('offers first questions made from what the workspace has written', async () => {
+    const { starters } = await ok<Asked>('GET', '/ask/asked', 'kofi')
+    expect(starters.map((s) => s.scope)).toEqual(startersOf(live, today))
+    expect(starters).toHaveLength(4)
+    for (const s of starters) expect(s.title).not.toBe('')
   })
 })
 
