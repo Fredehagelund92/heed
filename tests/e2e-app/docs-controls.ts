@@ -49,6 +49,7 @@ export const docControls: DocControl[] = [
     at: '/inbox?demo=setup',
     drawn: 'text',
   },
+  { phrase: 'Invite people', page: 'domains-and-owners', at: '/settings/people', drawn: 'button' },
   { phrase: 'Event', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Warning', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Rule', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },

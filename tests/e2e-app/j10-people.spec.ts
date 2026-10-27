@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go, signInAs } from './go.ts'
+import { expect, go, signInAs, test } from './go.ts'
 
 // J10, people: an admin invites people as owners of a domain, and the domain sees them; the last
 // owner of a domain can't leave until someone takes over; an owner who isn't an admin can add

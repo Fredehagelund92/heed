@@ -179,10 +179,14 @@ async function httpRoute(
   route: string,
 ): Promise<{ route: string; after?: () => Promise<void>; load?: boolean }> {
   const url = new URL(route, 'http://app')
-  const path = url.pathname
-    .split('/')
-    .map((part) => (part ? card(part) : part))
-    .join('/')
+  // A domain's page names it by the service's id, area_ and the mock's.
+  const domainPage = /^\/settings\/domains\/([a-z_]+)$/.exec(url.pathname)
+  const path = domainPage
+    ? `/settings/domains/area_${domainPage[1]}`
+    : url.pathname
+        .split('/')
+        .map((part) => (part ? card(part) : part))
+        .join('/')
   const query = url.searchParams
   const at = query.get('card')
   if (at) query.set('card', card(at))

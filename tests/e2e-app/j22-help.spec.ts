@@ -100,6 +100,9 @@ test('Report a problem is one box, sent as a mail to support with the page it ca
   expect(mail.searchParams.get('body')).toBe(
     `The review jumped to another item.\n\nPage: ${new URL(page.url()).origin}/inbox`,
   )
+  // The Inbox under the dialog marks its cards read on its own; on the service that can take a
+  // moment, so the page goes quiet first and only what sending does is counted.
+  await page.waitForLoadState('networkidle')
   const writes: string[] = []
   page.on('request', (r) => r.method() !== 'GET' && writes.push(`${r.method()} ${r.url()}`))
   // The mail app is the browser's to open; the page only needs to let it.
