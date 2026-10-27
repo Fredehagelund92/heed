@@ -11,3 +11,8 @@ reason = "extract-zip: symlink path traversal in a hostile archive. @cubejs-back
 id = "GHSA-7pqw-9j4j-h8q3"
 ignoreUntil = 2027-01-08
 reason = "extract-zip: arbitrary file writes through symlink entries in a hostile archive. Same path and reasoning as GHSA-jmr9-qjv8-65gv."
+
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+ignoreUntil = 2027-01-08
+reason = "deepmerge 4.3.1: no fixed version exists. Only the shadcn CLI and the mockup's build tooling load it, to merge their own configuration files, never data from users or documents, and the running service does not ship it."
