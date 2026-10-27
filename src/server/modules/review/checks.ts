@@ -26,16 +26,13 @@ export type CheckRun = {
   details: object
 }
 
-export async function liveHead(tx: Queryable): Promise<Head> {
+/** The live edition, or the empty one before the first is published: the checks then read nothing live. */
+async function liveHead(tx: Queryable): Promise<Head> {
   const [head] = await tx.query<Head>(
     `select e.seq::text,e.label,coalesce((select seq::text from serving_overlay),'0') as overlay
        from editions e join live_edition l on l.seq=e.seq`,
   )
-  if (!head)
-    throw new ORPCError('PRECONDITION_FAILED', {
-      message: "Nothing is shared with agents yet, so the checks can't run.",
-    })
-  return head
+  return head ?? { seq: '0', label: '', overlay: '0' }
 }
 
 /** The governed content as a draft, so level 1 runs on exactly what was submitted. */

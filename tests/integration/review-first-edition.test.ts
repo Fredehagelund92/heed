@@ -2,13 +2,12 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewSheet } from '../../src/contract/review-path.ts'
-import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
-import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase } from './support.ts'
+import { foundation, people, version } from './fixtures.ts'
+import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
   The review path before anything is shared with agents: the very first suggestion of a
@@ -65,49 +64,43 @@ afterAll(async () => {
   await app.close()
 })
 
-const draft = (): Draft => ({
-  areaId: 'finance',
-  kind: 'note',
-  title: 'Units sold excludes test accounts',
-  summary: 'Orders in Norway leave out the 312 accounts our teams use to test the webshop.',
-  scope: {
-    metrics: ['metric:orders'],
-    dimensions: [],
-    dimensionValues: [{ dimension: 'dim:market', value: 'val:market/norway' }],
-  },
-  validity: { start: '2026-01-01', end: null },
-  evidence: [
-    {
-      url: 'https://wiki.example/units-sold',
-      quote: 'Test accounts are left out',
-      date: '2026-10-01',
-    },
-  ],
-})
+/** A submitted suggestion written straight into the tables: no proposal can name scope before a vocabulary is live. */
+const submitted = () =>
+  transaction(client, async () => {
+    const v = await version(client, { title: 'Units sold excludes test accounts' })
+    const row = await client.query<{ id: string; revision: number }>(
+      `insert into proposals (action,state,area_id,item_id,item_version_id,proposer_id,channel,submitted_at)
+       select 'change','submitted',area_id,item_id,id,proposer_id,'form',now()
+         from item_versions where id=$1 returning id::text,revision`,
+      [v.id],
+    )
+    return row.rows[0]!
+  })
 
 describe('the first suggestion of a workspace', () => {
-  it('has a sheet with nothing to compare, and publishes the first edition', async () => {
+  it('has a sheet with nothing to compare, and its checks run without a live edition', async () => {
     expect(
       (await client.query('select 1 from live_edition')).rowCount,
       'no edition is live',
     ).toBe(0)
-    const created = await ok<ProposalRecord>(
-      call('POST', '/proposals', 'author', { draft: draft() }),
-    )
-    const p = await ok<ProposalRecord>(
-      call('POST', `/proposals/${created.id}/submit`, 'author', { revision: created.revision }),
-    )
+    const p = await submitted()
     const s = await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
     expect(s.mode).toBe('new')
     expect(s.clashes).toEqual([])
     expect(s.canPublish).toBe(true)
 
-    const done = await ok<{ proposal: { state: string }; edition: { label: string } | null }>(
-      call('POST', `/review/${p.id}/publish`, 'owner', { revision: p.revision }),
-    )
-    expect(done.proposal.state).toBe('accepted')
-    expect(done.edition).not.toBeNull()
-    expect((await client.query('select 1 from live_edition')).rowCount).toBe(1)
+    // Before any vocabulary is published nothing can name the suggestion's scope, so the checks
+    // cannot pass. They still run and say which failed: no edition-less 412, and nothing is published.
+    const refused = await call('POST', `/review/${p.id}/publish`, 'owner', { revision: p.revision })
+    expect(refused.statusCode, refused.body).toBe(422)
+    const gate = refused.json<{ data: { gate: { levels: { level: string; outcome: string }[] } } }>()
+      .data.gate
+    expect(gate.levels.map((l) => [l.level, l.outcome])).toEqual([
+      ['format', 'failed'],
+      ['matching', 'passed'],
+      ['delivery', 'failed'],
+    ])
+    expect((await client.query('select 1 from live_edition')).rowCount).toBe(0)
   })
 
   it('names a suggestion left out instead of failing the whole bulk call', async () => {
