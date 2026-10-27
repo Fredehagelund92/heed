@@ -23,7 +23,7 @@ import {
   type TopicCount,
 } from '../../../domain/answer.ts'
 import { compareIds } from '../../../domain/resolver.ts'
-import { visibleCount } from '../../../domain/gaps.ts'
+import { visibleTotal } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { tryIt } from '../agents/index.ts'
@@ -263,10 +263,14 @@ export async function askedThisWeek(
       }
     }),
     hidden: asked.hidden,
-    asked: visibleCount(
+    // The total beside the rows: shown only when what it adds over the counts the rows show is
+    // zero or at least the minimum, so it never gives a small month away by subtraction.
+    asked: visibleTotal(
       topics.reduce((sum, t) => sum + t.calls, 0),
+      asked.topics.reduce((sum, t) => sum + (t.count ?? t.atLeast), 0) + (asked.hidden ?? 0),
       minimum,
     ),
+    askedAtLeast: asked.topics.reduce((sum, t) => sum + (t.count ?? t.atLeast), 0),
     starters: startersOf(bundle, today).map((scope) => ({
       title: topicWords(bundle, scope),
       scope,

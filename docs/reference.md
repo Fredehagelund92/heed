@@ -953,12 +953,15 @@ date; else `grounded`.
   Counts only (FR-614): a month under `privacy.min_count` never shows on its own, a row's `count`
   is null when a total would give such a month away (its `atLeast` is what the shown months add up
   to), a row that shows under the minimum is not listed, and `hidden` counts the calls of the rows
-  not listed, itself hidden under the minimum. `asked` counts every call of the week, the
-  Inbox's own count, hidden under the minimum. For the owners of a row's domains and
+  not listed, itself hidden under the minimum. `asked` counts every call of the week, hidden
+  under the minimum and whenever what it adds over the rows' counts and `hidden` is under the
+  minimum, so it never gives a small month away by subtraction; `askedAtLeast` is what the rows
+  show together. For the owners of a row's domains and
   administrators, a row whose state is Not found names the Not found card open on its topic and
   the draft that waits on it (`gap`); for anyone else it is null. `starters` are the workspace's
   first questions, made from what it has written (decided 27 October 2026): the scope of each live
-  context item (a metric and the first value it names), then the vocabulary's metrics, four at
+  context item an agent would be given (for everyone, and not stopped; a metric and the first value
+  it names), then the vocabulary's metrics, four at
   most, each at the month of today; none while nothing is live. Ask offers them while nothing
   has been asked yet.
 - `POST /engine/reach` (the editor's and the review's "12 questions agents asked this week would

@@ -445,9 +445,13 @@ describe('Asked this week', () => {
     expect(JSON.stringify(asked)).not.toMatch(/per_|@example/)
   })
 
-  it("counts every call, the Inbox's own total, and keeps a small total hidden", async () => {
-    // 12 + 3 + 9 + 3 + 4 calls this week.
-    expect((await ok<Asked>('GET', '/ask/asked', 'kofi')).asked).toBe(31)
+  it('hides the total when, beside the rows, it would give a small count away', async () => {
+    // 12 + 3 + 9 + 3 + 4 calls this week. The rows show 12 (Norway's 3 in September hidden), 9 and
+    // 7 hidden: a total of 31 would give the 3 away by subtraction (FR-614).
+    expect(await ok<Asked>('GET', '/ask/asked', 'kofi')).toMatchObject({
+      asked: null,
+      askedAtLeast: 21,
+    })
   })
 
   it('offers first questions made from what the workspace has written', async () => {

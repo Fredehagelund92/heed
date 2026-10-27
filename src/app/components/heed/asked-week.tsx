@@ -31,8 +31,13 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
           Asked this week
         </h3>
         <p className="text-xs text-muted-foreground">
-          Agents asked {w.asked === null ? 'fewer than 5' : w.asked} times. Counts only, never the
-          words or who asked.
+          Agents asked{' '}
+          {w.asked !== null
+            ? w.asked
+            : w.askedAtLeast && w.askedAtLeast >= 5
+              ? `${w.askedAtLeast}+`
+              : 'fewer than 5'}{' '}
+          times. Counts only, never the words or who asked.
         </p>
       </div>
       <ul>

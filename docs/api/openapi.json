@@ -147379,6 +147379,9 @@
                         }
                       ]
                     },
+                    "askedAtLeast": {
+                      "type": "number"
+                    },
                     "starters": {
                       "type": "array",
                       "items": {
@@ -147450,6 +147453,7 @@
                     "rows",
                     "hidden",
                     "asked",
+                    "askedAtLeast",
                     "starters"
                   ]
                 }

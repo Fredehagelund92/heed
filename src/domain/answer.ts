@@ -600,8 +600,8 @@ export function askedTopics(
 /**
  * A workspace's first questions in Ask, made from what it has written (decided 27 October 2026):
  * the scope of each live context item, a metric and the first value it names, then the metrics of
- * the vocabulary on their own, at most `count`, each at the month of `today`. With nothing live
- * there are none.
+ * the vocabulary on their own, at most `count`, each at the month of `today`. Only items an agent
+ * would be given count: for everyone, and not stopped. With none of those there are none.
  */
 export function startersOf(bundle: AnswerBundle, today: string, count = 4): ResolvedScope[] {
   const month = `${today.slice(0, 7)}-01`
@@ -613,8 +613,17 @@ export function startersOf(bundle: AnswerBundle, today: string, count = 4): Reso
     seen.add(key)
     scopes.push(topicScope({ metrics, values, dimensions: [], month }))
   }
-  if (!bundle.items.length) return []
-  for (const item of bundle.items)
+  // Only items an agent would be given: for everyone, and not stopped.
+  const served = bundle.items.filter(
+    (item) =>
+      item.status === 'accepted' &&
+      audienceAllows(item.audience, noGroups) &&
+      !bundle.stopped.all &&
+      !bundle.stopped.areas.includes(item.areaId) &&
+      !bundle.stopped.items.includes(item.id),
+  )
+  if (!served.length) return []
+  for (const item of served)
     add(
       item.scope.metrics.slice(0, 1),
       item.scope.dimensionValues.slice(0, 1).map((v) => v.value),

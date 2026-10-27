@@ -183,8 +183,12 @@ export const askedSchema = z.object({
   ),
   /** Calls about topics not listed, themselves hidden under the minimum. */
   hidden: z.nullable(z.number()),
-  /** Every call this week, the Inbox's own count; null under the minimum. */
+  /**
+   * Every call this week; null under the minimum, and when what it adds over the rows' counts
+   * would give a small month away (FR-614). `askedAtLeast` is what the rows show together.
+   */
   asked: z.nullable(z.number()),
+  askedAtLeast: z.number(),
   /**
    * A workspace's first questions, made from what it has written: the scopes of its live context
    * items, then the metrics of its vocabulary, at most four, each with the scope a click asks.

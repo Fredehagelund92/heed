@@ -223,6 +223,7 @@ const asked: Asked = {
   ],
   hidden: null,
   asked: 142,
+  askedAtLeast: 136,
   starters: [{ title: 'Orders in Norway', scope: norway }],
 }
 

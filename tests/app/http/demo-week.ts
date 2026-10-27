@@ -521,8 +521,10 @@ async function seedTerms(client: pg.Client) {
  * What agents asked this week, as the service keeps it: topics and their counts, never the words
  * (FR-602). The mock's topics (data/observability.ts), 142 calls in all, on the service's own
  * vocabulary: the mock's Revenue group is Gross sales here, its Black Friday is all markets, its
- * Repeat purchases is Repeat purchase rate, and Orders in Germany is one month. Orders in Spain is
- * the Not found card's topic, seeded with it.
+ * Repeat purchases is Repeat purchase rate, and Orders in Germany is one month. Net revenue in
+ * Norway is 12 and 5 rather than 13 and 4: beside its row's "13+", the total would give the 4
+ * away, so the service would hide it (FR-614). Orders in Spain is the Not found card's topic,
+ * seeded with it.
  */
 export const askedThisWeek: {
   area: string | null
@@ -553,7 +555,7 @@ export const askedThisWeek: {
     metric: 'net_revenue',
     market: 'norway',
     month: '2026-10',
-    calls: 13,
+    calls: 12,
     nothing: 1,
   },
   {
@@ -561,7 +563,7 @@ export const askedThisWeek: {
     metric: 'net_revenue',
     market: 'norway',
     month: '2026-09',
-    calls: 4,
+    calls: 5,
     nothing: 0,
   },
   {

@@ -130,6 +130,10 @@ export type AskedWeek = {
   rows: AskedRow[]
   /** Calls about topics asked fewer than 5 times: counted, never shown. */
   hidden: number
-  /** Every call this week; null when fewer than 5. */
+  /**
+   * Every call this week; null when fewer than 5, or when it would give a small count away beside
+   * the rows (then `askedAtLeast` is what the rows show together).
+   */
   asked: number | null
+  askedAtLeast?: number
 }

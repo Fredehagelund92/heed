@@ -375,6 +375,27 @@ describe("a workspace's first questions", () => {
     }
   })
 
+  it('never come from an item an agent would not be given: for a group, or stopped', () => {
+    const norway = orders('itm_00000001', {
+      audience: { kind: 'groups', groups: ['finance'] },
+    })
+    const spain = orders('itm_00000002', {
+      scope: {
+        metrics: ['metric:orders'],
+        dimensions: [],
+        dimensionValues: [{ dimension: 'dim:market', value: 'val:market/spain' }],
+      },
+    })
+    const markets = (b: AnswerBundle) =>
+      startersOf(b, '2026-10-23').flatMap((s) => s.filters['dim:market'] ?? [])
+    expect(markets(bundleOf([norway, spain]))).toEqual(['val:market/spain'])
+    expect(
+      markets(
+        bundleOf([norway, spain], { stopped: { all: false, areas: [], items: ['itm_00000002'] } }),
+      ),
+    ).toEqual([])
+  })
+
   it('are none while nothing is live', () => {
     expect(startersOf(bundleOf([]), '2026-10-23')).toEqual([])
   })

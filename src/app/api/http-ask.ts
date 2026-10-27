@@ -245,7 +245,12 @@ export function askedWeekOf(asked: Asked | null, names: Names): AskedWeek {
         : {}),
     }
   })
-  return { rows, hidden: asked.hidden ?? 0, asked: asked.asked }
+  return {
+    rows,
+    hidden: asked.hidden ?? 0,
+    asked: asked.asked,
+    askedAtLeast: asked.askedAtLeast,
+  }
 }
 
 /**
