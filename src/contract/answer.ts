@@ -145,10 +145,16 @@ export const lookupInputSchema = z.strictObject({
   ...tryItInputSchema.shape,
 })
 export type LookupInput = z.infer<typeof lookupInputSchema>
-/** A look-up as it runs: each step when it is done, then the answer. */
+/**
+ * A look-up as it runs: each step when it is done, then the answer, then, when the service runs
+ * with a real model, the words the model wrote from the answer's items (each sentence that uses
+ * an item ending with its number, [1] for the first). The words never change the state, the items
+ * or what agents are told; without them, Ask writes its own from the items.
+ */
 export const lookupEventSchema = z.union([
   z.object({ type: z.literal('step'), step: answerStepSchema }),
   z.object({ type: z.literal('answer'), answer: answerSchema }),
+  z.object({ type: z.literal('words'), text: z.string() }),
 ])
 export type LookupEvent = z.infer<typeof lookupEventSchema>
 

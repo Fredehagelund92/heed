@@ -151117,6 +151117,21 @@
                                 "type",
                                 "answer"
                               ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "words"
+                                },
+                                "text": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "text"
+                              ]
                             }
                           ]
                         },

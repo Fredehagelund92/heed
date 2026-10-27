@@ -846,6 +846,11 @@ publish. The front end's Ask tab in the assistant panel calls it.
   returned; a link pasted with a request for a draft is read first, and the draft is made from it. A greeting, thanks, "what can you do" and other messages about the assistant itself
   get a plain answer with no tool, and a message it cannot place says it is the demo model
   (`src/domain/assistant-meta.ts`). Errors are logged by kind and status only, never with a prompt.
+- **Ask's words** (FR-701, FR-710): with real models, the same model writes Ask's words from the
+  items the engine gave (see the answer engine, `POST /ask/lookup`). Their cases
+  (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
+  with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
+  `models.assistant`, which sends the cases' made-up questions and items to its provider.
 - **Test cases** (FR-710): `npm run eval:assistant -- --as <email>` runs the assistant's own cases
   (explain a delivery, explain an item, why an item does not apply, coach a question, draft from
   pasted text, an instruction hidden in pasted text, a request to publish) against the live
@@ -969,8 +974,17 @@ date; else `grounded`.
 
 - `POST /ask/lookup` (Ask): a question (1 to 2,000 characters) and the names a person picked
   beside it (`metrics`, `dimension_filters`, `window`, as Try it), on the live edition. It answers
-  with server-sent events: each step as it is done, then the answer. The question is read in
-  memory and never stored or logged (FR-602), and nothing is recorded.
+  with server-sent events: each step as it is done, then the answer. With real models
+  (`MODELS=live`), a `words` event follows an answer that gives items: the words of
+  `models.assistant`, written from those items only, each sentence that uses one ending with its
+  number. The model decides nothing: the state, the items and what agents are told are the
+  engine's. Its words are kept only when they pass a check (one paragraph of at most 1,200
+  characters, citing only the items given and at least one, with no list, heading, link or number
+  it was not given); otherwise, and when the spending limits leave no room, the provider takes
+  over 12 seconds or fails, no `words` event comes and Ask writes its own words from the items.
+  The call is the assistant's in the spend ledger, for the person who asked. The question goes to
+  the model's provider for that call; it is read in memory and never stored or logged (FR-602),
+  and with `MODELS=mock` nothing at all is recorded.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
   to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
   first, each with the state the engine gives its newest shown month now (the month of today for a
