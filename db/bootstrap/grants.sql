@@ -152,3 +152,8 @@ grant execute on function cl_comment_subject_open(text, uuid) to :api;
 grant insert, delete on item_owners to :api;
 grant insert, update (read_at) on item_reads to :api;
 grant insert, update (undone_at) on item_changes to :api;
+-- Terms and synonyms (FR-138): owners write the words of their domains, and never remove one; a change
+-- to many terms is recorded once and undone by its maker. Agents read none of it yet.
+grant insert, update (name, meaning, same_as_key, same_as_term, area_id, updated_by, deleted_at, deleted_with) on terms to :api;
+grant insert, update (undone_at) on term_changes to :api;
+grant execute on function cl_vocabulary_words() to :api;

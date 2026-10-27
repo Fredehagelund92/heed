@@ -85,6 +85,7 @@ import {
   type ReviewService,
 } from '../modules/review/index.ts'
 import { createContextService } from '../modules/context/index.ts'
+import { createTermsService } from '../modules/terms/index.ts'
 import { createInboxFeedService } from '../modules/inbox/index.ts'
 import { createCommentsService } from '../modules/comments/index.ts'
 import {
@@ -239,6 +240,7 @@ export function createRouter({
                 readPage,
               }),
               catalogue: createCatalogueService(tx, clock),
+              terms: createTermsService(tx),
               areas: createAreasService(tx),
               people: createPeopleService(tx),
               vocabulary: createVocabularyService(tx),
@@ -673,6 +675,41 @@ export function createRouter({
         found(await context.catalogue.get(input.kind, input.id)),
       ),
     },
+    terms: {
+      list: authorized.terms.list.handler(({ context }) => context.terms.list()),
+      create: authorized.terms.create.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'terms.create', input, () =>
+          context.terms.create(input),
+        ),
+      ),
+      update: authorized.terms.update.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'terms.update', input, () =>
+          context.terms.update(input),
+        ),
+      ),
+      delete: authorized.terms.delete.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'terms.delete', input, () =>
+          context.terms.remove(input),
+        ),
+      ),
+      move: authorized.terms.move.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'terms.move', input, () =>
+          context.terms.move(input),
+        ),
+      ),
+      restore: authorized.terms.restore.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'terms.restore', input, () =>
+          context.terms.restore(input),
+        ),
+      ),
+      deleted: authorized.terms.deleted.handler(({ context }) => context.terms.deleted()),
+      history: authorized.terms.history.handler(({ context, input }) =>
+        context.terms.history(input.id),
+      ),
+    },
+    definitions: {
+      coverage: authorized.definitions.coverage.handler(({ context }) => context.terms.coverage()),
+    },
     areas: {
       list: authorized.areas.list.handler(({ context }) => context.areas.list()),
       get: authorized.areas.get.handler(({ context, input }) => getArea(context.tx, input.id)),
@@ -909,6 +946,7 @@ export function createRouter({
           if (kind === 'decision' || kind === 'decisions')
             return context.path.undoDecisions(ids.split(','))
           if (kind === 'change') return context.context.undoChange(ids)
+          if (kind === 'terms') return context.terms.undoChange(ids)
           return context.cards.undoCard(input.token)
         }),
       ),

@@ -171,8 +171,9 @@ Both bindings pass one conformance suite (`tests/conformance/context-api.ts`): t
 `npm test`, the http binding against PostgreSQL in `npm run test:integration`. The new web app's
 two bindings do the same with `tests/app/conformance/heed-api.ts`, the http one for the methods it
 wires so far (`wiredMethods` in `src/app/api/http.ts`), on the mockup's demo week
-(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items and the suggestions waiting
-for Jon Abara, sent through the service's own API. Reads whose screens a later pull request wires
+(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
+people wrote in Definitions, and the suggestions waiting for Jon Abara, sent through the service's
+own API. Reads whose screens a later pull request wires
 answer what the service holds for them today, which is nothing, so the shell and the Inbox draw;
 their writes are not available yet.
 

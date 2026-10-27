@@ -423,6 +423,23 @@ items at once, with what Undo needs; only its maker marks it undone, once, insid
 draft records who deleted it (`proposals.discarded_by`), and only that person brings it back,
 inside the same window and with nothing else changed (`proposals_guard_state`).
 
+Terms (migration 0009). `terms` keeps the words people write in Definitions (FR-138): a word
+with its own `meaning`, or a synonym that names what it means instead (`same_as_key`, a live
+metric or dimension of the vocabulary, or `same_as_term`, a term with its own meaning; never
+another synonym). `word` is the name trimmed, its spaces folded and in lower case, and one live
+term holds a word at most (`terms_one_word`). `terms_guard` refuses a word the live vocabulary or
+the definitions source uses for a metric or a dimension (`cl_vocabulary_words`: names, other
+names, and the source's name, title and synonyms) whenever a term takes a word: written, renamed,
+pointed elsewhere or restored. A sync can still give a word a second meaning later; the service
+shows that conflict. A synonym's domain is what it means (`cl_term_target_area`), and a term's
+synonyms follow it to a new domain (`terms_follow`). An owner of the domain or an administrator
+writes a term, and a word with no domain is an administrator's (row security). Nothing removes a
+term: a deleted one records who deleted it, the synonyms that pointed at it go with it
+(`deleted_with`), and it can be restored. `term_versions` keeps what each write made of a term,
+append only. `term_changes` keeps one row per change to many terms with what Undo needs; only its
+maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
+grant on these tables: agents do not read terms yet.
+
 ## Evaluations
 
 A run of the evaluation runner records who it acts for (`requested_by`: whoever started it);

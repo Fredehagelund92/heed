@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
+import { TERMS } from '@/api/mock/data/terms'
 import { reviews } from '@/api/mock/data/review'
 import { facts, people as worldPeople } from '@/api/mock/data/world'
 import type { Fact } from '@/model/items'
@@ -29,6 +30,11 @@ import { idleJobs } from '../../server/idle-jobs.ts'
   27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
   withdraws his retirement (P9), the Not found card and its draft (part 2 of P6b), and who sent the
   report (P10). Draft items, which no API keeps yet, stay out too (P7).
+
+  The terms and synonyms people wrote in Definitions are the mock's too, each by its writer. A
+  synonym of a synonym (Takings, for Turnover) means what that one means, as the service keeps it,
+  so the mock's chain conflict is not on the service; the other conflict, Sales, needs Cube to call
+  Gross sales "Sales" after Ines wrote her word, which P7c's Definitions journeys arrange.
 */
 
 /** The service's today in the demo week: the mock's days are 22 and 23 October 2026. */
@@ -436,9 +442,54 @@ async function sendSuggestions(databaseUrl: string): Promise<Record<QueueCard, s
 }
 
 /**
+ * The mock's terms and synonyms, written in the order they can be: the terms with their own
+ * meaning first, then the synonyms, each pointing at what it finally means.
+ */
+async function seedTerms(client: pg.Client) {
+  const terms = TERMS
+  const byName = new Map(terms.map((t) => [t.name.toLowerCase(), t]))
+  const meaningOf = (name: string): string => {
+    const t = byName.get(name.toLowerCase())
+    return t?.sameAs ? meaningOf(t.sameAs) : name
+  }
+  const keyOf = (name: string) => {
+    const metric = metricOf(name)
+    if (metric) return `metric:${metric.id}`
+    const dimension = vocabulary.dimensions.find((d) => d.name === name)
+    if (dimension) return `dim:${dimension.id}`
+    return null
+  }
+  const ids = new Map<string, string>()
+  for (const t of [...terms].sort((a, b) => Number(!!a.sameAs) - Number(!!b.sameAs))) {
+    const target = t.sameAs ? meaningOf(t.sameAs) : null
+    const key = target ? keyOf(target) : null
+    const on = `${isoDay(t.updated, TODAY)}T09:00:00Z`
+    const by = seedPersonId(personId(t.by!))
+    const [row] = (
+      await client.query<{ id: string }>(
+        `insert into terms (name, meaning, same_as_key, same_as_term, area_id, created_by, updated_by,
+                            created_at, updated_at)
+         values ($1, $2, $3, $4::uuid, $5, $6::uuid, $6::uuid, $7::timestamptz, $7::timestamptz)
+         returning id::text`,
+        [
+          t.name,
+          t.sameAs ? null : t.definition,
+          key,
+          target && !key ? ids.get(target.toLowerCase()) : null,
+          t.domain ? areaOf(t.domain) : null,
+          by,
+          on,
+        ],
+      )
+    ).rows
+    ids.set(t.name.toLowerCase(), row!.id)
+  }
+}
+
+/**
  * Seeds an empty migrated database with the demo week, as a superuser: the library, Jon as an
- * admin as the mock has him, the suggestions through the API, then who wrote what and when each was
- * sent. Returns each mock card's suggestion id on the service.
+ * admin as the mock has him, the terms and synonyms, the suggestions through the API, then who
+ * wrote what and when each was sent. Returns each mock card's suggestion id on the service.
  */
 export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCard, string>> {
   const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
@@ -453,6 +504,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<Record<QueueCa
        select unnest($1::uuid[]), 'administrator' on conflict do nothing`,
       [admins],
     )
+    await seedTerms(client)
   } finally {
     await client.end()
   }
