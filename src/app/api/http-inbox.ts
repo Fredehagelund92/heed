@@ -114,7 +114,7 @@ export const idOf = (card: NeedCard) =>
       ? card.draft
       : card.id
 
-function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
+function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => string): InboxCard {
   const base = { id: idOf(card), domain: card.areaId, for: me, when: whenWords(card.at, now) }
   switch (card.group) {
     case 'suggestion': {
@@ -173,8 +173,8 @@ function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
       }
     }
     // A report names the context item the reported answer gave first, when the service knows the
-    // answer; who sent it is kept only once named reports come (P10). With no item, the card says
-    // what was sent and offers its one decision.
+    // answer, and a named report from Ask names who sent it; an agent's feedback keeps nobody.
+    // With no item, the card says what was sent and offers its one decision.
     case 'flag': {
       const item = card.items[0]
       return {
@@ -192,8 +192,8 @@ function cardOf(card: NeedCard, me: string, now: Date): InboxCard {
           reason: card.verdict,
           note: card.note ?? '',
           when: dayWords(card.at),
-          by: '',
-          via: 'an agent',
+          by: card.by ? person(card.by) : '',
+          via: card.source === 'ask' ? 'Ask' : 'an agent',
         },
       }
     }
@@ -248,7 +248,14 @@ function waitingOf(w: Feed['waiting'][number], me: string, domains: Domains, now
  * last two weeks, and what they sent that waits. A suggestion drafted for a Not found card is
  * reviewed from that card, so it is not a card of its own.
  */
-export function inboxOf(feed: Feed, me: string, domains: Domains, now: Date): Omit<Inbox, 'sent'> {
+export function inboxOf(
+  feed: Feed,
+  me: string,
+  domains: Domains,
+  now: Date,
+  /** A person's name by their id: who sent a named report. */
+  person: (id: string) => string = () => 'Someone',
+): Omit<Inbox, 'sent'> {
   const drafts = new Set(feed.cards.flatMap((c) => (c.group === 'gap' && c.draft ? [c.draft] : [])))
   const cards = feed.cards.filter(
     (c): c is NeedCard =>
@@ -287,7 +294,7 @@ export function inboxOf(feed: Feed, me: string, domains: Domains, now: Date): Om
     if ((c.group === 'suggestion' && c.read) || draft?.read) reviewed[id] = true
   }
   return {
-    cards: cards.map((c) => cardOf(c, me, now)),
+    cards: cards.map((c) => cardOf(c, me, now, person)),
     mentions,
     waiting: feed.waiting.map((w) => waitingOf(w, me, domains, now)),
     done,

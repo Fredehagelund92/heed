@@ -13,6 +13,7 @@ import type { PreviewReply, ProposalRecord } from '../../src/contract/proposals.
 import { answer, startersOf, topicScope } from '../../src/domain/answer.ts'
 import { ownCaveat } from '../../src/domain/proposal-rules.ts'
 import { buildApp } from '../../src/server/app.ts'
+import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { loadServingBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { deliver } from '../../src/server/modules/evals/index.ts'
@@ -335,7 +336,10 @@ describe('Ask keeps no question (FR-602, FR-603)', () => {
       `Why did orders in Norway drop after the ${marker} audit?`,
       `What should I know about ${marker} in Spain?`,
     ]
-    const before = await tableContents(client, ['auth.sessions'])
+    // The setup checklist's mark that Ask was used (no person, no words) is the one thing a look-up
+    // may write, the first time only.
+    const kept = ['auth.sessions', 'public.setup_marks']
+    const before = await tableContents(client, kept)
     const lines = logs.length
     for (const question of asked) {
       expect((await call('POST', '/ask/lookup', 'maria', { question })).statusCode).toBe(200)
@@ -352,9 +356,57 @@ describe('Ask keeps no question (FR-602, FR-603)', () => {
     }
     expect(JSON.stringify(await ok<Asked>('GET', '/ask/asked', 'maria'))).not.toContain(marker)
     // Nothing changed anywhere: no count, no topic, no record of who asked.
-    expect(await tableContents(client, ['auth.sessions'])).toEqual(before)
+    expect(await tableContents(client, kept)).toEqual(before)
+    expect(
+      (await client.query<{ step: string }>('select step from setup_marks')).rows.map(
+        (r) => r.step,
+      ),
+    ).toContain('ask')
     expect((await tableContents(client)).join('\n')).not.toContain(marker)
     expect(logs.slice(lines).join('\n')).not.toContain(marker)
+  })
+})
+
+describe('a named report keeps its words in the report only (FR-602, FR-622)', () => {
+  it('keeps the question and words a person sends, with their name, in the report and nowhere else', async () => {
+    const marker = 'Brightwater'
+    const item = live.items.find((i) => i.audience.kind === 'everyone')!
+    const lines = logs.length
+    const before = await tableContents(client, ['auth.sessions', 'public.reports'])
+    const sent = await ok<{ id: string }>('POST', '/reports', 'maria', {
+      question: `Is the ${marker} store in the Norway numbers?`,
+      itemId: item.id,
+      part: 'item',
+      what: `It leaves out ${marker}.`,
+    })
+    // The report holds the words, with who sent them.
+    const [row] = (
+      await client.query<{ question: string; person: string }>(
+        'select question, person_id::text as person from reports where id=$1',
+        [sent.id],
+      )
+    ).rows
+    expect(row).toEqual({
+      question: `Is the ${marker} store in the Norway numbers?`,
+      person: seedPersonId('per_maria'),
+    })
+    // Nothing else holds them, not even the stored answer a retry gets, and no log says them.
+    const others = await tableContents(client, ['auth.sessions', 'public.reports'])
+    expect(others.filter((t) => !before.includes(t)).map((t) => t.split(' ')[0])).toEqual([
+      'public.idempotency_keys',
+    ])
+    expect(others.join('\n')).not.toContain(marker)
+    expect(logs.slice(lines).join('\n')).not.toContain(marker)
+  })
+
+  it('is never read by agents: the serving role has no grant on reports', async () => {
+    await client.query('begin')
+    try {
+      await client.query(`set local role ${identifier(localRoles.serve)}`)
+      await expect(client.query('select * from reports')).rejects.toThrow(/permission denied/)
+    } finally {
+      await client.query('rollback')
+    }
   })
 })
 

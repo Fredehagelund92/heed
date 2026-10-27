@@ -268,6 +268,7 @@ import {
   toggleReactionSchema,
 } from './comments.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
+import { createReportSchema, myReportsSchema, sentReportSchema } from './reports.ts'
 import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
   adminDisconnectedSchema,
@@ -2662,6 +2663,34 @@ export const contract = {
       })
       .input(tryItReadInputSchema)
       .output(tryItReadingSchema),
+  },
+  reports: {
+    create: read
+      .errors({
+        TOO_MANY_REQUESTS: {
+          status: 429,
+          message: "You've sent a lot of reports. Try again in a minute.",
+          data: z.object({ retryAfterSeconds: z.number() }),
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/reports',
+        tags: ['assistant'],
+        summary:
+          "A named report from Ask (FR-622): what is wrong with an answer, to the owners of its item's domain as a Reported card, with the question and the sender's name; nothing else of the chat is kept, and agents never read it",
+      })
+      .input(createReportSchema)
+      .output(sentReportSchema),
+    mine: read
+      .route({
+        method: 'GET',
+        path: '/reports/mine',
+        tags: ['assistant'],
+        summary:
+          "The person's own named reports of the last 90 days, newest first, each with what the owners did after it, for Ask to show in the chat",
+      })
+      .output(myReportsSchema),
   },
   ask: {
     lookup: read

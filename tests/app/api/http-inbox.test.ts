@@ -201,9 +201,14 @@ describe('the Inbox', () => {
       ...base,
       id: 'feedback:f1',
       group: 'flag',
+      source: 'agent',
       feedbackId: 'f1',
       verdict: 'unclear',
       note: 'Is this Germany only, or every market?',
+      by: null,
+      question: null,
+      correction: null,
+      link: null,
       items: [],
     }
     expect(inboxOf(feed([flag]), 'Jon Abara', domains, now).cards[0]).toMatchObject({
@@ -221,9 +226,14 @@ describe('the Inbox', () => {
       ...base,
       id: 'feedback:f2',
       group: 'flag',
+      source: 'agent',
       feedbackId: 'f2',
       verdict: 'wrong',
       note: null,
+      by: null,
+      question: null,
+      correction: null,
+      link: null,
       items: [
         { id: 'itm_lag0001', title: 'Orders lags by one day in the source tool' },
         { id: 'itm_other01', title: 'Another item' },
@@ -241,6 +251,31 @@ describe('the Inbox', () => {
     })
   })
 
+  it('names who sent a named report from Ask, by their name', () => {
+    const flag: Card = {
+      ...base,
+      id: 'report:r1',
+      group: 'flag',
+      source: 'ask',
+      feedbackId: 'r1',
+      verdict: 'wrong',
+      note: 'Gift cards are paid out separately since October.',
+      by: 'per_maria',
+      question: 'Do Norway orders include gift-card money?',
+      correction: null,
+      link: null,
+      items: [{ id: 'itm_gift0001', title: 'Norway orders count store credit' }],
+    }
+    const name = (id: string) => (id === 'per_maria' ? 'Maria Lindqvist' : 'Someone')
+    expect(inboxOf(feed([flag]), 'Jon Abara', domains, now, name).cards[0]).toMatchObject({
+      id: 'report:r1',
+      type: 'flag',
+      title: 'Norway orders count store credit',
+      line: 'Reported wrong: “Gift cards are paid out separately since October.”',
+      factId: 'itm_gift0001',
+      flag: { by: 'Maria Lindqvist', via: 'Ask' },
+    })
+  })
   it('says since when a check is due, and who checked it last', () => {
     const check = (patch: Partial<Extract<Card, { group: 'check' }>>): Card => ({
       ...base,

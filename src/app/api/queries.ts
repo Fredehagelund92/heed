@@ -59,6 +59,7 @@ export const queryKeys = {
   askExamples: ['getAskExamples'] as const,
   askedWeek: ['askedThisWeek'] as const,
   chats: ['listChats'] as const,
+  myReports: ['getMyReports'] as const,
 }
 
 export const sessionQuery = () =>
@@ -187,6 +188,10 @@ export const askExamplesQuery = () =>
 export const chatsQuery = () =>
   queryOptions({ queryKey: queryKeys.chats, queryFn: () => api.listChats() })
 
+/** The person's own reports from Ask, with what the owners did after each. */
+export const myReportsQuery = () =>
+  queryOptions({ queryKey: queryKeys.myReports, queryFn: () => api.getMyReports() })
+
 /** What a question is read as: the same words always read the same, so it is kept. */
 export const readQuestionQuery = (question: string) =>
   queryOptions({
@@ -301,6 +306,7 @@ type Read =
   | 'getAskExamples'
   | 'askedThisWeek'
   | 'listChats'
+  | 'getMyReports'
   | 'getSettings'
   | 'getIntegrations'
   | 'readFigure'
@@ -328,6 +334,8 @@ const items: QueryKey[] = [
   queryKeys.asks,
   queryKeys.chats,
   queryKeys.askedWeek,
+  // What an owner did to an item is a report's outcome.
+  queryKeys.myReports,
 ]
 /** What a change to comments makes stale: the threads, and the Inbox's mentions. */
 const comments: QueryKey[] = [queryKeys.comments, queryKeys.inbox, queryKeys.inboxPage]
@@ -341,7 +349,7 @@ const definitions: QueryKey[] = [
   queryKeys.chats,
   queryKeys.askedWeek,
 ]
-const inbox: QueryKey[] = [queryKeys.inbox, queryKeys.inboxPage]
+const inbox: QueryKey[] = [queryKeys.inbox, queryKeys.inboxPage, queryKeys.myReports]
 /** What a decision on a suggestion makes stale: the Inbox, the items it changed, the saved questions. */
 const decision: QueryKey[] = [...inbox, ...items, queryKeys.savedQuestions, queryKeys.comments]
 
@@ -399,6 +407,7 @@ export const invalidations: {
   setAlertRule: () => [queryKeys.alerts],
   saveView: () => [queryKeys.savedViews],
   saveChat: () => [queryKeys.chats],
+  reportAnswer: () => [queryKeys.myReports, ...inbox],
   setLinks: () => [queryKeys.settings],
   setFigures: () => [queryKeys.settings, queryKeys.figures],
   setDataContact: () => [queryKeys.settings],
