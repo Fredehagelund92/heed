@@ -183,7 +183,7 @@ async function main(): Promise<void> {
       ...maintenanceJobs,
       outboxRelayJob,
       gapDetectionJob,
-      connectorSyncJob(sources),
+      connectorSyncJob(sources, { clock }),
       ...evalJobs({ port: models, clock }),
     ],
   })

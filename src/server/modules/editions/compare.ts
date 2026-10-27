@@ -178,12 +178,17 @@ const leaves = (change: EditionChangeKind) => change === 'retired' || change ===
 
 type VersionWhy = {
   id: string
-  proposerId: string
+  proposerId: string | null
   channel: Why['channel']
   editedBy: string | null
   proposal: { id: string; number: number } | null
   decisions: (Why['decisions'][number] & {
-    proposal: { id: string; number: number; proposerId: string; channel: Why['channel'] } | null
+    proposal: {
+      id: string
+      number: number
+      proposerId: string | null
+      channel: Why['channel']
+    } | null
   })[]
 }
 

@@ -119,7 +119,7 @@ export type DecisionCheck =
 
 export type DecidableProposal = {
   areaId: string | null
-  proposerId: string
+  proposerId: string | null
   state: ProposalState
   riskLevel: 'low' | 'normal' | 'high' | null
   claimedBy: string | null

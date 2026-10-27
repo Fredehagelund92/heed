@@ -118,23 +118,36 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
   const base = { id: idOf(card), domain: card.areaId, for: me, when: whenWords(card.at, now) }
   switch (card.group) {
     case 'suggestion': {
-      const from = card.from.name ?? 'Someone'
+      const synced = card.synced
+      const from = synced ? synced.source.tool : (card.from?.name ?? 'Someone')
       const agent = card.writtenBy === 'agent'
       return {
         ...base,
         type: 'suggestion',
         title: card.title,
-        line: agent
-          ? `New context from an agent, sent with ${from}'s OK.`
-          : card.action === 'retire'
-            ? `${from} suggests archiving it.`
-            : card.action === 'create'
-              ? `New context from ${from}.`
-              : `A change from ${from}.`,
+        line: synced
+          ? `New context from ${synced.source.tool}: ${synced.document.title}.`
+          : agent
+            ? `New context from an agent, sent with ${from}'s OK.`
+            : card.action === 'retire'
+              ? `${from} suggests archiving it.`
+              : card.action === 'create'
+                ? `New context from ${from}.`
+                : `A change from ${from}.`,
         detail: '',
         primary: 'Review',
         secondary: [],
         ...(card.itemId ? { factId: card.itemId } : {}),
+        ...(synced
+          ? {
+              source: {
+                tool: synced.source.tool,
+                folder: synced.scope,
+                doc: synced.document.title,
+                read: whenWords(synced.read.at, now),
+              },
+            }
+          : {}),
         suggestion: {
           ...(card.itemId ? { factId: card.itemId } : {}),
           from,
@@ -594,7 +607,11 @@ export function reviewOf(
   )
   // Drafted for a Not found card by the drafting helper: nobody wrote it, so it is the queue's own.
   const drafted = sheet.gapId !== null && sheet.writtenBy !== null
-  const from = drafted ? 'Drafted for you' : (sheet.from.name ?? 'Someone')
+  const from = drafted
+    ? 'Drafted for you'
+    : sheet.synced
+      ? sheet.synced.source.tool
+      : (sheet.from?.name ?? 'Someone')
   // The page it was drafted from: a new item's source is an added block, a change's a moved value.
   const page =
     diff.blocks.flatMap((b) =>
@@ -610,6 +627,17 @@ export function reviewOf(
     ...(sheet.writtenBy === 'agent' ? { agent: 'An agent' } : {}),
     via: viaOf(proposal.channel),
     on: dayWords(proposal.submittedAt ?? proposal.createdAt),
+    ...(sheet.synced
+      ? {
+          synced: {
+            tool: sheet.synced.source.tool,
+            folder: sheet.synced.scope,
+            doc: sheet.synced.document.title,
+            read: whenWords(sheet.synced.read.at, new Date()),
+            quote: sheet.synced.quote,
+          },
+        }
+      : {}),
     ...(sheet.note ? { note: sheet.note } : {}),
     mode: sheet.mode,
     ...(drafted

@@ -1,6 +1,8 @@
 export {
   acceptedOverlaps,
   createProposalsService,
+  createSourceProposals,
+  type SourceAuthor,
   openIssueDays,
   rejectMentions,
   rejectSensitive,

@@ -127,7 +127,7 @@ export function useProposalStatus(proposal: ProposalRecord) {
   const [discarding, setDiscarding] = useState(false)
 
   const viewerId = session?.person.id ?? ''
-  const nameOf = (id: string) => people.find((person) => person.id === id)?.name ?? null
+  const nameOf = (id: string | null) => people.find((person) => person.id === id)?.name ?? null
   const area = areas.find((candidate) => candidate.id === proposal.areaId)
   const draft = proposal.draft
   const author = proposal.proposerId === viewerId

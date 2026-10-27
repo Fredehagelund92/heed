@@ -1,4 +1,5 @@
 import type { ConnectorManifest } from '../domain/connector-manifest.ts'
+import { manifest as gitMarkdown } from './git-markdown/manifest.ts'
 import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
 
 /**
@@ -6,4 +7,4 @@ import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
  * registry and by the web app's mock, so Sources lists them without running their code.
  * `index.ts` pairs each with its runtime, for the server only.
  */
-export const builtInManifests: readonly ConnectorManifest[] = [staticDefinitions]
+export const builtInManifests: readonly ConnectorManifest[] = [staticDefinitions, gitMarkdown]

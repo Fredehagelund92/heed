@@ -37,7 +37,7 @@ export type MockServedItem = Pick<
   id: string
   version: number
   checkFlag: CheckFlag | null
-  proposerId: string
+  proposerId: string | null
   /** A fixture item may be for a narrower audience; a draft is for everyone. */
   audience: Audience
   /** How the served version was accepted (FR-326); a draft in a preview has none. */

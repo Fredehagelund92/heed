@@ -264,6 +264,9 @@ describe('the form to add a source', () => {
         domainNames: { paid: 'area_paid_media' },
       },
       secrets: [{ key: 'token', set: true }],
+      scopes: [],
+      schedule: null,
+      nextReadAt: null,
       changedAt: null,
       changedBy: null,
     })

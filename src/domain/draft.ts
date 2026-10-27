@@ -88,7 +88,7 @@ export function textFindings(value: unknown, field = ''): FormatFinding[] {
 }
 export function assembleDraft(
   draft: Draft,
-  proposerId: string,
+  proposerId: string | null,
   createdVia: ItemVersion['createdVia'],
 ) {
   const { summaryMarkup, bodyMarkup } = draft
@@ -101,7 +101,11 @@ export function assembleDraft(
     mentions: mentionsInFields(draft),
   }
 }
-export function formatDraft(draft: Draft, proposerId: string, channel: ItemVersion['createdVia']) {
+export function formatDraft(
+  draft: Draft,
+  proposerId: string | null,
+  channel: ItemVersion['createdVia'],
+) {
   const candidate = assembleDraft(draft, proposerId, channel)
   const parsed = itemVersionSchema.safeParse(candidate)
   const findings: FormatFinding[] = textFindings(draft)
@@ -130,7 +134,7 @@ export const isEvidenceFinding = (finding: Pick<FormatFinding, 'code' | 'field'>
  */
 export function previewVersion(
   draft: Draft,
-  proposerId: string,
+  proposerId: string | null,
   channel: ItemVersion['createdVia'],
 ): { findings: FormatFinding[]; version: ItemVersion | null } {
   const checked = formatDraft(draft, proposerId, channel)

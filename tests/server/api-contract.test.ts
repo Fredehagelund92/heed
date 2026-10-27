@@ -398,6 +398,7 @@ describe('the API over HTTP', () => {
       '/sources/test',
       '/sources/types',
       '/sources/{id}',
+      '/sources/{id}/read',
       '/terms',
       '/terms/delete',
       '/terms/deleted',

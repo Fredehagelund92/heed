@@ -264,12 +264,13 @@ function gitEnvironment(
 }
 
 /**
- * Fetches the commit `ref` names, hands `work` its folder and the commit's id, and removes it
- * all afterwards, whatever happens. A failure is a `GitFetchError` with a reason code only.
+ * Fetches the commit `ref` names, hands `work` its folder, the commit's id and when it was
+ * committed (ISO 8601), and removes it all afterwards, whatever happens. A failure is a
+ * `GitFetchError` with a reason code only.
  */
 export async function withGitCheckout<T>(
   options: GitFetchOptions,
-  work: (folder: string, commit: string) => Promise<T>,
+  work: (folder: string, commit: string, committedAt: string) => Promise<T>,
 ): Promise<T> {
   if (!isFetchableAddress(options.repository))
     throw new GitFetchError(reachesLocal() ? 'fetch_failed' : 'private_address')
@@ -317,6 +318,10 @@ export async function withGitCheckout<T>(
     await git(['-C', repo, 'checkout', '--quiet', '--detach', 'FETCH_HEAD'])
     const commit = (await git(['-C', repo, 'rev-parse', 'HEAD'])).trim()
     if (!/^[0-9a-f]{40,64}$/.test(commit)) throw new GitFetchError('fetch_failed')
+    const committed = new Date(
+      (await git(['-C', repo, 'show', '--no-patch', '--format=%cI', 'HEAD'])).trim(),
+    )
+    if (Number.isNaN(committed.getTime())) throw new GitFetchError('fetch_failed')
     const folder = join(repo, ...parts)
     let real: string
     try {
@@ -329,7 +334,7 @@ export async function withGitCheckout<T>(
     const root = await realpath(repo)
     if (real !== root && !real.startsWith(`${root}${sep}`))
       throw new GitFetchError('folder_missing')
-    return await work(real, commit)
+    return await work(real, commit, committed.toISOString())
   } finally {
     await rm(home, { recursive: true, force: true })
   }

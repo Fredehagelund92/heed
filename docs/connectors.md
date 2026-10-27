@@ -10,23 +10,26 @@ There are two kinds:
   the items that rely on it (CON-209 to CON-214). Cube model files are the first one, and the demo
   source (two invented definitions) the fallback.
 - A **content source** reads documents from folders, spaces or pages an administrator chose, and
-  turns each new or changed document into at most one draft for one domain's owners to review
-  (CON-601 to CON-610). Markdown files in a Git repository are the first one. None is built yet.
+  turns each new or changed document into at most one suggestion for one domain's owners to
+  review (CON-601 to CON-611). Markdown files in a Git repository are the first one
+  ([content sources](#content-sources)).
 
 Chat and identity connectors have other shapes and are outside this contract (CON-304, CON-401).
 
 **Interface 3.0** is the contract: a manifest that is data and a runtime that is code, for both
-kinds. Its first slice is built: the manifest, the runtime and its messages, the registry, and
-adding a source of any connector from its manifest in Sources ([what is built](#what-is-built)).
+kinds. Its first slices are built: the manifest, the runtime and its messages, the registry,
+adding a source of any connector from its manifest in Sources, `ctx.git`, each source's own
+schedule, and the content pipeline with Markdown in Git ([what is built](#what-is-built)).
 Connectors written to **interface 2**, below, keep working through an adapter: Cube is one, until
 it is ported. The other connector documents:
 
-| Document                                          | For                                                                                    |
-| ------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| [Security and egress](connectors/security.md)     | Where connector code runs, the hosts it may reach, the secret store and its output     |
-| [Writing a connector](connectors/authoring.md)    | Authors of a new connector: the steps, the rules and the review checklist (a skeleton) |
-| [Connectors as packages](connectors/packaging.md) | The design for loading connectors from packages later; not built                       |
-| [The Cube connector](connectors/cube.md)          | The Cube model setup, its settings, the demo model, compilation and change marks       |
+| Document                                                    | For                                                                                    |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [Security and egress](connectors/security.md)               | Where connector code runs, the hosts it may reach, the secret store and its output     |
+| [Writing a connector](connectors/authoring.md)              | Authors of a new connector: the steps, the rules and the review checklist (a skeleton) |
+| [Connectors as packages](connectors/packaging.md)           | The design for loading connectors from packages later; not built                       |
+| [The Cube connector](connectors/cube.md)                    | The Cube model setup, its settings, the demo model, compilation and change marks       |
+| [Markdown in Git](../src/connectors/git-markdown/README.md) | The first content connector: its settings, its folders and what a read suggests        |
 
 ## Invariants
 
@@ -180,10 +183,12 @@ together. A complete read marks absent definitions missing without deleting thei
 read never does; a failed read keeps every previous mark and status and changes no flag or link
 (CON-213, CON-214). A ref belongs to one connector for good: a member another source already
 reads stays with it, the read leaves it out with a `taken` warning and is partial. The read's
-cursor is stored on its snapshot (`connector_snapshots.cursor`). The hourly job `connectors.sync`
-reads every source that is switched on, the server's and those administrators added, loaded from
-the database each time; one that breaks the refresh itself does not keep the others from being
-read. Read again on a source's page runs it now. A source whose last good read is older than
+cursor is stored on its snapshot (`connector_snapshots.cursor`). The job `connectors.sync` runs
+every five minutes and reads each source that is switched on and due: the server's and those
+administrators added, loaded from the database each time, each on its own schedule
+([schedules](#schedules-built)); one that breaks the refresh itself does not keep the others from
+being read. Read again on a source's page reads that source now (`sources.read`), and running the
+job by hand in Operations reads every source now. A source whose last good read is older than
 `stale_after` (6 hours by default) is out of date, and the watchdog alerts (CON-104).
 
 ### Sources an administrator adds
@@ -496,23 +501,24 @@ capabilities a manifest declares:
 
 ### What is built
 
-The first slice of interface 3.0 is in this build. The rest of this section is decided and comes
-in the next slices ([what the next slices build](#what-the-next-slices-build)).
+The first slices of interface 3.0 are in this build. The rest of this section is decided and
+comes in the next slices ([what the next slices build](#what-the-next-slices-build)).
 
-| Part                 | Where                                                      | Status                                                                                                                      |
-| -------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Manifest             | `src/domain/connector-manifest.ts`                         | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `define-manifest.ts`      |
-| Settings form        | `src/domain/connector-config.ts`                           | Built: every field kind, checked the same way in the form and in the service                                                |
-| Runtime and messages | `src/domain/connector-runtime.ts`                          | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                    |
-| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; interface 2 types through an adapter                                   |
-| Built-in connectors  | `src/connectors/`                                          | Built: the list and the static list of definitions (`static-definitions`, experimental); Cube is still interface 2          |
-| Sources              | Administration › Sources                                   | Built: Add a connector, a form from the manifest, the check step by step, status, last read and errors on the source's page |
-| Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply |
-| Content pipeline     |                                                            | Decided: a content connector's manifest is valid, but no source of one can be added yet                                     |
-| Scopes, discover     |                                                            | Decided: `discover` is typed and not called; every read gets no scopes                                                      |
-| Schedules and health |                                                            | Decided: every source is read by the hourly job; the manifest's schedule and `staleAfter` are not applied yet               |
-| Conformance kit      |                                                            | Decided: the tests in `tests/server/connectors/platform.test.ts` and `tests/unit/connector-manifest.test.ts` are its seed   |
-| Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                          |
+| Part                 | Where                                                      | Status                                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manifest             | `src/domain/connector-manifest.ts`                         | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `define-manifest.ts`                                              |
+| Settings form        | `src/domain/connector-config.ts`                           | Built: every field kind, checked the same way in the form and in the service                                                                                        |
+| Runtime and messages | `src/domain/connector-runtime.ts`                          | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                                                            |
+| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; interface 2 types through an adapter                                                                           |
+| Built-in connectors  | `src/connectors/`                                          | Built: the list, the static list of definitions (`static-definitions`, experimental) and Markdown in Git (`git-markdown`, beta); Cube is still interface 2          |
+| Sources              | Administration › Sources                                   | Built: Add a connector, a form from the manifest, the check step by step, status, last read and errors on the source's page                                         |
+| Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                         |
+| Content pipeline     | `src/server/modules/connectors/content.ts`                 | Built: documents to suggestions, one per document, grouped by the read, never published ([content sources](#content-sources))                                       |
+| Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built for content: Test connection lists the scopes, an admin maps each to a domain, and every read gets them                                                       |
+| Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                     |
+| Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source |
+| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism and secret checks, run against every built-in connector                                                 |
+| Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                  |
 
 Where the build differs from the decided text above:
 
@@ -520,8 +526,9 @@ Where the build differs from the decided text above:
   `placeholder`, `default`, `options` (select and radio), `group`, `advanced` (folded under More
   settings), `visibleIf`, `pattern` with `patternMessage`, `minimum`, `maximum`, `maxLength` and
   `maxItems`. A field's place in the list is its order. `widget` and `examples.invalid` come with
-  the conformance kit. The core adds Name and Why to every form; Schedule and the scopes step
-  come with schedules and `discover`.
+  the conformance kit. The core adds Name and Why to every form. The API takes a source's
+  schedule and, for content, its scopes (`sources.add`, `sources.update`); the old Sources form
+  adds definition sources only, and the new web app's five-step connect draws both.
 - **The icon** is a name from a short list (`database`, `git`, `file`, `list`, `cloud`, `book`),
   not a file, so the web app draws it without loading anything. `docs` is optional.
 - **The registry** refuses a manifest that does not pass the schema, an interface range this
@@ -530,16 +537,20 @@ Where the build differs from the decided text above:
   that is also a setting, a secret bound to no setting and a warning without words. It also
   refuses what this build cannot run yet: a definitions connector whose `deletions` is not
   `full-listing`. The server does not start, and the error names every problem.
-- **The runtime's context** has `config`, `scopes` (empty), `cursor`, `secret` (its own secrets
-  only), `fetch`, `signal` (the manifest's `limits.timeoutSeconds`), `log` and `now`. `fetch` is
-  GET or HEAD only, to an address Heed may fetch (https to a public host in production), on a
-  host the manifest declares by name or through an address setting, without following a
-  redirect. Pinning the checked address, the request rate and `Retry-After` come next. `ctx.git`
-  comes with the Cube port.
+- **The runtime's context** has `config`, `scopes` (those chosen for a content source, each with
+  its domain; none for definitions), `cursor`, `secret` (its own secrets only), `fetch`, `git`,
+  `signal` (the manifest's `limits.timeoutSeconds`), `log` and `now`. `fetch` is GET or HEAD only,
+  to an address Heed may fetch (https to a public host in production), on a host the manifest
+  declares by name or through an address setting, without following a redirect. Pinning the
+  checked address, the request rate and `Retry-After` come next. `git` fetches one commit of the
+  repository a settings field names, only when the manifest declares `egress.git` and a host from
+  that field, with a secret only when it is bound to that field, and hands the runtime a read-only
+  view of it (`folders`, `files`, `text`) that is removed when its work ends.
 - **A read** is checked message by message: a definition must be strict, under the connector's
-  `refPrefix`, and sent once; a warning must be one of the core's codes or the connector's own
-  (`<id>.<code>`, worded in its manifest); a definitions connector sends no document or
-  tombstone; and the read ends with `end`. Anything else fails the read with `invalid_output`
+  `refPrefix`, and sent once; a document must be in a chosen scope and sent once; a warning must
+  be one of the core's codes or the connector's own (`<id>.<code>`, worded in its manifest); a
+  definitions connector sends no document or tombstone, a content connector no definition, and
+  only one that declares tombstones sends them; and the read ends with `end`. Anything else fails the read with `invalid_output`
   and keeps nothing. A read past `limits.timeoutSeconds` fails with `timed_out`; one past
   `limits.maxRecords` keeps the first records, warns `too_many_records` and is partial. A
   `SourceError` with a code the connector may use is the failed read's warning; any other error
@@ -554,7 +565,8 @@ Where the build differs from the decided text above:
   source (`CUBE_MODEL_DIR`) and `npm run connectors:sync` are unchanged.
 - **What is stored**: a source's `connectors.type` is its connector's id and `interface_version`
   is the interface the connector was written to (3, or 2). The history log's `source.added`
-  records the connector's version. No migration was needed.
+  records the connector's version, and every read of a content source keeps it too
+  (`connector_snapshots.connector_version`).
 
 ### What the next slices build
 
@@ -564,23 +576,101 @@ Slice 2, Cube on interface 3:
   each a manifest and a runtime, its rules as the runtime's `parse`, its warnings namespaced
   (`cube-files.unsupported_file`) and worded in its manifest; the adapter then has nothing left
   to adapt.
-- `ctx.git`: interface 2's Git fetch (`git.ts`) behind the same rules as `ctx.fetch`, and the
-  compiler run from the runtime in its child process (T1).
+- The compiler run from the runtime in its child process (T1), its model fetched through
+  `ctx.git`.
 - The server's own sources from a configuration file the operator writes, with `CUBE_MODEL_DIR`,
   `CL_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` producing the same entry.
 - `domainSource` `source` in the core and the API (today `cube`), and the coverage it counts.
 - The connector's version and mark version stored on every read (a migration), shown on the
   source's page, and the first read after a mark version change stored without flags (CON-116).
-- Each source's own schedule and `staleAfter` from its manifest, and backoff for a `transient`
-  failure.
 - `ctx.fetch` pinned to the address it checked, with the manifest's request rate and
   `Retry-After`; `ctx.log` into the server's log, codes and targets only.
 - The conformance kit, `src/connectors/_template/` and a README per connector with its tables
   from the manifest; the operator's list of connectors to allow (`HEED_CONNECTORS`).
 
-Slice 3, Markdown in a Git repository: `discover` and the scopes step in the form, the content
-pipeline (documents to drafts, the drafts per day), delta reads with tombstones, and content
-connectors on Add a connector.
+Slice 4, Google Drive through a service account: documents exported as Markdown
+(`files.export`), delta reads from its changes list (`changes.list`) with tombstones, and a full
+read now and then (`deletions: 'both'`), with the core choosing which by the cursor it hands.
+
+Slice 5, the screens: the Integrations pages of the new web app on the service, and the five-step
+connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests.
+
+## Content sources
+
+A content source turns documents into suggestions (CON-601 to CON-611). Its connector only
+returns documents; the content pipeline (`src/server/modules/connectors/content.ts`) is the one
+place that makes suggestions of them, and it has no way to accept, publish or change an item or an
+edition (CON-604). Markdown in Git is the first connector
+([its page](../src/connectors/git-markdown/README.md)).
+
+### Adding one
+
+An admin adds a content source like any other, with its scopes: **Test connection** runs the
+connector's check, then lists the scopes it may cover (`discover`), each with the domain it most
+likely belongs to, and reads nothing. The admin chooses at least one scope and maps each to one
+Heed domain (CON-602); **Add** saves them on the source (`connectors.scopes`). A change to the
+scopes applies from the next read. The source's form says that who may read a document is not
+copied (CON-610).
+
+### What a read does
+
+A read runs as nobody, in its own transaction, which names the source it reads for
+(`cl.source_id`); row security lets that transaction write the suggestions of that source and
+their versions, and nothing else, and a person's request never names a source. For each document,
+the ones that waited first:
+
+1. Its change mark is the SHA-256 of its title and its text, with line ends, trailing spaces and
+   blank runs left out. A mark the pipeline already handled for the document means nothing to do.
+2. A document with an email address or a phone number appears to name people and is skipped, and
+   so is one with what looks like a password, a token or a key (CON-608), one that names no metric,
+   market or other term of the vocabulary (it applies nowhere), and one with no words. A skipped
+   document keeps no quote, and no title that holds such words.
+3. Past the source's suggestions for the day (`limits.draftsPerDay`, counted over the last 24
+   hours), it waits and goes first at the next read (CON-607). A read with a document that waits
+   keeps the cursor it was given, so the next read brings it again.
+4. It becomes a draft: its title and first sentences, its text as the body, where it applies from
+   the vocabulary names it uses, when from the dates it names (or the day it changed), its domain
+   the one its scope maps to, and its evidence its link and its first sentence. Audience, risk,
+   owner and links keep their defaults and are marked `not_inferred` (CON-603). The draft goes
+   through the same defaults and checks as any proposal, with the channel `source`, provenance by
+   `source`, no proposer, and the source, the read and the document named on it, and is submitted
+   to the domain's owners. A draft the checks refuse is not offered, with a warning.
+5. A changed document withdraws its open suggestion and makes a new one in its place; one whose
+   suggestion was published makes a suggestion to change that item. A suggestion an owner
+   declined is not offered again until the document changes (CON-606).
+
+Then what is gone: a document outside the chosen scopes, a tombstone, and on a complete read of a
+connector that lists everything, a document it did not list. Each withdraws its open suggestion,
+and an item it became is listed for its owners (`source.document_gone`) and stays as it is
+(CON-609). A read that would find more than half of a source's documents gone at once, and more
+than five, keeps them all and is in part (`too_many_removals`), so a broken scope never empties the
+Inbox. A document a read saw and could not hand over (too long, or not text) is not gone.
+
+The domain's owners are told once per source per read (`source.suggested`), never once per
+suggestion. In the Inbox the suggestions of one read sit under one header, "From
+<tool>, <when>", and the review says it was created by the read, not by a person
+(`synced` on the suggestion card and the review sheet).
+
+### What is kept
+
+Per document, only what CON-605 allows (`connector_documents`): its id in the tool, its scope,
+title and link, when it changed, its change mark, a quote of at most 500 characters, what the
+pipeline did with it (drafted, waiting, skipped and why, or gone) and its suggestion. Never its
+text: that lives in memory for one read only. Each read is one `connector_snapshots` row, as for
+definitions, with what it did: documents seen, suggested, replaced, withdrawn, waiting and
+skipped, and the connector's version.
+
+### Schedules (built)
+
+Each source has its own schedule (CON-115): how often it is read (`connectors.schedule`, the
+connector's default when unset), never more often than the connector's minimum and never less
+often than it may go unread (`staleAfter`). After a good read, or one that failed for a reason an
+admin must fix, the next read is one period later (`connectors.next_read_at`). After a failure
+that clears by itself (`transient`: a timeout, a host that could not be reached, too many
+requests) it is tried again sooner: one minute, then two, four and so on, never later than half of
+`staleAfter` and never sooner than the tool asked (`Retry-After`). The job `connectors.sync` runs
+every five minutes and reads the sources that are due. **Read again** reads one source at the job's
+next turn (`POST /sources/{id}/read`), and a change to a source's settings makes it due at once.
 
 ## Validation
 
@@ -591,10 +681,25 @@ snapshots, failures, partial reads, removals, reappearance, concurrency and the 
 `tests/integration/source-flags.test.ts` drives recorded model changes end to end: a changed and a
 renamed member flag the items that reference them and are delivered as unverified, mentions are
 only informed, an outage changes nothing, rechecks and new versions clear flags, and a changed
-domain informs only. `tests/integration/source-health.test.ts` runs the hourly job and reads the
+domain informs only. `tests/integration/source-health.test.ts` runs the sources' job and reads the
 operations view. `tests/integration/sources.test.ts` adds, tests, changes and reads a source
 through the API against a Git host on the machine, and checks that only administrators reach it
 and that its token is in no answer, row, history entry, retry record or log line, and adds,
 tests and reads a static list end to end through the definitions pipeline; the Settings
 conformance suite (`tests/conformance/context-api-settings.ts`) holds the mock to the same rules.
 The Cube connector's own tests are in [its page](connectors/cube.md#validation).
+
+The conformance kit (`tests/server/connectors/kit.ts`) runs against every built-in connector in
+`tests/server/connectors/conformance.test.ts`: its manifest and README, its form and defaults,
+its check with settings that work, a refused secret and a host that cannot be reached, its
+definitions or its documents and scopes read twice the same way, and its secret in nothing it
+returns. A new connector adds its fixture there. `tests/server/domain/content-document.test.ts`
+holds the rules of a document's mark, quote, skips and draft, and of the schedules.
+`tests/integration/content-sources.test.ts` takes Markdown in Git end to end on PostgreSQL 18 with
+a Git host on the machine: an admin tests it and maps its folders, a read suggests one per
+document and publishes nothing (no edition, decision or served version changes), the owners'
+Inbox shows them under the read and is told once, an unchanged repository brings nothing, a
+changed document replaces its suggestion, a declined one is not offered again, a published one's
+deletion is listed for its owners, a deleted document withdraws its suggestion, a changed scope
+withdraws what left it, the day's cap makes the rest wait and holds the cursor, too many removals
+at once keep everything, and only the read's own transaction writes its suggestions.

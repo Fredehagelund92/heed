@@ -1848,6 +1848,9 @@ export function createMockAdmin(world: MockAdminWorld) {
             key: secret.key,
             set: Boolean(input.secrets[secret.key]),
           })),
+          scopes: input.scopes ?? [],
+          schedule: input.schedule ?? null,
+          nextReadAt: null,
           changedAt: world.now(),
           changedBy: personId,
         }

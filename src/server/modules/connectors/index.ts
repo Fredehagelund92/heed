@@ -5,6 +5,7 @@ export {
   type CubeSourceOptions,
 } from './cube.ts'
 export { createDemoSource } from './demo.ts'
+export { syncedOf } from './synced.ts'
 export { connectorSyncJob } from './job.ts'
 export { reconcileSourceFlags } from './flags.ts'
 export {

@@ -146,6 +146,7 @@ export const channelNames: Record<ProposalRecord['channel'], string> = {
   command_line: 'Command line',
   mcp: 'Agent',
   import: 'Import',
+  source: 'Content source',
 }
 
 /** "New #4", "Change #5": what the proposal does, and its number. */

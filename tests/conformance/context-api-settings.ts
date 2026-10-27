@@ -809,6 +809,7 @@ export function describeContextApiSettings(
       // Interface 3 connectors from their manifests, then interface 2 types through the adapter.
       expect(listings.map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
         ['static-definitions', 3],
+        ['git-markdown', 3],
         ['cube', 2],
       ])
       const cube = listings.find((listing) => listing.manifest.id === 'cube')!.manifest

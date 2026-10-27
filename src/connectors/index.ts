@@ -1,4 +1,6 @@
 import { defineConnector, type ConnectorModule } from '../domain/connector-runtime.ts'
+import { manifest as gitMarkdown } from './git-markdown/manifest.ts'
+import { runtime as gitMarkdownRuntime } from './git-markdown/runtime.ts'
 import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
 import { runtime as staticDefinitionsRuntime } from './static-definitions/runtime.ts'
 
@@ -9,4 +11,5 @@ import { runtime as staticDefinitionsRuntime } from './static-definitions/runtim
  */
 export const builtInConnectors: readonly ConnectorModule[] = [
   defineConnector(staticDefinitions, staticDefinitionsRuntime),
+  defineConnector(gitMarkdown, gitMarkdownRuntime),
 ]

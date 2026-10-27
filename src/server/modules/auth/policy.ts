@@ -133,6 +133,7 @@ export const policies = {
   'sources.add': 'admin',
   'sources.update': 'admin',
   'sources.test': 'admin',
+  'sources.read': 'admin',
   'vocabulary.get': 'read',
   'vocabulary.search': 'read',
   'vocabulary.describe': 'read',

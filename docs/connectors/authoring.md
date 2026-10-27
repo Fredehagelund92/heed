@@ -3,7 +3,8 @@
 A guide for whoever writes a connector, inside this repository or, later, as a package. The
 steps below name what interface 3.0 asks for; [what is built](../connectors.md#what-is-built)
 says which parts this build has. The static list of definitions (`src/connectors/static-definitions/`)
-is the smallest example written to interface 3. The Cube connector is still written to
+is the smallest example written to interface 3, and Markdown in Git (`src/connectors/git-markdown/`)
+the first content connector. The Cube connector is still written to
 [interface 2](../connectors.md#interface-2-what-cube-is-written-to) and runs through the adapter.
 
 Read first: the [contract](../connectors.md) (the two kinds, the invariants, the manifest and the
@@ -36,15 +37,20 @@ runtime) and [Security and egress](security.md) (the rules the core enforces on 
    every problem with it, and the server does not start with one.
 3. **Write the runtime** (`runtime.ts`, server only, with `defineRuntime`): `check` and `read`,
    and `parse` for rules on the settings the manifest cannot say, using only what the context
-   hands you: `ctx.config`, `ctx.scopes`, `ctx.cursor`, `ctx.secret`, `ctx.fetch`, `ctx.signal`
-   and `ctx.log`. `discover` and `ctx.git` come with the next slices. A connector may import
+   hands you: `ctx.config`, `ctx.scopes`, `ctx.cursor`, `ctx.secret`, `ctx.fetch`, `ctx.git`,
+   `ctx.signal` and `ctx.log`, and `discover` for a content connector, which lists the scopes an
+   administrator may choose, each with a suggested domain. A connector may import
    `zod/mini`, the domain and its own files only, and has no `fetch` or `process` of its own:
    lint refuses the rest. See [the runtime](../connectors.md#the-runtime-and-its-messages).
 4. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or recorded
    HTTP answers. No live calls in tests, and no real names, addresses or data.
-5. **Run the conformance kit** (`conformance.test.ts`, CON-108). _To come with interface 3:_ the
-   kit checks the manifest, the form, the check, reads, cursors and deletions, egress and limits,
-   and plants a secret that must appear nowhere.
+5. **Run the conformance kit** (CON-108): add the connector and its fixture to
+   `tests/server/connectors/conformance.test.ts`: settings that work, a secret the tool refuses,
+   settings the form refuses, a host that cannot be reached, and the secret to look for. The kit
+   (`tests/server/connectors/kit.ts`) checks the manifest and the README, the form and its defaults, the
+   check, the reads (each record once, the same marks for the same input, documents in the chosen
+   scopes with https links) and that the secret appears in nothing the connector returns. _To
+   come:_ cursors and deletions, egress and limits, which the core's own tests check today.
 6. **Write the README** (`README.md`): what it reads and the minimal setup in the tool, its
    fields, its warnings, its limits and what its change marks see. The tables come from the
    manifest. [The Cube connector](cube.md) is today's example.

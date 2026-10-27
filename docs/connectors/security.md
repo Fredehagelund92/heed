@@ -52,6 +52,12 @@ environment: never in its arguments, which other users of the machine may list, 
 address, which git may print. Git's own output is read for a reason code and then dropped. The
 code is `src/server/modules/connectors/git.ts`; nothing in it is specific to Cube.
 
+An interface 3 connector reaches Git only through `ctx.git` (`egress-git.ts`): it names a
+repository by the settings field that holds it, and the core fetches it only when the manifest
+declares `egress.git` and a host from that field, sends a secret only when that secret is bound to
+the field, and hands the connector a read-only view of one commit (its folders, its files and
+their text, nothing outside it, links as plain files) that is removed when its work ends.
+
 ### HTTP (interface 3)
 
 Connectors that call an HTTP API get `ctx.fetch`, built on the same address rules as Git. It

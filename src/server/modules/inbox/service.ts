@@ -18,6 +18,7 @@ import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import type { BundleCache } from '../answer/index.ts'
 import type { CommentsService } from '../comments/index.ts'
+import { syncedOf } from '../connectors/index.ts'
 import type { ServingBundle } from '../editions/index.ts'
 import type { GapsService } from '../gaps/index.ts'
 import { loadProposal, type ReviewPath, type ReviewService } from '../review/index.ts'
@@ -136,6 +137,10 @@ export function createInboxFeedService(
       [areas],
     )
     const cards: Card[] = []
+    const synced = await syncedOf(
+      tx,
+      rows.map((row) => row.id),
+    )
     for (const row of rows) {
       const p = await loadProposal(tx, row.id)
       const care = await deps.path.care(p).catch(() => ({ claims: 0, clash: false }))
@@ -151,8 +156,9 @@ export function createInboxFeedService(
         title: p.title,
         action: p.action,
         itemId: p.itemId,
-        from: { personId: p.proposerId, name: row.name },
+        from: p.proposerId === null ? null : { personId: p.proposerId, name: row.name },
         writtenBy: p.provenance?.by ?? null,
+        synced: synced.get(p.id) ?? null,
         read: row.read,
         care,
       })
@@ -391,8 +397,9 @@ export function createInboxFeedService(
         title: p.title,
         action: p.action,
         itemId: p.itemId,
-        from: { personId: p.proposerId, name: null },
+        from: p.proposerId === null ? null : { personId: p.proposerId, name: null },
         writtenBy: p.provenance?.by ?? null,
+        synced: (await syncedOf(tx, [p.id])).get(p.id) ?? null,
         read: false,
         care: { claims: 0, clash: false },
       })

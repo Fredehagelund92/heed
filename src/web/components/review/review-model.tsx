@@ -171,7 +171,8 @@ export function useReviewModel(
   // The version a person chose to read whole; a new version starts on what changed since.
   const [wholeFor, setWholeFor] = useState<string | null>(null)
 
-  const nameOf = (personId: string) => people.find((person) => person.id === personId)?.name ?? null
+  const nameOf = (personId: string | null) =>
+    people.find((person) => person.id === personId)?.name ?? null
   const area: Area | undefined = areas.find((candidate) => candidate.id === record.areaId)
   const change = changeTypeOf(record)
   const libraryItem = record.itemId

@@ -179,6 +179,59 @@ export const sourceWarningWords: Record<SourceWarningCode, WarningWords> = {
     description: (targets) =>
       `We read at most ${targets} records from this source, so the rest are left out and the read is in part.`,
   },
+  document_names_people: {
+    tone: 'info',
+    title: (n) => `${count(n, 'document')} ${n === 1 ? 'seems' : 'seem'} to name people`,
+    description: (targets, n) =>
+      `${targets} ${n === 1 ? 'holds' : 'hold'} an email address or a phone number, so we don't suggest ${n === 1 ? 'it' : 'them'}. An owner can write it by hand.`,
+  },
+  document_holds_secret: {
+    tone: 'warning',
+    title: (n) => `${count(n, 'document')} ${n === 1 ? 'holds' : 'hold'} what looks like a secret`,
+    description: (targets, n) =>
+      `${targets} ${n === 1 ? 'holds' : 'hold'} what looks like a password, a token or a key, so we don't suggest ${n === 1 ? 'it' : 'them'}. Take the secret out of the document.`,
+  },
+  document_no_scope: {
+    tone: 'info',
+    title: (n) => `${count(n, 'document')} ${n === 1 ? 'names' : 'name'} nothing we know`,
+    description: (targets, n) =>
+      `${targets} ${n === 1 ? 'names' : 'name'} no metric, market or other name your definitions know, so there's nowhere for ${n === 1 ? 'it' : 'them'} to apply.`,
+  },
+  document_empty: {
+    tone: 'info',
+    title: (n) => `${count(n, 'document')} ${n === 1 ? 'is' : 'are'} empty`,
+    description: (targets, n) => `${targets} ${n === 1 ? 'holds' : 'hold'} no words to suggest.`,
+  },
+  document_not_valid: {
+    tone: 'warning',
+    title: (n) => `${count(n, 'document')} couldn't become a suggestion`,
+    description: (targets, n) =>
+      `${targets} didn't pass the checks every suggestion passes, so we don't suggest ${n === 1 ? 'it' : 'them'}. Look at its domain and what it names.`,
+  },
+  document_too_large: {
+    tone: 'warning',
+    title: (n) => `${count(n, 'document')} ${n === 1 ? 'is' : 'are'} too long`,
+    description: (targets, n) =>
+      `${targets} ${n === 1 ? 'is' : 'are'} longer than we read, so we left ${n === 1 ? 'it' : 'them'} out of this read. A suggestion from ${n === 1 ? 'it' : 'them'} stays as it is.`,
+  },
+  too_much_text: {
+    tone: 'warning',
+    title: (n) => `${count(n, 'read')} held too much text`,
+    description: () =>
+      'The documents held more text than we read at once, so the rest are left out and the read is in part.',
+  },
+  too_many_removals: {
+    tone: 'warning',
+    title: (n) => `${count(n, 'read')} would have withdrawn too many suggestions`,
+    description: (targets) =>
+      `${targets} documents seemed to be gone at once, so we kept their suggestions and the read is in part. Check the folders, then read it again.`,
+  },
+  rate_limited: {
+    tone: 'warning',
+    title: () => 'The tool asked us to read less often',
+    description: (_targets, _n, tool) =>
+      `${tool} asked us to wait before reading again. We try again later by ourselves.`,
+  },
 }
 
 /**
@@ -221,6 +274,7 @@ export const sourceProblemCodes: readonly SourceWarningCode[] = [
   'compile_timeout',
   'invalid_output',
   'timed_out',
+  'rate_limited',
 ]
 /**
  * True for a code that says why a read failed: one of the core's, or a connector's own warning,
@@ -239,6 +293,14 @@ const warningOrder: readonly SourceWarningCode[] = [
   'unreadable_file',
   'invalid_rename',
   'too_many_records',
+  'too_much_text',
+  'too_many_removals',
+  'document_holds_secret',
+  'document_not_valid',
+  'document_too_large',
+  'document_names_people',
+  'document_no_scope',
+  'document_empty',
   'domain_override',
 ]
 

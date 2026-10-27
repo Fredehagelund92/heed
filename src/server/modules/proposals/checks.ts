@@ -88,7 +88,7 @@ async function formatReference(tx: Queryable): Promise<FormatReference> {
 export async function checkDraft(
   tx: Queryable,
   draft: Draft,
-  proposer: string,
+  proposer: string | null,
   channel: ItemVersion['createdVia'],
   itemId: string | null,
 ) {

@@ -69,6 +69,7 @@ const suggestion = (patch: Partial<Extract<Card, { group: 'suggestion' }>> = {})
   itemId: 'itm_units01',
   from: { personId: 'p_ines', name: 'Ines Duarte' },
   writtenBy: null,
+  synced: null,
   read: false,
   care: { claims: 0, clash: false },
   ...patch,
@@ -372,6 +373,7 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
   mode: 'edit',
   from: { personId: 'p_ines', name: 'Ines Duarte' },
   writtenBy: null,
+  synced: null,
   gapId: null,
   note: 'The returns team started its own test accounts in October.',
   diff: {

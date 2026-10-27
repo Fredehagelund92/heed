@@ -7,6 +7,8 @@ import {
   reconcileSourceFlags,
   type DomainChange,
 } from './flags.ts'
+import { nextReadAt } from '../../../domain/source-schedule.ts'
+import { scheduleOf } from './schedule.ts'
 import type { ConnectorRegistry } from './registry.ts'
 import {
   domainCoverage,
@@ -58,6 +60,9 @@ const columns = `d.ref, d.kind, d.name, d.title, d.description_copy as "descript
   d.value_type as "valueType", d.visible_groups as "visibleGroups", d.area_hint as "areaHint",
   d.change_mark as "changeMark", d.missing_since_snapshot as "missingSinceSnapshot",
   d.renamed_to as "renamedTo", d.model_file as "modelFile", ${domainSource} as "domainSource"`
+
+/** The schedule of a source whose connector declares none: the server's own, read hourly. */
+const hourly = { schedule: { default: 'PT1H', minimum: 'PT1H' }, staleAfter: 'PT6H' }
 
 /** Stored metadata is the read path. Only sync invokes a source or the compiler. */
 export class ConnectorService {
@@ -146,6 +151,7 @@ export class ConnectorService {
       const started = performance.now()
       let snapshot: SourceSnapshot | undefined
       let failureWarnings: SourceWarning[] = []
+      let failure: SourceReadError | undefined
       try {
         snapshot = snapshotSchema.parse(await source.read({ cursor: last?.cursor ?? null }))
         const refs = new Set(snapshot.definitions.map((entry) => entry.ref))
@@ -156,7 +162,10 @@ export class ConnectorService {
         if (snapshot.renames?.some((rename) => refs.has(rename.from) || !refs.has(rename.to)))
           throw new Error('Invalid rename')
       } catch (error) {
-        if (error instanceof SourceReadError) failureWarnings = error.warnings
+        if (error instanceof SourceReadError) {
+          failureWarnings = error.warnings
+          failure = error
+        }
         snapshot = undefined
       }
       if (snapshot) {
@@ -197,6 +206,23 @@ export class ConnectorService {
         ],
       )
       const snapshotId = saved!.id
+      // When it is read next: its own schedule, or sooner after a failure that clears by itself.
+      const schedule = await scheduleOf(
+        tx,
+        source.id,
+        this.#registry.connector(source.type)?.manifest ?? hourly,
+      )
+      const failures = snapshot ? 0 : schedule.failures + 1
+      await tx.query('update connectors set failures=$2, next_read_at=$3 where id=$1', [
+        source.id,
+        failures,
+        nextReadAt(new Date(), {
+          ...schedule,
+          failures,
+          ...(failure ? { failure: failure.errorClass } : {}),
+          ...(failure?.retryAfter === undefined ? {} : { retryAfterSeconds: failure.retryAfter }),
+        }),
+      ])
       if (!snapshot)
         return {
           snapshotId,

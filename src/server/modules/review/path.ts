@@ -28,6 +28,7 @@ import type { ProposalRecord } from '../../../contract/proposals.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { reachOfDraft, type BundleCache } from '../answer/index.ts'
+import { syncedOf } from '../connectors/index.ts'
 import { loadServingBundle, publishEdition, type ServingBundle } from '../editions/index.ts'
 import { forReader } from '../library/index.ts'
 import {
@@ -254,7 +255,8 @@ export function createReviewPath(
 
   /** The claims of what an agent or the assistant wrote, against the sentence it copied. */
   function claimsOf(r: Reading) {
-    if (!r.after || !writtenBy(r.p)) return null
+    // A read's suggestion is the document's own words, with its link: no sentence was copied.
+    if (!r.after || !writtenBy(r.p) || writtenBy(r.p) === 'source') return null
     const sentence = r.after.version.evidence[0]?.quote?.trim()
     if (!sentence) return null
     const text = plainText(
@@ -281,7 +283,8 @@ export function createReviewPath(
         ? { itemId: clashItem, relation: unanswered ? null : (relations.get(clashItem) ?? null) }
         : null,
       withdrawn: false,
-      synced: false,
+      // Made by a content source's read from a document, never by a person (CON-611).
+      synced: r.p.channel === 'source',
     })
     return { diff, claims, ready }
   }
@@ -348,8 +351,9 @@ export function createReviewPath(
     return {
       proposal: publicRecord(p),
       mode: r.mode,
-      from: { personId: p.proposerId, name: name?.name ?? null },
+      from: p.proposerId === null ? null : { personId: p.proposerId, name: name?.name ?? null },
       writtenBy: writtenBy(p),
+      synced: (await syncedOf(tx, [p.id])).get(p.id) ?? null,
       gapId: r.gapId,
       note: p.reason,
       diff,

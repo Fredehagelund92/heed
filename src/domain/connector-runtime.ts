@@ -43,7 +43,7 @@ export const sourceDocumentSchema = z.strictObject({
   id: z.string().check(z.minLength(1), z.maxLength(500)),
   scope: z.string().check(z.minLength(1), z.maxLength(500)),
   title: z.string().check(z.minLength(1), z.maxLength(300)),
-  link: z.url({ protocol: /^https$/ }),
+  link: z.url({ protocol: /^https$/ }).check(z.maxLength(2000)),
   modifiedAt: z.iso.datetime(),
   version: z.string().check(z.minLength(1), z.maxLength(200)),
   text: z.string().check(z.maxLength(1_000_000)),
@@ -87,6 +87,20 @@ export interface Scope {
   /** The domain it most likely belongs to, which the administrator confirms. */
   suggestedDomain: string | null
 }
+
+/** A scope an administrator chose, with the one domain its documents go to (CON-602). */
+export interface ChosenScope {
+  id: string
+  title: string
+  domain: string
+}
+
+/** A scope as `discover` returns it: checked before anyone chooses it. */
+export const scopeSchema = z.strictObject({
+  id: z.string().check(z.minLength(1), z.maxLength(500)),
+  title: z.string().check(z.minLength(1), z.maxLength(300)),
+  suggestedDomain: z.nullable(domainId),
+})
 
 /** One step of a check: reach, sign in, sample. Its words are the connector's. */
 export const checkStepSchema = z.strictObject({
@@ -138,6 +152,45 @@ export type GuardedFetch = (
   init?: { method?: 'GET' | 'HEAD'; headers?: Record<string, string> },
 ) => Promise<Response>
 
+/**
+ * One commit of a Git repository, checked out for one piece of work and removed after it. Paths
+ * are relative to the folder asked for, with `/` between parts. Read only.
+ */
+export interface GitTree {
+  /** The commit's id. */
+  readonly commit: string
+  /** When it was committed, ISO 8601 in UTC. */
+  readonly committedAt: string
+  /** The folders directly in a folder of the tree ('' for its top), sorted. */
+  folders(folder?: string): Promise<string[]>
+  /**
+   * The files in a folder and the folders under it, sorted, with their size in bytes. Links are
+   * plain files, and nothing outside the tree is listed.
+   */
+  files(folder?: string): Promise<{ path: string; size: number }[]>
+  /** A file's text as UTF-8; null when it is not a file in the tree or is not text. */
+  text(path: string): Promise<string | null>
+}
+
+/**
+ * Git a connector may use (CON-113): one commit of the repository a settings field names, which
+ * its manifest declares (`egress.git` and a host from that field), fetched read only with the
+ * secret named, if any, when that secret is bound to the field. A failure is a `SourceError`.
+ */
+export type GuardedGit = <T>(
+  request: {
+    /** The repository address, exactly as a settings field holds it. */
+    repository: string
+    /** A branch, a tag or a full commit. */
+    ref: string
+    /** The folder of the repository to hand over, relative; empty or absent for the top. */
+    folder?: string
+    /** The key of the secret to send as the token. */
+    secret?: string
+  },
+  work: (tree: GitTree) => Promise<T>,
+) => Promise<T>
+
 /** A log that takes codes and targets only, never a secret or a document's text. */
 export interface RedactingLogger {
   info(code: string, target?: string): void
@@ -149,12 +202,13 @@ export interface RuntimeContext<Config = ConnectorConfig> {
   /** The settings, checked against the manifest. */
   readonly config: Config
   /** What the administrator chose to cover; empty when the connector discovers nothing. */
-  readonly scopes: readonly Scope[]
+  readonly scopes: readonly ChosenScope[]
   /** From the newest good read; null for a full read. */
   readonly cursor: string | null
   /** This source's own secrets, nothing else; null when it has none by that key. */
   secret(key: string): string | null
   readonly fetch: GuardedFetch
+  readonly git: GuardedGit
   /** Ends the work at the manifest's `limits.timeoutSeconds`. */
   readonly signal: AbortSignal
   readonly log: RedactingLogger

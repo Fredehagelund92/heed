@@ -8,7 +8,7 @@
 import * as z from 'zod/mini'
 import { cardGroups, cardActions, setupSteps } from '../domain/inbox.ts'
 import { proposalActions } from '../domain/proposal.ts'
-import { undoTokenSchema } from './review-path.ts'
+import { syncedSchema, undoTokenSchema } from './review-path.ts'
 
 /** A count from agents: null when it is above zero and under the minimum (FR-614). */
 const shownCount = z.nullable(z.number())
@@ -37,8 +37,10 @@ export const cardSchema = z.union([
     title: z.string(),
     action: z.enum(proposalActions),
     itemId: z.nullable(z.string()),
-    from: z.object({ personId: z.string(), name: z.nullable(z.string()) }),
-    writtenBy: z.nullable(z.enum(['agent', 'assistant'])),
+    /** Who sent it; null when a content source's read made it, which `synced` names. */
+    from: z.nullable(z.object({ personId: z.string(), name: z.nullable(z.string()) })),
+    writtenBy: z.nullable(z.enum(['agent', 'assistant', 'source'])),
+    synced: z.nullable(syncedSchema),
     /** The person read the version under review: it may go out with the others they read (FR-226). */
     read: z.boolean(),
     /** What needs care before publishing: claims to check, and whether it clashes with live context. */

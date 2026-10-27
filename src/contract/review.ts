@@ -34,7 +34,8 @@ export const reviewProposalSchema = z.object({
   termKey: z.nullable(z.string()),
   title: z.string(),
   riskLevel: z.nullable(z.enum(['low', 'normal', 'high'])),
-  proposerId: z.string(),
+  /** Who proposed it; null when a content source's read made it (CON-603). */
+  proposerId: z.nullable(z.string()),
   channel: z.enum(creationChannels),
   revision: z.number(),
   reason: z.nullable(z.string()),

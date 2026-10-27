@@ -2003,6 +2003,23 @@
           "summary": "Run the connector's check and read a source once with these settings, keeping nothing and changing nothing"
         }
       }
+    },
+    "read": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/sources/{id}/read",
+          "successStatus": 202,
+          "tags": [
+            "sources"
+          ],
+          "summary": "Read one source now, whatever its schedule (Read again)"
+        }
+      }
     }
   },
   "members": {

@@ -113,12 +113,13 @@ const adminOperations = [
   'aiConnections.list',
   'aiConnections.disconnect',
   'aiConnections.disconnectPerson',
-  // Sources an administrator adds: their settings, secrets and test reads.
+  // Sources an administrator adds: their settings, secrets, test reads and Read again.
   'sources.types',
   'sources.get',
   'sources.add',
   'sources.update',
   'sources.test',
+  'sources.read',
 ]
 /** FR-808: the history log is for administrators and auditors, and so is finding people for its filter. */
 const auditOperations = ['audit.search', 'audit.export', 'audit.verify', 'people.search']
