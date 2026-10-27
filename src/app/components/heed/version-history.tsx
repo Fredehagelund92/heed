@@ -89,13 +89,18 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
   )
 }
 
-/** The versions of an item, newest first. `current` says which one agents get. */
+/**
+ * The versions of an item, newest first. `current` says which one agents get. `onRestore` brings
+ * a version's words back as a draft; without it, Restore only says so.
+ */
 export function VersionHistory({
   versions,
   canRestore,
+  onRestore,
 }: {
   versions: Version[]
   canRestore: boolean
+  onRestore?: (version: Version) => Promise<unknown>
 }) {
   const [open, setOpen] = React.useState(false)
   const [viewing, setViewing] = React.useState<Version | null>(null)
@@ -198,10 +203,18 @@ export function VersionHistory({
                     size="sm"
                     className="w-fit"
                     onClick={() => {
-                      toast(`Version ${viewing.v} restored as a draft`, {
-                        description: 'Publish it to make it what agents get.',
-                      })
+                      const restored = viewing
                       setViewing(null)
+                      void Promise.resolve(onRestore?.(restored)).then(
+                        () =>
+                          toast(`Version ${restored.v} restored as a draft`, {
+                            description: 'Publish it to make it what agents get.',
+                          }),
+                        () =>
+                          toast(`Couldn't restore version ${restored.v}`, {
+                            description: 'Nothing changed. Try again in a moment.',
+                          }),
+                      )
                     }}
                   >
                     <ArchiveIcon data-icon="inline-start" />

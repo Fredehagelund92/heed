@@ -299,7 +299,8 @@ a dimension with its values. Both read as the library does.
 `GET /api/v1/library` is the library index: every item the person may read, with what a list's
 columns read from it. `lastChecked` is the last acceptance of the current version (a recheck is
 one), `trust` is `current`, `needs_check` or `ended` by the rule `GET /api/v1/library/freshness`
-counts by, and `chips` is the scope by name. `GET /api/v1/search?q=` is search everywhere, for
+counts by, `chips` is the scope by name, and `opened` says whether the person opened the item
+(Mark as checked takes only those). `GET /api/v1/search?q=` is search everywhere, for
 the command palette: items, definitions (by name or another name), domains and people whose names
 have the words, at most five of each, a name that starts with the words first.
 
@@ -428,8 +429,8 @@ vocabulary proposals also take an `Idempotency-Key`.
 - `POST /items/{id}/retire` retires at once (owner or administrator, with a reason).
   `POST /items/{id}/retire-proposals` lets anyone propose it; one can be open per item.
 - `POST /items/{id}/recheck` records "checked, still correct": a new version with the same content,
-  the current change marks and, without an end date, a review date `review.default_days` from
-  today. It answers `{ proposal, edition }`. Levels 1 to 3 run at once; when they pass, at every
+  the current change marks and a review date `review.default_days` from today, for an item
+  without an end date or one that was given a review date (so its check is no longer due). It answers `{ proposal, edition }`. Levels 1 to 3 run at once; when they pass, at every
   risk level, the recheck is accepted and publishes a `source_rechecked` edition and clears a
   needs-check flag. When one fails it answers 422 with the gate, and nothing is published.
 - `POST /vocabulary/proposals` proposes a new or changed term. An owner of the term's domain or an
@@ -559,7 +560,8 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   takes `{ card, action, reason? }`, the one decision a card offers: `not_written` for a Not
   found card (the gap is set to `wont_fix`), `not_a_problem` for a Reported card (closed for
   every owner, a named report too), and `still_true` or `archive` for a Due for a check card (a
-  recheck or a retirement). Each answers with an undo token.
+  recheck, by an owner of the item's domain or an admin as Mark as checked is, or a retirement).
+  Each answers with an undo token.
 - `POST /gaps/{id}/scope-draft` starts a draft from a Not found card's scope, dated to its month,
   or returns the one the person already started from it.
 - `GET /setup` is the setup checklist of a new workspace (FR-816), read from what exists: what
@@ -660,10 +662,16 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
 - `GET /items/{id}/related` is Related on a context item: its neighbours one step away, as
   `get_related` follows them on what agents get now, with how each relates. Neighbours the person
   may not see are counted in `withheld`, never named.
-- `POST /items/publish` takes `{ draft, itemId?, reason? }` (FR-137). An owner of the draft's
-  domain (and, for a change, of the item's domain now) or an admin publishes it in one step, through the same checks and clash gate as the
-  review; anyone else's goes to the domain's owners as a suggestion (`published: false`, with
-  `ownerIds`). A publish the checks refuse keeps nothing.
+- `POST /items/publish` takes `{ draft, itemId?, reason?, draftId?, relations? }` (FR-137). An
+  owner of the draft's domain (and, for a change, of the item's domain now) or an admin publishes
+  it in one step, through the same checks and clash gate as the review; anyone else's goes to the
+  domain's owners as a suggestion (`published: false`, with `ownerIds`). `relations` says how it
+  relates to each live item it clashes with (`replaces`, `disagrees` or `unrelated`), as the
+  owner answered in the editor: a clash left unanswered refuses the publish (422), and an answer
+  for an item it does not clash with is left out. `draftId` names the person's own draft it
+  finishes: the draft takes the words and is sent as itself, changing the item it was started
+  from, if any; only its writer sends a draft (403 otherwise). A publish the checks refuse keeps
+  nothing.
 - `POST /drafts/from-text` takes `{ text }`: a draft read from pasted text, or from the page a
   single link points to, with no model. It fills the words, a kind and dates by rule and where
   it applies by the vocabulary's names, and lists in `unsure` what it guessed.

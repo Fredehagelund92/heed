@@ -267,14 +267,35 @@ export function createMockApi() {
         const fact = factsOf(state).find((f) => f.id === id)
         return fact ? historyOf(fact, state.log) : []
       }),
+    // The item's words as they are now: the demo's versions are made up, so each restores the same.
+    restoreAsDraft: ({ id }) =>
+      now(() => {
+        const item = factsOf(state).find((f) => f.id === id)
+        if (!item) throw new ApiError('not-found', "This context item isn't in Context any more.")
+        const draft = `itm_draft_${Date.now().toString(36)}`
+        dispatch({
+          type: 'addFact',
+          fact: { ...item, id: draft, status: 'Draft', by: me(), checkedBy: '', checkedOn: '' },
+        })
+        return { id: draft }
+      }),
     markViewed: ({ id }) => now(() => dispatch({ type: 'viewedFact', id })),
     editItem: ({ id, patch }) => now(() => dispatch({ type: 'editFact', id, patch })),
     draftFromText: () => now(() => norwayDraft),
-    saveItem: ({ fact, isNew, gap, setup }) =>
+    saveItem: ({ fact, isNew, relations = {}, gap, setup }) =>
       scenario.send('saveItem', () => {
         const id = isNew ? `itm_new_${Date.now().toString(36)}` : fact.id
-        if (isNew) dispatch({ type: 'addFact', fact: { ...fact, id } })
-        else dispatch({ type: 'editFact', id, patch: fact })
+        // What the owner said of an overlap is kept on the item, as a published suggestion's is.
+        const related = Object.entries(relations)
+        const replaces = related.find(([, r]) => r === 'replaces')?.[0]
+        const disagreesWith = related.find(([, r]) => r === 'disagree')?.[0]
+        const saved = {
+          ...fact,
+          ...(replaces ? { replaces } : {}),
+          ...(disagreesWith ? { disagreesWith } : {}),
+        }
+        if (isNew) dispatch({ type: 'addFact', fact: { ...saved, id } })
+        else dispatch({ type: 'editFact', id, patch: saved })
         dispatch({ type: 'published', id })
         if (gap) dispatch({ type: 'complete', card: gap, outcome: 'Context written' })
         if (setup) dispatch({ type: 'setupStep', step: 'fact' })

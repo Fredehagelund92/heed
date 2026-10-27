@@ -95,14 +95,15 @@ for (const size of [widths[0], phone]) {
       const field = summary(page, 1)
       await field.focus()
       await toEnd(page)
-      // "... Compare [Orders] before and after." Arrow left over the 18 characters after the chip,
-      // then once more: that arrow selects the chip instead of jumping over it (a jump would
-      // reach Norway).
+      // "... Compare [Orders] before and after." Arrow left until the chip is selected: the 18
+      // characters after it, then one more that selects the chip instead of jumping over it (a
+      // jump would reach Norway, which the text check below rules out). A press can be lost on a
+      // busy runner, so the number of presses is not fixed.
       const selected = field.locator('[data-selected] [data-slot="mention-chip"]')
-      // The editor reads its selection back from the page after each key, so let a frame pass
-      // between presses; on a busy runner a fast press reads a caret that is one step behind.
-      for (let i = 0; i < ' before and after.'.length + 1; i++) {
+      for (let i = 0; i < 40 && !(await selected.count()); i++) {
         await page.keyboard.press('ArrowLeft')
+        // The editor reads its selection back from the page after each key, so let a frame pass
+        // between presses; on a busy runner a fast press reads a caret that is one step behind.
         await page.evaluate(
           () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
         )

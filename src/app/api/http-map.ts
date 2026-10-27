@@ -54,13 +54,30 @@ export function validityOf(row: Pick<LibraryItem, 'validity' | 'reviewQuestion'>
 }
 
 /**
+ * Who answers for an item, by name, when it is not its domain's owners: the owners it has of its
+ * own (`owners`, by id), or else its one owner when that is not one of the domain's.
+ */
+export function ownersOf(
+  row: { owners: readonly string[]; ownerId: string; areaId: string },
+  names: Names,
+): string[] | undefined {
+  const domain = names.domainOwners(row.areaId)
+  if (row.owners.length) {
+    const own = row.owners.map(names.person)
+    return own.join() === domain.join() ? undefined : own
+  }
+  const owner = names.person(row.ownerId)
+  return domain.includes(owner) ? undefined : [owner]
+}
+
+/**
  * The library index as context items. The index carries no text, source or quote: an item's page
- * reads those. Its owner shows only when they are not one of the domain's owners.
+ * reads those. Its owners show only when they are not its domain's.
  */
 export function factsOf(rows: readonly LibraryItem[], names: Names): Fact[] {
   return rows.filter(offered).map((row) => {
     const valid = validityOf(row)
-    const owner = names.person(row.ownerId)
+    const owners = ownersOf(row, names)
     return {
       id: row.id,
       title: row.title,
@@ -76,7 +93,7 @@ export function factsOf(rows: readonly LibraryItem[], names: Names): Fact[] {
       source: '',
       quote: '',
       dontConclude: '',
-      ...(names.domainOwners(row.areaId).includes(owner) ? {} : { owners: [owner] }),
+      ...(owners ? { owners } : {}),
     }
   })
 }
@@ -99,12 +116,18 @@ export function definitionsOf(terms: readonly CatalogueTerm[]): Definition[] {
   }))
 }
 
-/** The terms and synonyms written here as definitions: a synonym names what it means. */
+/**
+ * The terms and synonyms written here as definitions, in the order they were written, so a
+ * definition's other names read as they were added: a synonym names what it means.
+ */
 export function termDefinitionsOf(
   terms: readonly Term[],
   person: (id: string) => string,
 ): Definition[] {
-  return terms.map((term) => ({
+  const written = [...terms].sort(
+    (a, b) => a.createdAt.localeCompare(b.createdAt) || a.name.localeCompare(b.name),
+  )
+  return written.map((term) => ({
     name: term.name,
     type: 'term',
     definition: term.meaning ?? '',

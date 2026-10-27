@@ -68333,9 +68333,39 @@
                     "type": "string",
                     "pattern": "^itm_[a-z0-9]{8,16}$"
                   },
+                  "draftId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
                   "reason": {
                     "type": "string",
                     "maxLength": 500
+                  },
+                  "relations": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "itemId": {
+                          "type": "string",
+                          "pattern": "^itm_[a-z0-9]{8,16}$"
+                        },
+                        "relation": {
+                          "enum": [
+                            "replaces",
+                            "disagrees",
+                            "unrelated"
+                          ],
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "itemId",
+                        "relation"
+                      ],
+                      "additionalProperties": false
+                    }
                   }
                 },
                 "required": [
@@ -73266,6 +73296,9 @@
                             "items": {
                               "type": "string"
                             }
+                          },
+                          "opened": {
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -73287,7 +73320,8 @@
                           "lastChecked",
                           "trust",
                           "chips",
-                          "owners"
+                          "owners",
+                          "opened"
                         ]
                       }
                     },

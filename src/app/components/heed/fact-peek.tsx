@@ -37,7 +37,7 @@ import { closeDock, openDock } from '@/lib/dock'
 import { useComments } from '@/lib/comments'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { itemHistoryQuery, useInbox, useWrite } from '@/api/queries'
+import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
 import { WhereChip } from '@/components/heed/tag-chip'
@@ -48,12 +48,15 @@ import { WhereChip } from '@/components/heed/tag-chip'
 // made on the page. What agents get, history and the full source are not here.
 
 export function FactPeek({ id }: { id: string }) {
-  const fact = useFact(id)
+  const listed = useFact(id)
+  // The item's own read has its text, source and quote; the list's row shows while it loads.
+  const read = useQuery(itemPageQuery(id)).data
+  const fact = read?.item ?? listed
+  const history = read?.history ?? []
   const facts = useFacts()
   const me = useMe()
   const domains = useDomains()
   const { cards, done } = useInbox()
-  const history = useQuery(itemHistoryQuery(id)).data ?? []
   const write = useWrite()
   const { query } = useRoute()
   const comments = useComments(`context:${id}`)

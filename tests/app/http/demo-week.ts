@@ -30,7 +30,8 @@ import { idleJobs } from '../../server/idle-jobs.ts'
 
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
   27 October 2026): the two suggestions a Google Drive read makes (P11b), the thread in which Lars
-  withdraws his retirement (P9). Draft items, which no API keeps yet, stay out too (P7).
+  withdraws his retirement (P9). The mock's drafts are drafts on the service too: each started by
+  the person the mock names, never sent.
 
   The terms and synonyms people wrote in Definitions are the mock's too, each by its writer. A
   synonym of a synonym (Takings, for Turnover) means what that one means, as the service keeps it,
@@ -335,8 +336,37 @@ type Inject = (
   payload?: object,
 ) => Promise<Record<string, unknown>>
 
-/** Sends the week's suggestions through the service's API, each as the person the mock names. */
-async function sendSuggestions(databaseUrl: string): Promise<Record<QueueCard, string>> {
+/** A draft the mock world started and never sent, as the service keeps a draft: what it has so far. */
+function startedDraft(f: Fact): Draft {
+  const { metrics, values } = scopeOf(f.where)
+  return {
+    areaId: areaOf(f.domain),
+    kind: f.kind,
+    title: f.title,
+    summary: plain(f.summary),
+    ...(f.body ? { body: plain(f.body) } : {}),
+    scope: {
+      metrics: metrics.map((m) => `metric:${m}`),
+      dimensions: [],
+      dimensionValues: values.map((v) => ({ dimension: 'dim:market', value: `val:market/${v}` })),
+    },
+    validity: { start: f.valid.from ?? TODAY, end: endOf(f.valid.until) },
+    reviewDate: f.valid.until ? null : '2027-03-01',
+    ...(f.source ? { evidence: [{ url: f.source, quote: f.quote, date: TODAY }] } : {}),
+    ...(f.dontConclude ? { notToConclude: f.dontConclude } : {}),
+  }
+}
+
+/** The mock world's drafts: started, never published, by the people who started them. */
+export const demoDrafts = () => facts.filter((f) => f.status === 'Draft')
+
+/**
+ * Sends the week's suggestions through the service's API, each as the person the mock names, and
+ * starts the mock's drafts. Returns each suggestion's proposal, and each draft's by its mock id.
+ */
+async function sendSuggestions(
+  databaseUrl: string,
+): Promise<{ ids: Record<QueueCard, string>; drafts: Record<string, string> }> {
   const pool = new pg.Pool({
     connectionString: databaseUrl,
     max: 2,
@@ -464,7 +494,15 @@ async function sendSuggestions(databaseUrl: string): Promise<Record<QueueCard, s
     )
     ids['sug-lars-retire'] =
       (retired.proposal as { id: string } | undefined)?.id ?? (retired.id as string)
-    return ids
+    const drafts: Record<string, string> = {}
+    for (const f of demoDrafts()) {
+      const started = await call('POST', '/proposals', f.by!, {
+        draft: startedDraft(f),
+        channel: 'form',
+      })
+      drafts[f.id] = started.id as string
+    }
+    return { ids, drafts }
   } finally {
     // Closing the app ends its pool.
     await app.close()
@@ -514,6 +552,12 @@ async function seedTerms(client: pg.Client) {
     ).rows
     ids.set(t.name.toLowerCase(), row!.id)
   }
+}
+
+/** What the demo week's mock ids are on the service. */
+export type DemoWeekIds = Record<QueueCard | 'flag-germany', string> & {
+  /** Each draft's proposal, by the draft's mock id. */
+  drafts: Record<string, string>
 }
 
 /**
@@ -678,13 +722,12 @@ async function seedAskedThisWeek(client: pg.Client) {
 
 /**
  * Seeds an empty migrated database with the demo week, as a superuser: the library, Jon as an
- * admin as the mock has him, the terms and synonyms, the suggestions through the API, then who
- * wrote what and when each was sent, the report and the Not found card. Returns each mock card's id on the
- * service: a suggestion's proposal (the Not found card's draft for gap-spain), and the report's card.
+ * admin as the mock has him, the terms and synonyms, the suggestions and the drafts through the
+ * API, then who wrote what and when each was sent, the report and the Not found card. Returns each
+ * mock card's id on the service: a suggestion's proposal (the Not found card's draft for
+ * gap-spain), the report's card, and each draft's proposal.
  */
-export async function seedDemoWeek(
-  superuserUrl: string,
-): Promise<Record<QueueCard | 'flag-germany', string>> {
+export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   let flag: string | undefined
   const client = new pg.Client({ connectionString: superuserUrl, types: calendarDateTypes })
   await client.connect()
@@ -702,7 +745,7 @@ export async function seedDemoWeek(
   } finally {
     await client.end()
   }
-  const ids = await sendSuggestions(superuserUrl)
+  const { ids, drafts } = await sendSuggestions(superuserUrl)
   const after = new pg.Client({ connectionString: superuserUrl })
   await after.connect()
   try {
@@ -766,5 +809,5 @@ export async function seedDemoWeek(
     await after.end()
   }
   if (!flag) throw new Error('The report was not seeded')
-  return { ...ids, 'flag-germany': flag }
+  return { ...ids, 'flag-germany': flag, drafts }
 }

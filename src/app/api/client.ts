@@ -12,6 +12,7 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
+import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
 import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@/model/ask'
 import type { Comments, MentionNote, Subject } from '@/model/comments'
@@ -166,8 +167,19 @@ export type Relation = 'replaces' | 'disagree' | 'unrelated'
 /** A context item's page: the item and its versions, newest first. */
 export type ItemPage = { item: Fact; history: Version[] }
 
-/** A change to many items at once: their edits, the drafts it deletes, and its line in History. */
+/**
+ * A change to many items at once: what it does, their edits, the drafts it deletes, and its line in
+ * History. Where it moves them, the kind it gives them and the owner it adds or sets are named
+ * too, so a binding that makes the change itself need not read them back from the edits.
+ */
 export type BulkChange = {
+  action: FactAction
+  /** Change domain: where to. */
+  domain?: DomainId
+  /** Change kind: to what. */
+  kind?: Kind
+  /** Add or change owner: who, by name. */
+  person?: string
   patches: Record<string, Partial<Fact>>
   remove: string[]
   entry: LogEntry
@@ -249,17 +261,25 @@ export interface HeedApi {
   itemPage: (input: { id: string }) => Promise<ItemPage | null>
   /** An item's versions, newest first. */
   getItemHistory: (input: { id: string }) => Promise<Version[]>
+  /**
+   * Brings the words of an earlier version (`v`, as its history numbers it) back as a new draft,
+   * for an owner of its domain or an admin. What agents get does not change until it is published.
+   */
+  restoreAsDraft: (input: { id: string; v: number }) => Promise<{ id: string }>
   /** The person opened an item. */
   markViewed: (input: { id: string }) => Promise<void>
   /** Changes some of an item's fields in place, as its owner: a check that it is still true. */
   editItem: (input: { id: string; patch: Partial<Fact> }) => Promise<void>
   /**
    * Publishes an item as its owner: changes to an existing item, or a new one, which gets its id.
-   * `gap` is the Not found card it answers; `setup` says it is the setup checklist's first item.
+   * `relations` says how it relates to each live item it overlaps, by that item's id, as the
+   * owner answered in the editor. `gap` is the Not found card it answers; `setup` says it is the
+   * setup checklist's first item.
    */
   saveItem: (input: {
     fact: Fact
     isNew: boolean
+    relations?: Record<string, Relation>
     gap?: string
     setup?: boolean
   }) => Promise<{ id: string }>
@@ -270,8 +290,11 @@ export interface HeedApi {
    * names the rows a failure left unchanged, to try again.
    */
   applyBulk: (input: BulkChange) => Promise<{ done: string[]; failed: string[] } & Undoable>
-  /** A suggestion sent from the editor to the owners; it waits, visibly, until they decide. */
-  sendSuggestion: (input: { sent: Omit<Sent, 'id'> }) => Promise<{ id: string }>
+  /**
+   * A suggestion sent from the editor to the owners: `fact` is the version it suggests. It waits,
+   * visibly, until they decide.
+   */
+  sendSuggestion: (input: { sent: Omit<Sent, 'id'>; fact: Fact }) => Promise<{ id: string }>
   withdrawSuggestion: (input: { id: string }) => Promise<void>
   /** Takes back exactly what one write changed, and nothing done since. */
   undo: (input: { token: string }) => Promise<void>
@@ -459,6 +482,7 @@ export const heedApiMethods = [
   'contextPage',
   'itemPage',
   'getItemHistory',
+  'restoreAsDraft',
   'markViewed',
   'editItem',
   'draftFromText',
