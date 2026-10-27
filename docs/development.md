@@ -32,7 +32,7 @@ the front end until it replaces it. Its pages read their data through one typed 
 mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
 `?slow=1`, `?demo=` and the rest), and the http binding talks to the service. Run it with
 `npm run dev:app` on the mock; `VITE_API_MODE=http npm run dev:app` takes the http binding, which
-answers the session, the library list, the definitions and search everywhere so far; each other
+answers the wired methods so far (`wiredMethods` in `src/app/api/http.ts`); each other
 screen is wired by its own change. `npm run dev`, `docker compose up` and the Docker image still
 serve the front end in `src/web`.
 
@@ -187,8 +187,8 @@ answer what the service holds for them today, which is nothing, so the shell and
 their writes are not available yet.
 
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
-`npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review and the
-setup checklist so far) on an http mode build against the service, one at a time, each on its own
+`npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
+setup checklist and People so far) on an http mode build against the service, one at a time, each on its own
 copy of the demo week seeded once into a template database; a journey that starts as a new
 install (`?demo=setup`) gets a copy of an empty workspace instead. It needs a local PostgreSQL 18 and a superuser's
 connection in `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server). The

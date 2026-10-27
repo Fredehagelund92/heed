@@ -8,8 +8,8 @@
  * comments with their reactions and mentions, the Inbox and the review (the golden plan's P6b),
  * Ask on the answer engine, with the person's chats kept in their browser (P10, http-ask.ts),
  * and People: Admin and Member, a domain's owners, invites with their links, removing someone,
- * and how the sign-in screen signs people in (P8, http-people.ts). Every other method answers `not-available` until the pull request that wires its screen
- * (P7 to P13). The conformance suite
+ * and how the sign-in screen signs people in (P8, http-people.ts). Every other method answers
+ * `not-available` until the pull request that wires its screen (P7 to P13). The conformance suite
  * (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in
  * `X-Heed-CSRF`, as the service requires, and a retry key, kept until the service answers; the
  * session cookie is HttpOnly, so the token is read from `auth.session`.
