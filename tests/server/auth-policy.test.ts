@@ -10,7 +10,13 @@ function operations(router: object, prefix = ''): string[] {
     return '~orpc' in value ? [path] : operations(value, path)
   })
 }
-const publicOperations = ['auth.people', 'auth.signIn', 'schema.item']
+const publicOperations = [
+  'auth.methods',
+  'auth.people',
+  'auth.signIn',
+  'invites.lookup',
+  'schema.item',
+]
 // Owners of any area, and administrators; the service narrows to their areas.
 // Also the area dashboards, test question upkeep, runs other than a proposal's, transcripts,
 // scorecards, editions and gap status and notes (Quality design G13).

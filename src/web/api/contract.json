@@ -668,6 +668,22 @@
     }
   },
   "auth": {
+    "methods": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "public"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/auth/methods",
+          "tags": [
+            "session"
+          ],
+          "summary": "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos"
+        }
+      }
+    },
     "people": {
       "~orpc": {
         "errorMap": {},
@@ -2056,6 +2072,22 @@
     }
   },
   "invites": {
+    "lookup": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "public"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/invites/lookup",
+          "tags": [
+            "session"
+          ],
+          "summary": "What an invite link says on the sign-in screen: the address, the role and the domains, while the invite is open. Every other link gets the same answer, whatever the reason"
+        }
+      }
+    },
     "list": {
       "~orpc": {
         "errorMap": {},

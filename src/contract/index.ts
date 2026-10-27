@@ -154,6 +154,7 @@ import {
 import {
   meSchema,
   sessionSchema,
+  signInMethodSchema,
   signInPersonSchema,
   roleInputSchema,
   assignmentInputSchema,
@@ -164,6 +165,8 @@ import {
 import {
   createInvitesSchema,
   inviteIdSchema,
+  inviteLookupSchema,
+  inviteTokenSchema,
   inviteResentSchema,
   inviteSchema,
   invitesCreatedSchema,
@@ -952,6 +955,15 @@ export const contract = {
       .output(z.array(activeStopSchema)),
   },
   auth: {
+    methods: publicRoute
+      .route({
+        method: 'GET',
+        path: '/auth/methods',
+        tags: ['session'],
+        summary:
+          "How people sign in here (FR-416): the company's OpenID Connect provider, with its name and the address that starts a sign-in, or the picker in development and demos",
+      })
+      .output(signInMethodSchema),
     people: publicRoute
       .route({ method: 'GET', path: '/auth/people', tags: ['session'] })
       .output(z.array(signInPersonSchema)),
@@ -1840,6 +1852,21 @@ export const contract = {
       .output(changed),
   },
   invites: {
+    lookup: publicRoute
+      .route({
+        method: 'GET',
+        path: '/invites/lookup',
+        tags: ['session'],
+        summary:
+          'What an invite link says on the sign-in screen: the address, the role and the domains, while the invite is open. Every other link gets the same answer, whatever the reason',
+      })
+      .errors({
+        NOT_FOUND: {
+          message: "This invite link doesn't work any more. Ask whoever invited you for a new one.",
+        },
+      })
+      .input(inviteTokenSchema)
+      .output(inviteLookupSchema),
     list: read
       .route({
         method: 'GET',

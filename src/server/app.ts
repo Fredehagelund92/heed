@@ -10,7 +10,13 @@ import { registerRateLimit } from './http/rate-limit.ts'
 import { createDraftTool } from './mcp/draft-tool.ts'
 import { createServingReads } from './mcp/reads.ts'
 import { registerMcpRoutes, type McpDependencies } from './mcp/gateway.ts'
-import { createDevSignIn, type DevPerson } from './modules/auth/index.ts'
+import { registerOidcRoutes } from './http/oidc.ts'
+import {
+  createDevSignIn,
+  type DevPerson,
+  type OidcSignIn,
+  type SignIn,
+} from './modules/auth/index.ts'
 import {
   createWorkspaceSources,
   noSecretStore,
@@ -43,6 +49,11 @@ export interface AppDependencies {
   /** The service's "today" and "now". Defaults to the system clock. */
   clock?: Clock
   devPeople?: readonly DevPerson[]
+  /**
+   * How people sign in (CL_AUTH): the composition root builds it. Defaults to the dev picker over
+   * `devPeople`.
+   */
+  signIn?: SignIn
   /** The language model for evaluations. Defaults to the scripted mock. */
   models?: ModelPort
   origins?: readonly string[]
@@ -75,6 +86,7 @@ export function buildApp({
   mcp,
   clock = systemClock(),
   devPeople = [],
+  signIn: chosenSignIn,
   models = createModelPort({ mode: 'mock' }),
   origins = [],
   nodeEnv,
@@ -121,7 +133,12 @@ export function buildApp({
   registerRateLimit(app, { database, clock })
   registerHealthRoutes(app, database)
   registerMetricsRoutes(app, { metrics, token: metricsToken, database, jobs, hub })
-  const signIn = createDevSignIn(devPeople, nodeEnv)
+  const signIn = chosenSignIn ?? createDevSignIn(devPeople, nodeEnv)
+  if (signIn.method === 'oidc')
+    registerOidcRoutes(app, {
+      signIn: signIn as OidcSignIn,
+      webOrigin: origins[0] ?? 'http://localhost:5173',
+    })
   if (mcp) {
     app.addHook('onClose', async () => {
       await mcp.close?.()

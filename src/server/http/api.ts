@@ -96,6 +96,8 @@ import {
   createInvites,
   listInvites,
   listMembers,
+  lookupInvite,
+  type OidcSignIn,
   removeMember,
   resendInvite,
   restoreMember,
@@ -104,6 +106,7 @@ import {
   setOwners,
   changeGrant,
   listGrants,
+  cookieAge,
   sessionCookie,
   createPeopleService,
   personSheet,
@@ -480,6 +483,15 @@ export function createRouter({
       ),
     },
     auth: {
+      methods: authorized.auth.methods.handler(() =>
+        signIn.method === 'oidc'
+          ? {
+              method: 'oidc' as const,
+              name: (signIn as OidcSignIn).label,
+              start: `${API_PREFIX}/auth/oidc/start`,
+            }
+          : { method: signIn.method, name: null, start: null },
+      ),
       people: authorized.auth.people.handler(({ context }) => signIn.choices(context.tx)),
       signIn: authorized.auth.signIn.handler(async ({ context, input }) => {
         const login = await signIn.signIn(
@@ -490,7 +502,11 @@ export function createRouter({
         if (!login) throw new ORPCError('UNAUTHORIZED')
         context.reply.header(
           'set-cookie',
-          sessionCookie(login.token, context.request.protocol === 'https'),
+          sessionCookie(
+            login.token,
+            context.request.protocol === 'https',
+            cookieAge(signIn.lifetime),
+          ),
         )
         return login.session
       }),
@@ -874,6 +890,9 @@ export function createRouter({
     // An invite's link is on the web app's public address: the first allowed origin, or the
     // address this request came to when none is set.
     invites: {
+      lookup: authorized.invites.lookup.handler(({ context, input }) =>
+        lookupInvite(context.tx, input.token),
+      ),
       list: authorized.invites.list.handler(({ context }) => listInvites(context.tx)),
       create: authorized.invites.create.handler(({ context, input }) =>
         createInvites(context.tx, input, webOrigin(context.request)),

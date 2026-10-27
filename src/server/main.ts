@@ -1,4 +1,10 @@
-import { readDevPeople } from './modules/auth/index.ts'
+import {
+  createDevSignIn,
+  createOidcSignIn,
+  readClientSecret,
+  readDevPeople,
+  type SignIn,
+} from './modules/auth/index.ts'
 import { createMcpDependencies } from './mcp/runtime.ts'
 import { buildApp } from './app.ts'
 import { systemClock } from './clock.ts'
@@ -50,6 +56,7 @@ async function main(): Promise<void> {
       nodeEnv: config.nodeEnv,
       database: describeDatabase(config.databaseUrl),
       auth: config.auth,
+      oidcIssuer: config.oidc?.issuer ?? null,
 
       fixedToday: config.fixedToday ?? null,
       models: config.models,
@@ -126,6 +133,33 @@ async function main(): Promise<void> {
       retry.unref()
     }
   }
+  // How people sign in (CL_AUTH): the picker from a local file, or the company's OIDC provider.
+  let signIn: SignIn
+  if (config.oidc) {
+    let clientSecret: string | null = null
+    if (config.oidc.clientSecretFile !== null) {
+      try {
+        clientSecret = await readClientSecret(config.oidc.clientSecretFile)
+      } catch (error) {
+        // The message names the setting and the file, never the secret.
+        logger.fatal(error instanceof Error ? error.message : 'the client secret could not be read')
+        await database.close()
+        process.exitCode = 1
+        return
+      }
+    }
+    signIn = createOidcSignIn({
+      settings: { ...config.oidc, clientSecret },
+      database,
+      webOrigin: config.webOrigins[0]!,
+      lifetime: config.sessions,
+    })
+  } else {
+    signIn = createDevSignIn(await readDevPeople(config.devPeopleFile), config.nodeEnv, {
+      method: config.auth === 'demo' ? 'demo' : 'dev',
+      lifetime: config.sessions,
+    })
+  }
   let secrets: SecretStore = noSecretStore
   if (config.secretsDir !== undefined) {
     try {
@@ -164,7 +198,7 @@ async function main(): Promise<void> {
     mcp,
     clock,
     models,
-    devPeople: await readDevPeople(config.devPeopleFile),
+    signIn,
     origins: config.webOrigins,
     nodeEnv: config.nodeEnv,
     notifications: hub,

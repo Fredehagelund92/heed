@@ -76,6 +76,9 @@ export const policies = {
   'editions.rollbackPreview': 'admin',
   'serving.stops': 'read',
   'serving.setStop': 'admin',
+  'auth.methods': 'public',
+  // An invite link's token is its own key: the sign-in screen reads it before anyone signs in.
+  'invites.lookup': 'public',
   'auth.people': 'public',
   'auth.signIn': 'public',
   'auth.signOut': 'read',

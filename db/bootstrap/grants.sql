@@ -171,3 +171,10 @@ grant execute on function cl_owns_all(text[]), auth.accept_invite(text, text) to
 -- serving or the analytics role.
 grant insert on reports to :api;
 grant execute on function cl_report_outcome(uuid) to :api;
+-- Company sign-in (FR-416): a sign-in in progress, tied to its browser and used once; the link from a person's
+-- account at the identity provider to the person; and, as nobody is signed in yet, joining by a mapped group and
+-- keeping the admin group's Admin role in step run as the owner.
+grant select, insert, delete on auth.oidc_requests to :api;
+grant select, insert, update (last_signed_in_at) on auth.identities to :api;
+grant update (expires_at, last_seen_at) on auth.sessions to :api;
+grant execute on function auth.join_by_group(text, text), auth.sync_group_admin(uuid, boolean), auth.invite_by_token(text) to :api;

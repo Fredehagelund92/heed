@@ -106,3 +106,23 @@ export type Invite = z.infer<typeof inviteSchema>
 export type InvitesCreated = z.infer<typeof invitesCreatedSchema>
 export type InviteResent = z.infer<typeof inviteResentSchema>
 export type MemberRemoved = z.infer<typeof memberRemovedSchema>
+
+/** An invite link's token, as the sign-in screen sends it. */
+export const inviteTokenSchema = z.strictObject({
+  token: z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/)),
+})
+/** What an open invite's link says on the sign-in screen: who, as what, owning which domains. */
+export const inviteLookupSchema = z.object({
+  email: z.string(),
+  role: memberRoleSchema,
+  areas: z.array(z.object({ id: z.string(), name: z.string() })),
+  expiresAt: z.string(),
+})
+export type InviteLookup = z.infer<typeof inviteLookupSchema>
+
+/**
+ * Where an invite link leads on the web app: its sign-in screen, with the token. The token is in
+ * the fragment, which a browser never sends to a server.
+ */
+export const inviteLinkOf = (webOrigin: string, token: string) =>
+  `${webOrigin}/#/signin?invite=${encodeURIComponent(token)}`

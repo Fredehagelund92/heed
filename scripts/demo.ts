@@ -185,7 +185,7 @@ async function start(show: Show) {
     PORT: String(show.port),
     LOG_LEVEL: 'warn',
     DATABASE_URL: at.api,
-    CL_AUTH: 'dev',
+    CL_AUTH: 'demo',
     CL_DEV_PEOPLE_FILE: 'db/seed/people.local.yml',
     CL_WEB_ORIGINS: at.web,
     MODELS: 'mock',
