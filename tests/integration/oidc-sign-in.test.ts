@@ -248,6 +248,25 @@ describe('who may sign in', () => {
     expect((await client.query('select count(*)::int as n from people')).rows).toEqual(before)
   })
 
+  it('brings back a linked person an admin removed only on a new invite of their address', async () => {
+    const email = 'comeback@larchwood.example'
+    const account = { sub: 'acct-back', email, email_verified: true }
+    await invite(email)
+    const first = await signIn(account)
+    const id = (await me(first.person))!.id
+    await client.query('update people set deactivated_at=now() where id=$1', [id])
+    const refused = await signIn(account)
+    expect(refused.location).toBe(refusedWith('not_allowed'))
+    expect(refused.person.jar.has('heed_session')).toBe(false)
+    expect((await invite(email)).outcome).toBe('invited')
+    const back = await signIn(account)
+    expect((await me(back.person))?.id).toBe(id)
+    expect(
+      (await client.query('select count(*)::int as n from auth.identities where person_id=$1', [id]))
+        .rows[0].n,
+    ).toBe(1)
+  })
+
   it('needs an address the provider has verified', async () => {
     const { location } = await signIn({
       sub: 'acct-x5',

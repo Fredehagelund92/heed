@@ -230,7 +230,9 @@ you@company.example --admin` prints a link that works for a week. Or map an admi
 
 - A person whose account at the provider is linked to them: the link is made at their first
   sign-in and found by the provider's issuer and subject afterwards, so a changed address at the
-  provider still signs in the same person.
+  provider still signs in the same person. Someone an admin removed is refused, until an admin
+  invites their address again: the invite, by the verified address, brings back the same person
+  on the same link.
 - An active person, or an address with an open invite, by an email address the provider says it
   has verified (`email_verified`). The invite is accepted then: the person is made, with its role
   and domains (Settings, People; FR-417).

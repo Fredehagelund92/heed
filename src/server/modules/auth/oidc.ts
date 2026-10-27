@@ -296,8 +296,8 @@ export function createOidcSignIn(options: {
     claims: JWTPayload,
   ): Promise<{ id: string } | { refusal: OidcRefusal }> {
     const subject = claims.sub!
-    const [linked] = await tx.query<{ id: string; active: boolean }>(
-      `select p.id::text, (p.deactivated_at is null and p.erased_at is null) as active
+    const [linked] = await tx.query<{ id: string; email: string; active: boolean }>(
+      `select p.id::text, p.email, (p.deactivated_at is null and p.erased_at is null) as active
          from auth.identities i join people p on p.id = i.person_id
         where i.issuer=$1 and i.subject=$2`,
       [settings.issuer, subject],
@@ -307,8 +307,15 @@ export function createOidcSignIn(options: {
     const inMember = inAdmin || groups.some((g) => settings.memberGroups.includes(g))
     let id: string | null = null
     if (linked) {
-      if (!linked.active) return { refusal: 'not_allowed' }
       id = linked.id
+      if (!linked.active) {
+        const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : ''
+        const verified = claims.email_verified === true || claims.email_verified === 'true'
+        if (!email || !verified || email !== linked.email.toLowerCase())
+          return { refusal: 'not_allowed' }
+        const back = await acceptInvite(tx, { email, name: nameOf(claims, email) })
+        if (back !== linked.id) return { refusal: 'not_allowed' }
+      }
     } else {
       const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : ''
       if (!email) return { refusal: 'not_allowed' }
