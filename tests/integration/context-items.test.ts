@@ -202,6 +202,55 @@ describe('publishing in one step (FR-137)', () => {
     expect(await served(item)).toMatchObject({ n: 1, area: 'finance' })
   })
 
+  it("finishes the person's own draft and sends it as itself; someone else's stays theirs", async () => {
+    const mine = await aDraft({}, 'owner')
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', { draft: draft(), draftId: mine }),
+    )
+    expect(r).toMatchObject({ published: true, proposalId: mine })
+    const theirs = await aDraft({}, 'author')
+    const refused = await call('POST', '/items/publish', 'owner', {
+      draft: draft(),
+      draftId: theirs,
+    })
+    expect(refused.statusCode).toBe(403)
+    const kept = await ok<ProposalRecord>(call('GET', `/proposals/${theirs}`, 'author'))
+    expect(kept.state).toBe('draft')
+    expect(
+      (
+        await call('POST', '/items/publish', 'owner', {
+          draft: draft(),
+          draftId: '01a17d1c-0000-7000-8000-00000000dead',
+        })
+      ).statusCode,
+    ).toBe(404)
+  })
+
+  it('waits for how it relates to each live item it clashes with, and leaves out answers for others', async () => {
+    const { scope } = draft()
+    const there = await live({ scope })
+    const elsewhere = await live()
+    const waits = await call('POST', '/items/publish', 'owner', { draft: draft({ scope }) })
+    expect(waits.statusCode).toBe(422)
+    expect(waits.json<{ message: string }>().message).toMatch(/^Say how this relates to/)
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', {
+        draft: draft({ scope }),
+        relations: [
+          { itemId: there, relation: 'disagrees' },
+          { itemId: elsewhere, relation: 'unrelated' },
+        ],
+      }),
+    )
+    expect(r).toMatchObject({ published: true })
+    if (!r.published) return
+    const relations = await client.query<{ item_id: string; relation: string }>(
+      'select item_id, relation::text from proposal_relations where proposal_id = $1',
+      [r.proposalId],
+    )
+    expect(relations.rows).toEqual([{ item_id: there, relation: 'disagrees' }])
+  })
+
   it('refuses a draft the checks refuse, and keeps nothing', async () => {
     const before = await client.query('select count(*)::int as n from proposals')
     const r = await call('POST', '/items/publish', 'owner', {
@@ -375,6 +424,10 @@ describe('a change to many items at once (FR-139)', () => {
   it('marks as checked only the items the person opened, and records who checked them', async () => {
     const [opened, unopened] = [await live(), await live()]
     expect((await call('POST', `/items/${opened}/read`, 'admin')).statusCode).toBe(200)
+    // The library says which items the person opened, and only theirs.
+    expect((await indexRow('admin', opened))?.opened).toBe(true)
+    expect((await indexRow('admin', unopened))?.opened).toBe(false)
+    expect((await indexRow('owner', opened))?.opened).toBe(false)
     const r = await bulk('admin', { action: 'check', rows: [opened, unopened] })
     expect(r.done).toEqual([opened])
     expect(r.skipped).toEqual([

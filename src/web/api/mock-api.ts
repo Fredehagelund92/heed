@@ -126,6 +126,7 @@ function toLibraryItem(
     trust: itemTrust(item, today),
     chips: scopeKeys(item.scope).map((key) => names.get(key) ?? key.split(/[:/]/).at(-1)!),
     owners: [],
+    opened: false,
   }
 }
 

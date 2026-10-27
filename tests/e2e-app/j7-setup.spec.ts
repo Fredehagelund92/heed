@@ -11,7 +11,9 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
   await page.getByRole('button', { name: 'Done', exact: true }).click()
   // Back on the checklist, What the business is about counts as written.
   await expect(page.getByText('1 of 5 done')).toBeVisible()
-  await inMockUntil('P7, P10', 'publishing a new context item in one step, and Ask', async () => {
+  // A new install on the service has no domain yet to write context in: Domains and owners in
+  // Settings make the first one.
+  await inMockUntil('P11a', 'a domain to write context in on a new install', async () => {
     await page.getByRole('button', { name: 'Write context', exact: true }).click()
     await page
       .getByRole('textbox', { name: 'Title' })
@@ -25,6 +27,10 @@ test('a new workspace gets its first grounded answer', async ({ page }) => {
     await page.locator('#fact-source').fill('https://customs.example/norway')
     await page.keyboard.press('Escape')
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    // Published in one step, the checklist counts the first context item written.
+    await expect(page.getByText('2 of 5 done')).toBeVisible()
+  })
+  await inMockUntil('P10', 'Ask', async () => {
     await page.getByRole('button', { name: 'Ask', exact: true }).click()
     const box = page.getByRole('textbox', { name: 'Ask a question' })
     await box.click()

@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go, signInAs } from './go.ts'
+import { expect, go, signInAs, test } from './go.ts'
 
 // J2: someone who owns no domain suggests a change, and can see it waiting afterwards.
 test('a person suggests a change and sees it waiting', async ({ page }) => {

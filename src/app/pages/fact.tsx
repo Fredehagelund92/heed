@@ -124,6 +124,7 @@ export function FactPage({ id }: { id: string }) {
   const archive = async () => {
     const entry = entryFor('archived', 'Archived: agents stop getting it.')
     const { undo } = await write('applyBulk', {
+      action: 'archive',
       patches: { [fact.id]: { status: 'Archived' } },
       remove: [],
       entry,
@@ -136,7 +137,12 @@ export function FactPage({ id }: { id: string }) {
   // A draft nobody published is deleted for good, after a confirmation, with Undo for a few seconds.
   const deleteDraft = async () => {
     const entry = entryFor('deleted', 'Deleted: a draft nobody published.')
-    const { undo } = await write('applyBulk', { patches: {}, remove: [fact.id], entry })
+    const { undo } = await write('applyBulk', {
+      action: 'delete',
+      patches: {},
+      remove: [fact.id],
+      entry,
+    })
     navigate('/context')
     toast('Deleted 1 draft', {
       description: 'You can undo it for 10 seconds; then it is gone for good.',
@@ -232,7 +238,11 @@ export function FactPage({ id }: { id: string }) {
         </SideSection>
       )}
       <SideSection title="History" className="border-b-0">
-        <VersionHistory versions={history} canRestore={owner} />
+        <VersionHistory
+          versions={history}
+          canRestore={owner}
+          onRestore={(version) => write('restoreAsDraft', { id: fact.id, v: version.v })}
+        />
       </SideSection>
     </Loadable>
   )

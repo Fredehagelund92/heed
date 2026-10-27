@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { go } from './go.ts'
+import { expect, go, test, untilInHttp } from './go.ts'
+import type { Page } from '@playwright/test'
 
 // Picking several rows works the same in every list with checkboxes: Shift and a click ticks a
 // range in the order on screen, across groups; Cmd or Ctrl and a click ticks one; Shift and an arrow
@@ -49,7 +49,9 @@ test('Context: a range follows the sort, and runs across groups', async ({ page 
   await page.getByRole('button', { name: /Sort/ }).click()
   await page.getByRole('menuitemradio', { name: /^Title/ }).click()
   await page.keyboard.press('Escape')
-  const titles = await page.locator('tbody [data-row-open]').allInnerTexts()
+  const rows = page.locator('tbody [data-row-open]')
+  await expect(rows.first()).toBeVisible()
+  const titles = await rows.allInnerTexts()
   expect(titles).toEqual([...titles].sort((a, b) => a.localeCompare(b)))
   await rowBoxes(page).nth(2).click()
   await rowBoxes(page)
@@ -167,14 +169,16 @@ test('Inbox: a Shift-click ticks a range of cards, and Mark as read takes their 
   await page.getByRole('button', { name: 'Mark as read' }).click()
   await expect(page.getByText(/Marked \d as read/)).toBeVisible()
   await expect(ticked(page)).toHaveCount(0)
-  expect(await page.locator("[data-row-open] [aria-label='Not opened yet']").count()).toBeLessThan(
-    unread,
-  )
+  // The dots go once the reads are kept, which on the service takes a moment.
+  await expect
+    .poll(() => page.locator("[data-row-open] [aria-label='Not opened yet']").count())
+    .toBeLessThan(unread)
 })
 
 test("A source's folders: unticking one and Shift-clicking another unticks the run", async ({
   page,
 }) => {
+  untilInHttp('P11b', "a source's folders on its connect page")
   await go(page, '/settings/integrations/cube/connect?step=3')
   const box = (name: string) => page.locator('li', { hasText: name }).getByRole('checkbox')
   await box('orders').click()

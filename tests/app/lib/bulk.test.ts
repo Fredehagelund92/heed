@@ -146,10 +146,11 @@ describe('what the bar says', () => {
     const patches = Object.fromEntries(
       salesLive.map((f) => [f.id, { status: 'Archived' as const }]),
     )
-    const first = await api.applyBulk({ patches, remove: [], entry })
+    const first = await api.applyBulk({ action: 'archive', patches, remove: [], entry })
     expect(first.done).toEqual([salesLive[0]!.id])
     expect(first.failed).toEqual([salesLive[1]!.id])
     const retry = await api.applyBulk({
+      action: 'archive',
       patches: { [salesLive[1]!.id]: { status: 'Archived' } },
       remove: [],
       entry: { ...entry, id: 'log-y' },

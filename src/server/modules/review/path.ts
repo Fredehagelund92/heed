@@ -452,7 +452,14 @@ export function createReviewPath(
     return row.id
   }
 
-  async function publish(input: z.infer<typeof publishInputSchema>) {
+  /**
+   * `clashesOnly` is for a publish from the editor, which lists what overlaps by its own rule: an
+   * answer for an item this does not clash with is left out instead of refused.
+   */
+  async function publish(
+    input: z.infer<typeof publishInputSchema>,
+    { clashesOnly = false }: { clashesOnly?: boolean } = {},
+  ) {
     let p = await loadProposal(tx, input.id, true)
     if (p.revision !== input.revision)
       throw new ORPCError('CONFLICT', {
@@ -463,7 +470,11 @@ export function createReviewPath(
     if (why)
       throw new ORPCError(why.startsWith('Only') ? 'FORBIDDEN' : 'CONFLICT', { message: why })
     const r = await reading(p)
-    const given = new Map((input.relations ?? []).map((x) => [x.itemId, x.relation]))
+    const given = new Map(
+      (input.relations ?? [])
+        .filter((x) => !clashesOnly || r.clashes.includes(x.itemId))
+        .map((x) => [x.itemId, x.relation]),
+    )
     for (const itemId of given.keys())
       if (!r.clashes.includes(itemId))
         throw new ORPCError('UNPROCESSABLE_CONTENT', {

@@ -267,6 +267,37 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getDefinitions', 'definitionsPage', 'definitionPage'))(
+      "reads the Definitions page, and a definition's page by its name in any case",
+      async () => {
+        const live = await signedIn()
+        const all = await live.getDefinitions()
+        expect(await live.definitionsPage()).toEqual(all)
+        const d = all[0]!
+        expect(await live.definitionPage({ name: d.name.toUpperCase() })).toEqual(d)
+        expect(await live.definitionPage({ name: 'Nothing called this' })).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getDefinitions', 'getDefinitionHistory'))(
+      "reads a definition's versions newest first: a term's writes by people, a synced one's from its tool",
+      async () => {
+        const live = await signedIn()
+        const all = await live.getDefinitions()
+        const term = all.find((d) => d.type === 'term' && !d.sameAs)!
+        const versions = await live.getDefinitionHistory({ name: term.name })
+        expect(versions.length).toBeGreaterThan(0)
+        const numbers = versions.map((v) => v.v)
+        expect(numbers).toEqual([...numbers].sort((a, b) => b - a))
+        for (const v of versions) expect(v.who, term.name).toBeTruthy()
+        const synced = all.find((d) => d.synced)!
+        const read = await live.getDefinitionHistory({ name: synced.name })
+        expect(read.length).toBeGreaterThan(0)
+        expect(read.every((v) => v.kind === 'synced')).toBe(true)
+        expect(await live.getDefinitionHistory({ name: 'Nothing called this' })).toEqual([])
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getLibrary', 'itemPage'))(
       "reads a context item's page: the item and its versions, newest first",
       async () => {
@@ -288,6 +319,7 @@ export function describeHeedApi(
         const [a, b] = (await live.getLibrary()).items.filter((f) => f.status === 'Live')
         const archive = { status: 'Archived' as const }
         const { done, failed, undo } = await live.applyBulk({
+          action: 'archive',
           patches: { [a!.id]: archive, [b!.id]: archive },
           remove: [],
           entry: {
@@ -323,6 +355,202 @@ export function describeHeedApi(
         expect(fact.title).not.toBe('')
         expect(fact.summary).not.toBe('')
         expect(['event', 'issue', 'note', 'guide']).toContain(fact.kind)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'contextPage'))(
+      "lists the Context page: the library's items and the drafts, each once, a draft by who started it",
+      async () => {
+        const live = await signedIn()
+        const rows = await live.contextPage()
+        expect(rows.map((f) => f.id).sort()).toEqual(
+          (await live.getLibrary()).items.map((f) => f.id).sort(),
+        )
+        const drafts = rows.filter((f) => f.status === 'Draft')
+        expect(drafts.length).toBeGreaterThan(0)
+        for (const d of drafts) expect(d.by, d.id).toBeTruthy()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'contextPage', 'itemPage', 'getItemHistory'))(
+      "reads a draft's page, and an item's history as its page has it",
+      async () => {
+        const live = await signedIn()
+        const rows = await live.contextPage()
+        const draft = rows.find((f) => f.status === 'Draft')!
+        expect((await live.itemPage({ id: draft.id }))?.item).toMatchObject({
+          id: draft.id,
+          title: draft.title,
+          status: 'Draft',
+        })
+        const item = rows.find((f) => f.status === 'Live')!
+        expect(await live.getItemHistory({ id: item.id })).toEqual(
+          (await live.itemPage({ id: item.id }))!.history,
+        )
+        expect(await live.getItemHistory({ id: 'itm_nothere001' })).toEqual([])
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'markViewed'))(
+      'keeps an item the person opened as opened, so it can be marked as checked with others',
+      async () => {
+        const live = await signedIn()
+        const item = (await live.getLibrary()).items.filter((f) => f.status === 'Live').at(-1)!
+        await live.markViewed({ id: item.id })
+        expect((await live.getLibrary()).viewed[item.id]).toBe(true)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'getLibrary', 'editItem'))(
+      'checks an item as still true in place: it reads as checked by the person',
+      async () => {
+        const live = await signedIn()
+        const { domains } = await live.getWorkspace()
+        const mine = new Set(domains.filter((d) => d.owners.includes(person)).map((d) => d.id))
+        const due = (await live.getLibrary()).items.find(
+          (f) => f.status === 'Needs checking' && mine.has(f.domain),
+        )!
+        await live.editItem({
+          id: due.id,
+          patch: {
+            status: 'Live',
+            outOfDate: undefined,
+            checkedBy: person,
+            checkedOn: '23 Oct 2026',
+          },
+        })
+        const after = (await live.getLibrary()).items.find((f) => f.id === due.id)!
+        expect(after).toMatchObject({ status: 'Live', checkedBy: person })
+      },
+    )
+
+    /**
+     * A new item the person may publish: in a domain they own, from a live item's words, on days
+     * of its own (`month`, in 2031) so it overlaps nothing that agents get.
+     */
+    const newItem = async (live: HeedApi, title: string, month: string) => {
+      const { domains } = await live.getWorkspace()
+      const mine = new Set(domains.filter((d) => d.owners.includes(person)).map((d) => d.id))
+      const { items } = await live.getLibrary()
+      const from = items.find((f) => f.status === 'Live' && mine.has(f.domain))!
+      const { item } = (await live.itemPage({ id: from.id }))!
+      const valid = { from: `2031-${month}-01`, until: `2031-${month}-02` }
+      // What agents get about the same place overlaps it, as the editor lists it: the owner
+      // answers each.
+      const overlaps = items.filter(
+        (f) =>
+          (f.status === 'Live' || f.status === 'Needs checking') &&
+          item.where.every((w) => f.where.includes(w)),
+      )
+      return {
+        fact: {
+          ...item,
+          id: 'new',
+          title,
+          status: 'Live' as const,
+          owners: undefined,
+          valid,
+          when: whenLabel(valid),
+        },
+        relations: Object.fromEntries(overlaps.map((f) => [f.id, 'unrelated' as const])),
+      }
+    }
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'getLibrary', 'itemPage', 'saveItem'))(
+      'publishes a new item in one step as an owner, and an edit to it as a new version',
+      async () => {
+        const live = await signedIn()
+        const { fact, relations } = await newItem(
+          live,
+          'Conformance: a new item, published in one step',
+          '01',
+        )
+        const { id } = await live.saveItem({ fact, isNew: true, relations })
+        const library = await live.getLibrary()
+        expect(library.items.find((f) => f.id === id)).toMatchObject({
+          title: fact.title,
+          status: 'Live',
+          domain: fact.domain,
+        })
+        expect(library.published[id]).toBeTruthy()
+        const page = (await live.itemPage({ id }))!
+        expect(page.item).toMatchObject({ summary: fact.summary, source: fact.source })
+        const edited = { ...page.item, title: `${fact.title}, edited` }
+        expect(await live.saveItem({ fact: edited, isNew: false, relations })).toEqual({ id })
+        const after = (await live.itemPage({ id }))!
+        expect(after.item.title).toBe(edited.title)
+        expect(after.item.summary).toBe(page.item.summary)
+      },
+    )
+
+    it.skipIf(
+      lacks(
+        'signIn',
+        'getWorkspace',
+        'getLibrary',
+        'itemPage',
+        'saveItem',
+        'restoreAsDraft',
+        'contextPage',
+      ),
+    )("restores an earlier version's words as a draft, and what agents get stays", async () => {
+      const live = await signedIn()
+      const { fact, relations } = await newItem(live, 'Conformance: an item to restore', '02')
+      const { id } = await live.saveItem({ fact, isNew: true, relations })
+      const page = (await live.itemPage({ id }))!
+      await live.saveItem({
+        fact: { ...page.item, title: `${fact.title}, renamed` },
+        isNew: false,
+        relations,
+      })
+      const history = (await live.itemPage({ id }))!.history
+      const first = history.at(-1)!
+      const restored = await live.restoreAsDraft({ id, v: first.v })
+      const rows = await live.contextPage()
+      expect(rows.find((f) => f.id === restored.id)).toMatchObject({ status: 'Draft' })
+      expect(rows.find((f) => f.id === id)).toMatchObject({
+        status: 'Live',
+        title: `${fact.title}, renamed`,
+      })
+    })
+
+    it.skipIf(
+      lacks(
+        'signIn',
+        'getWorkspace',
+        'getLibrary',
+        'itemPage',
+        'sendSuggestion',
+        'withdrawSuggestion',
+        'getInbox',
+      ),
+    )(
+      "sends a suggestion to an item's owners, which waits for them until it is withdrawn",
+      async () => {
+        await api().signIn({ name: colleague, fresh: false })
+        const live = api()
+        const { domains, people } = await live.getWorkspace()
+        const them = people.find((p) => p.name === colleague)!
+        const item = (await live.getLibrary()).items.find(
+          (f) => f.status === 'Live' && !them.owns.includes(f.domain) && !f.owners,
+        )!
+        const { item: full } = (await live.itemPage({ id: item.id }))!
+        const owner = domains.find((d) => d.id === item.domain)!.owners[0]!
+        const sent = {
+          factId: item.id,
+          title: `${item.title}, as suggested`,
+          by: colleague,
+          to: owner,
+          domain: item.domain,
+          at: 'just now',
+        }
+        const { id } = await live.sendSuggestion({ sent, fact: { ...full, title: sent.title } })
+        expect((await live.getInbox()).sent).toContainEqual({ ...sent, id })
+        // What agents get stays as it was until an owner decides.
+        expect((await live.itemPage({ id: item.id }))!.item.title).toBe(full.title)
+        await live.withdrawSuggestion({ id })
+        expect((await live.getInbox()).sent.map((x) => x.id)).not.toContain(id)
+        await api().signIn({ name: person, fresh: false })
       },
     )
 

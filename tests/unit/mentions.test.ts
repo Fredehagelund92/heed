@@ -59,6 +59,7 @@ const library: LibraryIndex = {
       trust: 'current',
       chips: [],
       owners: [],
+      opened: false,
     },
     {
       id: 'itm_gone0001',
@@ -80,6 +81,7 @@ const library: LibraryIndex = {
       trust: 'ended',
       chips: [],
       owners: [],
+      opened: false,
     },
   ],
 }

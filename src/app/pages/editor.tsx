@@ -94,7 +94,8 @@ import { setDraft } from '@/lib/draft'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Vocabulary } from '@/api'
-import { draftFromTextQuery, useInbox, useVocabulary, useWrite } from '@/api/queries'
+import type { Relation } from '@/api/client'
+import { draftFromTextQuery, itemPageQuery, useInbox, useVocabulary, useWrite } from '@/api/queries'
 import { useDomainList, useDomains, useFact, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { useWide } from '@/hooks/use-wide'
 import { Kbd } from '@/components/ui/kbd'
@@ -282,20 +283,24 @@ export function FactEditor(props: { mode: 'new' | 'edit' | 'suggest'; factId?: s
     ...draftFromTextQuery(''),
     enabled: useRoute().query.get('draft') === 'norway',
   })
-  if (fromText.isFetching) return null
-  return <Editor {...props} fromText={fromText.data} />
+  // An edit or a suggestion starts from the item's own read, which has its text, source and quote;
+  // the list's row is all there is when that read fails.
+  const page = useQuery({ ...itemPageQuery(props.factId ?? ''), enabled: !!props.factId })
+  const listed = useFact(props.factId)
+  if (fromText.isFetching || (props.factId && page.isPending)) return null
+  return <Editor {...props} fromText={fromText.data} original={page.data?.item ?? listed} />
 }
 
 function Editor({
   mode,
-  factId,
+  original,
   fromText,
 }: {
   mode: 'new' | 'edit' | 'suggest'
   factId?: string
+  original?: Fact
   fromText?: Fact
 }) {
-  const original = useFact(factId)
   const facts = useFacts()
   const me = useMe()
   const domains = useDomains()
@@ -319,7 +324,7 @@ function Editor({
   const [mainRef, wide] = useWide<HTMLDivElement>()
   usePrimaryKey()
   const titleRef = React.useRef<HTMLTextAreaElement>(null)
-  const [overlap, setOverlap] = React.useState<Record<string, string>>({})
+  const [overlap, setOverlap] = React.useState<Record<string, Relation>>({})
   const [pasted, setPasted] = React.useState('')
   const [draftOpen, setDraftOpen] = React.useState(false)
   const [previewAll, setPreviewAll] = React.useState(false)
@@ -411,6 +416,7 @@ function Editor({
     if (isSuggest) {
       // It waits visibly: a line on the item, and a row under All in your Inbox.
       const { id } = await write('sendSuggestion', {
+        fact: draft,
         sent: {
           factId: original?.id,
           title: form.title,
@@ -432,6 +438,8 @@ function Editor({
     const { id } = await write('saveItem', {
       fact: draft,
       isNew: !original,
+      // Each overlap as the owner answered it; one left alone is unrelated, as it reads.
+      relations: Object.fromEntries(overlaps.map((f) => [f.id, overlap[f.id] ?? 'unrelated'])),
       gap: query.get('gap') ?? undefined,
       setup: !!query.get('setup'),
     })

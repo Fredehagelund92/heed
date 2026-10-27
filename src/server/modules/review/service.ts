@@ -1450,13 +1450,15 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         reviewQuestion(live.version) === 'still_going_on'
           ? await openIssueDays(tx)
           : (setting?.days ?? 90)
+      // A check moves the next one on: an open-ended item always has one, and an item with an end
+      // date keeps one only when it was given one.
       const version = {
         ...live.version,
         changeMarks: Object.fromEntries(marks.map((m) => [m.ref, m.mark])),
         reviewDate:
-          live.version.validity.end === null
+          live.version.validity.end === null || live.version.reviewDate !== null
             ? shiftDate(clock.today(), days)
-            : live.version.reviewDate,
+            : null,
       }
       if (
         !v1 &&

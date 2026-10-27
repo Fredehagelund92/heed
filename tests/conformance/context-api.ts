@@ -218,6 +218,7 @@ export function describeContextApi(
           trust: itemTrust(item, FIXTURE_TODAY),
           chips: scopeChips(item.scope),
           owners: [],
+          opened: false,
         })
       for (const row of index.items) expect(row.lastChecked?.personId, row.id).toBeTruthy()
       const someone = (row: LibraryItem): LibraryItem => ({

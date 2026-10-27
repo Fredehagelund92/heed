@@ -695,6 +695,29 @@ describe('review and release', () => {
     }
   })
 
+  it('moves on the review date an item with an end date was given, so its check is no longer due', async () => {
+    const item = await acceptedItem({
+      title: 'Ended event with a check date',
+      kind: 'event',
+      validity: { start: '2026-04-18', end: '2026-05-31' },
+      reviewDate: '2026-09-18',
+    })
+    const reviewDate = async () =>
+      (
+        await client.query<{ review_date: string | null }>(
+          `select v.review_date::text from item_versions v where v.item_id=$1
+            order by v.version_no desc limit 1`,
+          [item],
+        )
+      ).rows[0]!.review_date
+    expect(await reviewDate()).toBe('2026-09-18')
+    const rechecked = await call('POST', `/items/${item}/recheck`, 'owner', {
+      reason: 'Still true',
+    })
+    expect(rechecked.statusCode, rechecked.body).toBe(200)
+    expect(await reviewDate()).toBe('2027-01-06')
+  })
+
   it('lets an administrator publish their own high-risk proposal on one accept', async () => {
     const high = await submitted(
       { title: 'Administrator high-risk note', riskLevel: 'high' },

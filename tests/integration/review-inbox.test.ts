@@ -788,6 +788,19 @@ describe('the Inbox (docs/product.md, section 5)', () => {
     expect(await served(dueItem)).toBe(1)
   })
 
+  it('lets an admin who owns no domain check a due item as still true, as Mark as checked does', async () => {
+    const checked = await ok<{ undo: string }>(
+      call('POST', '/inbox/cards/decide', 'admin', {
+        card: `check:${dueItem}`,
+        action: 'still_true',
+      }),
+    )
+    // The check is a version of its own, served from now on.
+    expect(await served(dueItem)).toBeGreaterThan(1)
+    await ok(call('POST', '/decisions/undo', 'admin', { token: checked.undo }))
+    expect(await served(dueItem)).toBe(1)
+  })
+
   it('lists what the person sent that waits on an owner, under All', async () => {
     const mine = await submitted({ title: 'Waiting on Finance' })
     const all = await feed('author', 'all')

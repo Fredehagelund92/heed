@@ -32,7 +32,12 @@ const mockQueue = [
   'drive-bundles',
 ]
 
-type World = { ids: Record<string, string>; queue: string[] }
+type World = {
+  ids: Record<string, string>
+  queue: string[]
+  /** The items a journey publishes on the way, by their mock id, with their titles. */
+  published: Record<string, string>
+}
 let world: World | undefined
 /** The http world: the service's ids for the mock's cards, from the global setup. */
 const httpWorld = (): World =>
@@ -148,9 +153,11 @@ export const test = base.extend<{ demoWeek: void }>({
   Open an address of the app. The mockup kept its addresses after the hash, so only a journey's
   first visit loaded the page and every later one moved inside the running app, keeping what the
   journey had done so far. go does the same. In http mode a mock card's id becomes the service's,
-  and the mock's flags become what they stand for: `?state=offline` takes the browser offline,
-  `?state=failed` makes the first try of a decision fail, `?demo=last` decides every suggestion
-  but the one opened, through the service, and `?demo=setup` starts on an empty workspace.
+  and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags
+  become what they stand for: `?state=offline` takes the browser offline, `?state=failed` makes
+  the first try of a decision fail, `?bulk=fail` makes the last row of the first change to many
+  rows fail, `?demo=last` decides every suggestion but the one opened, through the service, and
+  `?demo=setup` starts on an empty workspace.
 */
 export async function go(page: Page, route: string) {
   const to = http ? await httpRoute(page, route) : { route }
@@ -179,22 +186,29 @@ async function httpRoute(
   route: string,
 ): Promise<{ route: string; after?: () => Promise<void>; load?: boolean }> {
   const url = new URL(route, 'http://app')
-  const path = url.pathname
-    .split('/')
-    .map((part) => (part ? card(part) : part))
-    .join('/')
+  const parts = await Promise.all(
+    url.pathname.split('/').map(async (part) => (part ? publishedItem(page, part) : part)),
+  )
+  const path = parts.map((part) => (part ? card(part) : part)).join('/')
   const query = url.searchParams
   const at = query.get('card')
   if (at) query.set('card', card(at))
+  // The quick view names what it shows by kind and id: `context.itm_...`.
+  const dock = query.get('dock')?.match(/^([a-z]+)\.(.+)$/)
+  if (dock) query.set('dock', `${dock[1]}.${card(dock[2]!)}`)
   const demo = query.get('demo')
   const state = query.get('state')
+  const bulk = query.get('bulk')
   query.delete('demo')
   query.delete('state')
+  query.delete('bulk')
   if (demo === 'last') await decideAllBut(page, path.split('/')[2] ?? '')
   // A new install: the journey moves to a copy of an empty workspace, Jon signed in there.
   else if (demo === 'setup') await startService(page, 'empty')
   else if (demo && demo !== 'week') throw new Error(`?demo=${demo} has no http meaning yet`)
   if (state === 'failed') await failFirstTry(page)
+  if (bulk === 'fail') await failLastRowOnce(page)
+  else if (bulk) throw new Error(`?bulk=${bulk} has no http meaning yet`)
   const search = query.toString()
   return {
     route: `${path}${search ? `?${search}` : ''}`,
@@ -212,6 +226,20 @@ async function httpRoute(
   }
 }
 
+/**
+ * An item the journey published on the way has the service's id, not the mock's: it is found by
+ * its title in the library. Anything else is left as it is.
+ */
+async function publishedItem(page: Page, part: string) {
+  const title = httpWorld().published[part]
+  if (!title) return part
+  const library = await page.request.get('/api/v1/library')
+  const { items } = (await library.json()) as { items: { id: string; title: string }[] }
+  const item = items.find((i) => i.title === title)
+  if (!item) throw new Error(`“${title}” is not in the library: was it published?`)
+  return item.id
+}
+
 /** The first try of each decision fails with the service's own failure; the next goes through. */
 async function failFirstTry(page: Page) {
   const tried = new Set<string>()
@@ -224,6 +252,29 @@ async function failFirstTry(page: Page) {
       contentType: 'application/json',
       json: { code: 'SERVICE_UNAVAILABLE', status: 503, message: 'The service is busy.' },
     })
+  })
+}
+
+/**
+ * The first change to many rows fails on its last row, as the mock's `?bulk=fail` does: the
+ * service makes the change without that row, and the answer names it as failed, left as it was.
+ */
+async function failLastRowOnce(page: Page) {
+  let failed = false
+  await page.route(/\/api\/v1\/items\/bulk$/, async (route) => {
+    const request = route.request()
+    const input = request.postDataJSON() as { rows: string[] }
+    if (failed || request.method() !== 'POST' || input.rows.length < 2) return route.fallback()
+    failed = true
+    const last = input.rows.at(-1)!
+    const response = await route.fetch({
+      postData: JSON.stringify({ ...input, rows: input.rows.slice(0, -1) }),
+    })
+    const result = (await response.json()) as {
+      failed: { id: string; title: string; message: string }[]
+    }
+    result.failed.push({ id: last, title: '', message: 'The service is busy.' })
+    await route.fulfill({ response, json: result })
   })
 }
 
