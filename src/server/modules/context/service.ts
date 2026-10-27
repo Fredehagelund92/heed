@@ -526,7 +526,11 @@ export function createContextService(
         where v.item_id = $1 and d.outcome = 'retire'
           and not exists (select 1 from decision_undos u where u.decision_id = d.id)
        union all
-       select 'owners', c.made_by::text, ${day('c.made_at')}, c.made_at::text, c.summary
+       select 'owners', c.made_by::text, ${day('c.made_at')}, c.made_at::text,
+              -- The sentence names a title: an item the reader may not see makes it a count.
+              case when not exists (select 1 from jsonb_array_elements(c.items) e
+                                     where not cl_item_open(e->>'id')) then c.summary
+                   else 'Changed the owners of ' || jsonb_array_length(c.items) || ' items.' end
          from item_changes c
         where c.action = 'owners' and c.undone_at is null
           and c.items @> jsonb_build_array(jsonb_build_object('id', $1::text))`,

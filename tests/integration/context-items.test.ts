@@ -385,6 +385,12 @@ describe('the History log and the audience rule', () => {
     const [secret, open] = [await live({ title: 'A secret plan' }), await live()]
     const r = await bulk('owner', { action: 'kind', rows: [secret, open], kind: 'guide' })
     expect(r.done).toHaveLength(2)
+    const owners = await bulk('owner', {
+      action: 'owner_add',
+      rows: [secret, open],
+      personId: people.admin,
+    })
+    expect(owners.done).toHaveLength(2)
     // Versions are append-only, so the group goes on with their guards off, once written.
     await transaction(client, async () => {
       await client.query('alter table item_versions disable trigger user')
@@ -400,6 +406,12 @@ describe('the History log and the audience rule', () => {
       expect(change.items.map((i) => i.id)).toEqual([open])
       expect(change).toMatchObject({ withheld: 1, summary: 'Changed 2 items.' })
       expect(JSON.stringify(changes)).not.toContain('A secret plan')
+      const page = await ok<ItemPage>(call('GET', `/items/${open}/page`, 'author'))
+      expect(page.history[0]).toMatchObject({
+        kind: 'owners',
+        after: 'Changed the owners of 2 items.',
+      })
+      expect(JSON.stringify(page)).not.toContain('A secret plan')
     } finally {
       await transaction(client, async () => {
         await client.query('alter table item_versions disable trigger user')
