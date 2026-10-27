@@ -356,6 +356,8 @@ describe('the API over HTTP', () => {
       '/quality/untested',
       '/quality/upkeep',
       '/reactions/toggle',
+      '/reports',
+      '/reports/mine',
       '/review/assignments',
       '/review/decisions',
       '/review/decisions/plan',

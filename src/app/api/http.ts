@@ -25,6 +25,7 @@ import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
+import { reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { Domains } from '@/model/people'
 import routes from './contract.json' with { type: 'json' }
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Session } from './client'
@@ -112,6 +113,8 @@ export const wiredMethods = [
   'saveChat',
   'renameChat',
   'deleteChat',
+  'reportAnswer',
+  'getMyReports',
 ] as const satisfies readonly HeedApiMethod[]
 
 /**
@@ -304,14 +307,18 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   const readFeed = () => read(() => client.inbox.feed({ tab: 'all' }))
 
   async function inbox() {
-    const [feed, { workspace }, who] = await Promise.all([
+    const [feed, { workspace, listed }, who] = await Promise.all([
       readFeed(),
       readPeopleAndAreas(),
       signedIn(),
     ])
     const byId: Domains = Object.fromEntries(workspace.domains.map((d) => [d.id, d]))
     readGaps(feed)
-    return { ...inboxOf(feed, who.name, byId, new Date()), sent: [] }
+    const name = new Map(listed.people.map((p) => [p.id, p.name]))
+    return {
+      ...inboxOf(feed, who.name, byId, new Date(), (id) => name.get(id) ?? 'Someone'),
+      sent: [],
+    }
   }
 
   /** A Not found card's draft, by the draft's id, with its card: the app names the card by the draft. */
@@ -707,7 +714,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const cards = ids.flatMap((id) =>
         isUuid(id)
           ? [`proposal:${id}`, ...(gaps.has(id) ? [gaps.get(id)!.card] : [])]
-          : /^(proposal|gap|feedback|check|mention):/.test(id)
+          : /^(proposal|gap|feedback|report|check|mention):/.test(id)
             ? [id]
             : [],
       )
@@ -782,6 +789,32 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       chats.add((await signedIn()).id, id, question, said.get(question.toLowerCase()) ?? ''),
     renameChat: async ({ id, title }) => chats.rename((await signedIn()).id, id, title),
     deleteChat: async ({ id }) => chats.remove((await signedIn()).id, id),
+    // A named report: the question, the part and the words the person sent, with their name.
+    reportAnswer: async ({ question, part, sources, what, correction, link }) => {
+      const itemId = part === 'answer' ? sources[0] : part
+      if (!itemId) throw new ApiError('invalid', 'This answer has no context item to report.')
+      const input = {
+        question,
+        itemId,
+        part: part === 'answer' ? ('answer' as const) : ('item' as const),
+        what,
+        ...(correction?.trim() ? { correction } : {}),
+        ...(link?.trim() ? { link: link.trim() } : {}),
+      }
+      const sent = await write('reports.create', input, (o) => client.reports.create(input, o))
+      return { id: sent.id }
+    },
+    getMyReports: async () => {
+      const now = new Date()
+      return (await read(() => client.reports.mine())).reports.map((r) => ({
+        id: r.id,
+        question: r.question,
+        on: reportedOn(new Date(r.at), now),
+        ...(r.outcome
+          ? { outcome: reportOutcomeWords(r.outcome.kind, new Date(r.outcome.at)) }
+          : {}),
+      }))
+    },
   }
 
   return Object.fromEntries(

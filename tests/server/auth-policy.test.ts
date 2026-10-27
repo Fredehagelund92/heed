@@ -225,6 +225,8 @@ const readOperations = [
   'tryIt.run',
   // The answer engine: Ask's look-up and Asked this week, and the reach of a draft the person
   // may read (the service checks the draft).
+  'reports.create',
+  'reports.mine',
   'ask.lookup',
   'ask.asked',
   'engine.reach',

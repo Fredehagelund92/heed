@@ -203,6 +203,8 @@ export const policies = {
   'connect.get': 'read',
   'tryIt.run': 'read',
   'tryIt.read': 'read',
+  'reports.create': 'read',
+  'reports.mine': 'read',
   'ask.lookup': 'read',
   'ask.asked': 'read',
   'engine.reach': 'propose',

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Feed } from '../../src/contract/inbox.ts'
+import type { MyReports, SentReport } from '../../src/contract/reports.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import type { Draft } from '../../src/domain/draft.ts'
@@ -116,6 +117,9 @@ const markets = [
   'czechia',
   'greece',
   'hungary',
+  'latvia',
+  'lithuania',
+  'estonia',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -958,5 +962,130 @@ describe('row security and guards of what the Inbox and undo keep', () => {
     await expect(
       transaction(client, () => q("insert into setup_marks (step) values ('fact')")),
     ).rejects.toThrow(/setup_marks_step_check/)
+  })
+})
+
+describe('named reports from Ask (FR-622)', () => {
+  let item = ''
+  let due = ''
+  const asked = 'Do Latvia orders include gift cards?'
+  const send = (who: Who, input: object) => call('POST', '/reports', who, input)
+  const mine = async (who: Who) => (await ok<MyReports>(call('GET', '/reports/mine', who))).reports
+  const card = async (id: string, who: Who = 'owner', tab: 'needs' | 'all' = 'needs') =>
+    (await feed(who, tab)).cards.find((c) => c.id === `report:${id}`)
+
+  beforeAll(async () => {
+    item = await live({ title: 'Latvia orders count gift cards', ...inMarket('latvia') })
+    due = await live({
+      title: 'Lithuania orders lag a day',
+      ...inMarket('lithuania'),
+      validity: { start: '2026-01-01', end: null },
+      reviewDate: '2026-02-01',
+    })
+  })
+
+  it('files a report on its item for the owners, with who sent it, and keeps it from everyone else', async () => {
+    const report = await ok<SentReport>(
+      send('author', {
+        question: asked,
+        itemId: item,
+        part: 'item',
+        what: 'Gift cards are paid out separately since October.',
+        correction: 'Latvia orders leave gift cards out.',
+        link: 'https://wiki.example/latvia',
+      }),
+    )
+    expect(Object.keys(report).sort()).toEqual(['at', 'id'])
+    expect((await mine('author')).find((r) => r.id === report.id)).toMatchObject({
+      question: asked,
+      itemId: item,
+      part: 'item',
+      outcome: null,
+    })
+    expect(await card(report.id)).toMatchObject({
+      group: 'flag',
+      source: 'ask',
+      areaId: 'finance',
+      by: people.author,
+      verdict: 'wrong',
+      note: 'Gift cards are paid out separately since October.',
+      question: asked,
+      correction: 'Latvia orders leave gift cards out.',
+      link: 'https://wiki.example/latvia',
+      items: [{ id: item, title: 'Latvia orders count gift cards' }],
+      done: null,
+    })
+    expect(await card(report.id, 'admin')).toBeDefined()
+    // Nobody else sees it: not a member's Inbox, not their reports, not by a query of their own.
+    expect(await card(report.id, 'stranger')).toBeUndefined()
+    expect((await mine('author')).map((r) => r.id)).toContain(report.id)
+    expect((await mine('stranger')).map((r) => r.id)).not.toContain(report.id)
+    expect((await mine('owner')).map((r) => r.id)).not.toContain(report.id)
+    await client.query('begin')
+    try {
+      await client.query(`set local role ${identifier(localRoles.api)}`)
+      await client.query("select set_config('cl.person_id', $1, true)", [people.stranger])
+      expect((await client.query('select * from reports where id=$1', [report.id])).rows).toEqual(
+        [],
+      )
+      expect((await client.query('select * from cl_report_outcome($1)', [report.id])).rows).toEqual(
+        [],
+      )
+      // Nobody sends one as someone else, or changes one.
+      await expect(
+        client.query(
+          `insert into reports (person_id,area_id,item_id,part,question,what)
+           values ($1,'finance',$2,'item','Q','W')`,
+          [people.author, item],
+        ),
+      ).rejects.toThrow(/row-level security/)
+    } finally {
+      await client.query('rollback')
+    }
+    await expect(
+      client.query("update reports set what='changed' where id=$1", [report.id]),
+    ).rejects.toThrow()
+  })
+
+  it('tells its sender what the owners did: closed as not a problem, undone, then the item checked again', async () => {
+    const report = await ok<SentReport>(
+      send('author', {
+        question: 'Why are Lithuania orders short?',
+        itemId: due,
+        part: 'answer',
+        what: 'It says a day, it is two now.',
+      }),
+    )
+    const closed = await ok<{ undo: string }>(
+      call('POST', '/inbox/cards/decide', 'owner', {
+        card: `report:${report.id}`,
+        action: 'not_a_problem',
+      }),
+    )
+    expect((await mine('author')).find((r) => r.id === report.id)?.outcome?.kind).toBe(
+      'not_a_problem',
+    )
+    expect(await card(report.id)).toBeUndefined()
+    expect((await card(report.id, 'owner', 'all'))?.done).toMatchObject({
+      outcome: 'Not a problem',
+    })
+    await ok(call('POST', '/decisions/undo', 'owner', { token: closed.undo }))
+    expect((await mine('author')).find((r) => r.id === report.id)?.outcome).toBeNull()
+    expect(await card(report.id)).toBeDefined()
+    // The owner checks the item again instead: that is what the sender reads back.
+    await ok(
+      call('POST', '/inbox/cards/decide', 'owner', { card: `check:${due}`, action: 'still_true' }),
+    )
+    expect((await mine('author')).find((r) => r.id === report.id)?.outcome?.kind).toBe('checked')
+    expect((await card(report.id, 'owner', 'all'))?.done).toMatchObject({ outcome: 'Checked' })
+  })
+
+  it('refuses a report on an item that does not exist, and a link that is not a web address', async () => {
+    const base = { question: asked, itemId: item, part: 'item', what: 'Wrong.' }
+    expect((await send('author', { ...base, itemId: 'itm_notthere1' })).statusCode).toBe(404)
+    expect(
+      (await send('author', { ...base, link: 'javascript:alert(1)' })).statusCode,
+    ).toBeGreaterThanOrEqual(400)
+    expect((await send('author', { ...base, what: '   ' })).statusCode).toBeGreaterThanOrEqual(400)
   })
 })

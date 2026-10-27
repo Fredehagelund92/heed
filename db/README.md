@@ -448,6 +448,15 @@ gives the word another meaning or what a synonym means is gone. `serving_terms_m
 with every write to a term and every sync of a definitions source, so a cached serving bundle is
 read again after either.
 
+Named reports (migration 0012). `reports` keeps what a person sends from Ask on purpose, with
+their name (FR-622): the question, the item and the part that is wrong, what is wrong, and
+optionally the correct version and a link. It is append only. Its sender, the owners of its domain
+and administrators read it (row security); a person sends one only as themselves, about an item
+they may read. `cl_report_outcome(id)`, a security definer function, gives anyone who may read a
+report what the owners did after it: closed as not a problem (its card in `card_states`), or the
+item checked again, changed or archived (its decisions, undone ones left out). The serving and
+analytics roles have no grant on it.
+
 About our business starts empty (migration 0010). A new install gets an empty `business.about`
 version on top of the baseline's default, and so does an install whose text is still that
 untouched default (one version, which nobody changed); one where a person wrote or reset the

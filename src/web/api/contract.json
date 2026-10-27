@@ -3255,6 +3255,40 @@
       }
     }
   },
+  "reports": {
+    "create": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/reports",
+          "tags": [
+            "assistant"
+          ],
+          "summary": "A named report from Ask (FR-622): what is wrong with an answer, to the owners of its item's domain as a Reported card, with the question and the sender's name; nothing else of the chat is kept, and agents never read it"
+        }
+      }
+    },
+    "mine": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/reports/mine",
+          "tags": [
+            "assistant"
+          ],
+          "summary": "The person's own named reports of the last 90 days, newest first, each with what the owners did after it, for Ask to show in the chat"
+        }
+      }
+    }
+  },
   "ask": {
     "lookup": {
       "~orpc": {

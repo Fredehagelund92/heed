@@ -490,7 +490,7 @@ function from(card: InboxCard) {
       : `From ${s.from}, ${s.via === 'editor' ? 'written in the editor' : `from ${s.via}`}.`
   if (card.flag)
     return card.flag.by
-      ? `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
+      ? `By ${card.flag.by}, from ${card.flag.via === 'Ask' ? 'Ask' : 'a chat with an agent'}. Only what was sent is kept: the words and the question.`
       : 'From a chat with an agent. Only the words that were sent are kept, not who sent them.'
   if (card.look) return 'From an alert, after the check that runs after every change.'
   return 'From an automatic check.'

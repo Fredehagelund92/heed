@@ -65,9 +65,18 @@ export const cardSchema = z.union([
   z.object({
     ...cardBase,
     group: z.literal('flag'),
+    /** What it was sent as: an agent's anonymous feedback, or a person's named report from Ask. */
+    source: z.enum(['agent', 'ask']),
+    /** The record behind it: the feedback's id, or the named report's. */
     feedbackId: z.string(),
     verdict: z.enum(['wrong', 'unclear']),
     note: z.nullable(z.string()),
+    /** Who sent a named report; null for an agent's feedback, which keeps nobody. */
+    by: z.nullable(z.string()),
+    /** A named report's question, correct version and link, as its sender wrote them. */
+    question: z.nullable(z.string()),
+    correction: z.nullable(z.string()),
+    link: z.nullable(z.string()),
     /** The context the reported answer gave, as agents got it, first first; empty when unknown. */
     items: z.array(z.object({ id: z.string(), title: z.string() })),
   }),

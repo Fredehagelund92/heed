@@ -160,3 +160,8 @@ grant execute on function cl_vocabulary_words() to :api;
 -- Agents read the live terms and synonyms through one function, which names no person (FR-138,
 -- FR-326); the serving role still has no grant on the terms tables.
 grant execute on function serving_terms(), serving_terms_mark() to :api, :serve;
+-- Named reports (FR-622): a person sends one from Ask as themselves and never changes it; its sender
+-- reads what the owners did after it. Agents never read any of it: nothing here is granted to the
+-- serving or the analytics role.
+grant insert on reports to :api;
+grant execute on function cl_report_outcome(uuid) to :api;

@@ -88,6 +88,7 @@ import { createContextService } from '../modules/context/index.ts'
 import { createTermsService } from '../modules/terms/index.ts'
 import { createInboxFeedService } from '../modules/inbox/index.ts'
 import { createCommentsService } from '../modules/comments/index.ts'
+import { createReportsService } from '../modules/reports/index.ts'
 import {
   can,
   checkMutation,
@@ -254,6 +255,7 @@ export function createRouter({
                 comments,
               }),
               comments,
+              reports: createReportsService(tx),
               bin: createBinService(tx, clock, proposals),
               inbox: createInboxService(tx),
               activity: createActivityService(tx),
@@ -1219,6 +1221,29 @@ export function createRouter({
       read: authorized.tryIt.read.handler(({ context, input }) =>
         readTryItQuestion(context.tx, clock, input),
       ),
+    },
+    reports: {
+      create: authorized.reports.create.handler(async ({ context, input }) => {
+        // FR-408: a person's reports share the tighter limit of their own; the key lives in memory
+        // only, for its minute.
+        const retry = limitGapReports([
+          {
+            key: `named-report:${context.session!.person.id}`,
+            limit: await gapReportsPerMinute(context.tx),
+          },
+        ])
+        if (retry) {
+          context.reply.header('retry-after', String(retry))
+          throw new ORPCError('TOO_MANY_REQUESTS', {
+            message: `You've sent a lot of reports. Try again in ${retry} seconds.`,
+            data: { retryAfterSeconds: retry },
+          })
+        }
+        return retryWrite(context.tx, idempotencyKey(context), 'reports.create', input, () =>
+          context.reports.create(input),
+        )
+      }),
+      mine: authorized.reports.mine.handler(({ context }) => context.reports.mine()),
     },
     ask: {
       lookup: authorized.ask.lookup.handler(async ({ context, input }) => {
