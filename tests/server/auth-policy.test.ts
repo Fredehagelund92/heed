@@ -91,6 +91,10 @@ const adminOperations = [
   'clients.list',
   'clients.save',
   'traffic.summary',
+  // Admin and Member (FR-804): an admin changes a role, removes someone and undoes a removal.
+  'members.setRole',
+  'members.remove',
+  'members.restore',
   // Every person's agents (security check F3): seen and disconnected by administrators only.
   'aiConnections.list',
   'aiConnections.disconnect',
@@ -151,6 +155,15 @@ const readOperations = [
   'auth.session',
   'me.get',
   'people.list',
+  // People as Heed v1 has them: anyone signed in reads them and the open invites. An owner
+  // invites a member to their own domains and sets their owners; the service and row security
+  // narrow to that, and to an invite's sender or an admin for sending it again or taking it back.
+  'members.list',
+  'invites.list',
+  'invites.create',
+  'invites.resend',
+  'invites.revoke',
+  'areas.setOwners',
   'areas.list',
   'gaps.list',
   'gaps.get',

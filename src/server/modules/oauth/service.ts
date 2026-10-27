@@ -204,6 +204,11 @@ export interface LoginServer {
     reason: string,
     log: SignInLog,
   ): Promise<number | null>
+  /**
+   * Ends every open connection of a person removed from the workspace (`person_inactive`), in the
+   * removal's transaction: the MCP server refuses their access tokens at once. The count ended.
+   */
+  endPerson(tx: Queryable, personId: string): Promise<number>
 }
 
 /**
@@ -835,6 +840,17 @@ export function createLoginServer(options: {
         )
           ended++
       if (ended) logSignIn(log, 'disconnected_by_admin')
+      return ended
+    },
+    async endPerson(tx, personId) {
+      const grants = await tx.query<{ id: string }>(
+        `select id::text from auth.oauth_grants where person_id=$1 and revoked_at is null
+          order by created_at, id for update`,
+        [personId],
+      )
+      let ended = 0
+      for (const grant of grants)
+        if (await revokeGrant(tx, grant.id, 'person_inactive', null)) ended++
       return ended
     },
   }

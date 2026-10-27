@@ -160,3 +160,9 @@ grant execute on function cl_vocabulary_words() to :api;
 -- Agents read the live terms and synonyms through one function, which names no person (FR-138,
 -- FR-326); the serving role still has no grant on the terms tables.
 grant execute on function serving_terms(), serving_terms_mark() to :api, :serve;
+-- People and invites (FR-417, FR-804): anyone signed in reads the open invites; an admin, or an owner for
+-- their own domains, invites; an admin or the sender sends one again or revokes it. Only the token's hash is
+-- kept. An invite is accepted at sign-in through one function that runs as the owner, as nobody is signed in
+-- yet. An admin removes a person (deactivated_at) and brings them back; the people grant above covers it.
+grant insert, update (token_hash, sent_at, expires_at, revoked_at, revoked_by) on invites to :api;
+grant execute on function cl_owns_all(text[]), auth.accept_invite(text, text) to :api;

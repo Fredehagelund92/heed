@@ -163,6 +163,7 @@ it('serving role can read serving models but no raw versions, people or private 
   })
   for (const table of [
     'people',
+    'invites',
     'item_versions',
     'item_version_mentions',
     'audit_log',
@@ -183,6 +184,7 @@ it('serving role can read serving models but no raw versions, people or private 
 it('analytics cannot read personal columns or change data', async () => {
   for (const table of [
     'people',
+    'invites',
     'audit_log',
     'v_item_list',
     'v_item_index',

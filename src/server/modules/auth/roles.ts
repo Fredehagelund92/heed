@@ -6,6 +6,7 @@ import {
   type GrantsApplied,
   type RoleInput,
 } from '../../../contract/auth.ts'
+import type { OwnersSet, SetOwnersInput } from '../../../contract/members.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason } from '../admin/index.ts'
 
@@ -193,6 +194,11 @@ export async function changeGrants(
     reason?: string | null
     /** False only where the area itself goes (archiving), which ends its whole team. */
     keepOwners?: boolean
+    /**
+     * The area whose owners this step sets (`areas.setOwners`): its owners may make it as well as
+     * an admin, when every change is the ownership of that area.
+     */
+    ownersOf?: string
   },
 ): Promise<{ batchId: string | null; changes: GrantsApplied['changes'] }> {
   // A person's id as PostgreSQL writes it, so the same person is the same key however it is sent.
@@ -209,22 +215,35 @@ export async function changeGrants(
     seen.add(key)
   }
   await lockRoles(tx)
+  const ownersOf = options.ownersOf
+  const onlyOwnersOf =
+    ownersOf !== undefined &&
+    changes.every(
+      (change) => inArea(change) && change.areaId === ownersOf && change.role === 'owner',
+    )
   const [actor] = await tx.query<{ allowed: boolean; id: string }>(
-    'select cl_is_admin_now() as allowed, cl_person()::text as id',
+    `select cl_is_admin_now() or ($1::text is not null and cl_is_owner_now($1)) as allowed,
+            cl_person()::text as id`,
+    [onlyOwnersOf ? ownersOf : null],
   )
   if (!actor?.allowed)
-    throw new ORPCError('FORBIDDEN', { message: 'Only an admin can give or remove roles.' })
+    throw new ORPCError('FORBIDDEN', {
+      message: onlyOwnersOf
+        ? 'Only its owners and admins add owners.'
+        : 'Only an admin can give or remove roles.',
+    })
   let batchId: string | null = null
   if (options.batch) {
     const [row] = await tx.query<{ id: string }>('select uuidv7()::text as id')
     batchId = row!.id
   }
   await checkNamed(tx, changes)
+  // A role whose removal takes the actor's own right to make the rest of the step goes last: row
+  // security refuses every later change once they no longer hold it.
   const ownAdministrator = (change: GrantChange) =>
     change.op === 'revoke' &&
-    !inArea(change) &&
-    change.role === 'administrator' &&
-    change.personId === actor.id
+    change.personId === actor.id &&
+    (inArea(change) ? onlyOwnersOf && change.role === 'owner' : change.role === 'administrator')
   const removals = changes.filter((change) => change.op === 'revoke' && !ownAdministrator(change))
   const grants = changes.filter((change) => change.op === 'grant')
   const last = changes.filter(ownAdministrator)
@@ -246,7 +265,7 @@ export async function changeGrants(
   // does, so its proposals never wait for nobody.
   const leftBy = [
     ...new Set(
-      removals
+      [...removals, ...last]
         .filter(
           (change): change is InArea =>
             inArea(change) && change.role === 'owner' && changed.has(grantKey(change)),
@@ -303,4 +322,63 @@ export async function applyGrants(
 ): Promise<GrantsApplied> {
   const result = await changeGrants(tx, input.changes, { batch: true, reason: input.reason })
   return { batchId: result.batchId!, changes: result.changes }
+}
+
+/**
+ * `areas.setOwners`: a domain's owners, all of them, in one step (FR-804). Its owners and admins
+ * may set them. Those not named stop owning it and those named start, as one batch; a domain that
+ * has owners keeps at least one, so naming nobody is refused.
+ */
+export async function setOwners(tx: Queryable, input: SetOwnersInput): Promise<OwnersSet> {
+  const wanted = [...new Set(input.personIds.map((id) => id.toLowerCase()))]
+  await lockRoles(tx)
+  const [area] = await tx.query<{ name: string }>(
+    'select name from areas where id=$1 and archived_at is null',
+    [input.areaId],
+  )
+  if (!area)
+    throw new ORPCError('NOT_FOUND', {
+      message: "We couldn't find this domain, or it was deleted.",
+    })
+  const held = await tx.query<{ personId: string }>(
+    `select person_id::text as "personId" from area_assignments
+      where area_id=$1 and role='owner' and valid_at @> now()`,
+    [input.areaId],
+  )
+  const current = new Set(held.map((row) => row.personId))
+  if (!wanted.length && current.size)
+    throw new ORPCError('CONFLICT', { message: lastOwnerMessage(area.name) })
+  const changes: GrantChange[] = [
+    ...[...current]
+      .filter((id) => !wanted.includes(id))
+      .map((personId) => ({
+        op: 'revoke' as const,
+        personId,
+        areaId: input.areaId,
+        role: 'owner' as const,
+      })),
+    ...wanted
+      .filter((id) => !current.has(id))
+      .map((personId) => ({
+        op: 'grant' as const,
+        personId,
+        areaId: input.areaId,
+        role: 'owner' as const,
+      })),
+  ]
+  const result = await changeGrants(tx, changes, {
+    batch: changes.length > 1,
+    ownersOf: input.areaId,
+  })
+  const owners = await tx.query<{ id: string }>(
+    `select a.person_id::text as id from area_assignments a join people p on p.id=a.person_id
+      where a.area_id=$1 and a.role='owner' and a.valid_at @> now()
+      order by p.display_name collate "en-x-icu", p.id`,
+    [input.areaId],
+  )
+  return {
+    areaId: input.areaId,
+    owners: owners.map((row) => row.id),
+    changed: result.changes.some((change) => change.changed),
+  }
 }

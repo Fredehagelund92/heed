@@ -1535,6 +1535,22 @@
         }
       }
     },
+    "setOwners": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "PUT",
+          "path": "/areas/{areaId}/owners",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Set a domain's owners, all of them, in one step (FR-804): its owners and admins may. Those not named stop owning it, those named start; a domain that has owners keeps at least one"
+        }
+      }
+    },
     "get": {
       "~orpc": {
         "errorMap": {},
@@ -1969,6 +1985,138 @@
             "sources"
           ],
           "summary": "Run the connector's check and read a source once with these settings, keeping nothing and changing nothing"
+        }
+      }
+    }
+  },
+  "members": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/members",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Everyone in the workspace: their role (Admin or Member), the domains they own and when they last signed in"
+        }
+      }
+    },
+    "setRole": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/members/{personId}/role",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Make someone an Admin or a Member (FR-804); not one's own role, and the workspace keeps an active admin"
+        }
+      }
+    },
+    "remove": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/members/{personId}/remove",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Remove someone from the workspace: their roles end, they are signed out and their agents disconnected. Refused while a domain has them as its only owner, and for oneself. What they wrote stays, with their name"
+        }
+      }
+    },
+    "restore": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/members/{personId}/restore",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Undo a removal: the person is back, with the roles their last removal ended (those of a domain that still exists). They sign in again"
+        }
+      }
+    }
+  },
+  "invites": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/invites",
+          "tags": [
+            "roles"
+          ],
+          "summary": "The open invites: who, as what, owning which domains, sent when and by whom"
+        }
+      }
+    },
+    "create": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/invites",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Invite people by address, as an Admin or a Member owning some domains from the start (FR-417). An admin invites anyone; an owner invites a Member to the domains they own. Each new invite comes with its link, shown only here; an address already in the workspace or already invited is named, not invited again"
+        }
+      }
+    },
+    "resend": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/invites/{id}/resend",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Send an invite again, by its sender or an admin: a new link that works for another week, and the old one stops working"
+        }
+      }
+    },
+    "revoke": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/invites/{id}/revoke",
+          "tags": [
+            "roles"
+          ],
+          "summary": "Take an invite back, by its sender or an admin: its link stops working"
         }
       }
     }
