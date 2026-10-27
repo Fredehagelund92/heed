@@ -2,6 +2,7 @@ import type { ClaimLevel, ItemKind } from '../../../domain/item.ts'
 import type { EditionBundle, ResolverItem } from '../../../domain/resolver.ts'
 import type { LinkTerm, RawLink, RetiredItem } from '../../../domain/links.ts'
 import type { ServedReview } from '../../../domain/served-review.ts'
+import type { WrittenTerm } from '../../../domain/served-terms.ts'
 
 export type ServingItem = ResolverItem & {
   kind: ItemKind
@@ -38,7 +39,10 @@ export type ServingTerm = LinkTerm & { described?: SourceDefinition | null }
 export type ServingBundle = Omit<EditionBundle, 'items'> & {
   seq: string
   items: ServingItem[]
+  /** The vocabulary, with each served synonym of a metric or a dimension among its other names. */
   terms: ServingTerm[]
+  /** The terms and synonyms people wrote that agents get (src/domain/served-terms.ts). */
+  written: WrittenTerm[]
   links: RawLink[]
   /** Every domain Heed has, with what its owner wrote about it (summary and description). */
   areas: { id: string; name: string; team: string | null; summary: string; description: string }[]

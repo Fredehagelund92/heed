@@ -438,7 +438,15 @@ term: a deleted one records who deleted it, the synonyms that pointed at it go w
 (`deleted_with`), and it can be restored. `term_versions` keeps what each write made of a term,
 append only. `term_changes` keeps one row per change to many terms with what Undo needs; only its
 maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
-grant on these tables: agents do not read terms yet.
+grant on these tables.
+
+Serving terms (migration 0010). Agents read the live terms through `serving_terms()`, a security
+definer function the API and serving roles may run: each word with its own meaning or what it
+means, its domain, the day it was last written and the role it was written in (`owner` or
+`administrator`, never the person), and `conflict` when the vocabulary or the definitions source
+gives the word another meaning or what a synonym means is gone. `serving_terms_mark()` changes
+with every write to a term and every sync of a definitions source, so a cached serving bundle is
+read again after either.
 
 About our business starts empty (migration 0010). A new install gets an empty `business.about`
 version on top of the baseline's default, and so does an install whose text is still that

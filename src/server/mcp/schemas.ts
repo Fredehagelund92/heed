@@ -488,6 +488,36 @@ const contextEntry = z
   })
   .loose()
 /**
+ * A word a person defined in Definitions, as the agent contract gives it (FR-138): what it names,
+ * its meaning as written, who wrote it as a role and when, and its page. Never a checked source.
+ */
+const termEntry = z
+  .object({
+    word: z.string().describe('The words as they were used.'),
+    name: z.string().describe('What they name: a term, a metric or a dimension.'),
+    kind: z.enum(['term', 'metric', 'dimension']),
+    synonym: z
+      .literal(true)
+      .optional()
+      .describe('The words are another name for it, which a person wrote in Definitions.'),
+    meaning: z
+      .string()
+      .optional()
+      .describe("A term's meaning, as a person wrote it here. It is not a checked source."),
+    domain: z.string().optional(),
+    written: z
+      .object({ role: z.string(), date: z.string() })
+      .describe('Who wrote it, as a role (never a person), and on which day.'),
+    url: z.string().describe('Its page in Definitions, for the person.'),
+  })
+  .loose()
+const terms = z
+  .array(termEntry)
+  .optional()
+  .describe(
+    'The words that a person defined in Definitions: what each means here, as they wrote it. Read the words by them; a term never makes an answer checked.',
+  )
+/**
  * What get_context returns (its MCP output schema, FR-344 and FR-349): the status, which carries
  * the answer state, `say` and `next`, what was asked, the items that apply, the reply id
  * to report on and the edition. `response_format` full adds the details of each item and how the
@@ -508,6 +538,7 @@ export const contextOutput = z
       .optional()
       .describe('What was looked up: the metrics, markets and dates, in words.'),
     context: z.array(contextEntry).optional(),
+    terms,
     reply_id: z
       .string()
       .optional()
@@ -517,10 +548,12 @@ export const contextOutput = z
   .loose()
 /** find_context: the matching items, with their pages in Heed (FR-347). */
 export const findContextOutput = z
-  .object({ ...said, context: z.array(contextEntry).optional() })
+  .object({ ...said, context: z.array(contextEntry).optional(), terms })
   .loose()
 /** read_context: the one item in full, with its page in Heed (FR-347). */
-export const readContextOutput = z.object({ ...said, context: contextEntry.optional() }).loose()
+export const readContextOutput = z
+  .object({ ...said, context: contextEntry.optional(), terms })
+  .loose()
 /** report: that it was sent, and to which owner. */
 export const reportOutput = z
   .object({

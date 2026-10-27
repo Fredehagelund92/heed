@@ -32,7 +32,7 @@ import { connectorType } from '../connectors/index.ts'
  * synonyms go with it, and it can be restored. A change to many terms records one term_changes
  * row, and its Undo takes back exactly what it did, within limits.undo_seconds, by its maker only.
  * Row security and the database's own checks (db/migrations/0009_terms.sql) keep the same rules
- * on every path; agents do not read terms yet.
+ * on every path. Agents read the live terms through `serving_terms()` (src/domain/served-terms.ts).
  */
 export type TermsService = ReturnType<typeof createTermsService>
 

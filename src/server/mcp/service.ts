@@ -22,6 +22,13 @@ import {
 } from '../../domain/scope.ts'
 import { shiftDate } from '../../domain/validity.ts'
 import {
+  termEntry,
+  termsIn,
+  termsNext,
+  writtenWords,
+  type TermEntry,
+} from '../../domain/served-terms.ts'
+import {
   acceptedByRole,
   acceptedWords,
   checkedWords,
@@ -115,9 +122,12 @@ export type ToolResult = {
  */
 export const itemUrl = (web: string | null, id: string) =>
   `${web ?? ''}/library/${encodeURIComponent(id)}`
+/** The page of a definition in Heed, by its name (docs/product.md, section 5): where a person reads a term. */
+export const definitionUrl = (web: string | null, name: string) =>
+  `${web ?? ''}/definitions/${encodeURIComponent(name)}`
 /**
- * One line per delivered item, or per section of a help page, after the JSON: where a person
- * opens it in Heed (FR-347, FR-348).
+ * One line per delivered item, per section of a help page and per term, after the JSON: where a
+ * person opens it in Heed (FR-347, FR-348).
  */
 function openLines(output: Record<string, unknown>): string[] {
   const context = output.context
@@ -127,7 +137,7 @@ function openLines(output: Record<string, unknown>): string[] {
     ...(Array.isArray(context) ? (context as unknown[]) : context ? [context] : []),
     ...(Array.isArray(output.results) ? (output.results as unknown[]) : []),
   ]
-  return listed.flatMap((item) => {
+  const items = listed.flatMap((item) => {
     const { title, page, section, url, reviewed, checked } = item as Record<string, unknown>
     const name =
       typeof title === 'string'
@@ -148,6 +158,15 @@ function openLines(output: Record<string, unknown>): string[] {
       ? [`Open in ${productName} - ${name.replace(/\s+/g, ' ').trim()}: ${url}${stamp}`]
       : []
   })
+  // Each word a person defined that the reply names, where it is written and who wrote it.
+  const terms = Array.isArray(output.terms) ? (output.terms as TermEntry[]) : []
+  return [
+    ...items,
+    ...terms.map(
+      (term) =>
+        `Open in ${productName} - ${term.name}: ${term.url} - ${writtenWords(term.written.date, term.written.role)}`,
+    ),
+  ]
 }
 /**
  * A tool's output as a result: its fields for a cache or an audit go to `_meta`, the rest is read,
@@ -471,6 +490,20 @@ export function createToolService(
 ) {
   const urlOf = (id: string) => itemUrl(web, id)
   /**
+   * The words of a text that a person defined in Definitions, as the agent contract gives them
+   * (src/domain/served-terms.ts): background for reading the words, never a checked source.
+   */
+  const termsOf = (bundle: ServingBundle, text: string): TermEntry[] =>
+    termsIn(text, bundle.terms, bundle.written).map((use) =>
+      termEntry(use, {
+        domain: (areaId) => domainName(bundle, areaId),
+        url: (name) => definitionUrl(web, name),
+      }),
+    )
+  /** A reply's sentences, with what to do with the terms it names. */
+  const withTermsNext = (said: Said, terms: readonly unknown[]): Said =>
+    terms.length ? { ...said, next: said.next ? `${said.next} ${termsNext}` : termsNext } : said
+  /**
    * The outcome tools (FR-338 to FR-340) on the live edition, or for find_facts an edition the
    * caller may select. A result that cannot fit the size limit loses its longest lists first.
    */
@@ -532,11 +565,16 @@ export function createToolService(
     // FR-342: a concise find_facts or find_context leaves out the source details its definitions
     // already say in words.
     const concise = find && (args as FindArgs).response_format === 'concise'
+    // find_context names the words of the query that a person defined (FR-138).
+    const terms = name === 'find_context' ? termsOf(bundle, (args as FindArgs).query) : []
+    const saidNow = (shown: Record<string, unknown>) =>
+      withTermsNext(outcomeSaid(name, shown, args, bundle), terms)
     const out: Record<string, unknown> = {
-      ...saidFields(outcomeSaid(name, body, args, bundle)),
+      ...saidFields(saidNow(body)),
       ...common,
       ...(concise ? { response_format: 'concise' } : {}),
       ...body,
+      ...(terms.length ? { terms } : {}),
       ...(body.check_report
         ? {}
         : { check_report: report(body.status === 'matched' ? 'matched' : 'need_more_detail') }),
@@ -572,7 +610,7 @@ export function createToolService(
       out.cut = true
     }
     // A shortened list changes how many are shown, which the sentence says.
-    if (out.cut) Object.assign(out, saidFields(outcomeSaid(name, out, args, bundle)))
+    if (out.cut) Object.assign(out, saidFields(saidNow(out)))
     const rendered = resultFor(out)
     return byteSize(rendered) <= limit
       ? rendered
@@ -917,6 +955,9 @@ export function createToolService(
                 .slice(0, 5)
             : []
         const definitions = defined.map((term) => definitionOf(bundle, term, today))
+        // The words of the question a person defined (FR-138): what they mean here, never a
+        // checked source, so they change neither the items nor the answer state.
+        const terms = v1 ? termsOf(bundle, scoped.question) : []
         const delivery = randomUUID()
         const concise = scoped.response_format === 'concise'
         const instructions = withCaveats(
@@ -966,24 +1007,27 @@ export function createToolService(
             : resolution.status
         // FR-344: what the reply read and did not, as it stands after any cut.
         const said = () =>
-          contextSaid(
-            bundle,
-            {
-              status: statusNow(),
-              scope: resolution.scope,
-              issues: resolution.issues,
-              question: scoped.question,
-              delivered: items.length,
-              partial: items.filter((item) => item.match === 'partial').length,
-              unverified: items.filter((item) => item.freshness === 'unverified').length,
-              cut: check.cut_ids.length,
-              withheld: resolution.withheld.map((w) => w.reason),
-              assumed: assumed?.note.sentence ?? null,
-              readsAs: read?.reads_as ?? null,
-              groups,
-              about: metrics.length > 1,
-            },
-            v1 ? contextVoice : factVoice,
+          withTermsNext(
+            contextSaid(
+              bundle,
+              {
+                status: statusNow(),
+                scope: resolution.scope,
+                issues: resolution.issues,
+                question: scoped.question,
+                delivered: items.length,
+                partial: items.filter((item) => item.match === 'partial').length,
+                unverified: items.filter((item) => item.freshness === 'unverified').length,
+                cut: check.cut_ids.length,
+                withheld: resolution.withheld.map((w) => w.reason),
+                assumed: assumed?.note.sentence ?? null,
+                readsAs: read?.reads_as ?? null,
+                groups,
+                about: metrics.length > 1,
+              },
+              v1 ? contextVoice : factVoice,
+            ),
+            terms,
           )
         // What was looked up, in words, for the agent contract's reply.
         const askedWords = resolution.scope
@@ -1016,6 +1060,7 @@ export function createToolService(
             ? resultFor({
                 ...head,
                 context: entries(false),
+                ...(terms.length ? { terms } : {}),
                 ...(definitions.length ? { definitions } : {}),
                 reply_id: delivery,
                 ...common,
@@ -1023,6 +1068,7 @@ export function createToolService(
             : resultFor({
                 ...head,
                 context: entries(true),
+                ...(terms.length ? { terms } : {}),
                 reply_id: delivery,
                 ...common,
                 response_format: 'full',
@@ -1163,13 +1209,21 @@ export function createToolService(
               ...Object.fromEntries(Object.entries(shown).filter(([k]) => !entryKeys.has(k))),
             }
           : shown
+        // The words of the item a person defined (FR-138), as the agent contract gives them.
+        const terms = v1
+          ? termsOf(bundle, [item.title, item.summary, item.body ?? ''].join('\n'))
+          : []
         const out = {
           ...saidFields(
-            readSaid(v1 ? { kind: agentKinds[item.kind], version: item.version } : item, voice),
+            withTermsNext(
+              readSaid(v1 ? { kind: agentKinds[item.kind], version: item.version } : item, voice),
+              terms,
+            ),
           ),
           ...common,
           status: 'matched',
           [v1 ? 'context' : 'item']: whole,
+          ...(terms.length ? { terms } : {}),
           backlinks: { count: backlinks.length, items: page },
           next_cursor:
             offset + page.length < backlinks.length ? cursorFor(key, offset + page.length) : null,
