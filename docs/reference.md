@@ -693,7 +693,7 @@ synonym means what that one means.
   meaning's. `uncovered` of `measurable` have no context yet: agents asking about them get Not
   found.
 
-Agents read the live terms and synonyms through `serving_terms()` (migration 0010), which names
+Agents read the live terms and synonyms through `serving_terms()` (migration 0011), which names
 no person; the serving role has no grant on the terms tables. What they get is in the agent tools
 above (`terms`).
 

@@ -1,4 +1,4 @@
--- 0010_serving_terms: agents read the terms and synonyms people write in Definitions
+-- 0011_serving_terms: agents read the terms and synonyms people write in Definitions
 -- (docs/product.md, sections 3 and 10; FR-138).
 --
 -- - serving_terms() gives the serving path every live term (never a deleted one): its word, its

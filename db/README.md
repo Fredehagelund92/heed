@@ -440,7 +440,7 @@ append only. `term_changes` keeps one row per change to many terms with what Und
 maker marks it undone, once, inside `limits.undo_seconds`. The serving and analytics roles have no
 grant on these tables.
 
-Serving terms (migration 0010). Agents read the live terms through `serving_terms()`, a security
+Serving terms (migration 0011). Agents read the live terms through `serving_terms()`, a security
 definer function the API and serving roles may run: each word with its own meaning or what it
 means, its domain, the day it was last written and the role it was written in (`owner` or
 `administrator`, never the person), and `conflict` when the vocabulary or the definitions source
