@@ -121,7 +121,7 @@ export function isReportedAs(client: { label: string; name: string }, reported: 
  * The lines a person adds to their agent's standing instructions so it asks Heed before it answers
  * (Ask first). An app still decides by itself when to call a tool: a line makes the call more
  * likely and never sure, so nothing that shows these lines may promise it. The help guide
- * (docs/help/connect-an-agent.md) shows the same lines, word for word.
+ * (docs/old-help/connect-an-agent.md) shows the same lines, word for word.
  */
 export const askHeedFirst = [
   {

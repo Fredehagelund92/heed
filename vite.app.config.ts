@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
+import { helpDocs } from './scripts/docs-plugin.ts'
 import { storageKey } from './src/app/lib/brand.ts'
 import { productTitle } from './vite.config.ts'
 
@@ -24,7 +25,7 @@ const bootstrapPath = fileURLToPath(new URL('./src/app/theme-bootstrap.js', impo
  * Inlines theme-bootstrap.js into <head>, with the storage key from lib/brand.ts, so the theme is
  * applied before first paint. tests/app/theme-bootstrap.test.ts runs the same file.
  */
-function themeBootstrap(): Plugin {
+export function themeBootstrap(): Plugin {
   return {
     name: 'heed-app:theme-bootstrap',
     transformIndexHtml: {
@@ -46,8 +47,9 @@ function themeBootstrap(): Plugin {
 export default defineConfig(({ mode }) => ({
   root: appRoot,
   envDir: root,
-  // VITE_ variables, and the product's name the service reads too (src/app/lib/brand.ts).
-  envPrefix: ['VITE_', 'CL_PRODUCT_NAME'],
+  // VITE_ variables, the product's name the service reads too (src/app/lib/brand.ts), and the
+  // support address Contact support and Report a problem write to (src/app/lib/help-content.ts).
+  envPrefix: ['VITE_', 'CL_PRODUCT_NAME', 'CL_SUPPORT_EMAIL'],
   resolve: {
     tsconfigPaths: true,
     // The binding the app talks to (src/app/api/binding.ts): the mock, unless VITE_API_MODE=http
@@ -69,6 +71,8 @@ export default defineConfig(({ mode }) => ({
     }),
     react(),
     tailwindcss(),
+    // The documentation's pages (docs/help), read at build time.
+    helpDocs(),
     themeBootstrap(),
     productTitle(),
   ],

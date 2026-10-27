@@ -1,85 +1,62 @@
 ---
-title: Set up an agent
-kind: guide
-section: connect
-order: 1
-summary: Paste one prompt into Claude Code, sign in once, and ask your first question.
-audience: [everyone]
+title: Connect an agent
+line: One prompt for Claude, Cursor or another agent, and what approving does.
+group: Start
+order: 2
 minutes: 3
-owner: Product team
-reviewed: 2026-10-19
-screens: [/settings?section=connect, /try-it]
-related: [mcp, common-questions, what-is-heed]
+reviewed: 2026-10-27
+open:
+  label: Open Agents and access
+  href: /settings/agents
 ---
+
+Connect Claude, Cursor or another agent, so it reads your published context before it answers a question about the numbers.
 
 ## Before you start
 
-- You'll: set up your AI agent to check the facts before it answers a question about company data.
-- Who: anyone who can sign in.
-- You need: Claude Code on the same computer as {{product}}, and its address.
+You need to be signed in. Anyone in the workspace can connect their own agent. It reads only context an owner has published, never drafts or comments.
 
-The address is under **The address** on [Connect an agent](/settings?section=connect), the page where you connect. You can also open that page from the menu under your name, or press G then Y.
+## Paste the prompt
 
-Today, Claude Code is the agent that connects, and the page lists it. Other agents that use MCP, such as the Claude app, Cursor or ChatGPT, need {{product}} at an address on the internet. This one runs on your own computer.
+1. Open **Settings**, then **Agents and access**.
+2. Press **Copy prompt** and paste it into your agent.
+3. Let the agent run it. It adds the connection, writes one line into the project's instructions file (CLAUDE.md if there is one, otherwise AGENTS.md), and tells you how to sign in. It never asks for a key.
 
-## Steps
+<!-- include prompt -->
 
-1. On the page, choose **Copy prompt** on the card at the top, and paste it into Claude Code.
+```text title="The prompt, exactly as the app shows it"
+Connect this agent to our team's checked context, so it checks it before it answers about company numbers.
 
-   The prompt asks Claude Code to add {{product}}, to put the line from [Ask first](#ask-first) in `CLAUDE.md`, and to tell you how to sign in. Claude Code asks you before it runs anything. To do each step yourself, use **Set it up by hand** under the card. The first step is this line, to run in a terminal:
+1. Add a remote MCP server at https://heed.example.com/mcp, over HTTP, in your own way of doing that. In Claude Code, run:
 
-   ```sh
-   claude mcp add --transport http heed http://localhost:3000/mcp
-   ```
+claude mcp add --transport http heed https://heed.example.com/mcp
 
-2. Start Claude Code again, run `/mcp`, choose heed, then choose Authenticate.
+2. Add this line to the instructions file this project uses: CLAUDE.md if it exists, otherwise AGENTS.md, which you can create:
 
-3. Your browser opens the sign-in page. Sign in, read what the agent asks for, and choose **Allow**.
-
-   From now on, the agent checks the facts as you. It reads only what you can read. The card on the page says **Connected** and names the agent.
-
-4. Go back to Claude Code and ask a question about company data, for example: _How did orders in Norway change in August 2026?_
-
-   When the agent checks the facts, it calls Get context for a question first. Then it answers with the number and the facts that apply.
-
-## The skill file
-
-Beside the prompt, the card has a button to download `SKILL.md`. It's a skill for agents that write code, such as Claude Code, Codex and Cursor. It tells the agent to check the facts first, and how to read each reply: `matched`, `need_more_detail` or `no_match`. It also has the setup line for each of the three.
-
-Save it in your project as `.claude/skills/heed/SKILL.md` for Claude Code, or as `.agents/skills/heed/SKILL.md` for Codex and Cursor. Like the line under Ask first, a skill makes the agent check more often. It can't make it check every time.
-
-## Ask first
-
-Your agent decides when to call a tool. Add this line to its instructions so it checks more often.
-
-For `CLAUDE.md` or `AGENTS.md` in your project, which Claude Code and other agents that write code read when they start:
-
-```text
 Before you answer a question about company data, call get_context first and use what it returns.
+
+3. Then tell me how to sign in. A browser window opens once, and I approve the connection there. Never ask me for a key or a token. Change nothing else.
 ```
 
-For the instructions a data tool gives its own built-in AI, when that AI is connected to {{product}}:
+<!-- /include -->
 
-```text
-When someone asks why a number moved, or before you trust a number, ask {{product}} with get_context for the events, caveats and definitions that apply.
-```
+## Approve it once
 
-Both lines are on the page, under **Ask first**, with a copy button.
+Your browser opens a screen that names the agent and what it can do: read published context, and send a report or a suggestion after you say yes. Choose Allow. The page says Connected, with the agent's name and yours, and it joins Connected agents.
 
-## Check that it works
+> **Cursor and VS Code.** They have one-click install links on the same page. Claude's app and ChatGPT take the address as a connector; their steps are under Prefer to do it by hand.
 
-- On the page, the card says **Connected**, and the agent shows under **Your connected agents**.
-- To see what the agent was told, choose **Try a question** with the same metric, market and dates. It shows the same facts, without asking any AI.
+## If nothing signs in
 
-## Disconnect an agent
+The page checks every few seconds. After two minutes it shows what usually helps, and after ten it stops, with Check again:
 
-On the page, under **Your connected agents**, choose **Disconnect** beside the agent. It stops working at once. To connect it again, follow the steps above.
+<!-- include checks -->
 
-An admin can disconnect your agents too, for example when a laptop is lost. They do it in **Administration**, under **MCP and gateway**, **Connections**, and give a reason. The agent then stops working, and you connect it again the same way.
+- Paste the prompt into your agent and press Enter.
+- Say yes when the agent asks to run the command.
+- Approve the connection in the browser, or ask your agent how to sign in.
+- If it says the server already exists, ask it to remove the old one and try again.
 
-## If something goes wrong
+<!-- /include -->
 
-- _The agent can't sign in._ Ask the data team for an access key. Then follow the setup for an agent that can't sign in, in **Set it up by hand**.
-- _Claude Code says heed already exists._ An older entry points somewhere else. Run `claude mcp remove heed`, then step 1 again.
-- _The agent doesn't check the facts._ Your agent decides when to call a tool. Check that the line from [Ask first](#ask-first) is in its instructions, and name the metric and the dates in your question. Or ask it to check the facts first. See [Common questions](common-questions.md#why-didnt-my-agent-use-the-facts).
-- _The browser doesn't open._ Run `/mcp` in Claude Code again and choose Authenticate.
+> **Revoking.** Revoke an agent from Connected agents. It signs out at once, and you can connect it again.

@@ -11,7 +11,7 @@ import { StoryApp } from './story-app'
 import { productName } from '@/lib/brand'
 
 /**
- * Help in context (docs/help/README.md): a quiet link in the words of a person's question that
+ * Help in context (docs/old-help/README.md): a quiet link in the words of a person's question that
  * opens the few lines of the help page that answer it, and Read the whole page. Beside the
  * words of a screen, after a heading, in an empty state, and with long words that wrap; open,
  * and on a phone as a sheet. Use the viewport menu for 1440, 1024 and 390 and the theme menu

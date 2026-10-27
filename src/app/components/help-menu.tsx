@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
-import { DOCS_HOME, SUPPORT_EMAIL } from '@/lib/help-content'
+import { CHANGELOG_SLUG, DOCS_HOME, docHref } from '@/lib/docs'
+import { supportMail } from '@/lib/help-content'
 import { open } from '@/lib/events'
 import { navigate, useRoute } from '@/lib/router'
 import { useSession, useWorkspace } from '@/api/queries'
@@ -102,7 +103,7 @@ export function HelpMenu({ place }: { place: string }) {
               <ArrowUpRightIcon className="ml-auto text-muted-foreground" />
             </DropdownMenuItem>
             <DropdownMenuItem
-              render={<a href={`${DOCS_HOME}/changelog`} target="_blank" rel="noreferrer" />}
+              render={<a href={docHref(CHANGELOG_SLUG)} target="_blank" rel="noreferrer" />}
             >
               <SparklesIcon />
               What's new
@@ -111,7 +112,7 @@ export function HelpMenu({ place }: { place: string }) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem render={<a href={`mailto:${SUPPORT_EMAIL}`} />}>
+            <DropdownMenuItem render={<a href={supportMail()} />}>
               <LifeBuoyIcon />
               Contact support
             </DropdownMenuItem>

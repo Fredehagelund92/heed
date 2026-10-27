@@ -1,7 +1,7 @@
 /*
-  Help in context (docs/help/README.md, "Help in context"): the places in the help pages that a
+  Help in context (docs/old-help/README.md, "Help in context"): the places in the help pages that a
   screen links to with `HelpLink`, where a person stalls. Each is a page's slug, or a slug and a
-  heading on it, as a link between pages writes it. The docs check (tests/unit/docs.test.ts)
+  heading on it, as a link between pages writes it. The docs check (tests/unit/old-help.test.ts)
   fails when one has no page or no such heading, so a help link never opens nothing. Add a
   place here before a screen links to it.
 */

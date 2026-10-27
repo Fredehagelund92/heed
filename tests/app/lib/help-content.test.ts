@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { stateLabel } from '@/model/ask'
-import { ANSWER_LINES, DOC_PAGES, llmsTxt, SHORTCUTS, WORDS } from '@/lib/help-content'
+import { ANSWER_LINES, reportMail, SHORTCUTS, supportMail, WORDS } from '@/lib/help-content'
 import { kindLabel } from '@/model/items'
 import { PRODUCT } from '@/lib/brand'
 
@@ -33,11 +33,20 @@ describe('the shared help lists', () => {
     for (const k of Object.values(kindLabel)) expect(item).toContain(k.toLowerCase())
   })
 
-  it('list every docs page once, and an index agents can read', () => {
-    expect(DOC_PAGES).toHaveLength(11)
-    expect(new Set(DOC_PAGES.map((p) => p.slug)).size).toBe(11)
-    const index = llmsTxt()
-    for (const p of DOC_PAGES) expect(index).toContain(`- [${p.title}](/docs/${p.slug}): ${p.line}`)
+  it('write to support by mail, and send a problem with its page but never its query', () => {
+    expect(supportMail()).toMatch(/^mailto:support@[a-z]+\.example$/)
+    const mail = reportMail('  The review jumped.  ', {
+      origin: 'https://context.example.org',
+      pathname: '/ask',
+    })
+    const url = new URL(mail)
+    expect(url.protocol).toBe('mailto:')
+    expect(url.searchParams.get('subject')).toBe('Report a problem')
+    expect(url.searchParams.get('body')).toBe(
+      'The review jumped.\n\nPage: https://context.example.org/ask',
+    )
+    // A space is %20, which every mail app reads; a + would stay a +.
+    expect(mail).not.toContain('+')
   })
 
   it('keep the shortcut sheet to about fifteen rows', () => {

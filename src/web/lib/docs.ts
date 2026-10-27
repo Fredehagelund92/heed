@@ -27,24 +27,24 @@ import { currentWords } from '@domain/words'
 import { productName } from './brand'
 
 /*
-  Heed's help pages (docs/help/README.md): Markdown files in the repository, read at build time
+  Heed's help pages (docs/old-help/README.md): Markdown files in the repository, read at build time
   and drawn in the app's Docs area. This module is a chunk of its own, loaded by the docs route,
   its loader and the palette (`docsQuery` in docs-sections.ts), so none of it is in the first
   load. The same files read on GitHub, so links between pages are relative `.md` links and
   pictures are SVG files beside them; here a link opens the page in the app, and a picture is
   drawn inline so it takes the app's tokens in light and dark.
 
-  The pages are trusted files of the repository, checked by tests/unit/docs.test.ts: the front
+  The pages are trusted files of the repository, checked by tests/unit/old-help.test.ts: the front
   matter, the links, the pictures and the screen words. What a page is (its front matter, its
   headings' anchors, its answer and where its links go) is decided once, in
   src/domain/help-pages.ts, which the service reads the same files with for search_help.
 */
 
 const sources = import.meta.glob<string>(
-  ['../../../docs/help/*.md', '!../../../docs/help/README.md'],
+  ['../../../docs/old-help/*.md', '!../../../docs/old-help/README.md'],
   { query: '?raw', import: 'default', eager: true },
 )
-const pictureSources = import.meta.glob<string>('../../../docs/help/images/*.svg', {
+const pictureSources = import.meta.glob<string>('../../../docs/old-help/images/*.svg', {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -66,7 +66,7 @@ export const docKindNames: Record<DocKind, string> = {
   faq: 'Common questions',
 }
 
-/** The layout a kind takes (docs/help/README.md, "How a page is made"). */
+/** The layout a kind takes (docs/old-help/README.md, "How a page is made"). */
 export type DocTemplate = 'concept' | 'guide' | 'reference'
 export const docTemplates: Record<DocKind, DocTemplate> = {
   concept: 'concept',
@@ -135,7 +135,7 @@ export type DocsLibrary = {
 export const splitPage = (source: string) => splitHelpPage(source, parseYaml)
 
 const slugOf = helpSlugOf
-const pictureKeyOf = (path: string) => path.slice(path.indexOf('docs/help/'))
+const pictureKeyOf = (path: string) => path.slice(path.indexOf('docs/old-help/'))
 
 export { repositoryPath }
 
@@ -151,7 +151,7 @@ export function docLink(slug: string, slugs: ReadonlySet<string>) {
   }
 }
 
-/** The key of a picture a page shows, when the file exists: `docs/help/images/mcp-plug.svg`. */
+/** The key of a picture a page shows, when the file exists: `docs/old-help/images/mcp-plug.svg`. */
 export function docPictureKey(url: string): string | null {
   const path = repositoryPath(url)
   return path && pictures.has(path) ? path : null
@@ -243,7 +243,7 @@ function forWhom(audience: readonly DocAudience[]): string {
   return `For ${list}`
 }
 
-// A page writes {{product}} where it names the product (docs/help/README.md). The name goes into
+// A page writes {{product}} where it names the product (docs/old-help/README.md). The name goes into
 // the parsed front matter and the body, never through the YAML.
 const named = <T>(value: T): T => withProductNameIn(value, productName)
 

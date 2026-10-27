@@ -68,7 +68,11 @@ refused when `NODE_ENV=production`. Allowed identities come from `CL_DEV_PEOPLE_
 `CL_DEV_PERSON` setting no longer signs requests in.
 `CL_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
 `CL_PRODUCT_NAME` (default `Heed`) is the name the app, the help pages and the assistant's text
-say; `docs/rename-checklist.md` covers what it does and does not rename.
+say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is
+the address the new web app's Contact support and Report a problem write to, read when the app and
+the docs site are built: Report a problem opens a mail to it in the person's own mail app, with
+what they wrote and the page's address, and sends nothing through the service. Unset, an address
+that goes nowhere stands in (`support@heed.example`).
 `MODELS` is `mock` (scripted, the default) or `live`: live uses each role's provider and model
 from the `models.*` settings and the provider's key from `.env.local` (for example
 `ANTHROPIC_API_KEY` or `VERCEL_AI_GATEWAY_API_KEY`). The service refuses to start when a role's

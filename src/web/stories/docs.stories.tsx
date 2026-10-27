@@ -3,7 +3,7 @@ import { expect, screen, userEvent } from 'storybook/test'
 import { StoryApp } from './story-app'
 
 /**
- * The Docs area (docs/help) in docs mode: the app's sidebar folded to its rail and the docs' own
+ * The Docs area (docs/old-help) in docs mode: the app's sidebar folded to its rail and the docs' own
  * sidebar beside it (a drawer below 1024 wide), the docs home and its search, a section, and a
  * page of each template, a concept with its answer in one minute and its pictures, a guide with
  * its steps and the glossary, in the real shell. Use the viewport menu for 1440, 1024 and 390

@@ -1,14 +1,14 @@
 {
-  "docs/help/assistant.md": {
+  "docs/old-help/assistant.md": {
     "model": 1
   },
-  "docs/help/common-questions.md": {
+  "docs/old-help/common-questions.md": {
     "edition": 1
   },
-  "docs/help/editions.md": {
+  "docs/old-help/editions.md": {
     "live edition": 1
   },
-  "docs/help/glossary.md": {
+  "docs/old-help/glossary.md": {
     "administrator": 1,
     "ai app": 1,
     "audience": 1,
@@ -24,10 +24,10 @@
     "try it": 1,
     "vocabulary": 1
   },
-  "docs/help/mcp.md": {
+  "docs/old-help/mcp.md": {
     "model": 3
   },
-  "docs/help/tour.md": {
+  "docs/old-help/tour.md": {
     "edition": 1
   },
   "src/server/modules/notifications/activity.ts": {

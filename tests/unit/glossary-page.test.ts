@@ -5,7 +5,7 @@ import { bannedWords, concepts, usesWord, type Concept, type ConceptKey } from '
 import { splitPage } from '@/lib/docs'
 
 /*
-  The help glossary (docs/help/glossary.md) against the words people read (src/domain/words-v1.ts):
+  The help glossary (docs/old-help/glossary.md) against the words people read (src/domain/words-v1.ts):
   every concept has its entry, under the name on screen; the entries say it in those words; and
   the old words keep their entries at the end, so every link and search that names one still
   lands on a heading that says what we call it now.
@@ -13,7 +13,7 @@ import { splitPage } from '@/lib/docs'
 
 const OLD_WORDS = 'Words you may have seen'
 
-const split = splitPage(readFileSync('docs/help/glossary.md', 'utf8'))
+const split = splitPage(readFileSync('docs/old-help/glossary.md', 'utf8'))
 if (!split.ok) throw new Error(`glossary.md: ${split.reason}`)
 
 type Entry = { group: string; title: string; text: string }

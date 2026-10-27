@@ -390,7 +390,7 @@ describe('Connect an agent, in words', () => {
 
   it('gives the ask Heed first lines word for word as the help guide does, promising no call', () => {
     const guide = withProductName(
-      readFileSync('docs/help/connect-an-agent.md', 'utf8'),
+      readFileSync('docs/old-help/connect-an-agent.md', 'utf8'),
       productName,
     )
     for (const line of askHeedFirst) {

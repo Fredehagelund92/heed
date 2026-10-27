@@ -71,9 +71,9 @@ describe('the app with another product name', () => {
       expect(text, page.slug).not.toMatch(old)
     }
     expect(pages.some((page) => blocksText(page.blocks).includes(other))).toBe(true)
-    const plug = docPicture('docs/help/images/mcp-plug.svg')
+    const plug = docPicture('docs/old-help/images/mcp-plug.svg')
     expect(plug).toContain(`>${other}<`)
     for (const name of ['heed-loop', 'mcp-plug', 'mcp-one-question', 'item-life', 'editions-line'])
-      expect(docPicture(`docs/help/images/${name}.svg`), name).not.toMatch(old)
+      expect(docPicture(`docs/old-help/images/${name}.svg`), name).not.toMatch(old)
   })
 })

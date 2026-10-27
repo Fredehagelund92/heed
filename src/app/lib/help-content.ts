@@ -109,6 +109,34 @@ export const WORDS: [string, string][] = [
   ["Don't conclude", 'A line on a context item that stops an agent from reading a cause into it.'],
 ]
 
+/** Four facts on how agents use what people write, which Help shows under its words. */
+export const HOW_AGENTS_USE_IT: {
+  key: 'write' | 'line' | 'offer' | 'kept'
+  lead: string
+  rest: string
+}[] = [
+  {
+    key: 'write',
+    lead: 'You write, an owner publishes.',
+    rest: 'Agents read only what the owner of a domain has published. A suggestion changes nothing until it is published.',
+  },
+  {
+    key: 'line',
+    lead: 'Every answer starts with an answer line.',
+    rest: 'It says what the answer rests on, in Ask and in your own agent.',
+  },
+  {
+    key: 'offer',
+    lead: 'Agents offer, people decide.',
+    rest: 'When something is missing or wrong, an agent offers to tell the owner. It sends only after the person says yes.',
+  },
+  {
+    key: 'kept',
+    lead: 'What is kept about questions.',
+    rest: 'How often a topic was asked about, never the words or who asked. Words are kept only when someone sends a suggestion or a report, with their name.',
+  },
+]
+
 export type Keys = { keys: string[]; then?: string[]; label: string; or?: string[] }
 export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
   {
@@ -148,109 +176,26 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
   },
 ]
 
-export type DocPage = { slug: string; title: string; line: string; group: string; mins: number }
-export const DOC_GROUPS = [
-  'Start',
-  'Write and review',
-  'Set up',
-  'How it works',
-  'Reference',
-] as const
-export const DOC_PAGES: DocPage[] = [
-  {
-    slug: 'get-started',
-    title: 'Get started',
-    line: 'From an empty workspace to a first answer from what you wrote, in about ten minutes.',
-    group: 'Start',
-    mins: 4,
-  },
-  {
-    slug: 'connect-an-agent',
-    title: 'Connect an agent',
-    line: 'One prompt for Claude, Cursor or another agent, and what approving does.',
-    group: 'Start',
-    mins: 3,
-  },
-  {
-    slug: 'write-context',
-    title: 'Write context',
-    line: 'What a context item is, what to put in it, its source and its check date.',
-    group: 'Write and review',
-    mins: 5,
-  },
-  {
-    slug: 'review-a-suggestion',
-    title: 'Review a suggestion',
-    line: 'The quick view, the review, Try it, and publishing or returning.',
-    group: 'Write and review',
-    mins: 4,
-  },
-  {
-    slug: 'definitions-and-synonyms',
-    title: 'Definitions and synonyms',
-    line: 'Metrics and terms, other names for them, and why some are read-only.',
-    group: 'Write and review',
-    mins: 3,
-  },
-  {
-    slug: 'domains-and-owners',
-    title: 'Domains and owners',
-    line: 'Who publishes what, how to add a domain, and the sandbox.',
-    group: 'Set up',
-    mins: 3,
-  },
-  {
-    slug: 'integrations',
-    title: 'Integrations',
-    line: 'Connect where metrics are defined and where documents live, and what is read.',
-    group: 'Set up',
-    mins: 4,
-  },
-  {
-    slug: 'how-agents-use-it',
-    title: 'How agents use it',
-    line: 'Published context only, one answer line first, and what happens when nothing is written down.',
-    group: 'How it works',
-    mins: 4,
-  },
-  {
-    slug: 'answer-lines',
-    title: 'Answer lines',
-    line: 'The six lines an answer starts with, and what each one asks of you.',
-    group: 'How it works',
-    mins: 2,
-  },
-  {
-    slug: 'privacy',
-    title: 'Privacy',
-    line: 'What is kept about questions, what is never kept, and who can see a chat.',
-    group: 'How it works',
-    mins: 2,
-  },
-  {
-    slug: 'tools',
-    title: 'Agent tools',
-    line: 'The six tools an agent can call, with what each takes and returns.',
-    group: 'Reference',
-    mins: 3,
-  },
-]
+/**
+ * Where people write to support: Contact support and Report a problem open a mail to it. Set
+ * CL_SUPPORT_EMAIL when the app is built; without it, an address that goes nowhere stands in.
+ */
+const configured = (import.meta as { env?: { CL_SUPPORT_EMAIL?: string } }).env?.CL_SUPPORT_EMAIL
+export const SUPPORT_EMAIL = configured?.trim() || `support@${SLUG}.example`
 
-export const DOCS_HOME = '/docs'
-export const SUPPORT_EMAIL = `support@${SLUG}.example`
+/** A mail to support, with its subject and words filled in. */
+export const supportMail = (subject?: string, body?: string) => {
+  const q = new URLSearchParams()
+  if (subject) q.set('subject', subject)
+  if (body) q.set('body', body)
+  // Mail apps read %20, not +, as a space.
+  const s = q.toString().replace(/\+/g, '%20')
+  return `mailto:${SUPPORT_EMAIL}${s ? `?${s}` : ''}`
+}
 
-/** The plain-text index an agent can read at /docs/llms.txt: every page with its one line. */
-export const llmsTxt = () =>
-  [
-    '# Documentation',
-    '',
-    'Guides for writing context, connecting agents and reviewing suggestions.',
-    '',
-    ...DOC_GROUPS.flatMap((g) => [
-      `## ${g}`,
-      ...DOC_PAGES.filter((p) => p.group === g).map(
-        (p) => `- [${p.title}](/docs/${p.slug}): ${p.line}`,
-      ),
-      '',
-    ]),
-  ].join('\n')
+/**
+ * Report a problem, as a mail to support: what happened, and the page it happened on. Only the
+ * page's address goes with it, never its query, which can hold the words of a question.
+ */
+export const reportMail = (what: string, page: { origin: string; pathname: string }) =>
+  supportMail('Report a problem', `${what.trim()}\n\nPage: ${page.origin}${page.pathname}`)

@@ -9,7 +9,7 @@ export { headingIds, headingSlug } from './heading-anchors.ts'
 export { helpSectionIds, helpSections, type HelpSectionId } from './help-sections.ts'
 
 /*
-  Heed's help pages (docs/help/README.md) as one page model: what a page's front matter holds,
+  Heed's help pages (docs/old-help/README.md) as one page model: what a page's front matter holds,
   the anchor each heading gets, a page's answer and its sections, where its links go, and the
   search that ranks its sections by a question's words. The Docs area draws the pages from it
   (web/lib/docs.ts) and the service answers "how does Heed work" from it (search_help, for the
@@ -18,7 +18,7 @@ export { helpSectionIds, helpSections, type HelpSectionId } from './help-section
   text it is given. Pure: no input or output, no clock.
 */
 
-export const helpFolder = 'docs/help'
+export const helpFolder = 'docs/old-help'
 
 export const helpKinds = ['concept', 'guide', 'reference', 'tour', 'glossary', 'faq'] as const
 export type HelpKind = (typeof helpKinds)[number]
@@ -72,7 +72,7 @@ export function splitHelpPage(
   }
 }
 
-/** A page's slug from its file's path: `docs/help/mcp.md` is `mcp`. */
+/** A page's slug from its file's path: `docs/old-help/mcp.md` is `mcp`. */
 export const helpSlugOf = (path: string) =>
   path.slice(path.lastIndexOf('/') + 1).replace(/\.md$/, '')
 
@@ -83,7 +83,7 @@ export const helpPath = (slug: string, heading = '') =>
 const root = 'https://heed.invalid/repository/'
 
 /**
- * A path in the repository that a page's relative link points at, such as `docs/help/mcp.md`
+ * A path in the repository that a page's relative link points at, such as `docs/old-help/mcp.md`
  * with its hash, or null for an address that is not relative or leaves the repository.
  */
 export function repositoryPath(url: string, from = `${helpFolder}/page.md`): string | null {

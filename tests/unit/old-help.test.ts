@@ -27,12 +27,12 @@ import {
 } from '../../scripts/plain-words-baseline.ts'
 
 /*
-  The docs check (docs/help/README.md, "The docs check"): mechanical, no model. Wrong docs are
+  The docs check (docs/old-help/README.md, "The docs check"): mechanical, no model. Wrong docs are
   worse than none, so every page must parse, follow its kind's template, link only to pages,
   headings, pictures and screens that exist, and name the app's controls in the app's own words.
 */
 
-const folder = 'docs/help'
+const folder = 'docs/old-help'
 const files = readdirSync(folder).filter((file) => file.endsWith('.md') && file !== 'README.md')
 const pictureFiles = readdirSync(join(folder, 'images')).filter((file) => file.endsWith('.svg'))
 const library = docsLibrary()
@@ -241,7 +241,7 @@ describe('the docs check', () => {
   })
 
   it('names the product only with the token, and never in a heading, whose words are its address', () => {
-    // docs/help/README.md: {{product}} becomes the product's name (src/domain/brand.ts) as the
+    // docs/old-help/README.md: {{product}} becomes the product's name (src/domain/brand.ts) as the
     // app reads a page, so a rename is one setting. Technical names such as the `heed` command and
     // the file names keep theirs (docs/rename-checklist.md).
     const sources = [
@@ -463,7 +463,7 @@ describe('the docs library', () => {
     const figures = mcp.blocks.filter((block) => block.type === 'figure')
     expect(figures).toHaveLength(2)
     expect(figures[0]).toMatchObject({
-      src: 'docs/help/images/mcp-plug.svg',
+      src: 'docs/old-help/images/mcp-plug.svg',
       caption: 'One plug shape. Any agent that has it can use any system that offers it.',
     })
   })

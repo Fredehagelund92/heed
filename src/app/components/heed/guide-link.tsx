@@ -1,14 +1,14 @@
 import { ArrowUpRightIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { DOC_PAGES, DOCS_HOME } from '@/lib/help-content'
+import { docHref, docPage } from '@/lib/docs'
 
 /** Under an aside's help: one quiet link to its guide in the documentation, which opens as its own site. */
 export function GuideLink({ slug, className }: { slug: string; className?: string }) {
-  const page = DOC_PAGES.find((p) => p.slug === slug)
+  const page = docPage(slug)
   if (!page) return null
   return (
     <a
-      href={`${DOCS_HOME}/${slug}`}
+      href={docHref(slug)}
       target="_blank"
       rel="noreferrer"
       className={cn(

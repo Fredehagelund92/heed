@@ -30,7 +30,7 @@ while IFS= read -r path; do
     apps/mockup/*)
       mockup=true ;;
     # The help pages, the templates and the API description are read by the app and its tests.
-    docs/help/* | docs/templates/* | docs/api/*)
+    docs/help/* | docs/old-help/* | docs/templates/* | docs/api/*)
       code=true ;;
     src/* | tests/* | scripts/* | apps/*)
       code=true ;;

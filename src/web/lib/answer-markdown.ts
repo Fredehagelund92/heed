@@ -17,7 +17,7 @@ import { mentionTarget, safeHref } from '@/lib/markdown'
   page of Heed in the app; a page's path written as plain words (`/library?view=attention`)
   becomes a link to it too.
 
-  The help pages (`lib/docs.ts`, docs/help) are read with the same parser through `parseGfm`
+  The help pages (`lib/docs.ts`, docs/old-help) are read with the same parser through `parseGfm`
   and its options: each heading gets the id GitHub gives it, so a link to a heading works on
   GitHub and in the app; a paragraph that holds only a picture of the pages becomes a figure;
   and their links between pages and to the repository resolve as the pages decide. They are

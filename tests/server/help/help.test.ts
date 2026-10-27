@@ -20,7 +20,7 @@ const answer = (query: string, web: string | null = null) =>
   helpAnswer(repositoryHelp(), query, web) as Answer
 
 describe("the service's help pages", () => {
-  it('reads every page of docs/help, the files the Docs area draws, and leaves none out', () => {
+  it('reads every page of docs/old-help, the files the Docs area draws, and leaves none out', () => {
     const help = repositoryHelp()
     expect(help.problems).toEqual([])
     const files = readdirSync(helpFolderPath()).filter(

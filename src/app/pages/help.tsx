@@ -18,13 +18,21 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { open } from '@/lib/events'
 import { pageKey } from '@/lib/keys'
-import { ANSWER_LINES, DOC_PAGES, DOCS_HOME, SUPPORT_EMAIL, WORDS } from '@/lib/help-content'
+import { DOC_PAGES, DOCS_HOME, docHref } from '@/lib/docs'
+import { ANSWER_LINES, HOW_AGENTS_USE_IT, supportMail, WORDS } from '@/lib/help-content'
 import { setQuery, useRoute } from '@/lib/router'
 
 // Help: the product's own words, short enough to read in a minute: the six answer lines, ten words
 // and four facts on how agents use what people write. Everything comes from one list
 // (lib/help-content.ts) that the answer line's card and the documentation draw from too. A "how do
 // I" goes to the documentation, which opens as its own site.
+
+const howIcon = {
+  write: PenLineIcon,
+  line: MessageSquareTextIcon,
+  offer: HandHelpingIcon,
+  kept: EyeOffIcon,
+} as const
 
 const match = (q: string, ...parts: string[]) =>
   !q || parts.join(' ').toLowerCase().includes(q.toLowerCase())
@@ -145,28 +153,8 @@ function Words({ q }: { q: string }) {
   )
 }
 
-const HOW = [
-  {
-    icon: PenLineIcon,
-    lead: 'You write, an owner publishes.',
-    rest: 'Agents read only what the owner of a domain has published. A suggestion changes nothing until it is published.',
-  },
-  {
-    icon: MessageSquareTextIcon,
-    lead: 'Every answer starts with an answer line.',
-    rest: 'It says what the answer rests on, in Ask and in your own agent.',
-  },
-  {
-    icon: HandHelpingIcon,
-    lead: 'Agents offer, people decide.',
-    rest: 'When something is missing or wrong, an agent offers to tell the owner. It sends only after the person says yes.',
-  },
-  {
-    icon: EyeOffIcon,
-    lead: 'What is kept about questions.',
-    rest: 'How often a topic was asked about, never the words or who asked. Words are kept only when someone sends a suggestion or a report, with their name.',
-  },
-]
+// Each of the four facts with its mark.
+const HOW = HOW_AGENTS_USE_IT.map((h) => ({ ...h, icon: howIcon[h.key] }))
 
 function HowAgentsUseIt({ q }: { q: string }) {
   const rows = HOW.filter((h) => match(q, h.lead, h.rest, 'agents privacy kept'))
@@ -188,7 +176,7 @@ function HowAgentsUseIt({ q }: { q: string }) {
         ))}
       </ul>
       <div className="border-t px-4 py-3 text-sm md:px-5">
-        <Ext href={`${DOCS_HOME}/how-agents-use-it`}>Read how agents use it</Ext>
+        <Ext href={docHref('how-agents-use-it')}>Read how agents use it</Ext>
       </div>
     </FrameSection>
   )
@@ -215,10 +203,7 @@ function Nothing({ q, onTry }: { q: string; onTry: (q: string) => void }) {
             Search the documentation
             <ArrowUpRightIcon />
           </a>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className={cn(buttonVariants({ variant: 'outline' }))}
-          >
+          <a href={supportMail()} className={cn(buttonVariants({ variant: 'outline' }))}>
             Contact support
           </a>
         </div>
@@ -303,7 +288,7 @@ export function HelpPage() {
                   <span className="text-sm text-muted-foreground">Can't find it?</span>
                   <span className="flex flex-wrap items-center gap-2">
                     <a
-                      href={`mailto:${SUPPORT_EMAIL}`}
+                      href={supportMail()}
                       className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
                     >
                       Contact support

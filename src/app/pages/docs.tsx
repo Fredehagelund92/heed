@@ -14,7 +14,7 @@ import {
   PenLineIcon,
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { StateLine } from '@/components/heed/bits'
+import { StateLine } from '@/components/heed/state-line'
 import { Logo } from '@/components/heed/logo'
 import { buttonVariants } from '@/components/ui/button'
 import {
@@ -31,323 +31,119 @@ import { Kbd } from '@/components/ui/kbd'
 import { AGENT_TOOLS, CHECKS, PROMPT } from '@/lib/agents'
 import { setupSteps } from '@/lib/setup'
 import { kindHint, kindLabel, type Kind } from '@/model/items'
+import { ANSWER_LINES, supportMail, WORDS } from '@/lib/help-content'
 import {
-  ANSWER_LINES,
+  CHANGELOG_SLUG,
+  CHANGES,
   DOC_GROUPS,
   DOC_PAGES,
+  docHref,
+  docPage,
+  DOCS_HOME,
   llmsTxt,
-  SUPPORT_EMAIL,
-  WORDS,
+  searchDocs,
   type DocPage,
-} from '@/lib/help-content'
-import { navigate, useRoute } from '@/lib/router'
+} from '@/lib/docs'
+import { wordOf } from '@/lib/docs-includes'
+import type { DocBlock, DocInline, DocTarget } from '@domain/docs'
 
-// The documentation site, drawn inside the mockup so the whole thing clicks. In the product it is its own
-// site (public, searchable, readable by agents); it shares the answer lines and words with Help.
+// The documentation site. Its pages are the Markdown files in docs/help, read at build time
+// (lib/docs.ts), so the app's Docs area and the static docs site (npm run docs:build) show the same
+// pages. Where a page names one of the app's own lists (the setup steps, the prompt and its checks,
+// the kinds, the answer lines, the words and the tools), it shows that list from its source, so a
+// change there changes here. It knows nothing of the app's router: the app and the static site
+// each say which page is open and how to go to another.
 
-const base = '/docs'
-const guideHref = (slug: string) => `${base}/${slug}`
+const base = DOCS_HOME
+const guideHref = (slug: string) => docHref(slug)
+
+/**
+ * Where the app is, for a link from the docs to one of its screens. In the app the docs share its
+ * origin; the static docs site is built with VITE_DOCS_APP_URL when it is hosted elsewhere.
+ */
+const APP = ((import.meta.env.VITE_DOCS_APP_URL as string | undefined) ?? '').replace(/\/$/, '')
+const appHref = (path: string) => `${APP}${path}`
+
+/** Which page is open, and how to go to another: the app's router, or the browser's address. */
+export type DocsPlace = { slug?: string; query: URLSearchParams; go: (href: string) => void }
 
 /* ---------- article content ---------- */
 
-type Block =
-  | { t: 'p'; text: React.ReactNode }
-  | { t: 'h2'; text: string }
-  | { t: 'steps'; items: React.ReactNode[] }
-  | { t: 'list'; items: React.ReactNode[] }
-  | { t: 'code'; text: string; label: string }
-  | { t: 'note'; title: string; text: React.ReactNode }
-  | { t: 'lines' }
-  | { t: 'words' }
-  | { t: 'tools' }
-
 const b = (text: string) => <strong className="font-medium">{text}</strong>
 
-// Every page is written from the same sources as the app: the setup steps, the connect prompt and
-// its checks, the kinds, the answer lines, the words and the tools. A change there changes here.
-const ARTICLES: Record<string, { lead: string; blocks: Block[] }> = {
-  'get-started': {
-    lead: 'From an empty workspace to a first answer from what you wrote, in about ten minutes. The Inbox keeps these five steps until they are done.',
-    blocks: [
-      { t: 'h2', text: 'The five steps' },
-      {
-        t: 'steps',
-        items: setupSteps.map((st) => (
-          <>
-            {b(st.title)}. {st.description}
-          </>
-        )),
-      },
-      { t: 'h2', text: 'Your first answer' },
-      {
-        t: 'p',
-        text: 'Ask about what you wrote. The answer starts with an answer line, such as Checked, and cites your context item. If it says Not found, nothing applies to that question yet: that is the honest answer, not an error.',
-      },
-      {
-        t: 'note',
-        title: 'It can wait',
-        text: 'Connecting your definitions is the last step on purpose. Context works without it; metric names just arrive by themselves once it is done.',
-      },
-    ],
-  },
-  'connect-an-agent': {
-    lead: 'Connect Claude, Cursor or another agent, so it reads your published context before it answers a question about the numbers.',
-    blocks: [
-      { t: 'h2', text: 'Before you start' },
-      {
-        t: 'p',
-        text: 'You need to be signed in. Anyone in the workspace can connect their own agent. It reads only context an owner has published, never drafts or comments.',
-      },
-      { t: 'h2', text: 'Paste the prompt' },
-      {
-        t: 'steps',
-        items: [
-          <>
-            Open {b('Settings')}, then {b('Agents and access')}.
-          </>,
-          <>Press {b('Copy prompt')} and paste it into your agent.</>,
-          "Let the agent run it. It adds the connection, writes one line into the project's instructions file (CLAUDE.md if there is one, otherwise AGENTS.md), and tells you how to sign in. It never asks for a key.",
-        ],
-      },
-      { t: 'code', label: 'The prompt, exactly as the app shows it', text: PROMPT },
-      { t: 'h2', text: 'Approve it once' },
-      {
-        t: 'p',
-        text: "Your browser opens a screen that names the agent and what it can do: read published context, and send a report or a suggestion after you say yes. Choose Allow. The page says Connected, with the agent's name and yours, and it joins Connected agents.",
-      },
-      {
-        t: 'note',
-        title: 'Cursor and VS Code',
-        text: "They have one-click install links on the same page. Claude's app and ChatGPT take the address as a connector; their steps are under Prefer to do it by hand.",
-      },
-      { t: 'h2', text: 'If nothing signs in' },
-      {
-        t: 'p',
-        text: 'The page checks every few seconds. After two minutes it shows what usually helps, and after ten it stops, with Check again:',
-      },
-      { t: 'list', items: CHECKS },
-      {
-        t: 'note',
-        title: 'Revoking',
-        text: 'Revoke an agent from Connected agents. It signs out at once, and you can connect it again.',
-      },
-    ],
-  },
-  'write-context': {
-    lead: 'What a context item is, what to put in it, and the line that stops an agent from reading a cause into it.',
-    blocks: [
-      { t: 'h2', text: 'What a context item is' },
-      { t: 'p', text: WORDS.find(([w]) => w === 'Context item')![1] },
-      { t: 'h2', text: 'The four kinds' },
-      {
-        t: 'list',
-        items: (Object.keys(kindLabel) as Kind[]).map((k) => (
-          <>
-            {b(kindLabel[k])}: {kindHint[k]}
-          </>
-        )),
-      },
-      { t: 'p', text: 'Most of the time the kind is read from the dates, so you rarely pick one.' },
-      { t: 'h2', text: 'What to put in it' },
-      {
-        t: 'steps',
-        items: [
-          'A title that is one plain sentence, with its date.',
-          'What agents should know: two or three sentences, with what it is not if people mix it up.',
-          'Where and when it applies: the metrics and markets, and the dates.',
-          'A source anyone can open, and a check date.',
-          "Don't conclude: the one line that stops an agent from reading a cause into it.",
-        ],
-      },
-      {
-        t: 'note',
-        title: 'About our business',
-        text: 'A short text every agent reads first, in Settings, General: what the business is, words that are easy to misread, and house rules for reading numbers. No figures or customer names.',
-      },
-    ],
-  },
-  'review-a-suggestion': {
-    lead: "A suggestion waits in its owner's Inbox. The quick view says what changes; the review is where you decide.",
-    blocks: [
-      { t: 'h2', text: 'The quick view' },
-      {
-        t: 'p',
-        text: 'Select a suggestion in the Inbox to see what changes, who sent it, and anything that needs care, such as claims to check. Review opens the full screen.',
-      },
-      { t: 'h2', text: 'The review' },
-      {
-        t: 'list',
-        items: [
-          'The change, one block per kind of change: wording, formatting, a link, the order, dates.',
-          'Try it: what agents will say with the draft, and what they say now.',
-          "The Ready line, which never says more than was checked: new numbers in an edit say they aren't checked against the source.",
-          'Publish, or Return with a note: the note is the first comment, and the sender answers there.',
-        ],
-      },
-      { t: 'h2', text: 'Publishing several' },
-      {
-        t: 'p',
-        text: "Publish the ones you've read takes only suggestions you read: the whole change on screen for a few seconds, or Mark as read. It lists them first, and Undo puts them all back.",
-      },
-      {
-        t: 'note',
-        title: 'Keys',
-        text: 'J and K move through the queue, N and P through the changes, Command and Enter publishes, and ? lists them all.',
-      },
-    ],
-  },
-  'definitions-and-synonyms': {
-    lead: "Metrics and dimensions, the business's own terms, and other names for them.",
-    blocks: [
-      { t: 'h2', text: 'Metrics and dimensions' },
-      {
-        t: 'p',
-        text: 'They come from where your metrics are defined, and are read-only here: their name, meaning and other names belong to that source. Write context about them instead.',
-      },
-      { t: 'h2', text: 'Terms and synonyms' },
-      { t: 'p', text: WORDS.find(([w]) => w === 'Synonym')![1] },
-      {
-        t: 'list',
-        items: [
-          'A term is a word with its own meaning, such as Peak season.',
-          'On a definition, type other names into Also called: a comma or Enter makes each one a tag.',
-          "In a term's editor, Another name for points the word at a metric or a dimension.",
-          'A word that already means something else says who has it, and is never saved twice.',
-        ],
-      },
-    ],
-  },
-  'domains-and-owners': {
-    lead: 'Who publishes what, how to add a domain, and the sandbox.',
-    blocks: [
-      { t: 'h2', text: 'Domains' },
-      { t: 'p', text: WORDS.find(([w]) => w === 'Domain')![1] },
-      { t: 'h2', text: 'Owners' },
-      { t: 'p', text: WORDS.find(([w]) => w === 'Owner')![1] },
-      {
-        t: 'list',
-        items: [
-          'Admins do everything, including roles and invitations.',
-          "An owner who isn't an admin edits their own domain and adds owners to it.",
-          'A domain with no context can be deleted; the sandbox never reaches agents.',
-        ],
-      },
-    ],
-  },
-  integrations: {
-    lead: 'Connect where metrics are defined and where documents live, and what is read from each.',
-    blocks: [
-      { t: 'h2', text: 'Definitions' },
-      {
-        t: 'p',
-        text: 'Metric and dimension names arrive from the tool where they are defined, and stay read-only. When a definition changes there, the context that relies on it comes back to its owners to check.',
-      },
-      { t: 'h2', text: 'Documents' },
-      {
-        t: 'p',
-        text: "A folder shared with a service account, or Markdown in a repository. A read never publishes: each document becomes a suggestion in its owners' Inbox.",
-      },
-      { t: 'h2', text: 'Figures in Ask' },
-      {
-        t: 'p',
-        text: 'Off by default. Switched on per integration, Ask shows one figure, read when asked and kept nowhere, with its source, how fresh it is, and the data contact who hears about a figure that looks wrong.',
-      },
-    ],
-  },
-  'how-agents-use-it': {
-    lead: 'Published context only, one answer line first, and what happens when nothing is written down.',
-    blocks: [
-      { t: 'h2', text: 'What an agent reads' },
-      {
-        t: 'list',
-        items: [
-          'Only what an owner published. A suggestion changes nothing until it is published.',
-          'Every answer starts with an answer line, in the app and in your own agent.',
-          'Not found is said plainly, never filled in.',
-        ],
-      },
-      { t: 'h2', text: 'Following links' },
-      {
-        t: 'p',
-        text: 'An agent can follow a link between context items, definitions and domains, one step at a time, to read what it points to. An archived item is never followed, and following never changes what an answer includes. Admins can switch it off in Agents and access.',
-      },
-      { t: 'h2', text: 'Agents offer, people decide' },
-      {
-        t: 'p',
-        text: 'When something is missing or wrong, an agent offers to tell the owner, and sends only after the person says yes.',
-      },
-    ],
-  },
-  'answer-lines': {
-    lead: 'Every answer, in the app and in your own agent, starts with one of six lines. Each says what the answer rests on, and what it asks of you.',
-    blocks: [
-      { t: 'h2', text: 'The six lines' },
-      { t: 'lines' },
-      { t: 'h2', text: 'Words' },
-      { t: 'words' },
-      {
-        t: 'note',
-        title: 'One list',
-        text: 'Help in the app shows the same lines and words, from the same source. If one changes, both change.',
-      },
-    ],
-  },
-  privacy: {
-    lead: 'What is kept about the questions agents ask, what is never kept, and who can see a chat.',
-    blocks: [
-      { t: 'h2', text: "What agents' questions leave behind" },
-      {
-        t: 'p',
-        text: 'Only what a question was about, and how often. Never the words, and never who asked.',
-      },
-      { t: 'h2', text: 'What is kept with a name' },
-      {
-        t: 'p',
-        text: "Words are kept only when a person sends something on purpose: a suggestion or a report. They carry that person's name, so the owner knows who to ask.",
-      },
-      { t: 'h2', text: 'Comments and chats' },
-      {
-        t: 'p',
-        text: 'Comments are for people: agents never read or write them. Your chats in Ask are yours, and only you can see them.',
-      },
-    ],
-  },
-  tools: {
-    lead: 'The six tools an agent can call. All read, apart from the two that send something to an owner after the person says yes.',
-    blocks: [
-      { t: 'tools' },
-      {
-        t: 'note',
-        title: 'Switching tools off',
-        text: 'Admins switch tools off in Agents and access, Tools and access keys. Following links has its own switch.',
-      },
-    ],
-  },
+const hrefOf = (to: DocTarget) =>
+  'page' in to
+    ? guideHref(to.page) + (to.hash ? `#${to.hash}` : '')
+    : 'screen' in to
+      ? appHref(to.screen)
+      : to.web
+
+function Inline({ nodes }: { nodes: readonly DocInline[] }) {
+  return nodes.map((node, i) => {
+    switch (node.type) {
+      case 'text':
+        return node.text
+      case 'break':
+        return <br key={i} />
+      case 'code':
+        return (
+          <code key={i} className="rounded-sm bg-muted px-1 py-0.5 font-mono text-sm">
+            {node.text}
+          </code>
+        )
+      case 'strong':
+        return (
+          <strong key={i} className="font-medium">
+            <Inline nodes={node.children} />
+          </strong>
+        )
+      case 'em':
+        return (
+          <em key={i}>
+            <Inline nodes={node.children} />
+          </em>
+        )
+      case 'link': {
+        const web = 'web' in node.to
+        return (
+          <a
+            key={i}
+            href={hrefOf(node.to)}
+            {...(web ? { target: '_blank', rel: 'noreferrer' } : {})}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <Inline nodes={node.children} />
+          </a>
+        )
+      }
+    }
+  })
 }
 
-const articleOf = (p: DocPage) => ARTICLES[p.slug] ?? { lead: p.line, blocks: [] }
-
+/** A block's words as one item of a list: a paragraph's words without a paragraph around them. */
+function ItemBody({ blocks }: { blocks: readonly DocBlock[] }) {
+  const [first] = blocks
+  if (blocks.length === 1 && first?.type === 'paragraph') return <Inline nodes={first.children} />
+  return <ArticleBody blocks={blocks} />
+}
 /* ---------- parts ---------- */
 
-function DocsHeader({ onSearch }: { onSearch: () => void }) {
-  const { path } = useRoute()
+function DocsHeader({ slug, onSearch }: { slug?: string; onSearch: () => void }) {
   const tabs = [
     {
       label: 'Guides',
       href: `${base}`,
-      on:
-        path === base ||
-        (path.startsWith(`${base}/`) && !path.endsWith('/tools') && !path.endsWith('/changelog')),
+      on: slug !== 'tools' && slug !== CHANGELOG_SLUG,
     },
     {
       label: 'Reference',
       href: guideHref('tools'),
-      on: path.endsWith('/tools'),
+      on: slug === 'tools',
     },
     {
       label: "What's new",
-      href: guideHref('changelog'),
-      on: path.endsWith('/changelog'),
+      href: guideHref(CHANGELOG_SLUG),
+      on: slug === CHANGELOG_SLUG,
     },
   ]
   return (
@@ -390,7 +186,7 @@ function DocsHeader({ onSearch }: { onSearch: () => void }) {
             <span className="sr-only sm:hidden">Search the docs</span>
           </button>
           <a
-            href="/inbox"
+            href={appHref('/inbox')}
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'max-sm:hidden')}
           >
             Open the app
@@ -427,10 +223,11 @@ function DocsNav({ slug }: { slug?: string }) {
         </div>
       ))}
       <a
-        href={guideHref('changelog')}
+        href={guideHref(CHANGELOG_SLUG)}
+        aria-current={slug === CHANGELOG_SLUG ? 'page' : undefined}
         className="rounded-md px-2 py-1.5 font-medium hover:bg-muted"
       >
-        What's new
+        {CHANGES.title}
       </a>
     </nav>
   )
@@ -462,127 +259,215 @@ function Code({ label, text }: { label: string; text: string }) {
   )
 }
 
-const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+function Steps({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ol className="flex flex-col gap-3">
+      {items.map((it, j) => (
+        <li key={j} className="flex gap-3">
+          <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs text-muted-foreground tabular-nums">
+            {j + 1}
+          </span>
+          <span className="min-w-0 text-pretty text-foreground/85">{it}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
 
-function ArticleBody({ blocks }: { blocks: Block[] }) {
+function List({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ul className="flex list-disc flex-col gap-2 pl-5 marker:text-muted-foreground">
+      {items.map((it, j) => (
+        <li key={j} className="text-pretty text-foreground/85">
+          {it}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Paragraph({ children }: { children: React.ReactNode }) {
+  return <p className="text-pretty text-foreground/85">{children}</p>
+}
+
+/** One of the app's own lists, where a page names it, drawn from its source. */
+function Include({ block }: { block: Extract<DocBlock, { type: 'include' }> }) {
+  switch (block.name) {
+    case 'setup-steps':
+      return (
+        <Steps
+          items={setupSteps.map((st) => (
+            <>
+              {b(st.title)}. {st.description}
+            </>
+          ))}
+        />
+      )
+    case 'prompt':
+      return <Code label="The prompt, exactly as the app shows it" text={PROMPT} />
+    case 'checks':
+      return <List items={CHECKS} />
+    case 'kinds':
+      return (
+        <List
+          items={(Object.keys(kindLabel) as Kind[]).map((k) => (
+            <>
+              {b(kindLabel[k])}: {kindHint[k]}
+            </>
+          ))}
+        />
+      )
+    case 'word':
+      return <Paragraph>{wordOf(block.arg)}</Paragraph>
+    case 'words':
+      return (
+        <dl className="grid gap-px overflow-hidden rounded-frame border bg-border sm:grid-cols-2">
+          {WORDS.map(([w, d]) => (
+            <div key={w} className="bg-background px-4 py-3">
+              <dt className="text-sm font-medium">{w}</dt>
+              <dd className="mt-0.5 text-sm leading-6 text-muted-foreground">{d}</dd>
+            </div>
+          ))}
+        </dl>
+      )
+    case 'tools':
+      return (
+        <div className="overflow-hidden rounded-frame border">
+          {AGENT_TOOLS.map((tool) => (
+            <section key={tool.name} className="border-t px-4 py-3.5 first:border-t-0">
+              <h3 className="font-mono text-sm font-medium">{tool.name}</h3>
+              <p className="mt-0.5 text-sm leading-6 text-foreground/85">{tool.what}</p>
+              <dl className="mt-2 grid grid-cols-(--cols-lead-18) gap-x-3 gap-y-1 text-sm leading-6">
+                <dt className="text-muted-foreground">Takes</dt>
+                <dd>{tool.takes}</dd>
+                <dt className="text-muted-foreground">Returns</dt>
+                <dd>{tool.returns}</dd>
+              </dl>
+            </section>
+          ))}
+        </div>
+      )
+    case 'answer-lines':
+      return (
+        <div className="overflow-hidden rounded-frame border">
+          {ANSWER_LINES.map((a) => (
+            <div
+              key={a.state}
+              className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-(--cols-lead-56)"
+            >
+              <div>
+                <StateLine state={a.state} sentence tip={false} />
+              </div>
+              <p className="text-sm leading-6 text-muted-foreground">
+                <span className="font-medium text-foreground">{a.long}.</span> {a.means}{' '}
+                <span className="text-foreground">{a.todo}</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )
+  }
+}
+
+function ArticleBody({ blocks }: { blocks: readonly DocBlock[] }) {
   return (
     <div className="flex flex-col gap-4 text-reading leading-7">
       {blocks.map((b, i) => {
-        if (b.t === 'h2')
-          return (
-            <h2
-              key={i}
-              id={slugify(b.text)}
-              className="mt-6 scroll-mt-20 text-xl leading-snug font-semibold tracking-tight first:mt-0"
-            >
-              {b.text}
-            </h2>
-          )
-        if (b.t === 'p')
-          return (
-            <p key={i} className="text-pretty text-foreground/85">
-              {b.text}
-            </p>
-          )
-        if (b.t === 'steps')
-          return (
-            <ol key={i} className="flex flex-col gap-3">
-              {b.items.map((it, j) => (
-                <li key={j} className="flex gap-3">
-                  <span className="mt-1 flex size-5 shrink-0 items-center justify-center rounded-full border text-xs text-muted-foreground tabular-nums">
-                    {j + 1}
-                  </span>
-                  <span className="min-w-0 text-pretty text-foreground/85">{it}</span>
-                </li>
-              ))}
-            </ol>
-          )
-        if (b.t === 'list')
-          return (
-            <ul key={i} className="flex list-disc flex-col gap-2 pl-5 marker:text-muted-foreground">
-              {b.items.map((it, j) => (
-                <li key={j} className="text-pretty text-foreground/85">
-                  {it}
-                </li>
-              ))}
-            </ul>
-          )
-        if (b.t === 'words')
-          return (
-            <dl
-              key={i}
-              className="grid gap-px overflow-hidden rounded-frame border bg-border sm:grid-cols-2"
-            >
-              {WORDS.map(([w, d]) => (
-                <div key={w} className="bg-background px-4 py-3">
-                  <dt className="text-sm font-medium">{w}</dt>
-                  <dd className="mt-0.5 text-sm leading-6 text-muted-foreground">{d}</dd>
-                </div>
-              ))}
-            </dl>
-          )
-        if (b.t === 'tools')
-          return (
-            <div key={i} className="overflow-hidden rounded-frame border">
-              {AGENT_TOOLS.map((tool) => (
-                <section key={tool.name} className="border-t px-4 py-3.5 first:border-t-0">
-                  <h3 className="font-mono text-sm font-medium">{tool.name}</h3>
-                  <p className="mt-0.5 text-sm leading-6 text-foreground/85">{tool.what}</p>
-                  <dl className="mt-2 grid grid-cols-(--cols-lead-18) gap-x-3 gap-y-1 text-sm leading-6">
-                    <dt className="text-muted-foreground">Takes</dt>
-                    <dd>{tool.takes}</dd>
-                    <dt className="text-muted-foreground">Returns</dt>
-                    <dd>{tool.returns}</dd>
-                  </dl>
-                </section>
-              ))}
-            </div>
-          )
-        if (b.t === 'code') return <Code key={i} label={b.label} text={b.text} />
-        if (b.t === 'note')
-          return (
-            <aside key={i} className="rounded-frame border bg-band px-4 py-3 text-sm leading-6">
-              <strong className="font-medium">{b.title}. </strong>
-              <span className="text-foreground/85">{b.text}</span>
-            </aside>
-          )
-        return (
-          <div key={i} className="overflow-hidden rounded-frame border">
-            {ANSWER_LINES.map((a) => (
-              <div
-                key={a.state}
-                className="grid gap-x-6 gap-y-1.5 border-t px-4 py-3.5 first:border-t-0 md:grid-cols-(--cols-lead-56)"
+        switch (b.type) {
+          case 'heading':
+            return b.depth === 2 ? (
+              <h2
+                key={i}
+                id={b.id}
+                className="mt-6 scroll-mt-20 text-xl leading-snug font-semibold tracking-tight first:mt-0"
               >
-                <div>
-                  <StateLine state={a.state} sentence tip={false} />
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  <span className="font-medium text-foreground">{a.long}.</span> {a.means}{' '}
-                  <span className="text-foreground">{a.todo}</span>
-                </p>
+                {b.text}
+              </h2>
+            ) : (
+              <h3 key={i} id={b.id} className="mt-2 scroll-mt-20 text-base font-semibold">
+                {b.text}
+              </h3>
+            )
+          case 'paragraph':
+            return (
+              <Paragraph key={i}>
+                <Inline nodes={b.children} />
+              </Paragraph>
+            )
+          case 'list':
+            return b.ordered ? (
+              <Steps
+                key={i}
+                items={b.items.map((it, j) => (
+                  <ItemBody key={j} blocks={it} />
+                ))}
+              />
+            ) : (
+              <List
+                key={i}
+                items={b.items.map((it, j) => (
+                  <ItemBody key={j} blocks={it} />
+                ))}
+              />
+            )
+          case 'code':
+            return <Code key={i} label={b.title} text={b.text} />
+          case 'note':
+            return (
+              <aside key={i} className="rounded-frame border bg-band px-4 py-3 text-sm leading-6">
+                <strong className="font-medium">{b.title}. </strong>
+                <span className="text-foreground/85">
+                  <ItemBody blocks={b.children} />
+                </span>
+              </aside>
+            )
+          case 'table':
+            return (
+              <div key={i} className="overflow-x-auto rounded-frame border">
+                <table className="w-full text-left text-sm leading-6">
+                  <thead className="border-b bg-band text-xs text-muted-foreground">
+                    <tr>
+                      {b.head.map((c, j) => (
+                        <th key={j} className="px-4 py-2 font-normal">
+                          <Inline nodes={c} />
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b.rows.map((row, j) => (
+                      <tr key={j} className="border-t first:border-t-0">
+                        {row.map((c, k) => (
+                          <td key={k} className="px-4 py-2.5 align-top">
+                            <Inline nodes={c} />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-        )
+            )
+          case 'include':
+            return <Include key={i} block={b} />
+        }
       })}
     </div>
   )
 }
 
-function Toc({ blocks }: { blocks: Block[] }) {
-  const heads = blocks.filter((b): b is Extract<Block, { t: 'h2' }> => b.t === 'h2')
+const sectionsOf = (page: DocPage) => page.headings.filter((h) => h.depth === 2)
+
+function Toc({ page }: { page: DocPage }) {
+  const heads = sectionsOf(page)
   return (
     <nav aria-label="On this page" className="text-sm">
       <div className="mb-2 font-medium">On this page</div>
       <ul className="flex flex-col border-l">
         {heads.map((h, i) => (
-          <li key={h.text}>
+          <li key={h.id}>
             <a
-              href={`${base}`}
-              onClick={(e) => (
-                e.preventDefault(),
-                document.getElementById(slugify(h.text))?.scrollIntoView({ behavior: 'smooth' })
-              )}
+              href={`#${h.id}`}
               className={cn(
                 '-ml-px block border-l py-1 pl-3 text-muted-foreground hover:text-foreground',
                 i === 0 ? 'border-foreground font-medium text-foreground' : 'border-transparent',
@@ -598,11 +483,10 @@ function Toc({ blocks }: { blocks: Block[] }) {
 }
 
 function Article({ page }: { page: DocPage }) {
-  const art = articleOf(page)
   const i = DOC_PAGES.findIndex((p) => p.slug === page.slug)
   const prev = DOC_PAGES[i - 1]
   const next = DOC_PAGES[i + 1]
-  const heads = art.blocks.filter((b): b is Extract<Block, { t: 'h2' }> => b.t === 'h2')
+  const heads = sectionsOf(page)
   return (
     <div className="grid min-w-0 lg:grid-cols-(--cols-docs-page)">
       <article className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
@@ -620,35 +504,39 @@ function Article({ page }: { page: DocPage }) {
             <h1 className="text-hero leading-hero font-bold tracking-hero text-balance">
               {page.title}
             </h1>
-            {page.slug === 'connect-an-agent' && (
+            {page.open && (
               <a
-                href="/settings/agents"
+                href={appHref(page.open.href)}
                 className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
               >
                 <PlugIcon />
-                Open Agents and access
+                {page.open.label}
                 <ArrowUpRightIcon />
               </a>
             )}
           </div>
           <p className="mt-3 mb-8 text-lg leading-7 text-pretty text-muted-foreground">
-            {art.lead}
+            <Inline nodes={page.lead} />
           </p>
           {/* On a phone the right-hand list folds into one row under the title. */}
-          <details className="mb-8 rounded-frame border text-sm lg:hidden">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 font-medium">
-              On this page
-              <ChevronDownIcon className="size-4 text-muted-foreground" aria-hidden />
-            </summary>
-            <ul className="border-t px-3 py-2">
-              {heads.map((h) => (
-                <li key={h.text} className="py-1 text-muted-foreground">
-                  {h.text}
-                </li>
-              ))}
-            </ul>
-          </details>
-          <ArticleBody blocks={art.blocks} />
+          {heads.length > 0 && (
+            <details className="mb-8 rounded-frame border text-sm lg:hidden">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 font-medium">
+                On this page
+                <ChevronDownIcon className="size-4 text-muted-foreground" aria-hidden />
+              </summary>
+              <ul className="border-t px-3 py-2">
+                {heads.map((h) => (
+                  <li key={h.id} className="py-1">
+                    <a href={`#${h.id}`} className="text-muted-foreground hover:text-foreground">
+                      {h.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <ArticleBody blocks={page.blocks} />
           <div className="mt-12 grid gap-px overflow-hidden rounded-frame border bg-border sm:grid-cols-2">
             {prev ? (
               <a
@@ -680,7 +568,7 @@ function Article({ page }: { page: DocPage }) {
           <p className="mt-6 text-sm text-muted-foreground">
             Something wrong or missing on this page?{' '}
             <a
-              href={`mailto:${SUPPORT_EMAIL}`}
+              href={supportMail(`The docs: ${page.title}`, `Page: ${guideHref(page.slug)}`)}
               className="underline underline-offset-4 hover:text-foreground"
             >
               Tell support
@@ -691,7 +579,7 @@ function Article({ page }: { page: DocPage }) {
       </article>
       <aside className="hidden border-l py-10 pr-6 pl-6 lg:block">
         <div className="sticky top-20">
-          <Toc blocks={art.blocks} />
+          <Toc page={page} />
         </div>
       </aside>
     </div>
@@ -699,9 +587,8 @@ function Article({ page }: { page: DocPage }) {
 }
 
 function Landing({ onSearch }: { onSearch: () => void }) {
-  const start = ['get-started', 'connect-an-agent', 'write-context'].map((s) =>
-    DOC_PAGES.find((p) => p.slug === s)!,
-  )
+  // The first page of each of the first steps: start, connect, write.
+  const start = DOC_PAGES.slice(0, 3)
   const icons = [BookOpenIcon, PlugIcon, PenLineIcon]
   return (
     <div className="min-w-0">
@@ -765,7 +652,7 @@ function Landing({ onSearch }: { onSearch: () => void }) {
                       </span>
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {p.mins} min
+                      {p.minutes} min
                     </span>
                   </a>
                 </li>
@@ -780,7 +667,7 @@ function Landing({ onSearch }: { onSearch: () => void }) {
             shortcuts, and works without leaving your page.
           </p>
           <a
-            href="/help"
+            href={appHref('/help')}
             className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
           >
             Open Help
@@ -791,74 +678,51 @@ function Landing({ onSearch }: { onSearch: () => void }) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-4 text-sm text-muted-foreground md:px-6 lg:px-8">
         <span>
           Need a person?{' '}
-          <a
-            className="underline underline-offset-4 hover:text-foreground"
-            href={`mailto:${SUPPORT_EMAIL}`}
-          >
+          <a className="underline underline-offset-4 hover:text-foreground" href={supportMail()}>
             Contact support
           </a>
         </span>
         <span>
           Agents can read these pages as plain text at{' '}
-          <code className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground">
-            /docs/llms.txt
-          </code>
+          <a
+            href={`${base}/llms.txt`}
+            className="rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground hover:underline"
+          >
+            {base}/llms.txt
+          </a>
         </span>
       </div>
     </div>
   )
 }
 
+const day = (iso: string) =>
+  new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  })
+
 function Changelog() {
-  const items = [
-    [
-      '23 Oct',
-      'Help in one place',
-      'One Help menu in the sidebar, a short Help page, a card on every answer line, and ? for the keys.',
-    ],
-    [
-      '23 Oct',
-      'Agents can follow links',
-      'An agent can follow a link between context items, definitions and domains, one step at a time. Related shows the same.',
-    ],
-    [
-      '22 Oct',
-      'Synonyms are tags',
-      'Type other names for a definition and a comma; a word that already means something else says who has it.',
-    ],
-    [
-      '22 Oct',
-      'Event, Warning, Rule and Guide',
-      'The four kinds of context have short, plain names.',
-    ],
-    [
-      '21 Oct',
-      'The review waits while you type',
-      "Single keys never act in a note, offline publishing waits, and Publish the ones you've read lists them first.",
-    ],
-    [
-      '20 Oct',
-      'Connect an agent with one prompt',
-      "A live line shows waiting, then Connected, with the agent's name and yours.",
-    ],
-  ]
   return (
     <article className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
       <div className="mx-auto max-w-176">
-        <h1 className="text-hero leading-hero font-bold tracking-hero">What's new</h1>
-        <p className="mt-3 mb-8 text-lg leading-7 text-muted-foreground">
-          Changes people notice, newest first.
-        </p>
+        <h1 className="text-hero leading-hero font-bold tracking-hero">{CHANGES.title}</h1>
+        <p className="mt-3 mb-8 text-lg leading-7 text-muted-foreground">{CHANGES.line}</p>
         <ol className="border-l">
-          {items.map(([d, t, l]) => (
-            <li key={t} className="relative pb-8 pl-6 last:pb-0">
+          {CHANGES.changes.map((c) => (
+            <li key={c.id} id={c.id} className="relative scroll-mt-20 pb-8 pl-6 last:pb-0">
               <span
                 className="absolute top-2 -left-0.75 size-1.5 rounded-full bg-foreground"
                 aria-hidden
               />
-              <div className="text-xs text-muted-foreground tabular-nums">{d}</div>
-              <h2 className="text-base font-semibold">{t}</h2>
-              <p className="mt-1 text-reading leading-7 text-foreground/85">{l}</p>
+              <time dateTime={c.date} className="block text-xs text-muted-foreground tabular-nums">
+                {day(c.date)}
+              </time>
+              <h2 className="text-base font-semibold">{c.title}</h2>
+              <div className="mt-1 text-reading leading-7 text-foreground/85">
+                <ItemBody blocks={c.children} />
+              </div>
             </li>
           ))}
         </ol>
@@ -867,17 +731,28 @@ function Changelog() {
   )
 }
 
+const matches = (q: string, ...parts: string[]) =>
+  parts.join(' ').toLowerCase().includes(q.trim().toLowerCase())
+
 function SearchDialog({
   open,
   onOpenChange,
   initial,
+  go,
 }: {
   open: boolean
   onOpenChange: (o: boolean) => void
   initial: string
+  go: (href: string) => void
 }) {
   const [value, setValue] = React.useState(initial)
-  const go = (fn: () => void) => () => (onOpenChange(false), fn())
+  const to = (href: string) => () => (onOpenChange(false), go(href))
+  const q = value.trim()
+  // Every page while nothing is typed; then the parts of pages whose words match, best first.
+  const hits = q
+    ? searchDocs(q)
+    : DOC_PAGES.map((p) => ({ slug: p.slug, title: p.title, heading: '', id: '', group: p.group }))
+  const words = WORDS.filter(([w, d]) => !q || matches(q, w, d))
   return (
     <CommandDialog
       open={open}
@@ -885,36 +760,43 @@ function SearchDialog({
       title="Search the docs"
       description="Search guides, answer lines and words"
     >
-      <Command>
+      <Command shouldFilter={false}>
         <CommandInput placeholder="Search the docs" value={value} onValueChange={setValue} />
         <CommandList>
           <CommandEmpty>Nothing found. Try another word, or contact support.</CommandEmpty>
-          <CommandGroup heading="Guides">
-            {DOC_PAGES.map((p) => (
-              <CommandItem
-                key={p.slug}
-                value={p.title}
-                onSelect={go(() => navigate(`${base}/${p.slug}`))}
-              >
-                <FileTextIcon />
-                <span className="min-w-0 flex-1 truncate">{p.title}</span>
-                <span className="text-xs text-muted-foreground max-sm:hidden">{p.group}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          <CommandGroup className="border-t" heading="Words">
-            {WORDS.map(([w]) => (
-              <CommandItem
-                key={w}
-                value={`${w} (word)`}
-                onSelect={go(() => navigate(`${base}/answer-lines`))}
-              >
-                <TextQuoteIcon />
-                <span className="min-w-0 flex-1 truncate">{w}</span>
-                <span className="text-xs text-muted-foreground max-sm:hidden">Word</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {hits.length > 0 && (
+            <CommandGroup heading="Guides">
+              {hits.map((h) => (
+                <CommandItem
+                  key={`${h.slug}#${h.id}`}
+                  value={`${h.slug}#${h.id}`}
+                  onSelect={to(guideHref(h.slug) + (h.id ? `#${h.id}` : ''))}
+                >
+                  <FileTextIcon />
+                  <span className="min-w-0 flex-1 truncate">
+                    {h.title}
+                    {h.heading && <span className="text-muted-foreground"> › {h.heading}</span>}
+                  </span>
+                  <span className="text-xs text-muted-foreground max-sm:hidden">{h.group}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {words.length > 0 && (
+            <CommandGroup className="border-t" heading="Words">
+              {words.map(([w]) => (
+                <CommandItem
+                  key={w}
+                  value={`${w} (word)`}
+                  onSelect={to(guideHref('answer-lines') + '#words')}
+                >
+                  <TextQuoteIcon />
+                  <span className="min-w-0 flex-1 truncate">{w}</span>
+                  <span className="text-xs text-muted-foreground max-sm:hidden">Word</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
         </CommandList>
         <CommandFooter>
           <span className="flex items-center gap-1.5">
@@ -936,24 +818,32 @@ function SearchDialog({
   )
 }
 
-export function DocsSite() {
-  const { parts, query } = useRoute()
-  const slug = parts[1]
-  // Help's "Search the documentation" arrives with its term: the search opens with it.
-  const [searching, setSearching] = React.useState(
-    query.get('open') === 'search' || !!query.get('q'),
+const noChange = () => () => undefined
+
+/** The documentation, at the page `slug` names: the landing page without one. */
+export function DocsSite({ slug, query, go }: DocsPlace) {
+  // Help's "Search the documentation" arrives with its term: the search opens with it, once the
+  // page is in the browser, so the static site's drawn page and the browser's agree. After that it
+  // is open while the person keeps it open.
+  const asked = query.get('open') === 'search' || !!query.get('q')
+  const inBrowser = React.useSyncExternalStore(
+    noChange,
+    () => true,
+    () => false,
   )
+  const [chosen, setSearching] = React.useState<boolean | null>(null)
+  const searching = chosen ?? (asked && inBrowser)
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        setSearching((o) => !o)
+        setSearching((o) => !(o ?? (asked && inBrowser)))
       }
     }
     document.addEventListener('keydown', down)
     return () => document.removeEventListener('keydown', down)
-  }, [])
-  const page = DOC_PAGES.find((p) => p.slug === slug)
+  }, [asked, inBrowser])
+  const page = docPage(slug)
   // The plain-text index for agents: no page around it, as a text file would be.
   if (slug === 'llms.txt')
     return (
@@ -963,7 +853,7 @@ export function DocsSite() {
     )
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <DocsHeader onSearch={() => setSearching(true)} />
+      <DocsHeader slug={slug} onSearch={() => setSearching(true)} />
       <div
         className={cn('mx-auto grid max-w-352 border-x', slug && 'lg:grid-cols-(--cols-lead-62)')}
         style={{ minHeight: 'calc(100svh - 3rem)' }}
@@ -976,7 +866,7 @@ export function DocsSite() {
           </aside>
         )}
         <main className="min-w-0">
-          {slug === 'changelog' ? (
+          {slug === CHANGELOG_SLUG ? (
             <Changelog />
           ) : page ? (
             <Article page={page} />
@@ -985,7 +875,13 @@ export function DocsSite() {
           )}
         </main>
       </div>
-      <SearchDialog open={searching} onOpenChange={setSearching} initial={query.get('q') ?? ''} />
+      <SearchDialog
+        key={query.get('q') ?? ''}
+        open={searching}
+        onOpenChange={setSearching}
+        initial={query.get('q') ?? ''}
+        go={go}
+      />
     </div>
   )
 }

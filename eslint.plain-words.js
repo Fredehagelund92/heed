@@ -54,7 +54,7 @@ export const surfaces = [
       'src/web/lib/editions.ts',
       'src/web/lib/edition-diff.ts',
       'src/web/lib/edition-compare.ts',
-      'docs/help/editions.md',
+      'docs/old-help/editions.md',
     ],
   },
   {

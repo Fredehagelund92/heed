@@ -130,7 +130,7 @@ function DocOption({ hit, onSelect }: { hit: DocHit; onSelect: () => void }) {
  * you type it shows the best five items, a way to see all results in the library, the metrics
  * and dimensions of the catalogue that match, the pages of the docs that match, and the commands
  * that match. Everything here comes from the library index, the catalogue, the help pages
- * (docs/help) and the command registry.
+ * (docs/old-help) and the command registry.
  */
 export function CommandPalette({
   open,

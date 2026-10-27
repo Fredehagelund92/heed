@@ -258,7 +258,7 @@ export const assistantCaseSchema = z.object({
    * compare what that background adds.
    * `pilot`: a conversation the captain's pilot saw go wrong, kept visible so anyone may tune
    * against it, such as a domain named by another spelling that holds nothing yet.
-   * `help`: a question about how Heed itself works, answered from Heed's help pages (docs/help)
+   * `help`: a question about how Heed itself works, answered from Heed's help pages (docs/old-help)
    * with a link to the page, as the Docs area and agents over MCP answer it.
    */
   type: z.enum([...caseTypes, 'assistant_task', 'companion', 'meta', 'industry', 'pilot', 'help']),

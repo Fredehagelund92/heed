@@ -11,7 +11,7 @@ import { DocLink, ReadingTime } from './doc-parts'
 import { productName } from '@/lib/brand'
 
 /*
-  The docs home (docs/help/README.md), a way in rather than a wall of cards: the pages to read
+  The docs home (docs/old-help/README.md), a way in rather than a wall of cards: the pages to read
   first, in order; how Heed works, as the loop picture with the page for each step; and the pages
   to look something up in. The docs' sidebar lists and searches every page. A section's own
   address (`?section=`, the crumb of a page) lists that section's pages.
@@ -137,7 +137,7 @@ function StartPath({ docs }: { docs: DocsLibrary }) {
   )
 }
 
-/** The steps of the Heed loop (docs/help/images/heed-loop.svg), each with the pages that do it. */
+/** The steps of the Heed loop (docs/old-help/images/heed-loop.svg), each with the pages that do it. */
 const loopSteps = [
   {
     step: 'Write',
@@ -171,7 +171,7 @@ const loopSteps = [
   },
 ] as const
 
-const LOOP = 'docs/help/images/heed-loop.svg'
+const LOOP = 'docs/old-help/images/heed-loop.svg'
 
 /**
  * How Heed works: the loop picture, drawn inline in the app's tokens, then each step with the
