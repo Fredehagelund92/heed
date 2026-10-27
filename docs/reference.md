@@ -495,8 +495,8 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
   hides from the reader reads as its words only.
 - A clash (FR-225) is a live item an agent would get in the same answer as the suggestion,
-  except the item it changes, those it already names as replaced or conflicting, and, for an
-  edit, those agents already get together with its item for the same question. Publish
+  except the item it changes and those it already names as replaced or conflicting. An edit
+  whose difference is only formatting or only order has no clash. Publish
   waits until the owner says how each one relates: `replaces` (the new version replaces it, and
   publishing archives it), `disagrees` (both stay, and agents get the conflict) or `unrelated`.
   Overlaps (live items whose scope and dates overlap) are for information only.

@@ -197,16 +197,18 @@ export function createReviewPath(
     const scope = ownScope(candidate, after.itemId)
     // A clash: a live item agents would get in the same answer, that the suggestion neither
     // changes nor already names as replaced or conflicting (FR-225, decided 26 October 2026). An
-    // edit brings no clash with what its item is already answered with: asked the same question
-    // today, agents get those two together already, as a formatting or a date change shows.
+    // edit whose difference is only formatting or only order cannot create a contradiction, so it
+    // has no clash check.
     const named = new Set([after.itemId, ...after.version.replaces, ...after.version.conflicts])
-    const ids = (b: AnswerBundle) =>
-      scope ? answer(b, { scope }, { today: clock.today() }).items.map((item) => item.id) : []
-    const now = before ? ids(bundle) : []
-    const already = new Set(now.includes(after.itemId) ? now : [])
-    const clashes = ids(candidate as AnswerBundle).filter(
-      (id) => !named.has(id) && !already.has(id),
-    )
+    const only = before
+      ? docDiff(sideOf(before.version, candidate), sideOf(after.version, candidate)).only
+      : null
+    const clashes =
+      scope && only !== 'formatting' && only !== 'order'
+        ? answer(candidate as AnswerBundle, { scope }, { today: clock.today() })
+            .items.map((item) => item.id)
+            .filter((id) => !named.has(id))
+        : []
     return {
       p,
       mode: before ? ('edit' as const) : ('new' as const),

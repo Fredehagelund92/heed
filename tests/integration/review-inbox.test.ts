@@ -112,6 +112,7 @@ const markets = [
   'ireland',
   'portugal',
   'belgium',
+  'netherlands',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -357,31 +358,52 @@ describe('a clash with live context (FR-225)', () => {
     expect(conflicts.rows).toEqual([{ other: theirs }])
   })
 
-  it('finds no clash in an edit with what its item is already answered with, and finds it for a new item', async () => {
-    const portugal = { ...inMarket('portugal'), validity: { start: '2026-01-01', end: null } }
-    const mine = await live({
-      ...portugal,
-      title: 'Portugal orders count store credit',
-      summary: 'Orders in Portugal include orders paid with store credit.',
+  async function coAnswered(market: string) {
+    const scope = { ...inMarket(market), validity: { start: '2026-01-01', end: null } }
+    const a = await live({
+      ...scope,
+      title: `${market} orders count store credit`,
+      summary: `Orders in ${market} include orders paid with store credit.`,
     })
     const next = await submitted({
-      ...portugal,
-      title: 'Portugal orders lag a day',
-      summary: 'Orders in Portugal arrive a day late from the payment provider.',
+      ...scope,
+      title: `${market} orders lag a day`,
+      summary: `Orders in ${market} arrive a day late from the payment provider.`,
     })
     await ok<Published>(
-      publish(next.id, next.revision, { relations: [{ itemId: mine, relation: 'unrelated' }] }),
+      publish(next.id, next.revision, { relations: [{ itemId: a, relation: 'unrelated' }] }),
     )
-    // A change of dates: asked the same question today, agents already get both.
+    return { scope, a, b: next.itemId! }
+  }
+
+  it('shows the live item an edit of one of two co-answered items now contradicts as a clash', async () => {
+    const { scope, a, b } = await coAnswered('portugal')
     const edit = await submitted(
       {
-        ...portugal,
-        validity: { start: '2026-01-01', end: '2027-01-01' },
-        title: 'Portugal orders count store credit',
-        summary: 'Orders in Portugal include orders paid with store credit.',
+        ...scope,
+        title: 'portugal orders leave out store credit',
+        summary: 'Orders in portugal leave out store credit.',
       },
       'author',
-      mine,
+      a,
+    )
+    const s = await sheet(edit.id)
+    expect(s.mode).toBe('edit')
+    expect(s.clashes.map((c) => c.itemId)).toEqual([b])
+    expect(s.readiness).toMatchObject({ state: 'clash', publishable: false })
+    expect((await publish(edit.id, edit.revision)).statusCode).toBe(422)
+  })
+
+  it('finds no clash in an edit that only changes formatting, and finds it for a new item', async () => {
+    const { scope, a, b } = await coAnswered('netherlands')
+    const edit = await submitted(
+      {
+        ...scope,
+        title: 'netherlands orders count store credit',
+        summary: 'Orders in netherlands **include** orders paid with store credit.',
+      },
+      'author',
+      a,
     )
     const s = await sheet(edit.id)
     expect(s.mode).toBe('edit')
@@ -389,13 +411,11 @@ describe('a clash with live context (FR-225)', () => {
     expect(s.readiness).toMatchObject({ publishable: true })
     expect(s.readiness.state).not.toBe('clash')
     const fresh = await submitted({
-      ...portugal,
-      title: 'Portugal orders leave out store credit',
-      summary: 'Orders in Portugal leave out store credit from 1 November 2026.',
+      ...scope,
+      title: 'netherlands orders leave out store credit',
+      summary: 'Orders in netherlands leave out store credit from 1 November 2026.',
     })
-    expect((await sheet(fresh.id)).clashes.map((c) => c.itemId).sort()).toEqual(
-      [mine, next.itemId!].sort(),
-    )
+    expect((await sheet(fresh.id)).clashes.map((c) => c.itemId).sort()).toEqual([a, b].sort())
   })
 })
 
