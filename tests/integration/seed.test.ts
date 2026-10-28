@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { generateItems } from '../../src/web/mocks/items.ts'
-import { bulkSeed, seedPersonId } from '../../db/seed/bulk.ts'
+import { analyzeLibrary, bulkSeed, seedPersonId } from '../../db/seed/bulk.ts'
 import type { ContextItem } from '../../src/domain/item.ts'
 import { editionExportSchema } from '../../src/contract/admin.ts'
 import { verifyEditionExport } from '../../src/domain/edition-export.ts'
@@ -17,6 +17,9 @@ it('roundtrips 1500 fixture items through the API read model', { timeout: 300_00
     code: '23503',
   })
   expect((await client.query('select id from items')).rows).toEqual([])
+  // Autovacuum may analyze the rolled back rows and record the tables as empty: the load must
+  // not plan from that, or its edition digests run for many minutes.
+  await analyzeLibrary(client)
   expect(await bulkSeed(client, items)).toBe(1500)
   const result = await client.query<{ doc: ContextItem }>('select doc from v_item_api order by id')
   const normalize = (item: ContextItem) => ({
