@@ -175,7 +175,7 @@ async function reasonOf(response: Response): Promise<string> {
 const rateReasons = ['rateLimitExceeded', 'userRateLimitExceeded', 'sharingRateLimitExceeded']
 
 /** One session with Drive: signed in once, then every request with the same short-lived token. */
-class Drive {
+export class Drive {
   readonly #context: RuntimeContext<Config>
   readonly #key: ServiceAccountKey
   #token: string | null = null
@@ -446,7 +446,11 @@ const childrenOf = (drive: Drive, folder: string, foldersOnly = false) =>
  * folder it is in, so a folder chosen inside another takes its own documents. Also the chosen
  * folders the account can no longer see, and whether the walk stopped at its limit.
  */
-async function folderScopes(drive: Drive, scopes: readonly ChosenScope[]) {
+export async function folderScopes(
+  drive: Drive,
+  scopes: readonly ChosenScope[],
+  limit = FOLDERS_MAX,
+) {
   const chosen = new Set(scopes.map((scope) => scope.id))
   const owner = new Map<string, string>()
   const missing: string[] = []
@@ -464,7 +468,7 @@ async function folderScopes(drive: Drive, scopes: readonly ChosenScope[]) {
       for (const child of await childrenOf(drive, at, true)) {
         if (chosen.has(child.id) || owner.has(child.id)) continue
         // Past the limit the walk stops, and the read is partial: nothing it did not reach is gone.
-        if (owner.size >= FOLDERS_MAX) {
+        if (owner.size >= limit) {
           capped = true
           break walk
         }
@@ -620,6 +624,7 @@ export const runtime = defineRuntime<Config>({
       }
     }
 
+    const chosen = new Set(context.scopes.map((scope) => scope.id))
     const delta = context.cursor === null ? null : await drive.changes(context.cursor)
     // Changes from now on are read next time, so none made during this read is missed.
     const start = delta === null ? await drive.startToken() : null
@@ -640,8 +645,9 @@ export const runtime = defineRuntime<Config>({
 
     // What changed since the cursor. A document in a chosen folder is sent again; one removed,
     // trashed or now outside every chosen folder is a tombstone. A folder that changed may have
-    // moved in or out, so every document under it is sent or tombstoned the same way. When the
-    // walk stopped at its limit, a document in a folder it did not reach is not taken for gone.
+    // moved in, so every document under a changed folder inside a chosen one is sent again. A
+    // folder outside every chosen one is left alone: what is in it was never read. A document
+    // edit is its own change, so a folder's siblings are not read again for it.
     const scopeOf = (file: DriveFile) =>
       file.parents.map((parent) => owner.get(parent)).find((scope) => scope !== undefined)
     for (const change of delta.changes) {
@@ -658,20 +664,19 @@ export const runtime = defineRuntime<Config>({
       }
       if (file.mimeType !== FOLDER) continue
       const scope = owner.get(file.id)
+      if (scope === undefined || chosen.has(file.id)) continue
       const queue = [file.id]
       const walked = new Set(queue)
-      while (queue.length && walked.size <= FOLDERS_MAX) {
+      while (queue.length) {
         const at = queue.shift()!
         for (const child of await childrenOf(drive, at)) {
           if (child.mimeType === FOLDER) {
-            if (!walked.has(child.id)) {
+            if (owner.has(child.id) && !walked.has(child.id)) {
               walked.add(child.id)
               queue.push(child.id)
             }
           } else if (child.mimeType === DOCUMENT) {
-            const inside = owner.get(at) ?? scope
-            if (inside !== undefined) yield* send(child, inside)
-            else if (!sent.has(child.id) && !capped) yield { type: 'deleted', id: child.id }
+            yield* send(child, owner.get(at) ?? scope)
           }
         }
       }

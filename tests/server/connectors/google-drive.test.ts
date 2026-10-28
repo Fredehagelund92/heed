@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
-import { documentLink } from '../../../src/connectors/google-drive/runtime.ts'
+import { documentLink, Drive, folderScopes } from '../../../src/connectors/google-drive/runtime.ts'
 import {
   parseServiceAccountKey,
   signedAssertion,
@@ -185,10 +185,60 @@ describe('a read from a cursor', () => {
         [ids.top, ids.data],
       ].sort(),
     )
-    expect(delta.deleted.sort()).toEqual([ids.old, ids.spend].sort())
+    expect(delta.deleted).toEqual([ids.spend])
     // Moved back where it was, for the reads after this one.
     drive.move(ids.spend!, ids.marketing!)
     drive.move(ids.archive!, ids.definitions!)
+  })
+
+  it('leaves a changed folder outside every chosen folder alone, and tombstones nothing in it', async () => {
+    const chosen = drive.folder('Chosen only')
+    const other = drive.folder('Not chosen', null, { shared: true })
+    const never = drive.document('Never read', other, '# Never\n\nOrders never.\n')
+    const first = await read([scope(chosen)])
+    drive.rename(other, 'Not chosen, renamed')
+    drive.move(drive.folder('Moved', null, { shared: true }), other)
+    const before = drive.requests.length
+    const delta = await read([scope(chosen)], first.cursor)
+    expect(delta.documents).toEqual([])
+    expect(delta.deleted).not.toContain(never)
+    expect(
+      drive.requests.slice(before).filter((request) => request.path.endsWith('/export')),
+    ).toEqual([])
+  })
+
+  it('does not read the siblings of an edited document again', async () => {
+    const folder = drive.folder('Edits')
+    const edited = drive.document('Edited', folder, '# Edited\n\nOrders edited.\n')
+    drive.document('Sibling', folder, '# Sibling\n\nOrders sibling.\n')
+    const first = await read([scope(folder)])
+    expect(first.documents).toHaveLength(2)
+    drive.rename(edited, 'Edited again')
+    const before = drive.requests.length
+    const delta = await read([scope(folder)], first.cursor)
+    expect(delta.documents.map((document) => document.id)).toEqual([edited])
+    expect(
+      drive.requests.slice(before).filter((request) => request.path.endsWith('/export')),
+    ).toHaveLength(1)
+  })
+
+  it('says a walk that stopped at its folder limit is partial', async () => {
+    const top = drive.folder('Many')
+    drive.folder('One', top)
+    drive.folder('Two', top)
+    const controller = new AbortController()
+    const context = {
+      config: { apiAddress: drive.address, signInAddress: drive.signInAddress },
+      scopes: [],
+      cursor: null,
+      secret: () => key,
+      fetch: (address: string, init?: RequestInit) => fetch(address, init),
+      signal: controller.signal,
+      now: () => new Date(),
+    }
+    const session = new Drive(context as never, parseServiceAccountKey(key)!)
+    expect((await folderScopes(session, [scope(top)], 2)).capped).toBe(true)
+    expect((await folderScopes(session, [scope(top)], 10)).capped).toBe(false)
   })
 
   it('keeps the documents of a chosen folder that is no longer shared, and says which', async () => {
