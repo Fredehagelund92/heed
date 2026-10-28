@@ -1,8 +1,9 @@
-import { expect, go, signInAs, test } from './go.ts'
+import { expect, go, signInAs, signOut, test, userMenu } from './go.ts'
 
 // J10, people: an admin invites people as owners of a domain, and the domain sees them; the last
 // owner of a domain can't leave until someone takes over; an owner who isn't an admin can add
-// owners to their own domain and nothing else; ownership is the same on both pages.
+// owners to their own domain and nothing else; ownership is the same on both pages. Picking a
+// person on the sign-in page opens their Inbox, and sign-in is no place for someone signed in.
 
 test('invited people show as pending, and as owners on their domain', async ({ page }) => {
   await go(page, '/settings/people')
@@ -63,4 +64,18 @@ test("Settings leads back to the app, not to the workspace's name", async ({ pag
   await expect(back).toBeVisible()
   await back.click()
   await expect(page).toHaveURL(/\/inbox/)
+})
+
+test('a person picked on the sign-in page lands in their Inbox, and /signin leads back there', async ({
+  page,
+}) => {
+  await go(page, '/inbox')
+  await signOut(page)
+  await page.getByRole('button', { name: /Ines Duarte/ }).click()
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible()
+  await expect(userMenu(page)).toContainText('Ines Duarte')
+  await go(page, '/signin')
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(userMenu(page)).toContainText('Ines Duarte')
 })

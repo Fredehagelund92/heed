@@ -24,7 +24,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { open } from '@/lib/events'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
-import { navigate, useInAppLinks, useRoute } from '@/lib/router'
+import { navigate, redirectTo, useInAppLinks, useRoute } from '@/lib/router'
 import { ThemeProvider } from '@/lib/theme'
 import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
@@ -293,6 +293,9 @@ function Gate() {
   React.useEffect(() => {
     // The documentation is a public site: it needs nobody signed in.
     if (!user && route.parts[0] !== 'signin' && route.parts[0] !== 'docs') navigate('/signin')
+    // Signed in, there is nobody to pick: a sign-in that just finished, or /signin opened again,
+    // lands in the Inbox.
+    if (user && route.parts[0] === 'signin') redirectTo('/inbox')
   }, [user, route.parts])
   // ?open=palette, connect, shortcuts or report opens that overlay, so every state has a link.
   const overlay = route.query.get('open')

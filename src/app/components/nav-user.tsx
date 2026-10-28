@@ -16,7 +16,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { open } from '@/lib/events'
-import { navigate } from '@/lib/router'
 import { useApiWrite } from '@/api/queries'
 import { useMe } from '@/lib/workspace'
 
@@ -72,7 +71,8 @@ export function NavUser() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
-                signOut.mutate(undefined, { onSuccess: () => navigate('/signin') })
+                // Signed out, the app moves to the sign-in page (App.tsx).
+                signOut.mutate()
               }}
             >
               <LogOutIcon />
