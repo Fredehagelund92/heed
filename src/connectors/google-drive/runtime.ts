@@ -645,11 +645,11 @@ export const runtime = defineRuntime<Config>({
 
     // What changed since the cursor. A document in a chosen folder is sent again; one removed,
     // trashed or now outside every chosen folder is a tombstone. A folder that changed may have
-    // moved in, so every document under a changed folder inside a chosen one is sent again. A
-    // folder outside every chosen one is left alone: what is in it was never read. A document
-    // edit is its own change, so a folder's siblings are not read again for it.
+    // moved in or out, which a read that keeps no state cannot tell from any other change: it is
+    // not walked, and the read ends with no cursor, so the next one is a full read.
     const scopeOf = (file: DriveFile) =>
       file.parents.map((parent) => owner.get(parent)).find((scope) => scope !== undefined)
+    let folderChanged = false
     for (const change of delta.changes) {
       const file = change.file
       if (change.removed || !file || file.trashed) {
@@ -660,27 +660,10 @@ export const runtime = defineRuntime<Config>({
         const scope = scopeOf(file)
         if (scope !== undefined) yield* send(file, scope)
         else if (!sent.has(file.id) && !capped) yield { type: 'deleted', id: file.id }
-        continue
-      }
-      if (file.mimeType !== FOLDER) continue
-      const scope = owner.get(file.id)
-      if (scope === undefined || chosen.has(file.id)) continue
-      const queue = [file.id]
-      const walked = new Set(queue)
-      while (queue.length) {
-        const at = queue.shift()!
-        for (const child of await childrenOf(drive, at)) {
-          if (child.mimeType === FOLDER) {
-            if (owner.has(child.id) && !walked.has(child.id)) {
-              walked.add(child.id)
-              queue.push(child.id)
-            }
-          } else if (child.mimeType === DOCUMENT) {
-            yield* send(child, owner.get(at) ?? scope)
-          }
-        }
-      }
+      } else if (file.mimeType === FOLDER && !chosen.has(file.id)) folderChanged = true
     }
-    yield { type: 'end', version: delta.next, complete, cursor: delta.next }
+    yield folderChanged
+      ? { type: 'end', version: delta.next, complete }
+      : { type: 'end', version: delta.next, complete, cursor: delta.next }
   },
 })

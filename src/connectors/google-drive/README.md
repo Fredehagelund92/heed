@@ -45,7 +45,8 @@ comes with it, so nobody can send a key they never saw to a host of their choosi
    document in a chosen folder is exported and sent again. One that was deleted, trashed, that
    Drive says the account can no longer see, or that moved out of the chosen folders is sent as a
    tombstone. A folder that changed
-   (moved in or out) has every document under it sent or tombstoned the same way. A cursor Drive
+   (it may have moved in or out) is not walked: the read ends with no cursor, so the next one is a
+   full read, which lists what moved in and lets the core withdraw what moved out. A cursor Drive
    no longer knows reads everything again from a new start.
 
 The core hands no cursor once the last full read is a week old, so a full read finds what a

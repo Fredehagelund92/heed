@@ -666,7 +666,8 @@ The core chooses what kind of read it asks for by the cursor it hands (`capabili
 - A connector that lists everything each time (`full-listing`, Markdown in Git) gets its cursor,
   and every read is a full read.
 - A connector that reads the changes since its cursor and sends tombstones (`both`, Google Drive)
-  gets its cursor, and a document such a read leaves out is not gone. Once its last good full read
+  gets its cursor, and a document such a read leaves out is not gone. A read in which a folder
+  changed (it may have moved in or out) ends with no cursor, so the next read is a full read. Once its last good full read
   is a week old (`FULL_READ_EVERY_DAYS`), it gets no cursor: it lists everything again, which
   finds what a change list missed, and what that read leaves out is gone.
 

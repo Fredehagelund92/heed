@@ -186,6 +186,10 @@ describe('a read from a cursor', () => {
       ].sort(),
     )
     expect(delta.deleted).toEqual([ids.spend])
+    expect(delta.deleted).not.toContain(ids.old)
+    expect(delta.cursor).toBeUndefined()
+    const full = await read(chosen)
+    expect(full.documents.map((document) => document.id)).not.toContain(ids.old)
     // Moved back where it was, for the reads after this one.
     drive.move(ids.spend!, ids.marketing!)
     drive.move(ids.archive!, ids.definitions!)
@@ -202,6 +206,7 @@ describe('a read from a cursor', () => {
     const delta = await read([scope(chosen)], first.cursor)
     expect(delta.documents).toEqual([])
     expect(delta.deleted).not.toContain(never)
+    expect(delta.cursor).toBeUndefined()
     expect(
       drive.requests.slice(before).filter((request) => request.path.endsWith('/export')),
     ).toEqual([])
@@ -217,6 +222,7 @@ describe('a read from a cursor', () => {
     const before = drive.requests.length
     const delta = await read([scope(folder)], first.cursor)
     expect(delta.documents.map((document) => document.id)).toEqual([edited])
+    expect(delta.cursor).toMatch(/^\d+$/)
     expect(
       drive.requests.slice(before).filter((request) => request.path.endsWith('/export')),
     ).toHaveLength(1)
