@@ -1,5 +1,5 @@
 import { beforeAll, expect, it } from 'vitest'
-import { foundation, version, accept, publish } from './fixtures.ts'
+import { foundation, version, accept, publish, people } from './fixtures.ts'
 import { testDatabase, transaction } from './support.ts'
 
 const { client } = testDatabase()
@@ -179,4 +179,57 @@ it('matches the domain parser for escaped text and tokens stored at submit', asy
     )
     expect(result.rows[0]!.parsed).toEqual({ text: parsed.text, mentions: parsed.mentions })
   }
+})
+
+it('keeps a mention of a term written in Definitions by its id, linked as term:<id>', async () => {
+  await transaction(client, async () => {
+    const [term] = (
+      await client.query<{ id: string }>(
+        `insert into terms (name, meaning, area_id, created_by, updated_by)
+         select 'Webshop', 'Orders placed on our site.', 'finance', id, id from people limit 1
+         returning id::text`,
+      )
+    ).rows
+    const v = await version(client, {
+      summary: 'the webshop',
+      markup: `@[the webshop](term:${term!.id})`,
+    })
+    await client.query(
+      "insert into item_version_mentions (version_id,field,position,term_id,label) values ($1,'summary',0,$2,'the webshop')",
+      [v.id, term!.id],
+    )
+    await accept(client, v.id)
+    const seq = await publish(client, v.id)
+    const links = await client.query(
+      "select to_kind,to_id,label from serving_links($1) where from_item=$2 and rel='mentions'",
+      [seq, v.item],
+    )
+    expect(links.rows).toEqual([
+      { to_kind: 'term', to_id: `term:${term!.id}`, label: 'the webshop' },
+    ])
+    const status = () =>
+      client.query<{ target_type: string; status: string }>(
+        'select target_type,status from v_mention_status where version_id=$1',
+        [v.id],
+      )
+    expect((await status()).rows).toEqual([{ target_type: 'term', status: 'current' }])
+    await client.query("select set_config('cl.person_id',$1,true)", [people.owner])
+    await client.query('update terms set deleted_at=now() where id=$1', [term!.id])
+    expect((await status()).rows).toEqual([{ target_type: 'term', status: 'retired' }])
+  })
+})
+
+it('refuses a mention of a term that is not one', async () => {
+  await expect(
+    transaction(client, async () => {
+      const v = await version(client, {
+        summary: 'nothing',
+        markup: '@[nothing](term:0190a0a0-0000-7000-8000-000000000000)',
+      })
+      await client.query(
+        "insert into item_version_mentions (version_id,field,position,term_id,label) values ($1,'summary',0,'0190a0a0-0000-7000-8000-000000000000','nothing')",
+        [v.id],
+      )
+    }),
+  ).rejects.toThrow(/foreign key/)
 })
