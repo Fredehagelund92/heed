@@ -113,6 +113,6 @@ describe('the http binding', () => {
   it('answers a method it does not offer yet as not available', async () => {
     const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
     expect(unwired.length).toBeGreaterThan(0)
-    await expect(api!.getAlerts()).rejects.toMatchObject({ kind: 'not-available' })
+    await expect(api!.getIntegrations()).rejects.toMatchObject({ kind: 'not-available' })
   })
 })

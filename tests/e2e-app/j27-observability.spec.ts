@@ -1,6 +1,7 @@
 import {
   beforeLastPublish,
   card,
+  cardIn,
   domainId,
   expect,
   go,
@@ -9,12 +10,10 @@ import {
   signInAs,
   test,
   topicId,
-  untilInHttp,
 } from './go.ts'
 
 // J27: Observability, what agents asked and what they got. One row at the sidebar's foot for admins
 // and owners, between Help and Settings; it swaps the sidebar to its own menu, as Settings does.
-// The alerts come with the rest of the second part of P12 (P12b).
 
 /** The reports Feedback lists this week: on the service, only what agents sent (named ones: P10). */
 const reports = () => (mode === 'http' ? 6 : 9)
@@ -378,7 +377,6 @@ test('Usage: tools with their results, agents by kind, and spend against the cap
 test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, mute for owners', async ({
   page,
 }) => {
-  untilInHttp('P12b', 'the alerts and the cards they raise')
   await go(page, '/observability/alerts')
   await expect(page.getByRole('switch')).toHaveCount(8)
   await expect(
@@ -396,14 +394,12 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await expect(page.getByText('Turned off: Model spend')).toBeVisible()
   // The saved-question alert is a card in the Inbox, and the card opens Quality on its domain.
   await page.getByRole('link', { name: '2 saved questions need a look' }).click()
-  await expect(page).toHaveURL(/\/inbox\?card=look-sales/)
+  await expect(page).toHaveURL(new RegExp(`/inbox\\?card=${cardIn('look-sales')}`))
   await expect(
     page.getByText('Why did support contacts in Norway rise in autumn 2025?'),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Open in Quality' }).click()
-  await expect(page).toHaveURL(/\/observability\/quality\?domain=sales/)
-  await go(page, '/observability/alerts?state=empty')
-  await expect(page.getByText('Nothing has raised an alert yet')).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/observability/quality\\?domain=${domainId('sales')}`))
 
   // An owner sees the rules that reach owners, mutes one for their domain, and sees only their own raises.
   await signInAs(page, 'Tomas Eriksen')
@@ -415,6 +411,10 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await expect(page.getByText('- muted for Marketing')).toBeVisible()
   await expect(
     page.getByRole('link', { name: /Regulator paused price promotions in Italy/ }),
-  ).toHaveAttribute('href', '/inbox?card=check-italy')
+  ).toHaveAttribute('href', `/inbox?card=${card('check-italy')}`)
   await expect(page.getByRole('link', { name: '2 saved questions need a look' })).toHaveCount(0)
+
+  // A workspace where nothing has raised an alert yet.
+  await go(page, '/observability/alerts?state=empty')
+  await expect(page.getByText('Nothing has raised an alert yet')).toBeVisible()
 })

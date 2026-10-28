@@ -41,7 +41,8 @@ before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are n
 
 The service also runs its scheduled jobs (pg-boss on the same database): `partitions.ensure` and
 `retention.run` each night (UTC), `outbox.relay` every minute (a backstop for the live relay, see
-[Live updates](reference.md#live-updates-inbox-and-activity)), `gaps.detect` every 15 minutes, `connectors.sync` every five minutes (reads each source that is
+[Live updates](reference.md#live-updates-inbox-and-activity)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
+alert rules raise Inbox cards, see [Alerts](reference.md#alerts)), `connectors.sync` every five minutes (reads each source that is
 due on its own schedule, hourly for a definition source by default, see [Definition
 sources](reference.md#definition-sources)), `saved.check` every minute (checks the saved questions once what agents
 get has moved, see [Saved questions](reference.md#saved-questions)), `evals.work` and `evals.retrieval` every minute, `evals.weekly` on

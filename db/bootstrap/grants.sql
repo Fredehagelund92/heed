@@ -198,3 +198,12 @@ grant insert, update (undone_at) on saved_question_baselines to :api;
 grant insert, update (total, checked, finished_at, failed_at) on check_runs to :api;
 grant insert on saved_question_results to :api;
 grant execute on function cl_saved_questions_to_check(text) to :api;
+-- Alert rules (FR-621): administrators turn a rule on or off and set its threshold, an owner mutes one
+-- for a domain they own. Only the alert job raises, through one function that runs as the owner and
+-- writes the raise with its outbox event; who a raise reached and which saved questions need a look are
+-- read through functions that run as the owner too. Nothing here is granted to the serving or the
+-- analytics role.
+grant update (enabled, threshold, changed_by, changed_at) on alert_rules to :api;
+grant insert, delete on alert_mutes to :api;
+grant execute on function cl_alert_raise(text, text, text[], text, jsonb), cl_alert_reached(uuid[]),
+  cl_saved_looks(), cl_connector_domains(text) to :api;

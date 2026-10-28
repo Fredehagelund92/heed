@@ -240,6 +240,10 @@ export const policies = {
   'savedQuestions.keep': 'maintain',
   'savedQuestions.check': 'maintain',
   'savedQuestions.status': 'read',
+  'alerts.rules': 'maintain',
+  'alerts.setRule': 'admin',
+  'alerts.mute': 'maintain',
+  'alerts.raised': 'maintain',
   'schema.item': 'public',
 } as const
 

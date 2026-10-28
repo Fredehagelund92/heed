@@ -9,6 +9,7 @@
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
+import { lookTitle } from '@domain/alerts'
 import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
@@ -210,6 +211,23 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
           by: card.by ? person(card.by) : '',
           via: card.source === 'ask' ? 'Ask' : 'an agent',
         },
+      }
+    }
+    // Raised by the saved-question alert: the domain's saved questions that answer worse now.
+    case 'look': {
+      const one = card.questions.length === 1
+      return {
+        ...base,
+        type: 'look',
+        title: lookTitle(card.questions.length),
+        line: one
+          ? 'It answers worse than when it was saved.'
+          : 'They answer worse than when they were saved.',
+        detail:
+          'Agents get the new answer until someone fixes the item, or keeps the new answer as the saved one. Quality has before and now for each.',
+        primary: 'Open in Quality',
+        secondary: [],
+        look: { questions: card.questions.map((q) => q.id) },
       }
     }
     case 'check': {

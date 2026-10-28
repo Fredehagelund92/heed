@@ -435,7 +435,19 @@ describe('what agents never read', () => {
         where n.nspname = 'public' and c.relkind in ('v', 'm')
           and pg_get_viewdef(c.oid) ~ '(saved_question|check_runs)'`,
     )
-    expect(rows).toEqual([{ name: 'cl_saved_questions_to_check' }])
+    // The check's own read, and the saved-question alert's, which gives ids and domains only.
+    expect(rows.map((r) => r.name).sort()).toEqual([
+      'cl_saved_looks',
+      'cl_saved_questions_to_check',
+    ])
+    for (const name of ['cl_saved_looks()', 'cl_saved_questions_to_check(text)'])
+      for (const role of [localRoles.serve, localRoles.readonly]) {
+        const { rows: can } = await client.query<{ can: boolean }>(
+          `select has_function_privilege($1, $2, 'execute') as can`,
+          [role, `public.${name}`],
+        )
+        expect(can[0]!.can, `${role} on ${name}`).toBe(false)
+      }
   })
 
   it('the serving and analytics roles read none of it', async () => {

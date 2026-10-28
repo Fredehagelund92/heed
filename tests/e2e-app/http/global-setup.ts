@@ -56,14 +56,17 @@ export default async function setup() {
       `create database ${identifier(emptyName(template))} template ${identifier(template)} owner ${identifier(localRoles.owner)}`,
     )
     const ids = await seedDemoWeek(url.href)
-    // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item;
-    // and its context items, a draft by its proposal.
+    // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item,
+    // the saved questions that need a look by their domain; and its context items, a draft by its
+    // proposal.
     const world: Record<string, string> = {
       ...Object.fromEntries(facts.map((f) => [f.id, ids.drafts[f.id] ?? serverItemId(f.id)])),
       ...Object.fromEntries([...queue, ...driveCards].map((card) => [card, ids[card]])),
       'flag-germany': ids['flag-germany'],
       ...Object.fromEntries(Object.entries(ids).filter(([k]) => k.startsWith('topic.'))),
       ...checkCards(),
+      // The saved-question alert's card: the domain's saved questions that need a look.
+      'look-sales': 'look:area_sales',
     }
     // What the answer panel compares with: before the last publish, by the live edition's day.
     const seeded = new pg.Client({ connectionString: url.href })

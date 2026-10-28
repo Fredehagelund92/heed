@@ -462,6 +462,19 @@ administrators read and change its saved questions; the job reads them as no per
 `cl_saved_questions_to_check()`, which runs as the owner. The serving and analytics roles have no
 grant on these tables.
 
+Alerts (migration 0022). `alert_rules` holds the eight rules, each on or off with its threshold
+and its audience; administrators change them, and the Not found rule's threshold stays in the
+`gaps.no_item_threshold` setting. `alert_mutes` keeps what an owner muted, a rule for a domain they
+own, readable by that person only. `alert_raises` keeps each raise once for its rule and key, with
+a title of counts and scopes only and where it sends people. Only the `alerts.raise` job, as no
+person, raises: `cl_alert_raise()` runs as the owner and writes the raise with its `alert.raised`
+outbox event, which `cl_inbox_recipients()` sends to the rule's audience less those who muted it.
+`cl_alert_reached()` names whom a raise reached for someone who may read it, `cl_saved_looks()`
+lists the saved questions that need a look, and `cl_connector_domains()` the domains whose live
+items rely on a source's definitions; each runs as the owner. Administrators read every raise and
+an owner those about their domains. The serving and analytics roles have no grant on these
+tables.
+
 Serving terms (migration 0011). Agents read the live terms through `serving_terms()`, a security
 definer function the API and serving roles may run: each word with its own meaning or what it
 means, its domain, the day it was last written and the role it was written in (`owner` or

@@ -31,7 +31,9 @@ export function subjectTitle(type: string, id: string): string {
       and exists (select 1 from item_versions v where v.id = l.version_id)),
     (select t.name from serving_vocabulary((select seq from live_edition)) t
       where ${type} = 'vocabulary' and t.key = ${id}),
-    (select a.name from areas a where ${type} = 'area' and a.id = ${id}))`
+    (select a.name from areas a where ${type} = 'area' and a.id = ${id}),
+    (select r.title from alert_raises r
+      where ${type} = 'alert' and r.id = (case when ${type} = 'alert' then ${id} end)::uuid))`
 }
 
 /**

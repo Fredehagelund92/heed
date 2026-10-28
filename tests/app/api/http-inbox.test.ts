@@ -310,6 +310,42 @@ describe('the Inbox', () => {
     expect(changed?.line).toMatch(/changed a definition it relies on/)
   })
 
+  it('reads the saved-question alert as one card for the domain, with its questions', () => {
+    const look = (questions: { id: string; question: string }[]): Card => ({
+      ...base,
+      id: 'look:area_sales',
+      group: 'look',
+      areaId: 'area_sales',
+      questions,
+    })
+    const [two, one] = inboxOf(
+      feed([
+        look([
+          { id: 'q1', question: 'Why did support contacts in Norway rise?' },
+          { id: 'q2', question: 'What should I rule out?' },
+        ]),
+        { ...look([{ id: 'q3', question: 'Why?' }]), id: 'look:area_marketing' },
+      ]),
+      'Jon Abara',
+      domains,
+      now,
+    ).cards
+    expect(two).toMatchObject({
+      id: 'look:area_sales',
+      type: 'look',
+      domain: 'area_sales',
+      title: '2 saved questions need a look',
+      line: 'They answer worse than when they were saved.',
+      primary: 'Open in Quality',
+      secondary: [],
+      look: { questions: ['q1', 'q2'] },
+    })
+    expect(one).toMatchObject({
+      title: '1 saved question needs a look',
+      line: 'It answers worse than when it was saved.',
+    })
+  })
+
   it('says whom a suggestion the person sent waits for', () => {
     const inbox = inboxOf(
       feed([], {

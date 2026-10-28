@@ -84,6 +84,14 @@ import {
   savedStatusSchema,
 } from './saved-questions.ts'
 import {
+  alertMuteInputSchema,
+  alertRaisedInputSchema,
+  alertRaiseSchema,
+  alertRuleRecordSchema,
+  alertRulesSchema,
+  alertSetRuleInputSchema,
+} from './alerts.ts'
+import {
   askedSchema,
   lookupEventSchema,
   lookupInputSchema,
@@ -3016,6 +3024,55 @@ export const contract = {
       })
       .input(savedStatusInputSchema)
       .output(savedStatusSchema),
+  },
+  alerts: {
+    rules: maintainRead
+      .route({
+        method: 'GET',
+        path: '/alerts/rules',
+        tags: ['quality'],
+        summary:
+          'The eight alert rules, each on or off with its threshold, the domains the person muted it for, and its newest raise they may read (FR-621); for administrators and owners',
+      })
+      .output(alertRulesSchema),
+    setRule: admin
+      .errors({
+        UNPROCESSABLE_CONTENT: { message: "This rule's sentence doesn't offer that threshold." },
+      })
+      .route({
+        method: 'POST',
+        path: '/alerts/rules/{rule}',
+        tags: ['quality'],
+        summary:
+          'Turn an alert rule on or off for everyone, or set its threshold from those its sentence offers; for administrators',
+      })
+      .input(alertSetRuleInputSchema)
+      .output(alertRuleRecordSchema),
+    mute: maintainRead
+      .errors({
+        UNPROCESSABLE_CONTENT: {
+          message: "This rule's cards go only to admins, so there is nothing to mute.",
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/alerts/rules/{rule}/mute',
+        tags: ['quality'],
+        summary:
+          "Mute an alert rule for domains the person owns, or unmute it: its cards stop reaching them there and still reach the domain's other owners and the administrators",
+      })
+      .input(alertMuteInputSchema)
+      .output(alertRuleRecordSchema),
+    raised: maintainRead
+      .route({
+        method: 'GET',
+        path: '/alerts/raised',
+        tags: ['quality'],
+        summary:
+          'What the alert rules raised lately, newest first, each with whom its Inbox card reached: every raise for an administrator, those about their own domains for an owner; counts and scopes only (FR-614)',
+      })
+      .input(alertRaisedInputSchema)
+      .output(z.array(alertRaiseSchema)),
   },
   schema: {
     item: publicRoute

@@ -1170,3 +1170,51 @@ the change, in its own transactions.
   shown only, never kept. After a publish from the review commits, each of those whose answer
   moved and is no worse takes it as its baseline (`published`): the review showed that change
   before Publish. One that got worse stays to be looked at.
+
+## Alerts
+
+Alert rules raise cards in the Inbox; nothing sends an email (FR-621). There are eight, each one
+sentence, in `src/domain/alerts.ts`: Not found, A saved question needs a look, Conflict, More
+questions not found, Calls fail, Model spend, A connected tool did not sync, and A check is due. A
+rule goes to the owners of the domain it is about, to the administrators, or to both. An
+administrator turns a rule on or off for everyone and picks its threshold from those its sentence
+offers; the Not found threshold is the gap detection's own setting, `gaps.no_item_threshold`, so
+changing it there writes a new version of that setting. An owner mutes a rule for a domain they
+own: its cards stop reaching them there and still reach the domain's other owners and the
+administrators. The tables are `alert_rules`, `alert_mutes` and `alert_raises` (migration 0022);
+the contract is in `src/contract/alerts.ts`.
+
+- The `alerts.raise` job runs every 15 minutes, beside `gaps.detect`. Each rule that is on reads
+  what it is about, as no person, and raises once for each thing it finds, keyed on what it was
+  about, so a second run raises nothing new: a gap that is open (Not found); a domain's saved
+  questions that came to need a look since its last raise (A saved question needs a look); a topic
+  agents got two disagreeing items for at least the threshold of times in 7 days, once a week
+  (Conflict); a share of a full day's questions that found nothing, above the threshold two days
+  running (More questions not found); a share of yesterday's calls that failed or could not be
+  read (Calls fail); this month's model spend at the threshold of the monthly cap (Model spend); a
+  definition source whose last read failed or that has not read for longer than it should (A
+  connected tool did not sync), told to the owners of the domains whose live items rely on its
+  definitions too; and a live item whose check date passed, from 07:00 UTC (A check is due).
+- A raise is one row and one outbox event, written together by `cl_alert_raise`; the relay
+  delivers it as Inbox items to the rule's audience less those who muted it for the domain. Its
+  title is counts and scopes only, never anyone's words, and a count from agents under the minimum
+  reads "fewer than 5 times" (FR-614). A share fires only on a part of at least the minimum, so it
+  never tells of a hidden count.
+- In the Inbox (`GET /inbox/feed`), a domain whose saved questions need a look has one card
+  (`look:<domain>`, group `look`) that lists them. A Not found card, that card and a card for an
+  item whose check date passed do not reach anyone while their rule is off, nor someone who muted
+  their rule for the card's domain. The cards of the other five rules wait for the product to
+  decide how the Inbox draws them; until then their raises are Inbox items and are listed on the
+  Alerts page.
+- `GET /alerts/rules`: the eight rules, each `enabled`, its `threshold`, its `audience`, the
+  domains the person muted it for, and its newest raise the person may read. For owners and
+  administrators.
+- `POST /alerts/rules/{rule}` (`{ enabled?, threshold? }`): turns a rule on or off, or sets its
+  threshold; for administrators. A threshold its sentence does not offer is refused. The history
+  log keeps each change (`alert.rule_changed`).
+- `POST /alerts/rules/{rule}/mute` (`{ areaIds, muted }`): mutes or unmutes a rule for domains the
+  person owns. A rule for administrators only cannot be muted.
+- `GET /alerts/raised` (`limit`, 20 by default): what the rules raised lately, newest first, each
+  with its domains, title, where it sends people (its Inbox card, a topic, a page, or a connected
+  tool) and whom it reached, by name. Administrators read every raise; an owner those about a
+  domain they own.
