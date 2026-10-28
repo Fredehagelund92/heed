@@ -173,7 +173,7 @@ test('Market is one dimension with both Cube names, and its Values action opens 
   )
   await expect(
     page.locator('[data-slot="source-terms"]').getByRole('link', {
-      name: 'Add values of a dimension',
+      name: 'Propose names',
     }),
   ).toBeVisible()
 })
