@@ -57,6 +57,9 @@ export const cardIn = (id: string) =>
 /** A mock topic's id in this mode, as the answer panel's address names it (`dock=topic.<id>`). */
 export const topicId = (id: string) => (http ? (httpWorld().ids[`topic.${id}`] ?? id) : id)
 
+/** A mock domain's id in this mode: the service names its areas `area_` and the mock's id. */
+export const domainId = (id: string) => (http ? `area_${id}` : id)
+
 /** What the answer panel compares with: before the last publish, as each mode's library has it. */
 export const beforeLastPublish = () => (http ? httpWorld().before : 'Before 20 Oct')
 
@@ -190,8 +193,9 @@ export const test = base.extend<{ demoWeek: void }>({
   and so does a context item's, in the path and in the quick view's `dock`, and the mock's flags
   become what they stand for: `?state=offline` takes the browser offline, `?state=failed` makes
   the first try of a decision fail, `?bulk=fail` makes the last row of the first change to many
-  rows fail, `?demo=last` decides every suggestion but the one opened, through the service, and
-  `?demo=setup` starts on an empty workspace.
+  rows fail, `?quality=failed` makes the last check of the saved questions one that stopped
+  after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
+  and `?demo=setup` starts on an empty workspace.
 */
 export async function go(page: Page, route: string) {
   const was = workspace
@@ -243,10 +247,12 @@ async function httpRoute(
   const state = query.get('state')
   const bulk = query.get('bulk')
   const connect = query.get('connect')
+  const quality = query.get('quality')
   query.delete('demo')
   query.delete('state')
   query.delete('bulk')
   query.delete('connect')
+  query.delete('quality')
   if (demo === 'last') await decideAllBut(page, path.split('/')[2] ?? '')
   // A new install: the journey moves to a copy of an empty workspace, Jon signed in there.
   else if (demo === 'setup') await startService(page, 'empty')
@@ -258,6 +264,8 @@ async function httpRoute(
   if (state === 'failed') await failFirstTry(page)
   if (bulk === 'fail') await failLastRowOnce(page)
   else if (bulk) throw new Error(`?bulk=${bulk} has no http meaning yet`)
+  if (quality === 'failed') await failedCheck(8)
+  else if (quality) throw new Error(`?quality=${quality} has no http meaning yet`)
   const search = query.toString()
   return {
     route: `${path}${search ? `?${search}` : ''}`,
@@ -381,6 +389,15 @@ async function publishedItem(page: Page, part: string) {
   const item = items.find((i) => i.title === title)
   if (!item) throw new Error(`“${title}” is not in the library: was it published?`)
   return item.id
+}
+
+/** The check job's last run over the saved questions stopped after `checked` of them. */
+async function failedCheck(checked: number) {
+  const harness = './http/harness.ts'
+  const { failedCheck: fail } = (await import(harness)) as {
+    failedCheck: (checked: number) => Promise<void>
+  }
+  await fail(checked)
 }
 
 /** The first try of each decision fails with the service's own failure; the next goes through. */

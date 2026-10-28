@@ -6,8 +6,18 @@ import { savedSeed } from './data/saved-questions'
 
 // The mock's saved questions, kept until the page reloads. One list for every count of them.
 
+/** How long the mock takes to check one saved question. */
+const CHECK_ONE_MS = 130
+
 export function createSaved() {
   let list: SavedQuestion[] = savedSeed
+  // Where the check stands, and when the saved questions were last checked.
+  let progress: { run: 'idle' | 'running'; checked: number; total: number } = {
+    run: 'idle',
+    checked: 0,
+    total: 0,
+  }
+  let checkedAt = 'Today, 09:41'
 
   const setResult = (id: string, r: Pick<SavedQuestion, 'result' | 'why' | 'when' | 'diff'>) => {
     list = list.map((q) => (q.id === id ? { ...q, ...r } : q))
@@ -40,6 +50,22 @@ export function createSaved() {
     save,
     remove,
     setResult,
+    progress: () => progress,
+    checkedAt: () => checkedAt,
+
+    /** Check now: one saved question at a time, the mock's answers staying as they are. */
+    async check(domain?: DomainId) {
+      const ids = list.filter((q) => !domain || q.domain === domain).map((q) => q.id)
+      progress = { run: 'running', checked: 0, total: ids.length }
+      for (let n = 1; n <= ids.length; n++) {
+        await new Promise((resolve) => setTimeout(resolve, CHECK_ONE_MS))
+        progress = { ...progress, checked: n }
+      }
+      list = list.map((q) => (ids.includes(q.id) ? { ...q, when: 'Just now' } : q))
+      progress = { run: 'idle', checked: 0, total: 0 }
+      checkedAt = 'Just now'
+      return { checked: ids.length }
+    },
 
     /** Keep the new answer: what it says now becomes what it should say. Undo puts the result back. */
     keepNew(id: string) {

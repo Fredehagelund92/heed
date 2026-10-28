@@ -72,6 +72,17 @@ import {
   obsViewSchema,
 } from './observability.ts'
 import {
+  savedCheckInputSchema,
+  savedCheckResultSchema,
+  savedChangeSchema,
+  savedCreateInputSchema,
+  savedIdInputSchema,
+  savedListInputSchema,
+  savedQuestionSchema,
+  savedStatusInputSchema,
+  savedStatusSchema,
+} from './saved-questions.ts'
+import {
   askedSchema,
   lookupEventSchema,
   lookupInputSchema,
@@ -2919,6 +2930,80 @@ export const contract = {
       })
       .input(replayInputSchema)
       .output(replaySchema),
+  },
+  savedQuestions: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/saved-questions',
+        tags: ['quality'],
+        summary:
+          "The saved questions of the domains the person owns, every domain's for an administrator, newest first, each with what it should keep getting and its last check (FR-526); anyone else gets none",
+      })
+      .input(savedListInputSchema)
+      .output(z.array(savedQuestionSchema)),
+    create: maintainRead
+      .errors({
+        PRECONDITION_FAILED: {
+          message: "Agents don't get any context yet, so there is no answer to keep.",
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/saved-questions',
+        tags: ['quality'],
+        summary:
+          "Save a question for a domain, with the person's name: what the answer engine gives it now becomes what it should keep getting, checked after every change; for the domain's owners and administrators",
+      })
+      .input(savedCreateInputSchema)
+      .output(savedChangeSchema),
+    remove: maintainRead
+      .route({
+        method: 'DELETE',
+        path: '/saved-questions/{id}',
+        tags: ['quality'],
+        summary: "Remove a saved question; for its domain's owners and administrators",
+      })
+      .input(savedIdInputSchema)
+      .output(z.object({ removed: z.boolean() })),
+    keep: maintainRead
+      .errors({
+        CONFLICT: { message: 'It already answers as saved. There is no new answer to keep.' },
+      })
+      .route({
+        method: 'POST',
+        path: '/saved-questions/{id}/keep',
+        tags: ['quality'],
+        summary:
+          "Keep the new answer: what a saved question gets now becomes what it should keep getting; Undo takes it back; for its domain's owners and administrators",
+      })
+      .input(savedIdInputSchema)
+      .output(savedChangeSchema),
+    check: maintainRead
+      .errors({
+        PRECONDITION_FAILED: {
+          message: "Agents don't get any context yet, so there is nothing to check.",
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/saved-questions/check',
+        tags: ['quality'],
+        summary:
+          "Check now: every saved question the person manages, or one domain's, answered again on what agents get, with no model, counting as it goes; nothing is published and nothing waits on it (FR-526)",
+      })
+      .input(savedCheckInputSchema)
+      .output(savedCheckResultSchema),
+    status: read
+      .route({
+        method: 'GET',
+        path: '/saved-questions/status',
+        tags: ['quality'],
+        summary:
+          'How far the newest check run got, when the saved questions were last checked, and how many answered as saved each of the last eight weeks',
+      })
+      .input(savedStatusInputSchema)
+      .output(savedStatusSchema),
   },
   schema: {
     item: publicRoute

@@ -21,6 +21,7 @@ import {
 } from './modules/connectors/index.ts'
 import { evalJobs } from './modules/evals/index.ts'
 import { gapDetectionJob } from './modules/gaps/index.ts'
+import { savedCheckJob } from './modules/saved-questions/index.ts'
 import { createJobRunner, maintenanceJobs } from './modules/jobs/index.ts'
 import {
   checkModelSettings,
@@ -184,6 +185,7 @@ async function main(): Promise<void> {
       outboxRelayJob,
       gapDetectionJob,
       connectorSyncJob(sources, { clock }),
+      savedCheckJob({ clock }),
       ...evalJobs({ port: models, clock }),
     ],
   })

@@ -23,12 +23,22 @@ export type DraftCheck = { results: DraftResult[]; same: number; changed: number
 export const itemOfReview = (r: Review, cards: Pick<InboxCard, 'id' | 'factId'>[]) =>
   r.retire?.factId ?? cards.find((c) => c.id === r.id)?.factId
 
-/** What the saved questions that answer from `item` (the review's, itemOfReview) would get with it. */
+/**
+ * What the saved questions that answer from `item` (the review's, itemOfReview) would get with it.
+ * Where the service checked the draft itself (`r.saved`), its results are the ones shown.
+ */
 export function checkDraft(
   r: Review,
   all: SavedQuestion[],
   item: string | undefined,
 ): DraftCheck | null {
+  if (r.saved) {
+    const results = r.saved.flatMap((x): DraftResult[] => {
+      const q = all.find((y) => y.id === x.id)
+      return q ? [{ q, result: x.result, why: x.why, before: x.before, now: x.now }] : []
+    })
+    return results.length ? countsOf(results) : null
+  }
   if (!item) return null
   const qs = all.filter((q) => q.factId === item)
   if (!qs.length) return null
@@ -58,13 +68,15 @@ export function checkDraft(
       now: r.tryIt.after.text,
     }
   })
-  return {
-    results,
-    same: results.filter((x) => x.result === 'same').length,
-    changed: results.filter((x) => x.result === 'changed').length,
-    look: results.filter((x) => x.result === 'look').length,
-  }
+  return countsOf(results)
 }
+
+const countsOf = (results: DraftResult[]): DraftCheck => ({
+  results,
+  same: results.filter((x) => x.result === 'same').length,
+  changed: results.filter((x) => x.result === 'changed').length,
+  look: results.filter((x) => x.result === 'look').length,
+})
 
 /** "1 of 1 still answers the same", "2 of 3 still answer the same. 1 needs a look." */
 export function draftLine(c: DraftCheck) {

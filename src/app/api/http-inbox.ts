@@ -9,6 +9,7 @@
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
+import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
 import type { Subject } from '@/model/comments'
@@ -582,6 +583,8 @@ export type SheetRef = {
   itemVersionId: string | null
   /** The live items it clashes with: Publish answers for each. */
   clashes: string[]
+  /** A Not found card's draft: what agents asked about, in words, and its domain. */
+  gap: { scope: string; areaId: string } | null
 }
 
 export const refOf = (sheet: ReviewSheet): SheetRef => ({
@@ -589,6 +592,10 @@ export const refOf = (sheet: ReviewSheet): SheetRef => ({
   revision: sheet.proposal.revision,
   itemVersionId: sheet.proposal.itemVersionId,
   clashes: sheet.clashes.map((c) => c.itemId),
+  gap:
+    sheet.gapId && sheet.proposal.areaId
+      ? { scope: sheet.tryIt.question, areaId: sheet.proposal.areaId }
+      : null,
 })
 
 /** The plain words of the suggested text, for a clash's side by side. */
@@ -712,5 +719,12 @@ export function reviewOf(
       text: sheet.readiness.text,
     },
     readMs: sheet.readMs,
+    saved: sheet.saved.map((x) => ({
+      id: x.id,
+      result: x.result,
+      why: savedWhy({ reason: x.reason, saved: x.saved, now: x.now, expect: x.expectItems }),
+      before: answerText(x.saved),
+      now: answerText(x.now),
+    })),
   }
 }

@@ -92,6 +92,8 @@ export function SaveQuestion({
                 expect,
                 factId: from[0] ?? '',
               },
+              from,
+              origin: 'ask',
             }).then(({ undo }) => {
               setOpen(false)
               toast('Question saved', {

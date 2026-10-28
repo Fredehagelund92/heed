@@ -233,6 +233,12 @@ export const policies = {
   'obs.views.save': 'maintain',
   'obs.views.remove': 'maintain',
   'obs.replay': 'maintain',
+  'savedQuestions.list': 'read',
+  'savedQuestions.create': 'maintain',
+  'savedQuestions.remove': 'maintain',
+  'savedQuestions.keep': 'maintain',
+  'savedQuestions.check': 'maintain',
+  'savedQuestions.status': 'read',
   'schema.item': 'public',
 } as const
 

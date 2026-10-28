@@ -16,6 +16,7 @@ import { clashRelations, readinessStates } from '../domain/readiness.ts'
 import { reachSchema } from './answer.ts'
 import { commentInputBodySchema } from './comments.ts'
 import { editionSchema, reviewProposalSchema } from './review.ts'
+import { savedDraftSchema } from './saved-questions.ts'
 
 const markSchema = z.enum(marks)
 const textField = z.enum(['title', 'text', 'notToConclude', 'quote'])
@@ -227,6 +228,11 @@ export const reviewSheetSchema = z.object({
   /** What agents say for its own question, now and with it published (no model). */
   tryIt: z.object({ question: z.string(), before: answerBriefSchema, after: answerBriefSchema }),
   reach: z.nullable(reachSchema),
+  /**
+   * The saved questions the person manages that answer from its item, checked against the draft
+   * (FR-526): shown before Publish, never kept, and never a reason Publish waits.
+   */
+  saved: z.array(savedDraftSchema),
   /** Whether the person may publish it now, and why not when they may not. */
   canPublish: z.boolean(),
   whyNot: z.nullable(z.string()),

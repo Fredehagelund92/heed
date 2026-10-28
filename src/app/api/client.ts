@@ -135,8 +135,19 @@ export type Inbox = {
   mentions: (MentionNote & { title: string })[]
 }
 
-/** Where the last check of the saved questions stands: running (so far `checked` of them), or failed. */
-export type SavedCheck = { run: 'idle' | 'running' | 'failed'; checked: number }
+/**
+ * Where the check of the saved questions stands: running (so far `checked` of `total`), failed
+ * after `checked` of `total`, or idle; when they were last checked; and the last eight weeks.
+ */
+export type SavedCheck = {
+  run: 'idle' | 'running' | 'failed'
+  checked: number
+  total: number
+  /** When they were last checked, as a page says it ("Today, 09:41"); null before the first check. */
+  checkedAt: string | null
+  /** The last eight weeks, oldest first: how many answered as saved at the end of each, of how many. */
+  trend: { labels: string[]; same: number[]; total: number[] }
+}
 
 /** The workspace's switches an admin sets in Settings and on an integration's page. */
 export type Settings = {
@@ -505,8 +516,18 @@ export interface HeedApi {
   getSavedQuestions: () => Promise<SavedQuestion[]>
   /** Where the check of every saved question stands. */
   getSavedCheck: () => Promise<SavedCheck>
+  /**
+   * Check now: every saved question the person manages, or one domain's, answered again on what
+   * agents get, with no model; it publishes nothing. While it runs, getSavedCheck counts how far it
+   * got. Gives back how many it checked.
+   */
+  checkSavedQuestions: (input: { domain?: DomainId }) => Promise<{ checked: number }>
   saveQuestion: (input: {
     question: Omit<SavedQuestion, 'result' | 'why' | 'when' | 'id'>
+    /** The items it should answer from; left out, every item it answers from now. */
+    from?: string[]
+    /** Where it is saved from: an answer in Ask (the default), a Not found draft, or typed in Quality. */
+    origin?: 'ask' | 'gap' | 'typed'
   }) => Promise<{ id: string } & Undoable>
   removeSavedQuestion: (input: { id: string }) => Promise<void>
   /** Keep the new answer: what it says now becomes what it should say. */
@@ -617,6 +638,7 @@ export const heedApiMethods = [
   'getConnectReview',
   'getSavedQuestions',
   'getSavedCheck',
+  'checkSavedQuestions',
   'saveQuestion',
   'removeSavedQuestion',
   'keepNewAnswer',

@@ -25,6 +25,7 @@ import { definitionRefOf, demoDefinitions } from '../../../src/web/mocks/cube-mo
 import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/reference-data.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { seedObservability } from './demo-observability.ts'
+import { seedSavedQuestions } from './demo-saved.ts'
 
 /*
   The mockup's demo week on the real service, for the golden journeys in http mode: Larchwood
@@ -983,6 +984,8 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
     await after.end()
   }
   if (!flag) throw new Error('The report was not seeded')
+  // The saved questions people keep, and how the check found them (P12).
+  await seedSavedQuestions(superuserUrl, TODAY, (name) => seedPersonId(personId(name)))
   return {
     ...ids,
     'flag-germany': flag,

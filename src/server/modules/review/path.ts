@@ -31,6 +31,7 @@ import { reachOfDraft, type BundleCache } from '../answer/index.ts'
 import { syncedOf } from '../connectors/index.ts'
 import { loadServingBundle, publishEdition, type ServingBundle } from '../editions/index.ts'
 import { forReader } from '../library/index.ts'
+import { draftChecks } from '../saved-questions/index.ts'
 import {
   acceptedOverlaps,
   candidateBundle,
@@ -381,6 +382,7 @@ export function createReviewPath(
         after,
       },
       reach,
+      saved: r.mode === 'new' ? [] : await draftChecks(tx, today, r.itemId, r.candidate),
       canPublish: whyNot === null && ready.publishable,
       whyNot: whyNot ?? (ready.publishable ? null : words.text),
     }

@@ -427,6 +427,7 @@ export const invalidations: {
   saveQuestion: () => [queryKeys.savedQuestions],
   removeSavedQuestion: () => [queryKeys.savedQuestions],
   keepNewAnswer: () => [queryKeys.savedQuestions],
+  checkSavedQuestions: () => [queryKeys.savedQuestions, queryKeys.savedCheck],
   setAlertRule: () => [queryKeys.alerts],
   saveView: () => [queryKeys.savedViews],
   saveChat: () => [queryKeys.chats],

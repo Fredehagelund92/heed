@@ -1,9 +1,9 @@
 import {
   beforeLastPublish,
   card,
+  domainId,
   expect,
   go,
-  inMockUntil,
   mode,
   onMockOnly,
   signInAs,
@@ -14,7 +14,7 @@ import {
 
 // J27: Observability, what agents asked and what they got. One row at the sidebar's foot for admins
 // and owners, between Help and Settings; it swaps the sidebar to its own menu, as Settings does.
-// Saved questions, their check and the alerts come with the second part of P12 (P12b).
+// The alerts come with the rest of the second part of P12 (P12b).
 
 /** The reports Feedback lists this week: on the service, only what agents sent (named ones: P10). */
 const reports = () => (mode === 'http' ? 6 : 9)
@@ -44,9 +44,7 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   ])
     await expect(sidebar.getByRole('link', { name: new RegExp(`^${name}`) })).toBeVisible()
   // Quality's badge counts what needs a look, from the saved questions.
-  await inMockUntil('P12b', 'saved questions', () =>
-    expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2'),
-  )
+  await expect(sidebar.getByRole('link', { name: /^Quality/ }).locator('..')).toContainText('2')
   await sidebar.getByRole('link', { name: 'Back to app' }).click()
   await expect(page).toHaveURL(/\/inbox/)
 })
@@ -81,8 +79,8 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await expect(page.getByRole('link', { name: /Found checked context/ })).toContainText('82%')
   await expect(page.getByRole('link', { name: /^Not found/ })).toContainText('2 fewer')
   // One source for saved questions: 9 same of 12.
-  await inMockUntil('P12b', 'saved questions', () =>
-    expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(/9\s*same\s*of 12/),
+  await expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(
+    /9\s*same\s*of 12/,
   )
   // The chart's numbers, for a screen reader.
   await expect(page.locator('table caption', { hasText: 'Questions per day' })).toHaveCount(1)
@@ -230,7 +228,6 @@ test('The replay runs on what agents got before the last publish', async ({ page
 test('Quality: the one list, grouped by result, with before and now and Keep the new answer', async ({
   page,
 }) => {
-  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/observability/quality')
   for (const [name, n] of [
     ['Needs a look', '2'],
@@ -249,7 +246,13 @@ test('Quality: the one list, grouped by result, with before and now and Keep the
   await expect(page.getByRole('region', { name: 'Changed' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Undo' }).click()
   await expect(page.getByRole('region', { name: 'Changed' })).toHaveCount(1)
-  // Check now runs, publishes nothing, and says so.
+  // Check now runs, publishes nothing, and says so. The service checks twelve questions at once:
+  // its answer comes slowly here, so the line that waits on it can be read.
+  if (mode === 'http')
+    await page.route('**/api/v1/saved-questions/check', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.continue()
+    })
   await page.getByRole('button', { name: 'Check now' }).click()
   await expect(
     page.getByText(/Checking \d+ saved questions\. Nothing is published\./),
@@ -258,10 +261,9 @@ test('Quality: the one list, grouped by result, with before and now and Keep the
 })
 
 test('Quality: no saved questions yet, a failed check, and offline', async ({ page }) => {
-  untilInHttp('P12b', 'saved questions, their check and alerts')
   await go(page, '/observability/quality?state=empty')
   await expect(page.getByText('No saved questions yet')).toBeVisible()
-  await go(page, '/observability/quality?quality=failed')
+  await go(page, '/observability/quality?demo=week&quality=failed')
   await expect(page.getByRole('alert')).toContainText(
     'The check did not finish. It stopped after 8 of 12 questions. Nothing was changed',
   )
@@ -275,8 +277,11 @@ test('Quality: no saved questions yet, a failed check, and offline', async ({ pa
 test('Saved questions are saved from Ask, counted everywhere from one list, and checked in the review', async ({
   page,
 }) => {
-  untilInHttp('P12b', 'saved questions, their check and alerts')
-  await go(page, '/ask?example=grounded')
+  await go(page, `/ask?n=${Date.now()}`)
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('Why did orders in Norway drop in August?')
+  await box.press('Enter')
   await page.getByRole('button', { name: 'Save question' }).first().click()
   await expect(page.getByText('Should answer from')).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: 'Save question' }).click()
@@ -294,7 +299,7 @@ test('Saved questions are saved from Ask, counted everywhere from one list, and 
   await go(page, '/settings/domains/sales')
   await expect(
     page.getByRole('link', { name: /8 saved questions - 5 same - 1 changed - 2 need a look/ }),
-  ).toHaveAttribute('href', '/observability/quality?domain=sales')
+  ).toHaveAttribute('href', `/observability/quality?domain=${domainId('sales')}`)
   await go(page, '/observability')
   await expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(
     /10\s*same\s*of 13/,
@@ -373,7 +378,7 @@ test('Usage: tools with their results, agents by kind, and spend against the cap
 test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, mute for owners', async ({
   page,
 }) => {
-  untilInHttp('P12b', 'saved questions, their check and alerts')
+  untilInHttp('P12b', 'the alerts and the cards they raise')
   await go(page, '/observability/alerts')
   await expect(page.getByRole('switch')).toHaveCount(8)
   await expect(

@@ -189,3 +189,12 @@ grant update (status, warnings, cursor, documents_seen, suggested, replaced, wit
 grant execute on function cl_source() to :api;
 -- Connect an agent's live line (FR-418): a person's no on the consent screen, kept for an hour for them alone.
 grant select, insert, delete on auth.oauth_declines to :api;
+-- Saved questions and the free check (FR-526): a domain's owners and administrators save a question as
+-- themselves, keep a new answer and undo it, and remove a question; a check run counts how far it got and
+-- adds its results. The check job reads the questions as no person through one function that runs as the
+-- owner. Agents never read any of it: nothing here is granted to the serving or the analytics role.
+grant insert, update (removed_at, removed_by) on saved_questions to :api;
+grant insert, update (undone_at) on saved_question_baselines to :api;
+grant insert, update (total, checked, finished_at, failed_at) on check_runs to :api;
+grant insert on saved_question_results to :api;
+grant execute on function cl_saved_questions_to_check(text) to :api;

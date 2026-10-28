@@ -43,14 +43,15 @@ import { LineChart } from '@/components/obs/charts'
 import { Kpi } from '@/components/obs/controls'
 import { ResultIcon } from '@/components/obs/result'
 import { ReadingLine } from '@/components/heed/reading'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SavedCheck } from '@/api'
-import { savedCheckQuery, useWrite } from '@/api/queries'
+import { queryKeys, savedCheckQuery, useWrite } from '@/api/queries'
 import { savedCounts, type SavedQuestion, type SavedResult } from '@/model/saved-questions'
 import { useSavedQuestions } from '@/api/queries'
 import type { DomainId } from '@/model/items'
 import { OBS_PURPOSE, useObsPageQuery, useObsView } from '@/lib/obs'
 import { href, setQuery, useRoute } from '@/lib/router'
+import { useDelayedBusy } from '@/lib/loading'
 import { useOnline } from '@/lib/send'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
@@ -61,10 +62,6 @@ import { ObsPage } from '@/pages/observability'
 // a check date passing, or on Check now. The heavy checks (wording, with and without context, other
 // models) need a model key and live in Settings, Advanced. Drift is announced by Alerts, not here.
 
-const TREND = {
-  labels: ['1 Sep', '8 Sep', '15 Sep', '22 Sep', '29 Sep', '6 Oct', '13 Oct', '20 Oct'],
-  same: [11, 12, 11, 12, 12, 11, 11, 9],
-}
 const GROUPS: { result: SavedResult; title: string; icon: typeof CheckIcon }[] = [
   { result: 'look', title: 'Needs a look', icon: TriangleAlertIcon },
   { result: 'changed', title: 'Changed', icon: ArrowRightLeftIcon },
@@ -72,17 +69,12 @@ const GROUPS: { result: SavedResult; title: string; icon: typeof CheckIcon }[] =
 ]
 
 export function QualityPage() {
-  // A check that stands elsewhere (running, failed) starts the page afresh.
   const check = useQuery(savedCheckQuery()).data
   const page = useObsPageQuery('quality').data
-  return (
-    <ObsPage section="quality">
-      {check && page && <Quality key={JSON.stringify(check)} run={check} />}
-    </ObsPage>
-  )
+  return <ObsPage section="quality">{check && page && <Quality first={check} />}</ObsPage>
 }
 
-function Quality({ run }: { run: SavedCheck }) {
+function Quality({ first }: { first: SavedCheck }) {
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
   const view = useObsView()
@@ -90,13 +82,12 @@ function Quality({ run }: { run: SavedCheck }) {
   const { query } = useRoute()
   const online = useOnline()
   const all = useSavedQuestions()
-  const [checking, setChecking] = React.useState(run.run === 'running')
-  // How far a check has got: one saved question at a time ("5 of 12").
-  const [checked, setChecked] = React.useState(run.checked)
-  const timer = React.useRef(0)
-  React.useEffect(() => () => window.clearInterval(timer.current), [])
-  const [failed, setFailed] = React.useState(run.run === 'failed')
-  const [checkedAt, setCheckedAt] = React.useState('Today, 09:41')
+  const write = useWrite()
+  const queryClient = useQueryClient()
+  // Check now, while it runs here: where it stands is read again a few times a second.
+  const [checking, setChecking] = React.useState(false)
+  const status =
+    useQuery({ ...savedCheckQuery(), refetchInterval: checking ? 200 : false }).data ?? first
   const [showAll, setShowAll] = React.useState(false)
   // Owners see the domains they own; anyone can narrow to one.
   const asked = query.get('domain')
@@ -114,24 +105,26 @@ function Quality({ run }: { run: SavedCheck }) {
   const shown = mine
   const c = savedCounts(shown)
   const empty = view.state === 'empty' || shown.length === 0
+  // How far a check has got, one saved question at a time ("5 of 12"): this page's, or one that
+  // runs elsewhere; and one that stopped part way.
+  const running = checking || status.run === 'running'
+  // A quick check shows no line at all; a longer one holds it long enough to read (motion rules).
+  const shownRunning = useDelayedBusy(running)
+  const failed = !checking && status.run === 'failed'
+  const total = status.run === 'idle' ? c.total : status.total
+  const checked = status.run === 'running' ? status.checked : 0
 
   const check = () => {
     setChecking(true)
-    setFailed(false)
-    setChecked(0)
-    let n = 0
-    window.clearInterval(timer.current)
-    timer.current = window.setInterval(() => {
-      n += 1
-      setChecked(n)
-      if (n < c.total) return
-      window.clearInterval(timer.current)
-      setChecking(false)
-      setCheckedAt('Just now')
-      toast(`Checked ${c.total} saved questions`, {
-        description: 'Nothing is published by a check. The results below are as of now.',
-      })
-    }, 130)
+    void write('checkSavedQuestions', { domain })
+      .then(({ checked: n }) =>
+        toast(`Checked ${n} saved questions`, {
+          description: 'Nothing is published by a check. The results below are as of now.',
+        }),
+      )
+      // A check that failed says so from where it stopped: read where it stands again.
+      .catch(() => queryClient.invalidateQueries({ queryKey: queryKeys.savedCheck }))
+      .finally(() => setChecking(false))
   }
 
   const domainChoices = own ?? domainIds.filter((d) => !domains[d]?.sandbox)
@@ -169,11 +162,11 @@ function Quality({ run }: { run: SavedCheck }) {
         variant="outline"
         size="sm"
         aria-disabled={!online || undefined}
-        loading={checking}
+        loading={running}
         loadingLabel="Checking…"
         aria-description={!online ? "Off while you're offline. The last results stay." : undefined}
         title={!online ? "Off while you're offline. The last results stay." : undefined}
-        onClick={() => online && !checking && check()}
+        onClick={() => online && !running && check()}
       >
         <RefreshCwIcon data-icon="inline-start" />
         Check now
@@ -213,15 +206,15 @@ function Quality({ run }: { run: SavedCheck }) {
   return (
     <Frame>
       <FrameSection title="Quality" description={OBS_PURPOSE.quality} action={actions} />
-      {checking && (
+      {shownRunning && (
         <div className="border-t px-4 py-3 md:px-5">
           <p className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <span role="status" className="sr-only">
-              Checking {c.total} saved questions. Nothing is published.
+              Checking {total} saved questions. Nothing is published.
             </span>
             <ReadingLine running className="text-sm">
               <span aria-hidden>
-                Checking saved questions, {Math.min(checked, c.total)} of {c.total}
+                Checking saved questions, {Math.min(checked, total)} of {total}
               </span>
             </ReadingLine>
             <span aria-hidden className="text-xs text-muted-foreground">
@@ -231,7 +224,7 @@ function Quality({ run }: { run: SavedCheck }) {
           <span aria-hidden className="mt-2 block h-0.75 overflow-hidden rounded-full bg-muted">
             <span
               className="block h-full origin-left bg-primary transition-transform duration-(--dur-2)"
-              style={{ transform: `scaleX(${Math.min(1, checked / Math.max(1, c.total))})` }}
+              style={{ transform: `scaleX(${Math.min(1, checked / Math.max(1, total))})` }}
             />
           </span>
         </div>
@@ -243,8 +236,8 @@ function Quality({ run }: { run: SavedCheck }) {
         >
           <WifiOffIcon className="size-4 shrink-0 text-[var(--warn)]" aria-hidden />
           <span className="min-w-0 flex-1">
-            The check did not finish. It stopped after 8 of {c.total} questions. Nothing was
-            changed, and agents still get what was published.
+            The check did not finish. It stopped after {status.checked} of {status.total} questions.
+            Nothing was changed, and agents still get what was published.
           </span>
           <Button size="sm" variant="outline" onClick={check}>
             Try again
@@ -287,7 +280,6 @@ function Quality({ run }: { run: SavedCheck }) {
                     <QuestionRow
                       key={q.id}
                       q={q}
-                      checkedAt={checkedAt}
                       canChange={me.admin || me.owns.includes(q.domain)}
                     />
                   ))}
@@ -315,13 +307,13 @@ function Quality({ run }: { run: SavedCheck }) {
                 series={[
                   {
                     name: 'Answer the same',
-                    values: TREND.same,
+                    values: status.trend.same,
                     color: 'var(--primary)',
                     fill: true,
                   },
                 ]}
-                labels={TREND.labels}
-                max={12}
+                labels={status.trend.labels}
+                max={Math.max(1, ...status.trend.total)}
                 caption="Saved questions that answer as saved, by week"
               />
             </div>
@@ -350,15 +342,7 @@ function Quality({ run }: { run: SavedCheck }) {
   )
 }
 
-function QuestionRow({
-  q,
-  checkedAt,
-  canChange,
-}: {
-  q: SavedQuestion
-  checkedAt: string
-  canChange: boolean
-}) {
+function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean }) {
   const domains = useDomains()
   const write = useWrite()
   const open = (
@@ -400,13 +384,7 @@ function QuestionRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
           <p className="text-sm font-medium text-pretty">{q.question}</p>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {q.result === 'same' || q.when === 'Just now'
-              ? checkedAt === 'Just now'
-                ? 'Just now'
-                : q.when
-              : q.when}
-          </span>
+          <span className="shrink-0 text-xs text-muted-foreground">{q.when}</span>
         </div>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
           <DomainDot id={q.domain} />
@@ -466,6 +444,7 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
                 expect: 'What it gets now, checked against every change.',
                 factId: '',
               },
+              origin: 'typed',
             }).then(() => {
               setOpen(false)
               setQ('')
