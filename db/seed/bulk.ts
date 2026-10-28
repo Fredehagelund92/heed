@@ -105,6 +105,20 @@ function acceptedBy(item: ContextItem) {
  * replacements. The demo library has none of these.
  */
 export type LibraryExtras = {
+  /**
+   * Terms with their own meaning, written in Definitions (FR-138) by a seeded person. They are
+   * written before the items, so an item's text can mention one (`term:<id>`). A synonym needs
+   * what it means to be served first, so it is written after the seed.
+   */
+  terms?: readonly {
+    id: string
+    name: string
+    meaning: string
+    areaId: string | null
+    /** A seeded person's id, as `seedPersonId` gives it. */
+    by: string
+    at: string
+  }[]
   /** Pairs of items whose current versions name each other as conflicting (FR-220). */
   conflicts?: readonly (readonly [string, string])[]
   /** Pairs of an item and the item its current version replaces (FR-218). */
@@ -334,6 +348,12 @@ export async function bulkSeed(
           is_demo: false,
         },
       ])
+    for (const t of extras.terms ?? [])
+      await client.query(
+        `insert into terms (id, name, meaning, area_id, created_by, updated_by, created_at, updated_at)
+         values ($1::uuid, $2, $3, $4, $5::uuid, $5::uuid, $6::timestamptz, $6::timestamptz)`,
+        [t.id, t.name, t.meaning, t.areaId, t.by, t.at],
+      )
     // Roles hold from the first day of the history, so its decisions were made by people who held
     // them then (0006 checks the role at the decision's time). Former roles end the day after it.
     const days = items
@@ -632,9 +652,11 @@ export async function bulkSeed(
               version_id: id,
               field: m.field,
               position: m.position,
-              term_key: prefix === 'item' || prefix === 'area' ? null : m.target,
+              term_key:
+                prefix === 'item' || prefix === 'area' || prefix === 'term' ? null : m.target,
               item_id: prefix === 'item' ? key : null,
               area_id: prefix === 'area' ? key : null,
+              term_id: prefix === 'term' ? key : null,
               label: m.label,
             }
           }),

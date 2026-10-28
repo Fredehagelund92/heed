@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
+import { wordsOf } from '@/api/http-context'
 import { inboxOf, refOf, reviewOf, whenWords, workspaceOf } from '@/api/http-inbox'
 import type { Domains } from '@/model/people'
 import { readiness, readTime } from '@/model/review'
@@ -612,6 +613,24 @@ describe('the review', () => {
       },
     ])
     expect(reviewOf(sheet(), 'sug-1').saved).toEqual([])
+  })
+
+  it('names a link to a term written in Definitions by its word, as Try it says it', () => {
+    const id = '0190a0a0-0000-7000-8000-00000000000c'
+    const words = wordsOf({ metrics: [], dimensions: [] }, [{ id, name: 'Test account' }])
+    const mention = { target: `term:${id}`, label: 'accounts', change: 'added' as const }
+    const [block] = reviewOf(
+      sheet({}, { blocks: [{ kind: 'link', field: 'text', mention }] }),
+      'p1',
+      undefined,
+      words,
+    ).blocks
+    expect(block).toEqual({
+      kind: 'Link',
+      field: 'What agents should know',
+      text: '',
+      mention: { id: 'term:Test account', label: 'Test account', change: 'added' },
+    })
   })
 
   it('draws each kind of change as its block, with the app’s marks', () => {

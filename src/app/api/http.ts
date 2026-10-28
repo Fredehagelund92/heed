@@ -333,7 +333,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   let published: Record<string, string> = {}
   /** The service's today and how far it is from the clock's day, as the last index read them. */
   let calendar = { today: new Date().toISOString().slice(0, 10), shift: 0 }
-  /** The live vocabulary's words, read once a session: a scope and a mention are named by them. */
+  /**
+   * The live vocabulary's words and the terms written in Definitions, read once a session and again
+   * after a term changes: a scope and a mention are named by them.
+   */
   let words: Promise<Words> | undefined
   /** The topics Observability listed, by id, so the answer panel can name what it replays. */
   const listedTopics = new Map<string, ReplayTopic>()
@@ -381,6 +384,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         result = await send((await session()).csrfToken)
       }
       pendingKeys.delete(id)
+      // A term written, renamed, moved or deleted changes the words a mention is named by.
+      if (operation.startsWith('terms.') || operation === 'decisions.undo') words = undefined
       return result
     } catch (error) {
       const failure = toApiError(error)
@@ -486,8 +491,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   /* ---------- Context ---------- */
 
   const readWords = () =>
-    (words ??= read(() => client.vocabulary.get())
-      .then(wordsOf)
+    (words ??= Promise.all([read(() => client.vocabulary.get()), read(() => client.terms.list())])
+      .then(([vocabulary, { terms }]) => wordsOf(vocabulary, terms))
       .catch((error: unknown) => {
         words = undefined
         throw error
@@ -636,7 +641,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       sent(a.sheet) < sent(b.sheet) ? 1 : sent(a.sheet) > sent(b.sheet) ? -1 : 0,
     )
     for (const s of sheets) refs.set(s.card, refOf(s.sheet))
-    return sheets.map((s) => reviewOf(s.sheet, s.card, gaps.get(s.card)))
+    const vocabulary = await readWords()
+    return sheets.map((s) => reviewOf(s.sheet, s.card, gaps.get(s.card), vocabulary))
   }
 
   /** What deciding on a review needs, read again when this visit has not read it yet. */

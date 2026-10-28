@@ -137,7 +137,7 @@ export const tools = {
     title: toolWords.get_related.title,
     description: describe(
       'get_related',
-      "Follow links from an item's id, a vocabulary key such as metric:orders, or a domain. Returns neighbours one or two steps away with their kind of link, never bodies. A link shows what a text refers to: it neither widens where an item applies nor proves a cause, and it never changes what get_context includes. Call it only when a link helps answer the question; read a neighbour with read_context. Follow next_cursor for another page.",
+      "Follow links from an item's id, a vocabulary key such as metric:orders, a term written in Definitions (term:<id>), or a domain. Returns neighbours one or two steps away with their kind of link, never bodies; a term comes with what it means, as a person wrote it, which is background for reading words and never a checked source. A link shows what a text refers to: it neither widens where an item applies nor proves a cause, and it never changes what get_context includes. Call it only when a link helps answer the question; read a neighbour with read_context. Follow next_cursor for another page.",
     ),
     inputSchema: relatedInput,
     outputSchema: readOutput,

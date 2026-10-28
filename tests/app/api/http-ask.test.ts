@@ -6,6 +6,7 @@ import {
   createChatShelf,
   dayOf,
   examplesOf,
+  linksOf,
   lookupFields,
   namesOf,
   type Shelf,
@@ -344,5 +345,61 @@ describe("the person's chats in the browser", () => {
       day: 'Earlier',
       time: '19 Oct',
     })
+  })
+})
+
+describe('the links an answer followed', () => {
+  it('names each end as a mention does, with what the agent read there', () => {
+    const links = linksOf(
+      result({
+        links: {
+          on: true,
+          followed: [
+            {
+              from: 'itm_norway_stop',
+              rel: 'mentions',
+              to: {
+                type: 'term',
+                id: 'term:0190a0a0-0000-7000-8000-00000000000e',
+                label: 'Webshop',
+                areaId: 'area_sales',
+                read: 'Orders placed on **our site**.',
+                sameAs: null,
+              },
+            },
+          ],
+          notFollowed: [
+            {
+              from: 'itm_norway_stop',
+              rel: 'conflicts_with',
+              to: { type: 'item', id: 'itm_kh4llvi9', label: 'the old switch', status: 'retired' },
+            },
+          ],
+        },
+      }),
+    )
+    expect(links).toEqual({
+      on: true,
+      followed: [
+        {
+          from: { id: 'itm_norway_stop', title: '' },
+          rel: 'mentions',
+          to: { id: 'term:Webshop', label: 'Webshop' },
+          read: 'Orders placed on our site.',
+        },
+      ],
+      notFollowed: [
+        {
+          from: { id: 'itm_norway_stop', title: '' },
+          rel: 'disagrees',
+          to: { id: 'context:itm_kh4llvi9', label: 'the old switch' },
+        },
+      ],
+    })
+  })
+
+  it('says nothing of links for an answer that carries none', () => {
+    expect(linksOf(result())).toBeUndefined()
+    expect(answerOf(result(), 'Orders?', namesOf(vocabulary)).links).toBeUndefined()
   })
 })

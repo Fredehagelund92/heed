@@ -1,7 +1,8 @@
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 import type { Domains } from '@/model/people'
 import type { Definition } from '@/lib/definitions'
-import { mentionId, mentionsIn, parseMentionId, type MentionKind } from '@/lib/mentions'
+import { mentionId, mentionsIn, parseMentionId, plainText, type MentionKind } from '@/lib/mentions'
+import type { AnswerLinks } from '@/model/ask'
 
 // What an agent can follow from a context item, a definition or a domain: get_related, read-only.
 // A link is an @ mention written in a text (both ways: links to, and linked from), or one of two
@@ -144,4 +145,27 @@ export function follow(
       }
     }
   return { followed, notFollowed }
+}
+
+/** Where a followed link led: the item's summary or the term's meaning, as the agent read it. */
+function readAt(link: Link, w: World): string {
+  const { kind, key } = parseMentionId(link.to.id)
+  if (kind === 'context') return plainText(w.facts.find((x) => x.id === key)?.summary ?? '')
+  return plainText(w.definitions.find((d) => d.name === key)?.definition ?? '')
+}
+
+/** What get_related follows from the items an answer has, as the answer carries it. */
+export function answerLinks(sources: readonly string[], w: World, enabled: boolean): AnswerLinks {
+  const got = sources.flatMap((id) => w.facts.find((f) => f.id === id) ?? [])
+  const { followed, notFollowed } = follow(got, w, enabled)
+  const one = ({ from, link }: Followed) => ({
+    from: { id: from.id, title: from.title },
+    rel: link.rel as 'replaces' | 'disagrees' | 'mentions',
+    to: { id: link.to.id, label: link.to.label },
+  })
+  return {
+    on: enabled,
+    followed: followed.map((f) => ({ ...one(f), read: readAt(f.link, w) })),
+    notFollowed: notFollowed.map(one),
+  }
 }

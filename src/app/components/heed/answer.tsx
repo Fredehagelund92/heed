@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { scopeText, type Answer, type QuestionPart } from '@/model/ask'
+import { scopeText, type Answer, type AnswerLinks, type QuestionPart } from '@/model/ask'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
@@ -45,9 +45,7 @@ import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/men
 import type { FigureView } from '@/model/figures'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
-import { useDefinitions } from '@/lib/definitions'
-import { follow, linksOf, type Followed } from '@/lib/links'
-import { useLinksEnabled } from '@/lib/links-switch'
+import { useRelated } from '@/hooks/use-related'
 
 // One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
 // bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
@@ -213,25 +211,8 @@ function ScopeLine({ answer }: { answer: Answer }) {
 
 /* ---------- what Heed looked up ---------- */
 
-/** What the agent did with the links of what it got: one step each, never a retired target. */
-function useFollowed(facts: Fact[]) {
-  const all = useFacts()
-  const definitions = useDefinitions()
-  const domains = useDomains()
-  const enabled = useLinksEnabled()
-  const result = React.useMemo(
-    () => follow(facts, { facts: all, definitions, domains }, enabled),
-    [facts, all, definitions, domains, enabled],
-  )
-  return { ...result, enabled }
-}
-
-/** Where a followed link led: the item's summary or the term's meaning, as the agent read it. */
-function ledTo(f: Followed, all: Fact[], definitions: ReturnType<typeof useDefinitions>) {
-  const { kind, key } = parseMentionId(f.link.to.id)
-  if (kind === 'context') return plainText(all.find((x) => x.id === key)?.summary ?? '')
-  return plainText(definitions.find((d) => d.name === key)?.definition ?? '')
-}
+/** An answer that says nothing of links follows none. */
+const NO_LINKS: AnswerLinks = { on: true, followed: [], notFollowed: [] }
 
 function LookupCard({
   answer,
@@ -247,9 +228,8 @@ function LookupCard({
   const scope = scopeText(answer) || 'Nothing matched'
   const raw = agentReply(answer, facts)
   const running = !stopped && (stage === 'looking' || stage === 'reading')
-  const all = useFacts()
-  const definitions = useDefinitions()
-  const { followed, notFollowed, enabled } = useFollowed(facts)
+  // What the agent followed with get_related, as the answer says: one step each, never a retired target.
+  const { followed, notFollowed, on: enabled } = answer.links ?? NO_LINKS
   const n = followed.length
   const linkWords = !facts.length
     ? ''
@@ -319,23 +299,21 @@ function LookupCard({
               <p className="text-xs font-medium text-foreground">Links it followed, one step</p>
               <ul className="flex flex-col gap-2">
                 {followed.map((f) => (
-                  <li key={f.link.to.id} className="flex flex-col gap-1">
+                  <li key={f.to.id} className="flex flex-col gap-1">
                     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
                       <span className="line-clamp-1 max-w-56">{f.from.title}</span>
                       <span>links to</span>
-                      <MentionChip mention={{ id: f.link.to.id, label: f.link.to.label }} />
+                      <MentionChip mention={f.to} />
                     </span>
-                    <span className="line-clamp-2 border-l-2 pl-2 text-xs">
-                      {ledTo(f, all, definitions)}
-                    </span>
+                    <span className="line-clamp-2 border-l-2 pl-2 text-xs">{f.read}</span>
                   </li>
                 ))}
                 {notFollowed.map((f) => (
                   <li
-                    key={f.link.to.id}
+                    key={f.to.id}
                     className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
                   >
-                    <MentionChip mention={{ id: f.link.to.id, label: f.link.to.label }} />
+                    <MentionChip mention={f.to} />
                     <span>no longer available, not followed</span>
                   </li>
                 ))}
@@ -371,13 +349,13 @@ function LookupCard({
                       {
                         depth: 1,
                         nodes: followed.map((f) => ({
-                          id: f.link.to.id,
-                          label: f.link.to.label,
-                          rel: f.link.rel,
+                          id: f.to.id,
+                          label: f.to.label,
+                          rel: f.rel,
                           from: `context:${f.from.id}`,
                         })),
                         not_followed: notFollowed.map((f) => ({
-                          id: f.link.to.id,
+                          id: f.to.id,
                           status: 'retired',
                         })),
                       },
@@ -443,13 +421,9 @@ function Citation({ n, fact, draft }: { n: number; fact?: Fact; draft?: boolean 
 
 /** In a source's card: the links an agent can follow from it, a retired one marked. */
 function SourceLinks({ fact }: { fact: Fact }) {
-  const all = useFacts()
-  const definitions = useDefinitions()
-  const domains = useDomains()
-  const enabled = useLinksEnabled()
-  const links = linksOf(`context:${fact.id}`, { facts: all, definitions, domains }).filter(
-    (l) => l.rel !== 'mentioned_by' && l.rel !== 'replaced_by',
-  )
+  const related = useRelated(`context:${fact.id}`)
+  const enabled = related.following
+  const links = related.links.filter((l) => l.rel !== 'mentioned_by' && l.rel !== 'replaced_by')
   if (!links.length) return null
   return (
     <div className="flex flex-col gap-1 border-t pt-1.5">

@@ -176,6 +176,20 @@ export async function checkDraft(
         )
     }
   }
+  // FR-132 refuses a new mention of a target that is not there: a link the item's published
+  // version has already is kept, as Related shows it, retired and never followed.
+  const kept = new Set(
+    itemId
+      ? (
+          await tx.query<{ target: string }>(
+            `select coalesce(m.term_key,'item:'||m.item_id,'area:'||m.area_id,'term:'||m.term_id::text) as target
+               from item_version_service s join item_version_mentions m on m.version_id=s.version_id
+              where s.item_id=$1 and s.editions @> (select seq from live_edition)`,
+            [itemId],
+          )
+        ).map((row) => row.target)
+      : [],
+  )
   for (const field of ['summary', 'body'] as const) {
     const markup = field === 'summary' ? draft.summaryMarkup : draft.bodyMarkup
     if (markup === undefined) continue
@@ -185,6 +199,7 @@ export async function checkDraft(
     for (const mention of parsed.mentions) {
       const target = mention.target
       if (target === `item:${itemId}`) add('self_mention', field, "A fact can't mention itself.")
+      else if (kept.has(target)) continue
       else if (target.startsWith('item:')) {
         const rows = await tx.query(
           'select 1 from item_version_service s join item_versions v on v.id=s.version_id where s.item_id=$1 and s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)',
@@ -201,6 +216,16 @@ export async function checkDraft(
           ).length
         )
           add('mention_target', field, `We couldn't find the domain ${target.slice(5)}.`)
+      } else if (target.startsWith('term:')) {
+        // A term written in Definitions, while it is there (FR-138).
+        if (
+          !(
+            await tx.query('select 1 from terms where id=$1 and deleted_at is null', [
+              target.slice(5),
+            ])
+          ).length
+        )
+          add('mention_target', field, "A term you mention isn't in Definitions any more.")
       } else {
         const term = known.get(target)
         if (!term) add('mention_target', field, `We don't know the name ${target}.`)

@@ -55,6 +55,7 @@ export function bundle(): ServingBundle {
       },
     ],
     written: [],
+    writtenAreas: {},
     metricArea: { 'metric:orders': 'finance' },
     groupsOfMetric: {},
     stopped: { all: false, areas: [], items: [] },

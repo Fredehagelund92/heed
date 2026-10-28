@@ -7,7 +7,7 @@ import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
-import { linksOf } from '@/lib/links'
+import { answerLinks, linksOf } from '@/lib/links'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
 import { obsData } from './data/observability'
@@ -471,7 +471,21 @@ export function createMockApi() {
         const read = readQuestion(question)
         return { metric: read.metric, markets: read.markets }
       }),
-    ask: (input) => now(() => answer(input)),
+    ask: (input) =>
+      now(() => {
+        const a = answer(input)
+        // What an agent follows from the answer's items, with the switch as it is now.
+        const links = answerLinks(
+          a.sources,
+          {
+            facts: factsOf(state),
+            definitions: definitions.list(),
+            domains: Object.fromEntries(workspace.domains().map((d) => [d.id, d])),
+          },
+          settings.read(scenario.address()).links,
+        )
+        return { ...a, links }
+      }),
     askedThisWeek: () => now(() => askedThisWeek(factsOf(state))),
     getAskExamples: () => now(() => examples),
     listChats: () =>

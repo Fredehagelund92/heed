@@ -364,6 +364,48 @@ it('records failed queue writes and bounded overflow without failing delivery', 
 })
 
 describe('get_related', () => {
+  it('follows a mention of a term written in Definitions to what it means, and back', async () => {
+    const s = setup(),
+      item = s.data.items[0]!
+    const id = '0190a0a0-0000-7000-8000-00000000000f'
+    s.data.written.push({
+      id,
+      name: 'Webshop',
+      meaning: 'Orders placed on our site or in our apps.',
+      sameAs: null,
+      areaId: item.areaId,
+      writtenOn: '2026-07-02',
+      writtenAs: 'owner',
+      conflict: false,
+    })
+    s.data.writtenAreas[id] = item.areaId
+    s.data.links.push({
+      from_item: item.id,
+      rel: 'mentions',
+      to_kind: 'term',
+      to_id: `term:${id}`,
+      label: 'the webshop',
+    })
+    const from = (await s.call('get_related', { id: item.id })).structuredContent as {
+      nodes: Record<string, unknown>[]
+    }
+    expect(from.nodes).toContainEqual({
+      type: 'term',
+      id: `term:${id}`,
+      label: 'Webshop',
+      status: 'current',
+      meaning: 'Orders placed on our site or in our apps.',
+      area: item.areaId,
+      distance: 1,
+    })
+    const back = (await s.call('get_related', { id: `term:${id}` })).structuredContent as {
+      root: Record<string, unknown>
+      nodes: { id: string }[]
+    }
+    expect(back.root).toMatchObject({ type: 'term', label: 'Webshop' })
+    expect(back.nodes.map((n) => n.id)).toEqual([item.id])
+  })
+
   function graph(n: number) {
     const s = setup(),
       item = s.data.items[0]!

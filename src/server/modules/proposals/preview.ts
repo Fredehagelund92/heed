@@ -110,7 +110,17 @@ export function candidateBundle(
   const links: RawLink[] = v.mentions.map((m) => ({
     from_item: id,
     rel: 'mentions',
-    to_kind: m.target.startsWith('item:') ? 'item' : m.target.startsWith('area:') ? 'area' : 'term',
+    to_kind: m.target.startsWith('item:')
+      ? 'item'
+      : m.target.startsWith('area:')
+        ? 'area'
+        : m.target.startsWith('term:')
+          ? 'term'
+          : m.target.startsWith('val:')
+            ? 'dimension_value'
+            : m.target.startsWith('dim:')
+              ? 'dimension'
+              : 'metric',
     to_id: /^(item|area):/.test(m.target) ? m.target.slice(5) : m.target,
     label: m.label,
   }))

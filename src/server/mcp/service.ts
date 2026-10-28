@@ -214,7 +214,7 @@ export const searchHint =
 export const definitionInstruction = `For what a metric means, quote definitions: the source's own words, and where they come from. Keep the facts apart as what is added to the definition, and never make up a definition.`
 const relatedInstructions =
   agentInstructions +
-  ' To read a neighbour item in full, call read_context with its id. Follow a link only when it helps answer the question.'
+  ' To read a neighbour item in full, call read_context with its id. A term node gives what its word means, as a person wrote it in Definitions: read the words by it and say whose words they are, but never give it as a checked source. Follow a link only when it helps answer the question.'
 const report = (status: Resolution['status'], matched = 0, withheld = 0) => ({
   status,
   matched,
