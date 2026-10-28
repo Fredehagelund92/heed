@@ -824,6 +824,119 @@ export function describeHeedApi(
       },
     )
 
+    // Figures in Ask (FR-716): Cube in the demo week reads figures from the demo warehouse.
+    const orders = {
+      metric: 'Orders',
+      markets: ['Norway'],
+      dates: '1 to 31 Aug 2026',
+      state: 'grounded',
+      sources: [],
+    }
+
+    it.skipIf(lacks('signIn', 'getSettings', 'getIntegrations', 'readFigure', 'setFigures'))(
+      'shows no figure until figures are on for Cube, then one, with its source and query in words',
+      async () => {
+        const live = await signedIn()
+        const settings = await live.getSettings()
+        expect(settings.figures.cube).toBe(false)
+        expect(settings.contacts.cube).toBe('Ravi Kapoor')
+        expect(settings.connected).toContain('cube')
+        // Reached at one host, its secret set, and none of the secret shown.
+        const cube = (await live.getIntegrations()).figureConnections.cube!
+        expect(cube).toMatchObject({ secretSet: true, contact: 'Ravi Kapoor' })
+        expect(cube.endpoint).toMatch(/\/v1\/load$/)
+        expect(cube.host).toBeTruthy()
+        expect(JSON.stringify(cube)).not.toMatch(/secretTail|token/i)
+        // Off: the answer links into the tool.
+        expect(await live.readFigure(orders)).toMatchObject({
+          kind: 'link',
+          source: 'cube',
+          scope: 'Orders in Norway, 1 to 31 Aug 2026',
+        })
+        await live.setFigures({ source: 'cube', on: true })
+        try {
+          expect((await live.getSettings()).figures.cube).toBe(true)
+          const figure = await live.readFigure(orders)
+          expect(figure).toMatchObject({
+            kind: 'line',
+            source: 'cube',
+            asOf: 'today at 06:00',
+            figure: {
+              label: 'Orders in Norway, 1 to 31 Aug 2026',
+              value: '€43,600',
+              change: 'down 89% from July (€412,600)',
+              words:
+                'Orders, added up for Norway from 1 to 31 Aug 2026, and the same for 1 to 31 Jul 2026 to compare.',
+            },
+          })
+          // A figure that can't be read for the question is no figure, never a guess.
+          expect(await live.readFigure({ ...orders, dates: undefined })).toBeNull()
+          expect(await live.readFigure({ ...orders, state: 'failed' })).toBeNull()
+        } finally {
+          await live.setFigures({ source: 'cube', on: false })
+        }
+        expect((await live.getSettings()).figures.cube).toBe(false)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getSettings', 'setDataContact', 'getIntegrations'))(
+      'names who hears about a figure that looks wrong',
+      async () => {
+        const live = await signedIn()
+        await live.setDataContact({ source: 'cube', name: colleague })
+        try {
+          expect((await live.getSettings()).contacts.cube).toBe(colleague)
+          expect((await live.getIntegrations()).figureConnections.cube?.contact).toBe(colleague)
+        } finally {
+          await live.setDataContact({ source: 'cube', name: 'Ravi Kapoor' })
+        }
+        expect((await live.getSettings()).contacts.cube).toBe('Ravi Kapoor')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'reportAnswer'))(
+      'reports a figure that does not fit a context item, to its owners and the data contact',
+      async () => {
+        const live = await signedIn()
+        const [item] = (await live.getLibrary()).items.filter((f) => f.status === 'Live')
+        const sent = await live.reportAnswer({
+          question: 'Why did orders in Norway drop in August?',
+          part: 'figure',
+          sources: [item!.id],
+          what: "The figure doesn't fit this context item.",
+          figure: {
+            source: 'cube',
+            to: 'both',
+            metric: 'Orders',
+            markets: ['Norway'],
+            dates: '1 to 31 Aug 2026',
+          },
+        })
+        expect(sent.id).toBeTruthy()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'setFigureConnection', 'getIntegrations'))(
+      "sets where an integration's figures are read, and shows the token as set, never what it is",
+      async () => {
+        const live = await signedIn()
+        const token = 'conformance-figures-token-7a1e'
+        await live.setFigureConnection({
+          source: 'cube',
+          endpoint: 'https://cube.example.test/cubejs-api/v1/load',
+          token,
+        })
+        const cube = (await live.getIntegrations()).figureConnections.cube!
+        expect(cube).toMatchObject({
+          endpoint: 'https://cube.example.test/cubejs-api/v1/load',
+          host: 'cube.example.test',
+          secretSet: true,
+        })
+        expect(JSON.stringify(await live.getIntegrations())).not.toContain(token)
+        expect(JSON.stringify(await live.getSettings())).not.toContain(token)
+      },
+    )
+
     it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgentConnection'))(
       'lists the agents people connected, one row each, and revokes one',
       async () => {

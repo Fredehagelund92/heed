@@ -154,7 +154,8 @@ Administration. See [the Cube connector](docs/connectors/cube.md).
 | Search over your documents       | Returns text that looks like the question, with no owner or date | Returns the facts that apply to the metric, market and dates, or says none |
 | Your semantic layer              | Defines the number, not why it moved                             | Sits beside it: Cube gives the figure, Heed gives the context              |
 
-Heed is not a data tool: it holds no numbers and runs no queries. It is not a wiki: every fact is short, has a
+Heed is not a data tool: it stores no numbers. When an admin switches figures on for an integration, Ask reads
+one figure from it when someone asks, and keeps it nowhere. It is not a wiki: every fact is short, has a
 source, and its owner checks it. It doesn't watch people: it counts questions by topic, not by person.
 
 ## Docs

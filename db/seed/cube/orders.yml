@@ -1,5 +1,7 @@
 # The demo Cube model: an invented semantic layer over invented tables, read offline by the Cube
 # connector. The bulk seed stores what the connector reads from this folder; no data is queried.
+# Figures in Ask read one figure from a Cube over these tables only when an admin sets a data
+# endpoint and switches figures on: the tests run a stand-in Cube over a seeded demo warehouse.
 cubes:
   - name: order_facts
     public: false
@@ -9,6 +11,9 @@ cubes:
         title: Orders
         type: sum
         sql: order_amount
+        format: currency
+        meta:
+          currency: EUR
         description: >-
           The value of orders customers completed and paid for, in euros at the daily rate.
           Cancelled orders and failed payments are left out.
@@ -16,6 +21,9 @@ cubes:
         title: Returns
         type: sum
         sql: refund_amount
+        format: currency
+        meta:
+          currency: EUR
         description: >-
           The value of products customers sent back, in euros at the daily rate, on the day the
           payment provider confirmed the refund.
@@ -30,6 +38,12 @@ cubes:
         sql: market_code
         description: >-
           The country or region the order ships to.
+      - name: order_day
+        title: Order day
+        type: time
+        sql: order_day
+        description: >-
+          The day the order was paid for.
 
 views:
   - name: orders
@@ -41,3 +55,4 @@ views:
           - orders
           - returns
           - market
+          - order_day

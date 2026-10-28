@@ -189,12 +189,14 @@ their writes are not available yet.
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
 setup checklist, People, Context, Definitions, the editor, Related, Observability, comments with their
-reactions and mentions, and Settings' domains and agents so far) on an http mode build against the
-service, with its own login server for an agent that signs in, one at a time, each on its
+reactions and mentions, Settings' domains and agents, and figures in Ask so far) on an http mode
+build against the service, with its own login server for an agent that signs in, and a stand-in
+Cube over a seeded demo warehouse for figures (`tests/app/http/demo-figures.ts`), one at a time, each on its
 own copy of the demo week seeded once into a template database; a journey that starts as a new
 install (`?demo=setup`, or Observability's `?state=empty`) gets a copy of an empty workspace
 instead, and `?demo=week` brings it back to the demo week; Quality's `?quality=failed` makes the
-last check of the saved questions one that stopped part way. It needs a local PostgreSQL 18 and a
+last check of the saved questions one that stopped part way; `?figures=on|off` switches Cube's
+figures, and Ask's `?example=` asks the example's question in the composer. It needs a local PostgreSQL 18 and a
 superuser's connection in
 `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server); it serves the app
 on port 4175 and the service on 3110, or on `PW_GOLDEN_WEB_PORT` and `PW_GOLDEN_API_PORT` when

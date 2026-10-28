@@ -2,37 +2,28 @@ import { figureConnections, warehouseHas } from './integrations'
 import { connectorById, type ConnectorId } from '@/model/integrations'
 import type { Figure, FigureView } from '@/model/figures'
 import { metrics } from './world'
+import {
+  discountAfter,
+  discountBefore,
+  norwayAug,
+  norwayJul,
+  returnsBefore,
+  returnsNorway,
+  spainOct,
+  spainSep,
+  sum,
+} from './figure-series'
 
 // The figures an answer can show, from the demo warehouse behind the integrations: fixtures only,
-// every one computed from a series so the line and its comparison agree. A figure is never context:
+// every one computed from a series (figure-series.ts, which the http journeys seed into a warehouse
+// behind a stand-in Cube) so the line and its comparison agree. A figure is never context:
 // it is read from an integration at a time, unchanged, and nobody here checked it. Which integration
 // answers is decided by the metric's definition, never guessed.
 
 const eur = (n: number) => `€${Math.round(n).toLocaleString('en-GB')}`
-const sum = (v: number[]) => v.reduce((a, b) => a + b, 0)
 const pct = (a: number, b: number) => Math.round(((a - b) / b) * 100)
 const moved = (a: number, b: number) =>
   pct(a, b) < 0 ? `down ${Math.abs(pct(a, b))}%` : `up ${pct(a, b)}%`
-
-/** Orders in Norway, a day at a time in August: three days of sales, then online sales stop. */
-const norwayAug = [
-  13200,
-  13800,
-  12400,
-  ...Array.from({ length: 28 }, (_, i) => (i % 2 === 0 ? 200 : 100)),
-]
-const norwayJul = 412600
-/** Orders in Spain so far in October, a slow slide, and the same days in September. */
-const spainOct = [
-  7300, 7100, 7400, 7200, 6900, 7000, 6800, 6700, 6900, 6600, 6500, 6600, 6400, 6200, 6300, 6100,
-  6000, 6200, 5900, 5800, 5700, 5600,
-]
-const spainSep = 157400
-/** Discount cost in Norway after promotions were paused: it should be close to nothing, and isn't. */
-const discountAfter = 18400
-const discountBefore = 17700
-const returnsNorway = 61300
-const returnsBefore = 74800
 
 const fixtures: Record<string, Figure> = {
   'Orders|Norway|1 to 31 Aug 2026': {
@@ -103,7 +94,7 @@ export function figureFor(a: Asked, enabled: (id: ConnectorId) => boolean): Figu
       why: `${connectorById(source)!.name} returned no figure for ${scopeOf(a)}.`,
       closest: [],
     }
-  const asOf = figureConnections[source]!.asOf
+  const asOf = figureConnections[source]?.asOf ?? 'just now'
   return figure.against
     ? { kind: 'against', source, figure, asOf }
     : { kind: 'line', source, figure, asOf }

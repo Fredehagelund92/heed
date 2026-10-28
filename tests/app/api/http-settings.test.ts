@@ -247,6 +247,10 @@ describe('Settings, Advanced', () => {
 
   it('says each history entry as a line, with a link to what it names', () => {
     expect(historyLine(entry({}))).toEqual({ what: 'Changed a setting: workspace.name' })
+    // An integration's figures settings changed, never which token.
+    expect(
+      historyLine(entry({ action: 'figures.changed', subjectType: 'source', subjectId: 'cube' })),
+    ).toEqual({ what: 'Changed figures in Ask' })
     expect(
       historyLine(
         entry({

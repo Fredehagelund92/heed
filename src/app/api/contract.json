@@ -3566,6 +3566,56 @@
       }
     }
   },
+  "figures": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/figures",
+          "tags": [
+            "sources"
+          ],
+          "summary": "The integrations that can read a figure for Ask (FR-716, CON-612): whether Show figures in Ask is on (off by default) and the data contact; for administrators also the data endpoint, its declared host and whether its token is set, never the token"
+        }
+      }
+    },
+    "set": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "PUT",
+          "path": "/figures/{id}",
+          "tags": [
+            "sources"
+          ],
+          "summary": "Change an integration's figures settings: Show figures in Ask, the data endpoint, its token (kept in the secret store, sent only to the endpoint's origin, and forgotten when the scheme, host or port changes) and the data contact; switching figures on needs all three. Recorded in the history log, never the token"
+        }
+      }
+    },
+    "read": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/figures/read",
+          "tags": [
+            "sources"
+          ],
+          "summary": "One figure for an answer in Ask, from the integration the metric's definition comes from, for the days and values asked, compared with the days just before, within 4 seconds; a link into the tool while figures are off; or why there is none. Kept nowhere, and no person's identity is passed on"
+        }
+      }
+    }
+  },
   "reports": {
     "create": {
       "~orpc": {

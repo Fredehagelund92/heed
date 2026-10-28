@@ -210,11 +210,15 @@ export type SourcePage = {
   connection: { label: string; value: string; code?: boolean }[]
 }
 
-/** How a figure-capable integration is reached. The secret is never shown in full. */
+/**
+ * How a figure-capable integration is reached: its data endpoint, the one host it calls, and
+ * whether its secret is set. The secret itself, or any part of it, is never shown.
+ */
 export type FigureConnection = {
-  endpoint: string
-  host: string
-  secretTail: string
+  endpoint: string | null
+  host: string | null
+  secretSet: boolean
   contact: string
-  asOf: string
+  /** When the integration last refreshed its data, when known. */
+  asOf?: string
 }

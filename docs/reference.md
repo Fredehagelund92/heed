@@ -1232,3 +1232,32 @@ the contract is in `src/contract/alerts.ts`.
   with its domains, title, where it sends people (its Inbox card, a topic, a page, or a connected
   tool) and whom it reached, by name. Administrators read every raise; an owner those about a
   domain they own.
+
+## Figures in Ask
+
+Figures in Ask on the service (FR-716, CON-612, golden plan P11a). A definitions integration whose
+connector reads figures (Cube) has figures settings, off by default; the connector side is in
+[the connector contract](connectors.md#figures-in-ask) and
+[the Cube connector](connectors/cube.md#figures-in-ask). The app's http binding words them for
+Ask and the integration's page (`src/app/api/http-figures.ts`).
+
+- `GET /figures`: each integration that reads figures, with Show figures in Ask (`enabled`) and
+  its data contact, for everyone signed in; for administrators also `connection`, the data
+  endpoint, its declared host and whether its token is set. Never the token, or any of it.
+- `PUT /figures/{id}` (administrators): `enabled`, `dataContactId` (a person in the workspace, or
+  null), `endpoint` (Cube's `/v1/load`) and `token`, each optional, with a `reason`. The token goes
+  to the secret store and is sent only to the endpoint's origin; an endpoint at another scheme,
+  host or port forgets it. Switching on needs the endpoint, its token and a data contact (422
+  otherwise). The history log records `figures.changed` with what changed, and of the token only
+  whether it was set, replaced or removed.
+- `POST /figures/read`: one figure for an answer, `{ metric, values, from, to, items? }` with the
+  metric's key, the dimension values' keys and the days, both included. It answers `off` (with the
+  tool's address to link to, when its endpoint is set), `none` with a reason (`undefined`,
+  `ambiguous`, `no_date`, `no_split`, `no_value`, or `failed` with a code), or `figure`: the value
+  and its format, the same for the days just before, when the tool last refreshed its data, the
+  query in words, the data contact, and `against`, a context item someone said the figure doesn't
+  fit while their report is open. It is read within 4 seconds, kept a minute in the server's
+  memory, and stored nowhere; no person's identity is passed on.
+- `POST /reports` takes `part: 'figure'` with `figure: { source, metric, values, from, to, route }`:
+  the figure doesn't fit the item, to the item's owners, the data contact, or both (`route`). The
+  data contact reads it in their Inbox and may close it as not a problem.

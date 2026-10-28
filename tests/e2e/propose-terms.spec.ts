@@ -18,19 +18,20 @@ async function scenario(page: Page, name: string) {
 }
 const block = (page: Page, slot: string) => page.locator(`[data-slot="${slot}"]`)
 
-test('a live dimension in one view of two links the other, as one change', async ({ page }) => {
+test('a live dimension in one view of three links the others, as one change', async ({ page }) => {
   await scenario(page, 'term-in-one-view')
   await signInAs(page, 'per_ravi')
   await openPage(page, '/admin?section=sources&source=cube', desktop)
   const terms = block(page, 'source-terms')
-  await expect(terms).toContainText("1 metric or dimension isn't one yet.")
+  // Market's two other views, and the two days figures read by, which no name names.
+  await expect(terms).toContainText("4 metrics and dimensions aren't yet.")
   await terms.getByRole('link', { name: 'Propose names' }).click()
   await expect(page).toHaveURL(/terms=true/)
 
   const market = page.locator('[data-term="dim:market"]')
   await expect(market.getByRole('textbox')).toHaveValue('Market')
   await expect(market.locator('[data-slot="propose-terms-member-names"]')).toHaveText(
-    'A name we know already. It also links 1 more Cube name: orders.market',
+    'A name we know already. It also links 2 more Cube names: marketing.market, orders.market',
   )
   // Its views lie in Sales and in none: shared, so no domain, and an admin reviews it.
   await expect(market.getByRole('combobox', { name: 'Domain of Market' })).toHaveValue('')
@@ -45,20 +46,16 @@ test('a live dimension in one view of two links the other, as one change', async
   await expect(done).toContainText('needs an admin')
 })
 
-test('once every metric and dimension is a name, the page stays open for values', async ({
+test('once every metric and dimension but the days is a name, the page stays open for values', async ({
   page,
 }) => {
   await signInAs(page, 'per_ravi')
   await openPage(page, '/admin?section=sources&source=cube', desktop)
   const terms = block(page, 'source-terms')
-  await expect(terms).toContainText(
-    'Every metric and dimension we read from Cube is a name we know',
-  )
-  await terms.getByRole('link', { name: 'Add values of a dimension' }).click()
+  // The two days figures read by (orders.order_day, marketing.marketing_day) are no name.
+  await expect(terms).toContainText("2 metrics and dimensions aren't yet.")
+  await terms.getByRole('link', { name: 'Propose names' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Propose names' })).toBeVisible()
-  await expect(block(page, 'propose-terms-members')).toContainText(
-    'Every metric and dimension we read from Cube is a name we know, or waits for a decision in Proposals.',
-  )
   await page.getByRole('button', { name: 'Add values of a dimension' }).click()
   await page.getByRole('combobox', { name: 'Dimension of values 1' }).selectOption('dim:platform')
   await page.getByRole('textbox', { name: 'Values 1, one per line' }).fill('Smart TV, TV')

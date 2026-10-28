@@ -7,6 +7,9 @@ cubes:
         title: Discount cost
         type: sum
         sql: discount_eur
+        format: currency
+        meta:
+          currency: EUR
         description: >-
           The value of the discounts and gift vouchers customers used, in euros, on the day they
           used them.
@@ -14,6 +17,9 @@ cubes:
         title: Marketing spend
         type: sum
         sql: spend_eur
+        format: currency
+        meta:
+          currency: EUR
         description: >-
           Money paid to media, partners and agencies, in euros, on the day the cost was booked.
           Discounts are not marketing spend.
@@ -40,9 +46,18 @@ cubes:
           The share of new accounts that place a first paid order within 30 days.
     dimensions:
       - name: marketing_day
+        title: Marketing day
         type: time
         sql: marketing_day
         primary_key: true
+        description: >-
+          The day the cost was booked.
+      - name: market
+        title: Market
+        type: string
+        sql: market_code
+        description: >-
+          The country or region the cost was booked for.
 
 views:
   - name: marketing
@@ -56,3 +71,5 @@ views:
           - cost_per_acquisition
           - return_on_ad_spend
           - conversion_rate
+          - market
+          - marketing_day

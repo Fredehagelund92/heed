@@ -175,6 +175,11 @@ export const connectorManifestSchema = z.strictObject({
     /** Definitions: whether marks see calculations (CON-505). */
     marks: z.optional(z.enum(['meaning', 'metadata'])),
     links: z.optional(z.boolean()),
+    /**
+     * Definitions: it can read one figure for Ask from the tool's data endpoint (CON-612), when
+     * an administrator sets the endpoint and switches figures on for the source.
+     */
+    figures: z.optional(z.boolean()),
   }),
   schedule: z.strictObject({ default: duration, minimum: duration }),
   staleAfter: duration,
@@ -410,6 +415,8 @@ export function checkManifest(
       problem('capabilities.domain', 'A content connector takes one domain per scope.')
     if (manifest.capabilities.marks !== undefined)
       problem('capabilities.marks', 'Only a definitions connector has change marks of its own.')
+    if (manifest.capabilities.figures !== undefined)
+      problem('capabilities.figures', 'Only a definitions connector reads figures.')
     if (manifest.limits.draftsPerDay === undefined)
       problem('limits.draftsPerDay', 'Say how many drafts a source may make in a day.')
   }

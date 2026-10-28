@@ -325,6 +325,7 @@ export default defineManifest({
     domain: 'per-scope', // 'hint' (definitions) | 'per-scope' (content)
     marks: undefined, // definitions: 'meaning' | 'metadata' (do marks see calculations? CON-505)
     links: true,
+    figures: undefined, // definitions: reads one figure for Ask (CON-612)
   },
   schedule: { default: 'PT1H', minimum: 'PT15M' },
   staleAfter: 'PT6H',
@@ -361,6 +362,7 @@ export default defineRuntime<Config>({
   async discover(ctx): Promise<Scope[]>, // views, folders or spaces, each with a suggested domain
   async *read(ctx): AsyncIterable<Message>, // one read; a full one when ctx.cursor is null
   migrateConfig(fromVersion, config), // settings of an older major, brought up to date
+  async figure(figureCtx, query): Promise<FigureResult>, // with capabilities.figures only
 })
 
 type Message =
@@ -533,7 +535,8 @@ comes in the next slices ([what the next slices build](#what-the-next-slices-bui
 | Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                             |
 | Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                         |
 | Integrations         | Settings › Integrations (`src/app/pages/integrations.tsx`) | Built in part: the rows and cells, a source's page with its health, reads, documents and settings, Read again and Pause reading; the five-step connect comes next                           |
-| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, and secret checks, run against every built-in connector                       |
+| Figures              | `src/server/modules/connectors/figures.ts`, `platform.ts`  | Built: the `figures` capability on a definitions connector, Cube's `figure` (REST `/v1/load`), the settings on the source, `figures.read` ([figures in Ask](#figures-in-ask))               |
+| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, secret and figure checks, run against every built-in connector                |
 | Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                          |
 
 Where the build differs from the decided text above:
@@ -625,9 +628,38 @@ now and then (`deletions: 'both'`), with the core choosing which by the cursor i
 ([content sources](#full-reads-and-reads-from-a-cursor)).
 
 Slice 5, the screens, is built in part: the Integrations pages of the new web app read the
-service (`sources.list`, `sources.activity`), with Read again and Pause reading. What remains:
-the five-step connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests, Change
-settings and Disconnect.
+service (`sources.list`, `sources.activity`), with Read again and Pause reading. The Figures section
+of a definitions integration's page is on the service too ([figures in Ask](#figures-in-ask)). What
+remains: the five-step connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests,
+Change settings and Disconnect.
+
+### Figures in Ask
+
+A definitions connector may declare `capabilities.figures` (CON-612, FR-716): it can read one figure
+for Ask from the tool's data endpoint. The registry refuses a manifest that declares it without a
+runtime `figure`, and a content connector that declares it. Cube is the first.
+
+- **Settings** live on the source (`connectors.capabilities.figures`, migration 0024): the switch
+  Show figures in Ask, off by default; the data endpoint; and the name of its token in the secret
+  store. The data contact is `connectors.data_contact_id`. An administrator changes them with
+  `figures.set`; switching on needs the endpoint, its token and a data contact. The token is sent
+  only to the endpoint's origin and forgotten when it changes ([security](connectors/security.md#figures-con-612)).
+- **The read** (`figures.read`) starts from the metric's term: its definition decides the source
+  (the one that holds its ref, under its connector's ref prefix, CON-117), its view gives the one
+  time dimension and the member each dimension term names there, and the question gives the days
+  and the values (a value's name and other names). The core hands the runtime a fixed
+  `FigureQuery { metric, date, from, to, filters }` and a `FigureContext { endpoint, token,
+fetch, signal, now }`; the runtime answers `{ value, asOf, format, aggregation? }`, checked like
+  every message. The core reads the days and the days just before in one go, within 4 seconds,
+  keeps the result a minute in memory, and stores nothing. A failure is a code only.
+- **No figure** when no integration defines the metric, more than one does, its view has no single
+  date or can't be split by a value the question names, or the tool has no value: Ask says which.
+- **Side by side**: a named report can say a figure doesn't fit a context item (`part: 'figure'`,
+  migration 0024). It reaches the item's owners, the data contact, or both, and while it is open
+  `figures.read` names the item, which Ask shows beside the figure with no verdict.
+- **Conformance**: the kit reads a figure through the core from the fixture's endpoint, and checks
+  that a refused token, a figure out of time and an endpoint Heed may not fetch each fail with
+  their code, and that the token reached only the endpoint's host.
 
 ## Content sources
 

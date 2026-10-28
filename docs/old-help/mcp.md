@@ -74,7 +74,7 @@ A model is the AI inside an agent: the part that writes.
 
 ## What it is not
 
-An MCP isn't an agent, or the AI inside one. It's only the plug between agents and other systems. And {{product}} isn't your data tool: it holds no numbers, and the figure always comes from Cube.
+An MCP isn't an agent, or the AI inside one. It's only the plug between agents and other systems. And {{product}} isn't your data tool: it stores no numbers, and the figure always comes from Cube. When an admin switches figures on, Ask reads one from Cube when you ask, and keeps it nowhere.
 
 ## Go deeper
 

@@ -49,9 +49,21 @@ describe('the demo Cube model', () => {
         definitionRefsOf({ key: `dim:${dimension.id}` }),
       ),
     ]
-    expect([...named].sort()).toEqual(demoDefinitions.map((definition) => definition.ref).sort())
-    // Market is in two views, so its term names both: one dimension, many Cube names.
+    // A view's date is what a figure is read by (FR-716): no vocabulary term names a date.
+    const dates = demoDefinitions.filter((definition) => definition.valueType === 'time')
+    expect(dates.map((definition) => definition.ref)).toEqual([
+      'cube:marketing.marketing_day',
+      'cube:orders.order_day',
+    ])
+    expect([...named].sort()).toEqual(
+      demoDefinitions
+        .filter((definition) => definition.valueType !== 'time')
+        .map((definition) => definition.ref)
+        .sort(),
+    )
+    // Market is in three views, so its term names each: one dimension, many Cube names.
     expect(definitionRefsOf({ key: 'dim:market' })).toEqual([
+      'cube:marketing.market',
       'cube:orders.market',
       'cube:segments.market',
     ])

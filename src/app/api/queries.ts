@@ -9,6 +9,7 @@ import {
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
 import { isPageRead, type ObsPageInput } from '@/api/client'
 import type { AskInput } from '@/model/ask'
+import type { FigureAsk } from '@/model/figures'
 
 // Reads and writes as the screens use them: one query factory per read, keyed in one place, and
 // one table of what each write makes stale. A screen never names a cache itself.
@@ -52,8 +53,7 @@ export const queryKeys = {
   integrationsPage: ['integrationsPage'] as const,
   integrationPage: (id: string) => ['integrationPage', id] as const,
   integrationPages: ['integrationPage'] as const,
-  figure: (asked: { metric: string; markets: string[]; dates?: string; state: string }) =>
-    ['readFigure', asked] as const,
+  figure: (asked: FigureAsk) => ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
   agentConnections: ['listAgentConnections'] as const,
   connectReview: ['getConnectReview'] as const,
@@ -203,12 +203,8 @@ export const integrationPageQuery = (id: string) =>
       query.state.data?.source.health === 'reading' ? READING_POLL_MS : false,
   })
 
-export const figureQuery = (asked: {
-  metric: string
-  markets: string[]
-  dates?: string
-  state: string
-}) => queryOptions({ queryKey: queryKeys.figure(asked), queryFn: () => api.readFigure(asked) })
+export const figureQuery = (asked: FigureAsk) =>
+  queryOptions({ queryKey: queryKeys.figure(asked), queryFn: () => api.readFigure(asked) })
 
 export const agentConnectionsQuery = () =>
   queryOptions({
@@ -482,8 +478,9 @@ export const invalidations: {
   checkHistory: () => [],
   exportHistory: () => [],
   exportContext: () => [],
-  setFigures: () => [queryKeys.settings, queryKeys.figures],
-  setDataContact: () => [queryKeys.settings],
+  setFigures: () => [queryKeys.settings, queryKeys.figures, queryKeys.integrations],
+  setDataContact: () => [queryKeys.settings, queryKeys.figures, queryKeys.integrations],
+  setFigureConnection: () => [queryKeys.settings, queryKeys.figures, queryKeys.integrations],
   // Connecting the definitions tool can be the setup checklist's last step.
   connectIntegration: () => [queryKeys.settings, ...integrations, ...workspace, queryKeys.session],
   disconnectIntegration: () => [queryKeys.settings, ...integrations],

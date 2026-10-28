@@ -12,6 +12,8 @@ import type { Figure, FigureView } from '@/model/figures'
 import { useDomains, useFacts } from '@/lib/workspace'
 import { openDock } from '@/lib/dock'
 import { plainText } from '@/lib/mentions'
+import { useWrite } from '@/api/queries'
+import type { Answer } from '@/model/ask'
 
 // A figure in an answer, kept apart from the context: its own line and icon, its own words ("From
 // Cube, data as of today at 06:00"), never the word for context that an owner accepted. It sits
@@ -98,18 +100,41 @@ export function FigureLine({
 /** A figure that doesn't fit a context item: both side by side with their own sources, no verdict, two routes. */
 export function FigureAgainst({
   view,
-  metric,
+  answer,
   contact,
 }: {
   view: Extract<FigureView, { kind: 'against' }>
-  metric: string
+  answer: Pick<Answer, 'question' | 'metric' | 'markets' | 'dates'>
   contact: string
 }) {
   const f = view.figure
+  const metric = answer.metric
   const facts = useFacts()
   const domains = useDomains()
+  const write = useWrite()
   const item = facts.find((x) => x.id === f.against!.contextId)
   const owners = item ? domains[item.domain] : undefined
+  /** A figure report on the item, to its owners or to the data contact. */
+  const tell = (to: 'owners' | 'contact', sent: string, description: string) => {
+    if (!item) return
+    write('reportAnswer', {
+      question: answer.question,
+      part: 'figure',
+      sources: [item.id],
+      what: "The figure doesn't fit this context item.",
+      figure: {
+        source: view.source,
+        to,
+        metric: answer.metric,
+        markets: answer.markets,
+        ...(answer.dates ? { dates: answer.dates } : {}),
+      },
+    })
+      .then(() => toast(sent, { description }))
+      .catch(() =>
+        toast.error("It wasn't sent", { description: 'Nothing was lost: try again in a moment.' }),
+      )
+  }
   return (
     <div className="flex flex-col gap-3 rounded-surface border border-caution/45 bg-caution/5 p-3 dark:border-warn/45 dark:bg-caution/8">
       <p className="text-sm">
@@ -154,9 +179,11 @@ export function FigureAgainst({
             size="sm"
             variant="outline"
             onClick={() =>
-              toast(`Sent to the owner of ${owners.name}`, {
-                description: 'They see the context item and the figure side by side.',
-              })
+              tell(
+                'owners',
+                `Sent to the owner of ${owners.name}`,
+                'They see the context item and the figure side by side.',
+              )
             }
           >
             Tell the owner of {owners.name}
@@ -166,9 +193,11 @@ export function FigureAgainst({
           size="sm"
           variant="outline"
           onClick={() =>
-            toast(`Sent to ${contact}`, {
-              description: 'The data contact sees the figure, its query and the context item.',
-            })
+            tell(
+              'contact',
+              `Sent to ${contact}`,
+              'The data contact sees the figure, its query and the context item.',
+            )
           }
         >
           Tell {contact}, the data contact
@@ -203,7 +232,7 @@ export function FigureLink({ view }: { view: Extract<FigureView, { kind: 'link' 
   const name = connectorById(view.source)!.name
   return (
     <a
-      href={SOURCE_URL[view.source]}
+      href={view.href ?? SOURCE_URL[view.source]}
       target="_blank"
       rel="noreferrer"
       className="inline-flex w-fit max-w-full items-start gap-1.5 rounded-md text-sm text-foreground underline decoration-foreground/25 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50"

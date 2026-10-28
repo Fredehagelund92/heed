@@ -12,18 +12,47 @@ import * as z from 'zod/mini'
 const words = z.string().check(z.trim(), z.minLength(1), z.maxLength(2000))
 const itemRef = z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))
 
-export const reportParts = ['item', 'answer'] as const
+export const reportParts = ['item', 'answer', 'figure'] as const
 
-export const createReportSchema = z.strictObject({
-  /** The question as the person asked it. */
-  question: words,
-  /** The context item the report is about: the wrong one, or the answer's first for the answer itself. */
-  itemId: itemRef,
-  part: z.enum(reportParts),
-  what: words,
-  correction: z.optional(words),
-  link: z.optional(z.string().check(z.trim(), z.maxLength(2000), z.regex(/^https?:\/\/\S+$/))),
+/**
+ * Who a figure report goes to: the owners of the item's domain, the integration's data contact,
+ * or both.
+ */
+export const figureRoutes = ['owners', 'contact', 'both'] as const
+
+/**
+ * The figure a report says doesn't fit its context item (FR-716): the integration it came from,
+ * the metric, the values and the days, as Ask read it. Never the figure itself.
+ */
+export const reportFigureSchema = z.strictObject({
+  source: z.string().check(z.regex(/^[a-z][a-z0-9_-]{1,39}$/)),
+  metric: z.string().check(z.regex(/^metric:[a-z0-9_]+$/)),
+  values: z.array(z.string().check(z.regex(/^val:[a-z0-9_]+\/[a-z0-9_]+$/))).check(z.maxLength(20)),
+  from: z.iso.date(),
+  to: z.iso.date(),
+  route: z.enum(figureRoutes),
 })
+export type ReportFigure = z.infer<typeof reportFigureSchema>
+
+export const createReportSchema = z
+  .strictObject({
+    /** The question as the person asked it. */
+    question: words,
+    /** The context item the report is about: the wrong one, or the answer's first for the answer itself. */
+    itemId: itemRef,
+    part: z.enum(reportParts),
+    what: words,
+    correction: z.optional(words),
+    link: z.optional(z.string().check(z.trim(), z.maxLength(2000), z.regex(/^https?:\/\/\S+$/))),
+    /** For a figure that doesn't fit the item: the figure's scope and who hears. */
+    figure: z.optional(reportFigureSchema),
+  })
+  .check(
+    z.refine((report) => (report.part === 'figure') === (report.figure !== undefined), {
+      message: 'A figure report names its figure, and only a figure report does.',
+      path: ['figure'],
+    }),
+  )
 export type CreateReport = z.infer<typeof createReportSchema>
 
 /**

@@ -43,6 +43,16 @@ the same runtime reads as `ctx.folder` ([configuration of the server's model](..
    applied), and ends with the commit as its version and its cursor (for the server's folder, a
    digest of its files). Every read is a full listing.
 
+## Figures in Ask
+
+The manifest declares the figures capability. Off by default; once an admin sets the data endpoint
+(Cube's REST API `/v1/load`) and its token and switches it on, `figure` reads one figure when
+someone asks in Ask: a GET of `/v1/load` with the core's fixed query, and once in ten minutes
+`/v1/meta` for how the measure is worked out (`figures.ts`). It reaches only the endpoint's origin,
+pinned to a public address, within 4 seconds, and Cube's own words about a failure never cross:
+only a code. What it does and how to set it up is in
+[The Cube connector](../../../docs/connectors/cube.md#figures-in-ask).
+
 ## Schedule and limits
 
 Read every hour by default, at most every 15 minutes. A source not read for six hours is out of

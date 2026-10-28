@@ -10,7 +10,7 @@ import { termDomain } from '../../domain/catalogue.ts'
 
 /** The model version the connector reports for db/seed/cube (a digest of its files). */
 export const DEMO_SOURCE_VERSION =
-  'f8ebe41ac399d97e09ab3f263ee43ba80333b7250f3ef8b2dc22c6451df0db1a'
+  '7d73c2db78838fb4b32f22780383c5ef13c65a3986e7ead4ead00e4fb234ed36'
 /** When the seed says the connector first read the model, and read it last (ISO 8601). */
 export const DEMO_FIRST_READ_AT = '2026-09-01T05:00:00.000Z'
 export const DEMO_READ_AT = '2026-10-07T05:00:00.000Z'
@@ -205,7 +205,31 @@ export const demoDefinitions: DemoDefinition[] = [
     areaHint: 'area_marketing',
     domainSource: 'cube',
     modelFile: 'marketing.yml',
-    changeMark: '85b755a4c0e2a9e5397ade8f8047069377f16730aca254b3d0f836cd9fd7d33a',
+    changeMark: 'c11f524dda89a303ce6656f7048f03a1725cea2edc33fbca59008d34315e9a3b',
+  },
+  {
+    ref: 'cube:marketing.market',
+    kind: 'dimension',
+    name: 'marketing.market',
+    title: 'Marketing Market',
+    descriptionCopy: 'The country or region the cost was booked for.',
+    valueType: 'string',
+    areaHint: 'area_marketing',
+    domainSource: 'cube',
+    modelFile: 'marketing.yml',
+    changeMark: '02eb58387b87fbfe197619f880699737a3be6ca22101d294cf1dd8c92538be9d',
+  },
+  {
+    ref: 'cube:marketing.marketing_day',
+    kind: 'dimension',
+    name: 'marketing.marketing_day',
+    title: 'Marketing Marketing day',
+    descriptionCopy: 'The day the cost was booked.',
+    valueType: 'time',
+    areaHint: 'area_marketing',
+    domainSource: 'cube',
+    modelFile: 'marketing.yml',
+    changeMark: '8dc5590dcb384715d795987e1b8ba62fea7ec3d0f881058d5d2b8714c809e1a2',
   },
   {
     ref: 'cube:marketing.marketing_spend',
@@ -218,7 +242,7 @@ export const demoDefinitions: DemoDefinition[] = [
     areaHint: 'area_marketing',
     domainSource: 'cube',
     modelFile: 'marketing.yml',
-    changeMark: 'bfffcf42caa9028485ba1b2a4b5a67fce7e51d112f2a2613e93ac6d3f136d983',
+    changeMark: '6b210ca9edeb188ccd9d21ce1fb968bc90e5d81679f68a4fc494ead77c320276',
   },
   {
     ref: 'cube:marketing.return_on_ad_spend',
@@ -271,6 +295,18 @@ export const demoDefinitions: DemoDefinition[] = [
     changeMark: '8a4c0260fd1b96e02ee292889861d8743607154c25f83cc08ac702636388bdaa',
   },
   {
+    ref: 'cube:orders.order_day',
+    kind: 'dimension',
+    name: 'orders.order_day',
+    title: 'Orders Order day',
+    descriptionCopy: 'The day the order was paid for.',
+    valueType: 'time',
+    areaHint: 'area_sales',
+    domainSource: 'cube',
+    modelFile: 'orders.yml',
+    changeMark: '16dde0fbd3d44abb518133d4195120fd95912bce15f51040aa95b7dd8486d7ca',
+  },
+  {
     ref: 'cube:orders.orders',
     kind: 'metric',
     name: 'orders.orders',
@@ -281,7 +317,7 @@ export const demoDefinitions: DemoDefinition[] = [
     areaHint: 'area_sales',
     domainSource: 'cube',
     modelFile: 'orders.yml',
-    changeMark: 'a9fb42eafba27246044bba8cd302fb4b753d75d9975baa3a4bfedcdd0f6d9578',
+    changeMark: 'b1be26888156a4775ecf26b8297257d7143719c80406442f23d73f3d66fcaa2a',
   },
   {
     ref: 'cube:orders.returns',
@@ -294,7 +330,7 @@ export const demoDefinitions: DemoDefinition[] = [
     areaHint: 'area_sales',
     domainSource: 'cube',
     modelFile: 'orders.yml',
-    changeMark: '908b10b92f446d5d7f8fe97216e25fa20609a96e7d3feb1324d7419a35962ac3',
+    changeMark: 'ae095db1952a1bcc4524560ef0961d72f475cd6e9275c7f7199be58b3f072ca5',
   },
   {
     ref: 'cube:revenue.gross_sales',

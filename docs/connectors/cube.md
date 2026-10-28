@@ -25,8 +25,9 @@ What a Cube project needs for Heed to read it:
    term only.
 6. Optional: `access_policy` with groups (used once CON-508 lands) and `meta.ai_context` (read
    later as a baseline, CON-513).
-7. Never needed: a running Cube server, a database, warehouse credentials or SQL access. Heed
-   never queries data and never stores SQL or a calculation.
+7. Never needed for a read: a running Cube server, a database, warehouse credentials or SQL
+   access. A read never queries data and never stores SQL or a calculation. Figures in Ask are
+   apart from it and off by default ([figures in Ask](#figures-in-ask)).
 
 ## A Cube model in a Git repository
 
@@ -203,6 +204,34 @@ status, and changes no flag or link status (CON-213, CON-214). Accepted vocabula
 are never changed by a refresh.
 `changesSince` reports changes after a successful snapshot and current missing definitions;
 it is not a historical replay API.
+
+## Figures in Ask
+
+Off by default (FR-716, CON-612). An admin sets it up on Cube's page in Integrations: **Set up
+figures** takes the data endpoint, the address of Cube's REST API `/v1/load`
+(`https://cube.example.com/cubejs-api/v1/load`), and a read-only token for it, kept in the secret
+store and sent only to that address's origin; then **Show figures in Ask** switches it on, once a
+data contact is named. On the API it is `PUT /api/v1/figures/{id}`.
+
+When someone asks in Ask, Heed reads one figure from Cube, apart from the answer and within 4
+seconds, and keeps it nowhere:
+
+1. The metric's definition decides which integration answers: the source that holds its ref under
+   `cube:`. A metric no integration defines, or more than one does, gets no figure.
+2. The query is a fixed template, never words a person or a model wrote: the view's measure, the
+   view's one time dimension with the question's days (none, or more than one, and there is no
+   figure), and an `equals` filter on the view's member each market term names, with the market's
+   name and its other names as the values. Two GETs of `/v1/load`, the days and the days just
+   before, and, once in ten minutes, `/v1/meta` for how the measure is worked out (`aggType`), so
+   the query in words can say "added up".
+3. The value is written as the model says: `format: currency` with `meta.currency` (`EUR`) for
+   money, `format: percent` for a share. "Data as of" is Cube's `lastRefreshTime`.
+
+No person's identity is passed to Cube: the token is the integration's own. A wrong or expired
+token, a host that can't be reached and a query past its time say so in Ask, never what Cube said.
+The demo model gives Orders a day (`orders.order_day`) and Marketing a market and a day for this,
+and the tests read figures from a stand-in Cube over a seeded demo warehouse
+(`tests/server/connectors/cube-server.ts`, `demo-warehouse.ts`).
 
 ## Validation
 

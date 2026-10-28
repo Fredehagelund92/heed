@@ -2,7 +2,7 @@ import type { Settings } from '../client'
 import { AGENT_TOOLS } from '@/lib/agents'
 import { MCP_URL } from '@/lib/brand'
 import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
-import { connectorById, type ConnectorId } from '@/model/integrations'
+import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
 import { seedAgents } from './data/agents'
 import { figureConnections } from './data/integrations'
 import type { Address } from './scenario'
@@ -25,6 +25,7 @@ export function createSettings() {
     Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
   )
   let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
+  let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
 
   /** A sign-in adds the agent on top, marked new; the same agent for the same person replaces its row. */
@@ -85,6 +86,28 @@ export function createSettings() {
     },
     setContact(id: ConnectorId, name: string) {
       contacts = { ...contacts, [id]: name }
+    },
+    /** How each figure-capable integration is reached, with its data contact as it stands. */
+    connections: (): Partial<Record<ConnectorId, FigureConnection>> =>
+      Object.fromEntries(
+        Object.entries(connections).map(([id, c]) => [
+          id,
+          { ...c, contact: contacts[id as ConnectorId] ?? c.contact },
+        ]),
+      ),
+    /** A new data endpoint and token: the token is set, and shown nowhere. */
+    setConnection(id: ConnectorId, endpoint: string) {
+      const was = connections[id]
+      connections = {
+        ...connections,
+        [id]: {
+          ...was,
+          endpoint,
+          host: URL.parse(endpoint)?.hostname ?? null,
+          secretSet: true,
+          contact: was?.contact ?? '',
+        },
+      }
     },
     connect(id: ConnectorId) {
       if (!connected.includes(id)) connected = [...connected, id]

@@ -43,6 +43,7 @@ import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
 import { mentionId, parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
 import type { FigureView } from '@/model/figures'
+import type { ConnectorId } from '@/model/integrations'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useRelated } from '@/hooks/use-related'
@@ -618,21 +619,29 @@ function ReportLine({ report }: { report: NonNullable<Answer['report']> }) {
 function SomethingWrong({
   answer,
   facts,
+  figure,
   onClose,
   onSent,
 }: {
   answer: Answer
   facts: Fact[]
+  /** The integration of the figure the answer shows, when it shows one. */
+  figure?: ConnectorId
   onClose: () => void
   onSent: () => void
 }) {
   const domains = useDomains()
   const write = useWrite()
+  const figures = useFigures()
   const [part, setPart] = React.useState(facts[0]?.id ?? 'answer')
   const [sending, setSending] = React.useState(false)
-  // The answer itself is filed on its first source, so it reaches that domain's owners.
+  // The answer itself, and its figure, are filed on its first source, so they reach that
+  // domain's owners; a figure reaches the integration's data contact too.
   const fact = facts.find((f) => f.id === part) ?? facts[0]
   const domain = fact?.domain ?? 'sales'
+  const aboutFigure = part === 'figure' && figure !== undefined
+  const owners = `the owner of ${domains[domain]?.name}`
+  const to = aboutFigure ? `${owners} and to ${figures.contact(figure)}, the data contact,` : owners
 
   return (
     <form
@@ -652,6 +661,17 @@ function SomethingWrong({
           what: text('what'),
           correction: text('correction') || undefined,
           link: text('link') || undefined,
+          ...(aboutFigure
+            ? {
+                figure: {
+                  source: figure,
+                  to: 'both' as const,
+                  metric: answer.metric,
+                  markets: answer.markets,
+                  ...(answer.dates ? { dates: answer.dates } : {}),
+                },
+              }
+            : {}),
         })
           .then(onSent)
           .catch(() =>
@@ -665,8 +685,7 @@ function SomethingWrong({
       <div>
         <p className="text-sm font-medium">Something wrong?</p>
         <p className="text-sm text-muted-foreground">
-          It goes to the owner of {domains[domain]?.name} with your words and this question. Nothing
-          else from this chat is kept.
+          It goes to {to} with your words and this question. Nothing else from this chat is kept.
         </p>
       </div>
       <FieldGroup className="gap-4">
@@ -681,6 +700,14 @@ function SomethingWrong({
                 </Label>
               </Field>
             ))}
+            {figure && (
+              <Field orientation="horizontal">
+                <RadioGroupItem value="figure" id={`part-${answer.id}-figure`} />
+                <Label htmlFor={`part-${answer.id}-figure`} className="font-normal">
+                  The figure: it doesn&apos;t fit the context
+                </Label>
+              </Field>
+            )}
             <Field orientation="horizontal">
               <RadioGroupItem value="answer" id={`part-${answer.id}-answer`} />
               <Label htmlFor={`part-${answer.id}-answer`} className="font-normal">
@@ -722,7 +749,9 @@ function SomethingWrong({
           Cancel
         </Button>
         <Button type="submit" disabled={sending}>
-          Send to the owner of {domains[domain]?.name}
+          {aboutFigure
+            ? 'Send to the owner and the data contact'
+            : `Send to the owner of ${domains[domain]?.name}`}
         </Button>
       </div>
     </form>
@@ -987,6 +1016,7 @@ export function AnswerBody({
     markets: answer.markets,
     dates: answer.dates,
     state: answer.state,
+    sources: answer.sources,
   }
   const figure = useQuery({ ...figureQuery(asked), enabled: !draft })
   const figures = useFigures()
@@ -1059,11 +1089,7 @@ export function AnswerBody({
             )}
             {view?.kind === 'line' && <FigureLine view={view} metric={answer.metric} />}
             {view?.kind === 'against' && (
-              <FigureAgainst
-                view={view}
-                metric={answer.metric}
-                contact={figures.contact(view.source)}
-              />
+              <FigureAgainst view={view} answer={answer} contact={figures.contact(view.source)} />
             )}
             {view?.kind === 'none' && <NoFigure view={view} />}
             {view?.kind === 'link' && <FigureLink view={view} />}
@@ -1076,6 +1102,7 @@ export function AnswerBody({
               <SomethingWrong
                 answer={answer}
                 facts={facts}
+                figure={view?.kind === 'line' || view?.kind === 'against' ? view.source : undefined}
                 onClose={() => setWrong(false)}
                 onSent={() => {
                   setWrong(false)

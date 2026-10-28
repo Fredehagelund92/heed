@@ -54,4 +54,17 @@ export const docControls: DocControl[] = [
   { phrase: 'Warning', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Rule', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Guide', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
+  { phrase: 'Replace', page: 'integrations', at: '/settings/integrations/cube', drawn: 'button' },
+  {
+    phrase: 'Data contact',
+    page: 'integrations',
+    at: '/settings/integrations/cube',
+    drawn: 'text',
+  },
+  {
+    phrase: 'Show figures in Ask',
+    page: 'integrations',
+    at: '/settings/integrations/cube',
+    drawn: 'text',
+  },
 ]

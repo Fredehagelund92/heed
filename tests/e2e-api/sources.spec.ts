@@ -146,12 +146,12 @@ test('Market is one dimension with both Cube names, and its Values action opens 
   await page.goto('/catalogue?panel=dim:market&tab=source')
   const panel = page.locator('[data-slot="dock-panel"]')
   const source = panel.locator('[data-slot="field-table"][aria-label="Where it comes from"]')
-  // The demo model has market in the payments and segments views: one term links both.
+  // The demo model has market in the marketing, payments and segments views: one term links all.
   await expect(source.locator('[data-slot="source-names"] li')).toHaveText(
-    ['orders.market', 'segments.market'],
+    ['marketing.market', 'orders.market', 'segments.market'],
     { timeout: 15_000 },
   )
-  await expect(source).toContainText('2 Cube names, one dimension in Heed.')
+  await expect(source).toContainText('3 Cube names, one dimension in Heed.')
   await expect(source).toContainText('Admins')
 
   await panel.getByRole('link', { name: 'Add values of Market' }).click()

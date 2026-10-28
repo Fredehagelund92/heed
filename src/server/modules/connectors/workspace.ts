@@ -18,6 +18,7 @@ import { plainReason, recordAudit } from '../admin/index.ts'
 import { createSourceOverview } from './overview.ts'
 import type { RegisteredConnector } from './platform.ts'
 import type { ConnectorRegistry } from './registry.ts'
+import { createFigureSources } from './figures.ts'
 import { SecretStoreError, type SecretStore } from './secrets.ts'
 import {
   snapshotSchema,
@@ -128,6 +129,8 @@ export function createWorkspaceSources({
   /** The connectors, and the sources the server's own configuration selects (their ids). */
   registry: Pick<ConnectorRegistry, 'connectors' | 'list'>
 }) {
+  /** Figures in Ask, on the sources whose connector reads them (figures.ts). */
+  const figures = createFigureSources({ secrets, connectors: () => registry.connectors() })
   // An admin adds a source of any connector: definitions, or content with its pipeline.
   const addable = () => registry.connectors()
   const typeOf = (type: string) => addable().find((candidate) => candidate.manifest.id === type)
@@ -313,7 +316,7 @@ export function createWorkspaceSources({
     list: (tx: Queryable) => overview.list(tx),
     activity: (tx: Queryable, id: string) => overview.activity(tx, id),
     pause: (tx: Queryable, input: PauseSourceInput) => overview.pause(tx, input),
-
+    figures,
     /** The connectors an admin may add a source of: each manifest, with its access and form. */
     types(): ConnectorListing[] {
       return addable().map(({ manifest, writtenTo }) => ({

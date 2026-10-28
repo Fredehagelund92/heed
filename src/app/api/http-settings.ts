@@ -224,6 +224,7 @@ const SUBJECTS: Record<string, string> = {
   comment: 'a comment',
   report: 'a report',
   source: 'an integration',
+  figures: 'figures in Ask',
 }
 
 /** The verbs of the history log's actions, as a sentence starts. */
