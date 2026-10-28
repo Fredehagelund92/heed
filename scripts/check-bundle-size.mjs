@@ -230,7 +230,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // live in lib/sources.ts, which the shell's sources crumb and the Inbox already import.
 // Raised JS from 209.0 to 209.5 (209.2 KB on CI, 208.6 here) once Related items on context pages
 // (PR 49) and content connectors both sit in the first load.
-const budgetKb = { js: 209.5, css: 23.8 }
+// Raised JS from 209.5 to 209.8 (209.6 KB on CI) with the sign-in note in lib/sources.ts egressWords
+// (Google Drive signs in at Google's hosts), which the shell's sources crumb already imports.
+const budgetKb = { js: 209.8, css: 23.8 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({
