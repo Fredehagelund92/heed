@@ -399,12 +399,14 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
         `with item as (select version_id from v_item_list where id = $1),
          outgoing as (
            select m.field, m.position, m.label as words,
-                  coalesce(m.term_key, 'item:' || m.item_id, 'area:' || m.area_id) as key,
+                  coalesce(m.term_key, 'item:' || m.item_id, 'area:' || m.area_id,
+                           'term:' || m.term_id::text) as key,
                   case when m.item_id is not null then 'item'
                        when m.area_id is not null then 'area'
+                       when m.term_id is not null then 'term'
                        else t.kind::text end as type,
-                  coalesce(tv.name, target.title, ar.name, m.label) as name,
-                  case when target.status = 'retired' then 'retired'
+                  coalesce(tv.name, target.title, ar.name, w.name, m.label) as name,
+                  case when target.status = 'retired' or ms.status = 'retired' then 'retired'
                        when ms.status in ('source_missing', 'source_changed') then ms.status
                        else 'current' end as status
              from item join item_version_mentions m on m.version_id = item.version_id
@@ -416,6 +418,7 @@ export function createLibraryService(database: Queryable, clock: Clock): Library
                 where s.term_key = m.term_key and s.editions @> (select seq from live_edition)) tv on true
              left join v_item_list target on target.id = m.item_id
              left join areas ar on ar.id = m.area_id
+             left join terms w on w.id = m.term_id and w.deleted_at is null
             where m.item_id is null or (target.id is not null and cl_audience_allows(target.audience_groups))),
          incoming as (
            select distinct on (source.id) source.id, source.kind, source.title, source.status,

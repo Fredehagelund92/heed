@@ -654,13 +654,16 @@ export function createContextService(
     if (!graph.found)
       return item ? { ...(areaId ? { areaId } : {}), nodes: [], withheld: 0, following } : null
     // Each node once, by the start's own link to it that comes first in the fixed order, read
-    // from the start's side. Links among the neighbours are not how they relate to the start.
+    // from the start's side. Links among the neighbours are not how they relate to the start. A
+    // metric the text mentions and the item applies to is a link people follow: the mention wins.
     const backwards: Record<string, string> = { mentions: 'mentioned_by', replaces: 'replaced_by' }
     const relationOf = new Map<string, string>()
     for (const e of graph.edges) {
       const [other, rel] =
         e.from === id ? [e.to, e.rel] : e.to === id ? [e.from, backwards[e.rel] ?? e.rel] : []
-      if (other && rel && !relationOf.has(other)) relationOf.set(other, rel)
+      if (!other || !rel) continue
+      const known = relationOf.get(other)
+      if (!known || (known === 'applies_to' && rel !== 'in_area')) relationOf.set(other, rel)
     }
     // A retired or replaced item gives agents only the words that linked to it (FR-333); people
     // read it by its title and domain, as the Context list shows it, when they may read it.
@@ -674,7 +677,9 @@ export function createContextService(
     return {
       ...(areaId ? { areaId } : {}),
       nodes: graph.nodes.map((node) => {
-        const type = ['item', 'metric', 'dimension', 'dimension_value', 'area'].includes(node.type)
+        const type = ['item', 'metric', 'dimension', 'dimension_value', 'area', 'term'].includes(
+          node.type,
+        )
           ? (node.type as RelatedContext['nodes'][number]['type'])
           : 'other'
         const shown = retired.get(node.id)

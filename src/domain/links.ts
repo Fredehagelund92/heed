@@ -12,6 +12,7 @@ import {
   type ResolverItem,
   type Withheld,
 } from './resolver.ts'
+import type { WrittenTerm } from './served-terms.ts'
 import { overlaps, type DateWindow } from './validity.ts'
 import { relevantRefs, type Term } from './vocabulary.ts'
 
@@ -54,7 +55,14 @@ export type LinkBundle = Omit<EditionBundle, 'items'> & {
   areas: readonly { id: string; name: string; team: string | null }[]
   refMarks: Readonly<Record<string, Readonly<Record<string, string>>>>
   retired: readonly RetiredItem[]
+  /** The terms people wrote in Definitions that agents get now (src/domain/served-terms.ts). */
+  written?: readonly WrittenTerm[]
+  /** Every live term by id, served or not, with its domain: a link to one that isn't served. */
+  writtenAreas?: Readonly<Record<string, string | null>>
 }
+
+/** A term written in Definitions, as a link names it: `term:<id>`. */
+export const writtenTermId = (id: string) => `term:${id}`
 
 /** What a served link's target is now, as an agent reads it in a reply. */
 export const servedLinkStatuses = [
@@ -85,6 +93,8 @@ export type LinkIndex = {
   item(id: string): LinkItem | undefined
   retired(id: string): RetiredItem | undefined
   term(key: string): LinkTerm | undefined
+  /** A served term written in Definitions, by `term:<id>`. */
+  written(id: string): WrittenTerm | undefined
   area(id: string): LinkBundle['areas'][number] | undefined
   /** Link rows written by an item. */
   from(id: string): readonly RawLink[]
@@ -108,6 +118,7 @@ export function linkIndex(bundle: LinkBundle): LinkIndex {
   const items = new Map(bundle.items.map((i) => [i.id, i]))
   const retired = new Map(bundle.retired.map((i) => [i.id, i]))
   const terms = new Map(bundle.terms.map((t) => [t.key, t]))
+  const written = new Map((bundle.written ?? []).map((t) => [writtenTermId(t.id), t]))
   const areas = new Map(bundle.areas.map((a) => [a.id, a]))
   const from = group(bundle.links, (l) => l.from_item)
   const to = group(bundle.links, (l) => l.to_id)
@@ -116,6 +127,7 @@ export function linkIndex(bundle: LinkBundle): LinkIndex {
     item: (id) => items.get(id),
     retired: (id) => retired.get(id),
     term: (key) => terms.get(key),
+    written: (id) => written.get(id),
     area: (id) => areas.get(id),
     from: (id) => from.get(id) ?? [],
     to: (id) => to.get(id) ?? [],
@@ -215,7 +227,8 @@ type Resolved =
       states: ReturnType<typeof relevantStates>
     }
   | { kind: 'area'; area: LinkBundle['areas'][number] }
-  | { kind: 'unresolved'; type: string; id: string; label: string }
+  | { kind: 'written'; term: WrittenTerm }
+  | { kind: 'unresolved'; type: string; id: string; label: string; status?: 'retired' }
 
 function resolveRow(
   bundle: LinkBundle,
@@ -251,6 +264,7 @@ function resolveRow(
     const area = index.area(row.to_id)
     return area && areaShown(bundle, area.id) ? { kind: 'area', area } : { kind: 'hidden' }
   }
+  if (row.to_kind === 'term') return resolveWritten(bundle, index, row)
   const term = index.term(row.to_id)
   if (!term)
     return {
@@ -288,6 +302,39 @@ function resolveRow(
     states,
   }
 }
+/**
+ * A term written in Definitions, as it stands now: terms are not sealed in an edition. A served
+ * term is current. One that is live but not served is hidden while its domain is stopped, and
+ * otherwise unresolved (its word means something else now); a deleted one is retired. Neither of
+ * those gives more than the author's words (FR-333).
+ */
+function resolveWritten(bundle: LinkBundle, index: LinkIndex, row: RawLink): Resolved {
+  const term = index.written(row.to_id)
+  if (term) return { kind: 'written', term }
+  const id = row.to_id.slice('term:'.length)
+  const live = bundle.writtenAreas && id in bundle.writtenAreas
+  const areaId = live ? bundle.writtenAreas![id] : null
+  if (bundle.stopped.all || (areaId && !areaShown(bundle, areaId))) return { kind: 'hidden' }
+  return {
+    kind: 'unresolved',
+    type: 'term',
+    id: row.to_id,
+    label: row.label ?? 'A term',
+    ...(live ? {} : { status: 'retired' as const }),
+  }
+}
+/** A served term as a link's target or a node: its word, its domain, and what it means. */
+function writtenTarget(term: WrittenTerm): WrittenNode {
+  return {
+    type: 'term',
+    id: writtenTermId(term.id),
+    label: term.name,
+    status: 'current',
+    meaning: term.meaning,
+    ...(term.sameAs ? { same_as: term.sameAs } : {}),
+    ...(term.areaId ? { area: term.areaId } : {}),
+  }
+}
 /** Every item is in its area: the one link that is not stored as a row. */
 const areaRow = (item: LinkItem): RawLink => ({
   from_item: item.id,
@@ -300,7 +347,7 @@ function statusOf(resolved: Exclude<Resolved, { kind: 'hidden' }>): LinkStatus {
   return resolved.kind === 'tombstone' || resolved.kind === 'term'
     ? resolved.status
     : resolved.kind === 'unresolved'
-      ? 'unresolved'
+      ? (resolved.status ?? 'unresolved')
       : 'current'
 }
 
@@ -354,7 +401,11 @@ export function outgoing(
             ? { type: 'area', id: resolved.area.id, label: resolved.area.name, status }
             : resolved.kind === 'unresolved'
               ? { type: resolved.type, id: resolved.id, label: resolved.label, status }
-              : termTarget(resolved.term, status, resolved.label, resolved.states)
+              : resolved.kind === 'written'
+                ? (({ meaning: _meaning, same_as: _sameAs, ...target }) => target)(
+                    writtenTarget(resolved.term),
+                  )
+                : termTarget(resolved.term, status, resolved.label, resolved.states)
     links.push({ rel: row.rel, target })
   }
   links.sort(
@@ -432,9 +483,25 @@ export type TombstoneNode = {
   status: 'retired' | 'replaced'
   replaced_by?: string
 }
+/**
+ * A term written in Definitions, as it stands now: its word and what it means as a person wrote
+ * it, or for a synonym what it is another name for. Background for reading words, never a checked
+ * source (FR-138).
+ */
+export type WrittenNode = {
+  type: 'term'
+  id: string
+  label: string
+  status: 'current'
+  /** Its own meaning, in markdown; null for a synonym. */
+  meaning: string | null
+  /** What a synonym is another name for: a metric's or a dimension's key, or `term:<id>`. */
+  same_as?: string
+  area?: string
+}
 /** A vocabulary term, a domain, or a target no longer served. */
 export type TargetNode = Link['target']
-export type RelatedNode = ItemNode | TombstoneNode | TargetNode
+export type RelatedNode = ItemNode | TombstoneNode | WrittenNode | TargetNode
 export type RelatedRequest = {
   id: string
   relations?: readonly Relation[] | undefined
@@ -510,7 +577,14 @@ function nodeOf(resolved: Shown, today: string): RelatedNode {
     case 'area':
       return { type: 'area', id: resolved.area.id, label: resolved.area.name, status: 'current' }
     case 'unresolved':
-      return { type: resolved.type, id: resolved.id, label: resolved.label, status: 'unresolved' }
+      return {
+        type: resolved.type,
+        id: resolved.id,
+        label: resolved.label,
+        status: resolved.status ?? 'unresolved',
+      }
+    case 'written':
+      return writtenTarget(resolved.term)
     case 'term': {
       // A changed definition is a property of each link (its edge), not of the term itself,
       // and a node is the term with all its members, whichever item reached it.
@@ -583,6 +657,8 @@ function rootOf(
     return termShown(bundle, term)
       ? termTarget(term, definitionStatus(relevantStates(term)), term.name)
       : null
+  const written = index.written(id)
+  if (written) return writtenTarget(written)
   const area = index.area(id.startsWith('area:') ? id.slice(5) : id)
   return area && areaShown(bundle, area.id)
     ? { type: 'area', id: area.id, label: area.name, status: 'current' }
@@ -701,4 +777,68 @@ export function related(bundle: LinkBundle, request: RelatedRequest): Related {
     counts: Object.fromEntries([...perRelation].map(([r, ids]) => [r, ids.size])),
     withheld: hidden.size,
   }
+}
+
+/*
+  What an agent follows from an answer's items with get_related (FR-332, FR-335): one step from
+  each item, in the answer's order, along the links a text or an owner made (`replaces`,
+  `conflicts_with`, `mentions`), to another item or a term written in Definitions it did not get
+  already. A metric's or a dimension's meaning came with the look-up, and a domain is not read, so
+  neither is followed. A retired or replaced item, and a term no longer there, is listed and not
+  followed. It never changes which items the answer has.
+*/
+export type FollowedRel = 'replaces' | 'conflicts_with' | 'mentions'
+const followedRels: readonly FollowedRel[] = ['replaces', 'conflicts_with', 'mentions']
+export type FollowedLink = {
+  /** The answer's item the link is on. */
+  from: string
+  rel: FollowedRel
+  /** Where it led: an item in service with its summary, or a term with what it means. */
+  to: ItemNode | WrittenNode
+}
+export type NotFollowedLink = {
+  from: string
+  rel: FollowedRel
+  /** An item retired or replaced, or a term no longer there: the author's words only. */
+  to: { type: 'item' | 'term'; id: string; label: string; status: LinkStatus }
+}
+export type Followed = { followed: FollowedLink[]; notFollowed: NotFollowedLink[] }
+
+export function followedFrom(
+  bundle: LinkBundle,
+  itemIds: readonly string[],
+  today: string,
+  window?: DateWindow,
+): Followed {
+  const already = new Set(itemIds)
+  const followed: FollowedLink[] = []
+  const notFollowed: NotFollowedLink[] = []
+  const listed = new Set<string>()
+  for (const from of itemIds) {
+    const graph = related(bundle, { id: from, relations: followedRels, depth: 1, today, window })
+    if (!graph.found) continue
+    for (const node of graph.nodes) {
+      if (already.has(node.id) || listed.has(node.id)) continue
+      const edge = graph.edges.find(
+        (e) =>
+          (e.from === from && e.to === node.id) ||
+          (e.rel === 'conflicts_with' && e.from === node.id && e.to === from),
+      )
+      const rel = edge?.rel
+      if (rel !== 'replaces' && rel !== 'conflicts_with' && rel !== 'mentions') continue
+      if (isItemNode(node) || (node.type === 'term' && node.status === 'current')) {
+        if (followed.length >= relatedLimits.maxNodes) continue
+        followed.push({ from, rel, to: node as ItemNode | WrittenNode })
+        already.add(node.id)
+      } else if (node.type === 'item' || node.type === 'term') {
+        notFollowed.push({
+          from,
+          rel,
+          to: { type: node.type, id: node.id, label: node.label, status: node.status },
+        })
+      } else continue
+      listed.add(node.id)
+    }
+  }
+  return { followed, notFollowed }
 }

@@ -35,11 +35,18 @@ export type Words = {
   keyOf: (name: string) => { kind: 'metric' | 'dim' | 'val'; key: string } | undefined
   /** The name people read for a key, or the key's own id when the vocabulary has no name. */
   nameOf: (key: string) => string
+  /** A term written in Definitions by its id, as the app names it (by its word), if it is there. */
+  termName: (id: string) => string | undefined
+  /** A term's id by its word, any case. */
+  termId: (name: string) => string | undefined
 }
+
+/** A term written in Definitions, as Words reads it: its id and its word. */
+export type WrittenWord = { id: string; name: string }
 
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
 
-export function wordsOf(vocabulary: ServiceVocabulary): Words {
+export function wordsOf(vocabulary: ServiceVocabulary, terms: readonly WrittenWord[] = []): Words {
   const names = new Map<string, string>()
   for (const m of vocabulary.metrics) names.set(`metric:${m.id}`, m.name)
   for (const d of vocabulary.dimensions) {
@@ -59,6 +66,8 @@ export function wordsOf(vocabulary: ServiceVocabulary): Words {
       return undefined
     },
     nameOf: (key) => names.get(key) ?? key.split(/[:/]/).at(-1)!,
+    termName: (id) => terms.find((t) => t.id === id)?.name,
+    termId: (name) => terms.find((t) => same(t.name, name))?.id,
   }
 }
 
@@ -67,9 +76,10 @@ export function wordsOf(vocabulary: ServiceVocabulary): Words {
 /**
  * A service's target as the app's mention id, by the kind and the key the app names it with (a
  * metric by its name, an item by its id): `item:itm_x` is `context:itm_x`, `metric:orders` is
- * `metric:Orders`. Empty for a target the app has no mention of.
+ * `metric:Orders`, a term written in Definitions `term:<id>` is `term:<its word>`. Empty for a
+ * target the app has no mention of, such as a term no longer there.
  */
-function mentionIdOf(target: string, words: Words): string {
+export function mentionIdOf(target: string, words: Words): string {
   const kind = target.slice(0, target.indexOf(':'))
   const key = target.slice(target.indexOf(':') + 1)
   if (kind === 'item') return `context:${key}`
@@ -78,6 +88,10 @@ function mentionIdOf(target: string, words: Words): string {
   if (kind === 'val')
     return `${key.startsWith('market/') ? 'market' : 'dimension'}:${words.nameOf(target)}`
   if (kind === 'area') return `domain:${key}`
+  if (kind === 'term') {
+    const name = words.termName(key)
+    return name ? `term:${name}` : ''
+  }
   return ''
 }
 
@@ -92,11 +106,15 @@ export function textFromService(markup: string, words: Words): string {
     .join('')
 }
 
-/** A mention as the service can keep it, or null: a term or a person is kept as its words. */
+/** A mention as the service can keep it, or null: a person, or a word no longer there, is kept as its words. */
 function targetOf(id: string, words: Words): string | null {
   const { kind, key } = parseMentionId(id)
   if (kind === 'context') return /^itm_[a-z0-9]{8,16}$/.test(key) ? `item:${key}` : null
   if (kind === 'domain') return `area:${key}`
+  if (kind === 'term') {
+    const id = words.termId(key)
+    return id ? `term:${id}` : null
+  }
   if (kind === 'metric' || kind === 'dimension' || kind === 'market') {
     const found = words.keyOf(key)
     if (!found) return null

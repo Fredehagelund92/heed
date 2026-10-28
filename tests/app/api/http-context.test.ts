@@ -89,6 +89,17 @@ describe('mentions, both ways', () => {
     })
   })
 
+  it('names a term written in Definitions by its id on the service and by its word in the app', () => {
+    const id = '0190a0a0-0000-7000-8000-00000000000b'
+    const withTerms = wordsOf(vocabulary, [{ id, name: 'Webshop' }])
+    const app = 'A [@ id="term:Webshop" label="webshop"] order.'
+    const service = `A @[webshop](term:${id}) order.`
+    expect(textToService(app, withTerms)).toEqual({ plain: 'A webshop order.', markup: service })
+    expect(textFromService(service, withTerms)).toBe(app)
+    // A term no longer there reads as its words.
+    expect(textFromService(service, words)).toBe('A webshop order.')
+  })
+
   it("escapes an @ in the words beside a mention, so the service's markup reads them back", () => {
     const written = textToService('Mail @ the desk: [@ id="metric:Orders" label="Orders"]', words)
     expect(written.markup).toBe('Mail \\@ the desk: @[Orders](metric:orders)')
@@ -204,6 +215,18 @@ describe('Related, from the service', () => {
         otherDomain: false,
       },
     ])
+  })
+
+  it('names a term written in Definitions by its word', () => {
+    const id = '0190a0a0-0000-7000-8000-00000000000d'
+    const [link] = linksOfRelated(
+      related([node({ type: 'term', id: `term:${id}`, label: 'Webshop', relation: 'mentions' })]),
+      wordsOf(vocabulary, [{ id, name: 'Webshop' }]),
+    )
+    expect(link).toMatchObject({
+      rel: 'mentions',
+      to: { id: 'term:Webshop', kind: 'term', label: 'Webshop', retired: false },
+    })
   })
 
   it('leaves out what an item applies to, and anything the app cannot name', () => {

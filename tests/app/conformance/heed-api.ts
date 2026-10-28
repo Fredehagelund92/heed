@@ -1229,6 +1229,50 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'ask', 'getLibrary', 'setLinks'))(
+      'says what an answer followed with get_related: one step, a retired link apart, nothing while switched off',
+      async () => {
+        const a = await signedIn()
+        const question = 'Why did orders in Norway drop in August?'
+        const answer = await a.ask({ question })
+        const { items } = await a.getLibrary()
+        const stop = items.find(
+          (f) => f.title === 'Online sales to Norway stopped on 4 August 2026',
+        )!
+        expect(answer.links?.on).toBe(true)
+        // The term the Norway item's text mentions: followed, with what it means.
+        const webshop = answer.links!.followed.find((f) => f.to.id === 'term:Webshop')
+        expect(webshop).toMatchObject({
+          from: { id: stop.id, title: stop.title },
+          rel: 'mentions',
+          to: { label: 'Webshop' },
+        })
+        expect(webshop!.read).toContain('larchwood.example')
+        // The payment provider's switch is retired: listed, never followed.
+        expect(answer.links!.notFollowed).toContainEqual({
+          from: { id: stop.id, title: stop.title },
+          rel: 'mentions',
+          to: {
+            id: 'context:itm_kh4llvi9',
+            label: 'Payment provider switched in Norway on 9 July 2025',
+          },
+        })
+        // One step, each once, and never an item the answer has already.
+        const ends = answer.links!.followed.map((f) => f.to.id)
+        expect(new Set(ends).size).toBe(ends.length)
+        for (const id of answer.sources) expect(ends).not.toContain(`context:${id}`)
+        await a.setLinks({ on: false })
+        try {
+          const off = await a.ask({ question })
+          expect(off.links).toEqual({ on: false, followed: [], notFollowed: [] })
+          // Following links never changes what the answer has.
+          expect(off.sources).toEqual(answer.sources)
+        } finally {
+          await a.setLinks({ on: true })
+        }
+      },
+    )
+
     it.skipIf(lacks('signIn', 'ask'))(
       'answers a question that names nothing as Not found, with no sources',
       async () => {

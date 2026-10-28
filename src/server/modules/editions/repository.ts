@@ -293,6 +293,8 @@ export async function loadServingBundle(
     overlay: head.overlay,
     terms,
     written: words.written,
+    // Every live term's domain, served or not, so a link to one that isn't served says why.
+    writtenAreas: Object.fromEntries(written.map((term) => [term.id, term.areaId])),
     links: links,
     areas: metadata.areas,
     retired: metadata.retired,

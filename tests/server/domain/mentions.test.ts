@@ -20,7 +20,14 @@ describe('mention tokens', () => {
     expect(parsed.mentions.map((mention) => mention.position)).toEqual([0, 1, 2, 3, 4])
     expect(parsed.errors).toEqual([])
   })
+  it('parses a term written in Definitions by its id', () => {
+    const id = '0190a0a0-0000-7000-8000-00000000000a'
+    expect(parseMentions(`A @[webshop](term:${id}) order`).mentions).toEqual([
+      { position: 0, label: 'webshop', target: `term:${id}` },
+    ])
+  })
   it.each([
+    '@[x](term:Webshop)',
     '@[Review [draft]](metric:x)',
     '@[line\nbreak](metric:x)',
     '@[](metric:x)',

@@ -206,7 +206,8 @@ export const test = base.extend<{ demoWeek: void }>({
   the first try of a decision fail, `?bulk=fail` makes the last row of the first change to many
   rows fail, `?quality=failed` makes the last check of the saved questions one that stopped
   after 8 of them, `?demo=last` decides every suggestion but the one opened, through the service,
-  and `?demo=setup` starts on an empty workspace.
+  `?demo=setup` starts on an empty workspace, and `?links=off` (or `on`) switches following links
+  for agents in Agents and access, on the service, before the page loads.
 */
 export async function go(page: Page, route: string) {
   const was = workspace
@@ -259,6 +260,8 @@ async function httpRoute(
   const bulk = query.get('bulk')
   const connect = query.get('connect')
   const quality = query.get('quality')
+  const links = query.get('links')
+  query.delete('links')
   query.delete('demo')
   query.delete('state')
   query.delete('bulk')
@@ -277,11 +280,13 @@ async function httpRoute(
   else if (bulk) throw new Error(`?bulk=${bulk} has no http meaning yet`)
   if (quality === 'failed') await failedCheck(8)
   else if (quality) throw new Error(`?quality=${quality} has no http meaning yet`)
+  if (links === 'on' || links === 'off') await followLinks(page, links === 'on')
+  else if (links) throw new Error(`?links=${links} has no http meaning yet`)
   const search = query.toString()
   return {
     route: `${path}${search ? `?${search}` : ''}`,
-    // Another workspace on another service: the app loads again, as the mock starts afresh.
-    ...(demo === 'setup' ? { load: true } : {}),
+    // Another workspace on another service, or a switch the app has read: the app loads again.
+    ...(demo === 'setup' || links ? { load: true } : {}),
     // The live line's states happen for real: a wait, an agent's sign-in, a no in the browser.
     ...(connect ? { after: () => connectState(page, connect) } : {}),
     ...(state === 'offline'
@@ -400,6 +405,17 @@ async function publishedItem(page: Page, part: string) {
   const item = items.find((i) => i.title === title)
   if (!item) throw new Error(`“${title}” is not in the library: was it published?`)
   return item.id
+}
+
+/** Following links for agents (get_related), switched in Agents and access as Jon, an admin. */
+async function followLinks(page: Page, on: boolean) {
+  const session = await page.request.get('/api/v1/auth/session')
+  const { csrfToken } = (await session.json()) as { csrfToken: string }
+  const set = await page.request.post('/api/v1/tools/get_related', {
+    headers: { 'x-heed-csrf': csrfToken, origin, 'idempotency-key': randomUUID() },
+    data: { enabled: on, reason: 'Changed in Settings, Agents and access.' },
+  })
+  if (!set.ok()) throw new Error(`Following links could not be switched: ${await set.text()}`)
 }
 
 /** The check job's last run over the saved questions stopped after `checked` of them. */

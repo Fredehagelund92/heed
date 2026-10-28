@@ -1,6 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
+  followedFrom,
   outgoing,
   related,
   relations,
@@ -9,6 +10,7 @@ import {
   type LinkTerm,
   type RawLink,
 } from '../../../src/domain/links.ts'
+import type { WrittenTerm } from '../../../src/domain/served-terms.ts'
 import { shiftDate } from '../../../src/domain/validity.ts'
 import { relatedOracle } from './link-oracle.ts'
 
@@ -459,3 +461,161 @@ it(
     )
   },
 )
+
+describe('a term written in Definitions, as a link reads it', () => {
+  const webshopId = '0190a0a0-0000-7000-8000-000000000001'
+  const webshop: WrittenTerm = {
+    id: webshopId,
+    name: 'Webshop',
+    meaning: 'Orders placed on our site or in our apps.',
+    sameAs: null,
+    areaId: 'finance',
+    writtenOn: '2026-07-02',
+    writtenAs: 'owner',
+    conflict: false,
+  }
+  const termLink = (from: string, id: string, label: string): RawLink => ({
+    from_item: from,
+    rel: 'mentions',
+    to_kind: 'term',
+    to_id: `term:${id}`,
+    label,
+  })
+  const written = (extra: Partial<LinkBundle> = {}) => ({
+    written: [webshop],
+    writtenAreas: { [webshopId]: 'finance' },
+    ...extra,
+  })
+
+  it('is current while it is served, with its word and never its meaning in a link', () => {
+    const a = item('itm_aaaaaaaa')
+    const data = bundle([a], [termLink(a.id, webshopId, 'the webshop')], written())
+    expect(outgoing(data, a, today).links[0]).toEqual({
+      rel: 'mentions',
+      target: {
+        type: 'term',
+        id: `term:${webshopId}`,
+        label: 'Webshop',
+        status: 'current',
+        area: 'finance',
+      },
+    })
+  })
+
+  it('gives get_related what it means, and the items that mention it from the term', () => {
+    const a = item('itm_aaaaaaaa')
+    const data = bundle([a], [termLink(a.id, webshopId, 'the webshop')], written())
+    const from = related(data, { id: a.id, depth: 1, today })
+    expect(from.found && from.nodes).toEqual([
+      {
+        type: 'term',
+        id: `term:${webshopId}`,
+        label: 'Webshop',
+        status: 'current',
+        meaning: 'Orders placed on our site or in our apps.',
+        area: 'finance',
+        distance: 1,
+      },
+    ])
+    const back = related(data, { id: `term:${webshopId}`, depth: 1, today })
+    expect(back.found && back.nodes.map((n) => [n.id, n.distance])).toEqual([[a.id, 1]])
+  })
+
+  it('reads a deleted term as retired and a term no longer served as unresolved, words only', () => {
+    const a = item('itm_aaaaaaaa')
+    const links = [termLink(a.id, webshopId, 'the webshop')]
+    const deleted = outgoing(bundle([a], links, { written: [], writtenAreas: {} }), a, today)
+    expect(deleted.links[0]!.target).toEqual({
+      type: 'term',
+      id: `term:${webshopId}`,
+      label: 'the webshop',
+      status: 'retired',
+    })
+    const unserved = outgoing(
+      bundle([a], links, { written: [], writtenAreas: { [webshopId]: 'finance' } }),
+      a,
+      today,
+    )
+    expect(unserved.links[0]!.target.status).toBe('unresolved')
+  })
+
+  it('is counted and not listed while its domain is stopped', () => {
+    const a = item('itm_aaaaaaaa')
+    const data = bundle([a], [termLink(a.id, webshopId, 'the webshop')], {
+      written: [],
+      writtenAreas: { [webshopId]: 'operations' },
+    })
+    expect(outgoing(data, a, today)).toMatchObject({ withheld: 1 })
+    const result = related(data, { id: a.id, depth: 1, today })
+    expect(result.found && result.nodes).toEqual([])
+    expect(result.found && result.withheld).toBe(1)
+  })
+})
+
+describe('what an answer follows with get_related', () => {
+  const webshopId = '0190a0a0-0000-7000-8000-000000000002'
+  const webshop: WrittenTerm = {
+    id: webshopId,
+    name: 'Webshop',
+    meaning: 'Orders placed on our site or in our apps.',
+    sameAs: null,
+    areaId: 'finance',
+    writtenOn: '2026-07-02',
+    writtenAs: 'owner',
+    conflict: false,
+  }
+  const a = item('itm_aaaaaaaa'),
+    b = item('itm_bbbbbbbb'),
+    c = item('itm_cccccccc')
+  const data = bundle(
+    [a, b, c],
+    [
+      { from_item: a.id, rel: 'mentions', to_kind: 'term', to_id: `term:${webshopId}`, label: 'w' },
+      link(a.id, 'mentions', 'metric:orders', 'Orders'),
+      link(a.id, 'mentions', b.id),
+      link(a.id, 'mentions', c.id),
+      link(a.id, 'mentions', 'itm_oldoldol', 'the old rule'),
+      link(c.id, 'conflicts_with', b.id),
+      link(c.id, 'mentions', 'finance', 'Finance'),
+    ],
+    {
+      written: [webshop],
+      writtenAreas: { [webshopId]: 'finance' },
+      retired: [
+        {
+          id: 'itm_oldoldol',
+          areaId: 'finance',
+          audience: null,
+          validity: { start: '2026-01-01', end: '2026-06-01' },
+          replacedBy: null,
+        },
+      ],
+    },
+  )
+
+  it('follows one step to items and terms it did not get, and lists a retired one apart', () => {
+    const result = followedFrom(data, [a.id, b.id], today)
+    expect(result.followed.map((f) => [f.from, f.rel, f.to.id])).toEqual([
+      [a.id, 'mentions', c.id],
+      [a.id, 'mentions', `term:${webshopId}`],
+    ])
+    expect(result.followed[1]!.to).toMatchObject({
+      type: 'term',
+      meaning: 'Orders placed on our site or in our apps.',
+    })
+    expect(result.notFollowed).toEqual([
+      {
+        from: a.id,
+        rel: 'mentions',
+        to: { type: 'item', id: 'itm_oldoldol', label: 'the old rule', status: 'retired' },
+      },
+    ])
+  })
+
+  it('never follows a link from a link, a metric or a domain, and reads a disagreement both ways', () => {
+    const fromB = followedFrom(data, [b.id], today)
+    expect(fromB.followed.map((f) => [f.rel, f.to.id])).toEqual([['conflicts_with', c.id]])
+    const fromC = followedFrom(data, [c.id], today)
+    expect(fromC.followed.map((f) => [f.rel, f.to.id])).toEqual([['conflicts_with', b.id]])
+  })
+})

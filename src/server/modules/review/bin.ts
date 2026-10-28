@@ -142,7 +142,8 @@ export function createBinService(tx: Queryable, clock: Clock, proposals: Proposa
          array(select s.person_id::text from area_assignments s join people p on p.id=s.person_id
                 where s.area_id=a.id and s.role='owner' and s.valid_at @> now()
                   and p.deactivated_at is null and p.erased_at is null order by s.person_id) as owners,
-         array(select key from serving_vocabulary((select seq from live_edition))) as terms,
+         array(select key from serving_vocabulary((select seq from live_edition)))
+           || array(select 'term:'||id::text from terms where deleted_at is null) as terms,
          array(select ref from definitions) as definitions,
          array(select s.item_id from item_version_service s join item_versions v on v.id=s.version_id
                 where s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)) as items,

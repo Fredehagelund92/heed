@@ -76,7 +76,7 @@ export async function insertVersion(
     ])
   for (const m of version.mentions)
     await tx.query(
-      'insert into item_version_mentions(version_id,field,position,label,term_key,item_id,area_id) values($1,$2,$3,$4,$5,$6,$7)',
+      'insert into item_version_mentions(version_id,field,position,label,term_key,item_id,area_id,term_id) values($1,$2,$3,$4,$5,$6,$7,$8)',
       [
         id,
         m.field,
@@ -85,6 +85,7 @@ export async function insertVersion(
         /^(metric|dim|val):/.test(m.target) ? m.target : null,
         m.target.startsWith('item:') ? m.target.slice(5) : null,
         m.target.startsWith('area:') ? m.target.slice(5) : null,
+        m.target.startsWith('term:') ? m.target.slice(5) : null,
       ],
     )
   return { id, digest: digests.content }
@@ -117,7 +118,7 @@ export function readVersions(tx: Queryable, ids: readonly string[]): Promise<Sto
       jsonb_build_object(
       'kind',v.kind,'areaId',v.area_id,'title',v.title,'summary',v.summary,
       'mentions',coalesce((select jsonb_agg(jsonb_build_object('field',m.field,'position',m.position,
-        'target',coalesce(m.term_key,'item:'||m.item_id,'area:'||m.area_id),'label',m.label) order by m.field,m.position)
+        'target',coalesce(m.term_key,'item:'||m.item_id,'area:'||m.area_id,'term:'||m.term_id::text),'label',m.label) order by m.field,m.position)
         from item_version_mentions m where m.version_id=v.id),'[]'),
       'scope',jsonb_build_object(
         'metrics',coalesce((select jsonb_agg(metric_key order by metric_key) from item_version_metrics where version_id=v.id),'[]'),

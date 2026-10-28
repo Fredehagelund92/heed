@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { facts, factById } from '@/api/mock/data/world'
 import { definitionSeed } from '@/api/mock/definitions'
 import { createWorkspace } from '@/api/mock/workspace'
-import { follow, linksOf } from '@/lib/links'
+import { answerLinks, follow, linksOf } from '@/lib/links'
 
 // get_related: links both ways and the owners' relations, one step, a retired target shown and
 // never followed, a definition from another domain marked, and the switch turns it all off.
@@ -49,5 +49,33 @@ describe('links', () => {
     expect(followed.map((f) => f.link.to.id)).toEqual(['term:Webshop'])
     expect(notFollowed.map((f) => f.link.to.id)).toEqual(['context:itm_kh4llvi9'])
     expect(follow(got, w, false)).toEqual({ followed: [], notFollowed: [] })
+  })
+
+  it("gives an answer's links with what the agent read where each led", () => {
+    const links = answerLinks(['itm_norway_stop', 'itm_za26xpzv'], w, true)
+    const stop = { id: 'itm_norway_stop', title: factById('itm_norway_stop')!.title }
+    expect(links.on).toBe(true)
+    expect(links.followed).toHaveLength(1)
+    expect(links.followed[0]).toMatchObject({
+      from: stop,
+      rel: 'mentions',
+      to: { id: 'term:Webshop', label: 'Webshop' },
+    })
+    expect(links.followed[0]!.read).toContain('larchwood.example')
+    expect(links.notFollowed).toEqual([
+      {
+        from: stop,
+        rel: 'mentions',
+        to: {
+          id: 'context:itm_kh4llvi9',
+          label: 'Payment provider switched in Norway on 9 July 2025',
+        },
+      },
+    ])
+    expect(answerLinks(['itm_norway_stop'], w, false)).toEqual({
+      on: false,
+      followed: [],
+      notFollowed: [],
+    })
   })
 })

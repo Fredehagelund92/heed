@@ -142,13 +142,16 @@ no reply takes the question's metrics, markets and dates instead and is recorded
 asked (FR-602).
 
 `get_related` (FR-332) follows links from an item id, a vocabulary key such as `metric:orders`,
-or a domain (`area:finance`): the neighbours one step away (`depth: 2` for two), each listed once
+a term written in Definitions (`term:<id>`, FR-138) or a domain (`area:finance`): the neighbours one step away (`depth: 2` for two), each listed once
 at its shortest distance, in a fixed order (distance, kind of link, higher risk, newer start, id),
 at most 50 a page (`max_nodes`, default 20) with `next_cursor`, and the stored links among them
 as `edges`. `relations` narrows the kinds (`replaces`, `replaced_by`, `conflicts_with`,
 `applies_to`, `mentions`, `mentioned_by`, `in_area`; all but `in_area` by default) and `window`
 the dates of neighbour items. Neighbours carry titles and summaries, never bodies; a retired or
-replaced item shows only the author's words. A neighbour the caller may not see is counted in
+replaced item shows only the author's words. A term comes with its word and what it means (`meaning`), as
+a person wrote it (a synonym with what it is another name for, `same_as`), read as it is now:
+terms are not sealed in an edition, so a deleted term reads as `retired` with the author's words,
+and a term that means something else now as `unresolved`. A neighbour the caller may not see is counted in
 `links_withheld`, never listed or counted in `counts`, and a start the caller may not see is "Not
 found", exactly like one that does not exist. A link never changes what `get_context` delivers.
 The pure resolver is `src/domain/links.ts`. **It is on by default**, with its own switch
@@ -665,7 +668,9 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   (`mentions`, `mentioned_by`, `replaces`, `replaced_by`, `conflicts_with`, `applies_to`).
   Neighbours the person may not see are counted in `withheld`, never named. A retired or replaced
   item is named by its title, as the Context list shows it, where agents get only the words that
-  linked to it. `areaId` is the item's domain and each neighbour's, a metric's or a dimension's as
+  linked to it. A term written in Definitions is a `term` node, by `term:<id>` and its word. A
+  metric the text mentions is a `mentions` link even when the item also applies to it.
+  `areaId` is the item's domain and each neighbour's, a metric's or a dimension's as
   Definitions shows it; `following` says whether agents follow links now (the `get_related`
   switch).
 - `POST /items/publish` takes `{ draft, itemId?, reason?, draftId?, relations? }` (FR-137). An
@@ -991,7 +996,11 @@ date; else `grounded`.
 
 - `POST /ask/lookup` (Ask): a question (1 to 2,000 characters) and the names a person picked
   beside it (`metrics`, `dimension_filters`, `window`, as Try it), on the live edition. It answers
-  with server-sent events: each step as it is done, then the answer. With real models
+  with server-sent events: each step as it is done, then the answer. The answer's `links` say what
+  `get_related` follows from its items, as an agent would (`on` is its switch): one step from
+  each, to another item or a term it did not get already, with what the agent read there (an
+  item's summary, a term's meaning), and the retired or replaced ones listed apart, never
+  followed. It never changes which items the answer has. With real models
   (`MODELS=live`), a `words` event follows an answer that gives items: the words of
   `models.assistant`, written from those items only, each sentence that uses one ending with its
   number. The model decides nothing: the state, the items and what agents are told are the

@@ -13,7 +13,7 @@ import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
 import { reviewQuestion, type ContextItem } from '../../../src/domain/item.ts'
-import { serializeMentions, type MentionPart } from '../../../src/domain/mentions.ts'
+import { parseMentions, serializeMentions, type MentionPart } from '../../../src/domain/mentions.ts'
 import { defaultNotToConclude } from '../../../src/domain/proposal-rules.ts'
 import type { Draft } from '../../../src/domain/draft.ts'
 import { shiftDate } from '../../../src/domain/validity.ts'
@@ -38,9 +38,9 @@ import { seedSavedQuestions } from './demo-saved.ts'
   report on Orders in Germany comes in as Maria Lindqvist's named report from Ask. What
   agents asked this week comes in as the topics and counts the service keeps (Asked this week).
 
-  The items' links are the mock's too: a mention the service can follow is kept as its markup,
-  and the owners' relations (replaces, disagrees with) as the service records them. A mention of a
-  term written in Definitions stays its words: the service cannot follow one yet.
+  The items' links are the mock's too: a mention the service can follow is kept as its markup (a
+  term written in Definitions by its id), and the owners' relations (replaces, disagrees with) as
+  the service records them.
 
   The comments are the mock's threads (data/comments.ts), each written, answered, reacted to,
   edited and deleted through the API by the person the mock names, then dated as the mock dates
@@ -90,9 +90,17 @@ const personId = (name: string) => {
 /** A mention as the mock stores it, `[@ id="..." label="Words"]`, read as its words. */
 const plain = (text: string) => text.replace(/\[@ id="[^"]*" label="([^"]*)"\]/g, '$1')
 /**
+ * The ids the terms with their own meaning get on the service, by their word in lower case: they
+ * are written with the library, so its texts can mention them.
+ */
+const termIds = new Map(
+  TERMS.filter((t) => !t.sameAs).map((t) => [t.name.toLowerCase(), randomUUID()]),
+)
+
+/**
  * A mock text's mentions as the service keeps them, in the markup the http binding writes: an item
- * by its id on the service, a metric or a market by its key. None when it mentions nothing the
- * service can follow; a term written in Definitions is kept as its words.
+ * by its id on the service, a metric or a market by its key, a term with its own meaning by its
+ * id. None when it mentions nothing the service can follow; a synonym is kept as its words.
  */
 function markupOf(text: string): string | undefined {
   const parts = text.split(/(\[@ id="[^"]*" label="[^"]*"\])/).map((part): MentionPart => {
@@ -100,6 +108,7 @@ function markupOf(text: string): string | undefined {
       /^\[@ id="([a-z]+):([^"]*)" label="([^"]*)"\]$/.exec(part) ?? []
     const metric = kind === 'metric' ? metricOf(key) : undefined
     const market = kind === 'market' ? marketOf(key) : undefined
+    const term = kind === 'term' ? termIds.get(key.toLowerCase()) : undefined
     const target =
       kind === 'context'
         ? `item:${serverItemId(key)}`
@@ -107,7 +116,9 @@ function markupOf(text: string): string | undefined {
           ? `metric:${metric.id}`
           : market
             ? `val:market/${market.id}`
-            : undefined
+            : term
+              ? `term:${term}`
+              : undefined
     if (target) return { kind: 'mention', target, label }
     return { kind: 'text', text: kind ? label : part }
   })
@@ -140,10 +151,22 @@ function split(text: string): { summary: string; body?: string } {
 /** The service's end of a window: the first day it no longer applies, the day after the last. */
 const endOf = (until: string | undefined) => (until ? shiftDate(until, 1) : null)
 
-/** What changes about an item before the week starts, so its suggestion shows the mock's change. */
-type Before = { summary?: string; body?: string | null; source?: string; until?: string }
+/**
+ * What changes about an item before the week starts, so its suggestion shows the mock's change. A
+ * text with links is its markup (`bodyMarkup`), which also gives its words.
+ */
+type Before = {
+  summary?: string
+  body?: string | null
+  bodyMarkup?: string
+  source?: string
+  until?: string
+}
 /** A suggested version: the fields it changes. */
-type After = { summary?: string; body?: string | null; source?: string; until?: string }
+type After = Before & { summaryMarkup?: string }
+
+/** The words of the service's markup, as agents read them. */
+const wordsOf = (markup: string) => parseMentions(markup).text
 
 const reviewText = (id: string) => {
   const r = reviews.find((x) => x.id === id)
@@ -160,7 +183,16 @@ const reviewText = (id: string) => {
 /** The edits Ines Duarte sends from a chat, by their mock card, with what they change. */
 const edits: { card: string; item: string; before: Before; after: After }[] = (() => {
   const units = reviewText('sug-ines')
-  const format = reviewText('sug-ines-format')
+  // The formatting change is made on the item's own text, with its links, which both versions keep.
+  const norway = markupOf(facts.find((f) => f.id === 'itm_norway_stop')!.body!)!
+  const formatted = norway
+    .replace('was the only way to buy there.', 'was **the only way to buy there**.')
+    .replace('\n\n- Parcels', '\n\n1. Parcels')
+    .replace('\n- Compare', '\n2. Compare')
+    .replace('never across it.', '_never across it_.')
+  // The new sentence links to the term Test account, which agents can follow to what it means.
+  const testAccount = `term:${termIds.get('test account')!}`
+  const returns = 'From 1 October 2026 the 28 accounts the returns team'
   const order = reviewText('sug-ines-order')
   const long = reviewText('sug-ines-long')
   const link = reviews.find((r) => r.id === 'sug-ines-link')!
@@ -177,13 +209,20 @@ const edits: { card: string; item: string; before: Before; after: After }[] = ((
       card: 'sug-ines',
       item: 'itm_s90n5xps',
       before: { summary: units.before, source: unitsLink.before },
-      after: { summary: units.after, source: unitsLink.after },
+      after: {
+        summary: units.after,
+        summaryMarkup: units.after.replace(
+          returns,
+          'From 1 October 2026 the 28 @[accounts](' + testAccount + ') the returns team',
+        ),
+        source: unitsLink.after,
+      },
     },
     {
       card: 'sug-ines-format',
       item: 'itm_norway_stop',
-      before: { body: format.before },
-      after: { body: format.after },
+      before: { bodyMarkup: norway },
+      after: { bodyMarkup: formatted },
     },
     {
       card: 'sug-ines-link',
@@ -239,11 +278,15 @@ function itemOf(f: Fact): ContextItem {
   const start = f.valid.from ?? '2025-01-01'
   const end = endOf(before.until ?? f.valid.until)
   const text = split(plain(before.summary ?? f.summary))
-  const body =
-    before.body === undefined ? (text.body ?? (f.body ? plain(f.body) : undefined)) : before.body
+  const body = before.bodyMarkup
+    ? wordsOf(before.bodyMarkup)
+    : before.body === undefined
+      ? (text.body ?? (f.body ? plain(f.body) : undefined))
+      : before.body
   // The links written in its body, which Related and agents follow.
   const bodyMarkup =
-    before.body === undefined && !text.body && f.body ? markupOf(f.body) : undefined
+    before.bodyMarkup ??
+    (before.body === undefined && !text.body && f.body ? markupOf(f.body) : undefined)
   const area = areas.find((a) => a.id === areaOf(f.domain))!
   return {
     id: serverItemId(f.id),
@@ -286,15 +329,24 @@ export const demoLibrary = (): ContextItem[] =>
 /** A context item as a suggestion's whole new version, with `after` applied. */
 function draftOf(item: ContextItem, after: After): Draft {
   const text = after.summary === undefined ? null : split(after.summary)
-  const body = text?.body ?? (after.body === undefined ? item.body : (after.body ?? undefined))
+  const body = after.bodyMarkup
+    ? wordsOf(after.bodyMarkup)
+    : (text?.body ?? (after.body === undefined ? item.body : (after.body ?? undefined)))
+  // A summary with a link is short enough to stay one.
+  const summaryMarkup = after.summaryMarkup && !text?.body ? after.summaryMarkup : undefined
   return {
     areaId: item.areaId,
     kind: item.kind,
     title: item.title,
     summary: text?.summary ?? item.summary,
+    ...(summaryMarkup ? { summaryMarkup } : {}),
     ...(body ? { body } : {}),
     // A body the suggestion leaves alone keeps its links.
-    ...(body === item.body && item.bodyMarkup ? { bodyMarkup: item.bodyMarkup } : {}),
+    ...(after.bodyMarkup
+      ? { bodyMarkup: after.bodyMarkup }
+      : body === item.body && item.bodyMarkup
+        ? { bodyMarkup: item.bodyMarkup }
+        : {}),
     scope: {
       metrics: item.scope.metrics.map((m) => `metric:${m}`),
       dimensions: [],
@@ -682,11 +734,22 @@ async function dateComments(client: pg.Client, comments: readonly DatedComment[]
   }
 }
 
+/** The mock's terms with their own meaning, as the library is written with them. */
+const ownTerms = () =>
+  TERMS.filter((t) => !t.sameAs).map((t) => ({
+    id: termIds.get(t.name.toLowerCase())!,
+    name: t.name,
+    meaning: t.definition,
+    areaId: t.domain ? areaOf(t.domain) : null,
+    by: seedPersonId(personId(t.by!)),
+    at: `${isoDay(t.updated, TODAY)}T09:00:00Z`,
+  }))
+
 /**
- * The mock's terms and synonyms, written in the order they can be: the terms with their own
- * meaning first, then the synonyms, each pointing at what it finally means.
+ * The mock's synonyms, once the library is served: each pointing at what it finally means, a
+ * metric or a dimension by its key, or a term with its own meaning by its id.
  */
-async function seedTerms(client: pg.Client) {
+async function seedSynonyms(client: pg.Client) {
   const terms = TERMS
   const byName = new Map(terms.map((t) => [t.name.toLowerCase(), t]))
   const meaningOf = (name: string): string => {
@@ -700,30 +763,22 @@ async function seedTerms(client: pg.Client) {
     if (dimension) return `dim:${dimension.id}`
     return null
   }
-  const ids = new Map<string, string>()
-  for (const t of [...terms].sort((a, b) => Number(!!a.sameAs) - Number(!!b.sameAs))) {
-    const target = t.sameAs ? meaningOf(t.sameAs) : null
-    const key = target ? keyOf(target) : null
-    const on = `${isoDay(t.updated, TODAY)}T09:00:00Z`
-    const by = seedPersonId(personId(t.by!))
-    const [row] = (
-      await client.query<{ id: string }>(
-        `insert into terms (name, meaning, same_as_key, same_as_term, area_id, created_by, updated_by,
-                            created_at, updated_at)
-         values ($1, $2, $3, $4::uuid, $5, $6::uuid, $6::uuid, $7::timestamptz, $7::timestamptz)
-         returning id::text`,
-        [
-          t.name,
-          t.sameAs ? null : t.definition,
-          key,
-          target && !key ? ids.get(target.toLowerCase()) : null,
-          t.domain ? areaOf(t.domain) : null,
-          by,
-          on,
-        ],
-      )
-    ).rows
-    ids.set(t.name.toLowerCase(), row!.id)
+  for (const t of terms.filter((x) => x.sameAs)) {
+    const target = meaningOf(t.sameAs!)
+    const key = keyOf(target)
+    await client.query(
+      `insert into terms (name, meaning, same_as_key, same_as_term, area_id, created_by, updated_by,
+                          created_at, updated_at)
+       values ($1, null, $2, $3::uuid, $4, $5::uuid, $5::uuid, $6::timestamptz, $6::timestamptz)`,
+      [
+        t.name,
+        key,
+        key ? null : termIds.get(target.toLowerCase()),
+        t.domain ? areaOf(t.domain) : null,
+        seedPersonId(personId(t.by!)),
+        `${isoDay(t.updated, TODAY)}T09:00:00Z`,
+      ],
+    )
   }
 }
 
@@ -941,6 +996,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
       replaces: facts.flatMap((f) =>
         f.replaces ? [[serverItemId(f.id), serverItemId(f.replaces)] as const] : [],
       ),
+      terms: ownTerms(),
     })
     const admins = worldPeople.filter((p) => p.admin).map((p) => seedPersonId(personId(p.name)))
     await client.query(
@@ -948,7 +1004,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
        select unnest($1::uuid[]), 'administrator' on conflict do nothing`,
       [admins],
     )
-    await seedTerms(client)
+    await seedSynonyms(client)
   } finally {
     await client.end()
   }

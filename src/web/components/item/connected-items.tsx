@@ -4,6 +4,7 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from '@/
 import { NetworkIcon } from '@/components/icons'
 import type { ItemLinks } from '@/api'
 import {
+  BookOpenIcon,
   HeedDomainIcon,
   HeedRetiredIcon,
   HeedSourceChangedIcon,
@@ -37,6 +38,7 @@ const typeLook: Record<
   dimension: { glyph: SplitIcon, name: 'Dimension' },
   dimension_value: { glyph: TagIcon, name: 'Value' },
   area: { glyph: HeedDomainIcon, name: 'Domain' },
+  term: { glyph: BookOpenIcon, name: 'Word' },
 }
 
 const statusLook = {
