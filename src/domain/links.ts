@@ -671,14 +671,17 @@ function rootOf(
  * listed once, at its shortest distance, in a fixed order: distance, relation, higher risk, newer
  * start, id. Paging and size caps are the caller's.
  */
-export function related(bundle: LinkBundle, request: RelatedRequest): Related {
+export function related(
+  bundle: LinkBundle,
+  request: RelatedRequest,
+  index: LinkIndex = linkIndex(bundle),
+): Related {
   if (
     !Number.isInteger(request.depth) ||
     request.depth < 1 ||
     request.depth > relatedLimits.maxDepth
   )
     throw new Error('Depth must be 1 or 2')
-  const index = linkIndex(bundle)
   const root = rootOf(bundle, index, request.id, request.today)
   if (!root) return { found: false }
   const wanted = new Set(request.relations ?? defaultRelations)
@@ -814,8 +817,13 @@ export function followedFrom(
   const followed: FollowedLink[] = []
   const notFollowed: NotFollowedLink[] = []
   const listed = new Set<string>()
+  const index = linkIndex(bundle)
   for (const from of itemIds) {
-    const graph = related(bundle, { id: from, relations: followedRels, depth: 1, today, window })
+    const graph = related(
+      bundle,
+      { id: from, relations: followedRels, depth: 1, today, window },
+      index,
+    )
     if (!graph.found) continue
     for (const node of graph.nodes) {
       if (already.has(node.id) || listed.has(node.id)) continue

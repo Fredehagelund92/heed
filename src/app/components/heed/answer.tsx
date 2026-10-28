@@ -46,6 +46,7 @@ import type { FigureView } from '@/model/figures'
 import { useFigures } from '@/lib/figures'
 import { FigureAgainst, FigureLine, FigureLink, NoFigure } from '@/components/heed/answer-figure'
 import { useRelated } from '@/hooks/use-related'
+import { relLabel } from '@/lib/links'
 
 // One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
 // bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
@@ -302,7 +303,7 @@ function LookupCard({
                   <li key={f.to.id} className="flex flex-col gap-1">
                     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
                       <span className="line-clamp-1 max-w-56">{f.from.title}</span>
-                      <span>links to</span>
+                      <span>{relLabel[f.rel]}</span>
                       <MentionChip mention={f.to} />
                     </span>
                     <span className="line-clamp-2 border-l-2 pl-2 text-xs">{f.read}</span>
