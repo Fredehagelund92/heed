@@ -1695,8 +1695,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
   return Object.fromEntries(
     heedApiMethods.map((method) => [
       method,
-      (wired as Partial<Record<HeedApiMethod, unknown>>)[method] ??
-        notAvailable(method),
+      (wired as Partial<Record<HeedApiMethod, unknown>>)[method] ?? notAvailable(method),
     ]),
   ) as unknown as HeedApi
 }
