@@ -228,7 +228,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // Raised JS from 208.0 to 209.0 with content connectors (208.6 KB on CI): the words for the nine
 // new read warnings (documents left out and why, too much text, too many removals, rate limits)
 // live in lib/sources.ts, which the shell's sources crumb and the Inbox already import.
-const budgetKb = { js: 209.0, css: 23.8 }
+// Raised JS from 209.0 to 209.5 (209.2 KB on CI, 208.6 here) once Related items on context pages
+// (PR 49) and content connectors both sit in the first load.
+const budgetKb = { js: 209.5, css: 23.8 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({
