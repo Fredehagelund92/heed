@@ -42,6 +42,18 @@ async function insert(client: pg.Client, table: string, rows: Record<string, unk
   )
 }
 
+/**
+ * Fresh planner statistics for the library's tables, as this transaction sees them: ANALYZE counts
+ * the transaction's own uncommitted rows. A bare ANALYZE would also read every system catalog,
+ * which took over a minute on a busy machine.
+ */
+export async function analyzeLibrary(client: pg.Client) {
+  const tables = await client.query<{ name: string }>(
+    "select format('%I.%I', schemaname, tablename) as name from pg_tables where schemaname = 'public'",
+  )
+  await client.query(`analyze ${tables.rows.map((t) => t.name).join(',')}`)
+}
+
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
 const at = (day: string, time: string) => `${day}T${time}:00Z`
 
@@ -729,6 +741,10 @@ export async function bulkSeed(
           ),
       ])
     }
+    // Without statistics for the rows just loaded the queries below plan from whatever the tables
+    // last showed: after an earlier load rolled back, autovacuum can record them as empty, and the
+    // edition digests then ran for many minutes instead of one second.
+    await analyzeLibrary(client)
     // Each conflict is named by the current version of both items, as an owner records it.
     await client.query(
       `insert into item_version_conflicts (version_id,other_item_id)
@@ -798,7 +814,7 @@ export async function bulkSeed(
          select 'vocab:' || s.term_key || ':' || encode(t.content_digest, 'hex') as line
            from vocab_term_service s join vocab_term_versions t on t.id = s.version_id
           where lower(s.editions) = $1),
-       vocabulary as (select string_agg(line, E'\\n' order by line collate "C") as block from lines)
+       vocabulary as materialized (select string_agg(line, E'\\n' order by line collate "C") as block from lines)
        update editions e set sealed_at = now(), digest = sha256(convert_to(concat_ws(E'\\n',
          (select string_agg(line, E'\\n' order by line collate "C") from (
             select 'domain:' || d.term_key || ':' || d.area_id as line
@@ -816,6 +832,9 @@ export async function bulkSeed(
         'update editions set sealed_at = now(), digest = edition_content_digest(seq) where seq >= $1',
         [importedFrom],
       )
+    // Sealing and the digests rewrote these after the statistics above, which still say no
+    // edition is sealed: queries for sealed editions would plan for none and crawl.
+    await client.query('analyze editions, item_versions')
     const check = await client.query<{ same: boolean }>(
       'select digest = edition_content_digest(seq) as same from editions where seq = $1',
       [live],
