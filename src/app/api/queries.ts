@@ -422,7 +422,9 @@ export const invalidations: {
   [K in WriteOperation]: (input: WriteInput<K>, result: WriteResult<K>) => QueryKey[]
 } = {
   signIn: () => everything,
-  signOut: () => everything,
+  // Only the session: the shell then closes. Every read refetched while it is still open would be
+  // 401 requests from a signed-out browser, and they count against the service's per-address limit.
+  signOut: () => [queryKeys.session],
   setAbout: () => workspace,
   // A finished checklist ends the new install.
   completeSetupStep: () => [...workspace, queryKeys.session],
