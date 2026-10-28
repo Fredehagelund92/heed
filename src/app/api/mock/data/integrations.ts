@@ -132,14 +132,14 @@ export const figureConnections: Record<string, FigureConnection> = {
   cube: {
     endpoint: 'https://cube.larchwood.example/cubejs-api/v1/load',
     host: 'cube.larchwood.example',
-    secretTail: '3f9a',
+    secretSet: true,
     contact: 'Ravi Kapoor',
     asOf: 'today at 06:00',
   },
   warehouse: {
     endpoint: 'https://warehouse.larchwood.example/api/v2/query',
     host: 'warehouse.larchwood.example',
-    secretTail: '81c2',
+    secretSet: true,
     contact: 'Ravi Kapoor',
     asOf: 'today at 05:30',
   },

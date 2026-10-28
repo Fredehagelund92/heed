@@ -3,12 +3,14 @@ import { defineManifest } from '../../domain/define-manifest.ts'
 /**
  * Cube model files (CON-501, CON-502): the YAML model of a Cube project, read from a Git
  * repository an admin names, or from the folder whoever runs the server names. Its public members
- * become the definitions Heed checks context against. Read only and offline: never a Cube server,
- * a warehouse or data, and never a calculation kept.
+ * become the definitions Heed checks context against. A read is read only and offline: never a
+ * Cube server, a warehouse or data, and never a calculation kept. Figures in Ask (CON-612) are
+ * apart from it: only when an admin sets Cube's data endpoint and switches figures on, one
+ * figure is read from Cube's REST API when someone asks, and kept nowhere.
  */
 export const manifest = defineManifest({
   id: 'cube',
-  version: '2.1.0',
+  version: '2.2.0',
   heed: '^3.0',
   kind: 'definitions',
   tool: 'Cube',
@@ -85,7 +87,8 @@ export const manifest = defineManifest({
   ],
   access: [
     'Read access to this one repository. We never write to it.',
-    'We read only the model files, never a Cube server, a warehouse or data.',
+    'A read takes only the model files, never a Cube server, a warehouse or data.',
+    'Figures in Ask are off until an admin sets a data endpoint and switches them on. Then one figure is read from that endpoint when someone asks, and kept nowhere.',
   ],
   egress: { hosts: [{ fromField: 'repository' }], git: true },
   capabilities: {
@@ -94,6 +97,7 @@ export const manifest = defineManifest({
     deletions: 'full-listing',
     domain: 'hint',
     marks: 'meaning',
+    figures: true,
   },
   schedule: { default: 'PT1H', minimum: 'PT15M' },
   staleAfter: 'PT6H',

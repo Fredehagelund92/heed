@@ -10,6 +10,7 @@ import {
   type RuntimeContext,
   type RuntimeMessage,
 } from '../../domain/connector-runtime.ts'
+import { readCubeFigure } from './figures.ts'
 
 interface Config {
   repository?: string
@@ -197,4 +198,7 @@ export const runtime = defineRuntime<Config>({
       ...(model.commit ? { cursor: model.commit } : {}),
     }
   },
+
+  // One figure from Cube's REST API, apart from the model's read (figures.ts).
+  figure: readCubeFigure,
 })

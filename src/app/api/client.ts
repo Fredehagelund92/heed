@@ -21,7 +21,7 @@ import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items
 import type { Version } from '@/model/history'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
-import type { FigureView } from '@/model/figures'
+import type { FigureAsk, FigureReport, FigureView } from '@/model/figures'
 import type {
   ConnectorId,
   CubeView,
@@ -445,6 +445,11 @@ export interface HeedApi {
     what: string
     correction?: string
     link?: string
+    /**
+     * For `part: 'figure'`: the figure that doesn't fit the context item (`sources[0]`), as the
+     * answer named it, and who hears: the item's owners, the integration's data contact, or both.
+     */
+    figure?: FigureReport
   }) => Promise<{ id: string }>
   /** The person's own reports from Ask, newest first, each with what the owners did after it. */
   getMyReports: () => Promise<SentReport[]>
@@ -496,6 +501,15 @@ export interface HeedApi {
   exportContext: () => Promise<Exported>
   setFigures: (input: { source: ConnectorId; on: boolean }) => Promise<void>
   setDataContact: (input: { source: ConnectorId; name: string }) => Promise<void>
+  /**
+   * Where an integration's figures are read: its data endpoint and a token for it, which is kept
+   * in the secret store, sent only to the endpoint's origin and never shown again.
+   */
+  setFigureConnection: (input: {
+    source: ConnectorId
+    endpoint: string
+    token: string
+  }) => Promise<void>
   connectIntegration: (input: { id: ConnectorId; setup?: boolean }) => Promise<void>
   disconnectIntegration: (input: { id: ConnectorId }) => Promise<void>
   getIntegrations: () => Promise<Integrations>
@@ -508,12 +522,7 @@ export interface HeedApi {
   /** Pauses reading a tool, or lets it go on; what was published stays as it is. */
   pauseIntegration: (input: { id: string; paused: boolean }) => Promise<void>
   /** What an answer shows of the data: one figure line, a link into the tool, or why there is none. */
-  readFigure: (input: {
-    metric: string
-    markets: string[]
-    dates?: string
-    state: string
-  }) => Promise<FigureView | null>
+  readFigure: (input: FigureAsk) => Promise<FigureView | null>
   /** The agents connected, newest sign-in first. */
   listAgentConnections: () => Promise<Connected[]>
   revokeAgentConnection: (input: { agent: string; who: string }) => Promise<void>
@@ -645,6 +654,7 @@ export const heedApiMethods = [
   'exportContext',
   'setFigures',
   'setDataContact',
+  'setFigureConnection',
   'connectIntegration',
   'disconnectIntegration',
   'getIntegrations',

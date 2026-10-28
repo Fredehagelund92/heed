@@ -49,6 +49,10 @@ for (const size of widths) {
             )
           await openPage(page, target.path, { ...size, theme })
           if (target.ready) await expect(page.locator(target.ready).first()).toBeVisible()
+          // A link that opens a panel scrolls its row into view. The sticky header then covers
+          // whichever small targets sit under it, which axe reads as an obscured target, so the
+          // page is checked from its top.
+          await page.evaluate(() => window.scrollTo(0, 0))
           const results = await new AxeBuilder({ page })
             .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
             .analyze()

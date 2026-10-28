@@ -12,6 +12,7 @@ import { spainDraft } from '@/api/mock/data/drafts'
 import { facts } from '@/api/mock/data/world'
 import { driveCards } from '../../app/http/demo-drive.ts'
 import { checkCards, queue, seedDemoWeek, serverItemId } from '../../app/http/demo-week.ts'
+import { demoCube, inventedToken, seedDemoFigures } from '../../app/http/demo-figures.ts'
 import { emptyName, workName } from './harness.ts'
 
 /*
@@ -30,7 +31,10 @@ export default async function setup() {
   const template = `context_layer_test_golden_${process.pid}`
   const admin = new pg.Client({ connectionString: adminUrl })
   await admin.connect()
+  const cubeToken = inventedToken()
+  let cube: Awaited<ReturnType<typeof demoCube>> | undefined
   const drop = async () => {
+    await cube?.drop()
     for (const name of [workName(template), emptyName(template), template])
       await admin.query(`drop database if exists ${identifier(name)} with (force)`)
   }
@@ -56,6 +60,10 @@ export default async function setup() {
       `create database ${identifier(emptyName(template))} template ${identifier(template)} owner ${identifier(localRoles.owner)}`,
     )
     const ids = await seedDemoWeek(url.href)
+    // Cube's figures read from a stand-in Cube over the demo warehouse, for the whole run: every
+    // journey's copy of the demo week names its endpoint, and its service holds its token.
+    cube = await demoCube(adminUrl, cubeToken)
+    await seedDemoFigures(url.href, cube.endpoint)
     // The mock's cards by the service's ids: a suggestion by its proposal, a check by its item,
     // the saved questions that need a look by their domain; and its context items, a draft by its
     // proposal.
@@ -94,6 +102,8 @@ export default async function setup() {
   }
   process.env.GOLDEN_ADMIN_URL = adminUrl
   process.env.GOLDEN_TEMPLATE = template
+  // The stand-in Cube's token, invented for this run, for each journey's service to hold.
+  process.env.GOLDEN_CUBE_TOKEN = cubeToken
   return async () => {
     await drop()
     await admin.end()

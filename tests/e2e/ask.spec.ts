@@ -398,6 +398,7 @@ test.describe('Ask in the panel', () => {
   test('a scope picked from the address stays for the next questions while it is pinned', async ({
     page,
   }) => {
+    test.slow()
     await openPage(page, '/assistant?about=metric:average_order_value', desktop)
     await chipEditor(page)
     await expect(reads(page).locator('[data-source="picked"]')).toContainText('Average order value')

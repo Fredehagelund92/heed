@@ -51,7 +51,7 @@ The library holds facts. Each fact is one of five kinds:
 
 Every fact belongs to one domain, such as Sales or Marketing. Each domain has a short description of what it covers, which people, the assistant and agents all read. Once a fact is accepted, agents can get it, in every domain.
 
-The numbers stay where they are. Cube defines the metrics and returns the figures, and a fact points to them. We keep a link and one sentence from a source, never the whole document. We never store the words of a question or who asked. And nothing reaches agents on its own: a person accepts every change.
+The numbers stay where they are. Cube defines the metrics and returns the figures, and a fact points to them. {{product}} stores none of them. We keep a link and one sentence from a source, never the whole document. We never store the words of a question or who asked. And nothing reaches agents on its own: a person accepts every change.
 
 ## Who does what
 
@@ -66,7 +66,7 @@ The numbers stay where they are. Cube defines the metrics and returns the figure
 
 ## What it is not
 
-It's not a data tool: it holds no numbers and runs no queries. It's not a wiki either: every fact is short, has a source, and its owner checks it. And it doesn't watch people: it counts questions by topic, not by person.
+It's not a data tool: it stores no numbers. When an admin switches figures on for an integration, Ask reads one figure from it when you ask, and keeps it nowhere. It's not a wiki either: every fact is short, has a source, and its owner checks it. And it doesn't watch people: it counts questions by topic, not by person.
 
 ## Where to start
 

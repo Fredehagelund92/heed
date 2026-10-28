@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { expect, go, onMockOnly, test } from './go.ts'
 
 // J11, figures in Ask: off by default, an answer links into the tool; an admin switches figures on
 // for Cube and the answer shows one figure with its source and freshness; a figure that doesn't
@@ -39,8 +38,10 @@ test("a figure that doesn't fit a context item shows both, and both routes", asy
 test('a metric nobody defines gets no figure, and the definition decides the source', async ({
   page,
 }) => {
-  await go(page, '/ask?example=nodata&figures=on')
-  await expect(page.getByRole('log').getByText('No figure.')).toBeVisible()
+  await onMockOnly('warehouse table no definition covers', async () => {
+    await go(page, '/ask?example=nodata&figures=on')
+    await expect(page.getByRole('log').getByText('No figure.')).toBeVisible()
+  })
   await go(page, '/ask?example=grounded&figures=warehouse')
   await expect(page.getByRole('link', { name: /See the figure in Cube/ })).toBeVisible()
 })

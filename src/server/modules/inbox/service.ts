@@ -276,7 +276,8 @@ export function createInboxFeedService(
   }
 
   /**
-   * Named reports from Ask (FR-622) in the person's domains, with who sent them: the open ones,
+   * Named reports from Ask (FR-622) in the person's domains, and the figure reports sent to them as
+   * an integration's data contact (FR-716), with who sent them: the open ones,
    * which wait until an owner acts, or (`done`) those an owner acted on in the last two weeks. An
    * owner acts by closing it as not a problem, or by checking, changing or archiving its item.
    */
@@ -302,7 +303,9 @@ export function createInboxFeedService(
                 order by lower(s.editions) desc limit 1) as title,
               o.outcome, o.decided_at::text as decided
          from reports r left join lateral cl_report_outcome(r.id) o on true
-        where r.area_id = any($1::text[]) and r.created_at > now() - interval '90 days'
+        where ((r.area_id = any($1::text[]) and r.figure_route is distinct from 'contact')
+               or (r.figure_route in ('contact', 'both') and cl_is_figure_contact(r.figure_source)))
+          and r.created_at > now() - interval '90 days'
           and ${which === 'open' ? 'o.outcome is null' : 'o.decided_at > now() - make_interval(days => $2)'}
         order by r.created_at desc, r.id limit 100`,
       which === 'open' ? [areas] : [areas, doneDays],

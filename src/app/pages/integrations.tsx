@@ -88,6 +88,7 @@ import {
 } from '@/api/queries'
 import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
+import { useDefinitions } from '@/lib/definitions'
 import { SettingsCrumbs } from '@/pages/settings'
 import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/components/heed/frame'
@@ -268,19 +269,124 @@ function Connection({
 }
 
 /**
+ * Where an integration's figures are read: its data endpoint and a token for it. The token is kept
+ * in the secret store, sent only to the endpoint's address and never shown again, so the field
+ * starts empty every time.
+ */
+function FigureConnectionDialog({
+  c,
+  open,
+  onOpenChange,
+  endpoint,
+}: {
+  c: Connector
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  endpoint: string | null
+}) {
+  const { setConnection } = useFigureActions()
+  const [saving, setSaving] = React.useState(false)
+  const id = `figures-${c.id}`
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form
+          className="contents"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const form = new FormData(e.currentTarget)
+            const value = (name: string) => {
+              const v = form.get(name)
+              return typeof v === 'string' ? v.trim() : ''
+            }
+            setSaving(true)
+            setConnection(c.id, value('endpoint'), value('token'))
+              .then(() => {
+                onOpenChange(false)
+                toast(`Figures from ${c.name} are set up`, {
+                  description: 'The token is kept in the secret store and never shown again.',
+                })
+              })
+              .catch((error: unknown) =>
+                toast.error("Couldn't set up figures", {
+                  description: toApiError(error).message,
+                }),
+              )
+              .finally(() => setSaving(false))
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>
+              {endpoint ? 'Replace the secret' : `Set up figures from ${c.name}`}
+            </DialogTitle>
+            <DialogDescription>
+              A read-only token for {c.name}&apos;s data API. It is sent only to the endpoint&apos;s
+              address, and a new address needs its token again.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor={`${id}-endpoint`}>Data endpoint</FieldLabel>
+              <Input
+                id={`${id}-endpoint`}
+                name="endpoint"
+                type="url"
+                required
+                defaultValue={endpoint ?? ''}
+                placeholder="https://cube.example.com/cubejs-api/v1/load"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${id}-token`}>Token</FieldLabel>
+              <Input
+                id={`${id}-token`}
+                name="token"
+                type="password"
+                autoComplete="off"
+                required
+                minLength={8}
+              />
+              <FieldDescription>Read only. Shown nowhere once saved.</FieldDescription>
+            </Field>
+          </FieldGroup>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
  * Figures in Ask, on each integration that can answer one: off by default (Ask then links into the
- * tool), its endpoint, the secret (masked), the one host it may call, who to ask about a figure,
- * and the rule for which integration answers a metric.
+ * tool), its endpoint, the secret (masked, never any of it shown), the one host it may call, who
+ * to ask about a figure, and the rule for which integration answers a metric.
  */
 function FiguresSection({ c }: { c: Connector }) {
   const f = useFigures()
   const { setFigures, setDataContact } = useFigureActions()
   const people = usePeople()
   const { figureConnections, warehouseHas } = useIntegrations()
+  const [connecting, setConnecting] = React.useState(false)
+  const fromTool = useDefinitions().filter(
+    (d) => d.type === 'metric' && d.synced && d.tool === c.name,
+  ).length
   // Shown only for an integration that can answer figures, which says how it is reached.
-  const conn = figureConnections[c.id]!
+  const conn = figureConnections[c.id] ?? {
+    endpoint: null,
+    host: null,
+    secretSet: false,
+    contact: '',
+  }
   const on = f.enabled(c.id)
   const switchId = `figures-${c.id}`
+  const notSet = <span className="text-muted-foreground">Not set</span>
   return (
     <PanelSection
       title="Figures in Ask"
@@ -295,11 +401,19 @@ function FiguresSection({ c }: { c: Connector }) {
             checked={on}
             onCheckedChange={(v) => {
               setFigures(c.id, v)
-              toast(v ? `Figures from ${c.name} are on` : `Figures from ${c.name} are off`, {
-                description: v
-                  ? 'Answers show one figure for the metric they ask about.'
-                  : `Answers link into ${c.name} instead.`,
-              })
+                .then(() =>
+                  toast(v ? `Figures from ${c.name} are on` : `Figures from ${c.name} are off`, {
+                    description: v
+                      ? 'Answers show one figure for the metric they ask about.'
+                      : `Answers link into ${c.name} instead.`,
+                  }),
+                )
+                .catch((error: unknown) =>
+                  toast.error(
+                    v ? `Couldn't switch figures from ${c.name} on` : `Couldn't switch figures off`,
+                    { description: toApiError(error).message },
+                  ),
+                )
             }}
           />
         </span>
@@ -310,41 +424,41 @@ function FiguresSection({ c }: { c: Connector }) {
           [
             [
               'Data endpoint',
-              <code key="e" className="font-mono text-dense break-all">
-                {conn.endpoint}
-              </code>,
+              conn.endpoint ? (
+                <code key="e" className="font-mono text-dense break-all">
+                  {conn.endpoint}
+                </code>
+              ) : (
+                notSet
+              ),
             ],
             [
               'Secret',
               <span key="s" className="flex flex-wrap items-center gap-3">
-                <code
-                  className="font-mono text-dense"
-                  aria-label={`Secret ending in ${conn.secretTail}`}
-                >
-                  {'••••••••••••'}
-                  {conn.secretTail}
-                </code>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    toast('A new secret replaces this one', {
-                      description: 'Paste it when you have it; the old one stops working.',
-                    })
-                  }
-                >
-                  Replace
+                {conn.secretSet ? (
+                  <code className="font-mono text-dense" aria-label="Secret, set">
+                    {'••••••••••••'}
+                  </code>
+                ) : (
+                  notSet
+                )}
+                <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
+                  {conn.secretSet ? 'Replace' : 'Set up figures'}
                 </Button>
               </span>,
             ],
             [
               'Declared host',
-              <span key="h">
-                <code className="font-mono text-dense">{conn.host}</code>
-                <span className="block text-xs text-muted-foreground">
-                  The only host called for a figure. Read only, with a 4 second limit.
+              conn.host ? (
+                <span key="h">
+                  <code className="font-mono text-dense">{conn.host}</code>
+                  <span className="block text-xs text-muted-foreground">
+                    The only host called for a figure. Read only, with a 4 second limit.
+                  </span>
                 </span>
-              </span>,
+              ) : (
+                notSet
+              ),
             ],
             [
               'Data contact',
@@ -352,7 +466,13 @@ function FiguresSection({ c }: { c: Connector }) {
                 <PersonAvatar name={f.contact(c.id)} size={20} />
                 <Select
                   value={f.contact(c.id)}
-                  onValueChange={(v) => setDataContact(c.id, v as string)}
+                  onValueChange={(v) =>
+                    void setDataContact(c.id, v as string).catch((error: unknown) =>
+                      toast.error("Couldn't change the data contact", {
+                        description: toApiError(error).message,
+                      }),
+                    )
+                  }
                 >
                   <SelectTrigger size="sm" aria-label="Data contact" className="min-w-40">
                     <SelectValue />
@@ -374,12 +494,16 @@ function FiguresSection({ c }: { c: Connector }) {
                 </span>
               </span>,
             ],
-            [
-              'Data as of',
-              <span key="a">
-                {conn.asOf}, the last time {c.name} refreshed its data
-              </span>,
-            ],
+            ...(conn.asOf
+              ? [
+                  [
+                    'Data as of',
+                    <span key="a">
+                      {conn.asOf}, the last time {c.name} refreshed its data
+                    </span>,
+                  ],
+                ]
+              : []),
           ] as [string, React.ReactNode][]
         ).map(([k, v]) => (
           <div
@@ -397,11 +521,17 @@ function FiguresSection({ c }: { c: Connector }) {
           <span className="font-medium">Which integration answers:</span>{' '}
           <span className="text-muted-foreground">
             {c.id === 'cube'
-              ? "the one a metric's definition comes from, never a guess. All 22 metrics' definitions come from Cube, so Cube answers them."
+              ? `the one a metric's definition comes from, never a guess. All ${fromTool} metrics' definitions come from ${c.name}, so ${c.name} answers them.`
               : `the one a metric's definition comes from, never a guess. ${c.name} has tables for ${warehouseHas.join(', ')}, but no definition comes from it, so it answers none of them. Orders is in Cube too: its definition comes from Cube, so Cube answers Orders, and Ask says so.`}
           </span>
         </p>
       </div>
+      <FigureConnectionDialog
+        c={c}
+        open={connecting}
+        onOpenChange={setConnecting}
+        endpoint={conn.endpoint}
+      />
     </PanelSection>
   )
 }

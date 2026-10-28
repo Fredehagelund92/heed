@@ -308,6 +308,13 @@ import {
 } from './comments.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
 import { createReportSchema, myReportsSchema, sentReportSchema } from './reports.ts'
+import {
+  figureReadSchema,
+  figureSourceSchema,
+  figureSourcesSchema,
+  readFigureInputSchema,
+  setFiguresInputSchema,
+} from './figures.ts'
 import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
   adminDisconnectedSchema,
@@ -2835,6 +2842,47 @@ export const contract = {
       })
       .input(tryItReadInputSchema)
       .output(tryItReadingSchema),
+  },
+  figures: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/figures',
+        tags: ['sources'],
+        summary:
+          'The integrations that can read a figure for Ask (FR-716, CON-612): whether Show figures in Ask is on (off by default) and the data contact; for administrators also the data endpoint, its declared host and whether its token is set, never the token',
+      })
+      .output(figureSourcesSchema),
+    set: sourceSettings
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this integration, or it doesn't read figures." },
+      })
+      .route({
+        method: 'PUT',
+        path: '/figures/{id}',
+        tags: ['sources'],
+        summary:
+          "Change an integration's figures settings: Show figures in Ask, the data endpoint, its token (kept in the secret store, sent only to the endpoint's origin, and forgotten when the scheme, host or port changes) and the data contact; switching figures on needs all three. Recorded in the history log, never the token",
+      })
+      .input(setFiguresInputSchema)
+      .output(figureSourceSchema),
+    read: read
+      .errors({
+        UNPROCESSABLE_CONTENT: {
+          status: 422,
+          message: 'Check the days: the last one comes after the first.',
+          data: z.optional(z.object({ findings: z.array(findingSchema) })),
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/figures/read',
+        tags: ['sources'],
+        summary:
+          "One figure for an answer in Ask, from the integration the metric's definition comes from, for the days and values asked, compared with the days just before, within 4 seconds; a link into the tool while figures are off; or why there is none. Kept nowhere, and no person's identity is passed on",
+      })
+      .input(readFigureInputSchema)
+      .output(figureReadSchema),
   },
   reports: {
     create: read

@@ -9,6 +9,11 @@ import { idleJobs } from '../../server/idle-jobs.ts'
 import { apiDatabase, testDatabase } from '../../integration/support.ts'
 import { devPeople, OWNER, seedDemoWeek, TODAY } from '../http/demo-week.ts'
 import { demoLoginServer } from '../http/login.ts'
+import { demoCube, demoSecrets, inventedToken, seedDemoFigures } from '../http/demo-figures.ts'
+import {
+  ConnectorRegistry,
+  createWorkspaceSources,
+} from '../../../src/server/modules/connectors/index.ts'
 
 /*
   The app's http binding against the real service and PostgreSQL 18. The conformance suite is the
@@ -19,7 +24,14 @@ import { demoLoginServer } from '../http/login.ts'
 // Someone else the demo week signs in, the comments' second voice.
 const colleague = { name: 'Tomas Eriksen' }
 const { client, url } = testDatabase()
+// Cube's figures in the demo week: a stand-in Cube over the demo warehouse, its token invented here.
+const cubeToken = inventedToken()
+let cube: Awaited<ReturnType<typeof demoCube>> | undefined
 const app = buildApp({
+  workspaceSources: createWorkspaceSources({
+    secrets: demoSecrets(cubeToken),
+    registry: new ConnectorRegistry([]),
+  }),
   database: apiDatabase(url),
   // Read again queues the sources' job, which this test never runs.
   jobs: { ...idleJobs(), runNow: () => Promise.resolve({ outcome: 'queued', id: 'conformance' }) },
@@ -49,6 +61,10 @@ const jar: typeof fetch = async (request, init) => {
 beforeAll(async () => {
   await client.query('reset role')
   await seedDemoWeek(url)
+  const admin = new URL(url)
+  admin.pathname = '/postgres'
+  cube = await demoCube(admin.href, cubeToken)
+  await seedDemoFigures(url, cube.endpoint)
   // The conformance suite sends more than the default 600 requests a minute as one person; the
   // request limit is not what this file tests.
   await client.query(
@@ -60,7 +76,10 @@ beforeAll(async () => {
   base = `${address}/api/v1`
   api = createHttpApi({ baseUrl: base, fetch: jar })
 }, 120_000)
-afterAll(() => app.close())
+afterAll(async () => {
+  await app.close()
+  await cube?.drop()
+})
 
 describeHeedApi('http binding on PostgreSQL', () => api!, {
   person: OWNER.name,

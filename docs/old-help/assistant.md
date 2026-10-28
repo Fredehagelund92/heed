@@ -49,7 +49,7 @@ In the demo data, Jon Abara has just become an owner of Sales. He asks the assis
 
 ## What it is not
 
-The assistant isn't your agent, and it only answers questions about your facts and this app. It's not your data tool either: it holds no numbers, and the figure comes from your data tool, such as Cube.
+The assistant isn't your agent, and it only answers questions about your facts and this app. It's not your data tool either: it stores no numbers, and the figure comes from your data tool, such as Cube.
 
 ## Go deeper
 

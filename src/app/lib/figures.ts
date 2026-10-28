@@ -18,12 +18,17 @@ export function useFigures(): FigureSettings {
   }
 }
 
-/** Switching figures on or off for an integration, and naming its data contact. */
+/**
+ * Switching figures on or off for an integration, naming its data contact, and setting where its
+ * figures are read. Each says when it is done, or why it failed.
+ */
 export function useFigureActions() {
   const write = useWrite()
   return {
-    setFigures: (source: ConnectorId, on: boolean) => void write('setFigures', { source, on }),
+    setFigures: (source: ConnectorId, on: boolean) => write('setFigures', { source, on }),
     setDataContact: (source: ConnectorId, name: string) =>
-      void write('setDataContact', { source, name }),
+      write('setDataContact', { source, name }),
+    setConnection: (source: ConnectorId, endpoint: string, token: string) =>
+      write('setFigureConnection', { source, endpoint, token }),
   }
 }

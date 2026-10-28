@@ -238,6 +238,66 @@ export interface RuntimeContext<Config = ConnectorConfig> {
   now(): Date
 }
 
+/**
+ * One figure a definitions connector with the figures capability reads (CON-612, FR-716): a
+ * metric over a range of days, for some values of its dimensions. The core builds it from the
+ * metric's definition and the question's scope, never from words a person or a model wrote, so
+ * it is a fixed template: the tool's own member names, both days included.
+ */
+export interface FigureQuery {
+  /** The metric as the tool names it, its ref without the prefix: `orders.orders`. */
+  readonly metric: string
+  /** The tool's date dimension the days apply to, in the metric's own view: `orders.order_day`. */
+  readonly date: string
+  /** The first and last day, both included: `2026-08-01`, `2026-08-31`. */
+  readonly from: string
+  readonly to: string
+  /** Only these values of each dimension, as the tool names the dimension. */
+  readonly filters: readonly { readonly dimension: string; readonly values: readonly string[] }[]
+}
+
+/** How the tool says a figure is written: an amount of money, a share, or a number. */
+export const figureFormatSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('currency'),
+    currency: z.string().check(z.regex(/^[A-Z]{3}$/)),
+  }),
+  z.strictObject({ kind: z.literal('percent') }),
+  z.strictObject({ kind: z.literal('number') }),
+])
+export type FigureFormat = z.infer<typeof figureFormatSchema>
+
+/**
+ * What a connector read for one figure: the value (null when the tool has none for those days),
+ * when the tool last refreshed its data, if it says, and how the value is written. Untrusted and
+ * checked, like every message (I-7); the core keeps none of it.
+ */
+export const figureResultSchema = z.strictObject({
+  value: z.nullable(z.number().check(z.refine(Number.isFinite))),
+  asOf: z.nullable(z.iso.datetime({ offset: true })),
+  format: figureFormatSchema,
+  /**
+   * How the tool works the measure out, when it says: `sum`, `count`, `countDistinct`, `avg`,
+   * `min`, `max`, or `number` for its own calculation. The query in words says it.
+   */
+  aggregation: z.optional(z.nullable(z.string().check(z.regex(/^[A-Za-z]{1,40}$/)))),
+})
+export type FigureResult = z.infer<typeof figureResultSchema>
+
+/**
+ * What the core hands `figure`, and all it may use: the data endpoint an administrator set, the
+ * service token kept for it in the secret store, a fetch that reaches only the endpoint's host
+ * (its declared host), and a signal that ends the work at the figure's time limit. No person's
+ * identity is ever in it (FR-716, CON-406).
+ */
+export interface FigureContext {
+  readonly endpoint: string
+  readonly token: string
+  readonly fetch: GuardedFetch
+  readonly signal: AbortSignal
+  now(): Date
+}
+
 /** A connector's code. `read` ends with an `end` message; a failure throws a `SourceError`. */
 export interface ConnectorRuntime<Config = ConnectorConfig> {
   /** Rules on the settings a manifest cannot say, by field. Never sees a secret. */
@@ -250,6 +310,11 @@ export interface ConnectorRuntime<Config = ConnectorConfig> {
   read(context: RuntimeContext<Config>): AsyncIterable<RuntimeMessage>
   /** Settings of an older major version, brought up to date. */
   migrateConfig?(fromVersion: string, config: ConnectorConfig): ConnectorConfig
+  /**
+   * Reads one figure from the tool's data endpoint, read only, when the manifest declares the
+   * figures capability. A failure throws a `SourceError`.
+   */
+  figure?(context: FigureContext, query: FigureQuery): Promise<FigureResult>
 }
 
 /** A runtime, typed: `export default defineRuntime<Config>({ ... })` in a connector's folder. */

@@ -20,7 +20,15 @@ export {
 export { createSourcesService, type SourcesService } from './sources.ts'
 export { ConnectorRegistry, configuredSource, connectorType, connectorTypes } from './registry.ts'
 export {
+  createFigureSources,
+  FIGURE_CACHE_MS,
+  FIGURE_TIMEOUT_MS,
+  type FigureService,
+} from './figures.ts'
+export {
   ConnectorRegistryError,
+  FigureReadError,
+  figureFetch,
   fromModule,
   guardedFetch,
   registerConnectors,

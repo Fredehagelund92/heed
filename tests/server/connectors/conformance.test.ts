@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises'
+import { createServer, type Server } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { afterAll, beforeAll } from 'vitest'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
 import { builtInFolder, describeConnector, type FixtureSource } from './kit.ts'
@@ -11,13 +13,38 @@ import { gitHost, type GitHost } from './git-server.ts'
 */
 
 const TOKEN = 'kit-token-91c2ef'
+/** The token Cube's data API takes in the kit, invented here. */
+const CUBE_TOKEN = 'kit-cube-token-5d0a7b'
 let host: GitHost
+/** Cube's `/v1/load` for the kit: one measure's figure, and what reached it. */
+let cubeApi: Server
+const cubeRequests: { host: string; authorization: string | null }[] = []
 let drive: DriveHost
 /** The fake Drive's folders and documents, by name. */
 const driveIds: Record<string, string> = {}
 let driveKey = ''
 
 beforeAll(async () => {
+  cubeApi = createServer((req, res) => {
+    cubeRequests.push({
+      host: req.headers.host ?? '',
+      authorization: req.headers.authorization ?? null,
+    })
+    res.setHeader('content-type', 'application/json')
+    if (req.headers.authorization !== CUBE_TOKEN) {
+      res.statusCode = 401
+      res.end(JSON.stringify({ error: 'Invalid token' }))
+      return
+    }
+    res.end(
+      JSON.stringify({
+        data: [{ 'orders.orders': '43600' }],
+        lastRefreshTime: '2026-10-23T06:00:00.000Z',
+        annotation: { measures: { 'orders.orders': { title: 'Orders', type: 'number' } } },
+      }),
+    )
+  })
+  await new Promise<void>((resolve) => cubeApi.listen(0, '127.0.0.1', resolve))
   host = await gitHost({ token: TOKEN })
   await host.repository('handbook', {
     'docs/sales/orders.md': '# Orders in Norway\n\nOrders in Norway include the marketplace.\n',
@@ -57,6 +84,8 @@ beforeAll(async () => {
   drive.document('Private', elsewhere, '# Private\n\nNot shared with the account.\n')
 }, 60_000)
 afterAll(async () => {
+  cubeApi.closeAllConnections()
+  await new Promise<void>((resolve) => cubeApi.close(() => resolve()))
   await host.close()
   await drive.close()
 })
@@ -170,6 +199,20 @@ describeConnector(module('cube'), {
   }),
   calculation: 'example_orders',
   planted: TOKEN,
+  figures: () => ({
+    endpoint: `http://127.0.0.1:${(cubeApi.address() as AddressInfo).port}/cubejs-api/v1/load`,
+    token: CUBE_TOKEN,
+    refusedToken: 'not-the-cube-token',
+    query: {
+      metric: 'orders.orders',
+      date: 'orders.order_day',
+      from: '2026-08-01',
+      to: '2026-08-31',
+      filters: [{ dimension: 'orders.market', values: ['Norway'] }],
+    },
+    value: 43600,
+    requests: () => cubeRequests,
+  }),
   // Each read compiles the model in the worker: seconds on a busy machine.
   timeout: 120_000,
 })

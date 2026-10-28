@@ -36,7 +36,7 @@ import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
-import { cubeViews, driveFolders, figureConnections, warehouseHas } from './data/integrations'
+import { cubeViews, driveFolders, warehouseHas } from './data/integrations'
 import { createIntegrations } from './integrations'
 import { figureFor } from './data/figures'
 import { reportedOn, type AskInput } from '@/model/ask'
@@ -560,6 +560,8 @@ export function createMockApi() {
       ),
     setFigures: ({ source, on }) => now(() => settings.setFigures(source, on)),
     setDataContact: ({ source, name }) => now(() => settings.setContact(source, name)),
+    setFigureConnection: ({ source, endpoint }) =>
+      now(() => settings.setConnection(source, endpoint)),
     connectIntegration: ({ id, setup }) =>
       now(() => {
         settings.connect(id)
@@ -567,7 +569,12 @@ export function createMockApi() {
       }),
     disconnectIntegration: ({ id }) => now(() => settings.disconnect(id)),
     getIntegrations: () =>
-      now(() => ({ cubeViews, driveFolders, figureConnections, warehouseHas })),
+      now(() => ({
+        cubeViews,
+        driveFolders,
+        figureConnections: settings.connections(),
+        warehouseHas,
+      })),
     integrationsPage: () =>
       read('integrationsPage', '', () => integrations.page(scenario.address())),
     integrationPage: ({ id }) =>

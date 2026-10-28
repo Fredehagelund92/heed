@@ -146,12 +146,12 @@ test('Market is one dimension with both Cube names, and its Values action opens 
   await page.goto('/catalogue?panel=dim:market&tab=source')
   const panel = page.locator('[data-slot="dock-panel"]')
   const source = panel.locator('[data-slot="field-table"][aria-label="Where it comes from"]')
-  // The demo model has market in the payments and segments views: one term links both.
+  // The demo model has market in the marketing, payments and segments views: one term links all.
   await expect(source.locator('[data-slot="source-names"] li')).toHaveText(
-    ['orders.market', 'segments.market'],
+    ['marketing.market', 'orders.market', 'segments.market'],
     { timeout: 15_000 },
   )
-  await expect(source).toContainText('2 Cube names, one dimension in Heed.')
+  await expect(source).toContainText('3 Cube names, one dimension in Heed.')
   await expect(source).toContainText('Admins')
 
   await panel.getByRole('link', { name: 'Add values of Market' }).click()
@@ -164,15 +164,16 @@ test('Market is one dimension with both Cube names, and its Values action opens 
       name: 'Dimension of values 1',
     }),
   ).toHaveValue('dim:market')
-  // Every member of the seeded model is a term, so the page offers values only.
+  // The two days figures read by (orders.order_day, marketing.marketing_day) are no name; values
+  // of a dimension are added through Propose names.
   await page.goto('/admin?section=sources&source=cube')
   await expect(page.locator('[data-slot="source-terms"]')).toContainText(
-    'Every metric and dimension we read from Cube is a name we know',
+    "2 metrics and dimensions aren't yet.",
     { timeout: 15_000 },
   )
   await expect(
     page.locator('[data-slot="source-terms"]').getByRole('link', {
-      name: 'Add values of a dimension',
+      name: 'Propose names',
     }),
   ).toBeVisible()
 })

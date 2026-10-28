@@ -74,7 +74,7 @@ describe('the catalogue on PostgreSQL', () => {
     const result = await service.sync('cube')
     expect(result).toMatchObject({
       status: 'ok',
-      definitionsSeen: 28,
+      definitionsSeen: 31,
       flags: { raised: 0, cleared: 0 },
       staleLinkNotices: 0,
       domainNotices: 0,
@@ -125,15 +125,16 @@ describe('the catalogue on PostgreSQL', () => {
       path: 'orders.yml',
       url: 'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/orders.yml',
     })
-    // Market is in two views; the file of the one that speaks for it, the first, is linked.
+    // Market is in three views; the file of the one that speaks for it, the first, is linked.
     const market = (await get<CatalogueTermDetail>('/catalogue/dimension/market')).body
     expect(market.definitions.map((definition) => definition.name)).toEqual([
+      'marketing.market',
       'orders.market',
       'segments.market',
     ])
     expect(market.modelFile).toEqual({
-      path: 'orders.yml',
-      url: 'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/orders.yml',
+      path: 'marketing.yml',
+      url: 'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/marketing.yml',
     })
     // Each path segment is encoded; a trailing slash on the folder adds no second one.
     await client.query(

@@ -1400,6 +1400,26 @@ export function createRouter({
         readTryItQuestion(context.tx, clock, input),
       ),
     },
+    figures: {
+      list: authorized.figures.list.handler(({ context }) =>
+        workspaceSources.figures.list(
+          context.tx,
+          context.session!.person.permissions.roles.includes('administrator'),
+        ),
+      ),
+      set: authorized.figures.set.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'figures.set', input, () =>
+          workspaceSources.figures.set(context.tx, input, context.hooks),
+        ),
+      ),
+      read: authorized.figures.read.handler(({ context, input }) =>
+        workspaceSources.figures.read(
+          context.tx,
+          input,
+          context.session!.person.permissions.roles.includes('administrator'),
+        ),
+      ),
+    },
     reports: {
       create: authorized.reports.create.handler(async ({ context, input }) => {
         // FR-408: a person's reports share the tighter limit of their own; the key lives in memory

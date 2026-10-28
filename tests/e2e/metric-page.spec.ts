@@ -273,12 +273,12 @@ test.describe('states', () => {
     page,
   }) => {
     // A dimension's page is not built yet; the catalogue's panel shows its Source tab. Market is
-    // in two views: the file of the first, which speaks for it, is linked.
+    // in three views: the file of the first, which speaks for it, is linked.
     await openPage(page, '/catalogue?panel=dim:market&tab=source', desktop)
     const source = fieldTable(page, 'Where it comes from')
     await expect(source.getByRole('link', { name: /Open the model file/ })).toHaveAttribute(
       'href',
-      'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/orders.yml',
+      'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/marketing.yml',
     )
     await expect(source.getByRole('link', { name: /Open the model file/ })).toHaveAttribute(
       'target',
@@ -292,25 +292,31 @@ test.describe('states', () => {
     await expect(page.getByRole('link', { name: /Open the model file/ })).toHaveCount(0)
   })
 
-  test('a dimension in two views is one term: both Cube names, shared, reviewed by administrators', async ({
+  test('a dimension in three views is one term: every Cube name, shared, reviewed by administrators', async ({
     page,
   }) => {
     await openPage(page, '/catalogue?panel=dim:market&tab=source', desktop)
     const source = fieldTable(page, 'Where it comes from')
     await expect(source.locator('[data-slot="source-names"] li')).toHaveText([
+      'marketing.market',
       'orders.market',
       'segments.market',
     ])
     await expect(source).toContainText('Read from Cube on 7 Oct 2026')
-    await expect(source).toContainText('2 Cube names, one dimension in Heed.')
+    await expect(source).toContainText('3 Cube names, one dimension in Heed.')
     await expect(source).toContainText(
       'A change to one marks only the facts about metrics in its view.',
     )
-    // The two views describe it the same way, so the copy shows once.
-    await expect(source.locator('[data-slot="description-copy"]')).toHaveText(
+    // Marketing describes its market as where a cost is booked: each copy with its views.
+    const copies = source.locator('[data-slot="description-copy"] li')
+    await expect(copies).toHaveCount(2)
+    await expect(copies.filter({ hasText: 'marketing.market' })).toContainText(
+      'The country or region the cost was booked for.',
+    )
+    await expect(copies.filter({ hasText: 'orders.market, segments.market' })).toContainText(
       'The country or region the order ships to.',
     )
-    await expect(source).toContainText('Cube describes it the same in both views.')
+    await expect(source).toContainText('Cube describes it differently in its views.')
     await expect(source).toContainText(
       'Shared: Cube has it in views of more than one domain, or of none, so it belongs to no one domain.',
     )

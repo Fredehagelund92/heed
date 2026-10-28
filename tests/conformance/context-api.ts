@@ -582,16 +582,17 @@ export function describeContextApi(
             mentionedBy: mentioning(`val:market/${value.id}`),
           })),
           source,
-          // Market is in two views: the file of the first, which speaks for it.
+          // Market is in three views: the file of the first, which speaks for it.
           modelFile: {
-            path: 'orders.yml',
-            url: `${DEMO_MODEL_URL}/orders.yml`,
+            path: 'marketing.yml',
+            url: `${DEMO_MODEL_URL}/marketing.yml`,
           },
           today: FIXTURE_TODAY,
         })
         // One dimension, many Cube names (CON-208): every view's member of its name, of no domain
         // because its views lie in different domains (CON-206).
         expect(market?.definitions.map((definition) => definition.name)).toEqual([
+          'marketing.market',
           'orders.market',
           'segments.market',
         ])

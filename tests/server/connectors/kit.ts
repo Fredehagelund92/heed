@@ -3,9 +3,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { SourceConfig } from '../../../src/contract/sources.ts'
 import { checkManifest } from '../../../src/domain/connector-manifest.ts'
-import type { ChosenScope, ConnectorModule } from '../../../src/domain/connector-runtime.ts'
+import {
+  figureResultSchema,
+  type ChosenScope,
+  type ConnectorModule,
+  type FigureQuery,
+} from '../../../src/domain/connector-runtime.ts'
 import { documentMark } from '../../../src/domain/content-document.ts'
 import {
+  FigureReadError,
   registerConnectors,
   type RegisteredConnector,
   type StoredSource,
@@ -55,8 +61,31 @@ export interface ConnectorFixture {
    * one document of the chosen scopes and removing another, and gives their ids.
    */
   delta?: () => Promise<{ edited: string; removed: string }>
+  /**
+   * Definitions with the figures capability (CON-612): the tool's data endpoint and a token it
+   * takes, a token it refuses, a query and the value the tool holds for it, and what reached the
+   * tool, so the kit can prove the token went only there.
+   */
+  figures?: () => {
+    endpoint: string
+    token: string
+    refusedToken: string
+    query: FigureQuery
+    value: number
+    requests: () => { host: string; authorization: string | null }[]
+  }
   /** How long a test of it may take, in milliseconds: longer for one with a worker (T1). */
   timeout?: number
+}
+
+/** A figure's read, as the core says it: the result, or the code it failed with. */
+async function figureOutcome(work: () => Promise<unknown>) {
+  try {
+    return { result: await work(), code: null }
+  } catch (error) {
+    if (!(error instanceof FigureReadError)) throw error
+    return { result: null, code: error.code }
+  }
 }
 
 const stored = (source: FixtureSource): StoredSource => ({
@@ -293,6 +322,65 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
             },
             fixture.timeout,
           )
+      })
+
+    if (manifest.capabilities.figures)
+      describe('its figures', () => {
+        it('reads one figure through the core, checked, from the data endpoint', async () => {
+          expect(typeof connector().figure, 'the core runs its figure').toBe('function')
+          expect(fixture.figures, 'a connector with figures gives the kit a tool').toBeDefined()
+          const tool = fixture.figures!()
+          const result = await connector().figure!(
+            { endpoint: tool.endpoint, token: tool.token },
+            tool.query,
+            AbortSignal.timeout(4_000),
+          )
+          expect(figureResultSchema.safeParse(result).success).toBe(true)
+          expect(result.value).toBe(tool.value)
+          // The token went to the endpoint's host, and to nothing else.
+          const host = new URL(tool.endpoint).host
+          expect(tool.requests().length).toBeGreaterThan(0)
+          for (const request of tool.requests()) {
+            expect(request.host).toBe(host)
+            expect(request.authorization).toContain(tool.token)
+          }
+        })
+        it('fails with a code when the tool refuses its token, and says nothing it was told', async () => {
+          const tool = fixture.figures!()
+          const refused = await figureOutcome(() =>
+            connector().figure!(
+              { endpoint: tool.endpoint, token: tool.refusedToken },
+              tool.query,
+              AbortSignal.timeout(4_000),
+            ),
+          )
+          expect(refused).toEqual({ result: null, code: 'unauthorized' })
+        })
+        it('never holds an answer up: out of time, it stops and says so', async () => {
+          const tool = fixture.figures!()
+          const late = await figureOutcome(() =>
+            connector().figure!(
+              { endpoint: tool.endpoint, token: tool.token },
+              tool.query,
+              AbortSignal.abort(),
+            ),
+          )
+          expect(late).toEqual({ result: null, code: 'timed_out' })
+        })
+        it("reaches no host but the data endpoint's", async () => {
+          const tool = fixture.figures!()
+          // An endpoint on a private address outside what Heed may fetch is refused before a request.
+          const asked = tool.requests().length
+          const refused = await figureOutcome(() =>
+            connector().figure!(
+              { endpoint: 'ftp://cube.example.test/v1/load', token: tool.token },
+              tool.query,
+              AbortSignal.timeout(4_000),
+            ),
+          )
+          expect(refused).toEqual({ result: null, code: 'private_address' })
+          expect(tool.requests()).toHaveLength(asked)
+        })
       })
 
     if (fixture.planted)
