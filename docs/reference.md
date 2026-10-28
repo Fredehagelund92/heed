@@ -1207,7 +1207,8 @@ the contract is in `src/contract/alerts.ts`.
   whom it reached, for a week or until its Inbox item is archived: its title, the rule, and where
   its one action goes. An Alert card, a Not found card, a Saved questions card and a card for an
   item whose check date passed do not reach anyone while their rule is off, nor someone who muted
-  their rule for the card's domain.
+  their rule for the card's domain. An Alert card is left out only when the person muted its rule
+  for every one of its raise's domains they own now; a raise with no domains is never muted away.
 - `GET /alerts/rules`: the eight rules, each `enabled`, its `threshold`, its `audience`, the
   domains the person muted it for, and its newest raise the person may read. For owners and
   administrators.
