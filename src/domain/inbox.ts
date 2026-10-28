@@ -6,13 +6,14 @@
 
 /**
  * The groups, in the order of need: what agents couldn't answer first, then what people reported,
- * saved questions that answer worse, comments that mention the person, items due for a check, and
- * suggestions last. Under All: what the person sent that waits on others, and what is done.
+ * saved questions that answer worse, what an alert rule raised, comments that mention the person,
+ * items due for a check, and suggestions last. Under All: what the person sent that waits on others, and what is done.
  */
 export const cardGroups = [
   'gap',
   'flag',
   'look',
+  'alert',
   'mention',
   'check',
   'suggestion',
@@ -45,13 +46,15 @@ export const cardKey = {
   mention: (subject: string) => `mention:${subject}`,
   /** A domain's saved questions that need a look, raised by their alert (FR-526, FR-621). */
   look: (areaId: string) => `look:${areaId}`,
+  /** A raise of an alert rule that has a card of its own (FR-621). */
+  alert: (raiseId: string) => `alert:${raiseId}`,
 }
 
-type CardKind = 'proposal' | 'gap' | 'feedback' | 'report' | 'check' | 'mention' | 'look'
+type CardKind = 'proposal' | 'gap' | 'feedback' | 'report' | 'check' | 'mention' | 'look' | 'alert'
 
 /** What a card's name says it is, or null for a name that is none of them. */
 export function parseCardKey(key: string): { kind: CardKind; id: string } | null {
-  const match = /^(proposal|gap|feedback|report|check|mention|look):(.+)$/.exec(key)
+  const match = /^(proposal|gap|feedback|report|check|mention|look|alert):(.+)$/.exec(key)
   return match ? { kind: match[1] as CardKind, id: match[2]! } : null
 }
 

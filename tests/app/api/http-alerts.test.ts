@@ -118,6 +118,26 @@ describe('what the rules raised', () => {
     expect(lines[2]!.domain).toBeUndefined()
   })
 
+  it('links a raise of a rule with an Alert card to that card while it is in the Inbox', () => {
+    const [fresh, old] = alertsOf(
+      { rules: all },
+      [
+        raise({ id: 'a', rule: 'sync', areaIds: [], subject: { connector: 'cube' } }),
+        raise({
+          id: 'b',
+          rule: 'sync',
+          areaIds: [],
+          subject: { connector: 'cube' },
+          raisedAt: new Date(2026, 9, 9, 6, 0).toISOString(),
+        }),
+      ],
+      now,
+    ).raised
+    expect(fresh!.href).toBe('/inbox?card=alert:a')
+    // A week on, the card has left the Inbox: the raise goes to what it is about.
+    expect(old!.href).toBe('/settings/integrations/cube')
+  })
+
   it('goes to its card, or to the page it is about', () => {
     expect(hrefOf({ card: 'gap:g1' })).toBe('/inbox?card=gap:g1')
     expect(hrefOf({ topic: 't1' })).toBe('/observability/questions?dock=topic.t1')

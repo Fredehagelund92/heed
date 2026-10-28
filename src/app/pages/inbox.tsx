@@ -19,6 +19,7 @@ import {
   PencilIcon,
   SearchIcon,
   TriangleAlertIcon,
+  BellIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn, midSentence } from '@/lib/utils'
@@ -115,6 +116,7 @@ const typeIcon: Record<CardType, typeof FlagIcon> = {
   flag: FlagIcon,
   check: CalendarClockIcon,
   look: TriangleAlertIcon,
+  alert: BellIcon,
 }
 
 /* ---------- the list ---------- */
@@ -154,6 +156,7 @@ function meta(row: InboxRow, reviews: Review[]) {
     return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ', across a month edge' : ''}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
   if (card.look) return 'Raised by an alert: saved questions answer worse'
+  if (card.alert) return `Raised by an alert: ${card.alert.name}`
   return card.line.startsWith(DEFINITIONS_TOOL) ? 'A definition changed' : 'Its check date passed'
 }
 
@@ -426,6 +429,8 @@ function useActions(card: InboxCard) {
         return card.factId ? openDock('context', card.factId, { flag: card.id }) : notAProblem()
       case 'look':
         return navigate(`/observability/quality?domain=${card.domain}`)
+      case 'alert':
+        return navigate(card.alert!.href)
       case 'check':
         return run({
           outcome: 'Checked',
@@ -493,6 +498,7 @@ function from(card: InboxCard) {
       ? `By ${card.flag.by}, from ${card.flag.via === 'Ask' ? 'Ask' : 'a chat with an agent'}. Only what was sent is kept: the words and the question.`
       : 'From a chat with an agent. Only the words that were sent are kept, not who sent them.'
   if (card.look) return 'From an alert, after the check that runs after every change.'
+  if (card.alert) return `From the alert rule ${card.alert.name}.`
   return 'From an automatic check.'
 }
 
@@ -587,9 +593,11 @@ function CardDetail({
           </div>
         ) : (
           <div className="flex max-w-2xl flex-col gap-4 text-sm leading-relaxed">
-            <div>
-              <DomainBadge id={card.domain} />
-            </div>
+            {card.domain && (
+              <div>
+                <DomainBadge id={card.domain} />
+              </div>
+            )}
             <p>{card.line}</p>
             <p className="text-muted-foreground">{card.detail}</p>
             {s?.note && (

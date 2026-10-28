@@ -114628,6 +114628,7 @@
                               "gap",
                               "flag",
                               "look",
+                              "alert",
                               "mention",
                               "check",
                               "suggestion",
@@ -115298,6 +115299,128 @@
                               "done",
                               "group",
                               "questions"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "areaId": {
+                                "type": "string"
+                              },
+                              "at": {
+                                "type": "string"
+                              },
+                              "opened": {
+                                "type": "boolean"
+                              },
+                              "done": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "outcome": {
+                                        "type": "string"
+                                      },
+                                      "at": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "outcome",
+                                      "at"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "group": {
+                                "const": "alert"
+                              },
+                              "raiseId": {
+                                "type": "string"
+                              },
+                              "rule": {
+                                "enum": [
+                                  "disagree",
+                                  "share",
+                                  "fail",
+                                  "spend",
+                                  "sync"
+                                ],
+                                "type": "string"
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "subject": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "card": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "card"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "topic": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "topic"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "page": {
+                                        "enum": [
+                                          "overview",
+                                          "usage"
+                                        ],
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "page"
+                                    ]
+                                  },
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "connector": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "connector"
+                                    ]
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "areaId",
+                              "at",
+                              "opened",
+                              "done",
+                              "group",
+                              "raiseId",
+                              "rule",
+                              "title",
+                              "subject"
                             ]
                           },
                           {

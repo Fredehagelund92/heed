@@ -23,6 +23,7 @@ export const INBOX_GROUPS = [
   { id: 'gap', label: 'Not found' },
   { id: 'flag', label: 'Reported' },
   { id: 'look', label: 'Saved questions' },
+  { id: 'alert', label: 'Alerts' },
   { id: 'mention', label: 'Mentioned you' },
   { id: 'check', label: 'Due for a check' },
   { id: 'suggestion', label: 'Suggestions' },

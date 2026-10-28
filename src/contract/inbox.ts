@@ -6,7 +6,9 @@
  * minimum reads as hidden (FR-614).
  */
 import * as z from 'zod/mini'
+import { alertCardRules } from '../domain/alerts.ts'
 import { cardGroups, cardActions, setupSteps } from '../domain/inbox.ts'
+import { raiseSubjectSchema } from './alerts.ts'
 import { proposalActions } from '../domain/proposal.ts'
 import { syncedSchema, undoTokenSchema } from './review-path.ts'
 
@@ -14,7 +16,7 @@ import { syncedSchema, undoTokenSchema } from './review-path.ts'
 const shownCount = z.nullable(z.number())
 
 const cardBase = {
-  /** The card's own name, stable across reads: "proposal:<id>", "gap:<id>", "feedback:<id>", "check:<item>", "look:<domain>". */
+  /** The card's own name, stable across reads: "proposal:<id>", "gap:<id>", "feedback:<id>", "check:<item>", "look:<domain>", "alert:<raise>". */
   id: z.string(),
   areaId: z.string(),
   /** When what it shows happened. */
@@ -25,8 +27,8 @@ const cardBase = {
 }
 
 /**
- * One card, by what happened (the mockup's groups: Not found, Reported, Saved questions, Mentioned
- * you, Due for a check, Suggestions).
+ * One card, by what happened (the mockup's groups: Not found, Reported, Saved questions, Alerts,
+ * Mentioned you, Due for a check, Suggestions).
  */
 export const cardSchema = z.union([
   z.object({
@@ -99,6 +101,17 @@ export const cardSchema = z.union([
     group: z.literal('look'),
     /** The domain's saved questions that need a look now, the newest to need one first (FR-526). */
     questions: z.array(z.object({ id: z.string(), question: z.string() })),
+  }),
+  z.object({
+    ...cardBase,
+    group: z.literal('alert'),
+    /** The raise behind it, and the rule that raised it. */
+    raiseId: z.string(),
+    rule: z.enum(alertCardRules),
+    /** What the rule found, in counts and scopes only (FR-614). */
+    title: z.string(),
+    /** Where its one action goes: a topic's answer panel, a page, or an integration. */
+    subject: raiseSubjectSchema,
   }),
   z.object({
     ...cardBase,

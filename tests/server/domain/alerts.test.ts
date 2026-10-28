@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  alertCardRules,
+  alertCardWords,
   alertRuleIds,
   alertRules,
   cardReaches,
@@ -76,6 +78,17 @@ describe('what a raise says', () => {
 
 describe('which Inbox cards a rule keeps from someone', () => {
   const none = { off: [], muted: [] }
+  it('gives the five rules with no other card one of their own, with its words and one action', () => {
+    expect([...alertCardRules].sort()).toEqual(['disagree', 'fail', 'share', 'spend', 'sync'])
+    for (const rule of alertCardRules) {
+      expect(ruleOfCard({ group: 'alert', rule }), rule).toBe(rule)
+      expect(alertCardWords[rule].open, rule).toMatch(/^Open /)
+    }
+    expect(
+      cardReaches({ group: 'alert', rule: 'spend', areaId: '' }, { off: ['spend'], muted: [] }),
+    ).toBe(false)
+  })
+
   it('knows the cards of the three rules the Inbox draws, and no other', () => {
     expect(ruleOfCard({ group: 'gap' })).toBe('gap')
     expect(ruleOfCard({ group: 'look' })).toBe('saved')

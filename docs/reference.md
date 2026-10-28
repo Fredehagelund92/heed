@@ -1201,11 +1201,13 @@ the contract is in `src/contract/alerts.ts`.
   reads "fewer than 5 times" (FR-614). A share fires only on a part of at least the minimum, so it
   never tells of a hidden count.
 - In the Inbox (`GET /inbox/feed`), a domain whose saved questions need a look has one card
-  (`look:<domain>`, group `look`) that lists them. A Not found card, that card and a card for an
+  (`look:<domain>`, group `look`) that lists them. Each raise of the five rules with no other card
+  (Conflict, More questions not found, Calls fail, Model spend, A connected tool did not sync) is
+  an Alert card (`alert:<raise id>`, group `alert`, in the Alerts group after Saved questions) for
+  whom it reached, for a week or until its Inbox item is archived: its title, the rule, and where
+  its one action goes. An Alert card, a Not found card, a Saved questions card and a card for an
   item whose check date passed do not reach anyone while their rule is off, nor someone who muted
-  their rule for the card's domain. The cards of the other five rules wait for the product to
-  decide how the Inbox draws them; until then their raises are Inbox items and are listed on the
-  Alerts page.
+  their rule for the card's domain.
 - `GET /alerts/rules`: the eight rules, each `enabled`, its `threshold`, its `audience`, the
   domains the person muted it for, and its newest raise the person may read. For owners and
   administrators.

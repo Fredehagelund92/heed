@@ -1,7 +1,15 @@
 import { ORPCError } from '@orpc/client'
 import type { Card, Feed } from '../../../contract/inbox.ts'
 import type { ReportOutcome } from '../../../contract/reports.ts'
-import { cardReaches, type AlertRuleId, type AlertState } from '../../../domain/alerts.ts'
+import {
+  alertCardDays,
+  alertCardRules,
+  cardReaches,
+  type AlertCardRule,
+  type AlertRuleId,
+  type AlertState,
+  type RaiseSubject,
+} from '../../../domain/alerts.ts'
 import { topicScope, topicWords } from '../../../domain/answer.ts'
 import { monthWords } from '../../../domain/dates.ts'
 import { visibleCount } from '../../../domain/gaps.ts'
@@ -36,7 +44,8 @@ import { loadProposal, type ReviewPath, type ReviewService } from '../review/ind
   suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions:
   one card for each domain whose saved questions need a look (FR-526).
 
-  The alert rules (FR-621, src/domain/alerts.ts) decide whether a Not found, a Saved questions or
+  Alerts: a card for each raise of an alert rule with a card of its own, for a week. The alert
+  rules (FR-621, src/domain/alerts.ts) decide whether an Alert, a Not found, a Saved questions or
   a check-date card reaches the person: not while an administrator turned its rule off, nor in a
   domain the person muted it for.
 
@@ -531,12 +540,39 @@ export function createInboxFeedService(
   }
 
   /**
-   * The cards of the rules the Inbox does not draw yet (Conflict, More questions not found, Calls
-   * fail, Model spend, A connected tool did not sync): their raises reach the person's Inbox items
-   * through the outbox, and wait here for the card the product decides on. None until then.
+   * An Alert card for each raise of a rule with a card of its own (Conflict, More questions not
+   * found, Calls fail, Model spend, A connected tool did not sync) that reached the person: the
+   * relay delivered it to their Inbox items, less those who muted it. It stays for a week after the
+   * raise, or until they archive its Inbox item.
    */
-  function undrawnAlertCards(): Card[] {
-    return []
+  async function alertCards(): Promise<Card[]> {
+    const rows = await tx.query<{
+      id: string
+      at: string
+      area: string | null
+      rule: AlertCardRule
+      title: string
+      subject: RaiseSubject
+    }>(
+      `select r.id::text, r.raised_at::text as at, r.area_ids[1] as area, r.rule, r.title, r.subject
+         from inbox_items i join alert_raises r on r.event_seq = i.event_seq
+        where i.person_id = cl_person() and i.kind = 'alert.raised' and i.archived_at is null
+          and r.rule = any($1::text[]) and r.raised_at > now() - make_interval(days => $2)
+        order by r.raised_at desc, r.id limit 100`,
+      [alertCardRules, alertCardDays],
+    )
+    return rows.map((row) => ({
+      id: cardKey.alert(row.id),
+      group: 'alert',
+      areaId: row.area ?? '',
+      at: row.at,
+      opened: false,
+      done: null,
+      raiseId: row.id,
+      rule: row.rule,
+      title: row.title,
+      subject: row.subject,
+    }))
   }
 
   async function waiting(): Promise<Feed['waiting']> {
@@ -608,7 +644,7 @@ export function createInboxFeedService(
         ...(await looks(areas)),
         ...(await checks(bundle, areas)),
         ...(await suggestions(areas)),
-        ...undrawnAlertCards(),
+        ...(await alertCards()),
       ]
       const rules = await alertState()
       cards = cards.filter((c) => cardReaches(c, rules))

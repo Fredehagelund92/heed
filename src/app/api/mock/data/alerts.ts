@@ -21,7 +21,7 @@ export const RULES: Rule[] = [
   {
     ...ruleWords('disagree'),
     last: 'Tue 20 Oct',
-    lastHref: '/observability/questions?dock=topic.net-revenue-norway',
+    lastHref: '/inbox?card=alert-net-revenue',
     lastDomain: 'sales',
   },
   {
@@ -85,7 +85,7 @@ export const RAISED: Raised[] = [
     line: 'A card went to Jon Abara and Sofia Brandt.',
     when: 'Tue 20 Oct',
     domain: 'sales',
-    href: '/observability/questions?dock=topic.net-revenue-norway',
+    href: '/inbox?card=alert-net-revenue',
   },
   {
     id: 'r-cube',

@@ -400,6 +400,28 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   ).toBeVisible()
   await page.getByRole('button', { name: 'Open in Quality' }).click()
   await expect(page).toHaveURL(new RegExp(`/observability/quality\\?domain=${domainId('sales')}`))
+  // A rule with a card of its own raises an Alert card, with one action to where the rule points:
+  // the mock's Conflict about Net revenue, the demo week's source that has not synced yet.
+  const alert =
+    mode === 'http'
+      ? {
+          title: /did not sync$/,
+          rule: 'A connected tool did not sync',
+          open: 'Open the integration',
+          to: /\/settings\/integrations\//,
+        }
+      : {
+          title: 'Net revenue in Norway: conflict, 3 times',
+          rule: 'Conflict',
+          open: 'Open the topic',
+          to: /\/observability\/questions\?dock=topic\./,
+        }
+  await go(page, '/observability/alerts')
+  await page.getByRole('link', { name: alert.title }).first().click()
+  await expect(page).toHaveURL(/\/inbox\?card=alert/)
+  await expect(page.getByText(`From the alert rule ${alert.rule}.`)).toBeVisible()
+  await page.getByRole('button', { name: alert.open }).click()
+  await expect(page).toHaveURL(alert.to)
 
   // An owner sees the rules that reach owners, mutes one for their domain, and sees only their own raises.
   await signInAs(page, 'Tomas Eriksen')

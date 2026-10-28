@@ -9,7 +9,8 @@
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
-import { lookTitle } from '@domain/alerts'
+import { alertCardWords, alertRule, lookTitle } from '@domain/alerts'
+import { hrefOf } from './http-alerts'
 import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
@@ -211,6 +212,20 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
           by: card.by ? person(card.by) : '',
           via: card.source === 'ask' ? 'Ask' : 'an agent',
         },
+      }
+    }
+    // Raised by an alert rule with a card of its own: one action, to where the rule points.
+    case 'alert': {
+      const words = alertCardWords[card.rule]
+      return {
+        ...base,
+        type: 'alert',
+        title: card.title,
+        line: words.line,
+        detail: words.detail,
+        primary: words.open,
+        secondary: [],
+        alert: { rule: card.rule, name: alertRule(card.rule).name, href: hrefOf(card.subject) },
       }
     }
     // Raised by the saved-question alert: the domain's saved questions that answer worse now.

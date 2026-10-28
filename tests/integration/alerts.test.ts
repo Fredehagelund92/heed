@@ -283,9 +283,17 @@ describe('the alert job', () => {
     expect(await reached(due.id)).toEqual([])
   })
 
-  it('raises nothing for a rule that is off', async () => {
+  it('raises once for a run of failed reads, and nothing for a rule that is off', async () => {
+    // Another failed read in the same run raises nothing new.
     await client.query(
       `insert into connector_snapshots (connector_id, status, fetched_at, error)
+       values ('demo', 'failed', now() - interval '4 minutes', 'Definition source could not be read')`,
+    )
+    expect((await run()).sync).toBe(0)
+    // A good read, then a failed one: a new run of failures.
+    await client.query(
+      `insert into connector_snapshots (connector_id, status, fetched_at) values ('demo', 'ok', now() - interval '3 minutes');
+       insert into connector_snapshots (connector_id, status, fetched_at, error)
        values ('demo', 'failed', now() - interval '1 minute', 'Definition source could not be read')`,
     )
     await setRule('admin', 'sync', { enabled: false })
@@ -357,6 +365,31 @@ describe('privacy', () => {
 })
 
 describe('the Inbox', () => {
+  it('shows a raise of a rule with a card of its own as an Alert card to whom it reached', async () => {
+    const alerts = async (name: string) =>
+      (await feed(name)).cards.flatMap((c) => (c.group === 'alert' ? [c] : []))
+    // Calls fail, model spend and the source that did not sync (twice) reached the admin; the
+    // conflict, the owner.
+    expect((await alerts('admin')).map((c) => c.rule).sort()).toEqual([
+      'fail',
+      'spend',
+      'sync',
+      'sync',
+    ])
+    const [conflict] = await alerts('owner')
+    expect(conflict).toMatchObject({ group: 'alert', rule: 'disagree', areaId: 'finance' })
+    expect(conflict!.subject).toHaveProperty('topic')
+    expect(conflict!.title).toMatch(/: conflict, fewer than 5 times$/)
+    expect(conflict!.id).toBe(`alert:${conflict!.raiseId}`)
+    // Muted for its domain, it stops reaching the owner; off, it reaches nobody.
+    await mute('owner', 'disagree', ['finance'], true)
+    expect(await alerts('owner')).toEqual([])
+    await mute('owner', 'disagree', ['finance'], false)
+    await setRule('admin', 'spend', { enabled: false })
+    expect((await alerts('admin')).some((c) => c.rule === 'spend')).toBe(false)
+    await setRule('admin', 'spend', { enabled: true })
+  })
+
   it('raises a card for a domain whose saved questions need a look, once, and lists them', async () => {
     const question = 'Why did orders fall in Norway?'
     await transaction(client, async () => {

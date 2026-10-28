@@ -86,7 +86,7 @@ Open `http://localhost:5192/` and append the address. Every state has its own li
 | All done | `#/inbox?demo=done` |
 
 The list is ordered by need, in groups with counts: Not found (asked and found nothing), Reported,
-Saved questions (raised by an alert), Mentioned you, Due for a check, then Suggestions, then (under All) Waiting on others and Done. Each
+Saved questions (raised by an alert), Alerts (a rule with a card of its own: Conflict, More questions not found, Calls fail, Model spend, A connected tool did not sync), Mentioned you, Due for a check, then Suggestions, then (under All) Waiting on others and Done. Each
 row's second line carries its evidence: how often a question found nothing, what was reported, a
 suggestion's size and reach ("2 wording, 1 link - 12 questions"), and a suggestion's icon says its
 main kind of change. One quiet sentence under the heading, also when nothing needs you, says what

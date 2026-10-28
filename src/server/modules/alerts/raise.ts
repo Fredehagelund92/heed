@@ -195,7 +195,10 @@ const rules: Record<AlertRuleId, (c: Context) => Raise[] | Promise<Raise[]>> = {
     ]
   },
 
-  /** A connected tool did not sync: its last read failed, or it has not read for too long. */
+  /**
+   * A connected tool did not sync: its last read failed, once for each run of failed reads (from
+   * the first after its last good read), or it has not read for too long.
+   */
   async sync({ tx }) {
     const rows = await tx.query<{
       id: string
@@ -205,7 +208,10 @@ const rules: Record<AlertRuleId, (c: Context) => Raise[] | Promise<Raise[]>> = {
       areas: string[]
     }>(
       `select c.id, c.name,
-              case when last.status = 'failed' then last.fetched_at::text end as failed,
+              case when last.status = 'failed' then (
+                select min(s.fetched_at)::text from connector_snapshots s
+                 where s.connector_id = c.id and s.status = 'failed'
+                   and s.fetched_at > coalesce(good.fetched_at, '-infinity'::timestamptz)) end as failed,
               case when coalesce(good.fetched_at, c.created_at) < now() - c.stale_after
                    then coalesce(good.fetched_at, c.created_at)::text end as stale,
               cl_connector_domains(c.id) as areas

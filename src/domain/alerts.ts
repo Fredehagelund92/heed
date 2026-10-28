@@ -216,11 +216,60 @@ export const lookTitle = (n: number) =>
   `${n} saved ${n === 1 ? 'question needs' : 'questions need'} a look`
 
 /**
- * The rule whose card an Inbox card is, for the rules whose card the Inbox already draws: a Not
+ * The rules whose raise is a card of its own in the Inbox, an Alert card in the Alerts group (the
+ * owner's call of 28 October 2026). The other three raise the cards the Inbox already has: a Not
  * found card, a domain's saved questions that need a look, and an item whose check date passed.
- * Any other card is no rule's.
  */
-export function ruleOfCard(card: { group: string; reason?: string }): AlertRuleId | null {
+export const alertCardRules = ['disagree', 'share', 'fail', 'spend', 'sync'] as const
+export type AlertCardRule = (typeof alertCardRules)[number]
+
+export const isAlertCardRule = (rule: AlertRuleId): rule is AlertCardRule =>
+  (alertCardRules as readonly string[]).includes(rule)
+
+/** How long an Alert card stays in the Inbox after its rule raised it. */
+export const alertCardDays = 7
+
+/** An Alert card's words: what happened, what to do about it, and its one action. */
+export const alertCardWords: Record<AlertCardRule, { line: string; detail: string; open: string }> =
+  {
+    disagree: {
+      line: 'Agents got two context items that say different things about this.',
+      detail: 'Fix the one that is wrong, or archive it. The answer panel shows both.',
+      open: 'Open the topic',
+    },
+    share: {
+      line: "More of a day's questions found nothing than the rule allows, two days running.",
+      detail: 'Overview shows what agents asked and found nothing for.',
+      open: 'Open Overview',
+    },
+    fail: {
+      line: "More of yesterday's calls failed or could not be read than the rule allows.",
+      detail: 'Usage shows which tools failed and how often.',
+      open: 'Open Usage',
+    },
+    spend: {
+      line: "This month's model spend reached the share of the monthly cap the rule names.",
+      detail: 'Usage shows the spend by feature. The cap is in Settings, Advanced.',
+      open: 'Open Usage',
+    },
+    sync: {
+      line: 'Its last read failed, or it has not read for longer than it should.',
+      detail: 'Agents keep getting what it read last until it reads again.',
+      open: 'Open the integration',
+    },
+  }
+
+/**
+ * The rule whose card an Inbox card is: an Alert card's own rule, a Not found card, a domain's
+ * saved questions that need a look, and an item whose check date passed. Any other card is no
+ * rule's.
+ */
+export function ruleOfCard(card: {
+  group: string
+  reason?: string
+  rule?: string
+}): AlertRuleId | null {
+  if (card.group === 'alert') return (card.rule as AlertRuleId | undefined) ?? null
   if (card.group === 'gap') return 'gap'
   if (card.group === 'look') return 'saved'
   if (card.group === 'check' && card.reason === 'date') return 'due'
@@ -238,7 +287,7 @@ export type AlertState = {
  * is on and the person has not muted it for the card's domain.
  */
 export function cardReaches(
-  card: { group: string; reason?: string; areaId: string },
+  card: { group: string; reason?: string; rule?: string; areaId: string },
   state: AlertState,
 ): boolean {
   const rule = ruleOfCard(card)

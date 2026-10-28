@@ -5,7 +5,8 @@
  * each raised lately, already narrowed to what the person may read.
  */
 import type { AlertRaise, AlertRules } from '@contract/alerts'
-import { raisedLine, type RaiseSubject } from '@domain/alerts'
+import { alertCardDays, isAlertCardRule, raisedLine, type RaiseSubject } from '@domain/alerts'
+import { cardKey } from '@domain/inbox'
 import { ruleWords, type Alerts, type Raised, type Rule } from '@/model/alerts'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -36,6 +37,15 @@ export function hrefOf(subject: RaiseSubject): string {
   return `/observability/${subject.page}`
 }
 
+/**
+ * Where a raise is shown: its own Alert card in the Inbox, for a rule with one, while the card is
+ * there (a week); or else what its subject is (the Inbox card it raised, or the page it is about).
+ */
+const raiseHref = (r: Pick<AlertRaise, 'id' | 'rule' | 'subject' | 'raisedAt'>, now: Date) =>
+  isAlertCardRule(r.rule) && now.getTime() - Date.parse(r.raisedAt) < alertCardDays * 86_400_000
+    ? `/inbox?card=${cardKey.alert(r.id)}`
+    : hrefOf(r.subject)
+
 /** A raise as the page lists it: what, whom it reached, when, and where it sends people. */
 export function raisedOf(r: AlertRaise, now: Date): Raised {
   return {
@@ -45,7 +55,7 @@ export function raisedOf(r: AlertRaise, now: Date): Raised {
     line: raisedLine(r.rule, r.reached),
     when: raisedWhen(r.raisedAt, now),
     ...(r.areaIds.length === 1 ? { domain: r.areaIds[0]! } : {}),
-    href: hrefOf(r.subject),
+    href: raiseHref(r, now),
   }
 }
 
@@ -56,7 +66,7 @@ export function alertsOf(rules: AlertRules, raised: readonly AlertRaise[], now: 
       ...ruleWords(record.rule, record.threshold),
       // The service gives the newest raise the person may read, so it needs no narrowing here.
       last: record.last ? raisedWhen(record.last.raisedAt, now) : 'Never',
-      ...(record.last ? { lastHref: hrefOf(record.last.subject) } : {}),
+      ...(record.last ? { lastHref: raiseHref(record.last, now) } : {}),
     })),
     raised: raised.map((r) => raisedOf(r, now)),
     settings: {

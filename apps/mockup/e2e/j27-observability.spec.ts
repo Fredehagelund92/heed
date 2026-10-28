@@ -250,6 +250,13 @@ test("Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await expect(page.getByText("Why did support contacts in Norway rise in autumn 2025?")).toBeVisible()
   await page.getByRole("button", { name: "Open in Quality" }).click()
   await expect(page).toHaveURL(/#\/observability\/quality\?domain=sales/)
+  // A rule with a card of its own raises an Alert card, with one action to where the rule points.
+  await go(page, "/observability/alerts")
+  await page.getByRole("link", { name: "Net revenue in Norway: conflict, 3 times" }).click()
+  await expect(page).toHaveURL(/#\/inbox\?card=alert-net-revenue/)
+  await expect(page.getByText("From the alert rule Conflict.")).toBeVisible()
+  await page.getByRole("button", { name: "Open the topic" }).click()
+  await expect(page).toHaveURL(/#\/observability\/questions\?dock=topic\.net-revenue-norway/)
   await go(page, "/observability/alerts?state=empty")
   await expect(page.getByText("Nothing has raised an alert yet")).toBeVisible()
 
