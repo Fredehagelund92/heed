@@ -12,8 +12,9 @@ export const manifest = defineManifest({
   heed: '^3.0',
   kind: 'definitions',
   tool: 'Cube',
-  title: 'Cube',
-  summary: 'Metrics and dimensions, read from your Cube definition files in Git.',
+  title: 'Cube model in a Git repository',
+  summary:
+    'Reads the YAML model files of a Cube project from a Git repository every hour, at the branch, tag or commit you name. We keep names, short descriptions and change marks, never a calculation or data.',
   icon: 'database',
   docs: './README.md',
   maintainer: { name: 'Core team' },

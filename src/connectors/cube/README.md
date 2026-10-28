@@ -1,4 +1,4 @@
-# Cube
+# Cube model in a Git repository
 
 The first definitions connector (connector interface 3.0, [the contract](../../../docs/connectors.md)).
 It reads the YAML model files of a Cube project and gives Heed each public member as a definition
