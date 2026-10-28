@@ -153,9 +153,11 @@ function knownWarning(manifest: ConnectorManifest, code: string): boolean {
 }
 
 /**
- * The fetch a runtime gets (CON-113): GET or HEAD only, to an address Heed may fetch (https to a
- * public host), on a host the manifest declares, by name or from an address setting, with no
- * redirect followed and the read's time limit.
+ * The fetch a runtime gets (CON-113): GET or HEAD, to an address Heed may fetch (https to a
+ * public host, with a query if it needs one), on a host the manifest declares, by name or from an address setting, with no
+ * redirect followed and the read's time limit. A POST, with its body, goes only to a host the
+ * manifest declares for signing in: a connector trades its credential for a short-lived token
+ * there, and writes nothing to the tool (CON-102).
  */
 export function guardedFetch(
   manifest: ConnectorManifest,
@@ -163,25 +165,42 @@ export function guardedFetch(
   signal: AbortSignal,
 ): GuardedFetch {
   const hosts = new Set<string>()
+  const signIn = new Set<string>()
   for (const host of manifest.egress.hosts) {
-    if ('host' in host) hosts.add(host.host)
+    let name: string | undefined
+    if ('host' in host) name = host.host
     else {
       const value = config[host.fromField]
-      const url = typeof value === 'string' ? URL.parse(value) : null
-      if (url) hosts.add(url.hostname.toLowerCase())
+      name = (typeof value === 'string' ? URL.parse(value) : null)?.hostname.toLowerCase()
     }
+    if (name === undefined) continue
+    hosts.add(name)
+    if (host.signIn) signIn.add(name)
   }
   return async (address, init = {}) => {
     const url = URL.parse(address)
-    if (!url || !isFetchableAddress(address) || !hosts.has(url.hostname.toLowerCase()))
+    // A request may carry a query (an API's parameters); the address it goes to is checked as a
+    // settings address is, without it.
+    const fetchable =
+      url !== null &&
+      !url.username &&
+      !url.password &&
+      !url.hash &&
+      isFetchableAddress(`${url.origin}${url.pathname}`)
+    if (!url || !fetchable || !hosts.has(url.hostname.toLowerCase()))
       throw new SourceError({
         code: 'private_address',
         target: url?.host ?? 'address',
         class: 'config',
       })
+    const method = init.method ?? 'GET'
+    const post = method === 'POST'
+    if ((post && !signIn.has(url.hostname.toLowerCase())) || (!post && init.body !== undefined))
+      throw new SourceError({ code: 'invalid_output', target: 'fetch', class: 'source' })
     return fetch(url, {
-      method: init.method ?? 'GET',
+      method,
       headers: init.headers,
+      ...(post ? { body: init.body ?? '' } : {}),
       redirect: 'error',
       signal,
     })

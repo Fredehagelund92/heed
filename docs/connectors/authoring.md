@@ -51,8 +51,10 @@ runtime, { worker })` in `src/connectors/index.ts`. The runtime calls `ctx.worke
    IPC, answers once, and may load the packages it parses with, never the service. Its answer is
    untrusted: check it before you send a record. Built-in connectors only. Cube's compiler is the
    example.
-5. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or recorded
-   HTTP answers. No live calls in tests, and no real names, addresses or data.
+5. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or a fake of
+   the tool's API on the machine, as Google Drive's (`tests/server/connectors/drive-server.ts`). No
+   live calls in tests, and no real names, addresses, data or credentials: a key the tests need is
+   invented when they start, never committed.
 6. **Run the conformance kit** (CON-108): add the connector and its fixture to
    `tests/server/connectors/conformance.test.ts`: settings that work, a secret the tool refuses,
    settings the form refuses, a host that cannot be reached, and the secret to look for; for a
@@ -61,8 +63,10 @@ runtime, { worker })` in `src/connectors/index.ts`. The runtime calls `ctx.worke
    (`tests/server/connectors/kit.ts`) checks the manifest and the README, the form and its
    defaults, the check, the reads (each record once, the same marks for the same input, a partial
    read when a file cannot be read, no calculation in a definition, documents in the chosen
-   scopes with https links) and that the secret appears in nothing the connector returns. _To
-   come:_ cursors and deletions, egress and limits, which the core's own tests check today.
+   scopes with https links), for a connector that reads from its cursor that an unchanged source
+   gives nothing new and that a change brings the changed document and a tombstone (give it a
+   `delta` that changes the tool), and that the secret appears in nothing the connector returns.
+   _To come:_ egress and limits, which the core's own tests check today.
 7. **Write the README** (`README.md`): what it reads and the minimal setup in the tool, its
    fields, its warnings, its limits and what its change marks see. The tables come from the
    manifest. [Cube's](../../src/connectors/cube/README.md) is today's example, with

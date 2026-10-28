@@ -75,6 +75,9 @@ allows:
 - https only (plain http only to this machine, outside production);
 - only the hosts the manifest declares: a fixed name, a wildcard such as `*.cubecloud.dev`, or
   the host of a settings field (`{ fromField: 'repository' }`);
+- GET and HEAD only, except a POST with its body to a host the manifest declares for signing in
+  (`signIn: true`), where a connector trades its credential for a short-lived token; it writes
+  nothing to the tool (built);
 - public addresses only, with the same block list as Git, the name resolved once and the
   connection pinned to the address that was checked;
 - redirects checked hop by hop and refused across hosts;
@@ -114,6 +117,13 @@ checks every answer, row, history entry, retry record and log line of a run for 
   core reads the store; the connector never does.
 - Prefer narrow, short-lived credentials: a read-only token or a GitHub App installation token
   for one repository, a service account shared on one folder, a metadata-only token.
+- A service account key (Google Drive, built) is a secret like a token: it goes into the store
+  when an admin adds the source, the source's page shows it only as set, and it is bound to both
+  addresses it is used at (the API and the sign-in address), so a change to either forgets it. A
+  read signs a request with it and sends that request, never the key, to the declared sign-in
+  host, for an access token that can only view (`drive.readonly`) and lives in memory for that
+  read only. The account sees only the folders shared with it: no domain-wide delegation, no
+  impersonation, and who may read a document is not copied (CON-610).
 - Later, for sign-in with OAuth: a refresh token is a secret, an access token lives only in
   memory, the manifest lists the scopes and Sources shows them before connecting, and only read
   scopes are allowed.

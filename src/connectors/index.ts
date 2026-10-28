@@ -3,6 +3,8 @@ import { manifest as cube } from './cube/manifest.ts'
 import { runtime as cubeRuntime } from './cube/runtime.ts'
 import { manifest as gitMarkdown } from './git-markdown/manifest.ts'
 import { runtime as gitMarkdownRuntime } from './git-markdown/runtime.ts'
+import { manifest as googleDrive } from './google-drive/manifest.ts'
+import { runtime as googleDriveRuntime } from './google-drive/runtime.ts'
 import { manifest as staticDefinitions } from './static-definitions/manifest.ts'
 import { runtime as staticDefinitionsRuntime } from './static-definitions/runtime.ts'
 
@@ -16,4 +18,5 @@ export const builtInConnectors: readonly ConnectorModule[] = [
   defineConnector(cube, cubeRuntime, { worker: new URL('./cube/worker.ts', import.meta.url) }),
   defineConnector(staticDefinitions, staticDefinitionsRuntime),
   defineConnector(gitMarkdown, gitMarkdownRuntime),
+  defineConnector(googleDrive, googleDriveRuntime),
 ]

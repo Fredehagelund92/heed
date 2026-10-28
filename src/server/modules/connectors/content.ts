@@ -35,6 +35,12 @@ import { SourceReadError, type SourceWarning } from './types.ts'
      declined is not offered again (CON-606).
   A document that is deleted, or leaves the chosen scopes, withdraws its open suggestion, and an
   item it became is listed for its owners (CON-609). Owners are told once per source per read.
+
+  The core chooses what kind of read it asks for by the cursor it hands. A connector that lists
+  everything (`full-listing`) lists everything each time, so a document it leaves out is gone. A
+  connector that reads changes since its cursor and sends tombstones (`both`) gets its cursor,
+  and absence means nothing; once its last full read is older than `FULL_READ_EVERY_DAYS`, it is
+  handed none, and lists everything again, which finds what a change list missed.
 */
 
 /** What one read of a content source did, for the job's summary and the source's page. */
@@ -55,6 +61,8 @@ export const REMOVAL_SHARE_MAX = 0.5
 export const REMOVAL_FLOOR = 5
 /** Suggestions a source makes in a day when its manifest says nothing (CON-607). */
 export const DRAFTS_PER_DAY = 20
+/** How often a connector that reads changes lists everything again, in days. */
+export const FULL_READ_EVERY_DAYS = 7
 
 interface Known {
   document_id: string
@@ -111,15 +119,23 @@ export class ContentPipeline {
       throw new Error('Connector type does not match registry')
     const { manifest } = source
     const schedule = await scheduleOf(tx, source.id, manifest)
-    const [last] = await tx.query<{ cursor: string | null }>(
-      `select cursor from connector_snapshots where connector_id=$1 and status <> 'failed'
+    const [last] = await tx.query<{ cursor: string | null; full: boolean }>(
+      `select cursor,
+              exists (select 1 from connector_snapshots f where f.connector_id=$1 and f.status='ok'
+                        and f.full_read and f.fetched_at > now() - make_interval(days => $2)) as full
+         from connector_snapshots where connector_id=$1 and status <> 'failed'
         order by fetched_at desc limit 1`,
-      [source.id],
+      [source.id, FULL_READ_EVERY_DAYS],
     )
+    const { deletions } = manifest.capabilities
+    // A connector that reads changes lists everything again now and then: it is handed no cursor.
+    const cursor = deletions === 'both' && !last?.full ? null : (last?.cursor ?? null)
+    // Whether what the read leaves out is gone: a full listing, or a read from no cursor.
+    const fullRead = deletions === 'full-listing' || (deletions === 'both' && cursor === null)
     const started = performance.now()
     let read
     try {
-      read = await source.read({ cursor: last?.cursor ?? null })
+      read = await source.read({ cursor })
     } catch (error) {
       if (!(error instanceof SourceReadError)) throw error
       const [failed] = await tx.query<{ id: string }>(
@@ -160,8 +176,8 @@ export class ContentPipeline {
     const [saved] = await tx.query<{ id: string }>(
       `insert into connector_snapshots
          (connector_id, source_version, status, fetched_at, duration_ms, warnings, connector_version,
-          documents_seen, cursor)
-       values ($1, $2, $3, clock_timestamp(), $4, '[]', $5, $6, $7) returning id`,
+          documents_seen, cursor, full_read)
+       values ($1, $2, $3, clock_timestamp(), $4, '[]', $5, $6, $7, $8) returning id`,
       [
         source.id,
         read.version,
@@ -170,6 +186,7 @@ export class ContentPipeline {
         manifest.version,
         read.documents.length + read.unread.length,
         read.cursor ?? null,
+        fullRead,
       ],
     )
     const readId = saved!.id
@@ -369,35 +386,27 @@ export class ContentPipeline {
       }
     }
 
-    // What is gone: tombstones, documents outside the chosen scopes, and on a complete read
-    // without tombstones whatever it did not list. A read that would withdraw too much at once
-    // keeps it all and is in part, so a broken scope never empties the Inbox.
+    // What is gone: documents outside the chosen scopes, tombstones, and on a complete full read
+    // whatever it did not list. A read that would withdraw too much at once keeps it all and is
+    // in part, so a broken scope or a folder shared by mistake never empties the Inbox.
     const seen = new Set([...read.documents.map((d) => d.id), ...read.unread])
     const present = [...known.values()].filter((row) => row.state !== 'gone')
     const outside = present.filter((row) => !scopes.has(row.scope))
     const deleted = new Set(read.deleted)
-    const absent =
-      read.complete && manifest.capabilities.deletions !== 'tombstones'
-        ? present.filter(
-            (row) =>
-              scopes.has(row.scope) && !seen.has(row.document_id) && !deleted.has(row.document_id),
-          )
-        : []
+    const removed = present.filter(
+      (row) =>
+        scopes.has(row.scope) &&
+        !seen.has(row.document_id) &&
+        (deleted.has(row.document_id) || (read.complete && fullRead)),
+    )
     let complete = read.complete
-    let removals = absent
-    if (absent.length > REMOVAL_FLOOR && absent.length > present.length * REMOVAL_SHARE_MAX) {
-      warnings.push({ code: 'too_many_removals', target: String(absent.length) })
+    let removals = removed
+    if (removed.length > REMOVAL_FLOOR && removed.length > present.length * REMOVAL_SHARE_MAX) {
+      warnings.push({ code: 'too_many_removals', target: String(removed.length) })
       removals = []
       complete = false
     }
-    const gone = [
-      ...outside,
-      ...removals,
-      ...present.filter(
-        (row) =>
-          deleted.has(row.document_id) && scopes.has(row.scope) && !seen.has(row.document_id),
-      ),
-    ]
+    const gone = [...outside, ...removals]
     for (const row of new Map(gone.map((r) => [r.document_id, r])).values()) {
       const previous = await previousOf(row.proposal_id)
       if (await withdraw(row.document_id, previous, 'The document is gone from the source.'))
@@ -434,7 +443,8 @@ export class ContentPipeline {
         [area, source.id, JSON.stringify({ source: source.id, read: readId, ...made })],
       )
 
-    // A document that waits holds the cursor back, so the next read brings it again.
+    // A document that waits, or a read in part, keeps the cursor this read was handed, so the
+    // next read brings again what this one could not take.
     await tx.query(
       `update connector_snapshots set status=$2, warnings=$3, cursor=$4, suggested=$5, replaced=$6,
          withdrawn=$7, waiting=$8, skipped=$9 where id=$1`,
@@ -442,7 +452,7 @@ export class ContentPipeline {
         readId,
         complete ? 'ok' : 'partial',
         JSON.stringify(warnings.slice(0, 1_000)),
-        counts.waiting ? (last?.cursor ?? null) : (read.cursor ?? null),
+        counts.waiting || !complete ? cursor : (read.cursor ?? null),
         counts.suggested,
         counts.replaced,
         counts.withdrawn,

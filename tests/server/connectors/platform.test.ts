@@ -1,3 +1,5 @@
+import { createServer } from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { describe, expect, it } from 'vitest'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
 import { manifest as staticManifest } from '../../../src/connectors/static-definitions/manifest.ts'
@@ -97,6 +99,7 @@ describe('the registry of connectors', () => {
       ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
+      ['google-drive', 3],
     ])
     // The demo type has no form, so it is not a connector to add; its words still come from it.
     expect(registry.connector('demo')).toBeUndefined()
@@ -309,6 +312,46 @@ describe("a runtime's fetch", () => {
     await expect(fetch('http://wiki.example.com/x')).rejects.toBeInstanceOf(SourceError)
     await expect(fetch('https://user:pw@api.example.com/x')).rejects.toBeInstanceOf(SourceError)
   })
+
+  it('sends a query, and a POST with its body only to a host declared for signing in', async () => {
+    const seen: { method: string; url: string; body: string }[] = []
+    const server = createServer((request, response) => {
+      let body = ''
+      request.on('data', (chunk: Buffer) => (body += String(chunk)))
+      request.on('end', () => {
+        seen.push({ method: request.method ?? '', url: request.url ?? '', body })
+        response.end('{}')
+      })
+    })
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const local = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    try {
+      const manifest = {
+        ...staticManifest,
+        config: {
+          fields: [
+            { key: 'api', kind: 'address' as const, label: 'API', description: 'Where.' },
+            { key: 'signIn', kind: 'address' as const, label: 'Sign in', description: 'Where.' },
+          ],
+        },
+        egress: { hosts: [{ fromField: 'api' }, { fromField: 'signIn', signIn: true }] },
+      }
+      const signIn = guardedFetch(manifest, { signIn: local }, AbortSignal.timeout(5_000))
+      await signIn(`${local}/token`, { method: 'POST', body: 'grant=1' })
+      const api = guardedFetch(manifest, { api: local }, AbortSignal.timeout(5_000))
+      await api(`${local}/files?q=a`)
+      await expect(api(`${local}/files`, { method: 'POST', body: 'x' })).rejects.toMatchObject({
+        code: 'invalid_output',
+      })
+      await expect(api(`${local}/files`, { body: 'x' })).rejects.toBeInstanceOf(SourceError)
+      expect(seen).toEqual([
+        { method: 'POST', url: '/token', body: 'grant=1' },
+        { method: 'GET', url: '/files?q=a', body: '' },
+      ])
+    } finally {
+      server.close()
+    }
+  })
 })
 
 describe('the sources admins add, over the registry', () => {
@@ -321,6 +364,7 @@ describe('the sources admins add, over the registry', () => {
       ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
+      ['google-drive', 3],
     ])
   })
 })

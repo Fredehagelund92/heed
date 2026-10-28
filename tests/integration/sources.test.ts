@@ -468,6 +468,7 @@ describe('a source of a connector written to interface 3', () => {
       ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
+      ['google-drive', 3],
     ])
     const test = await call('ravi', 'POST', '/sources/test', {
       type: 'static-definitions',

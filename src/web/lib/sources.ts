@@ -740,12 +740,19 @@ export function scheduleWords(duration: string): string {
 
 /**
  * Where a connector's code may reach, in words: the host of an address setting by its label, or
- * a host by name; nothing for a connector that reaches nothing outside the app.
+ * a host by name, and whether it signs in there; nothing for a connector that reaches nothing
+ * outside the app.
  */
 export function egressWords(manifest: ConnectorManifest): string[] {
   return manifest.egress.hosts.map((host) => {
-    if ('host' in host) return host.host
+    const signIn = host.signIn ? ', to sign in' : ''
+    if ('host' in host) return `${host.host}${signIn}`
     const field = manifest.config.fields.find((candidate) => candidate.key === host.fromField)
-    return `The host of the ${(field?.label ?? host.fromField).toLowerCase()} you give`
+    const label = field?.label ?? host.fromField
+    // A label that starts with the tool's name keeps its capital: it is a name.
+    const named = label.startsWith(manifest.tool.split(' ')[0]!)
+      ? label
+      : label.charAt(0).toLowerCase() + label.slice(1)
+    return `The host of the ${named} you give${signIn}`
   })
 }
