@@ -87,6 +87,18 @@ async function settle(page: Page) {
   })
 }
 
+/** Sign out in the user menu, in the sidebar's sheet on a phone. */
+async function signOut(page: Page, width: number) {
+  if (width < 768) await page.getByRole('button', { name: /menu/i }).first().click()
+  await page
+    .locator('[data-sidebar=sidebar] [data-sidebar=footer]')
+    .last()
+    .getByRole('button')
+    .click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
+}
+
 async function violations(page: Page) {
   await settle(page)
   const results = await new AxeBuilder({ page })
@@ -105,7 +117,9 @@ for (const { name, width, height } of widths) {
 
       for (const place of places) {
         test(place, async ({ page }) => {
-          await page.goto(withTheme(place, theme))
+          await page.goto(withTheme(place === '/signin' ? '/inbox' : place, theme))
+          // The demo starts signed in, and someone signed in goes from sign-in to the Inbox.
+          if (place === '/signin') await signOut(page, width)
           await expect(page.locator('main, [role=main], h1').first()).toBeVisible()
           expect(await violations(page)).toEqual([])
         })

@@ -1,8 +1,8 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { test as base, type Page } from '@playwright/test'
+import { expect, test as base, type Page } from '@playwright/test'
 
-export { expect } from '@playwright/test'
+export { expect }
 
 /*
   The journeys run in two modes (golden plan, section 8.2): on the mock binding, and in http mode
@@ -227,10 +227,27 @@ export const moveTo = (page: Page, route: string) =>
     link.remove()
   }, route)
 
-/** Sign in as one of the demo's people. */
+/**
+ * Sign in as one of the demo's people, as a person does: sign out in the user menu, pick them on
+ * the sign-in page, and land in their Inbox. A journey starts signed in, as Jon.
+ */
 export async function signInAs(page: Page, name: string) {
-  await go(page, '/signin')
+  await go(page, '/inbox')
+  await signOut(page)
   await page.getByRole('button', { name: new RegExp(name) }).click()
+  await expect(page).toHaveURL(/\/inbox$/)
+  await expect(userMenu(page)).toContainText(name)
+}
+
+/** The sidebar's user menu, which names who is signed in. */
+export const userMenu = (page: Page) =>
+  page.locator('[data-sidebar=sidebar] [data-sidebar=footer]').first().getByRole('button')
+
+/** Sign out in the user menu, which leads to the sign-in page. */
+export async function signOut(page: Page) {
+  await userMenu(page).click()
+  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await expect(page).toHaveURL(/\/signin$/)
 }
 
 async function httpRoute(

@@ -77,6 +77,11 @@ export function navigate(path: string, query?: Record<string, string | undefined
   void router!.navigate({ href: href(path, query) })
 }
 
+/** Go somewhere in place of the address now, as a redirect does: Back skips the address left. */
+export function redirectTo(path: string) {
+  void router!.navigate({ href: path, replace: true })
+}
+
 /** Change some query values on the current path, keeping the rest. */
 export function setQuery(changes: Record<string, string | undefined>) {
   const { path, query } = current()

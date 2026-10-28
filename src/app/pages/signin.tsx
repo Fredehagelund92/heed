@@ -30,7 +30,7 @@ import {
   workspaceQuery,
 } from '@/api/queries'
 import { Button } from '@/components/ui/button'
-import { navigate, useRoute } from '@/lib/router'
+import { useRoute } from '@/lib/router'
 import { PRODUCT } from '@/lib/brand'
 
 /** Why a company sign-in came back without signing in, as the screen says it. */
@@ -136,12 +136,10 @@ function PickerSignIn({ token }: { token: string | null }) {
                         render={
                           <button
                             type="button"
-                            onClick={() => {
-                              signIn.mutate(
-                                { name, fresh },
-                                { onSuccess: () => navigate('/inbox') },
-                              )
-                            }}
+                            // Signed in, the app moves to the Inbox (App.tsx). Not from here:
+                            // while the shell loads the person's workspace this page is unmounted,
+                            // so a callback of this click would never run.
+                            onClick={() => signIn.mutate({ name, fresh })}
                           />
                         }
                         className="w-full text-left hover:bg-muted"
