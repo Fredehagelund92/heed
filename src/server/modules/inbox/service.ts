@@ -558,6 +558,13 @@ export function createInboxFeedService(
          from inbox_items i join alert_raises r on r.event_seq = i.event_seq
         where i.person_id = cl_person() and i.kind = 'alert.raised' and i.archived_at is null
           and r.rule = any($1::text[]) and r.raised_at > now() - make_interval(days => $2)
+          and not (
+            exists (select 1 from unnest(r.area_ids) a where cl_is_owner_now(a))
+            and not exists (
+              select 1 from unnest(r.area_ids) a
+               where cl_is_owner_now(a)
+                 and not exists (select 1 from alert_mutes m
+                                  where m.person_id = cl_person() and m.rule = r.rule and m.area_id = a)))
         order by r.raised_at desc, r.id limit 100`,
       [alertCardRules, alertCardDays],
     )

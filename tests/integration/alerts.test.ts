@@ -451,4 +451,30 @@ describe('the Inbox', () => {
     await setRule('admin', 'gap', { enabled: true })
     expect((await feed('owner')).cards.map((c) => c.id)).toContain(`gap:${gap}`)
   })
+
+  it('keeps an Alert card over two domains until the owner has muted it for both', async () => {
+    await client.query(
+      "insert into area_assignments (area_id, person_id, role) values ('marketing', $1, 'owner')",
+      [people.owner],
+    )
+    await client.query(
+      `select cl_alert_raise('sync', 'two-domains', '{finance,marketing}', 'Two domains did not sync',
+                             '{"connector":"demo"}')`,
+    )
+    await relayOutbox(database)
+    const title = 'Two domains did not sync'
+    const shown = async () =>
+      (await feed('owner')).cards.some((c) => c.group === 'alert' && c.title === title)
+    expect(await shown()).toBe(true)
+    await mute('owner', 'sync', ['finance'], true)
+    expect(await shown()).toBe(true)
+    await mute('owner', 'sync', ['marketing'], true)
+    expect(await shown()).toBe(false)
+    await mute('owner', 'sync', ['finance', 'marketing'], false)
+    expect(await shown()).toBe(true)
+    await client.query(
+      "delete from area_assignments where area_id = 'marketing' and person_id = $1",
+      [people.owner],
+    )
+  })
 })

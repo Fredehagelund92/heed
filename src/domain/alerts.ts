@@ -284,7 +284,8 @@ export type AlertState = {
 
 /**
  * Whether a card reaches the person: no rule's card always does; a rule's card does while the rule
- * is on and the person has not muted it for the card's domain.
+ * is on and the person has not muted it for the card's domain (an Alert card's mutes are decided
+ * over all of its raise's domains by the feed).
  */
 export function cardReaches(
   card: { group: string; reason?: string; rule?: string; areaId: string },
@@ -294,6 +295,7 @@ export function cardReaches(
   return (
     !rule ||
     (!state.off.includes(rule) &&
-      !state.muted.some((m) => m.rule === rule && m.areaId === card.areaId))
+      (card.group === 'alert' ||
+        !state.muted.some((m) => m.rule === rule && m.areaId === card.areaId)))
   )
 }
