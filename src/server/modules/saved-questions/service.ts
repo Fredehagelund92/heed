@@ -159,15 +159,26 @@ export async function adoptPublished(
   return database.transaction(publisher, async (tx) => {
     const head = await liveHead(tx)
     if (!head) return 0
+    // What agents got before the publish: the sealed edition before the live one.
+    const [before] = await tx.query<Head>(
+      `select e.seq::text, e.label, $2::text as overlay from editions e
+        where e.sealed_at is not null and e.seq < $1::bigint order by e.seq desc limit 1`,
+      [head.seq, head.overlay],
+    )
     const questions = await tx.query<ToCheck>(
       `${toCheck} where expect_items && $2::text[]
           or exists (select 1 from jsonb_array_elements(answer -> 'items') i where i ->> 'id' = any($2::text[]))`,
       [null, itemIds],
     )
     const bundle = await cache.bundle(tx, head)
+    const previous = before ? await cache.bundle(tx, before) : null
     const adopted: { q: ToCheck; now: SavedAnswer; baseline: string }[] = []
     for (const q of questions) {
       const now = answerNow(bundle, q.question, clock.today())
+      // Only a question this publish moved, no worse than before it, and that is not worse than
+      // its saved answer either: one that needs a look stays to be looked at.
+      const then = previous ? answerNow(previous, q.question, clock.today()) : q.saved
+      if (movedBy(then, now, q.expectItems).result !== 'changed') continue
       if (compareSaved(q.saved, now, q.expectItems).result !== 'changed') continue
       const [kept] = await tx.query<{ id: string }>(
         `insert into saved_question_baselines (question_id, answer, edition, why, kept_by)
@@ -485,14 +496,15 @@ export interface SavedQuestionsService {
 
 /**
  * The saved questions the reader manages that answer from `itemId`, or should, checked against
- * what agents would get with a suggestion (`candidate`): the review's line before Publish. Shown
- * only, never kept, and never a reason Publish waits.
+ * what agents would get with a suggestion (`draft`) beside what they get now (`live`): the review's
+ * line before Publish, which says what this change does to them. Shown only, never kept, and never
+ * a reason Publish waits.
  */
 export async function draftChecks(
   tx: Queryable,
   today: string,
   itemId: string,
-  candidate: ServingBundle,
+  bundles: { live: ServingBundle; draft: ServingBundle },
 ): Promise<SavedDraft[]> {
   const rows = await tx.query<ToCheck>(
     `${toCheck} where $2 = any(expect_items)
@@ -500,14 +512,27 @@ export async function draftChecks(
     [null, itemId],
   )
   return rows.map((q) => {
-    const now = answerNow(candidate, q.question, today)
+    const live = answerNow(bundles.live, q.question, today)
+    const draft = answerNow(bundles.draft, q.question, today)
+    const expectItems = givenOf(live, q.expectItems)
     return {
       id: q.id,
       question: q.question,
-      ...compareSaved(q.saved, now, q.expectItems),
-      saved: q.saved,
-      now,
-      expectItems: q.expectItems,
+      ...compareSaved(live, draft, expectItems),
+      live,
+      draft,
+      expectItems,
     }
   })
 }
+
+/**
+ * The items a saved question should answer from that an answer gives: an item it should answer
+ * from that was not given before a change is not the change's doing.
+ */
+const givenOf = (before: SavedAnswer, expect: readonly string[]) =>
+  expect.filter((id) => before.items.some((i) => i.id === id))
+
+/** What a change does to a saved question: the answer after it beside the answer before it. */
+const movedBy = (before: SavedAnswer, after: SavedAnswer, expect: readonly string[]) =>
+  compareSaved(before, after, givenOf(before, expect))

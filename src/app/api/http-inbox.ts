@@ -722,9 +722,9 @@ export function reviewOf(
     saved: sheet.saved.map((x) => ({
       id: x.id,
       result: x.result,
-      why: savedWhy({ reason: x.reason, saved: x.saved, now: x.now, expect: x.expectItems }),
-      before: answerText(x.saved),
-      now: answerText(x.now),
+      why: savedWhy({ reason: x.reason, saved: x.live, now: x.draft, expect: x.expectItems }),
+      before: answerText(x.live),
+      now: answerText(x.draft),
     })),
   }
 }

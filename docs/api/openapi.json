@@ -24929,7 +24929,7 @@
                             ],
                             "type": "string"
                           },
-                          "saved": {
+                          "live": {
                             "type": "object",
                             "properties": {
                               "state": {
@@ -24991,7 +24991,7 @@
                               "items"
                             ]
                           },
-                          "now": {
+                          "draft": {
                             "type": "object",
                             "properties": {
                               "state": {
@@ -25065,8 +25065,8 @@
                           "question",
                           "result",
                           "reason",
-                          "saved",
-                          "now",
+                          "live",
+                          "draft",
                           "expectItems"
                         ]
                       }

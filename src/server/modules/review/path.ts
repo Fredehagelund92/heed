@@ -382,7 +382,10 @@ export function createReviewPath(
         after,
       },
       reach,
-      saved: r.mode === 'new' ? [] : await draftChecks(tx, today, r.itemId, r.candidate),
+      saved:
+        r.mode === 'new'
+          ? []
+          : await draftChecks(tx, today, r.itemId, { live: r.bundle, draft: r.candidate }),
       canPublish: whyNot === null && ready.publishable,
       whyNot: whyNot ?? (ready.publishable ? null : words.text),
     }

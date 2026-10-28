@@ -245,7 +245,8 @@ describe('the free check', () => {
     expect(sheet.saved).toEqual([
       expect.objectContaining({ id: saved.id, question, result: 'changed', reason: 'words' }),
     ])
-    expect(sheet.saved[0]!.now.items[0]!.summary).toBe('Orders in Norway stopped on 4 August.')
+    expect(sheet.saved[0]!.draft.items[0]!.summary).toBe('Orders in Norway stopped on 4 August.')
+    expect(sheet.saved[0]!.live.items[0]!.summary).toBe('Orders')
     // Nobody else's review shows it: the author does not manage the domain.
     expect((await ok<ReviewSheet>('author', 'GET', `/review/${proposal}/sheet`)).saved).toEqual([])
 
@@ -268,6 +269,17 @@ describe('the free check', () => {
     expect(changed!.result.now.items[0]!.summary).toBe(
       'Orders in Norway fell to almost nothing from 4 August.',
     )
+
+    // A suggestion that changes nothing agents get changes nothing for it, whatever it was saved as.
+    const unchanged = await database.transaction(people.owner, async (tx) => {
+      const [head] = await tx.query<{ seq: string; label: string; overlay: string }>(
+        `select e.seq::text, e.label, coalesce((select seq::text from serving_overlay),'0') as overlay
+           from editions e join live_edition l on l.seq = e.seq`,
+      )
+      const bundle = await loadServingBundle(tx, head!)
+      return draftChecks(tx, today, item, { live: bundle, draft: bundle })
+    })
+    expect(unchanged.map((d) => [d.id, d.result])).toEqual([[saved.id, 'same']])
 
     const kept = await ok<{ question: SavedQuestionRecord; undo: string }>(
       'owner',
@@ -340,20 +352,21 @@ describe('the free check', () => {
       const bundle = await loadServingBundle(tx, head!)
       // Archiving the item: the question would hear nothing is written down.
       return draftChecks(tx, today, item, {
-        ...bundle,
-        items: bundle.items.filter((i) => i.id !== item),
+        live: bundle,
+        draft: { ...bundle, items: bundle.items.filter((i) => i.id !== item) },
       })
     })
     expect(drafts).toEqual([
       expect.objectContaining({ id: saved.id, question, result: 'look', reason: 'worse' }),
     ])
-    expect(drafts[0]!.now.state).toBe('missing')
+    expect(drafts[0]!.draft.state).toBe('missing')
     // Someone who does not manage the domain sees none.
     const theirs = await database.transaction(people.author, async (tx) => {
       const [head] = await tx.query<{ seq: string; label: string; overlay: string }>(
         `select e.seq::text, e.label, '0' as overlay from editions e join live_edition l on l.seq = e.seq`,
       )
-      return draftChecks(tx, today, item, await loadServingBundle(tx, head!))
+      const bundle = await loadServingBundle(tx, head!)
+      return draftChecks(tx, today, item, { live: bundle, draft: bundle })
     })
     expect(theirs).toEqual([])
   })

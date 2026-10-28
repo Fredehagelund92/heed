@@ -109,16 +109,18 @@ export const savedStatusSchema = z.object({
 export type SavedStatus = z.infer<typeof savedStatusSchema>
 
 /**
- * A saved question that answers from the item a suggestion changes, checked against the draft
- * before Publish (the review's line): shown, never stored, and never a reason Publish waits.
+ * A saved question that answers from the item a suggestion changes, checked before Publish (the
+ * review's line): what it gets with the draft beside what it gets now, so the result is what this
+ * change does to it. Shown, never stored, and never a reason Publish waits.
  */
 export const savedDraftSchema = z.object({
   id: z.string(),
   question: z.string(),
   result: z.enum(savedResults),
   reason: z.enum(savedReasons),
-  saved: savedAnswerSchema,
-  now: savedAnswerSchema,
+  live: savedAnswerSchema,
+  draft: savedAnswerSchema,
+  /** The items it should answer from that it answers from now. */
   expectItems: z.array(z.string()),
 })
 export type SavedDraft = z.infer<typeof savedDraftSchema>

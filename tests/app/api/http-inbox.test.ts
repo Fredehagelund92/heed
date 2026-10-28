@@ -502,12 +502,16 @@ describe('the review', () => {
             question: 'Do units sold include test accounts?',
             result: 'changed',
             reason: 'words',
-            saved: {
+            live: {
               state: 'grounded',
               say: 'Checked.',
               items: [item('Leaves out 312 accounts.')],
             },
-            now: { state: 'grounded', say: 'Checked.', items: [item('Leaves out 340 accounts.')] },
+            draft: {
+              state: 'grounded',
+              say: 'Checked.',
+              items: [item('Leaves out 340 accounts.')],
+            },
             expectItems: ['itm_a'],
           },
         ],
