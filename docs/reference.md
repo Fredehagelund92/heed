@@ -1120,7 +1120,7 @@ their name (FR-526; FR-602 as amended: words a person sends on purpose are kept 
 It names the items it should answer from: by default every item its answer gives when it is
 saved, and a person may leave some out. Owners read and change their own domains' saved
 questions and administrators every domain's; anyone else gets none (row security, migration
-0018). Agents never read them: nothing serves, seals or exports them. The contract is in
+0019). Agents never read them: nothing serves, seals or exports them. The contract is in
 `src/contract/saved-questions.ts` and the rules in `src/domain/saved-check.ts`.
 
 The free check answers a saved question again with the answer engine on what agents get now,

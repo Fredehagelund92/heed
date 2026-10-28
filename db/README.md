@@ -450,7 +450,7 @@ counts case 1 of FR-606 across a month edge: no-item calls in the period about o
 metrics, values and dimensions count together whatever month their dates start in, and the gap
 stays on one topic of that scope, whose weekly counts add up every month of it.
 
-Saved questions (migration 0018). `saved_questions` keeps a domain's question with who saved it,
+Saved questions (migration 0019). `saved_questions` keeps a domain's question with who saved it,
 where from (Ask, a Not found draft, or typed) and the items it should answer from; removing one
 marks it removed. `saved_question_baselines` keeps the answers it should keep getting: the first
 when it is saved, one each time someone keeps a new answer (its keeper may undo it, once), and one
