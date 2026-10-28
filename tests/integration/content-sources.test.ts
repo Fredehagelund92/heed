@@ -451,6 +451,9 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     )
     expect(published.proposal.state).toBe('accepted')
     const { item } = (await suggestions(sourceId)).find((s) => s.id === spain.id)!
+    // The library and the item read like any other once published.
+    const library = await call('GET', '/library', 'owner')
+    expect(library.statusCode, library.body).toBe(200)
     await host.commit('handbook', {
       'docs/finance/orders-norway.md': handbook['docs/finance/orders-norway.md'],
       'docs/finance/contacts.md': handbook['docs/finance/contacts.md'],

@@ -174,7 +174,10 @@ async function main(): Promise<void> {
     }
   }
   const mcp = await createMcpDependencies(config, logger, login)
-  const sources = new ConnectorRegistry([configuredSource(config)], { secrets })
+  const sources = new ConnectorRegistry([configuredSource(config)], {
+    secrets,
+    worker: config.cubeCompile,
+  })
   const workspaceSources = createWorkspaceSources({ secrets, registry: sources })
   const jobs = createJobRunner({
     connectionString: config.databaseUrl,

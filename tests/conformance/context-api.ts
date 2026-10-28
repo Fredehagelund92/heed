@@ -79,10 +79,10 @@ export function describeContextApi(
   { personId }: ConformanceOptions,
 ) {
   const api = () => getApi()
-  const withPeople = <T extends { ownerId: string; proposerId: string }>(item: T): T => ({
+  const withPeople = <T extends { ownerId: string; proposerId: string | null }>(item: T): T => ({
     ...item,
     ownerId: personId(item.ownerId),
-    proposerId: personId(item.proposerId),
+    proposerId: item.proposerId === null ? null : personId(item.proposerId),
   })
   // Groups are parked: the service serves every item to everyone. The mock keeps the fixture's
   // audience, so it is left out of the comparison.
@@ -210,7 +210,7 @@ export function describeContextApi(
           reviewQuestion: item.reviewQuestion,
           checkFlag: item.checkFlag,
           ownerId: personId(item.ownerId),
-          proposerId: personId(item.proposerId),
+          proposerId: item.proposerId === null ? null : personId(item.proposerId),
           updatedAt: item.updatedAt,
           // The day of the current version's acceptance. The two demo histories name different
           // owners as the one who accepted it, so only that someone did is compared.
@@ -263,7 +263,7 @@ export function describeContextApi(
       ]) {
         const owner = personId(item.ownerId)
         const expected = versionDays(item).flatMap(({ version, proposed, accepted }) => [
-          { version, event: 'proposed', date: proposed, personId: personId(item.proposerId) },
+          { version, event: 'proposed', date: proposed, personId: personId(item.proposerId!) },
           { version, event: 'accepted', date: accepted, personId: owner },
         ])
         if (item.status === 'retired')

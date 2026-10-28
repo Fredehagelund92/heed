@@ -11,14 +11,23 @@ CON-113 (declared hosts only) and CON-114 (its own secrets only).
 | Level | Where                                                                                                                                                                                                                                                         | Who                                                                    | Status          |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------- |
 | T0    | In the server's process, reviewed in this repository. With interface 3, all HTTP goes through `ctx.fetch` and all Git through `ctx.git`.                                                                                                                      | Built-in connectors                                                    | Now             |
-| T1    | Built-in, with risky parsing in a child process under Node's permission model: no writes, no child processes, reads only listed paths.                                                                                                                        | The Cube compiler ([Compilation](cube.md#compilation-and-stored-data)) | Now             |
+| T1    | Built-in, with risky parsing in a child process under Node's permission model (`ctx.worker`): no network, no writes, no child processes, reads only the service's code and dependencies, input over IPC.                                                      | The Cube compiler ([Compilation](cube.md#compilation-and-stored-data)) | Now             |
 | T2    | Out of process: a child process per run that speaks the runtime's messages as JSON lines, has no network of its own and reads only its own package. Its only way out is an egress proxy over IPC that enforces the manifest's hosts and attaches credentials. | Verified connectors from packages ([Packaging](packaging.md))          | Designed, later |
 | T3    | A container or micro-VM per run: read-only root, no ambient credentials, egress forced through the proxy.                                                                                                                                                     | Code nobody reviewed                                                   | Only if needed  |
 
 Node's own documentation calls its permission model a seat belt that does not give security
 guarantees against malicious code: symbolic links and inherited file descriptors get past it,
 and `--allow-net` is all or nothing, with no list of hosts. So T1 is failure isolation for
-reviewed code, T2 is for verified code, and code nobody reviewed needs T3. `node:vm` and worker
+reviewed code, T2 is for verified code, and code nobody reviewed needs T3.
+
+A built-in connector reaches T1 through `ctx.worker(input)`: the core forks the worker its
+module names (`src/connectors/<id>/worker.ts`, `src/server/modules/connectors/worker.ts` runs
+it) with a heap limit, the read's time limit and no environment of the server's but `PATH`,
+sends it the input over IPC and takes its one answer, which the runtime checks before it sends a
+record. The worker gets what the runtime read through `ctx.git` or `ctx.folder` as data, so it
+reads no folder of the tool, only the service's code, its dependencies and the package file.
+What it prints is dropped. A worker may load the packages it parses with; it imports nothing of
+the service (`eslint.boundaries.js`). `node:vm` and worker
 threads are not security boundaries. Node denies the network to a process started with
 `--permission` from version 26 on; `package.json` requires it and `.npmrc` refuses an install on
 an older one, but the server does not yet check the Node it runs on.
@@ -89,8 +98,8 @@ says so). A hosted service with several servers moves to a managed store behind 
 interface (`SecretStore` in `secrets.ts`).
 
 A secret goes in once and comes out only to the source's reader, and only toward the address it
-was given for: a type names the settings its secrets are bound to (`secretsBoundTo`; the Cube
-type's is the repository). A change to one of them forgets the stored secrets unless new ones are
+was given for: a connector names the settings each secret is bound to (`boundTo` in its
+manifest; Cube's token is bound to the repository). A change to one of them forgets the stored secrets unless new ones are
 given with it (the history log says `removed`), and a test at another address does not use them,
 so an administrator cannot send a token they never saw to a host of their choosing. The API never returns it, the
 history log and snapshots never hold it, the service never logs it, and it never reaches the
@@ -128,8 +137,10 @@ The core treats everything a connector returns as untrusted data (CON-107):
 ## Rules for connector code
 
 - No raw network: HTTP through `ctx.fetch`, Git through `ctx.git`.
-- No reading the environment, the secret store or files outside what the core hands over.
-- No writing files, and no starting programs.
+- No reading the environment, the secret store or files outside what the core hands over
+  (`ctx.git`, `ctx.folder`).
+- No writing files, and no starting programs: a parser or compiler of the tool's files runs in
+  the connector's worker (`ctx.worker`), which the core starts.
 - No logging content or secrets: `ctx.log` takes codes and targets.
 - Honour `ctx.signal`: a read stops when the core aborts it.
 - Nothing is written to the tool (CON-102), and the access a connector asks for is the least it

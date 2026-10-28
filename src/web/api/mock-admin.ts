@@ -848,10 +848,9 @@ export function createMockAdmin(world: MockAdminWorld) {
   const addedSources = new Map<string, SourceSettings>()
 
   /**
-   * The service's checks of a source's settings (workspace.ts): a connector written to
-   * interface 3 by its manifest's rules and its runtime's own (the static list's entries), the
-   * Cube type by its own rules (connectors/cube.ts), in words by field. Domain names must name
-   * domains in Heed.
+   * The service's checks of a source's settings (workspace.ts): by the connector's manifest and
+   * its runtime's own rules (the static list's entries), in words by field. Domain names must
+   * name domains in Heed.
    */
   function sourceProblems(
     listing: ConnectorListing,
@@ -868,7 +867,6 @@ export function createMockAdmin(world: MockAdminWorld) {
     for (const [key, value] of Object.entries(input.secrets))
       if (value.length >= 8 && pasted.includes(value))
         problem(key, 'The secret is in another field too. Keep it in its own field only.')
-    if (listing.writtenTo === 2) return [...cubeProblems(input.config), ...problems]
     const parsed = parseConnectorConfig(manifest, input.config)
     if ('problems' in parsed)
       for (const found of parsed.problems) problem(found.field, found.message)
@@ -887,105 +885,10 @@ export function createMockAdmin(world: MockAdminWorld) {
   /** The service's words for a domain the settings name that Heed does not have. */
   const unknownDomain = (id: string) => `${id} isn't a domain in ${productName}.`
 
-  /** The Cube type's own checks (connectors/cube.ts), in words by field. */
-  function cubeProblems(config: SourceConfig): Finding[] {
-    const problems: Finding[] = []
-    const problem = (field: string, message: string) =>
-      problems.push({ code: 'invalid_setting', field, message, severity: 'error' })
-    const text = (key: string) => {
-      const value = config[key]
-      return typeof value === 'string' ? value.trim() : ''
-    }
-    const known = mockConnectorListings.find((listing) => listing.manifest.id === 'cube')!.manifest
-    for (const key of Object.keys(config))
-      if (!known.config.fields.some((field) => field.key === key))
-        problem(key, 'This source has no such setting.')
-    const fetchable = (address: string, plainHttp: boolean) => {
-      const url = URL.parse(address)
-      return (
-        url !== null &&
-        !url.username &&
-        !url.password &&
-        !url.search &&
-        !url.hash &&
-        (url.protocol === 'https:' ||
-          (plainHttp &&
-            url.protocol === 'http:' &&
-            ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)))
-      )
-    }
-    const repository = text('repository')
-    if (!repository) problem('repository', 'Give the repository’s address.')
-    else if (!fetchable(repository, true))
-      problem(
-        'repository',
-        'Use an https address on a public host, without a user name, password, query or fragment. The token goes in its own field.',
-      )
-    const ref = text('ref')
-    if (!ref) problem('ref', 'Name a branch, a tag or a commit.')
-    else if (!/^[A-Za-z0-9._/-]{1,200}$/.test(ref) || /^[-/]|\/$|\.lock$|\.\.|\/\//.test(ref))
-      problem(
-        'ref',
-        'Use letters, digits, dots, dashes, underscores and slashes, as Git names a branch.',
-      )
-    const folder = text('folder').replace(/^\/+|\/+$/g, '')
-    if (
-      folder &&
-      !folder
-        .split('/')
-        .every(
-          (part) => /^[A-Za-z0-9._ -]{1,100}$/.test(part) && !['.', '..', '.git'].includes(part),
-        )
-    )
-      problem('folder', 'Name a folder inside the repository, such as model or cube/model.')
-    const username = text('username')
-    if (username && !/^[A-Za-z0-9._@+-]{1,100}$/.test(username))
-      problem('username', 'Use letters, digits and . _ @ + - only.')
-    const modelUrl = text('modelUrl')
-    if (modelUrl && !fetchable(modelUrl, false))
-      problem('modelUrl', 'Use an https address without a user name, password, query or fragment.')
-    const names = config.domainNames
-    if (typeof names !== 'object' || Array.isArray(names)) {
-      if (names !== undefined) problem('domainNames', 'Write a list of names.')
-    } else
-      for (const [from, to] of Object.entries(names)) {
-        if (!from.trim()) problem('domainNames', 'Each line needs the model’s name.')
-        else if (!/^[a-z][a-z0-9_]{1,39}$/.test(to))
-          problem('domainNames', `Choose the ${productName} domain for ${from.trim()}.`)
-        else if (!roster.areas.some((area) => area.id === to))
-          problem('domainNames', unknownDomain(to))
-      }
-    return problems
-  }
-
-  /**
-   * The settings as the service stores them: by the manifest's rules for a connector written to
-   * interface 3; trimmed, with empty ones left out, for the Cube type.
-   */
+  /** The settings as the service stores them: by the connector's manifest. */
   function storedConfig(listing: ConnectorListing, config: SourceConfig): SourceConfig {
-    if (listing.writtenTo === 3) {
-      const parsed = parseConnectorConfig(listing.manifest, config)
-      return 'config' in parsed ? parsed.config : {}
-    }
-    const stored: SourceConfig = {}
-    for (const [key, value] of Object.entries(config)) {
-      if (typeof value === 'string') {
-        const trimmed =
-          key === 'folder'
-            ? value.trim().replace(/^\/+|\/+$/g, '')
-            : // The repository is kept in the form git is given (the WHATWG form).
-              key === 'repository' && URL.canParse(value.trim())
-              ? new URL(value.trim()).href
-              : value.trim()
-        if (trimmed) stored[key] = trimmed
-      } else if (typeof value === 'object' && !Array.isArray(value)) {
-        const names = Object.fromEntries(
-          Object.entries(value).map(([from, to]) => [from.trim(), to] as const),
-        )
-        if (Object.keys(names).length) stored[key] = names
-      }
-    }
-    return stored
+    const parsed = parseConnectorConfig(listing.manifest, config)
+    return 'config' in parsed ? parsed.config : {}
   }
 
   const sourceType = (type: string) =>

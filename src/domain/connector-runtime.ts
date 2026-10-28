@@ -153,14 +153,10 @@ export type GuardedFetch = (
 ) => Promise<Response>
 
 /**
- * One commit of a Git repository, checked out for one piece of work and removed after it. Paths
- * are relative to the folder asked for, with `/` between parts. Read only.
+ * A folder of files, read only. Paths are relative to the folder handed over, with `/` between
+ * parts, and nothing outside it is listed or read.
  */
-export interface GitTree {
-  /** The commit's id. */
-  readonly commit: string
-  /** When it was committed, ISO 8601 in UTC. */
-  readonly committedAt: string
+export interface FolderTree {
   /** The folders directly in a folder of the tree ('' for its top), sorted. */
   folders(folder?: string): Promise<string[]>
   /**
@@ -168,8 +164,16 @@ export interface GitTree {
    * plain files, and nothing outside the tree is listed.
    */
   files(folder?: string): Promise<{ path: string; size: number }[]>
-  /** A file's text as UTF-8; null when it is not a file in the tree or is not text. */
+  /** A file's text as UTF-8; null when it is not a file in the tree, is a link or is not text. */
   text(path: string): Promise<string | null>
+}
+
+/** One commit of a Git repository, checked out for one piece of work and removed after it. */
+export interface GitTree extends FolderTree {
+  /** The commit's id. */
+  readonly commit: string
+  /** When it was committed, ISO 8601 in UTC. */
+  readonly committedAt: string
 }
 
 /**
@@ -187,6 +191,8 @@ export type GuardedGit = <T>(
     folder?: string
     /** The key of the secret to send as the token. */
     secret?: string
+    /** The user name sent with the token; most hosts accept any. */
+    username?: string
   },
   work: (tree: GitTree) => Promise<T>,
 ) => Promise<T>
@@ -209,6 +215,19 @@ export interface RuntimeContext<Config = ConnectorConfig> {
   secret(key: string): string | null
   readonly fetch: GuardedFetch
   readonly git: GuardedGit
+  /**
+   * The folder on the server that whoever runs it named for this source, read only; null for a
+   * source an administrator added, which reaches its tool through `fetch` or `git`.
+   */
+  readonly folder: FolderTree | null
+  /**
+   * Runs the connector's worker with this input and returns its one answer, untrusted (T1,
+   * docs/connectors/security.md): a child process of its own under Node's permission model, with
+   * no network, no writes and no programs, that reads only the service's code and dependencies,
+   * within the read's time limit. A connector that declares no worker is refused. Built-in
+   * connectors only.
+   */
+  worker(input: unknown): Promise<unknown>
   /** Ends the work at the manifest's `limits.timeoutSeconds`. */
   readonly signal: AbortSignal
   readonly log: RedactingLogger
@@ -238,13 +257,24 @@ export const defineRuntime = <Config = ConnectorConfig>(
 export interface ConnectorModule {
   readonly manifest: ConnectorManifest
   readonly runtime: ConnectorRuntime
+  /**
+   * The worker the runtime hands risky parsing to (`ctx.worker`), a module of its folder that the
+   * core runs in a child process of its own (T1). Built-in connectors only.
+   */
+  readonly worker?: URL
 }
 
 /**
- * A connector's two halves, as `src/connectors/index.ts` lists them. The core checks the
- * settings against the manifest before the runtime sees them, so the runtime may type them.
+ * A connector's two halves, as `src/connectors/index.ts` lists them, and its worker if it has
+ * one. The core checks the settings against the manifest before the runtime sees them, so the
+ * runtime may type them.
  */
 export const defineConnector = <Config>(
   manifest: ConnectorManifest,
   runtime: ConnectorRuntime<Config>,
-): ConnectorModule => ({ manifest, runtime: runtime as unknown as ConnectorRuntime })
+  options: { worker?: URL } = {},
+): ConnectorModule => ({
+  manifest,
+  runtime: runtime as unknown as ConnectorRuntime,
+  ...(options.worker ? { worker: options.worker } : {}),
+})

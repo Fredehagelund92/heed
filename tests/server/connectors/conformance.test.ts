@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { afterAll, beforeAll } from 'vitest'
 import { builtInConnectors } from '../../../src/connectors/index.ts'
 import { builtInFolder, describeConnector, type FixtureSource } from './kit.ts'
@@ -18,6 +19,12 @@ beforeAll(async () => {
     'docs/sales/returns/returns.md': '# Returns\n\nReturns are counted on the day they arrive.\n',
     'docs/marketing/spend.md': '# Spend\n\nMarketing spend is booked monthly.\n',
     'docs/notes.txt': 'Not Markdown.',
+  })
+  const model = await readFile(new URL('../../fixtures/cube/model.yml', import.meta.url), 'utf8')
+  await host.repository('analytics', { 'cube/model/model.yml': model, 'README.md': '# Model' })
+  await host.repository('analytics-partial', {
+    'cube/model/model.yml': model,
+    'cube/model/macros.js': 'module.exports = {}',
   })
 }, 60_000)
 afterAll(async () => {
@@ -84,4 +91,55 @@ describeConnector(module('git-markdown'), {
     },
   ],
   planted: TOKEN,
+})
+
+const analytics = (token: string | null): FixtureSource => ({
+  config: { repository: host.address('analytics'), ref: 'main', folder: 'cube/model' },
+  secrets: token === null ? {} : { token },
+})
+
+describeConnector(module('cube'), {
+  folder: builtInFolder('cube'),
+  good: () => analytics(TOKEN),
+  refused: () => analytics('not-the-token'),
+  unreachable: () => ({
+    ...analytics(TOKEN),
+    config: { ...analytics(TOKEN).config, repository: 'http://127.0.0.1:9/nothing.git' },
+  }),
+  invalid: [
+    { config: { ref: 'main' }, field: 'repository' },
+    { config: { repository: 'ftp://git.example.test/a.git', ref: 'main' }, field: 'repository' },
+    {
+      config: { repository: 'https://user:pass@git.example.test/a.git', ref: 'main' },
+      field: 'repository',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: '--upload-pack' },
+      field: 'ref',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', folder: '../up' },
+      field: 'folder',
+    },
+    {
+      config: { repository: 'https://git.example.test/a.git', ref: 'main', username: 'a b' },
+      field: 'username',
+    },
+    {
+      config: {
+        repository: 'https://git.example.test/a.git',
+        ref: 'main',
+        domainNames: { marketing: 'Not a domain' },
+      },
+      field: 'domainNames',
+    },
+  ],
+  partial: () => ({
+    ...analytics(TOKEN),
+    config: { ...analytics(TOKEN).config, repository: host.address('analytics-partial') },
+  }),
+  calculation: 'example_orders',
+  planted: TOKEN,
+  // Each read compiles the model in the worker: seconds on a busy machine.
+  timeout: 120_000,
 })

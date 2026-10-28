@@ -26,7 +26,7 @@ type Search = Record<string, unknown>
 
 /**
  * A connector as the trail names it: a built-in manifest's title, read without the network, or
- * its id said as a name (`cube` is Cube) for one written to interface 2.
+ * its id said as a name for one this build does not know.
  */
 function connectorCrumb(id: string): string {
   const manifest = builtInManifests.find((candidate) => candidate.id === id)

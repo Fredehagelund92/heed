@@ -216,7 +216,10 @@ function historyOf(
   versionDays: (item: ContextItem) => { version: number; proposed: string; accepted: string }[],
 ): HistoryEntry[] {
   const entries: HistoryEntry[] = versionDays(item).flatMap(({ version, proposed, accepted }) => [
-    { version, event: 'proposed', date: proposed, personId: item.proposerId },
+    // An item a content source's read made was proposed by nobody.
+    ...(item.proposerId === null
+      ? []
+      : [{ version, event: 'proposed' as const, date: proposed, personId: item.proposerId }]),
     { version, event: 'accepted', date: accepted, personId: item.ownerId },
   ])
   if (item.status === 'retired') {

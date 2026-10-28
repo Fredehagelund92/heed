@@ -153,7 +153,8 @@ describe('item fixtures', () => {
     for (const item of items) {
       expect(areaIds.has(item.areaId)).toBe(true)
       expect(personIds.has(item.ownerId)).toBe(true)
-      expect(personIds.has(item.proposerId)).toBe(true)
+      // Every demo item has a person who proposed it: none was made by a read.
+      expect(item.proposerId !== null && personIds.has(item.proposerId)).toBe(true)
       for (const metric of item.scope.metrics) expect(metricIds.has(metric)).toBe(true)
       for (const value of item.scope.dimensionValues) {
         expect(dimensionValues.has(`${value.dimension}:${value.value}`)).toBe(true)

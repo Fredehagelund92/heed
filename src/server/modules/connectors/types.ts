@@ -1,12 +1,16 @@
 import * as z from 'zod'
 import type { SettingKey } from '../../../contract/admin.ts'
 import { sourceWarningCodes, type SourceServerSettingKey } from '../../../contract/operations.ts'
-import type { Interface2Declaration } from '../../../domain/connector-manifest.ts'
-import type { SourceConfig } from '../../../contract/sources.ts'
 import type { SourceErrorClass } from '../../../domain/connector-runtime.ts'
 
-/** The connector interface this build speaks (CON-109): docs/connectors.md, contract v2. */
+/**
+ * The interface of the definitions pipeline's snapshot (docs/connectors.md, "Interface 2"): the
+ * demo source is written to it, and an interface 3 runtime's read is gathered into it.
+ */
 export const INTERFACE_VERSION = 2
+
+/** The interfaces a source this build reads may be written to (CON-109). */
+export type SourceInterfaceVersion = 2 | 3
 
 /** The most other names Heed keeps for one member: as many as a term may have (FR-107). */
 export const DEFINITION_SYNONYMS_MAX = 20
@@ -71,9 +75,9 @@ export const snapshotSchema = z.object({
 export type SourceSnapshot = z.infer<typeof snapshotSchema>
 
 /**
- * What a type of connector says about itself, the same for every source of the type (the
- * connector contract, docs/connectors.md). Core code names no vendor (CON-101): the words on
- * screen come from here.
+ * What a type of source the server's own configuration selects says about itself: its tool, for
+ * the words on screen, and the administrator settings that belong to it. Core code names no
+ * vendor (CON-101): the words on screen come from here or from a connector's manifest.
  */
 export interface ConnectorType {
   readonly type: string
@@ -84,48 +88,9 @@ export interface ConnectorType {
    * selects, shown on its page in Sources.
    */
   readonly settingKeys: readonly SettingKey[]
-  /** How an administrator adds a source of the type in Sources; absent when they cannot. */
-  readonly workspace?: WorkspaceConnector
 }
 
 export type { FieldProblem } from '../../../domain/connector-config.ts'
-import type { FieldProblem } from '../../../domain/connector-config.ts'
-
-/** One field of an interface 2 type's form: text, an address, a secret or domain names. */
-export type SourceField = Interface2Declaration['fields'][number]
-
-/**
- * What a type declares so an administrator can add a source of it: what it reads and the least
- * access it needs (CON-106), the fields of its form, how it checks the settings, and how it makes
- * the source from them. Secrets are fields of kind `secret`: the core keeps them in the secret
- * store and hands them to `create` only (CON-105).
- */
-export interface WorkspaceConnector {
-  readonly kind: 'definition_source'
-  readonly title: string
-  readonly description: string
-  readonly access: readonly string[]
-  readonly fields: readonly SourceField[]
-  /**
-   * The settings a source's secrets are bound to: where they are sent. When one changes, the
-   * stored secrets are not sent there; only secrets given again with the change are.
-   */
-  readonly secretsBoundTo: readonly string[]
-  /** The settings as stored, or what is wrong with them. Never sees a secret. */
-  parse(config: SourceConfig): { config: SourceConfig } | { problems: FieldProblem[] }
-  /** The domains the settings name, which must be Heed domains. */
-  domains(config: SourceConfig): readonly string[]
-  /**
-   * The source for stored settings. `secrets` is null when the store does not hold the source's
-   * secrets any more; its reads then fail with `secret_missing`.
-   */
-  create(source: {
-    id: string
-    name: string
-    config: SourceConfig
-    secrets: Readonly<Record<string, string>> | null
-  }): DefinitionSource
-}
 
 /** A part of the server's configuration a source reads: set by whoever runs the server. */
 export interface ServerSetting {
@@ -145,7 +110,8 @@ export interface DefinitionSource {
   readonly id: string
   readonly type: string
   readonly name: string
-  readonly interfaceVersion: typeof INTERFACE_VERSION
+  /** The interface its connector was written to: 3, or 2 for the demo. */
+  readonly interfaceVersion: SourceInterfaceVersion
   /** The server's configuration it reads, shown read only in Sources. */
   readonly serverSettings: readonly ServerSetting[]
   /**

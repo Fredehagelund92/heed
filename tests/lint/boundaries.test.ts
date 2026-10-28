@@ -79,6 +79,12 @@ describe('module boundaries', () => {
     )
   })
 
+  it("lets a connector's worker load its packages, and still not the service", async () => {
+    expect(await messagesFor('connectors/sample/worker.ts')).toEqual([
+      '3: Module boundary: connectors may not import server code. See "Module boundaries" in CONTRIBUTING.md.',
+    ])
+  })
+
   it('lets the command line tool import the contract and the domain only', async () => {
     expect(await messagesFor('cli/leaks-server.ts')).toEqual([
       '2: Module boundary: cli may not import server-module code. See "Module boundaries" in CONTRIBUTING.md.',

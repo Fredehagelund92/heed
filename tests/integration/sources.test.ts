@@ -465,9 +465,9 @@ describe('a source of a connector written to interface 3', () => {
       manifest: { id: string }
     }[]
     expect(listed.map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
+      ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
-      ['cube', 2],
     ])
     const test = await call('ravi', 'POST', '/sources/test', {
       type: 'static-definitions',

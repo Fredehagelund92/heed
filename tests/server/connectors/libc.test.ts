@@ -1,7 +1,7 @@
 import type { spawnSync as SpawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { afterEach, describe, expect, it } from 'vitest'
-import { libcAnswers } from '../../../src/server/modules/connectors/libc.ts'
+import { libcAnswers } from '../../../src/connectors/cube/libc.ts'
 
 /*
   The compiler process may not start programs, so Cube's libc probe (@cubejs-backend/shared,
@@ -24,7 +24,7 @@ afterEach(() => {
 describe("answering Cube's libc question", () => {
   it.each(['gnu', 'musl'] as const)('says %s when the service found it', (libc) => {
     Object.defineProperty(process, 'platform', { value: 'linux' })
-    childProcess.spawnSync = libcAnswers(libc) as typeof SpawnSync
+    childProcess.spawnSync = libcAnswers(libc) as unknown as typeof SpawnSync
     expect(detectLibc()).toBe(libc)
   })
 

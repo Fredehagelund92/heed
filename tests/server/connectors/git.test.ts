@@ -12,10 +12,8 @@ import {
   isSafeRef,
   withGitCheckout,
 } from '../../../src/server/modules/connectors/git.ts'
-import {
-  createCubeGitSource,
-  type CubeGitSourceOptions,
-} from '../../../src/server/modules/connectors/index.ts'
+import { builtInConnectors } from '../../../src/connectors/index.ts'
+import { fromModule } from '../../../src/server/modules/connectors/index.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
 import { gitHost, type GitHost } from './git-server.ts'
 
@@ -45,16 +43,38 @@ beforeAll(async () => {
 })
 afterAll(() => host.close())
 
-const source = (options: Partial<CubeGitSourceOptions> = {}) =>
-  createCubeGitSource({
-    id: 'analytics',
-    name: 'Analytics',
+interface Options {
+  repository: string
+  ref: string
+  folder: string
+  username?: string
+  domainNames?: Record<string, string>
+  /** The read-only token; null for a public repository, undefined when the store lost it. */
+  token: string | null | undefined
+  /** How long git may take, in seconds. */
+  fetchTimeoutSeconds?: number
+}
+
+const cube = builtInConnectors.find((module) => module.manifest.id === 'cube')!
+
+/** A Cube source of an admin's, made by the Cube connector as the registry makes it. */
+const source = (given: Partial<Options> = {}) => {
+  const { token, fetchTimeoutSeconds, ...config }: Options = {
     repository: host.address('analytics'),
     ref: 'main',
     folder: 'cube/model',
     token: TOKEN,
-    ...options,
+    ...given,
+  }
+  const { manifest } = cube
+  const limits = { ...manifest.limits, timeoutSeconds: fetchTimeoutSeconds ?? 180 }
+  return fromModule({ ...cube, manifest: { ...manifest, limits } }).source({
+    id: 'analytics',
+    name: 'Analytics',
+    config,
+    secrets: token === undefined ? null : token === null ? {} : { token },
   })
+}
 
 async function failure(read: Promise<unknown>) {
   const error = await read.then(
@@ -104,7 +124,7 @@ describe('a Cube model in a Git repository', () => {
   it(
     'gives each domain the model names the Heed domain the domain names map to',
     async () => {
-      const snapshot = await source({ domainAliases: { marketing: 'paid_media' } }).read()
+      const snapshot = await source({ domainNames: { marketing: 'paid_media' } }).read()
       const domain = (ref: string) => snapshot.definitions.find((d) => d.ref === ref)?.areaHint
       expect(domain('cube:growth.revenue')).toBe('paid_media')
       expect(domain('cube:sales.revenue')).toBe('finance')
@@ -185,7 +205,7 @@ describe('a Cube model in a Git repository', () => {
       try {
         expect(
           await failure(
-            source({ repository: `http://127.0.0.1:${port}/x.git`, fetchTimeoutMs: 1_000 }).read(),
+            source({ repository: `http://127.0.0.1:${port}/x.git`, fetchTimeoutSeconds: 1 }).read(),
           ),
         ).toEqual([{ code: 'unreachable', target: `http://127.0.0.1:${port}/x.git` }])
       } finally {

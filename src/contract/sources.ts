@@ -78,7 +78,7 @@ const fieldKey = z.string().check(z.regex(/^[a-z][a-zA-Z0-9]{0,39}$/))
 /**
  * A connector an admin may add a source of, as Sources lists it: its manifest, which is pure
  * data (CON-112), so the screen draws the form and names the tool from it and no screen names a
- * vendor (CON-101). `writtenTo` is the interface it was written to: 3, or 2 through the adapter.
+ * vendor (CON-101). `writtenTo` is the interface it was written to: 3 for every connector today.
  */
 export const connectorListingSchema = z.object({
   writtenTo: z.number(),
@@ -199,7 +199,7 @@ export const testSourceSchema = z.strictObject({
 
 /**
  * What a test found: the connector's check, step by step in its own words (reach, sign in,
- * sample; none for a connector written to interface 2), whether Heed can read the source, the
+ * sample), whether Heed can read the source, the
  * version it read and what it would hold, with the warnings of the read (codes and targets
  * only). A failed test says why in its warnings.
  */

@@ -200,4 +200,14 @@ export const boundaryConfigs = [
     files: ['src/connectors/**', 'tests/lint/fixtures/boundaries/src/connectors/**'],
     rules: connectorPurity,
   },
+  {
+    // A connector's worker (`ctx.worker`, T1) runs in a child process of its own under Node's
+    // permission model, with no network, no writes and no programs, so it may load the packages
+    // it parses with. It still imports nothing of the service (the boundaries above).
+    files: [
+      'src/connectors/*/worker.ts',
+      'tests/lint/fixtures/boundaries/src/connectors/*/worker.ts',
+    ],
+    rules: { 'no-restricted-imports': 'off', 'no-restricted-globals': 'off' },
+  },
 ]

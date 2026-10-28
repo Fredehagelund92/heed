@@ -31,7 +31,7 @@ it('roundtrips 1500 fixture items through the API read model', { timeout: 300_00
     },
     references: [...new Set(item.references)].sort(),
     audience: { kind: 'everyone' },
-    proposerId: seedPersonId(item.proposerId),
+    proposerId: item.proposerId === null ? null : seedPersonId(item.proposerId),
     ownerId: seedPersonId(item.ownerId),
   })
   const byId = new Map(result.rows.map((row) => [row.doc.id, row.doc]))
