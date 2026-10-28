@@ -351,10 +351,10 @@ describe('the free check', () => {
     const failedRuns = async () =>
       Number(
         (
-          await client.query(
+          await client.query<{ n: number }>(
             `select count(*)::int as n from check_runs where started_by is null and failed_at is not null`,
           )
-        ).rows[0].n,
+        ).rows[0]!.n,
       )
     const before = await failedRuns()
     await expect(checkIfMoved(database, clock, broken)).rejects.toThrow('could not be read')

@@ -1135,7 +1135,9 @@ the change, in its own transactions.
 - The `saved.check` job runs every minute and checks every saved question once what agents get
   has moved since its last run: a new edition (named `publish`, `archive`, `restore` or `sync`
   after the newest edition's reason), new stops or flags over it (`sync`), or a new day, on which
-  a check date may pass (`check_date`). Nothing moved, nothing runs.
+  a check date may pass (`check_date`). Nothing moved, nothing runs. A run that failed is not
+  tried again for the same edition, overlay and day until a wait has passed, which doubles with
+  each failure up to an hour.
 - `GET /saved-questions` (`areaId` to narrow): newest first, each with its saver, the items it
   should answer from, its baseline (`saved`: the state, the items with their title and summary,
   and what a person hears) and its last result (`result`, `reason`, the answer `now`, when, and
