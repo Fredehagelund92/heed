@@ -43,7 +43,7 @@ const app = buildApp({
 type Headers = { cookie: string; origin: string; 'x-heed-csrf': string }
 const headers: Record<string, Headers> = {}
 type Who = keyof typeof people
-const call = (method: 'GET' | 'POST', path: string, who: Who, payload?: object) =>
+const call = (method: 'GET' | 'POST' | 'PUT', path: string, who: Who, payload?: object) =>
   app.inject({
     method,
     url: '/api/v1' + path,
@@ -555,5 +555,98 @@ describe('deleting a domain in one step', () => {
     const plan = await removal('sandbox_demo')
     expect(plan).toMatchObject({ demo: true, outcome: 'blocked' })
     expect((await remove('sandbox_demo', plan.revision)).statusCode).toBe(409)
+  })
+})
+
+/*
+  A domain as a document (FR-815, golden plan P11a): made from its own page with a name and its
+  owners alone, renamed and written by its owners, and deleted from its page only while it holds no
+  context and no terms, never the sandbox.
+*/
+describe('a domain from its page', () => {
+  const deleteEmpty = (id: string, who: Who = 'admin') =>
+    call('POST', `/areas/${id}/delete`, who, {})
+  const create = (body: object) => call('POST', '/areas', 'admin', body)
+
+  it('is made with a name and owners alone: the quietest hue, the default review time', async () => {
+    const used = (
+      await client.query<{ label: string }>('select label from areas where archived_at is null')
+    ).rows.map((r) => r.label)
+    const response = await create({
+      id: 'pantry',
+      name: 'Pantry',
+      description: 'Flour, sugar and what the kiosks keep.',
+      summary: 'Flour, sugar and what the kiosks keep.',
+      team: { ownerIds: [people.owner] },
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    const area = response.json<{ label: string; reviewDays: number; chatChannel: null }>()
+    expect(used).not.toContain(area.label)
+    expect(area).toMatchObject({ reviewDays: 2, chatChannel: null, ownerTeam: null })
+  })
+
+  it('is renamed and written by its owners, never to a name another domain has', async () => {
+    const read = async () =>
+      (await call('GET', '/areas/pantry', 'admin')).json<{ revision: number }>()
+    const renamed = await call('PUT', '/areas/pantry/description', 'owner', {
+      revision: (await read()).revision,
+      name: 'Larder',
+      summary: 'What the kiosks keep.',
+      description: 'What the kiosks keep.\n\nHouse rules: weigh in grams.',
+    })
+    expect(renamed.statusCode, renamed.body).toBe(200)
+    expect(renamed.json()).toMatchObject({ name: 'Larder', summary: 'What the kiosks keep.' })
+    const taken = await call('PUT', '/areas/pantry/description', 'owner', {
+      revision: (await read()).revision,
+      name: 'Marketing',
+      summary: '',
+      description: '',
+    })
+    expect(taken.statusCode).toBe(409)
+    // Someone who doesn't own it can't.
+    const stranger = await call('PUT', '/areas/pantry/description', 'stranger', {
+      revision: (await read()).revision,
+      name: 'Mine',
+      summary: '',
+      description: '',
+    })
+    expect(stranger.statusCode).toBe(403)
+  })
+
+  it('is deleted only by an administrator', async () => {
+    for (const who of ['owner', 'author', 'stranger'] as const)
+      expect((await deleteEmpty('pantry', who)).statusCode, who).toBe(403)
+  })
+
+  it('is not deleted while it holds context or terms, and says what it holds', async () => {
+    await acceptedItem('pantry', 'Flour is weighed in grams', 'metric:orders')
+    const held = await deleteEmpty('pantry')
+    expect(held.statusCode, held.body).toBe(409)
+    expect(held.json()).toMatchObject({
+      message:
+        'Only an empty domain can be deleted. Move its context and terms to another domain first.',
+      data: { holdings: { items: 1 } },
+    })
+    // Finance holds a term only, which counts too.
+    const terms = await deleteEmpty('finance')
+    expect(terms.statusCode).toBe(409)
+    expect(terms.json()).toMatchObject({ data: { holdings: { items: 0 } } })
+    expect((await client.query("select 1 from areas where id='pantry'")).rowCount).toBe(1)
+  })
+
+  it('never deletes the sandbox', async () => {
+    const response = await deleteEmpty('sandbox_demo')
+    expect(response.statusCode).toBe(409)
+    expect(response.json<{ message: string }>().message).toMatch(/sandbox can't be deleted/)
+  })
+
+  it('deletes an empty one, which leaves every list', async () => {
+    expect((await create({ id: 'shelf', name: 'Shelf' })).statusCode).toBe(200)
+    const response = await deleteEmpty('shelf')
+    expect(response.statusCode, response.body).toBe(200)
+    expect(response.json<AreaRemoved>()).toMatchObject({ edition: null })
+    const listed = (await call('GET', '/areas', 'author')).json<{ id: string }[]>()
+    expect(listed.map((a) => a.id)).not.toContain('shelf')
+    expect((await deleteEmpty('shelf')).statusCode).toBe(404)
   })
 })

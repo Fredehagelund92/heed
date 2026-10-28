@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { domain, expect, go, test } from './go.ts'
 
 // J9, domains: each is a document of its own; a new one is added from the grid and, while empty,
 // can be deleted; one with context can't; its words reach the context editor's domain list.
@@ -11,7 +10,7 @@ test('a domain opens as its own page', async ({ page }) => {
     .getByRole('listitem')
     .filter({ hasText: 'Sales' })
     .click()
-  await expect(page).toHaveURL(/\/settings\/domains\/sales/)
+  await expect(page).toHaveURL(new RegExp(`/settings/domains/${domain('sales')}$`))
   await expect(page.getByRole('textbox', { name: 'Name' })).toHaveValue('Sales')
   await expect(page.getByRole('link', { name: /items/ })).toBeVisible()
 })

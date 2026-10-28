@@ -1,3 +1,4 @@
+import type { LogEntry } from '@/model/items'
 // A context item's or a definition's versions as the app reads them (src/app/api): a number,
 // who, when and what changed. Pure types and the words a version list says them with.
 
@@ -74,3 +75,27 @@ export const monthOf = (iso: string) =>
     year: 'numeric',
     timeZone: 'UTC',
   })
+
+/** A change to many items, as the History log says it: "Archived “A”, “B” and 3 more". */
+export function logLine(e: Pick<LogEntry, 'what' | 'summary' | 'items'>) {
+  const names = e.items.map((i) => `“${i.title}”`)
+  const titles =
+    names.length > 2
+      ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
+      : names.join(' and ')
+  const verb = {
+    archived: 'Archived',
+    deleted: 'Deleted',
+    moved: 'Moved',
+    kind: 'Changed the kind of',
+    owners: 'Changed the owners of',
+    checked: 'Checked',
+  }[e.what]
+  const detail =
+    e.what === 'moved'
+      ? e.summary.replace(/^Moved /, '').replace(/\.$/, '')
+      : e.what === 'kind' || e.what === 'owners'
+        ? e.summary.replace(/\.$/, '')
+        : ''
+  return `${verb} ${titles}${detail ? `: ${detail.charAt(0).toLowerCase()}${detail.slice(1)}` : ''}`
+}

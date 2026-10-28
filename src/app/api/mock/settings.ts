@@ -1,29 +1,31 @@
 import type { Settings } from '../client'
+import { AGENT_TOOLS } from '@/lib/agents'
+import { MCP_URL } from '@/lib/brand'
 import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
 import { connectorById, type ConnectorId } from '@/model/integrations'
+import { seedAgents } from './data/agents'
 import { figureConnections } from './data/integrations'
 import type { Address } from './scenario'
 
-// The mock's switches and connections, kept until the page reloads: the links switch, figures in Ask
-// per integration and their data contacts, the tools connected, and the agents signed in. The
-// review flags ?links=on|off and ?figures=on|off|<integration> set the switches from the address,
-// and ?connect= shows the live line in any state.
+// The mock's switches and connections, kept until the page reloads: the links switch and the other
+// tools agents call, Pause sharing, figures in Ask per integration and their data contacts, the
+// tools connected, and the agents signed in. The review flags ?links=on|off and
+// ?figures=on|off|<integration> set the switches from the address, and ?connect= shows the live
+// line in any state.
 
 export const FIGURE_SOURCES: ConnectorId[] = ['cube', 'warehouse']
 
 export function createSettings() {
   let links = true
+  /** The tools an admin switched off; every other is on. */
+  let off: string[] = []
+  let pause: Settings['pause'] = { all: false, domain: null }
   let figures: Partial<Record<ConnectorId, boolean>> = { cube: false, warehouse: false }
   let contacts: Partial<Record<ConnectorId, string>> = Object.fromEntries(
     Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
   )
   let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
-  let agents: Connected[] = [
-    { agent: 'Claude', who: 'Maria Lindqvist', since: '2 Oct 2026', used: 'Today' },
-    { agent: 'Cursor', who: 'Jon Abara', since: '12 Sep 2026', used: 'Yesterday' },
-    { agent: 'Claude Code', who: 'Kofi Mensah', since: '20 Oct 2026', used: 'Yesterday' },
-    { agent: 'Claude', who: 'Ines Duarte', since: '1 Oct 2026', used: 'Today' },
-  ]
+  let agents: Connected[] = [...seedAgents]
 
   /** A sign-in adds the agent on top, marked new; the same agent for the same person replaces its row. */
   const addAgent = (agent: string, who: string) => {
@@ -55,7 +57,15 @@ export function createSettings() {
       )
       const l = address.query.links
       return {
+        mcpAddress: MCP_URL,
         links: l === 'on' ? true : l === 'off' ? false : links,
+        tools: Object.fromEntries(
+          AGENT_TOOLS.filter((t) => t.name !== 'get_related').map((t) => [
+            t.name,
+            !off.includes(t.name),
+          ]),
+        ),
+        pause,
         figures: shown,
         contacts,
         connected,
@@ -63,6 +73,12 @@ export function createSettings() {
     },
     setLinks(on: boolean) {
       links = on
+    },
+    setTool(name: string, on: boolean) {
+      off = on ? off.filter((t) => t !== name) : [...new Set([...off, name])]
+    },
+    setPause(change: { all: boolean } | { domain: string | null }) {
+      pause = { ...pause, ...change }
     },
     setFigures(id: ConnectorId, on: boolean) {
       figures = { ...figures, [id]: on }

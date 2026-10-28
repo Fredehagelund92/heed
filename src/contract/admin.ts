@@ -16,6 +16,8 @@ import { calendarDateSchema } from '../domain/validity.ts'
 import { findingSchema } from './proposals.ts'
 
 const reason = z.string().check(z.minLength(1), z.maxLength(500))
+/** The most characters a workspace's name may have. */
+export const WORKSPACE_NAME_MAX = 80
 const int = (min: number, max: number) => z.number().check(z.int(), z.minimum(min), z.maximum(max))
 const days = int(1, 3650)
 const micros = int(0, 1_000_000_000_000)
@@ -114,6 +116,14 @@ export const settingSchemas = {
       `Expected at most ${ABOUT_BUSINESS_MAX} characters`,
     ),
   ),
+  // The workspace's name, as the share card and the people of the workspace read it (FR-818).
+  // Empty until an admin names it; one line, with no space at either end.
+  'workspace.name': z.string().check(
+    z.maxLength(WORKSPACE_NAME_MAX),
+    z.regex(/^(?:\S(?:.*\S)?)?$/, 'One line with no space at either end'),
+    // eslint-disable-next-line no-control-regex
+    z.regex(/^[^\u0000-\u001f\u007f]*$/, 'Text only, with no line break'),
+  ),
 } as const
 export type SettingKey = keyof typeof settingSchemas
 export const settingKeys = Object.keys(settingSchemas) as SettingKey[]
@@ -130,6 +140,10 @@ export const settingSchema = z.object({
   editable: z.boolean(),
 })
 export type Setting = z.infer<typeof settingSchema>
+
+/** What everyone in the workspace reads of it (FR-818): its name, empty until an admin names it. */
+export const workspaceSchema = z.object({ name: z.string() })
+export type WorkspaceInfo = z.infer<typeof workspaceSchema>
 export const settingKeyInputSchema = z.strictObject({ key: settingKey })
 export const setSettingSchema = z.strictObject({
   key: settingKey,

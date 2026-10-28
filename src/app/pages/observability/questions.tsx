@@ -443,7 +443,7 @@ function FilterMenu({
                 >
                   <DropdownMenuRadioItem value="all">All domains</DropdownMenuRadioItem>
                   {domainIds
-                    .filter((d) => d !== 'sandbox')
+                    .filter((d) => !domains[d]?.sandbox)
                     .map((d) => (
                       <DropdownMenuRadioItem key={d} value={d}>
                         <span className="flex w-full items-center justify-between gap-2">

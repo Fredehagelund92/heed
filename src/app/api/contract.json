@@ -811,7 +811,7 @@
       }
     }
   },
-  "aiConnections": {
+  "agentConnections": {
     "list": {
       "~orpc": {
         "errorMap": {},
@@ -820,7 +820,7 @@
         },
         "route": {
           "method": "GET",
-          "path": "/ai-connections",
+          "path": "/agent-connections",
           "tags": [
             "admin"
           ],
@@ -836,7 +836,7 @@
         },
         "route": {
           "method": "POST",
-          "path": "/ai-connections/{id}/disconnect",
+          "path": "/agent-connections/{id}/disconnect",
           "tags": [
             "admin"
           ],
@@ -852,7 +852,7 @@
         },
         "route": {
           "method": "POST",
-          "path": "/ai-connections/people/{personId}/disconnect",
+          "path": "/agent-connections/people/{personId}/disconnect",
           "tags": [
             "admin"
           ],
@@ -1660,6 +1660,22 @@
             "admin"
           ],
           "summary": "Delete a domain and everything under it in one step, with the words permanently delete typed to confirm (FR-814): one new edition stops delivery of its items and terms, its open proposals are withdrawn and its roles end; one that history names is kept as history and can be restored at any time"
+        }
+      }
+    },
+    "deleteEmpty": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/areas/{id}/delete",
+          "tags": [
+            "admin"
+          ],
+          "summary": "Delete a domain from its page (FR-815): only one with no context and no terms, never the sandbox. Its open suggestions are withdrawn, its drafts stay with their authors, its owners' ownership ends; one that history names is kept as history"
         }
       }
     },
@@ -3109,6 +3125,24 @@
       }
     }
   },
+  "workspace": {
+    "get": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/workspace",
+          "tags": [
+            "session"
+          ],
+          "summary": "The workspace's name, which an admin sets (workspace.name), for everyone signed in (FR-818)"
+        }
+      }
+    }
+  },
   "me": {
     "get": {
       "~orpc": {
@@ -3414,6 +3448,22 @@
             "assistant"
           ],
           "summary": "How to connect an AI client: the MCP server's address, the tools switched on and the clients that may connect (FR-404)"
+        }
+      }
+    },
+    "pending": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/connect/pending",
+          "tags": [
+            "session"
+          ],
+          "summary": "Connect an agent's live line (FR-418): whether the signed-in person's own agent signed in, or they declined it in the browser, since a moment; the newest of the two, with the agent's own name"
         }
       }
     }

@@ -56,6 +56,7 @@ export function createWorkspace() {
           owners: [...d.owners],
           covers: d.covers,
           text: seedText[id] ?? d.covers,
+          ...(id === 'sandbox' ? { sandbox: true } : {}),
         },
       ]
     }),

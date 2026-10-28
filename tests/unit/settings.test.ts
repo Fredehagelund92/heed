@@ -74,6 +74,7 @@ const samples: Record<SettingKey, unknown> = {
   'models.call_limits': { concurrency: 4 },
   'sources.cube_model_url': null,
   'business.about': ABOUT_BUSINESS_STARTER,
+  'workspace.name': 'Larchwood Outdoor',
 }
 
 const submit = (key: SettingKey, values: Record<string, string>, current = samples[key]) =>

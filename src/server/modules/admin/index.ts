@@ -2,5 +2,5 @@ export { exportAudit, plainReason, recordAudit, searchAudit, verifyAudit } from 
 export { exportEdition } from './edition-export.ts'
 export { importItems, type ImportServices } from './imports.ts'
 export { knownTools, listClients, listTools, saveClient, setTool } from './serving.ts'
-export { listSettings, setSetting, settingHistory } from './settings.ts'
+export { listSettings, readWorkspace, setSetting, settingHistory } from './settings.ts'
 export { trafficSummary } from './traffic.ts'

@@ -964,7 +964,8 @@ export function AnswerBody({
   const report = mine ? { on: mine.on, outcome: mine.outcome } : sentNow
   // Saving a question is for the owners of the domain it is about, and admins.
   const me = useMe()
-  const saveDomain = facts[0]?.domain ?? me.owns.find((d) => d !== 'sandbox') ?? 'sales'
+  const domainsById = useDomains()
+  const saveDomain = facts[0]?.domain ?? me.owns.find((d) => !domainsById[d]?.sandbox) ?? 'sales'
   const canSave = me.admin || me.owns.includes(saveDomain)
 
   // How far a live answer has got, in milliseconds; stages and words follow from it.

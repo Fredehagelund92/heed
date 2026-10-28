@@ -19,12 +19,21 @@ first build, which runs on one computer (FR-413).
    one at once.
 
 An administrator sees every person's connections in Administration, MCP and gateway,
-**Connections** (`aiConnections.list`): the person, the agent's own name and where it came from, its
+**Connections** (`agentConnections.list`): the person, the agent's own name and where it came from, its
 scopes, when it connected, last refreshed and ends. **Disconnect** there ends one connection, or
-every connection of one person in one step (`aiConnections.disconnect`,
-`aiConnections.disconnectPerson`), through the same revocation as the person's own: the refresh
+every connection of one person in one step (`agentConnections.disconnect`,
+`agentConnections.disconnectPerson`), through the same revocation as the person's own: the refresh
 tokens end and the MCP server refuses the access tokens at their next request. A reason is required
-and kept in the history log; the person does not see it.
+and kept in the history log; the person does not see it. In the new app it is Settings, Agents and
+access, where **Revoke** ends every connection of that agent for that person.
+
+While Connect an agent waits for the person's own agent, its live line asks the service every 3
+seconds (`connect.pending`, FR-418) for the newest of two things since the wait began: the agent
+collected its tokens (connected), or the person chose **Deny** on the consent screen (declined).
+Both are named by the agent's own name for itself. Allowing alone is not yet a connection: the
+agent still has to exchange its code. A **Deny** is kept for an hour, for that person alone, as
+who said it, the app's name and when (`auth.oauth_declines`, migration 0018); nothing else of the
+sign-in is kept, and the history log is not told, as nothing changed.
 
 An app needs either a client ID metadata document (preferred by the MCP specification) or
 dynamic client registration, which is on by default outside production and requires an explicit

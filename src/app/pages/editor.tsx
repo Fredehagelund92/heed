@@ -269,7 +269,7 @@ const domainOptions = (domains: Domain[]) =>
 const whereGroups = (domains: Domain[], vocabulary: Vocabulary) => [
   {
     heading: 'Domains',
-    items: domains.filter((d) => d.id !== 'sandbox').map((d) => d.name),
+    items: domains.filter((d) => !d.sandbox).map((d) => d.name),
   },
   { heading: 'Metrics', items: vocabulary.metrics.map((m) => m.name) },
   { heading: 'Markets', items: vocabulary.markets },

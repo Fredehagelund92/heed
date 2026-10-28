@@ -45,6 +45,7 @@ export const queryKeys = {
   alerts: ['getAlerts'] as const,
   savedViews: ['getSavedViews'] as const,
   settings: ['getSettings'] as const,
+  advancedPage: ['advancedPage'] as const,
   integrations: ['getIntegrations'] as const,
   figure: (asked: { metric: string; markets: string[]; dates?: string; state: string }) =>
     ['readFigure', asked] as const,
@@ -161,6 +162,10 @@ export const reviewsQuery = () =>
 
 export const settingsQuery = () =>
   queryOptions({ queryKey: queryKeys.settings, queryFn: () => api.getSettings() })
+
+/** Settings, Advanced's own read. */
+export const advancedPageQuery = () =>
+  queryOptions({ queryKey: queryKeys.advancedPage, queryFn: () => api.advancedPage() })
 
 export const integrationsQuery = () =>
   queryOptions({ queryKey: queryKeys.integrations, queryFn: () => api.getIntegrations() })
@@ -324,6 +329,7 @@ type Read =
   | 'listChats'
   | 'getMyReports'
   | 'getSettings'
+  | 'advancedPage'
   | 'getIntegrations'
   | 'readFigure'
   | 'listAgentConnections'
@@ -393,7 +399,7 @@ export const invalidations: {
   restoreAsDraft: () => items,
   // A published item may answer a Not found card, and be the setup checklist's first item.
   saveItem: () => [...items, ...inbox, ...workspace, queryKeys.session],
-  applyBulk: () => items,
+  applyBulk: () => [...items, queryKeys.advancedPage],
   sendSuggestion: () => inbox,
   withdrawSuggestion: () => inbox,
   undo: () => everything,
@@ -407,7 +413,7 @@ export const invalidations: {
   saveTerm: () => definitions,
   addSynonym: () => definitions,
   removeTerm: () => definitions,
-  deleteTerms: () => [...definitions, queryKeys.library],
+  deleteTerms: () => [...definitions, queryKeys.library, queryKeys.advancedPage],
   moveTerms: () => definitions,
   markOpened: () => inbox,
   markReviewed: () => inbox,
@@ -426,12 +432,20 @@ export const invalidations: {
   saveChat: () => [queryKeys.chats],
   reportAnswer: () => [queryKeys.myReports, ...inbox],
   setLinks: () => [queryKeys.settings],
+  setTool: () => [queryKeys.settings],
+  setPause: () => [queryKeys.settings, queryKeys.advancedPage],
+  // A new key is listed nowhere on the page; the history log notes it.
+  createAccessKey: () => [queryKeys.advancedPage],
+  // Checking and exporting change nothing.
+  checkHistory: () => [],
+  exportHistory: () => [],
+  exportContext: () => [],
   setFigures: () => [queryKeys.settings, queryKeys.figures],
   setDataContact: () => [queryKeys.settings],
   // Connecting the definitions tool can be the setup checklist's last step.
   connectIntegration: () => [queryKeys.settings, ...workspace, queryKeys.session],
   disconnectIntegration: () => [queryKeys.settings],
-  revokeAgentConnection: () => [queryKeys.agentConnections],
+  revokeAgentConnection: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   renameChat: () => [queryKeys.chats],
   deleteChat: () => [queryKeys.chats],
   removeView: () => [queryKeys.savedViews],

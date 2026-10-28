@@ -36,6 +36,7 @@ const area = (id: string, name: string): Area => ({
   ownerIds: [],
   label: 'teal',
   revision: 1,
+  demo: false,
 })
 const commercial = area('area_sales', 'Sales')
 const question = mockTestQuestions[0]!

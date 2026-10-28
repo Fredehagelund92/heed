@@ -34,7 +34,7 @@ import type { FactAction } from '@/lib/bulk'
 import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { Fact, Sent } from '@/model/items'
-import type { Domains } from '@/model/people'
+import { excerptOf, type Domains } from '@/model/people'
 import routes from './contract.json' with { type: 'json' }
 import {
   heedApiMethods,
@@ -72,6 +72,15 @@ import {
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
 import { peopleOf } from './http-people'
+import {
+  connectedOf,
+  deletedOf,
+  editionsOf,
+  historyOf,
+  jobsOf,
+  limitsOf,
+  switchesOf,
+} from './http-settings'
 import {
   emptyObs,
   familyOf,
@@ -163,6 +172,19 @@ export const wiredMethods = [
   'returnReview',
   'undo',
   'getConnectReview',
+  'getSettings',
+  'setLinks',
+  'setTool',
+  'setPause',
+  'listAgentConnections',
+  'revokeAgentConnection',
+  'checkConnect',
+  'advancedPage',
+  'checkHistory',
+  'exportHistory',
+  'exportContext',
+  'addDomain',
+  'removeDomain',
   'setAbout',
   'completeSetupStep',
   'readQuestion',
@@ -191,9 +213,6 @@ const pending: Partial<HeedApi> = {
   // Saved questions and their check come with Observability's second part (P12b).
   getSavedQuestions: () => Promise.resolve([]),
   getSavedCheck: () => Promise.resolve({ run: 'idle', checked: 0 }),
-  // Settings and the agents connected (P11a).
-  getSettings: () => Promise.resolve({ links: false, figures: {}, contacts: {}, connected: [] }),
-  listAgentConnections: () => Promise.resolve([]),
 }
 
 const emptyHits = () => ({ items: [], definitions: [], domains: [], people: [] })
@@ -254,6 +273,36 @@ const topicNameOf = (
 
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
+/** The service's longest excerpt of a domain: one line. */
+const SUMMARY_MAX = 160
+
+/** A domain's excerpt: the first paragraph of its text, plain, on one line, cut at a word. */
+export function summaryOf(text: string): string {
+  const line = excerptOf(text).replace(/\s+/g, ' ').trim()
+  if ([...line].length <= SUMMARY_MAX) return line
+  const cut = line.slice(0, SUMMARY_MAX - 1)
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(' '), 1)).trimEnd()}…`
+}
+
+/** A new domain's id from its name, as the domains' ids are made: "Customer value" is customer_value. */
+export function freeAreaId(name: string, taken: ReadonlySet<string>): string {
+  const slug = name
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  const base = (/^[a-z][a-z0-9_]/.test(slug) ? slug : `area_${slug || 'domain'}`)
+    .slice(0, 36)
+    .replace(/_+$/, '')
+  let id = base
+  for (let n = 2; taken.has(id); n++) id = `${base}_${n}`
+  return id
+}
+
+/** Why a setting changed, for the history log: said once, in Settings. */
+const BY_SETTINGS = 'Changed in Settings, Agents and access.'
 
 export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedApi {
   const link = new OpenAPILink<CallContext>(routes as unknown as AnyContractRouter, {
@@ -846,8 +895,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         ),
       }
     },
-    // A domain's owners, as its page sets them. Its name and text come with the domains' pull
-    // request; an invited owner is the invite's until they sign in.
+    // A domain's owners, its name and its text, as its page sets them (FR-815). Its owners and
+    // admins change them; an invited owner is the invite's until they sign in.
     updateDomain: async ({ id, owners, name, text }) => {
       if (owners !== undefined) {
         const members = await read(() => client.members.list())
@@ -863,11 +912,46 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
             'A domain needs an owner. Add another owner first, then take this one off.',
           )
       }
-      if (name !== undefined || text !== undefined)
-        throw new ApiError(
-          'not-available',
-          "The service doesn't change a domain's name or text yet (updateDomain).",
-        )
+      const renamed = name?.trim()
+      if (!renamed && text === undefined) return
+      const area = (await read(() => client.areas.list())).find((a) => a.id === id)
+      if (!area)
+        throw new ApiError('not-found', "We couldn't find this domain. It may have been deleted.")
+      const description = text === undefined ? area.description : text.trim()
+      const input = {
+        id,
+        revision: area.revision,
+        ...(renamed && renamed !== area.name ? { name: renamed } : {}),
+        // The first paragraph of its text is its excerpt everywhere it is shown.
+        summary: text === undefined ? area.summary : summaryOf(description),
+        description,
+      }
+      await write('areas.describe', input, (o) => client.areas.describe(input, o))
+    },
+    // A new domain from its page: its name, its owners and its text; the service gives it the
+    // rest. Its id is made from the name, as the domains' ids are.
+    addDomain: async ({ name, owners, text }) => {
+      // A deleted domain that history keeps holds its id too.
+      const [areas, archived, members] = await Promise.all([
+        read(() => client.areas.list()),
+        read(() => client.areas.archived()),
+        read(() => client.members.list()),
+      ])
+      const id = freeAreaId(name, new Set([...areas, ...archived].map((a) => a.id)))
+      const description = (text ?? '').trim()
+      const input = {
+        id,
+        name: name.trim(),
+        summary: summaryOf(description),
+        description,
+        team: { ownerIds: owners.flatMap((o) => members.find((m) => m.name === o)?.id ?? []) },
+      }
+      const made = await write('areas.create', input, (o) => client.areas.create(input, o))
+      return { id: made.id }
+    },
+    // Only an empty domain is deleted, never the sandbox: the service says why it won't.
+    removeDomain: async ({ id }) => {
+      await write('areas.deleteEmpty', { id }, (o) => client.areas.deleteEmpty({ id }, o))
     },
     // A workspace whose setup checklist is unfinished is a new install: the Inbox shows the
     // checklist until it is done (docs/product.md, FR-816).
@@ -938,12 +1022,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // what exists. Start from the guide fills in the worked example, an outdoor-gear retailer.
     // The people are the workspace's members, Admin or Member, and its open invites.
     getWorkspace: async () => {
-      const [{ workspace }, setup, about, members, invites] = await Promise.all([
+      const [{ workspace }, setup, about, members, invites, named] = await Promise.all([
         readPeopleAndAreas(),
         read(() => client.setup.state()),
         readAbout(),
         read(() => client.members.list()),
         read(() => client.invites.list()),
+        read(() => client.workspace.get()),
       ])
       const { people, domains } = peopleOf({
         members,
@@ -952,7 +1037,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         now: new Date(),
       })
       return {
-        name: '',
+        name: named.name,
         domains,
         people,
         about: about?.text ?? '',
@@ -1302,6 +1387,145 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     // The live line's state a review address shows is the mock's own: never on the service.
     getConnectReview: () => Promise.resolve(null),
+
+    // Settings, agents and access. The switches are what everyone signed in may read: the tools on
+    // and what is paused. Figures and their data contacts come with the figures (P11a, part 2), and
+    // the integrations connected with their screens (P11b).
+    getSettings: async () => {
+      const [connect, stops] = await Promise.all([
+        read(() => client.connect.get()),
+        read(() => client.serving.stops()),
+      ])
+      return {
+        mcpAddress: connect.address,
+        ...switchesOf(connect.tools, stops),
+        figures: {},
+        contacts: {},
+        connected: [],
+      }
+    },
+    setLinks: async ({ on }) => {
+      const input = { tool: 'get_related', enabled: on, reason: BY_SETTINGS }
+      await write('tools.set', input, (o) => client.tools.set(input, o))
+    },
+    setTool: async ({ name, on }) => {
+      const input = { tool: name, enabled: on, reason: BY_SETTINGS }
+      await write('tools.set', input, (o) => client.tools.set(input, o))
+    },
+    // One domain is paused at a time on this page: pausing another lets the one before go on.
+    setPause: async (change) => {
+      const stop = (input: { scope: 'all' | 'area'; areaId?: string; on: boolean }) => {
+        const sent = { ...input, reason: 'Pause sharing, in Settings, Agents and access.' }
+        return write('serving.setStop', sent, (o) => client.serving.setStop(sent, o))
+      }
+      if ('all' in change) return void (await stop({ scope: 'all', on: change.all }))
+      const paused = (await read(() => client.serving.stops())).flatMap((s) =>
+        s.scope === 'area' && s.areaId ? [s.areaId] : [],
+      )
+      for (const areaId of paused)
+        if (areaId !== change.domain) await stop({ scope: 'area', areaId, on: false })
+      if (change.domain && !paused.includes(change.domain))
+        await stop({ scope: 'area', areaId: change.domain, on: true })
+    },
+    // An admin sees everyone's agents; anyone else their own.
+    listAgentConnections: async () => {
+      const who = await signedIn()
+      const rows = who.admin
+        ? await read(() => client.agentConnections.list())
+        : await read(() => client.connections.list())
+      return connectedOf(rows, who.name, new Date())
+    },
+    // Every connection of that agent for that person ends at once, with the reason the log keeps.
+    revokeAgentConnection: async ({ agent, who }) => {
+      const me = await signedIn()
+      if (me.admin) {
+        const ended = (await read(() => client.agentConnections.list())).filter(
+          (c) => c.clientName === agent && c.person.name === who,
+        )
+        for (const c of ended) {
+          const input = { id: c.id, reason: 'Revoked in Settings, Agents and access.' }
+          await write('agentConnections.disconnect', input, (o) =>
+            client.agentConnections.disconnect(input, o),
+          )
+        }
+        return
+      }
+      if (who !== me.name)
+        throw new ApiError('forbidden', 'Only an admin revokes the agents of others.')
+      for (const c of (await read(() => client.connections.list())).filter(
+        (x) => x.clientName === agent,
+      ))
+        await write('connections.disconnect', { id: c.id }, (o) =>
+          client.connections.disconnect({ id: c.id }, o),
+        )
+    },
+    checkConnect: async ({ since }) => {
+      const answer = await read(() =>
+        client.connect.pending({ since: new Date(since).toISOString() }),
+      )
+      return { state: answer.state, ...(answer.agent ? { agent: answer.agent } : {}) }
+    },
+
+    // Settings, Advanced: the tuning settings, what was deleted, the history log, the jobs and
+    // the editions, as the service has them.
+    advancedPage: async () => {
+      const now = new Date()
+      const [settings, drafts, terms, history, changes, operations, editions, people, areas] =
+        await Promise.all([
+          read(() => client.settings.list()),
+          read(() => client.items.deleted()),
+          read(() => client.terms.deleted()),
+          read(() => client.audit.search({ limit: 20 })),
+          read(() => client.items.changes()),
+          // The job runner answers on its own: a page without it still shows the rest.
+          read(() => client.operations.overview()).catch(() => null),
+          read(() => client.editions.list({ limit: 3 })),
+          readPeople(),
+          read(() => client.areas.list()),
+        ])
+      const domainName = (id: string) => areas.find((a) => a.id === id)?.name ?? id
+      return {
+        ...limitsOf(settings),
+        deleted: deletedOf(drafts, terms, (id) => (id ? people.name(id) : 'Someone'), now),
+        history: historyOf(history.entries, changes, now, {
+          domain: domainName,
+          person: (id) => people.name(id),
+        }),
+        jobs: operations ? jobsOf(operations, now) : null,
+        editions: editionsOf(editions, now),
+      }
+    },
+    checkHistory: async () => {
+      const chain = await read(() => client.audit.verify())
+      return { whole: chain.verified, entries: null }
+    },
+    exportHistory: async () => {
+      const lines: string[] = []
+      for (let after: number | undefined = undefined; ;) {
+        const page = await read(() =>
+          client.audit.export({ format: 'jsonl', ...(after === undefined ? {} : { after }) }),
+        )
+        if (page.content) lines.push(page.content.replace(/\n$/, ''))
+        if (page.next === null) break
+        after = page.next
+      }
+      return {
+        name: `history-${calendar.today}.jsonl`,
+        type: 'application/jsonl',
+        content: lines.join('\n'),
+      }
+    },
+    exportContext: async () => {
+      const live = (await read(() => client.editions.list({ limit: 20 }))).find((e) => e.live)
+      if (!live)
+        throw new ApiError('not-found', 'Agents get no context yet, so there is nothing to export.')
+      const edition = await read(() => client.editions.export({ label: live.label }))
+      return {
+        name: `context-${live.label}.json`,
+        type: 'application/json',
+        content: JSON.stringify(edition, null, 2),
+      }
+    },
 
     // Ask: the engine on the live edition, and the person's chats in their browser.
     readQuestion: async ({ question }) => {

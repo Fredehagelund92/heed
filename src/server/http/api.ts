@@ -21,6 +21,7 @@ import {
   areaRemoval,
   createArea,
   createAreasService,
+  deleteEmptyArea,
   describeArea,
   getArea,
   removeArea,
@@ -48,6 +49,7 @@ import {
   listSettings,
   listTools,
   plainReason,
+  readWorkspace,
   saveClient,
   searchAudit,
   setSetting,
@@ -563,11 +565,11 @@ export function createRouter({
         return { disconnected: true }
       }),
     },
-    aiConnections: {
-      list: authorized.aiConnections.list.handler(
+    agentConnections: {
+      list: authorized.agentConnections.list.handler(
         async ({ context }) => (await login?.everyConnection(context.tx)) ?? [],
       ),
-      disconnect: authorized.aiConnections.disconnect.handler(async ({ context, input }) => {
+      disconnect: authorized.agentConnections.disconnect.handler(async ({ context, input }) => {
         plainReason(input.reason)
         const ended = await login?.disconnectAsAdmin(
           context.tx,
@@ -583,7 +585,7 @@ export function createRouter({
           })
         return { disconnected: ended }
       }),
-      disconnectPerson: authorized.aiConnections.disconnectPerson.handler(
+      disconnectPerson: authorized.agentConnections.disconnectPerson.handler(
         async ({ context, input }) => {
           plainReason(input.reason)
           const ended = await login?.disconnectAsAdmin(
@@ -771,6 +773,11 @@ export function createRouter({
       remove: authorized.areas.remove.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'areas.remove', input, () =>
           removeArea(context.tx, input),
+        ),
+      ),
+      deleteEmpty: authorized.areas.deleteEmpty.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'areas.deleteEmpty', input, () =>
+          deleteEmptyArea(context.tx, input),
         ),
       ),
       archived: authorized.areas.archived.handler(({ context }) => archivedAreas(context.tx)),
@@ -1165,6 +1172,9 @@ export function createRouter({
       ),
     },
     me: { get: authorized.me.get.handler(({ context }) => context.session!.person) },
+    workspace: {
+      get: authorized.workspace.get.handler(({ context }) => readWorkspace(context.tx)),
+    },
     settings: {
       list: authorized.settings.list.handler(({ context }) => listSettings(context.tx)),
       history: authorized.settings.history.handler(({ context, input }) =>
@@ -1301,6 +1311,15 @@ export function createRouter({
     connect: {
       get: authorized.connect.get.handler(({ context }) =>
         connectInfo(context.tx, mcpAddress, Boolean(login)),
+      ),
+      // Without a login server here no agent signs in as a person, so the wait goes on.
+      pending: authorized.connect.pending.handler(
+        async ({ context, input }) =>
+          (await login?.pending(context.tx, context.session!.person.id, new Date(input.since))) ?? {
+            state: 'waiting' as const,
+            agent: null,
+            at: null,
+          },
       ),
     },
     tryIt: {

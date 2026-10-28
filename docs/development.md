@@ -188,8 +188,9 @@ their writes are not available yet.
 
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
-setup checklist, People, Context, Definitions, the editor, Observability, and comments with their
-reactions and mentions so far) on an http mode build against the service, one at a time, each on its
+setup checklist, People, Context, Definitions, the editor, Observability, comments with their
+reactions and mentions, and Settings' domains and agents so far) on an http mode build against the
+service, with its own login server for an agent that signs in, one at a time, each on its
 own copy of the demo week seeded once into a template database; a journey that starts as a new
 install (`?demo=setup`, or Observability's `?state=empty`) gets a copy of an empty workspace
 instead, and `?demo=week` brings it back to the demo week. It needs a local PostgreSQL 18 and a

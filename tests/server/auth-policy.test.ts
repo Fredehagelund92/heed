@@ -93,6 +93,7 @@ const adminOperations = [
   'areas.create',
   'areas.removal',
   'areas.remove',
+  'areas.deleteEmpty',
   'areas.archived',
   'areas.restore',
   'areas.update',
@@ -110,9 +111,9 @@ const adminOperations = [
   'members.remove',
   'members.restore',
   // Every person's agents (security check F3): seen and disconnected by administrators only.
-  'aiConnections.list',
-  'aiConnections.disconnect',
-  'aiConnections.disconnectPerson',
+  'agentConnections.list',
+  'agentConnections.disconnect',
+  'agentConnections.disconnectPerson',
   // Sources an administrator adds: their settings, secrets, test reads and Read again.
   'sources.types',
   'sources.get',
@@ -130,6 +131,8 @@ const readOperations = [
   'connections.decide',
   'connections.list',
   'connections.disconnect',
+  // Connect an agent's live line: a person's own sign-ins and declines (FR-418).
+  'connect.pending',
   'proposals.create',
   'proposals.list',
   'proposals.get',
@@ -169,6 +172,8 @@ const readOperations = [
   'auth.signOut',
   'auth.session',
   'me.get',
+  // The workspace's name, which everyone signed in reads (FR-818).
+  'workspace.get',
   'people.list',
   // People as Heed v1 has them: anyone signed in reads them and the open invites. An owner
   // invites a member to their own domains and sets their owners; the service and row security

@@ -44,7 +44,9 @@ export function slackText(answer: Pick<Answer, 'question' | 'state' | 'text'>, f
   ].join('\n')
 }
 
-/** The card's footer: where it is from, and when it was answered. */
-/** "Larchwood Outdoor - answered 23 Oct 2026": where an answer card is from, and when. */
+/**
+ * "Larchwood Outdoor - answered 23 Oct 2026": where an answer card is from, and when. A workspace
+ * nobody named yet says only when.
+ */
 export const cardFooter = (workspace: string, iso?: string) =>
-  `${workspace} - answered ${answeredOn(iso)}`
+  workspace ? `${workspace} - answered ${answeredOn(iso)}` : `Answered ${answeredOn(iso)}`

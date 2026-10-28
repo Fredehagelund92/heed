@@ -187,3 +187,5 @@ grant insert, delete on observability_views to :api;
 grant insert, update on connector_documents to :api;
 grant update (status, warnings, cursor, documents_seen, suggested, replaced, withdrawn, waiting, skipped) on connector_snapshots to :api;
 grant execute on function cl_source() to :api;
+-- Connect an agent's live line (FR-418): a person's no on the consent screen, kept for an hour for them alone.
+grant select, insert, delete on auth.oauth_declines to :api;

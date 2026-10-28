@@ -48,6 +48,7 @@ import { useWide } from '@/hooks/use-wide'
 import { usePrimaryKey } from '@/hooks/use-primary-key'
 import { useDefinitions } from '@/lib/definitions'
 import { docExtensions } from '@/lib/doc-extensions'
+import { toApiError } from '@/api/errors'
 import { useSavedQuestions, useWrite } from '@/api/queries'
 import { savedCounts } from '@/model/saved-questions'
 import { plainText } from '@/lib/mentions'
@@ -92,7 +93,9 @@ export function DomainPage({
     () => () => {
       window.clearTimeout(timer.current)
       if (Object.keys(pending.current).length && !isNew)
-        void write('updateDomain', { id, ...pending.current })
+        void write('updateDomain', { id, ...pending.current }).catch((e: unknown) =>
+          toast("Couldn't save the domain", { description: toApiError(e).message }),
+        )
     },
     // Only when the page closes or moves to another domain.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,7 +119,15 @@ export function DomainPage({
     timer.current = window.setTimeout(() => {
       const patch = pending.current
       pending.current = {}
-      void write('updateDomain', { id, ...patch }).then(() => setSaving(false))
+      void write('updateDomain', { id, ...patch }).then(
+        () => setSaving(false),
+        (e: unknown) => {
+          // What could not be saved waits for the next change, which sends it again.
+          pending.current = { ...patch, ...pending.current }
+          setSaving(false)
+          toast("Couldn't save the domain", { description: toApiError(e).message })
+        },
+      )
     }, 600)
   }
 
@@ -158,17 +169,22 @@ export function DomainPage({
   const due = items.filter((f) => f.status === 'Needs checking').length
   const saved = savedCounts(savedAll, id)
   const terms = isNew ? 0 : defs.filter((x) => x.domain === id).length
-  const sandbox = id === 'sandbox'
+  const sandbox = d?.sandbox ?? false
   const empty = !items.length && !terms
   const words = plainText(text).split(/\s+/).filter(Boolean).length
 
   const create = async () => {
     if (!name.trim()) return document.getElementById(fieldId('name'))?.focus()
-    const { id: newId } = await write('addDomain', {
-      name: name.trim(),
-      owners,
-      text: editor?.getMarkdown() ?? text,
-    })
+    let newId: string
+    try {
+      ;({ id: newId } = await write('addDomain', {
+        name: name.trim(),
+        owners,
+        text: editor?.getMarkdown() ?? text,
+      }))
+    } catch (e) {
+      return void toast("Couldn't add the domain", { description: toApiError(e).message })
+    }
     toast('Domain added', { description: `${name.trim()} is ready for context.` })
     navigate(`/settings/domains/${newId}`)
   }
@@ -441,11 +457,17 @@ export function DomainPage({
               variant="destructive"
               onClick={() => {
                 const was = d!.name
-                void write('removeDomain', { id }).then(() => {
-                  setDeleting(false)
-                  toast('Domain deleted', { description: was })
-                  navigate('/settings/domains')
-                })
+                void write('removeDomain', { id }).then(
+                  () => {
+                    setDeleting(false)
+                    toast('Domain deleted', { description: was })
+                    navigate('/settings/domains')
+                  },
+                  (e: unknown) => {
+                    setDeleting(false)
+                    toast(`Couldn't delete ${was}`, { description: toApiError(e).message })
+                  },
+                )
               }}
             >
               Delete

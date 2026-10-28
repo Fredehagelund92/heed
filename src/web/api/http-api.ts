@@ -373,14 +373,14 @@ export function createHttpApi({
     saveClient: (input) =>
       write('clients.save', input, (options) => client.clients.save(input, options)),
     getTraffic: (params = {}) => read(() => client.traffic.summary(params)),
-    listAiConnections: () => read(() => client.aiConnections.list()),
+    listAiConnections: () => read(() => client.agentConnections.list()),
     disconnectAiConnection: (input) =>
-      write('aiConnections.disconnect', input, (options) =>
-        client.aiConnections.disconnect(input, options),
+      write('agentConnections.disconnect', input, (options) =>
+        client.agentConnections.disconnect(input, options),
       ),
     disconnectPersonAiConnections: (input) =>
-      write('aiConnections.disconnectPerson', input, (options) =>
-        client.aiConnections.disconnectPerson(input, options),
+      write('agentConnections.disconnectPerson', input, (options) =>
+        client.agentConnections.disconnectPerson(input, options),
       ),
     listSettings: async () => (await read(() => client.settings.list())).map(withIsoChange),
     getSettingHistory: async (key) =>

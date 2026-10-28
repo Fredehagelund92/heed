@@ -16,17 +16,23 @@ export const ADDRESS = MCP_URL
 export const ASK_FIRST_LINE =
   'Before you answer a question about company data, call get_context first and use what it returns.'
 
-export const CLAUDE_CODE_COMMAND = `claude mcp add --transport http ${SLUG} ${ADDRESS}`
+/** Claude Code's one line, for the MCP server at `address`. */
+export const claudeCodeCommand = (address = ADDRESS) =>
+  `claude mcp add --transport http ${SLUG} ${address}`
+export const CLAUDE_CODE_COMMAND = claudeCodeCommand()
 
-/** The prompt, as parts: the page shows each part and copies them joined, so the copy is the screen. */
-export const PROMPT_PARTS: { code?: true; text: string }[] = [
+/**
+ * The prompt for the MCP server at `address`, as parts: the page shows each part and copies them
+ * joined, so the copy is the screen.
+ */
+export const promptParts = (address = ADDRESS): { code?: true; text: string }[] => [
   {
     text: "Connect this agent to our team's checked context, so it checks it before it answers about company numbers.",
   },
   {
-    text: `1. Add a remote MCP server at ${ADDRESS}, over HTTP, in your own way of doing that. In Claude Code, run:`,
+    text: `1. Add a remote MCP server at ${address}, over HTTP, in your own way of doing that. In Claude Code, run:`,
   },
-  { code: true, text: CLAUDE_CODE_COMMAND },
+  { code: true, text: claudeCodeCommand(address) },
   {
     text: '2. Add this line to the instructions file this project uses: CLAUDE.md if it exists, otherwise AGENTS.md, which you can create:',
   },
@@ -36,7 +42,10 @@ export const PROMPT_PARTS: { code?: true; text: string }[] = [
   },
 ]
 
-export const PROMPT = PROMPT_PARTS.map((p) => p.text).join('\n\n')
+export const PROMPT_PARTS = promptParts()
+/** The prompt as it is copied: its parts, one after another. */
+export const promptOf = (parts: { text: string }[]) => parts.map((p) => p.text).join('\n\n')
+export const PROMPT = promptOf(PROMPT_PARTS)
 
 /** Cursor's install link: the server's name and a base64 config with its address. */
 export const cursorLink = (name = SLUG, url = ADDRESS) =>
@@ -65,13 +74,14 @@ const instructions = (file: string): Step => ({
   copy: ASK_FIRST_LINE,
 })
 
-export const GUIDES: AgentGuide[] = [
+/** Each agent's steps by hand, for the MCP server at `address`. */
+export const guidesFor = (address = ADDRESS): AgentGuide[] => [
   {
     id: 'claude-code',
     name: 'Claude Code',
     logo: claude,
     steps: [
-      { what: 'Run this in a terminal:', copy: CLAUDE_CODE_COMMAND },
+      { what: 'Run this in a terminal:', copy: claudeCodeCommand(address) },
       instructions('CLAUDE.md if the project has one, otherwise AGENTS.md'),
       {
         what: 'In Claude Code, type /mcp, choose the server you added, press Authenticate, and approve the connection in the browser.',
@@ -83,7 +93,7 @@ export const GUIDES: AgentGuide[] = [
     name: 'Claude',
     logo: claude,
     steps: [
-      { what: 'Copy the address:', copy: ADDRESS },
+      { what: 'Copy the address:', copy: address },
       {
         what: 'In Claude, open Customize, then Connectors. Press + Add, then Add custom connector, and paste the address.',
       },
@@ -100,7 +110,7 @@ export const GUIDES: AgentGuide[] = [
     steps: [
       {
         what: 'Add this to .cursor/mcp.json:',
-        copy: `{ "mcpServers": { "${SLUG}": { "url": "${ADDRESS}" } } }`,
+        copy: `{ "mcpServers": { "${SLUG}": { "url": "${address}" } } }`,
       },
       instructions('AGENTS.md'),
       {
@@ -115,7 +125,7 @@ export const GUIDES: AgentGuide[] = [
     steps: [
       {
         what: 'Add this to .vscode/mcp.json:',
-        copy: `{ "servers": { "${SLUG}": { "type": "http", "url": "${ADDRESS}" } } }`,
+        copy: `{ "servers": { "${SLUG}": { "type": "http", "url": "${address}" } } }`,
       },
       instructions('AGENTS.md'),
       { what: 'Start the server from the file, and approve the connection in the browser.' },
@@ -126,7 +136,7 @@ export const GUIDES: AgentGuide[] = [
     name: 'Codex',
     logo: openai,
     steps: [
-      { what: 'Run this in a terminal:', copy: `codex mcp add ${SLUG} --url ${ADDRESS}` },
+      { what: 'Run this in a terminal:', copy: `codex mcp add ${SLUG} --url ${address}` },
       instructions('AGENTS.md'),
       {
         what: 'Run this, and approve the connection in the browser:',
@@ -139,7 +149,7 @@ export const GUIDES: AgentGuide[] = [
     name: 'ChatGPT',
     logo: openai,
     steps: [
-      { what: 'Copy the address:', copy: ADDRESS },
+      { what: 'Copy the address:', copy: address },
       {
         what: 'In ChatGPT on the web, open Settings, Apps and Connectors, Advanced settings, and turn on Developer mode.',
       },
@@ -154,7 +164,7 @@ export const GUIDES: AgentGuide[] = [
     name: 'Your agent',
     logo: openai,
     steps: [
-      { what: 'Copy the address:', copy: ADDRESS },
+      { what: 'Copy the address:', copy: address },
       { what: 'Add it where your agent lists its connectors or MCP servers, over HTTP.' },
       {
         what: 'Approve the connection in the browser when it asks. If the agent reads an instructions file, add this line to it:',
@@ -163,6 +173,8 @@ export const GUIDES: AgentGuide[] = [
     ],
   },
 ]
+
+export const GUIDES = guidesFor()
 
 export const guide = (id: AgentId) => GUIDES.find((g) => g.id === id)!
 

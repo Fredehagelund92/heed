@@ -28,6 +28,8 @@ export type Domain = {
   covers: string
   /** The whole text, light markdown with mentions. */
   text: string
+  /** The sandbox, where people try context: agents never get it, and it is never deleted. */
+  sandbox?: boolean
 }
 
 /** The domains by id, in the order the workspace lists them. */
@@ -49,7 +51,7 @@ export const emailOf = (p: Person) =>
 /** One line on what a person does here: what they own (the sandbox aside) and whether they are an admin. */
 export function describe(p: Person, domains: Domains) {
   if (p.invited) return 'Invited'
-  const owned = p.owns.filter((d) => d !== 'sandbox' && domains[d]).map((d) => domains[d]?.name)
+  const owned = p.owns.filter((d) => domains[d] && !domains[d].sandbox).map((d) => domains[d]?.name)
   if (owned.length)
     return `Owner of ${owned.length > 1 ? `${owned.slice(0, -1).join(', ')} and ${owned.at(-1)}` : owned[0]}${p.admin ? ', admin' : ''}`
   return p.admin ? 'Admin' : 'Suggests context, owns no domain'

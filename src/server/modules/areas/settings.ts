@@ -8,6 +8,7 @@ import type {
 } from '../../../contract/areas.ts'
 import type { GrantChange } from '../../../contract/auth.ts'
 import { textFindings } from '../../../domain/draft.ts'
+import { domainHues, type DomainHue } from '../../../domain/item.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
 import { changeGrants, lockRoles } from '../auth/index.ts'
@@ -73,6 +74,18 @@ async function adminOnly(tx: Queryable) {
   if (!actor?.allowed) throw new ORPCError('FORBIDDEN', { message: 'Only an admin can do this.' })
 }
 
+/** A new domain's review time when nobody names one: working days an owner has to decide. */
+const DEFAULT_REVIEW_DAYS = 2
+
+/** The hue the fewest domains in use have, the first on the ring among equals. */
+async function quietestHue(tx: Queryable): Promise<DomainHue> {
+  const rows = await tx.query<{ label: string; n: number }>(
+    'select label, count(*)::int as n from areas where archived_at is null group by label',
+  )
+  const used = new Map(rows.map((r) => [r.label, r.n]))
+  return [...domainHues].sort((a, b) => (used.get(a) ?? 0) - (used.get(b) ?? 0))[0]!
+}
+
 /** Another area holds the name: names are unique, archived areas included. */
 async function nameTaken(tx: Queryable, name: string, id: string) {
   const rows = await tx.query('select 1 from areas where lower(name) = lower($1) and id <> $2', [
@@ -126,7 +139,11 @@ export async function createArea(
     throw new ORPCError('CONFLICT', {
       message: 'Another domain already has this name. Choose another.',
     })
-  const fields = fieldsOf(input)
+  const fields = fieldsOf({
+    ...input,
+    label: input.label ?? (await quietestHue(tx)),
+    reviewDays: input.reviewDays ?? DEFAULT_REVIEW_DAYS,
+  })
   await tx.query(
     `insert into areas (id, name, label, review_days, chat_channel, owner_team, summary, description)
      values ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -202,8 +219,19 @@ export async function describeArea(
   plainAbout(input)
   await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
   const before = await current(tx, input.id, input.revision)
+  // Its owners rename it from its page too (FR-815), under the same rule as an admin's rename.
+  if (input.name !== undefined && (await nameTaken(tx, input.name, input.id)))
+    throw new ORPCError('CONFLICT', {
+      message: 'Another domain already has this name. Choose another.',
+    })
   const described: Described = { summary: input.summary, description: input.description }
-  return change(tx, input.id, before, { ...before, ...described }, null)
+  return change(
+    tx,
+    input.id,
+    before,
+    { ...before, ...described, name: input.name ?? before.name },
+    null,
+  )
 }
 
 /** The area's editable fields as stored, refused when it is gone or changed since it was read. */

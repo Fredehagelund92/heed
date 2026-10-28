@@ -293,6 +293,8 @@ import {
   connectDecisionSchema,
   connectionIdSchema,
   connectionSchema,
+  connectPendingInputSchema,
+  connectPendingSchema,
   connectRequestIdSchema,
   connectRequestSchema,
   personConnectionSchema,
@@ -319,6 +321,7 @@ import {
   setSettingSchema,
   settingKeyInputSchema,
   settingSchema,
+  workspaceSchema,
   setToolSchema,
   toolSwitchSchema,
   trafficInputSchema,
@@ -333,6 +336,7 @@ import {
   areaRestoredSchema,
   createAreaSchema,
   describeAreaSchema,
+  deleteEmptyAreaSchema,
   removeAreaSchema,
   restoreAreaSchema,
   updateAreaSchema,
@@ -532,7 +536,7 @@ const settings = admin.errors({
 })
 const auditor = read.meta({ scope: 'audit' })
 /** An administrator ends a person's agent connection: the reason must hold no sensitive text. */
-const aiDisconnect = admin.errors({
+const agentDisconnect = admin.errors({
   UNPROCESSABLE_CONTENT: {
     status: 422,
     message: 'Remove the email address, phone number or secret from the reason.',
@@ -1032,30 +1036,30 @@ export const contract = {
       .output(z.object({ disconnected: z.boolean() })),
   },
   // Every person's agents, for administrators (FR-403, FR-807): see them and disconnect them.
-  aiConnections: {
+  agentConnections: {
     list: admin
       .route({
         method: 'GET',
-        path: '/ai-connections',
+        path: '/agent-connections',
         tags: ['admin'],
         summary:
           "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
       })
       .output(z.array(personConnectionSchema)),
-    disconnect: aiDisconnect
+    disconnect: agentDisconnect
       .route({
         method: 'POST',
-        path: '/ai-connections/{id}/disconnect',
+        path: '/agent-connections/{id}/disconnect',
         tags: ['admin'],
         summary:
           "Disconnect one person's agent with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
       })
       .input(adminDisconnectSchema)
       .output(adminDisconnectedSchema),
-    disconnectPerson: aiDisconnect
+    disconnectPerson: agentDisconnect
       .route({
         method: 'POST',
-        path: '/ai-connections/people/{personId}/disconnect',
+        path: '/agent-connections/people/{personId}/disconnect',
         tags: ['admin'],
         summary:
           'Disconnect every agent of one person with one reason, in one step: each connection is its own history entry, with the batch id they share',
@@ -1587,6 +1591,19 @@ export const contract = {
         NOT_FOUND: { message: "We couldn't find this domain. Someone may have deleted it." },
       })
       .input(removeAreaSchema)
+      .output(areaRemovedSchema),
+    deleteEmpty: areaRemovalRoute
+      .route({
+        method: 'POST',
+        path: '/areas/{id}/delete',
+        tags: ['admin'],
+        summary:
+          "Delete a domain from its page (FR-815): only one with no context and no terms, never the sandbox. Its open suggestions are withdrawn, its drafts stay with their authors, its owners' ownership ends; one that history names is kept as history",
+      })
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this domain. Someone may have deleted it." },
+      })
+      .input(deleteEmptyAreaSchema)
       .output(areaRemovedSchema),
     archived: admin
       .route({
@@ -2486,6 +2503,17 @@ export const contract = {
       .input(questionHistoryInputSchema)
       .output(questionHistorySchema),
   },
+  workspace: {
+    get: read
+      .route({
+        method: 'GET',
+        path: '/workspace',
+        tags: ['session'],
+        summary:
+          "The workspace's name, which an admin sets (workspace.name), for everyone signed in (FR-818)",
+      })
+      .output(workspaceSchema),
+  },
   me: {
     get: read
       .route({ method: 'GET', path: '/me', tags: ['session'], summary: 'The signed-in person' })
@@ -2688,6 +2716,16 @@ export const contract = {
           "How to connect an AI client: the MCP server's address, the tools switched on and the clients that may connect (FR-404)",
       })
       .output(connectInfoSchema),
+    pending: read
+      .route({
+        method: 'GET',
+        path: '/connect/pending',
+        tags: ['session'],
+        summary:
+          "Connect an agent's live line (FR-418): whether the signed-in person's own agent signed in, or they declined it in the browser, since a moment; the newest of the two, with the agent's own name",
+      })
+      .input(connectPendingInputSchema)
+      .output(connectPendingSchema),
   },
   tryIt: {
     run: read

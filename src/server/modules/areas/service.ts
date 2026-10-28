@@ -10,7 +10,7 @@ export function createAreasService(database: Queryable): AreasService {
   return {
     list: () =>
       database.query<Area>(
-        `select a.id, a.name, a.summary, a.description, a.label, a.revision,
+        `select a.id, a.name, a.summary, a.description, a.label, a.revision, a.is_demo as demo,
                 array(select x.person_id::text from area_assignments x
                        where x.area_id = a.id and x.role = 'owner' and x.valid_at @> now()
                        order by lower(x.valid_at), x.person_id) as "ownerIds"

@@ -167,7 +167,8 @@ export function buildApp({
     origins,
     hub,
     models,
-    mcpAddress: mcp?.resource ?? null,
+    // The login server's resource is the MCP server's address, which its tokens are for.
+    mcpAddress: mcp?.resource ?? login?.resource ?? null,
     login,
     jobs,
     sources,

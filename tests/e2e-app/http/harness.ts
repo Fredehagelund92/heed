@@ -6,6 +6,7 @@ import { identifier, localRoles } from '../../../src/server/db/roles.ts'
 import { createLogger } from '../../../src/server/observability/logger.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { devPeople, TODAY } from '../../app/http/demo-week.ts'
+import { demoLoginServer } from '../../app/http/login.ts'
 
 /*
   The service the golden journeys talk to in http mode, one per journey: each starts on its own copy
@@ -83,6 +84,8 @@ export async function freshService(
     clock: systemClock(TODAY),
     devPeople: devPeople(),
     origins: [webOrigin],
+    // An agent signs in with the service's own login server, as a person's agent does (J12).
+    login: await demoLoginServer(`http://127.0.0.1:${apiPort}`, webOrigin),
   })
   await app.listen({ host: '127.0.0.1', port: apiPort })
   running = { close: () => app.close() }

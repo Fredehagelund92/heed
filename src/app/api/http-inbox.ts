@@ -57,6 +57,7 @@ export function workspaceOf(input: {
     owners: a.ownerIds.flatMap((id) => name.get(id) ?? []),
     covers: a.summary,
     text: a.description,
+    ...(a.demo ? { sandbox: true } : {}),
   }))
   const byId: Domains = Object.fromEntries(domains.map((d) => [d.id, d]))
   const people: Person[] = input.people.map((p) => {

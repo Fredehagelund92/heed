@@ -94,7 +94,11 @@ describe('the words people read', () => {
     // Each banned word, and where it may still show.
     const banned: { word: RegExp; allowed: string[] }[] = [
       // An edition is Advanced vocabulary: never in success copy.
-      { word: /\bedition\b/i, allowed: ['pages/settings.tsx', 'lib/agent-reply.ts'] },
+      // http-settings.ts words Settings, Advanced's editions on the service.
+      {
+        word: /\bedition\b/i,
+        allowed: ['pages/settings.tsx', 'lib/agent-reply.ts', 'api/http-settings.ts'],
+      },
       // Nothing promises anonymity: what is kept is said instead.
       { word: /\banonymous\b|\bnobody sees who\b/i, allowed: [] },
       // Card kinds are named by what happened.

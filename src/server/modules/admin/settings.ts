@@ -4,6 +4,7 @@ import {
   type SettingKey,
   settingSchemas,
   unknownToolsMessage,
+  type WorkspaceInfo,
 } from '../../../contract/admin.ts'
 import { canonicalJson } from '../../../domain/canonical.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -100,4 +101,15 @@ export async function setSetting(
     details: { from: current.version, to: saved!.version, value, reason: input.reason },
   })
   return withEditable(saved!)
+}
+
+/**
+ * What everyone signed in reads of the workspace (FR-818): its name, empty until an admin names
+ * it. Only this key is read, so the other settings stay with the admins.
+ */
+export async function readWorkspace(tx: Queryable): Promise<WorkspaceInfo> {
+  const [row] = await tx.query<{ value: unknown }>(
+    `select value from settings_versions where key = 'workspace.name' order by version desc limit 1`,
+  )
+  return { name: typeof row?.value === 'string' ? row.value : '' }
 }

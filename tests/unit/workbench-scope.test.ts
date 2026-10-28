@@ -12,6 +12,7 @@ const area = (id: string): Area => ({
   ownerIds: [],
   label: 'teal',
   revision: 1,
+  demo: false,
 })
 
 function row(id: string, patch: Partial<DomainHealth> = {}): DomainHealth {

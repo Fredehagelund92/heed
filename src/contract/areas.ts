@@ -67,6 +67,12 @@ export const createAreaSchema = z.strictObject({
   /** Stays for good: items, mentions and history name the area by it. */
   id: areaIdField,
   ...areaFields,
+  // A domain made from its own page names only what the page shows (FR-815): its hue is the one
+  // fewest domains have, the review time the default, and no chat channel or owner team.
+  label: z.optional(areaFields.label),
+  reviewDays: z.optional(areaFields.reviewDays),
+  chatChannel: z._default(areaFields.chatChannel, null),
+  ownerTeam: z._default(areaFields.ownerTeam, null),
   summary: z._default(areaSummarySchema, ''),
   description: z._default(areaDescriptionSchema, ''),
   /** Why, for the history log; a new area needs none, as creating it says what happened. */
@@ -99,6 +105,8 @@ export const describeAreaSchema = z.strictObject({
   id: areaIdField,
   /** The revision you read; a newer one is a conflict. */
   revision: z.number().check(z.int(), z.minimum(1), z.maximum(1_000_000)),
+  /** A new name, from the domain's page (FR-815): its owners rename it too. */
+  name: z.optional(areaFields.name),
   ...descriptionFields,
 })
 
@@ -215,6 +223,13 @@ export const removeAreaSchema = z.strictObject({
   /** Why, for the history log. */
   reason: z.optional(reason),
 })
+
+/**
+ * Deleting a domain from its page (FR-814, FR-815): only one that holds no context and no terms,
+ * and never the sandbox, the demo domain. Its open suggestions are withdrawn, its drafts stay
+ * with their authors and its owners stop owning it, as `areas.remove` does.
+ */
+export const deleteEmptyAreaSchema = z.strictObject({ id: areaIdField })
 
 export const areaRemovedSchema = z.object({
   outcome: z.enum(['deleted', 'archived']),

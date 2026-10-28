@@ -31,16 +31,15 @@ import {
 } from '@/components/ui/input-group'
 import { AgentPreviewLink } from '@/components/agent-preview'
 import {
-  ADDRESS,
   CHECKS,
-  CLAUDE_CODE_COMMAND,
-  GUIDES,
-  PROMPT,
-  PROMPT_PARTS,
   TOOL_NAMES,
+  claudeCodeCommand,
   cursorLink,
   guide,
+  guidesFor,
   liveCopy,
+  promptOf,
+  promptParts,
   vscodeLink,
   type AgentId,
   type Via,
@@ -50,7 +49,7 @@ import { onOpen } from '@/lib/events'
 import { storageKey } from '@/lib/brand'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api'
-import { agentConnectionsQuery, connectReviewQuery } from '@/api/queries'
+import { agentConnectionsQuery, connectReviewQuery, useSettings } from '@/api/queries'
 import { useMe } from '@/lib/workspace'
 
 // Connect an agent: one prompt first, shown in full and copied exactly as shown, with a live line
@@ -59,6 +58,18 @@ import { useMe } from '@/lib/workspace'
 // Connect an agent dialog (user menu, palette, setup checklist) show this same body.
 
 const copy = (text: string) => navigator.clipboard?.writeText(text).catch(() => undefined)
+
+/** The MCP server's address, which the prompt, the quick links and every agent's steps name. */
+const Address = React.createContext('')
+
+/** The prompt, its parts and every agent's steps, for the address this workspace serves. */
+function useConnectWords() {
+  const address = React.use(Address)
+  return React.useMemo(() => {
+    const parts = promptParts(address)
+    return { address, parts, prompt: promptOf(parts), guides: guidesFor(address) }
+  }, [address])
+}
 
 /** The name an agent reports when it signs in; a pasted prompt is most often run in Claude Code. */
 const agentOf = (via: Via) =>
@@ -109,7 +120,9 @@ function useLive() {
           : phaseAt(elapsed)
       if (phase === 'connected')
         void queryClient.invalidateQueries({ queryKey: agentConnectionsQuery().queryKey })
-      setLive((l) => (l.phase === phase ? l : { ...l, phase }))
+      // The agent that signed in, or was declined, as it named itself.
+      const agent = 'agent' in answer && answer.agent ? answer.agent : undefined
+      setLive((l) => (l.phase === phase ? l : { ...l, phase, ...(agent ? { agent } : {}) }))
     }
     const t = setInterval(() => void check(), CHECK_MS)
     return () => clearInterval(t)
@@ -123,6 +136,7 @@ function useLive() {
 /* ---------- The prompt ---------- */
 
 function PromptCard({ onCopy }: { onCopy: () => void }) {
+  const { parts, prompt } = useConnectWords()
   const [copied, setCopied] = React.useState(false)
   return (
     <figure className="border bg-background" aria-labelledby="connect-prompt-label">
@@ -133,7 +147,7 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
         <Button
           size="sm"
           onClick={() => {
-            void copy(PROMPT)
+            void copy(prompt)
             setCopied(true)
             setTimeout(() => setCopied(false), 1500)
             onCopy()
@@ -144,7 +158,7 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
         </Button>
       </figcaption>
       <div className="flex flex-col gap-2.5 px-3 py-3 text-sm leading-relaxed md:px-4">
-        {PROMPT_PARTS.map((p, i) =>
+        {parts.map((p, i) =>
           p.code ? (
             <code
               key={i}
@@ -329,6 +343,7 @@ function QuickCells({
   start: (via: Via) => void
   showSteps: (id: AgentId) => void
 }) {
+  const { address } = useConnectWords()
   const [claude, setClaude] = React.useState(readClaude)
   const pick = (v: 'code' | 'app') => {
     setClaude(v)
@@ -358,24 +373,32 @@ function QuickCells({
         {claude === 'code' ? (
           <CopyButton
             label="Copy command"
-            text={CLAUDE_CODE_COMMAND}
+            text={claudeCodeCommand(address)}
             onCopy={() => start('claude-code')}
           />
         ) : (
           <>
-            <CopyButton label="Copy address" text={ADDRESS} onCopy={() => start('claude-app')} />
+            <CopyButton label="Copy address" text={address} onCopy={() => start('claude-app')} />
             <TextButton onClick={() => showSteps('claude-app')}>Steps</TextButton>
           </>
         )}
       </Cell>
       <Cell logo={guide('cursor').logo} name="Cursor" hint="In the editor">
-        <LinkButton label="Add to Cursor" href={cursorLink()} onOpen={() => start('cursor')} />
+        <LinkButton
+          label="Add to Cursor"
+          href={cursorLink(undefined, address)}
+          onOpen={() => start('cursor')}
+        />
       </Cell>
       <Cell logo={guide('vscode').logo} name="VS Code" hint="With Copilot">
-        <LinkButton label="Install in VS Code" href={vscodeLink()} onOpen={() => start('vscode')} />
+        <LinkButton
+          label="Install in VS Code"
+          href={vscodeLink(undefined, address)}
+          onOpen={() => start('vscode')}
+        />
       </Cell>
       <Cell logo={guide('chatgpt').logo} name="ChatGPT and others" hint="Any agent that speaks MCP">
-        <CopyButton label="Copy address" text={ADDRESS} onCopy={() => start('other')} />
+        <CopyButton label="Copy address" text={address} onCopy={() => start('other')} />
         <TextButton onClick={() => showSteps('chatgpt')}>Steps</TextButton>
       </Cell>
     </ul>
@@ -424,9 +447,10 @@ function ByHand({
   start: (via: Via) => void
   pad: string
 }) {
+  const { guides } = useConnectWords()
   return (
     <ul aria-label="Each agent's steps" className="border-t">
-      {GUIDES.map((g) => {
+      {guides.map((g) => {
         const open = g.id === shown
         const id = `by-hand-${g.id}`
         return (
@@ -489,6 +513,24 @@ function ByHand({
 
 /** The connect body, edge to edge: inside a Settings frame, or inside the dialog (`inDialog`, the dialog's own gutter). */
 export function ConnectAgent({ inDialog }: { inDialog?: boolean }) {
+  const address = useSettings().mcpAddress
+  // A workspace that serves no agents has nothing to connect to: say so, and nothing to copy.
+  if (!address)
+    return (
+      <p className={cn('text-sm text-muted-foreground', inDialog ? 'p-4' : 'px-4 pb-5 md:px-5')}>
+        Agents can&apos;t connect here yet: this workspace has no address for them. Whoever runs it
+        sets one.
+      </p>
+    )
+  return (
+    <Address value={address}>
+      <ConnectBody inDialog={inDialog} />
+    </Address>
+  )
+}
+
+function ConnectBody({ inDialog }: { inDialog?: boolean }) {
+  const { prompt } = useConnectWords()
   const { live, start, again, me } = useLive()
   const [fold, setFold] = React.useState(false)
   const [shown, setShown] = React.useState<AgentId>()
@@ -516,7 +558,7 @@ export function ConnectAgent({ inDialog }: { inDialog?: boolean }) {
           me={me}
           onAgain={again}
           onCopyAgain={() => {
-            void copy(PROMPT)
+            void copy(prompt)
             start('prompt')
           }}
         />

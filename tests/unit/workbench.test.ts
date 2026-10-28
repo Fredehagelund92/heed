@@ -20,6 +20,7 @@ const area = (id: string, name: string): Area => ({
   ownerIds: [],
   label: 'teal',
   revision: 1,
+  demo: id === 'area_sandbox',
 })
 const commercial = area('area_commercial', 'Commercial')
 const sandbox = area('area_sandbox', 'Sandbox')

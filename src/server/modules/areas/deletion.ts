@@ -7,6 +7,7 @@ import {
   type AreaRemoved,
   type AreaRestored,
   type ArchivedArea,
+  type deleteEmptyAreaSchema,
   type removeAreaSchema,
   type restoreAreaSchema,
 } from '../../../contract/areas.ts'
@@ -453,6 +454,36 @@ const deletedAt = `coalesce((select d.deleted_at from area_deletions d
   where d.area_id=a.id and d.restored_at is null),a.archived_at)`
 
 /** The deleted domains history keeps, newest first, with what restoring gives back. */
+/**
+ * Deleting a domain from its page (FR-815): only one that holds no context items and no terms,
+ * and never the sandbox. What is left under it (open suggestions, drafts, its owners) goes as
+ * `removeArea` lets it go, so a domain history names is kept as history.
+ */
+export async function deleteEmptyArea(
+  tx: Queryable,
+  input: z.infer<typeof deleteEmptyAreaSchema>,
+): Promise<AreaRemoved> {
+  // The locks deleting takes, in its order, before anything is read: nothing moves in meanwhile.
+  await lockReleases(tx)
+  await adminOnly(tx)
+  await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
+  const area = await getArea(tx, input.id)
+  if (area.demo)
+    throw new ORPCError('CONFLICT', {
+      message:
+        "The sandbox can't be deleted. It is where people try context, and agents never get it.",
+    })
+  const holdings = holdingsOf(await readPlan(tx, input.id))
+  if (holdings.items || holdings.terms || holdings.sourceMembers)
+    throw new ORPCError('CONFLICT', {
+      message:
+        // eslint-disable-next-line heed/plain-words -- Heed v1's word: the terms written in Definitions
+        'Only an empty domain can be deleted. Move its context and terms to another domain first.',
+      data: { holdings },
+    })
+  return removeArea(tx, { id: input.id, revision: area.revision, confirm: DELETE_DOMAIN_PHRASE })
+}
+
 export async function archivedAreas(tx: Queryable): Promise<ArchivedArea[]> {
   await adminOnly(tx)
   return tx.query<ArchivedArea>(
