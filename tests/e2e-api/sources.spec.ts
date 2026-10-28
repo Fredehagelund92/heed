@@ -164,10 +164,11 @@ test('Market is one dimension with both Cube names, and its Values action opens 
       name: 'Dimension of values 1',
     }),
   ).toHaveValue('dim:market')
-  // Every member of the seeded model is a term, so the page offers values only.
+  // The two days figures read by (orders.order_day, marketing.marketing_day) are no name; values
+  // of a dimension are added through Propose names.
   await page.goto('/admin?section=sources&source=cube')
   await expect(page.locator('[data-slot="source-terms"]')).toContainText(
-    'Every metric and dimension we read from Cube is a name we know',
+    "2 metrics and dimensions aren't yet.",
     { timeout: 15_000 },
   )
   await expect(

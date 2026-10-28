@@ -116,7 +116,9 @@ export async function cubeHost({
 }) {
   const members = await membersOf(modelDir)
   const pool = new pg.Pool({ connectionString: warehouse, max: 4 })
+  pool.on('error', () => undefined)
   const requests: CubeRequest[] = []
+  const answering = new Set<Promise<void>>()
   let waits = 0
   let delayMs = 0
   let failures: number[] = []
@@ -190,7 +192,7 @@ export async function cubeHost({
   }
 
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
-    void (async () => {
+    const answer = (async () => {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1')
       let query: unknown
       try {
@@ -228,6 +230,8 @@ export async function cubeHost({
         send(res, 400, { error: error instanceof Error ? error.message : 'Bad query' })
       }
     })()
+    answering.add(answer)
+    void answer.finally(() => answering.delete(answer))
   })
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   const { port } = server.address() as AddressInfo
@@ -251,6 +255,7 @@ export async function cubeHost({
     async close() {
       server.closeAllConnections()
       await new Promise<void>((resolve) => server.close(() => resolve()))
+      await Promise.allSettled([...answering])
       await pool.end()
     },
   }

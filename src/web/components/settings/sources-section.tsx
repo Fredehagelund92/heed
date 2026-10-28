@@ -695,7 +695,7 @@ function ViewsBlock({
                     href={file.url}
                     target="_blank"
                     rel="noreferrer"
-                    className={cn(inlineLink, 'truncate')}
+                    className={cn(inlineLink, '-my-3 block max-w-full truncate py-3')}
                     title={file.path}
                   >
                     {file.path}
