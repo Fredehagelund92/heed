@@ -134,6 +134,10 @@ const adminOperations = [
   'sources.update',
   'sources.test',
   'sources.read',
+  // Settings › Integrations: every source with how it is, its activity, and Pause reading.
+  'sources.list',
+  'sources.activity',
+  'sources.pause',
 ]
 /** FR-808: the history log is for administrators and auditors, and so is finding people for its filter. */
 const auditOperations = ['audit.search', 'audit.export', 'audit.verify', 'people.search']

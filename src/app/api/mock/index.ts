@@ -36,16 +36,8 @@ import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
-import {
-  cubeActivity,
-  cubeViews,
-  driveActivity,
-  driveDocuments,
-  driveFolders,
-  figureConnections,
-  integrationState,
-  warehouseHas,
-} from './data/integrations'
+import { cubeViews, driveFolders, figureConnections, warehouseHas } from './data/integrations'
+import { createIntegrations } from './integrations'
 import { figureFor } from './data/figures'
 import { reportedOn, type AskInput } from '@/model/ask'
 import { createDefinitions } from './definitions'
@@ -74,6 +66,7 @@ export function createMockApi() {
   const alerts = createAlerts()
   const chats = createChats()
   const settings = createSettings()
+  const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
   let views: SavedView[] = []
   readDefinitionsFrom(definitions.list)
   let state: State = start
@@ -574,20 +567,13 @@ export function createMockApi() {
       }),
     disconnectIntegration: ({ id }) => now(() => settings.disconnect(id)),
     getIntegrations: () =>
-      now(() => {
-        const { path, query } = scenario.address()
-        return {
-          state: path.startsWith('/settings/integrations')
-            ? integrationState(query.state ?? null)
-            : 'normal',
-          cubeViews,
-          driveFolders,
-          driveDocuments,
-          activity: { cube: cubeActivity, drive: driveActivity },
-          figureConnections,
-          warehouseHas,
-        }
-      }),
+      now(() => ({ cubeViews, driveFolders, figureConnections, warehouseHas })),
+    integrationsPage: () =>
+      read('integrationsPage', '', () => integrations.page(scenario.address())),
+    integrationPage: ({ id }) =>
+      read('integrationPage', id, () => integrations.sourcePage(id, scenario.address())),
+    readIntegration: ({ id }) => now(() => integrations.readAgain(id, new Date())),
+    pauseIntegration: ({ id, paused }) => now(() => integrations.pause(id, paused)),
     readFigure: (asked) =>
       now(() => {
         const on = settings.read(scenario.address()).figures

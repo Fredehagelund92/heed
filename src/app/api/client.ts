@@ -23,13 +23,12 @@ import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
 import type { FigureView } from '@/model/figures'
 import type {
-  Activity as ToolActivity,
   ConnectorId,
   CubeView,
-  DriveDocument,
   DriveFolder,
   FigureConnection,
-  IntegrationState,
+  IntegrationsView,
+  SourcePage,
 } from '@/model/integrations'
 import type { Connected, LivePhase } from '@/lib/connect'
 import type { Filters, SavedView } from '@/lib/obs-views'
@@ -174,14 +173,13 @@ export type Settings = {
   connected: ConnectorId[]
 }
 
-/** What the integrations read: Cube's views, the Drive folders and documents, each tool's activity. */
+/**
+ * What the connect flow and the figures read: the views and folders a tool offers to choose from,
+ * how each figure-capable integration is reached, and what the warehouse has tables for.
+ */
 export type Integrations = {
-  /** A sync's state, for the integrations' pages. */
-  state: IntegrationState
   cubeViews: CubeView[]
   driveFolders: DriveFolder[]
-  driveDocuments: DriveDocument[]
-  activity: { cube: ToolActivity[]; drive: ToolActivity[] }
   /** How each figure-capable integration is reached. */
   figureConnections: Partial<Record<ConnectorId, FigureConnection>>
   /** What the warehouse has tables for. It answers none of them: no metric's definition comes from it. */
@@ -501,6 +499,14 @@ export interface HeedApi {
   connectIntegration: (input: { id: ConnectorId; setup?: boolean }) => Promise<void>
   disconnectIntegration: (input: { id: ConnectorId }) => Promise<void>
   getIntegrations: () => Promise<Integrations>
+  /** Settings › Integrations: the tools connected, each with how it is, and what can be connected. */
+  integrationsPage: () => Promise<IntegrationsView>
+  /** One connected tool's page, by its id; null for none connected by that id. */
+  integrationPage: (input: { id: string }) => Promise<SourcePage | null>
+  /** Read again: the tool is read now, whatever its schedule; its page says Reading until it is. */
+  readIntegration: (input: { id: string }) => Promise<void>
+  /** Pauses reading a tool, or lets it go on; what was published stays as it is. */
+  pauseIntegration: (input: { id: string; paused: boolean }) => Promise<void>
   /** What an answer shows of the data: one figure line, a link into the tool, or why there is none. */
   readFigure: (input: {
     metric: string
@@ -642,6 +648,10 @@ export const heedApiMethods = [
   'connectIntegration',
   'disconnectIntegration',
   'getIntegrations',
+  'integrationsPage',
+  'integrationPage',
+  'readIntegration',
+  'pauseIntegration',
   'readFigure',
   'listAgentConnections',
   'revokeAgentConnection',
@@ -676,6 +686,8 @@ export const pageReads = [
   'inboxPage',
   'observabilityPage',
   'advancedPage',
+  'integrationsPage',
+  'integrationPage',
 ] as const satisfies readonly HeedApiMethod[]
 
 export type PageRead = (typeof pageReads)[number]

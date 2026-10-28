@@ -241,10 +241,14 @@ import {
   addSourceSchema,
   connectorListingSchema,
   flaggedItemSchema,
+  pausedSourceSchema,
+  pauseSourceSchema,
+  sourceActivitySchema,
   sourceCheckSchema,
   sourceReadSchema,
   sourceIdInputSchema,
   sourceListSchema,
+  sourceRowSchema,
   sourceSettingsSchema,
   staleLinkSchema,
   testSourceSchema,
@@ -402,7 +406,13 @@ export type {
   AddSourceInput,
   ConnectorListing,
   FlaggedItem,
+  PauseSourceInput,
+  SourceActivity,
   SourceCheck,
+  SourceDocumentState,
+  SourceHealth,
+  SourceReadEntry,
+  SourceRow,
   SourceConfig,
   SourceSettings,
   StaleLink,
@@ -1800,6 +1810,42 @@ export const contract = {
       })
       .input(sourceListSchema)
       .output(z.array(staleLinkSchema)),
+    // Settings › Integrations: every source, the server's own and those an admin added, with how
+    // each is and what it holds (CON-104, CON-115).
+    list: admin
+      .route({
+        method: 'GET',
+        path: '/sources',
+        tags: ['sources'],
+        summary:
+          'Every source: its connector, how it is, when it was read and is read next, and what it holds',
+      })
+      .output(z.array(sourceRowSchema)),
+    activity: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this source." },
+      })
+      .route({
+        method: 'GET',
+        path: '/sources/{id}/activity',
+        tags: ['sources'],
+        summary:
+          "A source's reads, newest first, what it reads with the domain each part maps to, and its documents read most recently",
+      })
+      .input(sourceIdInputSchema)
+      .output(sourceActivitySchema),
+    pause: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this source." },
+      })
+      .route({
+        method: 'PUT',
+        path: '/sources/{id}/paused',
+        tags: ['sources'],
+        summary: 'Pause reading a source, or let it go on, with a reason (CON-115)',
+      })
+      .input(pauseSourceSchema)
+      .output(pausedSourceSchema),
     // The sources an administrator adds in Administration › Sources (connector interface 3.0).
     types: admin
       .route({

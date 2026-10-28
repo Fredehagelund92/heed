@@ -21,7 +21,8 @@ const colleague = { name: 'Tomas Eriksen' }
 const { client, url } = testDatabase()
 const app = buildApp({
   database: apiDatabase(url),
-  jobs: idleJobs(),
+  // Read again queues the sources' job, which this test never runs.
+  jobs: { ...idleJobs(), runNow: () => Promise.resolve({ outcome: 'queued', id: 'conformance' }) },
   logger: createLogger({ level: 'silent' }),
   clock: systemClock(TODAY),
   devPeople: devPeople(),
