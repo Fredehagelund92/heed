@@ -300,7 +300,7 @@ function LookupCard({
               <p className="text-xs font-medium text-foreground">Links it followed, one step</p>
               <ul className="flex flex-col gap-2">
                 {followed.map((f) => (
-                  <li key={f.to.id} className="flex flex-col gap-1">
+                  <li key={`${f.from.id}>${f.to.id}`} className="flex flex-col gap-1">
                     <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
                       <span className="line-clamp-1 max-w-56">{f.from.title}</span>
                       <span>{relLabel[f.rel]}</span>
@@ -311,7 +311,7 @@ function LookupCard({
                 ))}
                 {notFollowed.map((f) => (
                   <li
-                    key={f.to.id}
+                    key={`${f.from.id}>${f.to.id}`}
                     className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
                   >
                     <MentionChip mention={f.to} />

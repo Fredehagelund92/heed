@@ -521,7 +521,6 @@ function blockOf(b: ServerBlock, words?: Words): Block {
   }
 }
 
-/** A source's address, short: the last part of its path, with its anchor. */
 /**
  * A link added or removed, as the review names it: by the app's mention id, and a term written in
  * Definitions by its word, as Related names it, so Try it says where the answer would follow it.
@@ -535,6 +534,7 @@ function mentionOf(
   return { id, label: term ?? m.label, change: m.change }
 }
 
+/** A source's address, short: the last part of its path, with its anchor. */
 function pageOf(url: string) {
   try {
     const u = new URL(url)
