@@ -147,15 +147,20 @@ export const connectorManifestSchema = z.strictObject({
   secrets: z.array(manifestSecretSchema).check(z.maxLength(10)),
   /** The least access it needs, said before anything is given (CON-106). */
   access: z.array(words(300)).check(z.minLength(1), z.maxLength(6)),
-  /** Every host it may reach (CON-113): a host by name, or the host of an address setting. */
+  /**
+   * Every host it may reach (CON-113): a host by name, or the host of an address setting. A host
+   * for signing in takes a POST too, so a connector may trade its credential for a short-lived
+   * token (an OAuth token endpoint); every other request is a GET or a HEAD.
+   */
   egress: z.strictObject({
     hosts: z.array(
       z.union([
-        z.strictObject({ fromField: settingKey }),
+        z.strictObject({ fromField: settingKey, signIn: z.optional(z.boolean()) }),
         z.strictObject({
           host: z
             .string()
             .check(z.maxLength(253), z.regex(/^(?=.{1,253}$)([a-z0-9-]{1,63}\.)+[a-z]{2,63}$/)),
+          signIn: z.optional(z.boolean()),
         }),
       ]),
     ),

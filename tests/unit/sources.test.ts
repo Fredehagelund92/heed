@@ -13,6 +13,7 @@ import { builtInManifests } from '../../src/connectors/manifests.ts'
 import { mockConnectorListings } from '../../src/web/mocks/source-types.ts'
 import {
   checkWords,
+  egressWords,
   holdsWords,
   issueSummary,
   sourceFormInput,
@@ -108,6 +109,18 @@ describe('the words of the connector contract', () => {
     // An old link to a moved setting opens the page of a source that has it.
     for (const [key, id] of Object.entries(movedSourceSettings))
       expect(connectorTypes.find((type) => type.type === id)?.settingKeys).toContain(key)
+  })
+})
+
+describe('where a connector reaches', () => {
+  it('names each host, and says where it signs in', () => {
+    const drive = builtInManifests.find((manifest) => manifest.id === 'google-drive')!
+    expect(egressWords(drive)).toEqual([
+      'www.googleapis.com',
+      'oauth2.googleapis.com, to sign in',
+      'The host of the Google API address you give',
+      'The host of the Google sign-in address you give, to sign in',
+    ])
   })
 })
 

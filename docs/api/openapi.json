@@ -100046,6 +100046,9 @@
                                         "fromField": {
                                           "type": "string",
                                           "pattern": "^[a-z][a-zA-Z0-9]{0,39}$"
+                                        },
+                                        "signIn": {
+                                          "type": "boolean"
                                         }
                                       },
                                       "required": [
@@ -100060,6 +100063,9 @@
                                           "type": "string",
                                           "maxLength": 253,
                                           "pattern": "^(?=.{1,253}$)([a-z0-9-]{1,63}\\.)+[a-z]{2,63}$"
+                                        },
+                                        "signIn": {
+                                          "type": "boolean"
                                         }
                                       },
                                       "required": [

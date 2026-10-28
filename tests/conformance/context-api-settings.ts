@@ -811,6 +811,7 @@ export function describeContextApiSettings(
         ['cube', 3],
         ['static-definitions', 3],
         ['git-markdown', 3],
+        ['google-drive', 3],
       ])
       const cube = listings.find((listing) => listing.manifest.id === 'cube')!.manifest
       expect(cube).toMatchObject({ kind: 'definitions', tool: 'Cube', refPrefix: 'cube' })

@@ -146,10 +146,14 @@ export class SourceError extends Error {
   }
 }
 
-/** A request a connector may make: GET or HEAD, https, to a host its manifest declares. */
+/**
+ * A request a connector may make: GET or HEAD, https, to a host its manifest declares; and a POST
+ * with a body only to a host it declares for signing in, to trade its credential for a
+ * short-lived token. Nothing is ever written to the tool (CON-102).
+ */
 export type GuardedFetch = (
   url: string,
-  init?: { method?: 'GET' | 'HEAD'; headers?: Record<string, string> },
+  init?: { method?: 'GET' | 'HEAD' | 'POST'; headers?: Record<string, string>; body?: string },
 ) => Promise<Response>
 
 /**

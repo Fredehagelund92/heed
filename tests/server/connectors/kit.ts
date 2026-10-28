@@ -41,12 +41,20 @@ export interface ConnectorFixture {
   unreachable?: () => FixtureSource
   /** Settings the form refuses, each on the field it names. */
   invalid?: { config: SourceConfig; field: string }[]
-  /** A secret of the fixture that must appear in nothing the connector returns. */
-  planted?: string
+  /**
+   * A secret of the fixture that must appear in nothing the connector returns, or how to get it
+   * once the fixture's tool is up.
+   */
+  planted?: string | (() => string | undefined)
   /** Definitions: settings whose read meets a file it cannot read, which makes it partial. */
   partial?: () => FixtureSource
   /** Definitions: a calculation in the tool's content that must cross into no definition. */
   calculation?: string
+  /**
+   * Content read from a cursor (`deletions` of `tombstones` or `both`): changes the tool, editing
+   * one document of the chosen scopes and removing another, and gives their ids.
+   */
+  delta?: () => Promise<{ edited: string; removed: string }>
   /** How long a test of it may take, in milliseconds: longer for one with a worker (T1). */
   timeout?: number
 }
@@ -228,8 +236,11 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
               expect(chosen.has(document.scope)).toBe(true)
               expect(new URL(document.link).protocol).toBe('https:')
             }
-            // An unchanged source gives the same documents with the same marks.
-            const again = await source.read({ cursor: first.cursor ?? null })
+            // An unchanged source gives the same documents with the same marks: from its cursor
+            // for a connector that lists everything each time, and from none for one that reads
+            // what changed since it.
+            const lists = manifest.capabilities.deletions === 'full-listing'
+            const again = await source.read({ cursor: lists ? (first.cursor ?? null) : null })
             const marks = async (read: typeof first) =>
               Promise.all(read.documents.map(async (d) => [d.id, await documentMark(d)]))
             expect(await marks(again)).toEqual(await marks(first))
@@ -251,6 +262,39 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
         )
       })
 
+    if (manifest.kind === 'content' && manifest.capabilities.deletions !== 'full-listing')
+      describe('its cursor', () => {
+        it(
+          'gives nothing new for an unchanged source',
+          async () => {
+            const source = connector().content!(stored(fixture.good()))
+            const first = await source.read({ cursor: null })
+            expect(first.cursor, 'a read from no cursor gives one').toBeDefined()
+            const unchanged = await source.read({ cursor: first.cursor! })
+            expect(unchanged.documents).toEqual([])
+            expect(unchanged.deleted).toEqual([])
+            expect(unchanged.cursor).toBeDefined()
+          },
+          fixture.timeout,
+        )
+        if (fixture.delta)
+          it(
+            'brings a changed document again, and a tombstone for a removed one',
+            async () => {
+              const source = connector().content!(stored(fixture.good()))
+              const first = await source.read({ cursor: null })
+              const { edited, removed } = await fixture.delta!()
+              const delta = await source.read({ cursor: first.cursor! })
+              expect(delta.documents.map((document) => document.id)).toEqual([edited])
+              expect(delta.deleted).toContain(removed)
+              // A full read lists the document no more.
+              const full = await source.read({ cursor: null })
+              expect(full.documents.map((document) => document.id)).not.toContain(removed)
+            },
+            fixture.timeout,
+          )
+      })
+
     if (fixture.planted)
       it(
         'keeps its secret out of every check, scope, record and warning',
@@ -267,7 +311,10 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
           } else seen.push(await connector().source(good).read({ cursor: null }))
           for (const bad of [fixture.refused, fixture.unreachable])
             if (bad) seen.push((await failure(() => connector().check(stored(bad())))).warnings)
-          expect(JSON.stringify(seen)).not.toContain(fixture.planted)
+          const planted =
+            typeof fixture.planted === 'function' ? fixture.planted() : fixture.planted
+          expect(planted, 'the secret to look for').toBeTruthy()
+          expect(JSON.stringify(seen)).not.toContain(planted)
         },
         fixture.timeout,
       )
