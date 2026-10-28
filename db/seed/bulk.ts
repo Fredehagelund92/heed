@@ -101,11 +101,14 @@ function acceptedBy(item: ContextItem) {
 /**
  * What a seed adds to the library beyond its items: the golden set's fixtures
  * (db/seed/golden-fixtures.ts) declare conflicts, other names, a renamed Cube member and what an
- * earlier version said. The demo library has none of these.
+ * earlier version said; the app's demo week (tests/app/http/demo-week.ts) declares conflicts and
+ * replacements. The demo library has none of these.
  */
 export type LibraryExtras = {
   /** Pairs of items whose current versions name each other as conflicting (FR-220). */
   conflicts?: readonly (readonly [string, string])[]
+  /** Pairs of an item and the item its current version replaces (FR-218). */
+  replaces?: readonly (readonly [string, string])[]
   /** Other names of vocabulary terms, by term key. */
   aliases?: Readonly<Record<string, readonly string[]>>
   /** Members the Cube model no longer lists, by id, and the member each was renamed to (CON-210). */
@@ -740,6 +743,14 @@ export async function bulkSeed(
           ]),
         ),
       ],
+    )
+    // Each replacement is named by the current version of the item that replaces.
+    await client.query(
+      `insert into item_version_replaces (version_id,replaced_item_id)
+       select v.id,p.replaced from jsonb_to_recordset($1::jsonb) as p(item text,replaced text)
+       cross join lateral (select id from item_versions where item_id=p.item
+                            order by version_no desc limit 1) v`,
+      [JSON.stringify((extras.replaces ?? []).map(([item, replaced]) => ({ item, replaced })))],
     )
     await insert(
       client,

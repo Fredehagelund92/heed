@@ -14,6 +14,7 @@ import {
   personSheetSchema,
 } from './people.ts'
 import {
+  definitionRelatedInputSchema,
   deletedDraftSchema,
   draftFromTextInputSchema,
   draftFromTextSchema,
@@ -1506,6 +1507,17 @@ export const contract = {
           'What agents can be asked about with nothing written down: each metric and term with its own meaning, and how many live context items are about it',
       })
       .output(definitionCoverageSchema),
+    related: read
+      .route({
+        method: 'GET',
+        path: '/definitions/related',
+        tags: ['library'],
+        summary:
+          'Context related to a metric or a dimension, one step away, as get_related follows it: what people see in Related',
+      })
+      .errors(notFound)
+      .input(definitionRelatedInputSchema)
+      .output(relatedSchema),
   },
   areas: {
     list: read

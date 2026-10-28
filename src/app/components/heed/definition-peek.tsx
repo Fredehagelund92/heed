@@ -160,7 +160,7 @@ export function DefinitionPeek({ name }: { name: string }) {
             <SynonymTags d={d} canEdit={canEdit} />
           </PeekBand>
         )}
-        {related.length > 0 && (
+        {related.links.length > 0 && (
           <PeekBand label="Related">
             <PeekLabel>Related</PeekLabel>
             <Related id={mentionId(d.type, d.name)} />

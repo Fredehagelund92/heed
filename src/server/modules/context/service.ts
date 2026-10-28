@@ -23,12 +23,14 @@ import {
 } from '../../../domain/context-bulk.ts'
 import type { Draft } from '../../../domain/draft.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
+import { termDomain } from '../../../domain/catalogue.ts'
 import { related } from '../../../domain/links.ts'
 import type { ClashRelation } from '../../../domain/readiness.ts'
 import { kinds, type Kind } from '../../../domain/words.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { liveServingBundle, type BundleCache } from '../answer/index.ts'
+import { enabledTools } from '../editions/index.ts'
 import type { LibraryService } from '../library/index.ts'
 import { draftVocabulary } from '../../mcp/draft-tool.ts'
 import { proposalEvent, readVersions, type ProposalsService } from '../proposals/index.ts'
@@ -608,33 +610,87 @@ export function createContextService(
     return { proposalId: created.id }
   }
 
-  /** Related context, one step away, as get_related follows it on what agents get now. */
+  /**
+   * The domain of each metric or dimension, as Definitions shows it: its own, or else the one its
+   * source names (`termDomain`).
+   */
+  async function termAreas(
+    terms: readonly { key: string; areaId: string | null }[],
+    keys: readonly string[],
+  ): Promise<(key: string) => string | undefined> {
+    const hints = keys.length
+      ? await tx.query<{ key: string; areaId: string | null }>(
+          `select key, area_id as "areaId"
+             from serving_source_domains((select seq from live_edition)) where key = any($1)`,
+          [keys],
+        )
+      : []
+    return (key) =>
+      termDomain(
+        terms.find((t) => t.key === key)?.areaId ?? null,
+        hints.find((h) => h.key === key)?.areaId ?? null,
+      ).areaId ?? undefined
+  }
+
+  /**
+   * Related context, one step away, as get_related follows it on what agents get now: from an
+   * item the person may read, or from a metric or a dimension by its key. Whether agents follow
+   * links at all is the get_related switch (FR-407), which people see in Related too.
+   */
   async function relatedOf(id: string): Promise<RelatedContext | null> {
-    if (!(await library.getIndexRow(id))) return null
-    const bundle = await liveServingBundle(tx, cache)
+    const item = id.startsWith('itm_')
+    const row = item ? await library.getIndexRow(id) : null
+    if (item && !row) return null
+    const [bundle, tools] = await Promise.all([liveServingBundle(tx, cache), enabledTools(tx)])
+    const following = tools.includes('get_related')
     const graph = related(bundle, { id, depth: 1, today: clock.today() })
-    if (!graph.found) return { nodes: [], withheld: 0 }
-    // Each node once, by the link that reached it, read from the item's side.
+    const termArea = await termAreas(bundle.terms, [
+      ...(item ? [] : [id]),
+      ...(graph.found ? graph.nodes.filter((n) => n.type !== 'item').map((n) => n.id) : []),
+    ])
+    const areaId = item ? row?.areaId : termArea(id)
+    // An item the person may read that agents are not given has nothing to follow; a definition
+    // that is not in the vocabulary agents read is not found.
+    if (!graph.found)
+      return item ? { ...(areaId ? { areaId } : {}), nodes: [], withheld: 0, following } : null
+    // Each node once, by the start's own link to it that comes first in the fixed order, read
+    // from the start's side. Links among the neighbours are not how they relate to the start.
     const backwards: Record<string, string> = { mentions: 'mentioned_by', replaces: 'replaced_by' }
-    const relationOf = new Map(
-      graph.edges.map((e) => (e.from === id ? [e.to, e.rel] : [e.from, backwards[e.rel] ?? e.rel])),
+    const relationOf = new Map<string, string>()
+    for (const e of graph.edges) {
+      const [other, rel] =
+        e.from === id ? [e.to, e.rel] : e.to === id ? [e.from, backwards[e.rel] ?? e.rel] : []
+      if (other && rel && !relationOf.has(other)) relationOf.set(other, rel)
+    }
+    // A retired or replaced item gives agents only the words that linked to it (FR-333); people
+    // read it by its title and domain, as the Context list shows it, when they may read it.
+    const retired = new Map(
+      await Promise.all(
+        graph.nodes
+          .filter((node) => node.type === 'item' && node.status !== 'current')
+          .map(async (node) => [node.id, await library.getIndexRow(node.id)] as const),
+      ),
     )
     return {
+      ...(areaId ? { areaId } : {}),
       nodes: graph.nodes.map((node) => {
         const type = ['item', 'metric', 'dimension', 'dimension_value', 'area'].includes(node.type)
           ? (node.type as RelatedContext['nodes'][number]['type'])
           : 'other'
+        const shown = retired.get(node.id)
+        const area = 'area' in node && node.area ? node.area : (shown?.areaId ?? termArea(node.id))
         return {
           type,
           id: node.id,
-          label: node.label,
+          label: shown?.title ?? node.label,
           relation: relationOf.get(node.id) ?? 'mentions',
           status: node.status,
-          ...('kind' in node ? { kind: node.kind } : {}),
-          ...('area' in node && node.area ? { areaId: node.area } : {}),
+          ...('kind' in node ? { kind: node.kind } : shown ? { kind: shown.kind } : {}),
+          ...(area ? { areaId: area } : {}),
         }
       }),
       withheld: graph.withheld,
+      following,
     }
   }
 

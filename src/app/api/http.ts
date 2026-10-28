@@ -31,6 +31,7 @@ import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import { reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
+import { parseMentionId } from '@/lib/mentions'
 import type { Definition } from '@/lib/definitions'
 import type { Version } from '@/model/history'
 import type { Fact, Sent } from '@/model/items'
@@ -63,6 +64,7 @@ import {
   factOfDraft,
   factOfReadDraft,
   itemPageOf,
+  linksOfRelated,
   logOf,
   serviceDay,
   termHistoryOf,
@@ -134,6 +136,7 @@ export const wiredMethods = [
   'contextPage',
   'itemPage',
   'getItemHistory',
+  'getRelated',
   'restoreAsDraft',
   'markViewed',
   'editItem',
@@ -1091,6 +1094,22 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     contextPage: async () => (await contextRows()).items,
     itemPage: ({ id }) => itemPage(id),
     getItemHistory: async ({ id }) => (await itemPage(id))?.history ?? [],
+    // From an item or a synced definition. A draft is not served, so it has nothing to follow; a
+    // term written here has no links on the service yet.
+    getRelated: async ({ id }) => {
+      const { kind, key } = parseMentionId(id)
+      const words = await readWords()
+      const definition = kind === 'metric' || kind === 'dimension' ? words.keyOf(key) : undefined
+      const found =
+        kind === 'context' && isItemId(key)
+          ? await orNull(() => read(() => client.items.related({ id: key })))
+          : definition && definition.kind === (kind === 'metric' ? 'metric' : 'dim')
+            ? await orNull(() => read(() => client.definitions.related({ key: definition.key })))
+            : null
+      return found
+        ? { links: linksOfRelated(found, words), following: found.following }
+        : { links: [], following: true }
+    },
     restoreAsDraft: async ({ id, v }) => {
       const page = await orNull(() => read(() => client.items.page({ id })))
       if (!page) throw new ApiError('not-found', "This context item isn't in Context any more.")

@@ -14,6 +14,7 @@ import type { JSONContent } from '@tiptap/core'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
+import type { Link } from '@/lib/links'
 import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@/model/ask'
 import type { Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
@@ -213,6 +214,13 @@ export type Exported = { name: string; type: string; content: string }
 export type ItemPage = { item: Fact; history: Version[] }
 
 /**
+ * Related: what an agent can follow from a context item or a definition with get_related, one
+ * step, as people see it. The links in the text both ways and the owners' relations, in the order
+ * agents follow them, and whether agents follow links now (the switch in Agents and access).
+ */
+export type Related = { links: Link[]; following: boolean }
+
+/**
  * A change to many items at once: what it does, their edits, the drafts it deletes, and its line in
  * History. Where it moves them, the kind it gives them and the owner it adds or sets are named
  * too, so a binding that makes the change itself need not read them back from the edits.
@@ -306,6 +314,8 @@ export interface HeedApi {
   itemPage: (input: { id: string }) => Promise<ItemPage | null>
   /** An item's versions, newest first. */
   getItemHistory: (input: { id: string }) => Promise<Version[]>
+  /** What an agent can follow from here: `id` names an item or a definition as a mention does. */
+  getRelated: (input: { id: string }) => Promise<Related>
   /**
    * Brings the words of an earlier version (`v`, as its history numbers it) back as a new draft,
    * for an owner of its domain or an admin. What agents get does not change until it is published.
@@ -560,6 +570,7 @@ export const heedApiMethods = [
   'contextPage',
   'itemPage',
   'getItemHistory',
+  'getRelated',
   'restoreAsDraft',
   'markViewed',
   'editItem',

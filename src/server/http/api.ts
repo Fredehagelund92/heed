@@ -796,6 +796,9 @@ export function createRouter({
     },
     definitions: {
       coverage: authorized.definitions.coverage.handler(({ context }) => context.terms.coverage()),
+      related: authorized.definitions.related.handler(async ({ input, context }) =>
+        found(await context.context.related(input.key)),
+      ),
     },
     areas: {
       list: authorized.areas.list.handler(({ context }) => context.areas.list()),

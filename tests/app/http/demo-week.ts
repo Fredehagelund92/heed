@@ -13,6 +13,7 @@ import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
 import { reviewQuestion, type ContextItem } from '../../../src/domain/item.ts'
+import { serializeMentions, type MentionPart } from '../../../src/domain/mentions.ts'
 import { defaultNotToConclude } from '../../../src/domain/proposal-rules.ts'
 import type { Draft } from '../../../src/domain/draft.ts'
 import { shiftDate } from '../../../src/domain/validity.ts'
@@ -35,6 +36,10 @@ import { seedSavedQuestions } from './demo-saved.ts'
   what the service computes from them (the difference, the claims, the Ready line) is its own. The
   report on Orders in Germany comes in as Maria Lindqvist's named report from Ask. What
   agents asked this week comes in as the topics and counts the service keeps (Asked this week).
+
+  The items' links are the mock's too: a mention the service can follow is kept as its markup,
+  and the owners' relations (replaces, disagrees with) as the service records them. A mention of a
+  term written in Definitions stays its words: the service cannot follow one yet.
 
   The comments are the mock's threads (data/comments.ts), each written, answered, reacted to,
   edited and deleted through the API by the person the mock names, then dated as the mock dates
@@ -80,6 +85,31 @@ const personId = (name: string) => {
 }
 /** A mention as the mock stores it, `[@ id="..." label="Words"]`, read as its words. */
 const plain = (text: string) => text.replace(/\[@ id="[^"]*" label="([^"]*)"\]/g, '$1')
+/**
+ * A mock text's mentions as the service keeps them, in the markup the http binding writes: an item
+ * by its id on the service, a metric or a market by its key. None when it mentions nothing the
+ * service can follow; a term written in Definitions is kept as its words.
+ */
+function markupOf(text: string): string | undefined {
+  const parts = text.split(/(\[@ id="[^"]*" label="[^"]*"\])/).map((part): MentionPart => {
+    const [, kind, key = '', label = ''] =
+      /^\[@ id="([a-z]+):([^"]*)" label="([^"]*)"\]$/.exec(part) ?? []
+    const metric = kind === 'metric' ? metricOf(key) : undefined
+    const market = kind === 'market' ? marketOf(key) : undefined
+    const target =
+      kind === 'context'
+        ? `item:${serverItemId(key)}`
+        : metric
+          ? `metric:${metric.id}`
+          : market
+            ? `val:market/${market.id}`
+            : undefined
+    if (target) return { kind: 'mention', target, label }
+    return { kind: 'text', text: kind ? label : part }
+  })
+  return parts.some((p) => p.kind === 'mention') ? serializeMentions(parts) : undefined
+}
+
 /** The mock's "3 Oct 2026" as a calendar day. */
 function isoDay(label: string, fallback: string) {
   const t = Date.parse(`${label} 12:00 UTC`)
@@ -207,6 +237,9 @@ function itemOf(f: Fact): ContextItem {
   const text = split(plain(before.summary ?? f.summary))
   const body =
     before.body === undefined ? (text.body ?? (f.body ? plain(f.body) : undefined)) : before.body
+  // The links written in its body, which Related and agents follow.
+  const bodyMarkup =
+    before.body === undefined && !text.body && f.body ? markupOf(f.body) : undefined
   const area = areas.find((a) => a.id === areaOf(f.domain))!
   return {
     id: serverItemId(f.id),
@@ -217,6 +250,7 @@ function itemOf(f: Fact): ContextItem {
     title: f.title,
     summary: text.summary,
     ...(body ? { body } : {}),
+    ...(bodyMarkup ? { bodyMarkup } : {}),
     references,
     scope: {
       metrics,
@@ -255,6 +289,8 @@ function draftOf(item: ContextItem, after: After): Draft {
     title: item.title,
     summary: text?.summary ?? item.summary,
     ...(body ? { body } : {}),
+    // A body the suggestion leaves alone keeps its links.
+    ...(body === item.body && item.bodyMarkup ? { bodyMarkup: item.bodyMarkup } : {}),
     scope: {
       metrics: item.scope.metrics.map((m) => `metric:${m}`),
       dimensions: [],
@@ -898,6 +934,9 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   try {
     await bulkSeed(client, demoLibrary(), {
       conflicts: [[serverItemId('itm_gift_store_credit'), serverItemId('itm_gift_card_only')]],
+      replaces: facts.flatMap((f) =>
+        f.replaces ? [[serverItemId(f.id), serverItemId(f.replaces)] as const] : [],
+      ),
     })
     const admins = worldPeople.filter((p) => p.admin).map((p) => seedPersonId(personId(p.name)))
     await client.query(

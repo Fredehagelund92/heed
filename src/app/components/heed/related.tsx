@@ -2,7 +2,6 @@ import { MentionChip } from '@/components/heed/mention-chip'
 import { useDomains } from '@/lib/workspace'
 import { relLabel, type Link } from '@/lib/links'
 import { useRelated } from '@/hooks/use-related'
-import { useLinksEnabled } from '@/lib/links-switch'
 
 // Related: what an agent can follow from here with get_related, so people see it too. The links
 // written in the text, both ways, and the two relations an owner sets (replaces, disagrees with),
@@ -33,8 +32,7 @@ function LinkLine({ link }: { link: Link }) {
 
 /** Links to and linked from, in the fixed order agents follow them; nothing when there are none. */
 export function Related({ id }: { id: string }) {
-  const links = useRelated(id)
-  const enabled = useLinksEnabled()
+  const { links, following } = useRelated(id)
   if (!links.length) return null
   const out = links.filter((l) => l.rel !== 'mentioned_by' && l.rel !== 'replaced_by')
   const back = links.filter((l) => l.rel === 'mentioned_by' || l.rel === 'replaced_by')
@@ -61,7 +59,7 @@ export function Related({ id }: { id: string }) {
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        {enabled
+        {following
           ? 'An agent can follow these, one step at a time. It never changes what an answer includes, and never reads comments.'
           : "Agents don't follow links: it is switched off in Agents and access."}
       </p>

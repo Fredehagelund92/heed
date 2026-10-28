@@ -219,6 +219,7 @@ const readOperations = [
   'terms.deleted',
   'terms.history',
   'definitions.coverage',
+  'definitions.related',
   'items.list',
   'items.get',
   'items.history',

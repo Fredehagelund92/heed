@@ -244,7 +244,7 @@ export function FactPeek({ id }: { id: string }) {
               ...(fact.dontConclude
                 ? ([["Don't conclude", fact.dontConclude]] as [string, string][])
                 : []),
-              ...(related.length
+              ...(related.links.length
                 ? ([['Related', <Related key="v" id={`context:${fact.id}`} />]] as [
                     string,
                     React.ReactNode,
@@ -271,7 +271,7 @@ export function FactPeek({ id }: { id: string }) {
             ]}
             links={[
               <PeekLink key="history" icon={ClockIcon} href={href(page)}>
-                History: {history.length} versions
+                History: {history.length} {history.length === 1 ? 'version' : 'versions'}
               </PeekLink>,
               <PeekLink key="comments" icon={MessageSquareIcon} href={href(page)}>
                 {nComments ? `Comments: ${nComments}` : 'Comments'}

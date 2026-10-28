@@ -661,8 +661,13 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   an admin gets a draft of a change with that version's words, dates and sources. What agents
   get does not change until the draft is published.
 - `GET /items/{id}/related` is Related on a context item: its neighbours one step away, as
-  `get_related` follows them on what agents get now, with how each relates. Neighbours the person
-  may not see are counted in `withheld`, never named.
+  `get_related` follows them on what agents get now, with how each relates to the item itself
+  (`mentions`, `mentioned_by`, `replaces`, `replaced_by`, `conflicts_with`, `applies_to`).
+  Neighbours the person may not see are counted in `withheld`, never named. A retired or replaced
+  item is named by its title, as the Context list shows it, where agents get only the words that
+  linked to it. `areaId` is the item's domain and each neighbour's, a metric's or a dimension's as
+  Definitions shows it; `following` says whether agents follow links now (the `get_related`
+  switch).
 - `POST /items/publish` takes `{ draft, itemId?, reason?, draftId?, relations? }` (FR-137). An
   owner of the draft's domain (and, for a change, of the item's domain now) or an admin publishes
   it in one step, through the same checks and clash gate as the review; anyone else's goes to the
@@ -726,6 +731,9 @@ synonym means what that one means.
   those that apply to it; a dimension is about every item, and a synonym's context is its
   meaning's. `uncovered` of `measurable` have no context yet: agents asking about them get Not
   found.
+- `GET /definitions/related?key=` is Related on a metric or a dimension, by its key
+  (`metric:orders`, `dim:market`), in the shape of `GET /items/{id}/related`: the items that
+  mention it or apply to it. A key agents do not read is not found.
 
 Agents read the live terms and synonyms through `serving_terms()` (migration 0011), which names
 no person; the serving role has no grant on the terms tables. What they get is in the agent tools

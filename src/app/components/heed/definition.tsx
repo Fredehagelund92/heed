@@ -417,7 +417,7 @@ export function DefinitionDetails({ d }: { d: Definition }) {
   const figures = useFigures()
   const domain = d.domain ? (domains[d.domain]?.name ?? 'All domains') : 'All domains'
   const history = useQuery(definitionHistoryQuery(d.name)).data ?? []
-  const mentioned = related.length > 0
+  const mentioned = related.links.length > 0
   const hasDetails = !!d.values || d.synced || mentioned
   // The meaning is the page; then one quiet line on where it comes from, and the rest folded into Details.
   return (
@@ -468,7 +468,11 @@ export function DefinitionDetails({ d }: { d: Definition }) {
         {hasDetails && (
           <MoreProperties
             label="Details"
-            summary={[d.synced && cubeRef(d), d.values, mentioned && `${related.length} related`]
+            summary={[
+              d.synced && cubeRef(d),
+              d.values,
+              mentioned && `${related.links.length} related`,
+            ]
               .filter(Boolean)
               .join(' - ')}
           >

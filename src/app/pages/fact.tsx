@@ -232,7 +232,7 @@ export function FactPage({ id }: { id: string }) {
     <Loadable what="this context item" skeleton={<SideSkeleton />} quiet query={page}>
       {wide && attention}
       {/* What an agent can follow from here, both ways: the links in the text and the owners' relations. */}
-      {related.length > 0 && (
+      {related.links.length > 0 && (
         <SideSection title="Related">
           <Related id={mentionId('context', fact.id)} />
         </SideSection>

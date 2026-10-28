@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { go } from './go.ts'
+import type { Page } from '@playwright/test'
+import { expect, go, inMockUntil, test, untilInHttp } from './go.ts'
 
 // J21, following links (get_related): Related shows what an agent can follow both ways, the
 // owners' relations labelled, a retired item not followed, a definition from another domain
@@ -26,6 +26,7 @@ test("Related in the quick view: another domain's definition, and the owners' re
 })
 
 test('Ask says what it followed, one step, and what it left alone', async ({ page }) => {
+  untilInHttp('P7c, part 3', "the links Ask's answer follows")
   await go(page, '/ask?example=grounded')
   const line = page.getByRole('button', { name: /^Looked up 2 context items, followed 1 link/ })
   await line.click()
@@ -38,10 +39,12 @@ test('switched off in Settings, Ask follows nothing and Related says so', async 
   await go(page, '/settings/agents')
   await page.getByRole('button', { name: /Show or hide Tools and access keys/ }).click()
   await page.getByRole('switch', { name: /Let agents follow links/ }).click()
-  await go(page, '/ask?example=grounded')
-  await expect(
-    page.getByRole('button', { name: /^Looked up 2 context items, didn't follow links/ }),
-  ).toBeVisible()
+  await inMockUntil('P7c, part 3', "the links Ask's answer follows", async () => {
+    await go(page, '/ask?example=grounded')
+    await expect(
+      page.getByRole('button', { name: /^Looked up 2 context items, didn't follow links/ }),
+    ).toBeVisible()
+  })
   await go(page, '/context?dock=context.itm_eprlkrz2')
   await details(page)
   await expect(
@@ -52,6 +55,7 @@ test('switched off in Settings, Ask follows nothing and Related says so', async 
 test('the review shows a new link, and Try it says whether the answer follows it', async ({
   page,
 }) => {
+  untilInHttp('P7c, part 3', 'a mention of a term written in Definitions')
   await go(page, '/inbox/sug-ines/review')
   await expect(page.getByText('Now links to')).toBeVisible()
   const decide = page.getByRole('complementary', { name: 'Try it and decide' })
