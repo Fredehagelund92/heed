@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { sourceServerSettingKeys, sourceWarningCodes } from '../../src/contract/operations.ts'
 import { sourceViews, viewOf } from '../../src/domain/source-views.ts'
-import { createCubeSource } from '../../src/server/modules/connectors/cube.ts'
+import { createCubeSource } from '../../src/server/modules/connectors/server-source.ts'
 import { connectorTypes } from '../../src/server/modules/connectors/registry.ts'
 import { warningSchema } from '../../src/server/modules/connectors/types.ts'
 import {

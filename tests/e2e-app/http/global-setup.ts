@@ -10,6 +10,7 @@ import {
 } from '../../../src/server/db/roles.ts'
 import { spainDraft } from '@/api/mock/data/drafts'
 import { facts } from '@/api/mock/data/world'
+import { driveCards } from '../../app/http/demo-drive.ts'
 import { checkCards, queue, seedDemoWeek, serverItemId } from '../../app/http/demo-week.ts'
 import { emptyName, workName } from './harness.ts'
 
@@ -59,7 +60,7 @@ export default async function setup() {
     // and its context items, a draft by its proposal.
     const world: Record<string, string> = {
       ...Object.fromEntries(facts.map((f) => [f.id, ids.drafts[f.id] ?? serverItemId(f.id)])),
-      ...Object.fromEntries(queue.map((card) => [card, ids[card]])),
+      ...Object.fromEntries([...queue, ...driveCards].map((card) => [card, ids[card]])),
       'flag-germany': ids['flag-germany'],
       ...Object.fromEntries(Object.entries(ids).filter(([k]) => k.startsWith('topic.'))),
       ...checkCards(),
@@ -78,7 +79,11 @@ export default async function setup() {
     await mkdir(dirname(worldFile), { recursive: true })
     // The items a journey publishes on the way, by their mock id: found by their title once made.
     const published = { [spainDraft.id]: spainDraft.title }
-    await writeFile(worldFile, JSON.stringify({ ids: world, queue, published, before }, null, 2))
+    // The review's queue, newest first: the suggestions sent today, then this morning's read.
+    await writeFile(
+      worldFile,
+      JSON.stringify({ ids: world, queue: [...queue, ...driveCards], published, before }, null, 2),
+    )
   } catch (error) {
     await drop()
     await admin.end()

@@ -116,7 +116,7 @@ export function useItemFacts(item: ContextItem) {
   const person = (id: string) => people?.find((candidate) => candidate.id === id)
   const name = (id: string) => person(id)?.name ?? 'Someone'
   const owner = person(item.ownerId)
-  const proposer = person(item.proposerId)
+  const proposer = item.proposerId === null ? undefined : person(item.proposerId)
   const versions = versionRows(history ?? [], name)
   const retiredRow = versions.find((row) => row.retired)?.retired ?? null
   const latestAccepted = versions.find((row) => row.accepted)?.accepted ?? null

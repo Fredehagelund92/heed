@@ -205,7 +205,8 @@ export const itemSchema = z.object({
   /** Short codes computed from definitions. A changed definition changes the code (section 2.1 "Change mark"). */
   changeMarks: z.record(z.string(), z.string()),
   createdVia: z.enum(creationChannels),
-  proposerId: z.string(),
+  /** Who proposed it; null for an item a content source's read made (CON-603). */
+  proposerId: z.nullable(z.string()),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

@@ -2,17 +2,19 @@
 
 The Cube connector is the first definition source (CON-501). It reads Cube model files, from the
 server's own folder or from a Git repository an administrator adds, and gives Heed the public
-members of the model as definitions. It speaks the [connector contract](../connectors.md),
-interface 2, and moves to interface 3.0 with the rest of the built-in connectors. The rules it
-follows to reach a repository and keep its token are in [Security and egress](security.md).
+members of the model as definitions. It is written to the [connector contract](../connectors.md),
+interface 3.0: a manifest and a runtime in `src/connectors/cube/`, with a worker for its compiler
+([its page](../../src/connectors/cube/README.md)). The rules it follows to reach a repository and
+keep its token are in [Security and egress](security.md).
 
 ## The minimal Cube setup
 
 What a Cube project needs for Heed to read it:
 
 1. A folder of **YAML** Cube model files Heed can read: the server's folder, or a folder of a Git
-   repository at a branch, tag or commit, with a read-only token (CON-502). JavaScript, Python,
-   Jinja templates and symbolic links are skipped with `unsupported_file`.
+   repository at a branch, tag or commit, with a read-only token (CON-502). JavaScript, Python
+   and Jinja templates are skipped with `unsupported_file`, and a symbolic link, which is never
+   followed, with `unreadable_file`.
 2. It compiles with the pinned Cube compiler, **1.7.39** (`@cubejs-backend/schema-compiler`).
 3. At least one **public view** (or public cube). Heed lists public members only.
 4. Recommended: `title` and `description` on each public member, and `meta.domain:
@@ -40,10 +42,18 @@ An administrator adds one in Sources with:
 | Model folder address    | The folder in the host's web view, for links to each model file (as `sources.cube_model_url` is for the server's model). |
 | Domain names            | The model's `meta.domain` value to the Heed domain it means (CON-206), for a model whose names differ from Heed's ids.   |
 
-Each read fetches the one commit the ref names into a folder of its own, reads its model folder
-as the server's folder is read, and removes it. The read's version and cursor are the commit. A
-folder that leads out of the checkout is `folder_missing`. How Heed reaches the repository, which
-addresses it refuses and how the token travels are in [Security and egress](security.md#git).
+Each read fetches the one commit the ref names into a folder of its own (`ctx.git`), reads its
+model folder as the server's folder is read, and removes it. The read's version and cursor are
+the commit. A folder that leads out of the checkout is `folder_missing`. How Heed reaches the
+repository, which addresses it refuses and how the token travels are in
+[Security and egress](security.md#git). **Test connection** reaches the repository and counts the
+model files, then reads the model once and keeps nothing; a repository it cannot reach fails with
+the reason's code, as a read does.
+
+Each source has its own schedule (CON-115): every hour unless an administrator sets another, at
+most every 15 minutes, and at least every six hours, which is when a source goes out of date. A
+failure that clears by itself (a host that could not be reached) is tried again after a minute,
+then two, four and so on; any other failure waits a whole period.
 
 The domain names apply before a domain is checked: a view whose `meta.domain` is `paid_media`
 with the line `paid_media → area_paid_media` has the domain `area_paid_media`. A name without a
@@ -51,7 +61,9 @@ line stays as the model says it.
 
 ## Configuration of the server's model
 
-Whoever runs the server sets three environment variables; Sources shows them read only.
+Whoever runs the server sets three environment variables; Sources shows them read only. The
+same Cube connector reads the folder: the core hands it to the runtime as `ctx.folder`, and
+applies the domain names and the renames below to what it read.
 
 | Variable              | Setting         | Meaning                                                                                   |
 | --------------------- | --------------- | ----------------------------------------------------------------------------------------- |
@@ -78,8 +90,8 @@ CUBE_MODEL_DIR=/path/to/cube/model npm run connectors:sync
 The command reads `.env.local`, including `DATABASE_URL`. It prints the snapshot id, status,
 number of definitions, metric domain coverage (`cube`, `override`, `none`), the items it flagged
 and unflagged, and how many stale-link and domain notices it sent. A failed read is recorded and
-exits with status 1. The service runs the same refresh every hour as the `connectors.sync` job
-(each source on its own schedule, hourly for Cube); an administrator starts one at any time with
+exits with status 1. The service runs the same refresh in the `connectors.sync` job (each source
+on its own schedule, hourly for Cube unless an administrator sets another); an administrator starts one at any time with
 Read again on the source's page in Sources (`POST /api/v1/sources/{id}/read`, or
 `POST /api/v1/operations/jobs/connectors.sync/run` for every source), and `GET /api/v1/operations` shows each
 source's health (last read and its warnings, current and missing definitions, domain coverage,
@@ -141,22 +153,27 @@ It resolves view aliases and includes. Only public cubes/views and their public 
 dimensions are listed. Access-policy group lists and per-group visibility are parked:
 `visible_groups` is always null. No identity or data-query client is configured.
 
-Each refresh uses a child process with a timeout and a V8 heap cap: 120 seconds and 1,024 MB, or
-what the server sets in `CUBE_COMPILE_TIMEOUT_SECONDS` and `CUBE_COMPILE_MEMORY_MB` for a larger
-model (a model of 10,000 members takes about 45 seconds). Node denies
-network access, filesystem writes and starting other programs, and lets it read only the
-service's source and dependencies, the project's package file, the model folder and the files the
-server names: never the repository's other files, the secret store, a home folder or another
-process's environment, since a model from Git may be written by people who are not Heed's
-administrators. The compiler needs read access, its native addon (which the operating system
-loads) and its own transpiler threads. On Linux Cube asks at import which C library the machine
-runs (`getconf`, `ldd`); the service finds that out before the process starts and the process
-answers Cube itself (`libc.ts`), so it starts no program. The process receives no application
+Each refresh compiles in the connector's worker (`ctx.worker`, T1): a child process with a
+timeout and a V8 heap cap, 120 seconds and 1,024 MB, or what the server sets in
+`CUBE_COMPILE_TIMEOUT_SECONDS` and `CUBE_COMPILE_MEMORY_MB` for a larger model (a model of 10,000
+members takes about 45 seconds); a read may then take that long and a minute more to fetch. Node
+denies network access, filesystem writes and starting other programs, and lets the worker read
+only the service's source and dependencies and the project's package file. The runtime reads
+the model files itself (through `ctx.git`, or `ctx.folder` for the server's folder) and hands
+them to the worker over IPC, so the worker reads no model folder, and never the repository's
+other files, the secret store, a home folder or another process's environment, since a model
+from Git may be written by people who are not Heed's administrators. The compiler needs read
+access, its native addon (which the operating system loads) and its own transpiler threads. On
+Linux Cube asks at import which C library the machine runs (`getconf`, `ldd`); the service finds
+that out before the process starts and the worker answers Cube itself
+(`src/connectors/cube/libc.ts`), so it starts no program. The process receives no application
 secrets from the environment.
 This is failure isolation, not a sandbox for arbitrary executable model code. JavaScript,
-Python, Jinja templates and symlinks are skipped with per-file warnings; only YAML is passed
-to Cube. The reader limits individual files to 2 MB, total accepted input to 20 MB and directory
-entries to 1,000. Empty or unreadable model folders fail rather than deleting definitions.
+Python and Jinja templates are skipped with `unsupported_file`, and a symbolic link, a file over
+2 MB, input past 20 MB in all or a file that is not text with `unreadable_file`; only YAML is
+passed to Cube. A model folder of more than 1,000 files fails the read (`too_many_records`).
+Empty or unreadable model folders fail rather than deleting definitions, and a failed read names
+why first, then each file it left out.
 
 The pin also keeps change marks stable. A mark hashes the whole compiled member, so a compiler
 upgrade changes every mark even when the model did not change: 1.8.1 changes every mark of the
@@ -189,11 +206,17 @@ it is not a historical replay API.
 
 ## Validation
 
-The model-folder test reads the demo model's files with every domain taken out, as a model looks
-before its data team names domains. It checks every view in every file, the same members as with
-domains, a missing-domain warning for each view, no calculation in the read and a folder left as
-it was. A test of your own model's views and counts belongs outside the repository, next to your
-settings. `tests/server/connectors/git.test.ts` reads a model from a real Git host on the
-machine (`git http-backend` behind a server that wants a token): branches, tags and commits, the
-domain names, every failure code, links checked out as plain files, and the token in git's
-environment only.
+The conformance kit runs against the connector (`tests/server/connectors/conformance.test.ts`):
+its manifest and README, its form, its check, its reads with the same marks each time, a partial
+read when a file is not YAML, no calculation in a definition, and its token in nothing it
+returns. `tests/server/connectors/cube.test.ts` reads the server's folder: the model-folder test
+reads the demo model's files with every domain taken out, as a model looks before its data team
+names domains. It checks every view in every file, the same members as with domains, a
+missing-domain warning for each view, no calculation in the read and a folder left as it was. A
+test of your own model's views and counts belongs outside the repository, next to your settings.
+`tests/server/connectors/git.test.ts` reads a model from a real Git host on the machine (`git
+http-backend` behind a server that wants a token): branches, tags and commits, the domain names,
+every failure code, links checked out as plain files, and the token in git's environment only.
+`tests/integration/cube-sources.test.ts` adds a Cube model in Git through the API with a schedule
+of its own, reads it through the sources' job, backs off after a host that could not be reached,
+and proves a read never publishes, decides or suggests anything.

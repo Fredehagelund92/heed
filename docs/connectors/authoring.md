@@ -3,9 +3,9 @@
 A guide for whoever writes a connector, inside this repository or, later, as a package. The
 steps below name what interface 3.0 asks for; [what is built](../connectors.md#what-is-built)
 says which parts this build has. The static list of definitions (`src/connectors/static-definitions/`)
-is the smallest example written to interface 3, and Markdown in Git (`src/connectors/git-markdown/`)
-the first content connector. The Cube connector is still written to
-[interface 2](../connectors.md#interface-2-what-cube-is-written-to) and runs through the adapter.
+is the smallest example written to interface 3, Markdown in Git (`src/connectors/git-markdown/`)
+the first content connector, and Cube (`src/connectors/cube/`) the first definitions connector
+for a real tool, with a worker for its compiler.
 
 Read first: the [contract](../connectors.md) (the two kinds, the invariants, the manifest and the
 runtime) and [Security and egress](security.md) (the rules the core enforces on your code).
@@ -38,22 +38,35 @@ runtime) and [Security and egress](security.md) (the rules the core enforces on 
 3. **Write the runtime** (`runtime.ts`, server only, with `defineRuntime`): `check` and `read`,
    and `parse` for rules on the settings the manifest cannot say, using only what the context
    hands you: `ctx.config`, `ctx.scopes`, `ctx.cursor`, `ctx.secret`, `ctx.fetch`, `ctx.git`,
-   `ctx.signal` and `ctx.log`, and `discover` for a content connector, which lists the scopes an
-   administrator may choose, each with a suggested domain. A connector may import
-   `zod/mini`, the domain and its own files only, and has no `fetch` or `process` of its own:
-   lint refuses the rest. See [the runtime](../connectors.md#the-runtime-and-its-messages).
-4. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or recorded
+   `ctx.folder`, `ctx.worker`, `ctx.signal` and `ctx.log`, and `discover` for a content
+   connector, which lists the scopes an administrator may choose, each with a suggested domain.
+   A connector may import `zod/mini`, the domain and its own files only, and has no `fetch` or
+   `process` of its own: lint refuses the rest. See
+   [the runtime](../connectors.md#the-runtime-and-its-messages).
+4. **Hand risky parsing to a worker**, if the tool's files need a parser or a compiler you would
+   not run in the server: a `worker.ts` in the folder, named with `defineConnector(manifest,
+runtime, { worker })` in `src/connectors/index.ts`. The runtime calls `ctx.worker(input)`, and
+   the core runs the worker in a child process of its own under Node's permission model (T1,
+   [where connector code runs](security.md#where-connector-code-runs)): it gets the input over
+   IPC, answers once, and may load the packages it parses with, never the service. Its answer is
+   untrusted: check it before you send a record. Built-in connectors only. Cube's compiler is the
+   example.
+5. **Record fixtures** (`fixtures/`): a Git repository served by the test Git host, or recorded
    HTTP answers. No live calls in tests, and no real names, addresses or data.
-5. **Run the conformance kit** (CON-108): add the connector and its fixture to
+6. **Run the conformance kit** (CON-108): add the connector and its fixture to
    `tests/server/connectors/conformance.test.ts`: settings that work, a secret the tool refuses,
-   settings the form refuses, a host that cannot be reached, and the secret to look for. The kit
-   (`tests/server/connectors/kit.ts`) checks the manifest and the README, the form and its defaults, the
-   check, the reads (each record once, the same marks for the same input, documents in the chosen
+   settings the form refuses, a host that cannot be reached, and the secret to look for; for a
+   definitions connector, settings whose read meets a file it cannot read and a calculation in
+   the tool's content; and how long a test may take when a worker compiles. The kit
+   (`tests/server/connectors/kit.ts`) checks the manifest and the README, the form and its
+   defaults, the check, the reads (each record once, the same marks for the same input, a partial
+   read when a file cannot be read, no calculation in a definition, documents in the chosen
    scopes with https links) and that the secret appears in nothing the connector returns. _To
    come:_ cursors and deletions, egress and limits, which the core's own tests check today.
-6. **Write the README** (`README.md`): what it reads and the minimal setup in the tool, its
+7. **Write the README** (`README.md`): what it reads and the minimal setup in the tool, its
    fields, its warnings, its limits and what its change marks see. The tables come from the
-   manifest. [The Cube connector](cube.md) is today's example.
+   manifest. [Cube's](../../src/connectors/cube/README.md) is today's example, with
+   [The Cube connector](cube.md) for the setup in the tool.
 
 ## Rules your code follows
 

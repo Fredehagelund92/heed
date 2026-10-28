@@ -3,30 +3,34 @@ import type { SourceConfig } from '../../../contract/sources.ts'
 import { builtInConnectors } from '../../../connectors/index.ts'
 import type { Config } from '../../config/env.ts'
 import type { Queryable } from '../../db/database.ts'
-import { createCubeSource, cubeConnectorType } from './cube.ts'
 import { createDemoSource, demoConnectorType } from './demo.ts'
 import { registerConnectors, type ContentSource, type RegisteredConnector } from './platform.ts'
 import { noSecretStore, SecretStoreError, type SecretStore } from './secrets.ts'
-import { INTERFACE_VERSION, type ConnectorType, type DefinitionSource } from './types.ts'
-
-/** Every type of connector written to interface 2 that this build knows. */
-export const connectorTypes: readonly ConnectorType[] = [cubeConnectorType, demoConnectorType]
+import { createCubeSource, cubeServerType } from './server-source.ts'
+import type { ConnectorType, DefinitionSource } from './types.ts'
+import { workerLimits, type WorkerLimits } from './worker.ts'
 
 /**
- * What a type of connector says about itself, for the words on screen. An interface 3 connector
- * says it in its manifest. A stored source of a type this build no longer knows is named by its
- * own name and has no settings.
+ * The types of source the server's own configuration selects: its Cube model folder, read by the
+ * Cube connector, and the demo, written to interface 2.
+ */
+export const connectorTypes: readonly ConnectorType[] = [cubeServerType, demoConnectorType]
+
+/**
+ * What a type of source says about itself, for the words on screen: the server's types say it
+ * here, and a connector in its manifest. A stored source of a type this build no longer knows is
+ * named by its own name and has no settings.
  */
 export function connectorType(type: string, name: string): ConnectorType {
-  const written2 = connectorTypes.find((candidate) => candidate.type === type)
-  if (written2) return written2
+  const server = connectorTypes.find((candidate) => candidate.type === type)
+  if (server) return server
   const manifest = builtInConnectors.find((module) => module.manifest.id === type)?.manifest
   return { type, tool: manifest?.tool ?? name, settingKeys: [] }
 }
 
 function checkSource(source: DefinitionSource) {
   if (!/^[a-z][a-z0-9_-]{1,39}$/.test(source.id)) throw new Error('Invalid connector id')
-  if (source.interfaceVersion !== INTERFACE_VERSION)
+  if (source.interfaceVersion !== 2 && source.interfaceVersion !== 3)
     throw new Error('Unsupported connector interface version')
 }
 
@@ -42,10 +46,10 @@ interface Row {
 /**
  * The connectors this server knows and the sources it reads (docs/connectors.md).
  *
- * The connectors are checked once, at start: each built-in interface 3 connector's manifest and
- * runtime, and each interface 2 type an admin may add, through the adapter. A manifest that is
- * not valid, an interface range this build does not speak, a duplicate id, an id out of form or
- * a ref prefix claimed by two tools stops the server with every problem said.
+ * The connectors are checked once, at start: each built-in connector's manifest and runtime
+ * (interface 3.0). A manifest that is not valid, an interface range this build does not speak, a
+ * duplicate id, an id out of form or a ref prefix claimed by two tools stops the server with
+ * every problem said.
  *
  * The sources are those the server's own configuration selects, fixed at start, and those
  * admins added in Sources, read from the database each time, so a source added or changed is
@@ -63,15 +67,20 @@ export class ConnectorRegistry {
       connectors = builtInConnectors,
       types = connectorTypes,
       secrets = noSecretStore,
+      worker,
     }: {
       /** Interface 3 connectors: a manifest and a runtime each. */
       connectors?: readonly ConnectorModule[]
-      /** Interface 2 types; those an admin may add are adapted. */
+      /** The types of source the server's configuration selects, whose ids no other may take. */
       types?: readonly ConnectorType[]
       secrets?: SecretStore
+      /** The limits of a connector's worker, when the server sets them. */
+      worker?: Partial<WorkerLimits>
     } = {},
   ) {
-    for (const connector of registerConnectors(connectors, types))
+    for (const connector of registerConnectors(connectors, types, {
+      worker: workerLimits(worker),
+    }))
       this.#connectors.set(connector.manifest.id, connector)
     for (const source of sources) {
       checkSource(source)
@@ -81,7 +90,7 @@ export class ConnectorRegistry {
     this.#secrets = secrets
   }
 
-  /** Every connector, in the order registered: interface 3 first, then adapted ones. */
+  /** Every connector, in the order registered. */
   connectors(): readonly RegisteredConnector[] {
     return [...this.#connectors.values()]
   }

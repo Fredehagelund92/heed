@@ -25,6 +25,7 @@ import { createLogger } from '../../../src/server/observability/logger.ts'
 import { definitionRefOf, demoDefinitions } from '../../../src/web/mocks/cube-model.ts'
 import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/reference-data.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
+import { seedDriveRead, type DriveCard } from './demo-drive.ts'
 import { seedObservability } from './demo-observability.ts'
 import { seedSavedQuestions } from './demo-saved.ts'
 
@@ -46,9 +47,12 @@ import { seedSavedQuestions } from './demo-saved.ts'
   them. Tomas's mention of Jon on the Marketing item waits in Jon's Inbox as "Mentioned you"; Jon
   has read every other thread, so no reply is new to him.
 
+  The two suggestions this morning's Google Drive read made come in through the service's own
+  sources job and content pipeline (demo-drive.ts), made by the read and never published by it.
+
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
-  27 October 2026): the two suggestions a Google Drive read makes (P11b), and the thread in which
-  Lars withdraws his retirement, since the service has no withdrawal in the comments yet (P9c).
+  27 October 2026): the thread in which Lars withdraws his retirement, since the service has no
+  withdrawal in the comments yet (P9c).
   Jon's own suggestion to Marketing, and Tomas's question on it, stay out too: Jon is an admin, so
   on the service it would wait in his own review queue. So does Tomas's thread on Sofia's
   suggestion: on the service a waiting suggestion is read by its sender, its domain's owners and
@@ -724,7 +728,7 @@ async function seedTerms(client: pg.Client) {
 }
 
 /** What the demo week's mock ids are on the service. */
-export type DemoWeekIds = Record<QueueCard | 'flag-germany', string> &
+export type DemoWeekIds = Record<QueueCard | DriveCard | 'flag-germany', string> &
   Record<`topic.${string}`, string> & {
     /** Each draft's proposal, by the draft's mock id. */
     drafts: Record<string, string>
@@ -1025,8 +1029,11 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   if (!flag) throw new Error('The report was not seeded')
   // The saved questions people keep, and how the check found them (P12).
   await seedSavedQuestions(superuserUrl, TODAY, (name) => seedPersonId(personId(name)))
+  // This morning's Google Drive read, before anyone sent a suggestion: last in the queue.
+  const drive = await seedDriveRead(superuserUrl, TODAY)
   return {
     ...ids,
+    ...drive,
     'flag-germany': flag,
     drafts,
     ...Object.fromEntries([...(topics ?? [])].map(([mock, id]) => [`topic.${mock}`, id])),

@@ -29,7 +29,7 @@ import { productName } from '../../brand.ts'
 
 /**
  * The sources an administrator adds in Administration › Sources, each of a connector the registry
- * holds (interface 3.0, or 2 through the adapter): their settings are configuration in the
+ * holds (interface 3.0): their settings are configuration in the
  * database (`connectors.config`), checked against the connector's manifest and then its own
  * rules; their secrets are in the secret store and only named in the database
  * (`connectors.secret_ref`, CON-105). A secret goes in once and comes out only to the source's
@@ -506,13 +506,12 @@ export function createWorkspaceSources({
         secrets: stored === null && !given ? null : { ...stored, ...input.secrets },
       }
       // The connector's own steps first; a read follows only when none of them failed.
-      let steps: SourceCheck['steps'] = []
-      if (connector!.check)
-        try {
-          steps = (await connector!.check(settings)).steps
-        } catch (error) {
-          return failed(error instanceof SourceReadError ? error.warnings : [])
-        }
+      let steps: SourceCheck['steps']
+      try {
+        steps = (await connector!.check(settings)).steps
+      } catch (error) {
+        return failed(error instanceof SourceReadError ? error.warnings : [])
+      }
       if (steps.some((step) => step.status === 'failed')) return failed([], steps)
       // A content connector says what it may cover; nothing is read or drafted (CON-604).
       if (connector!.manifest.kind === 'content') {

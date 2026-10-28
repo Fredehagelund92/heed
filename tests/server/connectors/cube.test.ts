@@ -11,6 +11,7 @@ import {
   createDemoSource,
   ConnectorRegistry,
   domainCoverage,
+  workerReadablePaths,
 } from '../../../src/server/modules/connectors/index.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
 
@@ -297,7 +298,8 @@ describe('offline Cube source', () => {
     expect(snapshot.warnings).toEqual(
       expect.arrayContaining([
         { code: 'unsupported_file', target: 'script.js' },
-        { code: 'unsupported_file', target: 'linked.yml' },
+        // A link is never followed: it is left out as a file that could not be read.
+        { code: 'unreadable_file', target: 'linked.yml' },
         { code: 'unsupported_file', target: 'script.py' },
         { code: 'unsupported_file', target: 'template.yml' },
         { code: 'unreadable_file', target: 'invalid.yml' },
@@ -337,7 +339,7 @@ describe('offline Cube source', () => {
       { code: 'compile_timeout', target: 'model' },
     ])
     expect(() => createCubeSource({ modelDir: dir, timeoutMs: 0 })).toThrow(
-      'Invalid compile timeout',
+      'Invalid worker timeout',
     )
     // Five compiler processes one after the other: on a busy machine they took over 20 seconds.
   }, 60_000)
@@ -357,7 +359,8 @@ describe('offline Cube source', () => {
       program,
     ])
     expect(stdout.trim()).toBe('7')
-  }, 15_000)
+    // A process that loads the service, then the compiler's own: on a busy machine, many seconds.
+  }, 60_000)
 })
 
 // A model before its data team names domains: the demo model's own files (db/seed/cube) with every
@@ -413,11 +416,11 @@ it('registers both definition sources through the same port and rejects ambiguou
 })
 
 describe('what the compiler may read', () => {
-  it('reads the service, its dependencies and the model, never the repository or home', async () => {
-    const { readablePaths } = await import('../../../src/server/modules/connectors/cube.ts')
+  it('reads the service and its dependencies, never the model, the repository or home', () => {
     const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-    const paths = readablePaths({ modelDir: '/srv/model', timeoutMs: 1, memoryMb: 16 })
-    expect(paths).toContain('/srv/model')
+    // The runtime hands the worker the model's files: the worker reads no folder of the tool.
+    const paths = workerReadablePaths()
+    expect(paths).toHaveLength(3)
     expect(paths).toContain(join(root, 'src'))
     expect(paths).toContain(join(root, 'node_modules'))
     expect(paths).toContain(join(root, 'package.json'))

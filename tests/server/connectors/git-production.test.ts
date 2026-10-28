@@ -80,6 +80,21 @@ describe('fetching in production', () => {
     expect(isFetchableAddress('https://93.184.216.34/a.git')).toBe(true)
   })
 
+  it("refuses them with a connector's settings, before anything is fetched", async () => {
+    const { ConnectorRegistry } = await import('../../../src/server/modules/connectors/index.ts')
+    const registry = new ConnectorRegistry([])
+    for (const id of ['cube', 'git-markdown']) {
+      const connector = registry.connector(id)!
+      for (const repository of ['http://127.0.0.1:8080/a.git', 'https://10.0.0.5/a.git'])
+        expect(connector.parse({ repository, ref: 'main' }), `${id} ${repository}`).toMatchObject({
+          problems: [{ field: 'repository' }],
+        })
+      expect(connector.parse({ repository: 'https://git.example.com/a.git', ref: 'main' })).toEqual(
+        { config: { repository: 'https://git.example.com/a.git', ref: 'main' } },
+      )
+    }
+  })
+
   it('refuses a name that leads to a private network before git runs', async () => {
     expect(await problem('https://127.0.0.1/a.git')).toBe('private_address')
     expect(await problem('https://git.internal.example/a.git')).toBe('private_address')

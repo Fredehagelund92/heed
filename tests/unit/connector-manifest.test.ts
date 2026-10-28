@@ -5,7 +5,6 @@ import {
   checkManifest,
   checkManifests,
   durationSeconds,
-  manifestFromInterface2,
   satisfiesInterface,
   type ConnectorManifest,
 } from '../../src/domain/connector-manifest.ts'
@@ -16,7 +15,6 @@ import {
   parseStaticEntries,
   staticCheckReport,
 } from '../../src/connectors/static-definitions/entries.ts'
-import { mockCubeDeclaration } from '../../src/web/mocks/source-types.ts'
 
 /*
   Interface 3.0's manifest (docs/connectors.md, "The manifest"): one schema says what a manifest
@@ -46,21 +44,19 @@ describe('the built-in connectors', () => {
     expect(checkManifests(builtInManifests)).toEqual([])
   })
 
-  it("adapts an interface 2 type's declaration into a manifest that passes the checks", () => {
-    const cube = manifestFromInterface2(mockCubeDeclaration)
-    expect(problemsOf(cube)).toEqual([])
+  it('has Cube as a connector of its own, its token a slot bound to the repository', () => {
+    const cube = builtInManifests.find((manifest) => manifest.id === 'cube')!
     expect(cube).toMatchObject({
-      id: 'cube',
       kind: 'definitions',
       tool: 'Cube',
       refPrefix: 'cube',
-      egress: { hosts: [{ fromField: 'repository' }] },
+      egress: { hosts: [{ fromField: 'repository' }], git: true },
     })
-    // Its secret is a slot of its own, bound to where it was bound, never a setting.
+    // Its secret is a slot of its own, bound to where it is sent, never a setting.
     expect(cube.config.fields.map((field) => [field.key, field.kind])).toEqual([
       ['repository', 'address'],
-      ['ref', 'text'],
-      ['folder', 'text'],
+      ['ref', 'ref'],
+      ['folder', 'path'],
       ['username', 'text'],
       ['modelUrl', 'address'],
       ['domainNames', 'domain_map'],

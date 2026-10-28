@@ -10,7 +10,7 @@ import { termDomain } from '../../domain/catalogue.ts'
 
 /** The model version the connector reports for db/seed/cube (a digest of its files). */
 export const DEMO_SOURCE_VERSION =
-  '43347ff10851c320002fa8fceadc75ab9eee00b69669f5d84b33ec023f37ec89'
+  'f8ebe41ac399d97e09ab3f263ee43ba80333b7250f3ef8b2dc22c6451df0db1a'
 /** When the seed says the connector first read the model, and read it last (ISO 8601). */
 export const DEMO_FIRST_READ_AT = '2026-09-01T05:00:00.000Z'
 export const DEMO_READ_AT = '2026-10-07T05:00:00.000Z'

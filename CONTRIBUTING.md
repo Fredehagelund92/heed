@@ -149,15 +149,15 @@ behaviour the mock and the service share belongs in the conformance suites in
 The repository holds the front end and the service (Heed) side by side. `eslint.boundaries.js`
 keeps the parts apart, and `tests/lint/boundaries.test.ts` proves each rule still fails.
 
-| Part                        | May import                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------- |
-| `src/domain`                | `zod/mini` and other domain files. No clock, no network, no I/O                         |
-| `src/contract`              | `src/domain`                                                                            |
-| `src/web`                   | `src/domain`, `src/contract`, a connector's manifest. Never the service or its packages |
-| `src/server`                | `src/domain`, `src/contract`, `src/connectors`, a module's `index.ts`                   |
-| `src/server/modules/<name>` | the above, plus the rest of `src/server`                                                |
-| `src/cli`                   | `src/contract`, `src/domain`                                                            |
-| `src/connectors`            | `src/domain` and `zod/mini`. No network, no environment                                 |
+| Part                        | May import                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| `src/domain`                | `zod/mini` and other domain files. No clock, no network, no I/O                          |
+| `src/contract`              | `src/domain`                                                                             |
+| `src/web`                   | `src/domain`, `src/contract`, a connector's manifest. Never the service or its packages  |
+| `src/server`                | `src/domain`, `src/contract`, `src/connectors`, a module's `index.ts`                    |
+| `src/server/modules/<name>` | the above, plus the rest of `src/server`                                                 |
+| `src/cli`                   | `src/contract`, `src/domain`                                                             |
+| `src/connectors`            | `src/domain` and `zod/mini`. No network, no environment. A `worker.ts` may load packages |
 
 Inside a module, import freely. From outside, go through its `index.ts`: that file is the
 module's whole public surface. Domain code takes `today` and other inputs as arguments, so it

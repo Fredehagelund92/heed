@@ -64792,7 +64792,14 @@
                             "type": "string"
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "createdAt": {
                             "type": "string"
@@ -65371,7 +65378,14 @@
                       "type": "string"
                     },
                     "proposerId": {
-                      "type": "string"
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "createdAt": {
                       "type": "string"
@@ -66660,7 +66674,14 @@
                           "type": "string"
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "createdAt": {
                           "type": "string"
@@ -73865,7 +73886,14 @@
                             "type": "string"
                           },
                           "proposerId": {
-                            "type": "string"
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "updatedAt": {
                             "type": "string"
@@ -77266,7 +77294,14 @@
                           "type": "string"
                         },
                         "proposerId": {
-                          "type": "string"
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "createdAt": {
                           "type": "string"

@@ -1,9 +1,12 @@
+export { createCubeSource, cubeServerType, type CubeSourceOptions } from './server-source.ts'
 export {
-  createCubeGitSource,
-  createCubeSource,
-  type CubeGitSourceOptions,
-  type CubeSourceOptions,
-} from './cube.ts'
+  runWorker,
+  workerLimits,
+  workerReadablePaths,
+  WORKER_MEMORY_MB,
+  WORKER_TIMEOUT_MS,
+  type WorkerLimits,
+} from './worker.ts'
 export { createDemoSource } from './demo.ts'
 export { syncedOf } from './synced.ts'
 export { connectorSyncJob } from './job.ts'
@@ -18,6 +21,7 @@ export { createSourcesService, type SourcesService } from './sources.ts'
 export { ConnectorRegistry, configuredSource, connectorType, connectorTypes } from './registry.ts'
 export {
   ConnectorRegistryError,
+  fromModule,
   guardedFetch,
   registerConnectors,
   type RegisteredConnector,

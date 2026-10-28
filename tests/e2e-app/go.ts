@@ -78,11 +78,11 @@ export const claimsToCheck = (id: 'sug-agent') =>
 
 /**
  * How the queue ends in each mode once every suggestion is decided. The mock closes Lars's
- * withdrawn retirement; on the service, which keeps no withdrawal in the comments yet (P9c), it is archived, and
- * the two suggestions a Google Drive read makes are not there yet (P11b).
+ * withdrawn retirement; on the service, which keeps no withdrawal in the comments yet (P9c), it is
+ * archived.
  */
 export const allHandled = () =>
-  http ? '8 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
+  http ? '10 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
 
 /** A mock domain's id in this mode: the service names Sales `area_sales`. */
 export const domain = (id: string) => (http ? `area_${id}` : id)
@@ -117,6 +117,17 @@ export async function inHttpOnly(what: string, step: () => Promise<void>) {
 export async function onMockOnly(what: string, step: () => Promise<void>) {
   if (!http) return step()
   base.info().annotations.push({ type: 'skipped step', description: `The mock's own ${what}` })
+}
+
+/**
+ * One step only the service needs, where it finds what the mock's fixture leaves out (a live item
+ * a suggestion overlaps, which its own clash check finds): it runs in http mode, said in the
+ * report, and the mock skips it.
+ */
+export async function onServiceOnly(what: string, step: () => Promise<void>) {
+  if (!http) return
+  base.info().annotations.push({ type: 'service step', description: `The service's own ${what}` })
+  await step()
 }
 
 /** The app's own origin, which the service takes changes from. */

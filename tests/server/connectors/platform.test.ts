@@ -24,8 +24,8 @@ import { SourceReadError } from '../../../src/server/modules/connectors/types.ts
 /*
   Interface 3.0 in the core (docs/connectors.md): the registry checks every connector's manifest
   at start and refuses what this build cannot run; a connector written to interface 2 keeps
-  working through the adapter; and a runtime's read is checked message by message before its
-  definitions reach the one definitions pipeline.
+  working as a server source (the demo); and a runtime's read is checked message by message
+  before its definitions reach the one definitions pipeline.
 */
 
 const definitions = JSON.stringify([
@@ -89,14 +89,14 @@ const failureOf = async (source: DefinitionSource) => {
 }
 
 describe('the registry of connectors', () => {
-  it('holds the built-in connectors and the interface 2 types admins may add', () => {
+  it('holds the built-in connectors, each written to interface 3', () => {
     const registry = new ConnectorRegistry([createDemoSource()])
     expect(
       registry.connectors().map((connector) => [connector.manifest.id, connector.writtenTo]),
     ).toEqual([
+      ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
-      ['cube', 2],
     ])
     // The demo type has no form, so it is not a connector to add; its words still come from it.
     expect(registry.connector('demo')).toBeUndefined()
@@ -105,7 +105,7 @@ describe('the registry of connectors', () => {
   })
 
   it('refuses a version this build does not speak, a duplicate id and an id out of form', () => {
-    const [list] = builtInConnectors
+    const list = builtInConnectors.find((module) => module.manifest.id === 'static-definitions')
     const refused = (connectors: ConnectorModule[]) => {
       try {
         new ConnectorRegistry([], { connectors })
@@ -123,10 +123,14 @@ describe('the registry of connectors', () => {
     expect(refused([{ ...list!, manifest: { ...list!.manifest, id: 'Bad_Id' } }])).toEqual([
       'Bad_Id id',
     ])
-    // No connector may take the id of an interface 2 type, even one admins cannot add.
+    // No connector may take the id of a type of the server's sources, even one admins cannot
+    // add, unless it is the connector that reads it: Cube reads the server's model folder.
     expect(refused([{ ...list!, manifest: { ...list!.manifest, id: 'demo' } }])).toEqual([
       'demo id',
     ])
+    expect(
+      refused([{ ...list!, manifest: { ...list!.manifest, id: 'cube', refPrefix: 'cube' } }]),
+    ).toEqual(['cube id'])
     // A definitions connector that sends tombstones waits for a pipeline that takes them.
     expect(
       refused([
@@ -145,8 +149,8 @@ describe('the registry of connectors', () => {
   })
 })
 
-describe('an interface 2 type through the adapter', () => {
-  it("checks settings with the type's own rules, as before", () => {
+describe('Cube, a connector of its own', () => {
+  it('checks settings by its manifest, as it did on interface 2', () => {
     const cube = new ConnectorRegistry([]).connector('cube')!
     expect(cube.parse({ repository: 'https://git.example.com/a.git', ref: 'main' })).toEqual({
       config: { repository: 'https://git.example.com/a.git', ref: 'main' },
@@ -154,8 +158,19 @@ describe('an interface 2 type through the adapter', () => {
     expect(cube.parse({ repository: 'ftp://x', ref: '--x' })).toMatchObject({
       problems: [{ field: 'repository' }, { field: 'ref' }],
     })
+    // Settings stored on interface 2 are settings of the connector now.
+    const stored = {
+      repository: 'https://git.example.com/a.git',
+      ref: 'v1',
+      folder: 'cube/model',
+      username: 'reader',
+      modelUrl: 'https://git.example.com/a/tree/v1/cube/model',
+      domainNames: { marketing: 'paid_media' },
+    }
+    expect(cube.parse(stored)).toEqual({ config: stored })
     expect(cube.secretsBoundTo).toEqual(['repository'])
-    expect('check' in cube).toBe(false)
+    expect(cube.domains(stored)).toEqual(['paid_media'])
+    expect(typeof cube.check).toBe('function')
   })
 })
 
@@ -167,7 +182,7 @@ describe('a runtime read, checked message by message', () => {
       problems: [{ field: 'definitions', message: 'Write at least one definition.' }],
     })
     const stored = { id: 'finance', name: 'Finance', config: { definitions }, secrets: {} }
-    expect((await list.check!(stored)).steps.map((step) => step.status)).toEqual(['ok', 'warning'])
+    expect((await list.check(stored)).steps.map((step) => step.status)).toEqual(['ok', 'warning'])
     const snapshot = await list.source(stored).read({ cursor: null })
     expect(snapshot.complete).toBe(true)
     expect(snapshot.sourceVersion).toMatch(/^[a-f0-9]{64}$/)
@@ -303,9 +318,9 @@ describe('the sources admins add, over the registry', () => {
       registry: new ConnectorRegistry([]),
     })
     expect(service.types().map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
+      ['cube', 3],
       ['static-definitions', 3],
       ['git-markdown', 3],
-      ['cube', 2],
     ])
   })
 })

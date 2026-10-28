@@ -43,6 +43,12 @@ export interface ConnectorFixture {
   invalid?: { config: SourceConfig; field: string }[]
   /** A secret of the fixture that must appear in nothing the connector returns. */
   planted?: string
+  /** Definitions: settings whose read meets a file it cannot read, which makes it partial. */
+  partial?: () => FixtureSource
+  /** Definitions: a calculation in the tool's content that must cross into no definition. */
+  calculation?: string
+  /** How long a test of it may take, in milliseconds: longer for one with a worker (T1). */
+  timeout?: number
 }
 
 const stored = (source: FixtureSource): StoredSource => ({
@@ -117,96 +123,154 @@ export function describeConnector(module: ConnectorModule, fixture: ConnectorFix
     })
 
     describe('its check', () => {
-      it('passes with the settings that work, and changes nothing', async () => {
-        const report = await connector().check!(stored(fixture.good()))
-        expect(report.steps.filter((step) => step.status === 'failed')).toEqual([])
-      })
+      it(
+        'passes with the settings that work, and changes nothing',
+        async () => {
+          const report = await connector().check(stored(fixture.good()))
+          expect(report.steps.filter((step) => step.status === 'failed')).toEqual([])
+        },
+        fixture.timeout,
+      )
       if (fixture.refused)
-        it('says a refused secret is for an admin to fix', async () => {
-          const { outcome, warnings, errorClass } = await failure(() =>
-            connector().check!(stored(fixture.refused!())),
-          )
-          const steps = (outcome as { steps?: { status: string }[] } | null)?.steps ?? []
-          expect(
-            steps.some((step) => step.status === 'failed') ||
-              (warnings.length > 0 && errorClass === 'config'),
-          ).toBe(true)
-        })
+        it(
+          'says a refused secret is for an admin to fix',
+          async () => {
+            const { outcome, warnings, errorClass } = await failure(() =>
+              connector().check(stored(fixture.refused!())),
+            )
+            const steps = (outcome as { steps?: { status: string }[] } | null)?.steps ?? []
+            expect(
+              steps.some((step) => step.status === 'failed') ||
+                (warnings.length > 0 && errorClass === 'config'),
+            ).toBe(true)
+          },
+          fixture.timeout,
+        )
       if (fixture.unreachable)
-        it('fails on a host that cannot be reached, and says so', async () => {
-          const { outcome, warnings } = await failure(() =>
-            connector().check!(stored(fixture.unreachable!())),
-          )
-          const steps = (outcome as { steps?: { status: string }[] } | null)?.steps ?? []
-          expect(steps.some((step) => step.status === 'failed') || warnings.length > 0).toBe(true)
-        })
+        it(
+          'fails on a host that cannot be reached, and says so',
+          async () => {
+            const { outcome, warnings } = await failure(() =>
+              connector().check(stored(fixture.unreachable!())),
+            )
+            const steps = (outcome as { steps?: { status: string }[] } | null)?.steps ?? []
+            expect(steps.some((step) => step.status === 'failed') || warnings.length > 0).toBe(true)
+          },
+          fixture.timeout,
+        )
     })
 
     if (manifest.kind === 'definitions')
       describe('its definitions', () => {
-        it('are under its prefix, each once, with the same marks for the same input', async () => {
-          const source = connector().source(stored(fixture.good()))
-          const first = await source.read({ cursor: null })
-          const refs = first.definitions.map((definition) => definition.ref)
-          expect(new Set(refs).size).toBe(refs.length)
-          for (const ref of refs) expect(ref.startsWith(`${manifest.refPrefix}:`)).toBe(true)
-          const again = await source.read({ cursor: null })
-          expect(again.definitions.map((d) => [d.ref, d.changeMark])).toEqual(
-            first.definitions.map((d) => [d.ref, d.changeMark]),
-          )
-        })
+        it(
+          'are under its prefix, each once, with the same marks for the same input',
+          async () => {
+            const source = connector().source(stored(fixture.good()))
+            const first = await source.read({ cursor: null })
+            const refs = first.definitions.map((definition) => definition.ref)
+            expect(new Set(refs).size).toBe(refs.length)
+            for (const ref of refs) expect(ref.startsWith(`${manifest.refPrefix}:`)).toBe(true)
+            const again = await source.read({ cursor: null })
+            expect(again.definitions.map((d) => [d.ref, d.changeMark])).toEqual(
+              first.definitions.map((d) => [d.ref, d.changeMark]),
+            )
+          },
+          fixture.timeout,
+        )
       })
+
+    if (manifest.kind === 'definitions' && fixture.calculation)
+      it(
+        'keeps every calculation out of what it reads (CON-207)',
+        async () => {
+          const read = await connector().source(stored(fixture.good())).read({ cursor: null })
+          expect(read.definitions.length).toBeGreaterThan(0)
+          expect(JSON.stringify(read)).not.toContain(fixture.calculation)
+        },
+        fixture.timeout,
+      )
+
+    if (manifest.kind === 'definitions' && fixture.partial)
+      it(
+        'reads in part when a file cannot be read, and says which',
+        async () => {
+          const read = await connector().source(stored(fixture.partial!())).read({ cursor: null })
+          expect(read.complete).toBe(false)
+          expect(read.definitions.length).toBeGreaterThan(0)
+          expect(read.warnings.length).toBeGreaterThan(0)
+        },
+        fixture.timeout,
+      )
 
     if (manifest.kind === 'content')
       describe('its documents', () => {
-        it('lists scopes to choose from, each once and the same each time', async () => {
-          const scopes = await connector().discover!(stored(fixture.good()))
-          expect(scopes.length).toBeGreaterThan(0)
-          expect(new Set(scopes.map((scope) => scope.id)).size).toBe(scopes.length)
-          expect(await connector().discover!(stored(fixture.good()))).toEqual(scopes)
-        })
-        it('are in the chosen scopes, each once, with an https link and a stable mark', async () => {
-          const good = fixture.good()
-          const source = connector().content!(stored(good))
-          const first = await source.read({ cursor: null })
-          expect(first.documents.length).toBeGreaterThan(0)
-          const chosen = new Set((good.scopes ?? []).map((scope) => scope.id))
-          const ids = first.documents.map((document) => document.id)
-          expect(new Set(ids).size).toBe(ids.length)
-          for (const document of first.documents) {
-            expect(chosen.has(document.scope)).toBe(true)
-            expect(new URL(document.link).protocol).toBe('https:')
-          }
-          // An unchanged source gives the same documents with the same marks.
-          const again = await source.read({ cursor: first.cursor ?? null })
-          const marks = async (read: typeof first) =>
-            Promise.all(read.documents.map(async (d) => [d.id, await documentMark(d)]))
-          expect(await marks(again)).toEqual(await marks(first))
-        })
-        it('reads nothing outside the scopes chosen', async () => {
-          const good = fixture.good()
-          const [one] = good.scopes ?? []
-          if (!one) return
-          const read = await connector().content!(stored({ ...good, scopes: [one] })).read({
-            cursor: null,
-          })
-          for (const document of read.documents) expect(document.scope).toBe(one.id)
-        })
+        it(
+          'lists scopes to choose from, each once and the same each time',
+          async () => {
+            const scopes = await connector().discover!(stored(fixture.good()))
+            expect(scopes.length).toBeGreaterThan(0)
+            expect(new Set(scopes.map((scope) => scope.id)).size).toBe(scopes.length)
+            expect(await connector().discover!(stored(fixture.good()))).toEqual(scopes)
+          },
+          fixture.timeout,
+        )
+        it(
+          'are in the chosen scopes, each once, with an https link and a stable mark',
+          async () => {
+            const good = fixture.good()
+            const source = connector().content!(stored(good))
+            const first = await source.read({ cursor: null })
+            expect(first.documents.length).toBeGreaterThan(0)
+            const chosen = new Set((good.scopes ?? []).map((scope) => scope.id))
+            const ids = first.documents.map((document) => document.id)
+            expect(new Set(ids).size).toBe(ids.length)
+            for (const document of first.documents) {
+              expect(chosen.has(document.scope)).toBe(true)
+              expect(new URL(document.link).protocol).toBe('https:')
+            }
+            // An unchanged source gives the same documents with the same marks.
+            const again = await source.read({ cursor: first.cursor ?? null })
+            const marks = async (read: typeof first) =>
+              Promise.all(read.documents.map(async (d) => [d.id, await documentMark(d)]))
+            expect(await marks(again)).toEqual(await marks(first))
+          },
+          fixture.timeout,
+        )
+        it(
+          'reads nothing outside the scopes chosen',
+          async () => {
+            const good = fixture.good()
+            const [one] = good.scopes ?? []
+            if (!one) return
+            const read = await connector().content!(stored({ ...good, scopes: [one] })).read({
+              cursor: null,
+            })
+            for (const document of read.documents) expect(document.scope).toBe(one.id)
+          },
+          fixture.timeout,
+        )
       })
 
     if (fixture.planted)
-      it('keeps its secret out of every check, scope, record and warning', async () => {
-        const good = stored(fixture.good())
-        const seen: unknown[] = [await connector().check!(good)]
-        if (manifest.kind === 'content') {
-          seen.push(await connector().discover!(good))
-          const read = await connector().content!(good).read({ cursor: null })
-          seen.push({ ...read, documents: read.documents.map(({ text: _text, ...rest }) => rest) })
-        } else seen.push(await connector().source(good).read({ cursor: null }))
-        for (const bad of [fixture.refused, fixture.unreachable])
-          if (bad) seen.push((await failure(() => connector().check!(stored(bad())))).warnings)
-        expect(JSON.stringify(seen)).not.toContain(fixture.planted)
-      })
+      it(
+        'keeps its secret out of every check, scope, record and warning',
+        async () => {
+          const good = stored(fixture.good())
+          const seen: unknown[] = [await connector().check(good)]
+          if (manifest.kind === 'content') {
+            seen.push(await connector().discover!(good))
+            const read = await connector().content!(good).read({ cursor: null })
+            seen.push({
+              ...read,
+              documents: read.documents.map(({ text: _text, ...rest }) => rest),
+            })
+          } else seen.push(await connector().source(good).read({ cursor: null }))
+          for (const bad of [fixture.refused, fixture.unreachable])
+            if (bad) seen.push((await failure(() => connector().check(stored(bad())))).warnings)
+          expect(JSON.stringify(seen)).not.toContain(fixture.planted)
+        },
+        fixture.timeout,
+      )
   })
 }
 

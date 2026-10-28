@@ -806,11 +806,11 @@ export function describeContextApiSettings(
 
     it('offers administrators the connectors they may add, and refuses anyone else', async () => {
       const listings = await as('ravi').listSourceTypes()
-      // Interface 3 connectors from their manifests, then interface 2 types through the adapter.
+      // Every built-in connector from its manifest, each written to interface 3.
       expect(listings.map((listing) => [listing.manifest.id, listing.writtenTo])).toEqual([
+        ['cube', 3],
         ['static-definitions', 3],
         ['git-markdown', 3],
-        ['cube', 2],
       ])
       const cube = listings.find((listing) => listing.manifest.id === 'cube')!.manifest
       expect(cube).toMatchObject({ kind: 'definitions', tool: 'Cube', refPrefix: 'cube' })
@@ -818,8 +818,8 @@ export function describeContextApiSettings(
         cube.config.fields.map((field) => [field.key, field.kind, field.required ?? false]),
       ).toEqual([
         ['repository', 'address', true],
-        ['ref', 'text', true],
-        ['folder', 'text', false],
+        ['ref', 'ref', true],
+        ['folder', 'path', false],
         ['username', 'text', false],
         ['modelUrl', 'address', false],
         ['domainNames', 'domain_map', false],

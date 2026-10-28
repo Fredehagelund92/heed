@@ -73,6 +73,7 @@ const checkout = <T>(context: RuntimeContext<Config>, work: (tree: GitTree) => P
       ref: context.config.ref,
       folder: context.config.folder ?? '',
       ...(context.secret('token') === null ? {} : { secret: 'token' }),
+      ...(context.config.username ? { username: context.config.username } : {}),
     },
     work,
   )

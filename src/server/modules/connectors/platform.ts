@@ -1,7 +1,6 @@
 import {
   checkManifest,
   checkManifests,
-  manifestFromInterface2,
   secretsBoundTo,
   type ConnectorManifest,
   type ManifestProblem,
@@ -29,10 +28,9 @@ import {
 } from '../../../domain/content-document.ts'
 import type { SourceConfig } from '../../../contract/sources.ts'
 import { sourceWarningCodes } from '../../../contract/operations.ts'
-import { guardedGit } from './egress-git.ts'
+import { folderTree, guardedGit } from './egress-git.ts'
 import { isFetchableAddress } from './git.ts'
 import {
-  INTERFACE_VERSION,
   SourceReadError,
   type ConnectorType,
   type Definition,
@@ -41,24 +39,22 @@ import {
   type ReadContext,
   type SourceSnapshot,
   type SourceWarning,
-  type WorkspaceConnector,
 } from './types.ts'
+import { runWorker, workerLimits, type WorkerLimits } from './worker.ts'
 
 /*
   Interface 3.0 in the core (docs/connectors.md, "Interface 3.0"): a connector is a manifest and
   a runtime. The registry checks every manifest at start and keeps each connector here as one
-  shape, whether it was written to interface 3 or to interface 2 and adapted, so Sources lists,
-  checks and reads them all the same way.
+  shape, so Sources lists, checks and reads them all the same way.
 
   A runtime's read is a stream of messages. Until the core's own pipelines take messages, a
-  definitions read is gathered into interface 2's snapshot and goes through the one pipeline
-  every definition source uses (ConnectorService.syncSource), with all its rules: a ref belongs
-  to one source, only a complete read marks absent definitions missing, a failed read changes
-  nothing.
+  definitions read is gathered into a snapshot and goes through the one pipeline every
+  definition source uses (ConnectorService.syncSource), with all its rules: a ref belongs to one
+  source, only a complete read marks absent definitions missing, a failed read changes nothing.
 */
 
-/** The interface a registered connector was written to. */
-export type WrittenTo = 2 | 3
+/** The interface a registered connector was written to: every connector this build runs is 3. */
+export type WrittenTo = 3
 
 /** A source's stored settings and the secrets the store holds for it (null when it lost them). */
 export interface StoredSource {
@@ -68,6 +64,11 @@ export interface StoredSource {
   secrets: Readonly<Record<string, string>> | null
   /** The scopes an administrator chose, each with its domain; none for a definition source. */
   scopes?: readonly ChosenScope[]
+  /**
+   * The folder on the server that whoever runs it named for the source (`CUBE_MODEL_DIR`), which
+   * the runtime reads as `ctx.folder`; only for a source the server's configuration selects.
+   */
+  folder?: string
 }
 
 /**
@@ -111,8 +112,8 @@ export interface RegisteredConnector {
   source(stored: StoredSource): DefinitionSource
   /** The source for stored settings, read by the content pipeline; content connectors only. */
   content?(stored: StoredSource): ContentSource
-  /** The runtime's own check, ordered steps that change nothing; absent for interface 2. */
-  check?(stored: StoredSource): Promise<CheckReport>
+  /** The runtime's own check, ordered steps that change nothing. */
+  check(stored: StoredSource): Promise<CheckReport>
   /** The scopes an administrator may choose, each with a suggested domain; changes nothing. */
   discover?(stored: StoredSource): Promise<Scope[]>
 }
@@ -190,12 +191,28 @@ export function guardedFetch(
 /** A log for a runtime: codes and targets only, which go nowhere a secret could follow. */
 const quietLog = { info: () => {}, warn: () => {} }
 
+/** A connector as the core runs it: its manifest, its runtime, and its worker if it has one. */
+interface Running {
+  manifest: ConnectorManifest
+  runtime: ConnectorRuntime
+  worker?: URL
+  limits: WorkerLimits
+}
+
+/**
+ * How long one piece of a runtime's work may take: the manifest's limit, or, for a connector
+ * with a worker the server gave longer, that long and a minute to fetch what it reads.
+ */
+const timeLimitMs = ({ manifest, worker, limits }: Running) =>
+  Math.max(manifest.limits.timeoutSeconds * 1000, worker ? limits.timeoutMs + 60_000 : 0)
+
 function contextFor(
-  manifest: ConnectorManifest,
+  running: Running,
   stored: StoredSource,
   cursor: string | null,
   signal: AbortSignal,
 ): RuntimeContext {
+  const { manifest, worker, limits } = running
   return {
     config: stored.config,
     scopes: stored.scopes ?? [],
@@ -206,6 +223,13 @@ function contextFor(
         : null,
     fetch: guardedFetch(manifest, stored.config, signal),
     git: guardedGit(manifest, stored.config, stored.secrets),
+    folder: stored.folder === undefined ? null : folderTree(stored.folder),
+    worker: (input) =>
+      worker
+        ? runWorker(worker, input, { signal, limits })
+        : Promise.reject(
+            new SourceError({ code: 'invalid_output', target: 'worker', class: 'source' }),
+          ),
     signal,
     log: quietLog,
     now: () => new Date(),
@@ -213,7 +237,8 @@ function contextFor(
 }
 
 /** A failure of a runtime, as the warnings of a failed read: its code and target only. */
-function failureOf(manifest: ConnectorManifest, error: unknown, signal: AbortSignal) {
+function failureOf(running: Running, error: unknown, signal: AbortSignal) {
+  const { manifest } = running
   if (error instanceof SourceReadError) return error
   if (error instanceof SourceError && knownWarning(manifest, error.code))
     return new SourceReadError([{ code: error.code, target: error.target }], {
@@ -222,7 +247,7 @@ function failureOf(manifest: ConnectorManifest, error: unknown, signal: AbortSig
     })
   if (signal.aborted)
     return new SourceReadError(
-      [{ code: 'timed_out', target: `${manifest.limits.timeoutSeconds}` }],
+      [{ code: 'timed_out', target: `${Math.round(timeLimitMs(running) / 1000)}` }],
       { class: 'transient' },
     )
   // Anything else says nothing about the tool, and could hold what it read: it is not kept.
@@ -230,20 +255,16 @@ function failureOf(manifest: ConnectorManifest, error: unknown, signal: AbortSig
 }
 
 /** A stored definition source of a runtime's: a read gathers its messages into a snapshot. */
-function runtimeSource(
-  manifest: ConnectorManifest,
-  runtime: ConnectorRuntime,
-  stored: StoredSource,
-): DefinitionSource {
+function runtimeSource(running: Running, stored: StoredSource): DefinitionSource {
+  const { manifest, runtime } = running
   return {
     id: stored.id,
     type: manifest.id,
     name: stored.name,
-    // The pipeline it feeds speaks interface 2; the connector's own interface is on its row.
-    interfaceVersion: INTERFACE_VERSION,
+    interfaceVersion: 3,
     serverSettings: [],
     async read(context?: ReadContext): Promise<SourceSnapshot> {
-      const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+      const signal = AbortSignal.timeout(timeLimitMs(running))
       if (stored.secrets === null && manifest.secrets.length)
         throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
       const definitions: Definition[] = []
@@ -252,7 +273,7 @@ function runtimeSource(
       const invalid = () => new SourceReadError([{ code: 'invalid_output', target: manifest.id }])
       let capped = false
       try {
-        const messages = runtime.read(contextFor(manifest, stored, context?.cursor ?? null, signal))
+        const messages = runtime.read(contextFor(running, stored, context?.cursor ?? null, signal))
         for await (const raw of messages) {
           if (signal.aborted) throw signal.reason
           const parsed = runtimeMessageSchema.safeParse(raw)
@@ -293,7 +314,13 @@ function runtimeSource(
           })
         }
       } catch (error) {
-        throw failureOf(manifest, error, signal)
+        // Why it failed first, then what it warned about on the way: each file it left out.
+        const failure = failureOf(running, error, signal)
+        if (failure.warnings[0]?.code === 'invalid_output') throw failure
+        throw new SourceReadError([...failure.warnings, ...warnings].slice(0, 1_000), {
+          class: failure.errorClass,
+          ...(failure.retryAfter === undefined ? {} : { retryAfter: failure.retryAfter }),
+        })
       }
       // A read that never says it ended may have stopped anywhere: it is not kept.
       throw invalid()
@@ -307,11 +334,8 @@ function runtimeSource(
  * from a connector that sends them; a definition never. Anything else fails the read with
  * `invalid_output` and keeps nothing, like a definitions read.
  */
-function runtimeContent(
-  manifest: ConnectorManifest,
-  runtime: ConnectorRuntime,
-  stored: StoredSource,
-): ContentSource {
+function runtimeContent(running: Running, stored: StoredSource): ContentSource {
+  const { manifest, runtime } = running
   const scopes = stored.scopes ?? []
   return {
     id: stored.id,
@@ -320,7 +344,7 @@ function runtimeContent(
     manifest,
     scopes,
     async read({ cursor }) {
-      const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+      const signal = AbortSignal.timeout(timeLimitMs(running))
       if (stored.secrets === null && manifest.secrets.length)
         throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
       const chosen = new Set(scopes.map((scope) => scope.id))
@@ -336,7 +360,7 @@ function runtimeContent(
       let text = 0
       let capped = false
       try {
-        const messages = runtime.read(contextFor(manifest, { ...stored, scopes }, cursor, signal))
+        const messages = runtime.read(contextFor(running, { ...stored, scopes }, cursor, signal))
         for await (const raw of messages) {
           if (signal.aborted) throw signal.reason
           const parsed = runtimeMessageSchema.safeParse(raw)
@@ -388,7 +412,7 @@ function runtimeContent(
           documents.push(document)
         }
       } catch (error) {
-        throw failureOf(manifest, error, signal)
+        throw failureOf(running, error, signal)
       }
       // A read that never says it ended may have stopped anywhere: it is not kept.
       throw invalid()
@@ -397,98 +421,102 @@ function runtimeContent(
 }
 
 /** A content connector's scopes, checked; a failure is a `SourceReadError`, as for a read. */
-async function discoverOf(
-  manifest: ConnectorManifest,
-  runtime: ConnectorRuntime,
-  stored: StoredSource,
-): Promise<Scope[]> {
+async function discoverOf(running: Running, stored: StoredSource): Promise<Scope[]> {
+  const { manifest, runtime } = running
   if (!runtime.discover) return []
-  const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+  const signal = AbortSignal.timeout(timeLimitMs(running))
   if (stored.secrets === null && manifest.secrets.length)
     throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
   try {
-    const scopes = await runtime.discover(contextFor(manifest, stored, null, signal))
+    const scopes = await runtime.discover(contextFor(running, stored, null, signal))
     if (!Array.isArray(scopes) || scopes.length > 200) throw new Error('too many scopes')
     const checked = scopes.map((scope) => scopeSchema.parse(scope))
     if (new Set(checked.map((scope) => scope.id)).size !== checked.length)
       throw new Error('a scope twice')
     return checked
   } catch (error) {
-    const failure = failureOf(manifest, error, signal)
-    throw failure
+    throw failureOf(running, error, signal)
   }
 }
 
+/**
+ * The hosts a source's settings name, refused with the settings when Heed may not reach them: in
+ * production a private address or plain http (CON-113), as `ctx.fetch` and `ctx.git` refuse them.
+ */
+function unreachable(manifest: ConnectorManifest, config: SourceConfig): FieldProblem[] {
+  return manifest.egress.hosts.flatMap((host) => {
+    if (!('fromField' in host)) return []
+    const value = config[host.fromField]
+    return typeof value === 'string' && !isFetchableAddress(value)
+      ? [
+          {
+            field: host.fromField,
+            message:
+              'Use an https address on a public host, without a user name, password, query or fragment.',
+          },
+        ]
+      : []
+  })
+}
+
 /** A connector written to interface 3: its manifest's rules, then its runtime's own. */
-export function fromModule(module: ConnectorModule): RegisteredConnector {
+export function fromModule(
+  module: ConnectorModule,
+  limits: WorkerLimits = workerLimits(),
+): RegisteredConnector {
   const { manifest, runtime } = module
+  const running: Running = {
+    manifest,
+    runtime,
+    ...(module.worker ? { worker: module.worker } : {}),
+    limits,
+  }
   return {
     manifest,
     writtenTo: 3,
     parse(config) {
       const parsed = parseConnectorConfig(manifest, config)
       if ('problems' in parsed) return parsed
-      const problems = runtime.parse?.(parsed.config) ?? []
+      const problems = [
+        ...unreachable(manifest, parsed.config),
+        ...(runtime.parse?.(parsed.config) ?? []),
+      ]
       return problems.length ? { problems } : { config: parsed.config }
     },
     domains: (config) => connectorConfigDomains(manifest, config),
     secretsBoundTo: secretsBoundTo(manifest),
-    source: (stored) => runtimeSource(manifest, runtime, stored),
+    source: (stored) => runtimeSource(running, stored),
     ...(manifest.kind === 'content'
       ? {
-          content: (stored: StoredSource) => runtimeContent(manifest, runtime, stored),
-          discover: (stored: StoredSource) => discoverOf(manifest, runtime, stored),
+          content: (stored: StoredSource) => runtimeContent(running, stored),
+          discover: (stored: StoredSource) => discoverOf(running, stored),
         }
       : {}),
     async check(stored) {
-      const signal = AbortSignal.timeout(manifest.limits.timeoutSeconds * 1000)
+      const signal = AbortSignal.timeout(timeLimitMs(running))
       if (stored.secrets === null && manifest.secrets.length)
         throw new SourceReadError([{ code: 'secret_missing', target: manifest.secrets[0]!.key }])
       try {
         return checkReportSchema.parse(
-          await runtime.check(contextFor(manifest, stored, null, signal)),
+          await runtime.check(contextFor(running, stored, null, signal)),
         )
       } catch (error) {
-        throw failureOf(manifest, error, signal)
+        throw failureOf(running, error, signal)
       }
     },
   }
 }
 
 /**
- * A connector type written to interface 2, adapted: its manifest comes from what it declares,
- * and its own code checks the settings and makes the source, as before (no regression for Cube).
- */
-export function fromInterface2(
-  type: ConnectorType & { workspace: WorkspaceConnector },
-): RegisteredConnector {
-  const { workspace } = type
-  return {
-    manifest: manifestFromInterface2({
-      type: type.type,
-      tool: type.tool,
-      title: workspace.title,
-      description: workspace.description,
-      access: workspace.access,
-      fields: workspace.fields,
-      secretsBoundTo: workspace.secretsBoundTo,
-    }),
-    writtenTo: 2,
-    parse: (config) => workspace.parse(config),
-    domains: (config) => workspace.domains(config),
-    secretsBoundTo: workspace.secretsBoundTo,
-    source: (stored) => workspace.create(stored),
-  }
-}
-
-/**
  * The connectors to register, checked: every manifest valid and in a range this build speaks,
- * each id once and in form, and each ref prefix with one tool. Interface 2 types that admins
- * cannot add (the demo) are not connectors here, but no connector may take their id.
+ * each id once and in form, and each ref prefix with one tool. No connector may take the id of a
+ * type of source the server's configuration selects (the demo), unless it is the connector that
+ * reads that source (Cube, for the server's model folder).
  */
 export function registerConnectors(
   modules: readonly ConnectorModule[],
   types: readonly ConnectorType[],
+  { worker = workerLimits() }: { worker?: WorkerLimits } = {},
 ): RegisteredConnector[] {
   const problems: { id: string; problem: ManifestProblem }[] = []
   const connectors: RegisteredConnector[] = []
@@ -505,20 +533,19 @@ export function registerConnectors(
       problems.push(...unsupported.map((problem) => ({ id, problem })))
       continue
     }
-    connectors.push(fromModule({ manifest: checked.manifest, runtime: module.runtime }))
+    connectors.push(fromModule({ ...module, manifest: checked.manifest }, worker))
   }
-  for (const type of types) {
+  for (const type of types)
     if (!connectorIdPattern.test(type.type))
       problems.push({ id: type.type, problem: { path: 'type', message: 'Not a connector id.' } })
-    else if (type.workspace) connectors.push(fromInterface2({ ...type, workspace: type.workspace }))
-  }
-  const typeIds = new Set(types.map((type) => type.type))
-  for (const connector of connectors)
-    if (connector.writtenTo === 3 && typeIds.has(connector.manifest.id))
+  for (const connector of connectors) {
+    const type = types.find((candidate) => candidate.type === connector.manifest.id)
+    if (type && type.tool !== connector.manifest.tool)
       problems.push({
         id: connector.manifest.id,
         problem: { path: 'id', message: `Another connector has the id ${connector.manifest.id}.` },
       })
+  }
   problems.push(...checkManifests(connectors.map((connector) => connector.manifest)))
   if (problems.length) throw new ConnectorRegistryError(problems)
   return connectors
