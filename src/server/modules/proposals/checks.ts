@@ -177,19 +177,29 @@ export async function checkDraft(
     }
   }
   // FR-132 refuses a new mention of a target that is not there: a link the item's published
-  // version has already is kept, as Related shows it, retired and never followed.
-  const kept = new Set(
-    itemId
-      ? (
-          await tx.query<{ target: string }>(
+  // version has already is kept, as Related shows it, retired and never followed. Read only
+  // when a mention would be refused, so a draft whose links are all there costs no more.
+  let published: Promise<Set<string>> | undefined
+  const kept = (target: string) =>
+    (published ??= itemId
+      ? tx
+          .query<{ target: string }>(
             `select coalesce(m.term_key,'item:'||m.item_id,'area:'||m.area_id,'term:'||m.term_id::text) as target
                from item_version_service s join item_version_mentions m on m.version_id=s.version_id
               where s.item_id=$1 and s.editions @> (select seq from live_edition)`,
             [itemId],
           )
-        ).map((row) => row.target)
-      : [],
-  )
+          .then((rows) => new Set(rows.map((row) => row.target)))
+      : Promise.resolve(new Set<string>())).then((set) => set.has(target))
+  /** Refuses a mention of a target that is not there, unless the published version has it. */
+  const missing = async (
+    field: string,
+    target: string,
+    message: string,
+    code = 'mention_target',
+  ) => {
+    if (!(await kept(target))) add(code, field, message)
+  }
   for (const field of ['summary', 'body'] as const) {
     const markup = field === 'summary' ? draft.summaryMarkup : draft.bodyMarkup
     if (markup === undefined) continue
@@ -199,14 +209,13 @@ export async function checkDraft(
     for (const mention of parsed.mentions) {
       const target = mention.target
       if (target === `item:${itemId}`) add('self_mention', field, "A fact can't mention itself.")
-      else if (kept.has(target)) continue
       else if (target.startsWith('item:')) {
         const rows = await tx.query(
           'select 1 from item_version_service s join item_versions v on v.id=s.version_id where s.item_id=$1 and s.editions @> (select seq from live_edition) and cl_audience_allows(v.audience_groups)',
           [target.slice(5)],
         )
         if (!rows.length)
-          add('mention_target', field, "A fact you mention isn't accepted, or you can't see it.")
+          await missing(field, target, "A fact you mention isn't accepted, or you can't see it.")
       } else if (target.startsWith('area:')) {
         if (
           !(
@@ -215,7 +224,7 @@ export async function checkDraft(
             ])
           ).length
         )
-          add('mention_target', field, `We couldn't find the domain ${target.slice(5)}.`)
+          await missing(field, target, `We couldn't find the domain ${target.slice(5)}.`)
       } else if (target.startsWith('term:')) {
         // A term written in Definitions, while it is there (FR-138).
         if (
@@ -225,15 +234,16 @@ export async function checkDraft(
             ])
           ).length
         )
-          add('mention_target', field, "A term you mention isn't in Definitions any more.")
+          await missing(field, target, "A term you mention isn't in Definitions any more.")
       } else {
         const term = known.get(target)
-        if (!term) add('mention_target', field, `We don't know the name ${target}.`)
+        if (!term) await missing(field, target, `We don't know the name ${target}.`)
         else if (sourceMissing(term))
-          add(
-            'mention_source_missing',
+          await missing(
             field,
+            target,
             `The definition of ${term.name} is missing from its source.`,
+            'mention_source_missing',
           )
       }
     }
