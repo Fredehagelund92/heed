@@ -126,7 +126,7 @@ export const figureReadSchema = z.discriminatedUnion('state', [
   z.object({
     state: z.literal('off'),
     source: figureSourceRefSchema,
-    /** The tool's own address, from its data endpoint; null when none is set. */
+    /** The tool's own address, from its data endpoint; null when none is set, and for anyone but an administrator. */
     link: z.nullable(z.string()),
   }),
   z.object({

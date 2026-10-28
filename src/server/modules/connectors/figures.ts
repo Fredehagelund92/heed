@@ -281,8 +281,13 @@ export function createFigureSources({
      * never stored and never changes the answer's state; a figure someone said doesn't fit a
      * context item comes with that item while their report is open, one the answer cites first.
      */
-    async read(tx: Queryable, input: ReadFigureInput): Promise<FigureRead> {
-      if (input.from > input.to) invalid('to', 'The last day comes after the first.')
+    async read(
+      tx: Queryable,
+      raw: ReadFigureInput,
+      administrator: boolean,
+    ): Promise<FigureRead> {
+      if (raw.from > raw.to) invalid('to', 'The last day comes after the first.')
+      const input = { ...raw, values: [...new Set(raw.values)].sort() }
       const keys = [
         input.metric,
         ...input.values,
@@ -326,7 +331,10 @@ export function createFigureSources({
         return {
           state: 'off',
           source,
-          link: settings.endpoint ? (URL.parse(settings.endpoint)?.origin ?? null) : null,
+          link:
+            administrator && settings.endpoint
+              ? (URL.parse(settings.endpoint)?.origin ?? null)
+              : null,
         }
       const token = await tokenOf(settings)
       if (!settings.endpoint || !token || !settings.secretRef)
@@ -344,7 +352,7 @@ export function createFigureSources({
       const filters: FigureQuery['filters'][number][] = []
       const named: string[] = []
       const byDimension = new Map<string, string[]>()
-      for (const value of [...input.values].sort()) {
+      for (const value of input.values) {
         const dimension = `dim:${value.slice(4).split('/')[0]}`
         byDimension.set(dimension, [...(byDimension.get(dimension) ?? []), value])
       }
@@ -389,7 +397,7 @@ export function createFigureSources({
       // open: one the answer cites first, else the newest.
       const disputed = await tx.query<{ item_id: string }>(
         'select item_id from cl_figure_disputes($1, $2, $3::text[], $4::date, $5::date)',
-        [row.id, input.metric, [...input.values].sort(), days.from, days.to],
+        [row.id, input.metric, input.values, days.from, days.to],
       )
       const cited = disputed.find((d) => input.items?.includes(d.item_id)) ?? disputed[0]
       return {

@@ -247,10 +247,14 @@ describe('figures settings (CON-612)', () => {
     const noContact = await setFigures('admin', { enabled: true, reason: 'Show figures' })
     expect(noContact.statusCode).toBe(422)
     expect(noContact.body).toContain('Name a data contact first')
-    // Off with an endpoint, an answer links into the tool.
-    expect(await readFigure('author', { ...orders, ...august })).toMatchObject({
+    // Off with an endpoint, an answer links into the tool for an admin only.
+    expect(await readFigure('admin', { ...orders, ...august })).toMatchObject({
       state: 'off',
       link: new URL(cube.endpoint).origin,
+    })
+    expect(await readFigure('author', { ...orders, ...august })).toMatchObject({
+      state: 'off',
+      link: null,
     })
     const on = await ok<FigureSource>(
       setFigures('admin', {

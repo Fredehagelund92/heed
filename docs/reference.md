@@ -1252,7 +1252,7 @@ Ask and the integration's page (`src/app/api/http-figures.ts`).
   whether it was set, replaced or removed.
 - `POST /figures/read`: one figure for an answer, `{ metric, values, from, to, items? }` with the
   metric's key, the dimension values' keys and the days, both included. It answers `off` (with the
-  tool's address to link to, when its endpoint is set), `none` with a reason (`undefined`,
+  tool's address to link to, when its endpoint is set and the reader is an administrator), `none` with a reason (`undefined`,
   `ambiguous`, `no_date`, `no_split`, `no_value`, or `failed` with a code), or `figure`: the value
   and its format, the same for the days just before, when the tool last refreshed its data, the
   query in words, the data contact, and `against`, a context item someone said the figure doesn't

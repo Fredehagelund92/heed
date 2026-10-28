@@ -1413,7 +1413,11 @@ export function createRouter({
         ),
       ),
       read: authorized.figures.read.handler(({ context, input }) =>
-        workspaceSources.figures.read(context.tx, input),
+        workspaceSources.figures.read(
+          context.tx,
+          input,
+          context.session!.person.permissions.roles.includes('administrator'),
+        ),
       ),
     },
     reports: {
