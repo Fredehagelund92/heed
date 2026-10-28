@@ -20,7 +20,7 @@ import type { TransactionHooks } from './workspace.ts'
 /*
   Figures in Ask (FR-716, CON-612; docs/product.md, sections 9 and 12). A definitions source whose
   connector declares the figures capability keeps its figures settings on its row
-  (`connectors.capabilities.figures`, migration 0024): the switch, off by default; the data
+  (`connectors.capabilities.figures`, migration 0025): the switch, off by default; the data
   endpoint an administrator set; and the name of the endpoint's token in the secret store, never
   the token. Its data contact is `connectors.data_contact_id`.
 

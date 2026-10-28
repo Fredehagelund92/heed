@@ -475,7 +475,7 @@ items rely on a source's definitions; each runs as the owner. Administrators rea
 an owner those about their domains. The serving and analytics roles have no grant on these
 tables.
 
-Figures in Ask (migration 0024). A definitions source keeps its figures settings in
+Figures in Ask (migration 0025). A definitions source keeps its figures settings in
 `connectors.capabilities.figures`: whether Ask shows figures from it (off by default), the data
 endpoint an administrator set and the name of the endpoint's token in the secret store, never the
 token; `connectors.data_contact_id` is its data contact. No figure is ever stored. A named report

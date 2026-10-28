@@ -639,7 +639,7 @@ A definitions connector may declare `capabilities.figures` (CON-612, FR-716): it
 for Ask from the tool's data endpoint. The registry refuses a manifest that declares it without a
 runtime `figure`, and a content connector that declares it. Cube is the first.
 
-- **Settings** live on the source (`connectors.capabilities.figures`, migration 0024): the switch
+- **Settings** live on the source (`connectors.capabilities.figures`, migration 0025): the switch
   Show figures in Ask, off by default; the data endpoint; and the name of its token in the secret
   store. The data contact is `connectors.data_contact_id`. An administrator changes them with
   `figures.set`; switching on needs the endpoint, its token and a data contact. The token is sent
@@ -655,7 +655,7 @@ fetch, signal, now }`; the runtime answers `{ value, asOf, format, aggregation? 
 - **No figure** when no integration defines the metric, more than one does, its view has no single
   date or can't be split by a value the question names, or the tool has no value: Ask says which.
 - **Side by side**: a named report can say a figure doesn't fit a context item (`part: 'figure'`,
-  migration 0024). It reaches the item's owners, the data contact, or both, and while it is open
+  migration 0025). It reaches the item's owners, the data contact, or both, and while it is open
   `figures.read` names the item, which Ask shows beside the figure with no verdict.
 - **Conformance**: the kit reads a figure through the core from the fixture's endpoint, and checks
   that a refused token, a figure out of time and an endpoint Heed may not fetch each fail with

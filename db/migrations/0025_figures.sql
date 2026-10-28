@@ -1,4 +1,4 @@
--- 0024_figures: figures in Ask (golden plan P11a; FR-716, CON-612, docs/product.md, sections 9
+-- 0025_figures: figures in Ask (golden plan P11a; FR-716, CON-612, docs/product.md, sections 9
 -- and 12).
 --
 -- - A definitions source whose connector reads figures keeps its figures settings with it, in
