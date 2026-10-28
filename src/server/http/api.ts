@@ -117,6 +117,7 @@ import {
   personSheet,
   type SignIn,
 } from '../modules/auth/index.ts'
+import { createAlertsService } from '../modules/alerts/index.ts'
 import { createCatalogueService } from '../modules/catalogue/index.ts'
 import {
   createSourcesService,
@@ -288,6 +289,7 @@ export function createRouter({
               quality: createQualityService(tx, clock),
               observability: createObservabilityService(tx, clock),
               saved: createSavedQuestionsService(tx, clock, answerBundles),
+              alerts: createAlertsService(tx),
               hooks,
             },
           })
@@ -1511,6 +1513,16 @@ export function createRouter({
       }),
       status: authorized.savedQuestions.status.handler(({ context, input }) =>
         context.saved.status(input),
+      ),
+    },
+    alerts: {
+      rules: authorized.alerts.rules.handler(({ context }) => context.alerts.rules()),
+      setRule: authorized.alerts.setRule.handler(({ context, input }) =>
+        context.alerts.setRule(input),
+      ),
+      mute: authorized.alerts.mute.handler(({ context, input }) => context.alerts.mute(input)),
+      raised: authorized.alerts.raised.handler(({ context, input }) =>
+        context.alerts.raised(input),
       ),
     },
     schema: {

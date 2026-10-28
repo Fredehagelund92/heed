@@ -10,11 +10,11 @@
  * answer engine, with the person's chats kept in their browser (P10, http-ask.ts), and People:
  * Admin and Member, a domain's owners, invites with their links, removing someone, and how the
  * sign-in screen signs people in (P8, http-people.ts), and Observability's Overview, Questions with
- * its replay and saved views, Feedback and Usage (P12). Every other method answers `not-available`
- * until the pull request that wires its screen (P9 to P13). The conformance suite
- * (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in
- * `X-Heed-CSRF`, as the service requires, and a retry key, kept until the service answers; the
- * session cookie is HttpOnly, so the token is read from `auth.session`.
+ * its replay and saved views, Quality with the saved questions, Feedback, Usage and Alerts (P12).
+ * Every other method answers `not-available` until the pull request that wires its screen (P9 to
+ * P13). The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes
+ * carry the session's token in `X-Heed-CSRF`, as the service requires, and a retry key, kept until
+ * the service answers; the session cookie is HttpOnly, so the token is read from `auth.session`.
  */
 import { createORPCClient } from '@orpc/client'
 import type { AnyContractRouter, ContractRouterClient } from '@orpc/contract'
@@ -26,6 +26,7 @@ import type { ProposalRecord } from '@contract/proposals'
 import { refusals } from '@contract/refusals'
 import type { ReviewSheet } from '@contract/review-path'
 import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
+import { thresholdOfWords } from '@domain/alerts'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
@@ -75,6 +76,7 @@ import {
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
 import { peopleOf } from './http-people'
 import { savedCheckOf, savedQuestionOf } from './http-saved'
+import { alertsOf } from './http-alerts'
 import {
   connectedOf,
   deletedOf,
@@ -212,6 +214,10 @@ export const wiredMethods = [
   'saveQuestion',
   'removeSavedQuestion',
   'keepNewAnswer',
+  'getAlerts',
+  'setAlertRule',
+  'muteAlert',
+  'setAlertThreshold',
 ] as const satisfies readonly HeedApiMethod[]
 
 const emptyHits = () => ({ items: [], definitions: [], domains: [], people: [] })
@@ -1618,7 +1624,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
 
     // Observability: the service discloses every count (FR-614); this binding only names things.
-    // Quality and Alerts read their own lists (saved questions, alerts), which come with P12b.
+    // Quality and Alerts read their own lists (saved questions, alerts); Alerts with nothing ever
+    // raised that the person may read is a page with nothing yet.
     observabilityPage: async ({ section, range, domain, agent }) => {
       const now = new Date()
       if (section === 'overview' || section === 'questions') {
@@ -1645,6 +1652,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         )
       if (section === 'usage')
         return obsUsageOf(await read(() => client.obs.usage({ range })), range, now)
+      if (section === 'alerts') {
+        const raised = await read(() => client.alerts.raised({ limit: 1 }))
+        return emptyObs(range, raised.length ? 'normal' : 'empty')
+      }
       return emptyObs(range)
     },
     replayTopic: async ({ topic, when }) => {
@@ -1708,6 +1719,29 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         client.savedQuestions.keep({ id }, o),
       )
       return { undo: kept.undo }
+    },
+    // Alerts (FR-621): rules that raise Inbox cards, as the person may read and change them.
+    getAlerts: async () => {
+      const [rules, raised] = await Promise.all([
+        read(() => client.alerts.rules()),
+        read(() => client.alerts.raised({})),
+      ])
+      return alertsOf(rules, raised, new Date())
+    },
+    setAlertRule: async ({ id, on }) => {
+      const input = { rule: id, enabled: on }
+      await write('alerts.setRule', input, (o) => client.alerts.setRule(input, o))
+    },
+    setAlertThreshold: async ({ id, value }) => {
+      const threshold = thresholdOfWords(id, value)
+      if (threshold === null)
+        throw new ApiError('invalid', "This rule's sentence doesn't offer that threshold.")
+      const input = { rule: id, threshold }
+      await write('alerts.setRule', input, (o) => client.alerts.setRule(input, o))
+    },
+    muteAlert: async ({ id, domains, muted }) => {
+      const input = { rule: id, areaIds: domains, muted }
+      await write('alerts.mute', input, (o) => client.alerts.mute(input, o))
     },
   }
 

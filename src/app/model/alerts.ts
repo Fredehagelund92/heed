@@ -1,3 +1,4 @@
+import { alertRule, thresholdWords, type AlertAudience, type AlertRuleId } from '@domain/alerts'
 import type { DomainId } from './items'
 
 // Alerts as the app reads them (src/app/api): rules, each one sentence, that raise a card in the
@@ -5,10 +6,10 @@ import type { DomainId } from './items'
 // any other. Owners see and mute the rules that reach them, for their own domains; admins turn rules
 // off and change the thresholds.
 
-export type RuleId = 'gap' | 'saved' | 'disagree' | 'share' | 'fail' | 'spend' | 'sync' | 'due'
+export type RuleId = AlertRuleId
 
 /** Who a rule's card goes to: the owners of the domain, the admins, or both. */
-export type Audience = 'owners' | 'admins' | 'both'
+export type Audience = AlertAudience
 
 export type Rule = {
   id: RuleId
@@ -65,3 +66,32 @@ export const thresholdOf = (r: Rule, s: AlertSettings) => s.thresholds[r.id] ?? 
 /** Owners see the rules that reach owners; admins see all eight. */
 export const rulesFor = (rules: Rule[], admin: boolean) =>
   admin ? rules : rules.filter((r) => r.audience !== 'admins')
+
+/**
+ * A rule's sentence and threshold, in the domain's words (src/domain/alerts.ts), which the service
+ * says too; `threshold` is the one it fires at now, the rule's first one when left out.
+ */
+export function ruleWords(
+  id: RuleId,
+  threshold?: number | null,
+): Pick<Rule, 'id' | 'name' | 'when' | 'then' | 'audience' | 'isNew' | 'threshold'> {
+  const r = alertRule(id)
+  const t = r.threshold
+  return {
+    id,
+    name: r.name,
+    when: r.when,
+    then: r.then,
+    audience: r.audience,
+    ...(r.isNew ? { isNew: true } : {}),
+    ...(t
+      ? {
+          threshold: {
+            value: thresholdWords(threshold ?? t.initial, t.unit),
+            choices: t.choices.map((c) => thresholdWords(c, t.unit)),
+            ...(t.setting ? { setting: t.setting } : {}),
+          },
+        }
+      : {}),
+  }
+}

@@ -64,7 +64,7 @@ The sidebar has four places: **Inbox**, **Ask**, **Context**, **Definitions**. A
 | Setup checklist on a new install                        | `/inbox`, shown while setup is unfinished               |
 | Connect an agent as a dialog, search, shortcuts, report | `/inbox?open=connect`, `palette`, `shortcuts`, `report` |
 
-The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Not found, Reported, Saved questions, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
+The Inbox is a list in the middle and a detail pane on the right. The dock takes the detail pane's place, so there are never two right panels. The list is ordered by need, in groups with counts: Not found, Reported, Saved questions, Alerts, Mentioned you, Due for a check, then Suggestions. Under All it adds Waiting on others and Done. One quiet sentence under the heading says what agents asked this week, in counts only.
 
 ### Review
 
@@ -334,7 +334,7 @@ One name for each thing, in every screen, help page, agent reply and demo text. 
 | **Publish**           | An owner makes context available to agents.                                                                                                   | accept                       |
 | **Archive**           | Take a published item out of what agents get, keeping its history.                                                                            | retire                       |
 | **Inbox**             | What needs the person, ordered by need.                                                                                                       | notifications, queue         |
-| **Card**              | One row in the Inbox: Not found, Reported, Saved questions, Mentioned you, Due for a check, or a Suggestion.                                  | inbox item                   |
+| **Card**              | One row in the Inbox: Not found, Reported, Saved questions, Alert, Mentioned you, Due for a check, or a Suggestion.                           | inbox item                   |
 | **Not found**         | A question agents asked several times and found nothing written for. Its card brings a draft. Also an answer state.                           | gap                          |
 | **Reported**          | Someone said a context item is wrong or unclear.                                                                                              | flag                         |
 | **Due for a check**   | A context item whose check date has passed.                                                                                                   | review due                   |

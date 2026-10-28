@@ -122,7 +122,7 @@ States: Connected, Syncing, Sync failed, Needs a new key, Not connected, Soon. A
 
 ### Alerts
 
-Eight rules, each one sentence: Not found, A saved question needs a look, Conflict, More questions not found, Calls fail, Model spend, A connected tool did not sync, A check is due. A rule raises an Inbox card. It never sends an email.
+Eight rules, each one sentence: Not found, A saved question needs a look, Conflict, More questions not found, Calls fail, Model spend, A connected tool did not sync, A check is due. A rule raises an Inbox card. It never sends an email. Not found, A saved question needs a look and A check is due raise the Inbox's own cards; the other five raise an **Alert** card, in the Alerts group, with one action: **Open the topic**, **Open Overview**, **Open Usage** or **Open the integration**.
 
 ### Privacy words
 

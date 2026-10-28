@@ -19,6 +19,7 @@ import {
   PencilIcon,
   SearchIcon,
   TriangleAlertIcon,
+  BellIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
@@ -80,6 +81,7 @@ const typeIcon: Record<CardType, typeof FlagIcon> = {
   flag: FlagIcon,
   check: CalendarClockIcon,
   look: TriangleAlertIcon,
+  alert: BellIcon,
 }
 
 /* ---------- the list ---------- */
@@ -105,6 +107,7 @@ function meta(row: InboxRow) {
   if (card.gap) return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ", across a month edge" : ""}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
   if (card.look) return "Raised by an alert: saved questions answer worse"
+  if (card.alert) return `Raised by an alert: ${card.alert.name}`
   return card.line.startsWith(DEFINITIONS_TOOL) ? "A definition changed" : "Its check date passed"
 }
 
@@ -326,6 +329,8 @@ function useActions(card: InboxCard) {
         return openDock("context", card.factId, { flag: card.id })
       case "look":
         return navigate(`/observability/quality?domain=${card.domain}`)
+      case "alert":
+        return navigate(card.alert!.href)
       case "check":
         return run({
           outcome: "Checked",
@@ -363,6 +368,7 @@ function from(card: InboxCard) {
   if (s) return s.agent ? `From an agent, sent with ${s.from}'s OK.` : `From ${s.from}, ${s.via === "editor" ? "written in the editor" : `from ${s.via}`}.`
   if (card.flag) return `By ${card.flag.by}, from a chat with an agent. Only what was sent is kept: the words and the question.`
   if (card.look) return "From an alert, after the check that runs after every change."
+  if (card.alert) return `From the alert rule ${card.alert.name}.`
   return "From an automatic check."
 }
 

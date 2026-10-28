@@ -1,6 +1,15 @@
 import { ORPCError } from '@orpc/client'
 import type { Card, Feed } from '../../../contract/inbox.ts'
 import type { ReportOutcome } from '../../../contract/reports.ts'
+import {
+  alertCardDays,
+  alertCardRules,
+  cardReaches,
+  type AlertCardRule,
+  type AlertRuleId,
+  type AlertState,
+  type RaiseSubject,
+} from '../../../domain/alerts.ts'
 import { topicScope, topicWords } from '../../../domain/answer.ts'
 import { monthWords } from '../../../domain/dates.ts'
 import { visibleCount } from '../../../domain/gaps.ts'
@@ -32,8 +41,13 @@ import { loadProposal, type ReviewPath, type ReviewService } from '../review/ind
   Mentioned you: threads where a comment mentions the person and they haven't read it,
   whatever domain it is in. Due for a check: live items whose check date passed or whose
   definition changed. Suggestions: those waiting for a decision. Under All, the person's own
-  suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions
-  join when they exist (P12).
+  suggestions that wait on an owner, and what was decided in the last two weeks. Saved questions:
+  one card for each domain whose saved questions need a look (FR-526).
+
+  Alerts: a card for each raise of an alert rule with a card of its own, for a week. The alert
+  rules (FR-621, src/domain/alerts.ts) decide whether an Alert, a Not found, a Saved questions or
+  a check-date card reaches the person: not while an administrator turned its rule off, nor in a
+  domain the person muted it for.
 
   Counts from agents are counts only, with no words and no person (FR-602), and a count under the
   minimum is hidden (FR-614).
@@ -488,6 +502,86 @@ export function createInboxFeedService(
     }))
   }
 
+  /** One card for each domain whose saved questions need a look now, the newest look first. */
+  async function looks(areas: readonly string[]): Promise<Card[]> {
+    const rows = await tx.query<{
+      area: string
+      at: string
+      questions: { id: string; question: string }[]
+    }>(
+      `select l.area_id as area, max(l.since)::text as at,
+              json_agg(json_build_object('id', q.id::text, 'question', q.question)
+                       order by l.since desc, q.created_at desc, q.id) as questions
+         from cl_saved_looks() l join saved_questions q on q.id = l.question_id
+        where l.area_id = any($1::text[])
+        group by l.area_id order by l.area_id`,
+      [areas],
+    )
+    return rows.map((row) => ({
+      id: cardKey.look(row.area),
+      group: 'look',
+      areaId: row.area,
+      at: row.at,
+      opened: false,
+      done: null,
+      questions: row.questions,
+    }))
+  }
+
+  /** The rules turned off for everyone, and those the person muted for a domain. */
+  async function alertState(): Promise<AlertState> {
+    const off = await tx.query<{ rule: AlertRuleId }>(
+      'select rule from alert_rules where not enabled',
+    )
+    const muted = await tx.query<{ rule: AlertRuleId; areaId: string }>(
+      'select rule, area_id as "areaId" from alert_mutes where person_id = cl_person()',
+    )
+    return { off: off.map((r) => r.rule), muted }
+  }
+
+  /**
+   * An Alert card for each raise of a rule with a card of its own (Conflict, More questions not
+   * found, Calls fail, Model spend, A connected tool did not sync) that reached the person: the
+   * relay delivered it to their Inbox items, less those who muted it. It stays for a week after the
+   * raise, or until they archive its Inbox item.
+   */
+  async function alertCards(): Promise<Card[]> {
+    const rows = await tx.query<{
+      id: string
+      at: string
+      area: string | null
+      rule: AlertCardRule
+      title: string
+      subject: RaiseSubject
+    }>(
+      `select r.id::text, r.raised_at::text as at, r.area_ids[1] as area, r.rule, r.title, r.subject
+         from inbox_items i join alert_raises r on r.event_seq = i.event_seq
+        where i.person_id = cl_person() and i.kind = 'alert.raised' and i.archived_at is null
+          and r.rule = any($1::text[]) and r.raised_at > now() - make_interval(days => $2)
+          and not (
+            exists (select 1 from unnest(r.area_ids) a where cl_is_owner_now(a))
+            and not exists (
+              select 1 from unnest(r.area_ids) a
+               where cl_is_owner_now(a)
+                 and not exists (select 1 from alert_mutes m
+                                  where m.person_id = cl_person() and m.rule = r.rule and m.area_id = a)))
+        order by r.raised_at desc, r.id limit 100`,
+      [alertCardRules, alertCardDays],
+    )
+    return rows.map((row) => ({
+      id: cardKey.alert(row.id),
+      group: 'alert',
+      areaId: row.area ?? '',
+      at: row.at,
+      opened: false,
+      done: null,
+      raiseId: row.id,
+      rule: row.rule,
+      title: row.title,
+      subject: row.subject,
+    }))
+  }
+
   async function waiting(): Promise<Feed['waiting']> {
     return tx.query<Feed['waiting'][number]>(
       `select p.id::text as "proposalId", coalesce(v.title,p.draft->>'title','Untitled') as title,
@@ -554,9 +648,13 @@ export function createInboxFeedService(
         ...(await flags(areas)),
         ...(await reports(areas, 'open')),
         ...(await mentions()),
+        ...(await looks(areas)),
         ...(await checks(bundle, areas)),
         ...(await suggestions(areas)),
+        ...(await alertCards()),
       ]
+      const rules = await alertState()
+      cards = cards.filter((c) => cardReaches(c, rules))
       // A suggestion's card is opened by its read receipt, and a mention's by reading the thread.
       const ownRead = (c: Card) => c.group === 'suggestion' || c.group === 'mention'
       const seen = await opened(cards.filter((c) => !ownRead(c)).map((c) => c.id))

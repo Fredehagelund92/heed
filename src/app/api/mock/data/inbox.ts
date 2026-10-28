@@ -4,6 +4,7 @@ import { factById, facts } from './world'
 import { spainDraft } from './drafts'
 import { reviews } from './review'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { alertCardWords } from '@domain/alerts'
 
 /**
  * This week's questions from agents, as counts: what is kept about them (no question text, no
@@ -187,6 +188,23 @@ export const cards: InboxCard[] = [
     primary: 'Open in Quality',
     secondary: [],
     look: { questions: ['sq-support-norway', 'sq-gross-margin'] },
+  },
+  {
+    id: 'alert-net-revenue',
+    type: 'alert',
+    domain: 'sales',
+    for: 'Jon Abara',
+    when: 'Tue 20 Oct',
+    title: 'Net revenue in Norway: conflict, 3 times',
+    line: alertCardWords.disagree.line,
+    detail: alertCardWords.disagree.detail,
+    primary: alertCardWords.disagree.open,
+    secondary: [],
+    alert: {
+      rule: 'disagree',
+      name: 'Conflict',
+      href: '/observability/questions?dock=topic.net-revenue-norway',
+    },
   },
   {
     id: 'check-returns',

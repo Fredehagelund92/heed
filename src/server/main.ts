@@ -20,6 +20,7 @@ import {
   type SecretStore,
 } from './modules/connectors/index.ts'
 import { evalJobs } from './modules/evals/index.ts'
+import { alertsJob } from './modules/alerts/index.ts'
 import { gapDetectionJob } from './modules/gaps/index.ts'
 import { savedCheckJob } from './modules/saved-questions/index.ts'
 import { createJobRunner, maintenanceJobs } from './modules/jobs/index.ts'
@@ -187,6 +188,7 @@ async function main(): Promise<void> {
       ...maintenanceJobs,
       outboxRelayJob,
       gapDetectionJob,
+      alertsJob({ clock }),
       connectorSyncJob(sources, { clock }),
       savedCheckJob({ clock }),
       ...evalJobs({ port: models, clock }),

@@ -4,7 +4,7 @@ import { spainDraft } from "./drafts"
 import { reviews } from "./review"
 import { DEFINITIONS_TOOL } from "./integrations"
 
-export type CardType = "suggestion" | "gap" | "flag" | "check" | "look"
+export type CardType = "suggestion" | "gap" | "flag" | "check" | "look" | "alert"
 
 /** Each card by what happened, so the word explains itself. */
 export const cardTypeLabel: Record<CardType, string> = {
@@ -13,6 +13,7 @@ export const cardTypeLabel: Record<CardType, string> = {
   flag: "Reported",
   check: "Due for a check",
   look: "Needs a look",
+  alert: "Alert",
 }
 
 /**
@@ -59,6 +60,11 @@ export type InboxCard = {
   flag?: { reason: "wrong" | "unclear"; note: string; when: string; by: string; via: string }
   /** Raised by the saved-question alert: the questions that answer worse now, from Quality's one list. */
   look?: { questions: string[] }
+  /**
+   * Raised by an alert rule with a card of its own (Conflict, More questions not found, Calls fail,
+   * Model spend, A connected tool did not sync): its rule, and where its one action goes.
+   */
+  alert?: { rule: "disagree" | "share" | "fail" | "spend" | "sync"; name: string; href: string }
   /** Created by a sync from a document, never by a person. */
   source?: { tool: "Google Drive"; folder: string; doc: string; read: string }
 }
@@ -235,6 +241,19 @@ export const cards: InboxCard[] = [
     primary: "Open in Quality",
     secondary: [],
     look: { questions: ["sq-support-norway", "sq-gross-margin"] },
+  },
+  {
+    id: "alert-net-revenue",
+    type: "alert",
+    domain: "sales",
+    for: "Jon Abara",
+    when: "Tue 20 Oct",
+    title: "Net revenue in Norway: conflict, 3 times",
+    line: "Agents got two context items that say different things about this.",
+    detail: "Fix the one that is wrong, or archive it. The answer panel shows both.",
+    primary: "Open the topic",
+    secondary: [],
+    alert: { rule: "disagree", name: "Conflict", href: "/observability/questions?dock=topic.net-revenue-norway" },
   },
   {
     id: "check-returns",

@@ -27,6 +27,7 @@ import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { seedDriveRead, type DriveCard } from './demo-drive.ts'
 import { seedObservability } from './demo-observability.ts'
+import { raiseDemoAlerts } from './demo-alerts.ts'
 import { seedSavedQuestions } from './demo-saved.ts'
 
 /*
@@ -1031,6 +1032,8 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   await seedSavedQuestions(superuserUrl, TODAY, (name) => seedPersonId(personId(name)))
   // This morning's Google Drive read, before anyone sent a suggestion: last in the queue.
   const drive = await seedDriveRead(superuserUrl, TODAY)
+  // What the alert rules raised on it, and the Inbox items they sent (P12).
+  await raiseDemoAlerts(superuserUrl, TODAY)
   return {
     ...ids,
     ...drive,

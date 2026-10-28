@@ -39,6 +39,11 @@ const maintainOperations = [
   'savedQuestions.remove',
   'savedQuestions.keep',
   'savedQuestions.check',
+  // Alerts: owners and administrators read the rules and what they raised, and an owner mutes a
+  // rule for their own domains; row security and the service narrow each to what they manage.
+  'alerts.rules',
+  'alerts.mute',
+  'alerts.raised',
   'quality.compare',
   'quality.feedback',
   'quality.ratings',
@@ -74,6 +79,8 @@ const maintainOperations = [
 const adminOperations = [
   // Usage: tool calls, kinds of agent and model spend, for administrators only.
   'obs.usage',
+  // Alert rules: administrators turn them on and off and set their thresholds.
+  'alerts.setRule',
   'vocabulary.candidates',
   'vocabulary.proposeBatch',
   'roles.list',

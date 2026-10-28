@@ -1521,6 +1521,83 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getAlerts'))(
+      'lists the eight alert rules as sentences, each threshold one its sentence offers, and what they raised lately',
+      async () => {
+        const { rules, raised, settings } = await (await signedIn()).getAlerts()
+        expect(rules.map((r) => r.id)).toEqual([
+          'gap',
+          'saved',
+          'disagree',
+          'share',
+          'fail',
+          'spend',
+          'sync',
+          'due',
+        ])
+        for (const r of rules) {
+          expect(r.name, r.id).not.toBe('')
+          expect(r.then, r.id).not.toBe('')
+          expect(['owners', 'admins', 'both'], r.id).toContain(r.audience)
+          // A threshold sits inside its sentence, at one of the choices it offers.
+          expect(r.when.includes('{n}'), r.id).toBe(!!r.threshold)
+          if (r.threshold) expect(r.threshold.choices, r.id).toContain(r.threshold.value)
+          expect(r.last, r.id).not.toBe('')
+        }
+        for (const off of settings.off) expect(rules.map((r) => r.id)).toContain(off)
+        expect(raised.length).toBeGreaterThan(0)
+        expect(new Set(raised.map((r) => r.id)).size).toBe(raised.length)
+        for (const r of raised) {
+          expect(
+            rules.map((x) => x.id),
+            r.id,
+          ).toContain(r.rule)
+          expect(r.title, r.id).not.toBe('')
+          expect(r.line, r.id).toMatch(/went to .+\.$/)
+          expect(r.when, r.id).not.toBe('')
+          expect(r.href, r.id).toMatch(/^\//)
+        }
+        // The saved-question alert raised a card in the Inbox.
+        expect(raised.some((r) => r.rule === 'saved' && r.href.startsWith('/inbox?card='))).toBe(
+          true,
+        )
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getAlerts', 'setAlertRule', 'setAlertThreshold'))(
+      'turns a rule off for everyone and on again, and changes a threshold inside its sentence',
+      async () => {
+        const live = await signedIn()
+        await live.setAlertRule({ id: 'spend', on: false })
+        expect((await live.getAlerts()).settings.off).toContain('spend')
+        await live.setAlertRule({ id: 'spend', on: true })
+        expect((await live.getAlerts()).settings.off).not.toContain('spend')
+        const threshold = (a: Awaited<ReturnType<HeedApi['getAlerts']>>) => {
+          const r = a.rules.find((x) => x.id === 'disagree')!
+          return a.settings.thresholds.disagree ?? r.threshold!.value
+        }
+        const was = threshold(await live.getAlerts())
+        const to = was === '5' ? '2' : '5'
+        await live.setAlertThreshold({ id: 'disagree', value: to })
+        expect(threshold(await live.getAlerts())).toBe(to)
+        await live.setAlertThreshold({ id: 'disagree', value: was })
+        expect(threshold(await live.getAlerts())).toBe(was)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'getAlerts', 'muteAlert'))(
+      'mutes a rule for a domain the person owns, and unmutes it',
+      async () => {
+        const live = await signedIn()
+        const { people } = await live.getWorkspace()
+        const domain = people.find((p) => p.name === person)!.owns[0]!
+        await live.muteAlert({ id: 'due', domains: [domain], muted: true })
+        expect((await live.getAlerts()).settings.muted.due).toContain(domain)
+        await live.muteAlert({ id: 'due', domains: [domain], muted: false })
+        expect((await live.getAlerts()).settings.muted.due ?? []).not.toContain(domain)
+      },
+    )
+
     it.skipIf(lacks('signIn', 'observabilityPage', 'replayTopic'))(
       'replays a topic step by step, on what agents get now and before the last publish',
       async () => {

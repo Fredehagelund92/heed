@@ -1,3 +1,4 @@
+import type { AlertCardRule } from '@domain/alerts'
 import type { DomainId, Fact } from './items'
 
 // The Inbox as the app reads it (src/app/api): cards that need someone, what they sent that waits
@@ -6,7 +7,7 @@ import type { DomainId, Fact } from './items'
 /** A decision taken on a card: its outcome in a word or two, and when. */
 export type Outcome = { label: string; at: string }
 
-export type CardType = 'suggestion' | 'gap' | 'flag' | 'check' | 'look'
+export type CardType = 'suggestion' | 'gap' | 'flag' | 'check' | 'look' | 'alert'
 
 /** Each card by what happened, so the word explains itself. */
 export const cardTypeLabel: Record<CardType, string> = {
@@ -15,6 +16,7 @@ export const cardTypeLabel: Record<CardType, string> = {
   flag: 'Reported',
   check: 'Due for a check',
   look: 'Needs a look',
+  alert: 'Alert',
 }
 
 export type FieldChange = { label: string; before: string; after: string }
@@ -55,6 +57,11 @@ export type InboxCard = {
   flag?: { reason: 'wrong' | 'unclear'; note: string; when: string; by: string; via: string }
   /** Raised by the saved-question alert: the questions that answer worse now, from Quality's one list. */
   look?: { questions: string[] }
+  /**
+   * Raised by an alert rule with a card of its own: the rule, its name, and where its one action
+   * goes (a topic's answer panel, Overview, Usage, or an integration).
+   */
+  alert?: { rule: AlertCardRule; name: string; href: string }
   /** Created by a sync from a document, never by a person. */
   source?: { tool: string; folder: string; doc: string; read: string }
 }
