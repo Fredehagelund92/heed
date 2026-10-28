@@ -281,11 +281,7 @@ export function createFigureSources({
      * never stored and never changes the answer's state; a figure someone said doesn't fit a
      * context item comes with that item while their report is open, one the answer cites first.
      */
-    async read(
-      tx: Queryable,
-      raw: ReadFigureInput,
-      administrator: boolean,
-    ): Promise<FigureRead> {
+    async read(tx: Queryable, raw: ReadFigureInput, administrator: boolean): Promise<FigureRead> {
       if (raw.from > raw.to) invalid('to', 'The last day comes after the first.')
       const input = { ...raw, values: [...new Set(raw.values)].sort() }
       const keys = [
