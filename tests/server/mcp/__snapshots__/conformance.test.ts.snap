@@ -1292,7 +1292,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
       "title": "Send a suggestion",
     },
   ],
-  "digest": "040a83da551bf628332e1c7835f32cfa7a540e93c21064384f32d61393742427",
+  "digest": "4bc1fb768e83611d7f8d6c6d80e1064753396f8bc2b04b53ffc9fb70d857d98a",
   "tools": [
     {
       "annotations": {
@@ -2585,7 +2585,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
         "openWorldHint": false,
         "readOnlyHint": true,
       },
-      "description": "Follow a link between facts, definitions and domains, one step at a time. Call get_context before answering a question about company data. Follow links from an item's id, a vocabulary key such as metric:orders, or a domain. Returns neighbours one or two steps away with their kind of link, never bodies. A link shows what a text refers to: it neither widens where an item applies nor proves a cause, and it never changes what get_context includes. Call it only when a link helps answer the question; read a neighbour with read_context. Follow next_cursor for another page.",
+      "description": "Follow a link between facts, definitions and domains, one step at a time. Call get_context before answering a question about company data. Follow links from an item's id, a vocabulary key such as metric:orders, a term written in Definitions (term:<id>), or a domain. Returns neighbours one or two steps away with their kind of link, never bodies; a term comes with what it means, as a person wrote it, which is background for reading words and never a checked source. A link shows what a text refers to: it neither widens where an item applies nor proves a cause, and it never changes what get_context includes. Call it only when a link helps answer the question; read a neighbour with read_context. Follow next_cursor for another page.",
       "inputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

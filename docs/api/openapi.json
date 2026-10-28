@@ -33218,7 +33218,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -33253,7 +33253,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -37928,7 +37928,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -37963,7 +37963,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -53249,7 +53249,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -53284,7 +53284,7 @@
                               },
                               "target": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "label": {
                                 "type": "string",
@@ -53973,7 +53973,7 @@
                                 },
                                 "target": {
                                   "type": "string",
-                                  "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                  "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                                 },
                                 "label": {
                                   "type": "string",
@@ -64491,7 +64491,7 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+              "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
             },
             "allowEmptyValue": true,
             "allowReserved": true
@@ -66032,13 +66032,14 @@
                                   "dimension",
                                   "dimension_value",
                                   "item",
-                                  "area"
+                                  "area",
+                                  "term"
                                 ],
                                 "type": "string"
                               },
                               "key": {
                                 "type": "string",
-                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$"
+                                "pattern": "^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$"
                               },
                               "name": {
                                 "type": "string"
@@ -67411,6 +67412,7 @@
                               "dimension",
                               "dimension_value",
                               "area",
+                              "term",
                               "other"
                             ],
                             "type": "string"
@@ -83773,6 +83775,7 @@
                               "dimension",
                               "dimension_value",
                               "area",
+                              "term",
                               "other"
                             ],
                             "type": "string"
@@ -151068,6 +151071,150 @@
                         },
                         "ms": {
                           "type": "number"
+                        },
+                        "links": {
+                          "type": "object",
+                          "properties": {
+                            "on": {
+                              "type": "boolean"
+                            },
+                            "followed": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "rel": {
+                                    "enum": [
+                                      "replaces",
+                                      "conflicts_with",
+                                      "mentions"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "enum": [
+                                          "item",
+                                          "term"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "areaId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "read": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "sameAs": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "id",
+                                      "label",
+                                      "areaId",
+                                      "read",
+                                      "sameAs"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "rel",
+                                  "to"
+                                ]
+                              }
+                            },
+                            "notFollowed": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "rel": {
+                                    "enum": [
+                                      "replaces",
+                                      "conflicts_with",
+                                      "mentions"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "enum": [
+                                          "item",
+                                          "term"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "id",
+                                      "label",
+                                      "status"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "rel",
+                                  "to"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "on",
+                            "followed",
+                            "notFollowed"
+                          ]
                         }
                       },
                       "required": [
@@ -154212,6 +154359,150 @@
                                     },
                                     "ms": {
                                       "type": "number"
+                                    },
+                                    "links": {
+                                      "type": "object",
+                                      "properties": {
+                                        "on": {
+                                          "type": "boolean"
+                                        },
+                                        "followed": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "from": {
+                                                "type": "string"
+                                              },
+                                              "rel": {
+                                                "enum": [
+                                                  "replaces",
+                                                  "conflicts_with",
+                                                  "mentions"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "to": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "enum": [
+                                                      "item",
+                                                      "term"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  },
+                                                  "areaId": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "read": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "sameAs": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "id",
+                                                  "label",
+                                                  "areaId",
+                                                  "read",
+                                                  "sameAs"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "from",
+                                              "rel",
+                                              "to"
+                                            ]
+                                          }
+                                        },
+                                        "notFollowed": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "from": {
+                                                "type": "string"
+                                              },
+                                              "rel": {
+                                                "enum": [
+                                                  "replaces",
+                                                  "conflicts_with",
+                                                  "mentions"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "to": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "enum": [
+                                                      "item",
+                                                      "term"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  },
+                                                  "status": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "id",
+                                                  "label",
+                                                  "status"
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "from",
+                                              "rel",
+                                              "to"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "on",
+                                        "followed",
+                                        "notFollowed"
+                                      ]
                                     }
                                   },
                                   "required": [
@@ -159865,6 +160156,150 @@
                         },
                         "ms": {
                           "type": "number"
+                        },
+                        "links": {
+                          "type": "object",
+                          "properties": {
+                            "on": {
+                              "type": "boolean"
+                            },
+                            "followed": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "rel": {
+                                    "enum": [
+                                      "replaces",
+                                      "conflicts_with",
+                                      "mentions"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "enum": [
+                                          "item",
+                                          "term"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "areaId": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "read": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "sameAs": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "id",
+                                      "label",
+                                      "areaId",
+                                      "read",
+                                      "sameAs"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "rel",
+                                  "to"
+                                ]
+                              }
+                            },
+                            "notFollowed": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "rel": {
+                                    "enum": [
+                                      "replaces",
+                                      "conflicts_with",
+                                      "mentions"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "object",
+                                    "properties": {
+                                      "type": {
+                                        "enum": [
+                                          "item",
+                                          "term"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "label": {
+                                        "type": "string"
+                                      },
+                                      "status": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "type",
+                                      "id",
+                                      "label",
+                                      "status"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "from",
+                                  "rel",
+                                  "to"
+                                ]
+                              }
+                            }
+                          },
+                          "required": [
+                            "on",
+                            "followed",
+                            "notFollowed"
+                          ]
                         }
                       },
                       "required": [

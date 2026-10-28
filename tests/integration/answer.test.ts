@@ -11,6 +11,7 @@ import type {
 } from '../../src/contract/answer.ts'
 import type { PreviewReply, ProposalRecord } from '../../src/contract/proposals.ts'
 import { answer, startersOf, topicScope } from '../../src/domain/answer.ts'
+import { followedFrom } from '../../src/domain/links.ts'
 import { ownCaveat } from '../../src/domain/proposal-rules.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
@@ -100,7 +101,8 @@ const asAnswered = (a: Pick<AnswerResult, 'status' | 'items' | 'say'>) => ({
   say: a.say,
 })
 /** The answer without its times, which differ between two runs. */
-const untimed = ({ ms: _ms, steps, ...rest }: AnswerResult) => ({
+/** An answer's own decisions: without its timings, and without the links Ask's look-up adds. */
+const untimed = ({ ms: _ms, steps, links: _links, ...rest }: AnswerResult) => ({
   ...rest,
   steps: steps.map(({ ms: _step, ...step }) => step),
 })
@@ -262,6 +264,30 @@ describe('Ask: a look-up', () => {
       untimed(engine({ kind: 'live' }, live, { question }, { today })),
     )
     expect(result.items.length).toBeGreaterThan(0)
+  })
+
+  it('says what get_related follows from its items, one step, and nothing while it is off', async () => {
+    const lookUp = async () => {
+      const sent = events((await call('POST', '/ask/lookup', 'maria', { question })).body)
+      return (sent.at(-1) as Extract<LookupEvent, { type: 'answer' }>).answer
+    }
+    const on = await lookUp()
+    const ids = on.items.map((i) => i.id)
+    const expected = followedFrom(live, ids, today)
+    expect(on.links?.on).toBe(true)
+    expect(on.links!.followed.map((f) => [f.from, f.rel, f.to.id])).toEqual(
+      expected.followed.map((f) => [f.from, f.rel, f.to.id]),
+    )
+    expect(on.links!.notFollowed).toEqual(expected.notFollowed)
+    for (const f of on.links!.followed) expect(ids).not.toContain(f.to.id)
+    await client.query("update tool_config set enabled=false where tool='get_related'")
+    try {
+      const off = await lookUp()
+      expect(off.links).toEqual({ on: false, followed: [], notFollowed: [] })
+      expect(untimed(off)).toEqual(untimed(on))
+    } finally {
+      await client.query("update tool_config set enabled=true where tool='get_related'")
+    }
   })
 
   it('takes the names a person picked beside the words, as an agent sends them', async () => {

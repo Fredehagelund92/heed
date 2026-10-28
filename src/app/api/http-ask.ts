@@ -7,10 +7,11 @@
  */
 import type { Asked, AnswerResult } from '@contract/answer'
 import type { Vocabulary } from '@domain/item'
+import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
 import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
-import type { Answer, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
+import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
 import { scopeText } from '@/model/ask'
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
@@ -95,6 +96,37 @@ function leftOutOf(a: AnswerResult): string | undefined {
   return parts.length ? `${parts.join(', ')}.` : undefined
 }
 
+const relOf = { replaces: 'replaces', conflicts_with: 'disagrees', mentions: 'mentions' } as const
+
+/**
+ * What get_related followed from the answer's items, as Ask shows it: an item by its id and a
+ * term by its word, as a mention names them, each with what the agent read there.
+ */
+export function linksOf(a: AnswerResult): AnswerLinks | undefined {
+  if (!a.links) return undefined
+  const titles = new Map(a.items.map((i) => [i.id, i.title]))
+  const from = (id: string) => ({ id, title: titles.get(id) ?? '' })
+  const to = (t: { type: 'item' | 'term'; id: string; label: string }) => ({
+    id: t.type === 'item' ? `context:${t.id}` : `term:${t.label}`,
+    label: t.label,
+  })
+  return {
+    on: a.links.on,
+    followed: a.links.followed.map((l) => ({
+      from: from(l.from),
+      rel: relOf[l.rel],
+      to: to(l.to),
+      // A term's meaning is Markdown: the agent reads its words.
+      read: wordsOfMarkdown(l.to.read ?? ''),
+    })),
+    notFollowed: a.links.notFollowed.map((l) => ({
+      from: from(l.from),
+      rel: relOf[l.rel],
+      to: to(l.to),
+    })),
+  }
+}
+
 /** Why an item may be out of date, in words. */
 const outOfDate: Record<NonNullable<AnswerResult['items'][number]['unverifiedReason']>, string> = {
   past_review_date: 'its check date passed',
@@ -139,6 +171,7 @@ function engineAnswerOf(
   const cited = Object.fromEntries(
     a.items.map((i) => [i.id, { quote: i.quote ?? '', dontConclude: i.notToConclude ?? '' }]),
   )
+  const links = linksOf(a)
   const base = {
     id: 'custom',
     question,
@@ -150,6 +183,7 @@ function engineAnswerOf(
     said: a.say,
     leftOut: leftOutOf(a),
     ...(a.items.length ? { cited } : {}),
+    ...(links ? { links } : {}),
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'

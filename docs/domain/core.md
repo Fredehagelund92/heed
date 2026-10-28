@@ -64,7 +64,10 @@ days` stay resolvable). A dimension named without a value becomes a filter with 
 ## Mention grammar decisions
 
 A token is `@[label](target)`. Targets are `metric:`, `dim:`, `val:dimension/value`,
-`item:itm_...` and `area:` stable keys. `group:` and raw source member names are not targets.
+`item:itm_...` and `area:` stable keys, and `term:<id>` for a term written in Definitions
+(FR-138), by the term's id. `group:` and raw source member names are not targets. A new version
+may keep a mention its published version has of a target no longer there (FR-132 refuses only a
+new one).
 Labels must be nonempty and may contain an opening bracket, parentheses, backslashes and Unicode,
 but never a closing bracket, CR or LF. A closing bracket cannot be escaped inside a label.
 The picker should reject or remove those disallowed characters before serializing a token.

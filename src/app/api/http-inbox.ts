@@ -14,6 +14,7 @@ import { hrefOf } from './http-alerts'
 import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
+import { mentionIdOf, type Words } from './http-context'
 import type { Subject } from '@/model/comments'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
@@ -446,7 +447,7 @@ function orderLabel(steps: readonly { from: number | null }[]) {
 }
 
 /** One change of the service's difference as the block the review draws. */
-function blockOf(b: ServerBlock): Block {
+function blockOf(b: ServerBlock, words?: Words): Block {
   const field = fieldOf(b.field)
   switch (b.kind) {
     case 'wording':
@@ -497,7 +498,7 @@ function blockOf(b: ServerBlock): Block {
             kind: 'Link',
             field,
             text: '',
-            mention: { id: b.mention.target, label: b.mention.label, change: b.mention.change },
+            mention: mentionOf(b.mention, words),
           }
         : { kind: 'Link', field, text: b.text, before: b.before ?? '', after: b.after ?? '' }
     case 'order':
@@ -518,6 +519,19 @@ function blockOf(b: ServerBlock): Block {
       }
     }
   }
+}
+
+/**
+ * A link added or removed, as the review names it: by the app's mention id, and a term written in
+ * Definitions by its word, as Related names it, so Try it says where the answer would follow it.
+ */
+function mentionOf(
+  m: { target: string; label: string; change: 'added' | 'removed' },
+  words: Words | undefined,
+): { id: string; label: string; change: 'added' | 'removed' } {
+  const id = (words && mentionIdOf(m.target, words)) || m.target
+  const term = m.target.startsWith('term:') && words ? words.termName(m.target.slice(5)) : undefined
+  return { id, label: term ?? m.label, change: m.change }
 }
 
 /** A source's address, short: the last part of its path, with its anchor. */
@@ -640,6 +654,8 @@ export function reviewOf(
   cardId: string,
   /** For a Not found card's draft: how often agents found nothing this week, under the minimum null. */
   gap?: { times: number | null },
+  /** The vocabulary and the terms, which a link added or removed is named by. */
+  words?: Words,
 ): Review {
   const { diff, proposal } = sheet
   const rewrite = diff.blocks.find(
@@ -693,7 +709,7 @@ export function reviewOf(
     summary: summaryOf(sheet),
     counts: diff.counts.map((c) => ({ kind: kindWord[c.kind]!, n: c.n })),
     moved: movedOf(diff.values),
-    blocks: diff.blocks.filter((b) => b !== rewrite).map(blockOf),
+    blocks: diff.blocks.filter((b) => b !== rewrite).map((b) => blockOf(b, words)),
     unchanged: diff.unchanged.map(fieldOf),
     ...(diff.only === 'formatting' ? { formattingOnly: true } : {}),
     ...(rewrite

@@ -50,7 +50,7 @@ export type RescueWorld = {
   from: { name: string }
   /** The chosen domain, with its active owners in the order the service picks the first. */
   to: { id: string; name: string; owners: readonly string[] }
-  /** The live vocabulary's term keys. */
+  /** The live vocabulary's term keys, and the terms written in Definitions as `term:<id>`. */
   terms: ReadonlySet<string>
   /** The definitions the sources hold. */
   definitions: ReadonlySet<string>

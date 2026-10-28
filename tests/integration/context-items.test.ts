@@ -704,3 +704,75 @@ describe('row security of what Context keeps', () => {
     })
   })
 })
+
+describe('a mention of a term written in Definitions (FR-138, FR-331, FR-132)', () => {
+  /** A term with its own meaning in Finance, written by its owner. */
+  const term = async (name: string) =>
+    (
+      await ok<{ id: string }>(
+        call('POST', '/terms', 'owner', {
+          name,
+          meaning: `What ${name} means here.`,
+          areaId: 'finance',
+        }),
+      )
+    ).id
+  const mentioning = (id: string, words: string) => ({
+    summary: `Orders on the ${words} leave out test accounts.`,
+    summaryMarkup: `Orders on the @[${words}](term:${id}) leave out test accounts.`,
+  })
+  const node = async (item: string, id: string) =>
+    (await ok<RelatedContext>(call('GET', `/items/${item}/related`, 'author'))).nodes.find(
+      (n) => n.id === `term:${id}`,
+    )
+
+  it('keeps the link to the term by its id, which Related names by its word', async () => {
+    const id = await term('Shopfront')
+    const item = await live(mentioning(id, 'shop front'))
+    const { rows } = await client.query<{ term_id: string }>(
+      `select m.term_id::text from item_version_mentions m join item_versions v on v.id=m.version_id
+        where v.item_id=$1`,
+      [item],
+    )
+    expect(rows).toEqual([{ term_id: id }])
+    expect(await node(item, id)).toEqual({
+      type: 'term',
+      id: `term:${id}`,
+      label: 'Shopfront',
+      relation: 'mentions',
+      status: 'current',
+      areaId: 'finance',
+    })
+  })
+
+  it('reads a deleted term as retired, keeps the link in a new version, and refuses a new one', async () => {
+    const id = await term('Till roll')
+    const item = await live(mentioning(id, 'till roll'))
+    await ok(call('POST', '/terms/delete', 'owner', { ids: [id] }))
+    expect(await node(item, id)).toMatchObject({ label: 'till roll', status: 'retired' })
+    // A link the published version has already is kept (FR-132 refuses only a new one).
+    const kept = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', {
+        itemId: item,
+        draft: { title: 'Till roll orders leave out test accounts' },
+      }),
+    )
+    expect(kept).toMatchObject({ published: true })
+    const refused = await call('POST', '/items/publish', 'owner', {
+      draft: draft(mentioning(id, 'till roll')),
+    })
+    expect(refused.statusCode).toBe(422)
+    expect(refused.body).toContain("A term you mention isn't in Definitions any more.")
+  })
+
+  it('names a metric the text mentions as a link, though the item applies to it too', async () => {
+    const item = await live({
+      summary: 'Compare Orders with itself.',
+      summaryMarkup: 'Compare @[Orders](metric:orders) with itself.',
+    })
+    const related = await ok<RelatedContext>(call('GET', `/items/${item}/related`, 'author'))
+    expect(related.nodes).toContainEqual(
+      expect.objectContaining({ id: 'metric:orders', relation: 'mentions' }),
+    )
+  })
+})

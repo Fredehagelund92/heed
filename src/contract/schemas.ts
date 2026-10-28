@@ -127,8 +127,18 @@ export const historyEntrySchema = z.object({
   domain: z.optional(z.string()),
 })
 
-/** What a mention can point at (section 2.1 of the mentions design: a typed link, never scope). */
-export const linkTargetTypes = ['metric', 'dimension', 'dimension_value', 'item', 'area'] as const
+/**
+ * What a mention can point at (section 2.1 of the mentions design: a typed link, never scope). A
+ * `term` is a term written in Definitions (FR-138), by its id.
+ */
+export const linkTargetTypes = [
+  'metric',
+  'dimension',
+  'dimension_value',
+  'item',
+  'area',
+  'term',
+] as const
 
 /** `retired`: the target is an item that is out of service. Its name is shown, never more. */
 /**

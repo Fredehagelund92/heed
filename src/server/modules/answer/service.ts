@@ -2,6 +2,7 @@ import { ORPCError } from '@orpc/client'
 import type {
   AnswerResult,
   Asked,
+  FollowedLinks,
   LookupEvent,
   LookupInput,
   Reach,
@@ -22,12 +23,13 @@ import {
   type AnswerAsk,
   type TopicCount,
 } from '../../../domain/answer.ts'
+import { followedFrom } from '../../../domain/links.ts'
 import { compareIds } from '../../../domain/resolver.ts'
 import { visibleTotal } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { tryIt } from '../agents/index.ts'
-import { loadServingBundle, type ServingBundle } from '../editions/index.ts'
+import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { draftBundle } from '../proposals/index.ts'
 
 /** An edition to answer on: its sequence, its label and the overlay of stops and flags now. */
@@ -110,13 +112,18 @@ export async function lookupQuestion(
   /** The words a real model writes from the answer, or null (no model, or none that passed). */
   words?: (answer: AnswerResult) => Promise<string | null>,
 ): Promise<AsyncGenerator<LookupEvent>> {
-  const bundle = await liveBundle(tx, cache)
-  const steps = lookUp(bundle, input, { today: clock.today(), now: clockMs })
+  const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
+  const today = clock.today()
+  const steps = lookUp(bundle, input, { today, now: clockMs })
   function* events(): Generator<LookupEvent> {
     for (;;) {
       const next = steps.next()
       if (next.done) {
-        yield { type: 'answer', answer: result(next.value, { kind: 'live' }) }
+        const answer = result(next.value, { kind: 'live' })
+        yield {
+          type: 'answer',
+          answer: { ...answer, links: linksOf(bundle, answer, tools, today) },
+        }
         return
       }
       yield { type: 'step', step: next.value }
@@ -133,6 +140,52 @@ export async function lookupQuestion(
       }
     }
   })()
+}
+
+/**
+ * What an agent follows from the answer's items with get_related, while the switch has it on
+ * (FR-407): one step from each, as get_related reads a link with no dates, so a link reads the
+ * same whatever the question's dates.
+ */
+function linksOf(
+  bundle: ServingBundle,
+  answer: AnswerResult,
+  tools: readonly string[],
+  today: string,
+): FollowedLinks {
+  if (!tools.includes('get_related') || !answer.items.length)
+    return { on: tools.includes('get_related'), followed: [], notFollowed: [] }
+  const { followed, notFollowed } = followedFrom(
+    bundle,
+    answer.items.map((i) => i.id),
+    today,
+  )
+  return {
+    on: true,
+    followed: followed.map(({ from, rel, to }) => ({
+      from,
+      rel,
+      to:
+        to.type === 'item'
+          ? {
+              type: 'item' as const,
+              id: to.id,
+              label: to.label,
+              areaId: to.area,
+              read: to.summary,
+              sameAs: null,
+            }
+          : {
+              type: 'term' as const,
+              id: to.id,
+              label: to.label,
+              areaId: to.area ?? null,
+              read: to.meaning,
+              sameAs: to.same_as ?? null,
+            },
+    })),
+    notFollowed,
+  }
 }
 
 /**

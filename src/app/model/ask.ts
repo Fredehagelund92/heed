@@ -62,6 +62,27 @@ export type Answer = {
   parts?: QuestionPart[]
   /** What the asker scoped it to with '@'. */
   scope?: MentionRef[]
+  /** What the agent followed from the answer's items with get_related, one step. */
+  links?: AnswerLinks
+}
+
+/** A link on one of the answer's items: the item it is on, and where it points. */
+export type AnswerLink = {
+  from: { id: string; title: string }
+  rel: 'replaces' | 'disagrees' | 'mentions'
+  to: MentionRef
+}
+
+/**
+ * What get_related followed from an answer's items: one step from each, to a context item or a
+ * term the answer did not have, and what the agent read there; a link to one that is no longer
+ * there is listed and not followed. `on` is the switch in Agents and access: off, nothing is
+ * followed.
+ */
+export type AnswerLinks = {
+  on: boolean
+  followed: (AnswerLink & { read: string })[]
+  notFollowed: AnswerLink[]
 }
 
 /** A question as words and mentions: "Why did @Orders drop in @Norway?" */

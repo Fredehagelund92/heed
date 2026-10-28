@@ -133,7 +133,8 @@ export const restoredDraftSchema = z.object({ proposalId: z.string() })
 
 /** Context related to an item or a definition, as get_related follows it one step, for people. */
 export const relatedNodeSchema = z.object({
-  type: z.enum(['item', 'metric', 'dimension', 'dimension_value', 'area', 'other']),
+  /** A `term` is a term written in Definitions, by `term:<id>`. */
+  type: z.enum(['item', 'metric', 'dimension', 'dimension_value', 'area', 'term', 'other']),
   id: z.string(),
   label: z.string(),
   /**

@@ -1,10 +1,16 @@
 import * as z from 'zod/mini'
 
+/*
+  What a mention in an item's text can point at: a metric or a dimension (`metric:`, `dim:`), a
+  dimension's value (`val:`), another item (`item:`), a domain (`area:`), or a term written in
+  Definitions by its id (`term:<id>`, FR-138).
+*/
+
 export const mentionTargetSchema = z
   .string()
   .check(
     z.regex(
-      /^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*)$/,
+      /^(?:(?:metric|dim):[a-z0-9_]+|val:[a-z0-9_]+\/[a-z0-9_]+|item:itm_[a-z0-9]{8,16}|area:[a-z][a-z0-9_-]*|term:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
     ),
   )
 export const mentionLabelSchema = z.string().check(

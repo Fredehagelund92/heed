@@ -105,6 +105,49 @@ export const answerTargetSchema = z.union([
   z.object({ kind: z.literal('draft'), proposal: z.string(), item: z.string() }),
 ])
 
+const followedRelSchema = z.enum(['replaces', 'conflicts_with', 'mentions'])
+/**
+ * What get_related follows from an answer's items, as an agent would (FR-332): one step from each
+ * item, to another item or a term written in Definitions it did not get already, never a link
+ * from a link, and never changing which items the answer has. `on` is the get_related switch
+ * (FR-407): while it is off, nothing is followed. A retired or replaced item, or a term no longer
+ * there, is listed and not followed, with the author's words only (FR-333).
+ */
+export const followedLinksSchema = z.object({
+  on: z.boolean(),
+  followed: z.array(
+    z.object({
+      /** The answer's item the link is on. */
+      from: z.string(),
+      rel: followedRelSchema,
+      to: z.object({
+        type: z.enum(['item', 'term']),
+        /** An item's id, or a term's as `term:<id>`. */
+        id: z.string(),
+        label: z.string(),
+        areaId: z.nullable(z.string()),
+        /** What the agent read there: the item's summary, or what the term means; null for a synonym. */
+        read: z.nullable(z.string()),
+        /** What a synonym is another name for: a metric's or a dimension's key, or `term:<id>`. */
+        sameAs: z.nullable(z.string()),
+      }),
+    }),
+  ),
+  notFollowed: z.array(
+    z.object({
+      from: z.string(),
+      rel: followedRelSchema,
+      to: z.object({
+        type: z.enum(['item', 'term']),
+        id: z.string(),
+        label: z.string(),
+        status: z.string(),
+      }),
+    }),
+  ),
+})
+export type FollowedLinks = z.infer<typeof followedLinksSchema>
+
 export const answerSchema = z.object({
   target: answerTargetSchema,
   /** The edition's label, such as 2026-10-20.3. */
@@ -132,6 +175,8 @@ export const answerSchema = z.object({
   steps: z.array(answerStepSchema),
   /** The steps' time together, in milliseconds. */
   ms: z.number(),
+  /** What get_related follows from the items, in Ask's look-up only. */
+  links: z.optional(followedLinksSchema),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 

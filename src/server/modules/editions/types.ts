@@ -43,6 +43,8 @@ export type ServingBundle = Omit<EditionBundle, 'items'> & {
   terms: ServingTerm[]
   /** The terms and synonyms people wrote that agents get (src/domain/served-terms.ts). */
   written: WrittenTerm[]
+  /** Every live term by id, served or not, with its domain (a link to a term reads it). */
+  writtenAreas: Record<string, string | null>
   links: RawLink[]
   /** Every domain Heed has, with what its owner wrote about it (summary and description). */
   areas: { id: string; name: string; team: string | null; summary: string; description: string }[]
