@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ItemChange, ItemPage, ItemVersionEntry } from '@contract/context'
+import type { ItemChange, ItemPage, ItemVersionEntry, RelatedContext } from '@contract/context'
 import type { TermVersion } from '@contract/terms'
 import type { Vocabulary } from '@domain/item'
 import {
@@ -9,6 +9,7 @@ import {
   factOfPage,
   historyOf,
   itemPageOf,
+  linksOfRelated,
   logOf,
   serviceDay,
   termHistoryOf,
@@ -94,6 +95,143 @@ describe('mentions, both ways', () => {
     expect(textFromService(written.markup!, words)).toBe(
       'Mail @ the desk: [@ id="metric:Orders" label="Orders"]',
     )
+  })
+})
+
+describe('Related, from the service', () => {
+  const node = (
+    n: Partial<RelatedContext['nodes'][number]> & { id: string; relation: string },
+  ) => ({
+    type: 'item' as const,
+    label: n.id,
+    status: 'current',
+    ...n,
+  })
+  const related = (nodes: RelatedContext['nodes']): RelatedContext => ({
+    areaId: 'area_marketing',
+    nodes,
+    withheld: 0,
+    following: true,
+  })
+
+  it("names each end as the app's mentions do, with how it relates and whose it is", () => {
+    const links = linksOfRelated(
+      related([
+        node({
+          id: 'itm_lagtwodays',
+          relation: 'replaces',
+          status: 'replaced',
+          areaId: 'area_marketing',
+        }),
+        node({ id: 'itm_giftcardonly', relation: 'conflicts_with', areaId: 'area_marketing' }),
+        node({
+          type: 'metric',
+          id: 'metric:orders',
+          label: 'Orders',
+          relation: 'mentions',
+          areaId: 'area_sales',
+        }),
+        node({
+          type: 'dimension_value',
+          id: 'val:market/norway',
+          label: 'Norway',
+          relation: 'mentions',
+        }),
+        node({ type: 'area', id: 'area_sales', label: 'Sales', relation: 'mentions' }),
+        node({ id: 'itm_eprlkrz2', relation: 'mentioned_by', areaId: 'area_marketing' }),
+      ]),
+      words,
+    )
+    expect(links).toEqual([
+      {
+        rel: 'replaces',
+        to: {
+          id: 'context:itm_lagtwodays',
+          kind: 'context',
+          label: 'itm_lagtwodays',
+          retired: true,
+          domain: 'area_marketing',
+        },
+        otherDomain: false,
+      },
+      {
+        rel: 'disagrees',
+        to: {
+          id: 'context:itm_giftcardonly',
+          kind: 'context',
+          label: 'itm_giftcardonly',
+          retired: false,
+          domain: 'area_marketing',
+        },
+        otherDomain: false,
+      },
+      {
+        rel: 'mentions',
+        to: {
+          id: 'metric:Orders',
+          kind: 'metric',
+          label: 'Orders',
+          retired: false,
+          domain: 'area_sales',
+        },
+        otherDomain: true,
+      },
+      {
+        rel: 'mentions',
+        to: { id: 'market:Norway', kind: 'market', label: 'Norway', retired: false },
+        otherDomain: false,
+      },
+      {
+        rel: 'mentions',
+        to: {
+          id: 'domain:area_sales',
+          kind: 'domain',
+          label: 'Sales',
+          retired: false,
+          domain: 'area_sales',
+        },
+        otherDomain: true,
+      },
+      {
+        rel: 'mentioned_by',
+        to: {
+          id: 'context:itm_eprlkrz2',
+          kind: 'context',
+          label: 'itm_eprlkrz2',
+          retired: false,
+          domain: 'area_marketing',
+        },
+        otherDomain: false,
+      },
+    ])
+  })
+
+  it('leaves out what an item applies to, and anything the app cannot name', () => {
+    expect(
+      linksOfRelated(
+        related([
+          node({ type: 'metric', id: 'metric:orders', label: 'Orders', relation: 'applies_to' }),
+          node({ type: 'other', id: 'group:payments', label: 'Payments', relation: 'mentions' }),
+        ]),
+        words,
+      ),
+    ).toEqual([])
+  })
+
+  it('marks a definition the source no longer has as not followed', () => {
+    const [link] = linksOfRelated(
+      related([
+        node({
+          type: 'metric',
+          id: 'metric:returns',
+          label: 'Returns',
+          relation: 'mentions',
+          status: 'source_missing',
+        }),
+      ]),
+      words,
+    )
+    expect(link?.to).toMatchObject({ id: 'metric:returns', retired: true })
   })
 })
 

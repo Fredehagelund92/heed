@@ -1532,6 +1532,22 @@
           "summary": "What agents can be asked about with nothing written down: each metric and term with its own meaning, and how many live context items are about it"
         }
       }
+    },
+    "related": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/definitions/related",
+          "tags": [
+            "library"
+          ],
+          "summary": "Context related to a metric or a dimension, one step away, as get_related follows it: what people see in Related"
+        }
+      }
     }
   },
   "areas": {

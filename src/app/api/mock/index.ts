@@ -7,6 +7,7 @@ import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { linksOf } from '@/lib/links'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
 import { obsData } from './data/observability'
@@ -291,6 +292,15 @@ export function createMockApi() {
         const fact = factsOf(state).find((f) => f.id === id)
         return fact ? historyOf(fact, state.log) : []
       }),
+    getRelated: ({ id }) =>
+      now(() => ({
+        links: linksOf(id, {
+          facts: factsOf(state),
+          definitions: definitions.list(),
+          domains: Object.fromEntries(workspace.domains().map((d) => [d.id, d])),
+        }),
+        following: settings.read(scenario.address()).links,
+      })),
     // The item's words as they are now: the demo's versions are made up, so each restores the same.
     restoreAsDraft: ({ id }) =>
       now(() => {

@@ -6,7 +6,7 @@
  * requests that wire each screen land.
  */
 import { describe, expect, it } from 'vitest'
-import { heedApiMethods, type HeedApi, type HeedApiMethod } from '@/api/client'
+import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
 import { whenLabel } from '@/model/validity'
 import type { CardType, InboxCard } from '@/model/inbox'
@@ -311,6 +311,49 @@ export function describeHeedApi(
         const numbers = page!.history.map((v) => v.v)
         expect(numbers).toEqual([...numbers].sort((a, b) => b - a))
         expect(await live.itemPage({ id: 'itm_nothere001' })).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'getRelated'))(
+      "reads Related: an item's links both ways, the owners' relations, a retired one not followed",
+      async () => {
+        const live = await signedIn()
+        const { items } = await live.getLibrary()
+        const titled = (title: string) => items.find((f) => f.title === title)!
+        const related = (title: string) => live.getRelated({ id: `context:${titled(title).id}` })
+        const to = (r: Related, id: string) => r.links.find((l) => l.to.id === id)
+        // A metric another domain owns, written in the text: Orders is Sales's.
+        const campaign = await related('Norway launch campaign started on 24 March 2026')
+        expect(campaign.following).toBe(true)
+        expect(to(campaign, 'metric:Orders')).toMatchObject({
+          rel: 'mentions',
+          to: { label: 'Orders', retired: false },
+          otherDomain: true,
+        })
+        // The owners' relations, first: the item it replaces is archived, so it is not followed.
+        const lag = await related('Orders lags by one day in the source tool')
+        const replaced = titled('Orders lag by two days in the source tool')
+        expect(lag.links[0]).toMatchObject({
+          rel: 'replaces',
+          to: { id: `context:${replaced.id}`, label: replaced.title, retired: true },
+          otherDomain: false,
+        })
+        const credit = await related('Norway orders count store credit')
+        const cardOnly = titled('Norway orders are card and cash payments only')
+        expect(to(credit, `context:${cardOnly.id}`)).toMatchObject({
+          rel: 'disagrees',
+          to: { retired: false },
+        })
+        // The other way round: the metric is linked from the item that mentions it.
+        const orders = await live.getRelated({ id: 'metric:Orders' })
+        const campaignId = titled('Norway launch campaign started on 24 March 2026').id
+        expect(to(orders, `context:${campaignId}`)).toMatchObject({ rel: 'mentioned_by' })
+        // Each end once, and nothing to follow from a draft or from what is not there.
+        for (const r of [campaign, lag, credit, orders])
+          expect(new Set(r.links.map((l) => l.to.id)).size).toBe(r.links.length)
+        const draft = items.find((f) => f.status === 'Draft')!
+        expect((await live.getRelated({ id: `context:${draft.id}` })).links).toEqual([])
+        expect((await live.getRelated({ id: 'context:itm_nothere001' })).links).toEqual([])
       },
     )
 

@@ -159,6 +159,7 @@ export const policies = {
   'terms.deleted': 'read',
   'terms.history': 'read',
   'definitions.coverage': 'read',
+  'definitions.related': 'read',
   'items.list': 'read',
   'items.get': 'read',
   'items.history': 'read',

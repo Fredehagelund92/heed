@@ -260,6 +260,7 @@ describe('the API over HTTP', () => {
       '/context/deleted',
       '/decisions/undo',
       '/definitions/coverage',
+      '/definitions/related',
       '/drafts/from-text',
       '/editions',
       '/editions/compare',

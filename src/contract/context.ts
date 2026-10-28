@@ -131,21 +131,33 @@ export const restoreAsDraftInputSchema = z.strictObject({
 })
 export const restoredDraftSchema = z.object({ proposalId: z.string() })
 
-/** Context related to an item, as get_related follows it one step, for people. */
+/** Context related to an item or a definition, as get_related follows it one step, for people. */
 export const relatedNodeSchema = z.object({
   type: z.enum(['item', 'metric', 'dimension', 'dimension_value', 'area', 'other']),
   id: z.string(),
   label: z.string(),
-  /** How it relates to the item: mentions, mentioned_by, applies_to, replaces, conflicts_with. */
+  /**
+   * How it relates: mentions, mentioned_by, applies_to, replaces, replaced_by, conflicts_with.
+   */
   relation: z.string(),
   status: z.string(),
   kind: z.optional(z.enum(itemKinds)),
+  /** The domain it belongs to: an item's, or a metric's or a dimension's when it has one. */
   areaId: z.optional(z.string()),
 })
 export const relatedSchema = z.object({
+  /** The domain of the item or the definition the links start from, when it has one. */
+  areaId: z.optional(z.string()),
   nodes: z.array(relatedNodeSchema),
   /** Neighbours the person may not see: counted, never named. */
   withheld: z.number(),
+  /** Whether agents follow links now: get_related is switched on for every client (FR-407). */
+  following: z.boolean(),
+})
+
+/** A synced definition whose related context is read: a metric or a dimension, by its key. */
+export const definitionRelatedInputSchema = z.strictObject({
+  key: z.string().check(z.regex(/^(?:metric|dim):[a-z0-9_]+$/)),
 })
 
 /**

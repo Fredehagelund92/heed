@@ -29,6 +29,8 @@ export const queryKeys = {
   itemPages: ['itemPage'] as const,
   itemHistory: (id: string) => ['getItemHistory', id] as const,
   itemHistories: ['getItemHistory'] as const,
+  related: (id: string) => ['getRelated', id] as const,
+  relateds: ['getRelated'] as const,
   draftFromText: (text: string) => ['draftFromText', text] as const,
   comments: ['getComments'] as const,
   definitions: ['getDefinitions'] as const,
@@ -129,6 +131,10 @@ export const itemPageQuery = (id: string) =>
 
 export const itemHistoryQuery = (id: string) =>
   queryOptions({ queryKey: queryKeys.itemHistory(id), queryFn: () => api.getItemHistory({ id }) })
+
+/** What an agent can follow from an item or a definition, as Related shows it. */
+export const relatedQuery = (id: string) =>
+  queryOptions({ queryKey: queryKeys.related(id), queryFn: () => api.getRelated({ id }) })
 
 export const commentsQuery = () =>
   queryOptions({ queryKey: queryKeys.comments, queryFn: () => api.getComments() })
@@ -309,6 +315,7 @@ type Read =
   | 'contextPage'
   | 'itemPage'
   | 'getItemHistory'
+  | 'getRelated'
   | 'draftFromText'
   | 'getComments'
   | 'getDefinitions'
@@ -351,6 +358,7 @@ const items: QueryKey[] = [
   queryKeys.contextPage,
   queryKeys.itemPages,
   queryKeys.itemHistories,
+  queryKeys.relateds,
   queryKeys.replays,
   queryKeys.asks,
   queryKeys.chats,
@@ -365,6 +373,7 @@ const definitions: QueryKey[] = [
   queryKeys.definitionsPage,
   queryKeys.definitionPages,
   queryKeys.definitionHistories,
+  queryKeys.relateds,
   // A synonym changes how a question is read.
   queryKeys.asks,
   queryKeys.chats,
@@ -432,7 +441,8 @@ export const invalidations: {
   saveView: () => [queryKeys.savedViews],
   saveChat: () => [queryKeys.chats],
   reportAnswer: () => [queryKeys.myReports, ...inbox],
-  setLinks: () => [queryKeys.settings],
+  // Related says whether agents follow links.
+  setLinks: () => [queryKeys.settings, queryKeys.relateds],
   setTool: () => [queryKeys.settings],
   setPause: () => [queryKeys.settings, queryKeys.advancedPage],
   // A new key is listed nowhere on the page; the history log notes it.

@@ -1,15 +1,13 @@
-import * as React from 'react'
-import { useDefinitions } from '@/lib/definitions'
-import { linksOf } from '@/lib/links'
-import { useDomains, useFacts } from '@/lib/workspace'
+import { useQuery } from '@tanstack/react-query'
+import type { Related } from '@/api/client'
+import { relatedQuery } from '@/api/queries'
 
-/** The links of a context item, a definition or a domain, as they stand: what get_related follows. */
-export function useRelated(id: string) {
-  const facts = useFacts()
-  const definitions = useDefinitions()
-  const domains = useDomains()
-  return React.useMemo(
-    () => (id ? linksOf(id, { facts, definitions, domains }) : []),
-    [id, facts, definitions, domains],
-  )
+const NONE: Related = { links: [], following: true }
+
+/**
+ * The links of a context item or a definition, as they stand: what get_related follows, and
+ * whether agents follow links now. Nothing until the read answers, so Related shows once it has.
+ */
+export function useRelated(id: string): Related {
+  return useQuery({ ...relatedQuery(id), enabled: id !== '' }).data ?? NONE
 }

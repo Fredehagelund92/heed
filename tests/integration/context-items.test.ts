@@ -59,7 +59,7 @@ const ok = async <T>(response: Promise<{ statusCode: number; body: string; json:
 }
 
 /** A market of its own for each item, so no item clashes with another. */
-const markets = Array.from({ length: 40 }, (_, i) => `m${String(i).padStart(2, '0')}`)
+const markets = Array.from({ length: 60 }, (_, i) => `m${String(i).padStart(2, '0')}`)
 let nextMarket = 0
 
 beforeAll(async () => {
@@ -540,6 +540,71 @@ describe("a context item's page, history and related context", () => {
       expect.objectContaining({ type: 'metric', id: 'metric:orders', label: 'Orders' }),
     )
     expect((await call('GET', '/items/itm_nothere001/related', 'author')).statusCode).toBe(404)
+  })
+
+  it("names how each neighbour relates to the item itself, not to the item's other neighbours", async () => {
+    const { scope } = draft()
+    const other = await live({ scope })
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', {
+        draft: draft({ scope }),
+        relations: [{ itemId: other, relation: 'disagrees' }],
+      }),
+    )
+    if (!r.published) throw new Error('not published')
+    // Both apply to Orders: the other item's own link to it is not how it relates here.
+    const related = await ok<RelatedContext>(call('GET', `/items/${r.itemId}/related`, 'author'))
+    expect(related).toMatchObject({ areaId: 'finance', following: true })
+    expect(related.nodes).toContainEqual(
+      expect.objectContaining({ type: 'item', id: other, relation: 'conflicts_with' }),
+    )
+    expect(related.nodes).toContainEqual(
+      expect.objectContaining({ id: 'metric:orders', relation: 'applies_to', areaId: 'finance' }),
+    )
+  })
+
+  it('names a replaced item by its title and domain for people, and says when agents follow nothing', async () => {
+    const { scope } = draft()
+    const old = await live({ scope, title: 'Orders lag by two days in the source tool' })
+    const r = await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', {
+        draft: draft({ scope }),
+        relations: [{ itemId: old, relation: 'replaces' }],
+      }),
+    )
+    if (!r.published) throw new Error('not published')
+    const related = await ok<RelatedContext>(call('GET', `/items/${r.itemId}/related`, 'author'))
+    expect(related.nodes[0]).toMatchObject({
+      type: 'item',
+      id: old,
+      relation: 'replaces',
+      label: 'Orders lag by two days in the source tool',
+      areaId: 'finance',
+      kind: 'note',
+    })
+    expect(related.nodes[0]!.status).not.toBe('current')
+    await client.query("update tool_config set enabled=false where tool='get_related'")
+    try {
+      const off = await ok<RelatedContext>(call('GET', `/items/${r.itemId}/related`, 'author'))
+      expect(off.following).toBe(false)
+    } finally {
+      await client.query("update tool_config set enabled=true where tool='get_related'")
+    }
+  })
+
+  it('reads the related context of a metric or a dimension by its key', async () => {
+    const item = await live()
+    const related = await ok<RelatedContext>(
+      call('GET', '/definitions/related?key=metric:orders', 'author'),
+    )
+    expect(related).toMatchObject({ areaId: 'finance', following: true })
+    expect(related.nodes).toContainEqual(
+      expect.objectContaining({ type: 'item', id: item, relation: 'applies_to' }),
+    )
+    const missing = await call('GET', '/definitions/related?key=metric:nothing', 'author')
+    expect(missing.statusCode).toBe(404)
+    const notADefinition = await call('GET', `/definitions/related?key=item:${item}`, 'author')
+    expect(notADefinition.statusCode).toBe(400)
   })
 })
 

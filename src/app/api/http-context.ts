@@ -3,9 +3,15 @@
  * screens draw, the service's history into versions, its log of changes to many items into the
  * History log, and the editor's item back into the draft the service publishes. The text's
  * mentions are written both ways: the app's own token, [@ id="context:itm_..." label="..."], and
- * the service's markup, @[words](item:itm_...). Pure, so the rules are tested without a service.
+ * the service's markup, @[words](item:itm_...). Related is the service's related context as
+ * links. Pure, so the rules are tested without a service.
  */
-import type { ItemChange, ItemPage as ServiceItemPage, ItemVersionEntry } from '@contract/context'
+import type {
+  ItemChange,
+  ItemPage as ServiceItemPage,
+  ItemVersionEntry,
+  RelatedContext,
+} from '@contract/context'
 import type { ProposalRecord } from '@contract/proposals'
 import type { TermVersion } from '@contract/terms'
 import type { Draft } from '@domain/draft'
@@ -13,6 +19,7 @@ import type { Vocabulary as ServiceVocabulary } from '@domain/item'
 import { defaultNotToConclude } from '@domain/proposal-rules'
 import { parseMentions, serializeMentions, type MentionPart } from '@domain/mentions'
 import { shiftDate } from '@domain/validity'
+import type { Link, LinkEnd, Rel } from '@/lib/links'
 import { mentionParts, mentionToken, parseMentionId } from '@/lib/mentions'
 import type { Version, VersionKind } from '@/model/history'
 import type { Fact, Kind, LogEntry } from '@/model/items'
@@ -58,29 +65,28 @@ export function wordsOf(vocabulary: ServiceVocabulary): Words {
 /* ---------- mentions ---------- */
 
 /**
- * The service's markup as the app's text: each mention as the app's token, by the kind and the
- * key the app names it with (a metric by its name, an item by its id).
+ * A service's target as the app's mention id, by the kind and the key the app names it with (a
+ * metric by its name, an item by its id): `item:itm_x` is `context:itm_x`, `metric:orders` is
+ * `metric:Orders`. Empty for a target the app has no mention of.
  */
+function mentionIdOf(target: string, words: Words): string {
+  const kind = target.slice(0, target.indexOf(':'))
+  const key = target.slice(target.indexOf(':') + 1)
+  if (kind === 'item') return `context:${key}`
+  if (kind === 'metric') return `metric:${words.nameOf(target)}`
+  if (kind === 'dim') return `dimension:${words.nameOf(target)}`
+  if (kind === 'val')
+    return `${key.startsWith('market/') ? 'market' : 'dimension'}:${words.nameOf(target)}`
+  if (kind === 'area') return `domain:${key}`
+  return ''
+}
+
+/** The service's markup as the app's text: each mention as the app's token. */
 export function textFromService(markup: string, words: Words): string {
   return parseMentions(markup)
     .parts.map((part) => {
       if (part.kind === 'text') return part.text
-      const [kind, key = ''] = [
-        part.target.slice(0, part.target.indexOf(':')),
-        part.target.slice(part.target.indexOf(':') + 1),
-      ]
-      const id =
-        kind === 'item'
-          ? `context:${key}`
-          : kind === 'metric'
-            ? `metric:${words.nameOf(part.target)}`
-            : kind === 'dim'
-              ? `dimension:${words.nameOf(part.target)}`
-              : kind === 'val'
-                ? `${key.startsWith('market/') ? 'market' : 'dimension'}:${words.nameOf(part.target)}`
-                : kind === 'area'
-                  ? `domain:${key}`
-                  : ''
+      const id = mentionIdOf(part.target, words)
       return id ? mentionToken({ id, label: part.label }) : part.label
     })
     .join('')
@@ -117,6 +123,47 @@ export function textToService(text: string, words: Words): { plain: string; mark
   return parts.some((p) => p.kind === 'mention')
     ? { plain, markup: serializeMentions(parts) }
     : { plain }
+}
+
+/* ---------- related ---------- */
+
+/** How a neighbour relates, in Related's words; scope and domain membership are not links there. */
+const relOf: Partial<Record<string, Rel>> = {
+  replaces: 'replaces',
+  replaced_by: 'replaced_by',
+  conflicts_with: 'disagrees',
+  mentions: 'mentions',
+  mentioned_by: 'mentioned_by',
+}
+
+/** A neighbour's node as the app names it: an item by its id, a definition by its name. */
+const targetOfNode = (node: RelatedContext['nodes'][number]): string =>
+  node.type === 'item' ? `item:${node.id}` : node.type === 'area' ? `area:${node.id}` : node.id
+
+/**
+ * The service's related context as Related draws it: the links in the text both ways and the
+ * owners' relations, in the service's order (the one agents follow). What an item applies to is
+ * its scope, shown on the item, so it is no link here. Anything but a neighbour in service is
+ * retired: shown, never followed. A neighbour in another domain says whose it is.
+ */
+export function linksOfRelated(related: RelatedContext, words: Words): Link[] {
+  return related.nodes.flatMap((node) => {
+    const rel = relOf[node.relation]
+    const id = mentionIdOf(targetOfNode(node), words)
+    if (!rel || !id) return []
+    const { kind } = parseMentionId(id)
+    // A domain is its own.
+    const domain = node.type === 'area' ? node.id : node.areaId
+    const to: LinkEnd = {
+      id,
+      kind,
+      label: node.label,
+      retired: node.status !== 'current',
+      ...(domain ? { domain } : {}),
+    }
+    const otherDomain = !!related.areaId && !!domain && domain !== related.areaId
+    return [{ rel, to, otherDomain }]
+  })
 }
 
 /* ---------- the service's day ---------- */
