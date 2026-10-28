@@ -206,7 +206,8 @@ export async function adoptPublished(
 /**
  * What the check job does each minute: once what agents get has moved since its last run (a new
  * edition, a stop or a flag over it from a sync, or a new day, on which a check date may pass), a
- * run over every saved question, named by what moved. Otherwise nothing.
+ * run over every saved question, named by what moved. Otherwise nothing. A run that failed is not
+ * retried for the same state until a wait, doubling with each failure up to an hour, has passed.
  */
 export async function checkIfMoved(
   database: Database,
@@ -226,6 +227,16 @@ export async function checkIfMoved(
       'select count(*)::int as n from cl_saved_questions_to_check(null)',
     )
     if (!questions?.n) return null
+    const [failed] = await tx.query<{ waiting: boolean }>(
+      `select coalesce(now() < max(failed_at) + least(power(2, count(*)), 60) * interval '1 minute', false) as waiting
+         from check_runs
+        where started_by is null and failed_at is not null
+          and edition = $1::bigint and overlay = $2::bigint and day = $3::date
+          and started_at > coalesce((select max(started_at) from check_runs
+                                      where started_by is null and finished_at is not null), '-infinity')`,
+      [head.seq, head.overlay, today],
+    )
+    if (failed?.waiting) return null
     if (!last) return 'publish' as const
     if (last.edition !== head.seq) {
       const [newest] = await tx.query<{ reason: string }>(

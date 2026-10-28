@@ -343,6 +343,44 @@ describe('the free check', () => {
     expect(await list('owner')).toEqual(before)
   })
 
+  it('the check job backs off from a run that failed, for the same state, then tries again', async () => {
+    const clock = systemClock(today)
+    const broken = {
+      bundle: () => Promise.reject(new Error('the edition could not be read')),
+    } as unknown as ReturnType<typeof createBundleCache>
+    const failedRuns = async () =>
+      Number(
+        (
+          await client.query(
+            `select count(*)::int as n from check_runs where started_by is null and failed_at is not null`,
+          )
+        ).rows[0].n,
+      )
+    const before = await failedRuns()
+    await expect(checkIfMoved(database, clock, broken)).rejects.toThrow('could not be read')
+    expect(await failedRuns()).toBe(before + 1)
+    // The next minutes do not start another run over the same state.
+    expect(await checkIfMoved(database, clock, createBundleCache())).toBeNull()
+    expect(await checkIfMoved(database, clock, broken)).toBeNull()
+    expect(await failedRuns()).toBe(before + 1)
+    // Once the wait has passed it tries again, and waits longer after failing again.
+    const age = (minutes: number) =>
+      client.query(
+        `update check_runs set failed_at = failed_at - $1 * interval '1 minute'
+          where started_by is null and failed_at is not null`,
+        [minutes],
+      )
+    await age(3)
+    await expect(checkIfMoved(database, clock, broken)).rejects.toThrow('could not be read')
+    expect(await failedRuns()).toBe(before + 2)
+    await age(3)
+    expect(await checkIfMoved(database, clock, createBundleCache())).toBeNull()
+    await age(60)
+    expect(await checkIfMoved(database, clock, createBundleCache())).toMatchObject({
+      checked: 1,
+    })
+  })
+
   it('the review checks a draft against the saved questions that answer from its item', async () => {
     const drafts = await database.transaction(people.owner, async (tx) => {
       const [head] = await tx.query<{ seq: string; label: string; overlay: string }>(
