@@ -479,7 +479,7 @@ capabilities a manifest declares:
 
 ### Versions
 
-- **Interface version**, a semver: interface 2 today, 3.0 next. A minor version only adds; a
+- **Interface version**, a semver: 3.0 today. A minor version only adds; a
   major one may break. Heed runs the current and the previous major for at least 12 months or two
   releases, whichever is longer, and warns on a source's page when its connector uses a major that
   will stop being supported (CON-109). Experimental parts are open to built-in connectors only.
@@ -571,7 +571,7 @@ connectors:sync` is unchanged. Its settings, its refs and the sources administra
   interface 2 are as they were. Its warnings are the core's codes it always had
   (`unsupported_file`, `compile_error` and the rest), since stored reads name them.
 - **What is stored**: a source's `connectors.type` is its connector's id and `interface_version`
-  is the interface the connector was written to (3, or 2 for the demo; migration 0018 moved the
+  is the interface the connector was written to (3, or 2 for the demo; migration 0019 moved the
   Cube sources added on interface 2 to 3). The history log's `source.added`
   records the connector's version, and every read of a content source keeps it too
   (`connector_snapshots.connector_version`).
