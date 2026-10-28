@@ -72,6 +72,7 @@ import {
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
 import { peopleOf } from './http-people'
+import { savedCheckOf, savedQuestionOf } from './http-saved'
 import {
   connectedOf,
   deletedOf,
@@ -202,18 +203,13 @@ export const wiredMethods = [
   'getSavedViews',
   'saveView',
   'removeView',
+  'getSavedQuestions',
+  'getSavedCheck',
+  'checkSavedQuestions',
+  'saveQuestion',
+  'removeSavedQuestion',
+  'keepNewAnswer',
 ] as const satisfies readonly HeedApiMethod[]
-
-/**
- * Reads the shell and the Inbox draw from but whose own screens a later pull request wires: they
- * answer what the service holds for them today, which is nothing, so those screens draw. Their
- * writes stay not available, and the conformance suite does not count them as wired.
- */
-const pending: Partial<HeedApi> = {
-  // Saved questions and their check come with Observability's second part (P12b).
-  getSavedQuestions: () => Promise.resolve([]),
-  getSavedCheck: () => Promise.resolve({ run: 'idle', checked: 0 }),
-}
 
 const emptyHits = () => ({ items: [], definitions: [], domains: [], people: [] })
 
@@ -1342,7 +1338,32 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     decideCard,
     completeCard: decideCard,
-    publishReview: ({ id, relation }) => publish(id, relation),
+    // A Not found card's draft also saves its question, unless the person said not to (FR-526);
+    // Undo takes both back. The publish stands if the question cannot be saved.
+    publishReview: async ({ id, relation, saveQuestion }) => {
+      const { gap } = await refFor(id)
+      const done = await publish(id, relation)
+      if (!gap || saveQuestion === false) return done
+      const input = {
+        areaId: gap.areaId,
+        question: `What happened to ${gap.scope}?`,
+        origin: 'gap' as const,
+      }
+      const saved = await write('savedQuestions.create', input, (o) =>
+        client.savedQuestions.create(input, o),
+      ).catch(() => null)
+      if (!saved) return done
+      return {
+        undo: rememberUndo(async () => {
+          const token = saved.undo
+          await write('decisions.undo', { token }, (o) => client.decisions.undo({ token }, o))
+          await write('decisions.undo', { token: done.undo }, (o) =>
+            client.decisions.undo({ token: done.undo }, o),
+          )
+          refs.clear()
+        }),
+      }
+    },
     archiveReview: ({ id }) => publish(id),
     publishReviews: async ({ ids }) => {
       const proposals = await Promise.all(ids.map(async (id) => (await refFor(id)).proposalId))
@@ -1634,14 +1655,47 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     removeView: async ({ id }) => {
       await write('obs.views.remove', { id }, (o) => client.obs.views.remove({ id }, o))
     },
+    // Saved questions and the free check (FR-526): someone who manages no domain has none.
+    getSavedQuestions: async () => {
+      const now = new Date()
+      return (await read(() => client.savedQuestions.list({}))).map((q) => savedQuestionOf(q, now))
+    },
+    getSavedCheck: async () =>
+      savedCheckOf(await read(() => client.savedQuestions.status({})), new Date()),
+    checkSavedQuestions: async ({ domain }) => {
+      const input = domain ? { areaId: domain } : {}
+      const done = await write('savedQuestions.check', input, (o) =>
+        client.savedQuestions.check(input, o),
+      )
+      return { checked: done.run.checked }
+    },
+    saveQuestion: async ({ question, from, origin }) => {
+      const input = {
+        areaId: question.domain,
+        question: question.question,
+        origin: origin ?? 'ask',
+        ...(from ? { expectItems: from.filter(isItemId) } : {}),
+      }
+      const saved = await write('savedQuestions.create', input, (o) =>
+        client.savedQuestions.create(input, o),
+      )
+      return { id: saved.question.id, undo: saved.undo }
+    },
+    removeSavedQuestion: async ({ id }) => {
+      await write('savedQuestions.remove', { id }, (o) => client.savedQuestions.remove({ id }, o))
+    },
+    keepNewAnswer: async ({ id }) => {
+      const kept = await write('savedQuestions.keep', { id }, (o) =>
+        client.savedQuestions.keep({ id }, o),
+      )
+      return { undo: kept.undo }
+    },
   }
 
   return Object.fromEntries(
     heedApiMethods.map((method) => [
       method,
-      (wired as Partial<Record<HeedApiMethod, unknown>>)[method] ??
-        (pending as Partial<Record<HeedApiMethod, unknown>>)[method] ??
-        notAvailable(method),
+      (wired as Partial<Record<HeedApiMethod, unknown>>)[method] ?? notAvailable(method),
     ]),
   ) as unknown as HeedApi
 }

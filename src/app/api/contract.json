@@ -3704,6 +3704,104 @@
       }
     }
   },
+  "savedQuestions": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/saved-questions",
+          "tags": [
+            "quality"
+          ],
+          "summary": "The saved questions of the domains the person owns, every domain's for an administrator, newest first, each with what it should keep getting and its last check (FR-526); anyone else gets none"
+        }
+      }
+    },
+    "create": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/saved-questions",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Save a question for a domain, with the person's name: what the answer engine gives it now becomes what it should keep getting, checked after every change; for the domain's owners and administrators"
+        }
+      }
+    },
+    "remove": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "DELETE",
+          "path": "/saved-questions/{id}",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Remove a saved question; for its domain's owners and administrators"
+        }
+      }
+    },
+    "keep": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/saved-questions/{id}/keep",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Keep the new answer: what a saved question gets now becomes what it should keep getting; Undo takes it back; for its domain's owners and administrators"
+        }
+      }
+    },
+    "check": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "maintain"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/saved-questions/check",
+          "tags": [
+            "quality"
+          ],
+          "summary": "Check now: every saved question the person manages, or one domain's, answered again on what agents get, with no model, counting as it goes; nothing is published and nothing waits on it (FR-526)"
+        }
+      }
+    },
+    "status": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/saved-questions/status",
+          "tags": [
+            "quality"
+          ],
+          "summary": "How far the newest check run got, when the saved questions were last checked, and how many answered as saved each of the last eight weeks"
+        }
+      }
+    }
+  },
   "schema": {
     "item": {
       "~orpc": {

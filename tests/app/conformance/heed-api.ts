@@ -1396,6 +1396,88 @@ export function describeHeedApi(
       },
     )
 
+    const saving = ['signIn', 'getWorkspace', 'getSavedQuestions', 'saveQuestion', 'undo'] as const
+
+    it.skipIf(lacks(...saving, 'removeSavedQuestion'))(
+      'saves a question for a domain the person owns, counted once in the one list, and Undo or Remove takes it out',
+      async () => {
+        const live = await signedIn()
+        const { people } = await live.getWorkspace()
+        const domain = people.find((p) => p.name === person)!.owns[0]!
+        const before = await live.getSavedQuestions()
+        const question = 'Why did orders in Norway drop in August?'
+        const { id, undo } = await live.saveQuestion({
+          question: { question, domain, savedBy: person, expect: '', factId: '' },
+          origin: 'typed',
+        })
+        const all = await live.getSavedQuestions()
+        expect(all).toHaveLength(before.length + 1)
+        expect(new Set(all.map((q) => q.id)).size).toBe(all.length)
+        expect(all.find((q) => q.id === id)).toMatchObject({
+          question,
+          domain,
+          savedBy: person,
+          result: 'same',
+        })
+        for (const q of all) {
+          expect(['same', 'changed', 'look'], q.id).toContain(q.result)
+          expect(q.why, q.id).not.toBe('')
+          expect(q.when, q.id).not.toBe('')
+          // A result that moved shows what it said when saved and what it says now.
+          expect(!!q.diff, q.id).toBe(q.result !== 'same')
+        }
+        await live.undo({ token: undo })
+        expect((await live.getSavedQuestions()).some((q) => q.id === id)).toBe(false)
+
+        const again = await live.saveQuestion({
+          question: { question, domain, savedBy: person, expect: '', factId: '' },
+          origin: 'typed',
+        })
+        await live.removeSavedQuestion({ id: again.id })
+        expect((await live.getSavedQuestions()).map((q) => q.id)).toEqual(before.map((q) => q.id))
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getSavedQuestions', 'keepNewAnswer', 'undo'))(
+      'keeps the new answer of a question whose answer moved, and Undo puts its result back',
+      async () => {
+        const live = await signedIn()
+        const moved = (await live.getSavedQuestions()).find((q) => q.result !== 'same')!
+        expect(moved).toBeDefined()
+        const { undo } = await live.keepNewAnswer({ id: moved.id })
+        const kept = (await live.getSavedQuestions()).find((q) => q.id === moved.id)!
+        expect(kept).toMatchObject({ result: 'same' })
+        expect(kept.diff).toBeUndefined()
+        await live.undo({ token: undo })
+        const back = (await live.getSavedQuestions()).find((q) => q.id === moved.id)!
+        expect(back).toMatchObject({ result: moved.result, diff: moved.diff })
+      },
+    )
+
+    it.skipIf(
+      lacks('signIn', 'getWorkspace', 'getSavedQuestions', 'checkSavedQuestions', 'getSavedCheck'),
+    )(
+      'Check now checks every saved question of a domain, and says where the check stands',
+      async () => {
+        const live = await signedIn()
+        const { people } = await live.getWorkspace()
+        const domain = people.find((p) => p.name === person)!.owns[0]!
+        const all = await live.getSavedQuestions()
+        const { checked } = await live.checkSavedQuestions({ domain })
+        expect(checked).toBe(all.filter((q) => q.domain === domain).length)
+        // Checked, not changed: the same questions, each with a result.
+        expect((await live.getSavedQuestions()).map((q) => q.id)).toEqual(all.map((q) => q.id))
+        const status = await live.getSavedCheck()
+        expect(status).toMatchObject({ run: 'idle', checked: 0 })
+        expect(status.checkedAt).not.toBeNull()
+        expect(status.trend.labels).toHaveLength(8)
+        expect(status.trend.same).toHaveLength(8)
+        expect(status.trend.total).toHaveLength(8)
+        for (const [n, same] of status.trend.same.entries())
+          expect(same).toBeLessThanOrEqual(status.trend.total[n]!)
+      },
+    )
+
     it.skipIf(lacks('signIn', 'observabilityPage', 'replayTopic'))(
       'replays a topic step by step, on what agents get now and before the last publish',
       async () => {

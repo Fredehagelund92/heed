@@ -1,4 +1,5 @@
 import type { AnswerState } from './ask'
+import type { SavedResult } from './saved-questions'
 
 // A suggestion's review as the app reads it (src/app/api): the change split into blocks by kind,
 // what agents say before and after, and what to watch for. Pure types and the rules that follow
@@ -121,6 +122,11 @@ export type Review = {
   ready?: Readiness
   /** How long the change must be on screen to count as read, as the service says it. */
   readMs?: number
+  /**
+   * The saved questions that answer from its item, checked against the draft, as the service
+   * says it (FR-526): it holds over the check worked out here (lib/saved-check.ts).
+   */
+  saved?: { id: string; result: SavedResult; why: string; before: string; now: string }[]
 }
 
 /** Needs care before publishing: an unverified claim, or a clash with live context. */

@@ -28,6 +28,22 @@ describe("a draft's check", () => {
   it('has nothing to say about an item no saved question answers from', () => {
     expect(check(reviewFor('gap-spain')!)).toBeNull()
   })
+
+  it('shows the service’s own check where it gave one, for the questions the person sees', () => {
+    const r: Review = {
+      ...reviewFor('sug-ines')!,
+      saved: [
+        { id: 'sq-test-accounts', result: 'look', why: 'Worse.', before: 'A.', now: 'B.' },
+        { id: 'sq-not-listed', result: 'same', why: 'Same.', before: 'A.', now: 'A.' },
+      ],
+    }
+    const c = check(r)!
+    expect(c.results.map((x) => [x.q.id, x.result, x.why])).toEqual([
+      ['sq-test-accounts', 'look', 'Worse.'],
+    ])
+    expect(draftLine(c)).toBe('0 of 1 still answers the same. 1 needs a look.')
+    expect(check({ ...r, saved: [] })).toBeNull()
+  })
 })
 
 describe('after a publish', () => {

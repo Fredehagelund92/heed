@@ -33,6 +33,12 @@ const maintainOperations = [
   'obs.views.list',
   'obs.views.save',
   'obs.views.remove',
+  // Saved questions: a domain's owners and administrators save, keep, remove and check them; row
+  // security narrows each to the domains they manage.
+  'savedQuestions.create',
+  'savedQuestions.remove',
+  'savedQuestions.keep',
+  'savedQuestions.check',
   'quality.compare',
   'quality.feedback',
   'quality.ratings',
@@ -263,6 +269,10 @@ const readOperations = [
   'ask.lookup',
   'ask.asked',
   'engine.reach',
+  // Saved questions and how far a check got: anyone signed in reads, and someone who manages no
+  // domain gets none (row security).
+  'savedQuestions.list',
+  'savedQuestions.status',
 ]
 
 describe('policy matrix', () => {

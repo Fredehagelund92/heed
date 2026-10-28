@@ -450,6 +450,18 @@ counts case 1 of FR-606 across a month edge: no-item calls in the period about o
 metrics, values and dimensions count together whatever month their dates start in, and the gap
 stays on one topic of that scope, whose weekly counts add up every month of it.
 
+Saved questions (migration 0019). `saved_questions` keeps a domain's question with who saved it,
+where from (Ask, a Not found draft, or typed) and the items it should answer from; removing one
+marks it removed. `saved_question_baselines` keeps the answers it should keep getting: the first
+when it is saved, one each time someone keeps a new answer (its keeper may undo it, once), and one
+when a publish from the review moved it; the latest not undone is the one it is checked against.
+`check_runs` counts each run of the free check as it goes (who started it, or the `saved.check`
+job; the edition, overlay and day it read; how many of how many; done or failed), and
+`saved_question_results` keeps each question's result in a run. A domain's owners and
+administrators read and change its saved questions; the job reads them as no person through
+`cl_saved_questions_to_check()`, which runs as the owner. The serving and analytics roles have no
+grant on these tables.
+
 Serving terms (migration 0011). Agents read the live terms through `serving_terms()`, a security
 definer function the API and serving roles may run: each word with its own meaning or what it
 means, its domain, the day it was last written and the role it was written in (`owner` or

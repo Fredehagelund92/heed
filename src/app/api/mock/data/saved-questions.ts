@@ -142,3 +142,10 @@ function same(
 }
 
 export { seed as savedSeed }
+
+/** The last eight weeks on Quality: how many of the twelve answered as saved after each week. */
+export const SAVED_TREND = {
+  labels: ['1 Sep', '8 Sep', '15 Sep', '22 Sep', '29 Sep', '6 Oct', '13 Oct', '20 Oct'],
+  same: [11, 12, 11, 12, 12, 11, 11, 9],
+  total: [12, 12, 12, 12, 12, 12, 12, 12],
+}

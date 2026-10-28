@@ -409,6 +409,7 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
     after: { state: 'stale', say: 'It may be out of date.', items: [] },
   },
   reach: { questions: 12, week: '2026-10-19' },
+  saved: [],
   canPublish: true,
   whyNot: null,
   ...patch,
@@ -477,7 +478,56 @@ describe('the review', () => {
       revision: 3,
       itemVersionId: 'v2',
       clashes: [],
+      gap: null,
     })
+    // A Not found card's draft: Publish also saves the question agents asked, in words.
+    expect(refOf(sheet({ gapId: 'g1' })).gap).toEqual({
+      scope: 'Units sold in Norway',
+      areaId: 'area_sales',
+    })
+  })
+
+  it('shows the service’s check of the draft against the saved questions, in words', () => {
+    const item = (summary: string) => ({
+      id: 'itm_a',
+      title: 'Units sold',
+      summary,
+      unverified: null,
+    })
+    const r = reviewOf(
+      sheet({
+        saved: [
+          {
+            id: 'q1',
+            question: 'Do units sold include test accounts?',
+            result: 'changed',
+            reason: 'words',
+            live: {
+              state: 'grounded',
+              say: 'Checked.',
+              items: [item('Leaves out 312 accounts.')],
+            },
+            draft: {
+              state: 'grounded',
+              say: 'Checked.',
+              items: [item('Leaves out 340 accounts.')],
+            },
+            expectItems: ['itm_a'],
+          },
+        ],
+      }),
+      'sug-1',
+    )
+    expect(r.saved).toEqual([
+      {
+        id: 'q1',
+        result: 'changed',
+        why: 'The sentence agents get has new words. Still based on checked context.',
+        before: 'Leaves out 312 accounts.',
+        now: 'Leaves out 340 accounts.',
+      },
+    ])
+    expect(reviewOf(sheet(), 'sug-1').saved).toEqual([])
   })
 
   it('draws each kind of change as its block, with the app’s marks', () => {

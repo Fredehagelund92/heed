@@ -130,6 +130,11 @@ import { createGapsService, gapReportsPerMinute } from '../modules/gaps/index.ts
 import { createLibraryService } from '../modules/library/index.ts'
 import { createQualityService } from '../modules/quality/index.ts'
 import { createObservabilityService } from '../modules/observability/index.ts'
+import {
+  adoptPublished,
+  createSavedQuestionsService,
+  runCheck,
+} from '../modules/saved-questions/index.ts'
 import { createVocabularyService } from '../modules/vocabulary/index.ts'
 import type { LoginServer } from '../modules/oauth/index.ts'
 import type { PageReader } from '../modules/web/index.ts'
@@ -282,6 +287,7 @@ export function createRouter({
               evals: createEvalsService(tx, { port: models, clock }),
               quality: createQualityService(tx, clock),
               observability: createObservabilityService(tx, clock),
+              saved: createSavedQuestionsService(tx, clock, answerBundles),
               hooks,
             },
           })
@@ -303,6 +309,30 @@ export function createRouter({
       await context.review.checkSubmitted(submitted.id)
       return submitted
     }
+  /**
+   * After a publish from the review commits, the saved questions it moved take what they say now
+   * as their saved answer (FR-526), apart from the publish: a failure is logged, never the
+   * publish's.
+   */
+  const adoptAfterCommit = (
+    context: RequestContext & {
+      hooks: TransactionHooks
+      session: { person: { id: string } } | null
+    },
+    itemIds: string[],
+  ) => {
+    const person = context.session?.person.id
+    if (!person || !itemIds.length) return
+    context.hooks.onCommit(async () => {
+      await adoptPublished(
+        forRequest(database, context.request.id),
+        clock,
+        answerBundles,
+        person,
+        itemIds,
+      )
+    })
+  }
   const webOrigin = (request: FastifyRequest) =>
     origins[0] ?? new URL(`${request.protocol}://${request.headers.host}`).origin
   const found = <T>(value: T | null): T => {
@@ -385,21 +415,42 @@ export function createRouter({
       markRead: authorized.review.markRead.handler(({ context, input }) =>
         context.path.markRead(input),
       ),
-      publish: authorized.review.publish.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.publish', input, () =>
-          context.path.publish(input),
-        ),
-      ),
+      publish: authorized.review.publish.handler(async ({ context, input }) => {
+        const published = await retryWrite(
+          context.tx,
+          idempotencyKey(context),
+          'review.publish',
+          input,
+          () => context.path.publish(input),
+        )
+        if (published.proposal.action !== 'retire' && published.proposal.itemId)
+          adoptAfterCommit(context, [published.proposal.itemId])
+        return published
+      }),
       return: authorized.review.return.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'review.return', input, () =>
           context.path.returnWithNote(input),
         ),
       ),
-      publishRead: authorized.review.publishRead.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.publishRead', input, () =>
-          context.path.publishRead(input.ids),
-        ),
-      ),
+      publishRead: authorized.review.publishRead.handler(async ({ context, input }) => {
+        const done = await retryWrite(
+          context.tx,
+          idempotencyKey(context),
+          'review.publishRead',
+          input,
+          () => context.path.publishRead(input.ids),
+        )
+        const items = await context.tx.query<{ id: string }>(
+          `select item_id as id from proposals
+            where id = any($1::uuid[]) and action <> 'retire' and item_id is not null`,
+          [done.published.map((p) => p.id)],
+        )
+        adoptAfterCommit(
+          context,
+          items.map((i) => i.id),
+        )
+        return done
+      }),
       queue: authorized.review.queue.handler(({ context, input }) => context.review.queue(input)),
       get: authorized.review.get.handler(({ context, input }) => context.review.get(input.id)),
       runChecks: authorized.review.runChecks.handler(({ context, input }) =>
@@ -1044,6 +1095,8 @@ export function createRouter({
             return context.path.undoDecisions(ids.split(','))
           if (kind === 'change') return context.context.undoChange(ids)
           if (kind === 'terms') return context.terms.undoChange(ids)
+          if (kind === 'saved') return context.saved.undoSaved(ids)
+          if (kind === 'kept') return context.saved.undoKept(ids)
           return context.cards.undoCard(input.token)
         }),
       ),
@@ -1416,6 +1469,45 @@ export function createRouter({
       },
       replay: authorized.obs.replay.handler(({ context, input }) =>
         replayTopic(context.tx, clock, answerBundles, input),
+      ),
+    },
+    savedQuestions: {
+      list: authorized.savedQuestions.list.handler(({ context, input }) =>
+        context.saved.list(input),
+      ),
+      create: authorized.savedQuestions.create.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'savedQuestions.create', input, () =>
+          context.saved.create(input),
+        ),
+      ),
+      remove: authorized.savedQuestions.remove.handler(({ context, input }) =>
+        context.saved.remove(input),
+      ),
+      keep: authorized.savedQuestions.keep.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'savedQuestions.keep', input, () =>
+          context.saved.keep(input),
+        ),
+      ),
+      // Check now outlives the request's transaction: it checks in short transactions of its
+      // own, counting as it goes, so the page reads how far it got while it runs.
+      check: authorized.savedQuestions.check.handler(async ({ context, input }) => {
+        if (input.areaId) {
+          const [row] = await context.tx.query<{ manages: boolean }>(
+            'select cl_is_admin_now() or cl_is_owner_now($1) as manages',
+            [input.areaId],
+          )
+          if (!row?.manages) throw new ORPCError('FORBIDDEN')
+        }
+        return runCheck(
+          forRequest(database, context.request.id),
+          clock,
+          answerBundles,
+          context.session!.person.id,
+          { trigger: 'manual', areaId: input.areaId ?? null },
+        )
+      }),
+      status: authorized.savedQuestions.status.handler(({ context, input }) =>
+        context.saved.status(input),
       ),
     },
     schema: {

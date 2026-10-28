@@ -956,8 +956,8 @@ connects with a token the data platform team gives out.
 ## The answer engine
 
 One deterministic function (`src/domain/answer.ts`) answers people the way `get_context` answers
-an agent, with no model: Ask, Try it, the replay of a topic, Asked this week and the reach of a
-draft read it, and the review's before and after and the saved-question check are to follow. It
+an agent, with no model: Ask, Try it, the review's before and after, the replay of a topic,
+Asked this week, the reach of a draft and the free check of saved questions read it. It
 takes what is asked (a question's words with the names sent beside them, a typed scope, or a
 topic's scope) and one edition bundle: the live edition, the edition before it, or the live
 edition with a draft in it. It reads the scope as `get_context` does, resolves it with the agent's
@@ -1112,3 +1112,53 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
   (`GET /audit`), the jobs (`GET /operations`) and the editions (`GET /editions`). Check the chain
   is `GET /audit/verify`; the exports are `GET /audit/export` and the live edition's
   `GET /editions/{label}/export`.
+
+## Saved questions
+
+A saved question is a question a domain's owner or an administrator keeps for that domain, with
+their name (FR-526; FR-602 as amended: words a person sends on purpose are kept with their name).
+It names the items it should answer from: by default every item its answer gives when it is
+saved, and a person may leave some out. Owners read and change their own domains' saved
+questions and administrators every domain's; anyone else gets none (row security, migration
+0019). Agents never read them: nothing serves, seals or exports them. The contract is in
+`src/contract/saved-questions.ts` and the rules in `src/domain/saved-check.ts`.
+
+The free check answers a saved question again with the answer engine on what agents get now,
+with no model, and compares it with the answer it should keep getting (its baseline). The result
+is `same`; `changed` when the answer moved and is no worse (new `words` in the sentences agents
+read, other `items`, or `better`); or `look` (Needs a look) when it got `worse` (a less certain
+answer state, or an item that may be out of date now though it was not when saved) or an item it
+should answer from is `gone`. How the reply words it besides is not what it checks. A check that
+could not finish is a failed run, never a result. A check never blocks a publish: it runs after
+the change, in its own transactions.
+
+- The `saved.check` job runs every minute and checks every saved question once what agents get
+  has moved since its last run: a new edition (named `publish`, `archive`, `restore` or `sync`
+  after the newest edition's reason), new stops or flags over it (`sync`), or a new day, on which
+  a check date may pass (`check_date`). Nothing moved, nothing runs. A run that failed is not
+  tried again for the same edition, overlay and day until a wait has passed, which doubles with
+  each failure up to an hour.
+- `GET /saved-questions` (`areaId` to narrow): newest first, each with its saver, the items it
+  should answer from, its baseline (`saved`: the state, the items with their title and summary,
+  and what a person hears) and its last result (`result`, `reason`, the answer `now`, when, and
+  what started the run).
+- `POST /saved-questions` (`{ areaId, question, origin: ask | gap | typed, expectItems? }`): saves
+  it; what it gets now becomes its baseline, and its result is `same` (`saved`). Undo
+  (`saved:<id>`, through `POST /decisions/undo`) removes it, for its saver only.
+- `POST /saved-questions/{id}/keep`: Keep the new answer; what it gets now becomes its baseline.
+  Refused when it already answers as saved. Undo (`kept:<baseline id>`) puts the one before back,
+  for whoever kept it, once.
+- `DELETE /saved-questions/{id}`: removes it; it is kept, marked removed, out of every list and
+  check.
+- `POST /saved-questions/check` (`{ areaId? }`, Check now): checks every saved question the person
+  manages, or one domain's, counting as it goes, and answers with the run and how many are Same,
+  Changed and Needs a look. Nothing is published.
+- `GET /saved-questions/status` (`areaId` to narrow): the newest run the person started or the job
+  ran (its trigger, `running`, `done` or `failed`, how many it checked of how many), when the saved
+  questions were last checked, and for each of the last eight weeks, Monday first, how many
+  answered as saved at its end (the current week: now) of how many there were.
+- The review sheet (`GET /review/{id}/sheet`) gives `saved`: the saved questions the person
+  manages that answer from the suggestion's item, or should, each checked against the draft. It is
+  shown only, never kept. After a publish from the review commits, each of those whose answer
+  moved and is no worse takes it as its baseline (`published`): the review showed that change
+  before Publish. One that got worse stays to be looked at.

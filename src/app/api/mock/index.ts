@@ -49,6 +49,7 @@ import { figureFor } from './data/figures'
 import { reportedOn, type AskInput } from '@/model/ask'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
+import { SAVED_TREND } from './data/saved-questions'
 import { createSaved } from './saved'
 import { createScenario, type Address } from './scenario'
 import { searchWorld } from './search'
@@ -587,16 +588,23 @@ export function createMockApi() {
             }))
           : saved.list(),
       ),
-    // ?quality=running holds a check at 5 of them; ?quality=failed shows one that failed.
+    // ?quality=running holds a check at 5 of them; ?quality=failed shows one that stopped at 8.
     getSavedCheck: () =>
       now(() => {
         const flag = scenario.address().query.quality
-        return flag === 'running'
-          ? { run: 'running' as const, checked: 5 }
-          : flag === 'failed'
-            ? { run: 'failed' as const, checked: 0 }
-            : { run: 'idle' as const, checked: 0 }
+        const total = saved.list().length
+        const base = { total, checkedAt: saved.checkedAt(), trend: SAVED_TREND }
+        if (flag === 'running') return { ...base, run: 'running' as const, checked: 5 }
+        if (flag === 'failed') return { ...base, run: 'failed' as const, checked: 8 }
+        const { run, checked, total: of } = saved.progress()
+        return run === 'running'
+          ? { ...base, run, checked, total: of }
+          : { ...base, run, checked: 0 }
       }),
+    checkSavedQuestions: ({ domain }) => {
+      if (scenario.offline()) return Promise.reject(new ApiError('unanswered', "You're offline."))
+      return saved.check(domain)
+    },
     saveQuestion: ({ question }) =>
       now(() => {
         const id = saved.save(question)

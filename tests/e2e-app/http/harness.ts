@@ -91,3 +91,26 @@ export async function freshService(
   running = { close: () => app.close() }
   return { close: stopService }
 }
+
+/**
+ * A check of the saved questions that stopped part way, as the service keeps it: the check job's
+ * run over every saved question, failed after `checked` of them (`?quality=failed`).
+ */
+export async function failedCheck(checked: number) {
+  const { admin: adminUrl, template } = harness()
+  const url = new URL(adminUrl)
+  url.pathname = `/${workName(template)}`
+  const client = new pg.Client({ connectionString: url.href })
+  await client.connect()
+  try {
+    await client.query(
+      `insert into check_runs (trigger, edition, overlay, day, total, checked, failed_at)
+       select 'publish', (select seq from live_edition), coalesce((select seq from serving_overlay), 0),
+              current_date, count(*), $1, now()
+         from saved_questions where removed_at is null`,
+      [checked],
+    )
+  } finally {
+    await client.end()
+  }
+}
