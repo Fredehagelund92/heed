@@ -237,3 +237,165 @@ export type AddSourceInput = z.infer<typeof addSourceSchema>
 export type UpdateSourceInput = z.infer<typeof updateSourceSchema>
 export type TestSourceInput = z.infer<typeof testSourceSchema>
 export type SourceCheck = z.infer<typeof sourceCheckSchema>
+
+// ---- the sources as Settings › Integrations shows them (CON-104, CON-115) ----
+
+/**
+ * How a source is, as its row and its page say it: paused by an admin; asked to read now and
+ * waiting for the job to read it (Read again, or a change to its settings); its last read refused
+ * its key; its last read failed for another reason; or read as it should be.
+ */
+export const sourceHealths = ['healthy', 'reading', 'failed', 'reauth', 'paused'] as const
+
+const count = z.number().check(z.int(), z.minimum(0))
+
+/**
+ * One read of a source, codes and counts only (CON-104): never a target, which may name a
+ * document. A definitions read counts the definitions it held, and of them the new, the changed
+ * and the gone; a content read the documents it looked at and what it did with them.
+ */
+export const sourceReadEntrySchema = z.object({
+  id: z.string(),
+  /** When it ended, ISO 8601 in UTC. */
+  at: time,
+  status: z.enum(['ok', 'partial', 'failed']),
+  /** The source's first read that did not fail. */
+  first: z.boolean(),
+  durationMs: z.nullable(z.number()),
+  definitions: z.nullable(z.object({ seen: count, added: count, changed: count, gone: count })),
+  documents: z.nullable(
+    z.object({
+      seen: count,
+      suggested: count,
+      replaced: count,
+      withdrawn: count,
+      waiting: count,
+      skipped: count,
+    }),
+  ),
+  /** Its warnings, each code once with how many times it came. */
+  warnings: z.array(z.object({ code: z.string(), count })),
+})
+
+/**
+ * A source as Integrations lists it: its connector, how it is, when it was read and is read next,
+ * and what it holds now. The server's own sources are listed too: their settings are whoever runs
+ * the server's, so the page offers no change to them.
+ */
+export const sourceRowSchema = z.object({
+  id: z.string(),
+  /** Its connector's id (`cube`, `google-drive`), whose manifest names the tool and the kind. */
+  type: z.string(),
+  tool: z.string(),
+  kind: z.enum(['definitions', 'content']),
+  name: z.string(),
+  origin: z.enum(['workspace', 'server']),
+  health: z.enum(sourceHealths),
+  /** How often it is read, its own or its connector's default, as an ISO 8601 duration. */
+  schedule: z.string(),
+  /** How long it may go unread before its copy is out of date, as an ISO 8601 duration. */
+  staleAfter: z.string(),
+  /** When it is read next, ISO 8601 in UTC; null before the job first reads it, and while paused. */
+  nextReadAt: z.nullable(time),
+  /** Its last read, failed or not; and when it last read without failing. */
+  lastRead: z.nullable(sourceReadEntrySchema),
+  lastGoodAt: z.nullable(time),
+  /** Reads in a row that failed. */
+  failures: count,
+  /**
+   * A definitions source: the metrics and dimensions its copy holds, its groups (a Cube view) and
+   * how many of them map to no domain, and the live items flagged by a change to one of them.
+   */
+  definitions: z.nullable(
+    z.object({
+      metrics: count,
+      dimensions: count,
+      groups: count,
+      groupsWithoutDomain: count,
+      flagged: count,
+    }),
+  ),
+  /**
+   * A content source: the documents it holds, its suggestions waiting for owners and for how
+   * many domains, the suggestions it made over the last 24 hours and how many it may (CON-607).
+   */
+  documents: z.nullable(
+    z.object({
+      held: count,
+      waiting: count,
+      waitingDomains: count,
+      madeToday: count,
+      perDay: count,
+    }),
+  ),
+  /** Who added it and when; null for the server's own. */
+  addedAt: z.nullable(time),
+  addedBy: z.nullable(z.string()),
+})
+
+/**
+ * What a document of a content source came to: a suggestion waiting for owners, published,
+ * returned with a note, declined or withdrawn; past the day's suggestions, waiting for the next
+ * read; not offered (`skipReason` says why); or gone from the tool.
+ */
+export const sourceDocumentStates = [
+  'suggested',
+  'published',
+  'returned',
+  'declined',
+  'withdrawn',
+  'held',
+  'skipped',
+  'gone',
+] as const
+
+/**
+ * A source's activity, for its page: its reads, newest first; what it reads (a definitions
+ * source's groups, a content source's chosen scopes), each with the domain it maps to; and a
+ * content source's documents read most recently, never their text (CON-605).
+ */
+export const sourceActivitySchema = z.object({
+  reads: z.array(sourceReadEntrySchema),
+  groups: z.array(
+    z.object({
+      name: z.string(),
+      metrics: count,
+      dimensions: count,
+      domain: z.nullable(z.string()),
+    }),
+  ),
+  scopes: z.array(
+    z.object({ id: z.string(), title: z.string(), domain: z.string(), documents: count }),
+  ),
+  documents: z.array(
+    z.object({
+      title: z.string(),
+      link: z.string(),
+      scope: z.string(),
+      domain: z.nullable(z.string()),
+      state: z.enum(sourceDocumentStates),
+      skipReason: z.nullable(z.string()),
+      /** When a read last saw it, ISO 8601 in UTC. */
+      readAt: time,
+      /** Its suggestion, while it has one, and who last decided it, by name. */
+      proposalId: z.nullable(z.string()),
+      decidedBy: z.nullable(z.string()),
+    }),
+  ),
+})
+
+/** Pauses reading a source, or lets it go on, with why (kept in the history log). */
+export const pauseSourceSchema = z.strictObject({
+  id: sourceId,
+  paused: z.boolean(),
+  reason,
+})
+
+export const pausedSourceSchema = z.object({ id: z.string(), paused: z.boolean() })
+
+export type SourceRow = z.infer<typeof sourceRowSchema>
+export type SourceReadEntry = z.infer<typeof sourceReadEntrySchema>
+export type SourceActivity = z.infer<typeof sourceActivitySchema>
+export type SourceHealth = (typeof sourceHealths)[number]
+export type SourceDocumentState = (typeof sourceDocumentStates)[number]
+export type PauseSourceInput = z.infer<typeof pauseSourceSchema>

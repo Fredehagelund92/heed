@@ -267,8 +267,10 @@ The text and `structuredContent` carry `say`, `next`, the status, `edition` and 
 
 Run `npm run connectors:sync` to refresh stored demo definitions or a local Cube model; the service
 does the same on each source's own schedule, hourly by default (`connectors.sync`, which runs every
-five minutes and reads the sources that are due), and administrators watch and read them again in
-Administration › Sources. There an administrator also adds a source, such as a Cube model in a Git
+five minutes and reads the sources that are due), and administrators watch them, read them again
+and pause them in Settings › Integrations (`GET /api/v1/sources`,
+`GET /api/v1/sources/{id}/activity`, `PUT /api/v1/sources/{id}/paused`) and in Administration ›
+Sources. There an administrator also adds a source, such as a Cube model in a Git
 repository read with a read-only token, tests it before saving and changes its settings. See
 [the connector contract](connectors.md) for what a connector declares and reports, the
 invariants, sources an administrator adds and snapshot behavior;

@@ -200,20 +200,39 @@ queues a read. The source's page shows its settings, each secret only as set or 
 **Change settings** opens the same form filled in; a secret left empty keeps the one the store
 holds, and a new one replaces it.
 
-| Operation        | Path                 | What it does                                                                                                           |
-| ---------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `sources.types`  | `GET /sources/types` | The connectors an administrator may add a source of: each manifest, and the interface it was written to                |
-| `sources.get`    | `GET /sources/{id}`  | An added source's settings, and for each secret whether it is set (404 for the server's own)                           |
-| `sources.add`    | `POST /sources`      | Adds one with its settings, secrets and reason; needs an `Idempotency-Key`                                             |
-| `sources.update` | `PUT /sources/{id}`  | Changes one on the revision read (409 when stale), with a reason; a secret left out is kept                            |
-| `sources.test`   | `POST /sources/test` | The connector's check, then one read with these settings, kept nowhere; with `id`, a secret left out is the stored one |
+| Operation          | Path                         | What it does                                                                                                           |
+| ------------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `sources.types`    | `GET /sources/types`         | The connectors an administrator may add a source of: each manifest, and the interface it was written to                |
+| `sources.get`      | `GET /sources/{id}`          | An added source's settings, and for each secret whether it is set (404 for the server's own)                           |
+| `sources.add`      | `POST /sources`              | Adds one with its settings, secrets and reason; needs an `Idempotency-Key`                                             |
+| `sources.update`   | `PUT /sources/{id}`          | Changes one on the revision read (409 when stale), with a reason; a secret left out is kept                            |
+| `sources.test`     | `POST /sources/test`         | The connector's check, then one read with these settings, kept nowhere; with `id`, a secret left out is the stored one |
+| `sources.list`     | `GET /sources`               | Every source, the server's own first: its connector, how it is, when it was read and is read next, and what it holds   |
+| `sources.activity` | `GET /sources/{id}/activity` | A source's reads, newest first, codes and counts only; what it reads, with each part's domain; its recent documents    |
+| `sources.pause`    | `PUT /sources/{id}/paused`   | Pauses reading a source, or lets it go on, with a reason; the server's own too                                         |
 
 Every operation is for administrators; the service refuses anyone else (403) whatever the screen
 shows. Settings with problems are refused (422) with a finding per field: an address that is not
 https (plain http only to this machine), credentials in an address, a ref git could read as an
 option or a range, a folder that leaves the repository, a domain name that is not a Heed domain,
 and a secret pasted into another field. Changes are kept in the history log (`source.added`,
-`source.changed`) with the settings and, for each secret, only `set` or `replaced`.
+`source.changed`, `source.paused`, `source.resumed`) with the settings and, for each secret, only
+`set` or `replaced`.
+
+Settings › Integrations in the new web app reads `sources.list` for its rows: a source is
+**Paused** when an admin paused it, **Reading** while a read it was asked for (Read again, or a
+change to its settings) waits for the job, **Needs a new key** when its last read failed because
+its key was refused or is missing, **Failed** when its last read failed for another reason, and
+**Healthy** otherwise. A definitions source counts its metrics, dimensions and groups (a Cube
+view: a member's name up to its last dot) and the groups that map to no domain, and the live
+items a change to one of its definitions flagged; a content source counts the documents it
+holds, its suggestions waiting for owners, and its suggestions over the last 24 hours against
+its daily cap. A source's page reads `sources.activity`: each read with what it did (definitions
+new, changed and gone; documents suggested, replaced, withdrawn, waiting and skipped), its
+warnings by code with how many times each and never their targets, what it reads, and a content
+source's last 20 documents, never their text (CON-605). A paused source is left out by the job
+and refused by Read again (409); resuming one past its next read reads it at the job's next
+turn.
 
 The settings are `connectors.config` (addresses and names only), the row says `origin =
 'workspace'`, and `secret_ref` names the source's entry in the secret store. A
@@ -513,6 +532,7 @@ comes in the next slices ([what the next slices build](#what-the-next-slices-bui
 | Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built for content: Test connection lists the scopes, an admin maps each to a domain, and every read gets them                                                                               |
 | Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                             |
 | Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                         |
+| Integrations         | Settings › Integrations (`src/app/pages/integrations.tsx`) | Built in part: the rows and cells, a source's page with its health, reads, documents and settings, Read again and Pause reading; the five-step connect comes next                           |
 | Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, and secret checks, run against every built-in connector                       |
 | Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                          |
 
@@ -604,8 +624,10 @@ into a read-only token at a sign-in host the manifest declares, documents export
 now and then (`deletions: 'both'`), with the core choosing which by the cursor it hands
 ([content sources](#full-reads-and-reads-from-a-cursor)).
 
-Slice 5, the screens: the Integrations pages of the new web app on the service, and the five-step
-connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests.
+Slice 5, the screens, is built in part: the Integrations pages of the new web app read the
+service (`sources.list`, `sources.activity`), with Read again and Pause reading. What remains:
+the five-step connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests, Change
+settings and Disconnect.
 
 ## Content sources
 

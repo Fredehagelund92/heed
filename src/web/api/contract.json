@@ -1955,6 +1955,54 @@
         }
       }
     },
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/sources",
+          "tags": [
+            "sources"
+          ],
+          "summary": "Every source: its connector, how it is, when it was read and is read next, and what it holds"
+        }
+      }
+    },
+    "activity": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/sources/{id}/activity",
+          "tags": [
+            "sources"
+          ],
+          "summary": "A source's reads, newest first, what it reads with the domain each part maps to, and its documents read most recently"
+        }
+      }
+    },
+    "pause": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "PUT",
+          "path": "/sources/{id}/paused",
+          "tags": [
+            "sources"
+          ],
+          "summary": "Pause reading a source, or let it go on, with a reason (CON-115)"
+        }
+      }
+    },
     "types": {
       "~orpc": {
         "errorMap": {},

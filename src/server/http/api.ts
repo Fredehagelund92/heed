@@ -918,6 +918,16 @@ export function createRouter({
       staleLinks: authorized.sources.staleLinks.handler(({ context, input }) =>
         context.sources.staleLinks(input),
       ),
+      list: authorized.sources.list.handler(({ context }) => workspaceSources.list(context.tx)),
+      activity: authorized.sources.activity.handler(async ({ context, input }) => {
+        const activity = await workspaceSources.activity(context.tx, input.id)
+        if (!activity)
+          throw new ORPCError('NOT_FOUND', { message: "We couldn't find this source." })
+        return activity
+      }),
+      pause: authorized.sources.pause.handler(({ context, input }) =>
+        workspaceSources.pause(context.tx, input),
+      ),
       types: authorized.sources.types.handler(() => workspaceSources.types()),
       get: authorized.sources.get.handler(async ({ context, input }) =>
         found(await workspaceSources.get(context.tx, input.id)),

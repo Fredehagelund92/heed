@@ -21,7 +21,8 @@ const colleague = { name: 'Tomas Eriksen' }
 const { client, url } = testDatabase()
 const app = buildApp({
   database: apiDatabase(url),
-  jobs: idleJobs(),
+  // Read again queues the sources' job, which this test never runs.
+  jobs: { ...idleJobs(), runNow: () => Promise.resolve({ outcome: 'queued', id: 'conformance' }) },
   logger: createLogger({ level: 'silent' }),
   clock: systemClock(TODAY),
   devPeople: devPeople(),
@@ -113,6 +114,8 @@ describe('the http binding', () => {
   it('answers a method it does not offer yet as not available', async () => {
     const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
     expect(unwired.length).toBeGreaterThan(0)
-    await expect(api!.getIntegrations()).rejects.toMatchObject({ kind: 'not-available' })
+    await expect(api!.disconnectIntegration({ id: 'cube' })).rejects.toMatchObject({
+      kind: 'not-available',
+    })
   })
 })

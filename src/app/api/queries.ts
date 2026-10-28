@@ -49,6 +49,9 @@ export const queryKeys = {
   settings: ['getSettings'] as const,
   advancedPage: ['advancedPage'] as const,
   integrations: ['getIntegrations'] as const,
+  integrationsPage: ['integrationsPage'] as const,
+  integrationPage: (id: string) => ['integrationPage', id] as const,
+  integrationPages: ['integrationPage'] as const,
   figure: (asked: { metric: string; markets: string[]; dates?: string; state: string }) =>
     ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
@@ -175,6 +178,30 @@ export const advancedPageQuery = () =>
 
 export const integrationsQuery = () =>
   queryOptions({ queryKey: queryKeys.integrations, queryFn: () => api.getIntegrations() })
+
+/**
+ * While a tool waits for its read (Read again), its row and its page ask again every few seconds,
+ * so Reading ends when the read does.
+ */
+const READING_POLL_MS = 3_000
+
+/** Settings › Integrations: the tools connected, and what can be connected. */
+export const integrationsPageQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.integrationsPage,
+    queryFn: () => api.integrationsPage(),
+    refetchInterval: (query) =>
+      query.state.data?.sources.some((s) => s.health === 'reading') ? READING_POLL_MS : false,
+  })
+
+/** One connected tool's page. */
+export const integrationPageQuery = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.integrationPage(id),
+    queryFn: () => api.integrationPage({ id }),
+    refetchInterval: (query) =>
+      query.state.data?.source.health === 'reading' ? READING_POLL_MS : false,
+  })
 
 export const figureQuery = (asked: {
   metric: string
@@ -338,6 +365,8 @@ type Read =
   | 'getSettings'
   | 'advancedPage'
   | 'getIntegrations'
+  | 'integrationsPage'
+  | 'integrationPage'
   | 'readFigure'
   | 'listAgentConnections'
   | 'checkConnect'
@@ -380,6 +409,8 @@ const definitions: QueryKey[] = [
   queryKeys.askedWeek,
 ]
 const inbox: QueryKey[] = [queryKeys.inbox, queryKeys.inboxPage, queryKeys.myReports]
+/** What a change to a connected tool makes stale: its row, and its page. */
+const integrations: QueryKey[] = [queryKeys.integrationsPage, queryKeys.integrationPages]
 /** What a decision on a suggestion makes stale: the Inbox, the items it changed, the saved questions. */
 const decision: QueryKey[] = [...inbox, ...items, queryKeys.savedQuestions, queryKeys.comments]
 
@@ -454,8 +485,10 @@ export const invalidations: {
   setFigures: () => [queryKeys.settings, queryKeys.figures],
   setDataContact: () => [queryKeys.settings],
   // Connecting the definitions tool can be the setup checklist's last step.
-  connectIntegration: () => [queryKeys.settings, ...workspace, queryKeys.session],
-  disconnectIntegration: () => [queryKeys.settings],
+  connectIntegration: () => [queryKeys.settings, ...integrations, ...workspace, queryKeys.session],
+  disconnectIntegration: () => [queryKeys.settings, ...integrations],
+  readIntegration: () => integrations,
+  pauseIntegration: () => [...integrations, queryKeys.advancedPage],
   revokeAgentConnection: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   renameChat: () => [queryKeys.chats],
   deleteChat: () => [queryKeys.chats],

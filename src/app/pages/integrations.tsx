@@ -15,6 +15,7 @@ import {
   LoaderCircleIcon,
   LockIcon,
   PauseIcon,
+  PlayIcon,
   PlugIcon,
   PlusIcon,
   RefreshCwIcon,
@@ -66,15 +67,27 @@ import {
   kindName,
   type Activity,
   type Connector,
-  type IntegrationState,
+  type DocState,
+  type Health,
+  type IntegrationsView,
+  type Source,
+  type SourcePage,
+  type When,
 } from '@/model/integrations'
 import type { DomainId } from '@/model/items'
 import { useConnectActions, useConnected } from '@/lib/integrations'
 import { useFigureActions, useFigures } from '@/lib/figures'
 import { navigate, setQuery, useRoute } from '@/lib/router'
-import { useIntegrations } from '@/api/queries'
+import { useQuery } from '@tanstack/react-query'
+import { toApiError } from '@/api'
+import {
+  integrationPageQuery,
+  integrationsPageQuery,
+  useIntegrations,
+  useWrite,
+} from '@/api/queries'
+import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
-import type { DocState } from '@/model/integrations'
 import { SettingsCrumbs } from '@/pages/settings'
 import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/components/heed/frame'
@@ -95,8 +108,6 @@ const crumbs = (...rest: { label: string; href?: string }[]) => (
     ]}
   />
 )
-
-type Health = 'healthy' | 'reading' | 'failed' | 'reauth' | 'paused'
 
 const healthLook: Record<Health, { label: string; icon: React.ReactNode; cls: string }> = {
   healthy: { label: 'Healthy', icon: <CircleCheckIcon />, cls: 'border-good/35 text-good-ink' },
@@ -445,34 +456,57 @@ function RequestConnector({
   )
 }
 
-function health(id: string, state: IntegrationState): Health {
-  if (id === 'cube' && state === 'syncing') return 'reading'
-  if (id === 'cube' && state === 'failed') return 'failed'
-  if (id === 'google-drive' && state === 'reauth') return 'reauth'
-  return 'healthy'
+/** When a tool reads next, on its row: "07:00" today, "tomorrow", or the day. */
+const nextWords = (next: When) =>
+  next.day === 'Today' ? next.time : next.day === 'Tomorrow' ? 'tomorrow' : next.day
+
+/** A day as it reads inside a sentence: "today", "21 Oct". */
+const inSentence = (day: string) => (/^[A-Z][a-z]+$/.test(day) ? day.toLowerCase() : day)
+
+/** What a connected tool holds, in one line on its row. */
+function RowDetail({ source }: { source: Source }) {
+  const { definitions: d, documents: docs } = source
+  if (source.connector === 'warehouse')
+    return <>Figures for Ask, read only when an answer asks. Answers no metric yet</>
+  if (d)
+    return (
+      <>
+        {plural(d.metrics, 'metric')} and {plural(d.dimensions, 'dimension')}
+        {d.noDomain > 0 && (
+          <>. {d.noDomain === 1 ? '1 view has no domain' : `${d.noDomain} views have no domain`}</>
+        )}
+      </>
+    )
+  if (!source.last)
+    return (
+      <>
+        First read {source.next ? `at ${source.next.time}` : 'soon'}. Suggestions go to the owners
+        of each folder's domain
+      </>
+    )
+  return (
+    <>
+      {plural(docs?.held ?? 0, 'document')}.{' '}
+      {docs?.waiting && source.inbox ? (
+        <>
+          <a
+            href={source.inbox}
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {plural(docs.waiting, 'suggestion')}
+          </a>{' '}
+          waiting for owners
+        </>
+      ) : (
+        'No suggestions waiting'
+      )}
+    </>
+  )
 }
 
-function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
-  const h = health(c.id, state)
-  const detail =
-    c.id === 'cube' ? (
-      <>22 metrics and 5 dimensions. 2 views have no domain</>
-    ) : c.id === 'google-drive' ? (
-      <>
-        14 documents.{' '}
-        <a
-          href="/inbox?demo=week&card=drive-marketplace"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          3 suggestions
-        </a>{' '}
-        waiting for owners
-      </>
-    ) : c.id === 'warehouse' ? (
-      <>Figures for Ask, read only when an answer asks. Answers no metric yet</>
-    ) : (
-      <>First read at 07:00. Suggestions go to the owners of each folder's domain</>
-    )
+function ConnectedRow({ source, state }: { source: Source; state: string | null }) {
+  const c = connectorById(source.connector)!
+  const h = source.health
   return (
     <li className="grid grid-cols-(--cols-around) items-center gap-x-3 gap-y-1 border-t px-4 py-3 first:border-t-0 md:px-5 @3xl/main:grid-cols-(--cols-source)">
       <ToolLogo c={c} />
@@ -483,7 +517,9 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
             {kindName[c.kind]}
           </Badge>
         </p>
-        <p className="truncate text-xs text-muted-foreground">{detail}</p>
+        <p className="truncate text-xs text-muted-foreground">
+          <RowDetail source={source} />
+        </p>
       </div>
       <div className="col-span-3 col-start-2 row-start-2 text-xs @3xl/main:col-span-1 @3xl/main:col-start-auto @3xl/main:row-start-auto">
         {h === 'healthy' ? (
@@ -492,12 +528,21 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
             <span>
               {c.id === 'warehouse' ? (
                 'Ready, read when asked'
+              ) : source.last ? (
+                <>
+                  Read {inSentence(source.last.at.day)}, {source.last.at.time}
+                  {source.next && (
+                    <span className="text-muted-foreground">, next {nextWords(source.next)}</span>
+                  )}
+                </>
               ) : (
                 <>
-                  Read today, 06:00
-                  <span className="text-muted-foreground">
-                    , next {c.id === 'cube' ? '07:00' : 'tomorrow'}
-                  </span>
+                  Not read yet
+                  {source.next && (
+                    <span className="text-muted-foreground">
+                      , first read at {source.next.time}
+                    </span>
+                  )}
                 </>
               )}
             </span>
@@ -511,7 +556,7 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
         size="sm"
         className="col-start-3 row-start-1 @3xl/main:col-start-4"
         onClick={() =>
-          navigate(`/settings/integrations/${c.id}`, state !== 'normal' ? { state } : undefined)
+          navigate(`/settings/integrations/${source.id}`, state ? { state } : undefined)
         }
       >
         Manage
@@ -520,7 +565,7 @@ function ConnectedRow({ c, state }: { c: Connector; state: IntegrationState }) {
   )
 }
 
-function AvailableCell({ c, connected }: { c: Connector; connected: boolean }) {
+function AvailableCell({ c, connectable }: { c: Connector; connectable: boolean }) {
   return (
     <div className="flex min-h-44 flex-col gap-2 border-r border-b bg-background p-4 md:p-5">
       <div className="flex items-start justify-between gap-2">
@@ -532,17 +577,10 @@ function AvailableCell({ c, connected }: { c: Connector; connected: boolean }) {
       <h4 className="mt-1 text-sm font-medium">{c.name}</h4>
       <p className="text-sm text-muted-foreground">{c.blurb}</p>
       <div className="mt-auto pt-2">
-        {c.soon ? (
+        {c.soon || !connectable ? (
           <Badge variant="outline" className="font-normal text-muted-foreground">
             Soon
           </Badge>
-        ) : connected ? (
-          <a
-            href={`/settings/integrations/${c.id}`}
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Connected, manage <ArrowRightIcon className="size-3.5" aria-hidden />
-          </a>
         ) : (
           <a
             href={`/settings/integrations/${c.id}/connect`}
@@ -556,17 +594,14 @@ function AvailableCell({ c, connected }: { c: Connector; connected: boolean }) {
   )
 }
 
-export function IntegrationsPage() {
-  const { state } = useIntegrations()
-  const live = useConnected()
-  const connected = state === 'nothing' ? [] : live
-  const [text, setText] = React.useState('')
-  const [asking, setAsking] = React.useState(false)
-  const q = text.trim().toLowerCase()
-  const shown = connectors.filter((c) => `${c.name} ${c.blurb}`.toLowerCase().includes(q))
-  const rows = shown.filter((c) => connected.includes(c.id))
-  const cells = shown.filter((c) => !connected.includes(c.id))
+/** The catalog's order: the connected rows read in the order the cells do. */
+const catalogOrder = (a: Source, b: Source) =>
+  connectors.findIndex((c) => c.id === a.connector) -
+  connectors.findIndex((c) => c.id === b.connector)
 
+export function IntegrationsPage() {
+  const load = useQuery(integrationsPageQuery())
+  const [asking, setAsking] = React.useState(false)
   return (
     <Page
       title={
@@ -587,109 +622,9 @@ export function IntegrationsPage() {
             title="Integrations"
             description="The tools definitions and context are read from. They are only read, and a read never publishes: definitions arrive as a read-only copy, and documents become suggestions for their owners."
           />
-          {state === 'reauth' && (
-            <div
-              role="alert"
-              className="flex flex-wrap items-start gap-3 border-t bg-caution/8 px-4 py-4 text-sm md:px-5"
-            >
-              <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
-              <p className="min-w-0 flex-1">
-                <span className="font-medium">Google Drive needs a new key.</span> Google refused
-                the service account key on 21 Oct. Reading is paused; published context is not
-                affected.
-              </p>
-              <Button
-                size="sm"
-                onClick={() =>
-                  navigate('/settings/integrations/google-drive/connect', { step: '2' })
-                }
-              >
-                Replace key
-              </Button>
-            </div>
-          )}
-          <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3 md:px-5">
-            <div className="relative min-w-0 flex-1 basis-56">
-              <SearchIcon
-                className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Search integrations"
-                aria-label="Search integrations"
-                className="h-8 pl-8 text-sm"
-              />
-            </div>
-          </div>
-          <PanelSection title="Connected">
-            {connected.length === 0 ? (
-              <div className="mx-4 mb-4 flex flex-col items-center gap-3 rounded-frame border border-dashed px-6 py-10 text-center md:mx-5">
-                <span className="grid size-10 place-items-center rounded-lg border bg-muted">
-                  <PlugIcon className="size-5" aria-hidden />
-                </span>
-                <p className="font-medium">Nothing connected yet</p>
-                <p className="max-w-md text-sm text-muted-foreground">
-                  Connect your definitions so your workspace knows which metrics exist and can tell
-                  owners when one changes. Agents get your context either way.
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button onClick={() => navigate('/settings/integrations/cube/connect')}>
-                    Connect Cube
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      document.getElementById('available')?.scrollIntoView({ behavior: 'smooth' })
-                    }
-                  >
-                    Browse integrations
-                  </Button>
-                </div>
-              </div>
-            ) : rows.length === 0 ? (
-              <p className="px-4 pb-4 text-sm text-muted-foreground md:px-5">
-                None of the connected tools match.
-              </p>
-            ) : (
-              <ul className="border-t">
-                {rows.map((c) => (
-                  <ConnectedRow key={c.id} c={c} state={state} />
-                ))}
-              </ul>
-            )}
-          </PanelSection>
-          <PanelSection
-            title="Available"
-            description="Definitions say what exists. Context is what people know."
-          >
-            {/* Hairline cells: each cell draws its right and bottom line, and the panel clips the outer ones. */}
-            <div
-              id="available"
-              className="-mr-px -mb-px grid border-t @xl/main:grid-cols-2 @4xl/main:grid-cols-3"
-            >
-              {cells.map((c) => (
-                <AvailableCell key={c.id} c={c} connected={false} />
-              ))}
-              <div className="flex min-h-44 flex-col gap-2 border-r border-b bg-background p-4 md:p-5">
-                <span className="grid size-8 place-items-center rounded-md border border-dashed text-muted-foreground">
-                  <PlusIcon className="size-4" aria-hidden />
-                </span>
-                <h4 className="mt-1 text-sm font-medium">Request a connector</h4>
-                <p className="text-sm text-muted-foreground">
-                  Tell us which tool holds your definitions or context.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setAsking(true)}
-                  className="mt-auto inline-flex w-fit items-center gap-1 pt-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Tell us <ArrowRightIcon className="size-3.5" aria-hidden />
-                </button>
-              </div>
-            </div>
-          </PanelSection>
+          <Loadable what="Integrations" skeleton={<RowsSkeleton rows={4} />} query={load}>
+            {load.data && <IntegrationsBody view={load.data} onRequest={() => setAsking(true)} />}
+          </Loadable>
         </Panel>
         <p className="text-xs text-muted-foreground">
           There is no data source here on purpose: your workspace holds no numbers, so it never
@@ -701,22 +636,186 @@ export function IntegrationsPage() {
   )
 }
 
+function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onRequest: () => void }) {
+  const { query } = useRoute()
+  const state = query.get('state')
+  const [text, setText] = React.useState('')
+  const q = text.trim().toLowerCase()
+  const matches = (c: Connector) => `${c.name} ${c.blurb}`.toLowerCase().includes(q)
+  const sources = [...view.sources].sort(catalogOrder)
+  const connected = new Set(sources.map((s) => s.connector))
+  const rows = sources.filter((s) => matches(connectorById(s.connector)!))
+  const cells = connectors.filter((c) => matches(c) && !connected.has(c.id))
+  const refused = sources.find((s) => s.health === 'reauth')
+  const refusedTool = refused && connectorById(refused.connector)
+
+  return (
+    <>
+      {refused && refusedTool && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-start gap-3 border-t bg-caution/8 px-4 py-4 text-sm md:px-5"
+        >
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-ink" />
+          <p className="min-w-0 flex-1">
+            <span className="font-medium">{refusedTool.name} needs a new key.</span>{' '}
+            {sentence(refused.failure ?? 'the key was refused')}
+            {refused.last ? ` on ${refused.last.at.day}` : ''}. Reading is paused; published context
+            is not affected.
+          </p>
+          <Button
+            size="sm"
+            onClick={() =>
+              navigate(`/settings/integrations/${refused.connector}/connect`, { step: '2' })
+            }
+          >
+            Replace key
+          </Button>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3 md:px-5">
+        <div className="relative min-w-0 flex-1 basis-56">
+          <SearchIcon
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Search integrations"
+            aria-label="Search integrations"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
+      </div>
+      <PanelSection title="Connected">
+        {sources.length === 0 ? (
+          <div className="mx-4 mb-4 flex flex-col items-center gap-3 rounded-frame border border-dashed px-6 py-10 text-center md:mx-5">
+            <span className="grid size-10 place-items-center rounded-lg border bg-muted">
+              <PlugIcon className="size-5" aria-hidden />
+            </span>
+            <p className="font-medium">Nothing connected yet</p>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Connect your definitions so your workspace knows which metrics exist and can tell
+              owners when one changes. Agents get your context either way.
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button onClick={() => navigate('/settings/integrations/cube/connect')}>
+                Connect Cube
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  document.getElementById('available')?.scrollIntoView({ behavior: 'smooth' })
+                }
+              >
+                Browse integrations
+              </Button>
+            </div>
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="px-4 pb-4 text-sm text-muted-foreground md:px-5">
+            None of the connected tools match.
+          </p>
+        ) : (
+          <ul className="border-t">
+            {rows.map((s) => (
+              <ConnectedRow key={s.id} source={s} state={state} />
+            ))}
+          </ul>
+        )}
+      </PanelSection>
+      <PanelSection
+        title="Available"
+        description="Definitions say what exists. Context is what people know."
+      >
+        {/* Hairline cells: each cell draws its right and bottom line, and the panel clips the outer ones. */}
+        <div
+          id="available"
+          className="-mr-px -mb-px grid border-t @xl/main:grid-cols-2 @4xl/main:grid-cols-3"
+        >
+          {cells.map((c) => (
+            <AvailableCell key={c.id} c={c} connectable={view.connectable.includes(c.id)} />
+          ))}
+          <div className="flex min-h-44 flex-col gap-2 border-r border-b bg-background p-4 md:p-5">
+            <span className="grid size-8 place-items-center rounded-md border border-dashed text-muted-foreground">
+              <PlusIcon className="size-4" aria-hidden />
+            </span>
+            <h4 className="mt-1 text-sm font-medium">Request a connector</h4>
+            <p className="text-sm text-muted-foreground">
+              Tell us which tool holds your definitions or context.
+            </p>
+            <button
+              type="button"
+              onClick={onRequest}
+              className="mt-auto inline-flex w-fit items-center gap-1 pt-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+            >
+              Tell us <ArrowRightIcon className="size-3.5" aria-hidden />
+            </button>
+          </div>
+        </div>
+      </PanelSection>
+    </>
+  )
+}
+
+/** Words that start a sentence: their first letter a capital. */
+const sentence = (words: string) => words.replace(/^./, (c) => c.toUpperCase())
+
 /* ---------- a connector's page ---------- */
 
 const docLook: Record<DocState, string> = {
   waiting: 'border-primary/35 text-primary',
   published: 'border-good/35 text-good-ink',
   returned: 'text-muted-foreground',
+  declined: 'text-muted-foreground',
+  withdrawn: 'text-muted-foreground',
+  held: 'text-muted-foreground',
   skipped: 'border-caution/45 text-caution-ink',
+  gone: 'text-muted-foreground',
 }
 const docLabel: Record<DocState, string> = {
   waiting: 'Suggestion waiting',
   published: 'Published',
   returned: 'Returned',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+  held: 'Waiting for the next read',
   skipped: 'Skipped',
+  gone: 'Gone from the tool',
 }
 
-function ConnectorMenu({ c, onDisconnect }: { c: Connector; onDisconnect: () => void }) {
+/** Pauses reading a tool, or lets it go on, and says so. */
+function usePauseReading(source: Source, c: Connector) {
+  const write = useWrite()
+  return (paused: boolean) =>
+    void write('pauseIntegration', { id: source.id, paused }).then(
+      () =>
+        toast(paused ? `Reading paused for ${c.name}` : `Reading resumed for ${c.name}`, {
+          description: paused
+            ? c.kind === 'context'
+              ? 'Open suggestions stay in the Inbox. Resume from this menu.'
+              : "Agents keep getting what's published. Resume from this menu."
+            : 'It is read again on its schedule.',
+        }),
+      (e: unknown) =>
+        toast(paused ? `Couldn't pause ${c.name}` : `Couldn't resume ${c.name}`, {
+          description: toApiError(e).message,
+        }),
+    )
+}
+
+function ConnectorMenu({
+  source,
+  c,
+  onDisconnect,
+}: {
+  source: Source
+  c: Connector
+  onDisconnect: () => void
+}) {
+  const pause = usePauseReading(source, c)
+  const paused = source.health === 'paused'
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -725,15 +824,9 @@ function ConnectorMenu({ c, onDisconnect }: { c: Connector; onDisconnect: () => 
         <EllipsisIcon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuItem
-          onClick={() =>
-            toast(`Reading paused for ${c.name}`, {
-              description: "Agents keep getting what's published. Resume from this menu.",
-            })
-          }
-        >
-          <PauseIcon />
-          Pause reading
+        <DropdownMenuItem onClick={() => pause(!paused)}>
+          {paused ? <PlayIcon /> : <PauseIcon />}
+          {paused ? 'Resume reading' : 'Pause reading'}
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })}
@@ -748,6 +841,18 @@ function ConnectorMenu({ c, onDisconnect }: { c: Connector; onDisconnect: () => 
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+/** Pause reading, or Resume reading while paused, as a button of the Connection section. */
+function PauseButton({ source, c }: { source: Source; c: Connector }) {
+  const pause = usePauseReading(source, c)
+  const paused = source.health === 'paused'
+  return (
+    <Button variant="outline" size="sm" onClick={() => pause(!paused)}>
+      {paused ? <PlayIcon data-icon="inline-start" /> : <PauseIcon data-icon="inline-start" />}
+      {paused ? 'Resume reading' : 'Pause reading'}
+    </Button>
   )
 }
 
@@ -781,12 +886,17 @@ function DisconnectDialog({
           <Button
             variant="destructive"
             onClick={() => {
-              void disconnect(c.id)
               onOpenChange(false)
-              toast(`${c.name} disconnected`, {
-                description: 'Kept in the history log. Connect it again from Integrations.',
-              })
-              navigate('/settings/integrations')
+              disconnect(c.id).then(
+                () => {
+                  toast(`${c.name} disconnected`, {
+                    description: 'Kept in the history log. Connect it again from Integrations.',
+                  })
+                  navigate('/settings/integrations')
+                },
+                (e: unknown) =>
+                  toast(`Couldn't disconnect ${c.name}`, { description: toApiError(e).message }),
+              )
             }}
           >
             Disconnect
@@ -797,26 +907,23 @@ function DisconnectDialog({
   )
 }
 
-function ReadAgain({ c, busy }: { c: Connector; busy?: boolean }) {
-  const [reading, setReading] = React.useState(false)
-  const on = busy || reading
+function ReadAgain({ source, c }: { source: Source; c: Connector }) {
+  const write = useWrite()
+  const [asking, setAsking] = React.useState(false)
   return (
     <Button
       variant="outline"
       size="sm"
-      loading={on}
+      loading={asking || source.health === 'reading'}
       loadingLabel="Reading…"
+      disabled={source.health === 'paused'}
       onClick={() => {
-        setReading(true)
-        window.setTimeout(() => {
-          setReading(false)
-          toast(`Read ${c.name}`, {
-            description:
-              c.kind === 'definitions'
-                ? '27 definitions, no changes.'
-                : '14 documents, no changes. No new suggestions.',
-          })
-        }, 1200)
+        setAsking(true)
+        write('readIntegration', { id: source.id })
+          .catch((e: unknown) =>
+            toast(`Couldn't read ${c.name}`, { description: toApiError(e).message }),
+          )
+          .finally(() => setAsking(false))
       }}
     >
       <RefreshCwIcon data-icon="inline-start" />
@@ -825,553 +932,570 @@ function ReadAgain({ c, busy }: { c: Connector; busy?: boolean }) {
   )
 }
 
-export function ConnectorPage({ id }: { id: string }) {
+/** The read Read again asked for has ended: says what it found, once. */
+function useReadDone(page: SourcePage | null | undefined, name: string) {
+  const health = page?.source.health
+  const was = React.useRef(health)
+  React.useEffect(() => {
+    if (was.current === 'reading' && health && health !== 'reading' && page) {
+      const latest = page.activity[0]
+      toast(`Read ${name}`, latest ? { description: `${latest.detail}.` } : undefined)
+    }
+    was.current = health
+  }, [health, page, name])
+}
+
+/** "Read 1 Oct", "3 s": how a read went, under its number. */
+const readSub = (source: Source) =>
+  source.last
+    ? source.definitions
+      ? `${source.last.complete ? 'complete' : 'in part'}${source.last.seconds === null ? '' : `, ${source.last.seconds} s`}`
+      : `${plural(source.last.seen, 'document')} looked at`
+    : source.next
+      ? `first read at ${source.next.time}`
+      : 'first read soon'
+
+/** When it reads next, as a number of the page: "07:00", "every hour"; "Tomorrow", "06:00, every day". */
+const nextNumber = (source: Source, label = 'Next read') =>
+  source.next
+    ? {
+        label,
+        value: source.next.day === 'Today' ? source.next.time : source.next.day,
+        sub: source.next.day === 'Today' ? source.every : `${source.next.time}, ${source.every}`,
+      }
+    : {
+        label,
+        value: source.health === 'paused' ? 'Paused' : 'Soon',
+        sub: source.every,
+      }
+
+function NotConnected({ id }: { id: string }) {
   const c = connectorById(id)
-  const {
-    state,
-    cubeViews,
-    driveFolders,
-    driveDocuments,
-    activity: { cube: cubeActivity, drive: driveActivity },
-    warehouseHas,
-  } = useIntegrations()
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-10 text-center md:px-6">
+      <p className="font-medium">
+        {c ? `${c.name} isn't connected` : 'There is no such integration'}
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {c && !c.soon
+          ? 'Connect it to see what it reads.'
+          : 'See what can be connected in Integrations.'}
+      </p>
+      <div className="mt-4 flex justify-center gap-2">
+        {c && !c.soon && (
+          <Button onClick={() => navigate(`/settings/integrations/${c.id}/connect`)}>
+            Connect {c.name}
+          </Button>
+        )}
+        <Button variant="outline" onClick={() => navigate('/settings/integrations')}>
+          Integrations
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+export function ConnectorPage({ id }: { id: string }) {
+  const load = useQuery(integrationPageQuery(id))
+  const page = load.data
+  const c = connectorById(page?.source.connector ?? id)
+  useReadDone(page, c?.name ?? '')
+  return (
+    <Page title={crumbs({ label: page === null ? (c?.name ?? 'Not found') : (c?.name ?? '') })}>
+      <Loadable
+        what={c?.name ?? 'This integration'}
+        skeleton={<RowsSkeleton rows={6} />}
+        query={load}
+      >
+        {page === null ? (
+          <NotConnected id={id} />
+        ) : (
+          page && c && <ConnectorSections page={page} c={c} />
+        )}
+      </Loadable>
+    </Page>
+  )
+}
+
+function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const domains = useDomains()
-  const live = useConnected()
   const [leaving, setLeaving] = React.useState(false)
-  if (!c || !live.includes(c.id))
-    return (
-      <Page title={crumbs({ label: c?.name ?? 'Not found' })}>
-        <div className="mx-auto max-w-3xl px-4 py-10 text-center md:px-6">
-          <p className="font-medium">
-            {c ? `${c.name} isn't connected` : 'There is no such integration'}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {c && !c.soon
-              ? 'Connect it to see what it reads.'
-              : 'See what can be connected in Integrations.'}
-          </p>
-          <div className="mt-4 flex justify-center gap-2">
-            {c && !c.soon && (
-              <Button onClick={() => navigate(`/settings/integrations/${c.id}/connect`)}>
-                Connect {c.name}
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => navigate('/settings/integrations')}>
-              Integrations
-            </Button>
-          </div>
-        </div>
-      </Page>
-    )
-  const h = health(c.id, state)
-  const isCube = c.id === 'cube'
+  const { warehouseHas, figureConnections } = useIntegrations()
+  const { source, views, folders, documents, activity, connection } = page
+  const h = source.health
+  const isCube = c.kind === 'definitions'
   const isDrive = c.id === 'google-drive'
   const isWarehouse = c.id === 'warehouse'
+  const isContent = c.kind === 'context'
+  const d = source.definitions
+  const docs = source.documents
+  const created = source.created
+  const connectionRows: [string, React.ReactNode][] = [
+    ...connection.map((row): [string, React.ReactNode] => [
+      row.label,
+      row.code ? (
+        <code key={row.label} className="font-mono text-dense break-all">
+          {row.value}
+        </code>
+      ) : (
+        row.value
+      ),
+    ]),
+    ...(source.added?.by
+      ? [
+          [
+            'Connected by',
+            <span key="by" className="flex items-center gap-2">
+              <PersonAvatar name={source.added.by} size={20} />
+              {source.added.by}, {source.added.when}
+            </span>,
+          ] as [string, React.ReactNode],
+        ]
+      : []),
+  ]
+  // Google Drive names who connected it; the definitions tools are connected by whoever runs Git.
+  const shownRows = isDrive ? connectionRows : connectionRows.filter(([k]) => k !== 'Connected by')
+  const disconnect = (
+    <Button
+      variant="outline"
+      size="sm"
+      className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+      onClick={() => setLeaving(true)}
+    >
+      Disconnect
+    </Button>
+  )
 
   return (
-    <Page title={crumbs({ label: c.name })}>
-      <FramePage>
-        <Panel>
-          <header className="flex flex-wrap items-start gap-4 px-4 py-5 md:px-5">
-            <ToolLogo c={c} size="lg" />
-            <div className="min-w-0 flex-1 basis-64">
-              <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
-                {c.name}
-                <Badge variant="secondary" className="font-normal">
-                  {kindName[c.kind]}
-                </Badge>
-                <HealthBadge health={h} />
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                {isCube
-                  ? "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. Figures in Ask, when switched on, read one figure from Cube's data API at the time of the answer."
-                  : isWarehouse
-                    ? "Reads one figure from the warehouse's query API when an answer asks for it, if figures are switched on. It never writes and never keeps a row."
-                    : isDrive
-                      ? 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.'
-                      : "Reads the Markdown files in a repository. Each new or changed file becomes one suggestion for the owners of its folder's domain."}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {!isWarehouse && <ReadAgain c={c} busy={h === 'reading'} />}
-              <ConnectorMenu c={c} onDisconnect={() => setLeaving(true)} />
-            </div>
-          </header>
+    <FramePage>
+      <Panel>
+        <header className="flex flex-wrap items-start gap-4 px-4 py-5 md:px-5">
+          <ToolLogo c={c} size="lg" />
+          <div className="min-w-0 flex-1 basis-64">
+            <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight">
+              {c.name}
+              <Badge variant="secondary" className="font-normal">
+                {kindName[c.kind]}
+              </Badge>
+              <HealthBadge health={h} />
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              {isCube
+                ? "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. Figures in Ask, when switched on, read one figure from Cube's data API at the time of the answer."
+                : isWarehouse
+                  ? "Reads one figure from the warehouse's query API when an answer asks for it, if figures are switched on. It never writes and never keeps a row."
+                  : isDrive
+                    ? 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.'
+                    : "Reads the Markdown files in a repository. Each new or changed file becomes one suggestion for the owners of its folder's domain."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {!isWarehouse && <ReadAgain source={source} c={c} />}
+            <ConnectorMenu source={source} c={c} onDisconnect={() => setLeaving(true)} />
+          </div>
+        </header>
 
-          {h === 'reading' && (
-            <div className="border-t px-4 py-4 md:px-5" role="status">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Reading 7 views</span>
-                <span className="text-muted-foreground tabular-nums">19 of 27 definitions</span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-7/10 rounded-full bg-primary" />
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Takes a few seconds. Agents keep getting the same context while it runs.
-              </p>
-            </div>
-          )}
-          {h === 'failed' && (
-            <div role="alert" className="border-t bg-destructive/5 px-4 py-4 text-sm md:px-5">
-              <p className="flex items-start gap-2">
-                <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
-                <span>
-                  <span className="font-medium">
-                    The last 3 reads failed: the repository refused the token (401).
-                  </span>{' '}
-                  The last good read from 21 Oct, 06:00 stays, and nothing is flagged while Cube
-                  can't be reached. Admins are told at 6 hours.
+        {h === 'reading' && (
+          <div className="border-t px-4 py-4 md:px-5" role="status">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">
+                {isCube && d ? `Reading ${plural(d.views, 'view')}` : `Reading ${c.name}`}
+              </span>
+              {source.progress && (
+                <span className="text-muted-foreground tabular-nums">
+                  {source.progress.done} of {plural(source.progress.total, 'definition')}
                 </span>
-              </p>
-              <div className="mt-3 flex gap-2 pl-6">
-                <ReadAgain c={c} />
-                <Button
-                  size="sm"
-                  onClick={() => navigate('/settings/integrations/cube/connect', { step: '2' })}
-                >
-                  Change settings
-                </Button>
-              </div>
+              )}
             </div>
-          )}
-          {isDrive && state === 'suggestions' && (
-            <div role="status" className="border-t bg-primary/5 px-4 py-4 text-sm md:px-5">
-              <p className="font-medium">
-                Today's read created 3 suggestions in the owners' Inbox.
-              </p>
-              <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
-                {[
-                  '3 new suggestions, 1 replaced an open one',
-                  '1 document skipped: it names people',
-                  'Nothing published. Daily cap 3 of 5',
-                ].map((t) => (
-                  <li key={t} className="flex items-center gap-2">
-                    <CheckIcon aria-hidden className="size-3.5" />
-                    {t}
-                  </li>
-                ))}
-              </ul>
+            {source.progress && (
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${(100 * source.progress.done) / source.progress.total}%` }}
+                />
+              </div>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Takes a few seconds. Agents keep getting the same context while it runs.
+            </p>
+          </div>
+        )}
+        {h === 'failed' && (
+          <div role="alert" className="border-t bg-destructive/5 px-4 py-4 text-sm md:px-5">
+            <p className="flex items-start gap-2">
+              <CircleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
+              <span>
+                <span className="font-medium">
+                  {source.failures > 1
+                    ? `The last ${source.failures} reads failed`
+                    : 'The last read failed'}
+                  : {source.failure ?? "it couldn't be read"}.
+                </span>{' '}
+                {source.lastGood
+                  ? `The last good read from ${source.lastGood.day}, ${source.lastGood.time} stays`
+                  : 'Nothing was read yet'}
+                , and nothing is {isCube ? 'flagged' : 'created'} while {c.name} can't be reached.
+                Admins are told at {source.staleAfter}.
+              </span>
+            </p>
+            <div className="mt-3 flex gap-2 pl-6">
+              <ReadAgain source={source} c={c} />
               <Button
                 size="sm"
-                className="mt-3"
-                onClick={() => navigate('/inbox', { demo: 'week', card: 'drive-marketplace' })}
+                onClick={() => navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })}
               >
-                Open the Inbox
+                Change settings
               </Button>
             </div>
-          )}
+          </div>
+        )}
+        {h === 'paused' && (
+          <div role="status" className="border-t bg-muted/40 px-4 py-4 text-sm md:px-5">
+            <p className="flex items-start gap-2">
+              <PauseIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+              <span>
+                <span className="font-medium">Reading is paused.</span> Agents keep getting what's
+                published, and nothing is read until an admin resumes it.
+              </span>
+            </p>
+          </div>
+        )}
+        {isContent && created && docs && (
+          <div role="status" className="border-t bg-primary/5 px-4 py-4 text-sm md:px-5">
+            <p className="font-medium">
+              {source.last?.at.day === 'Today' ? "Today's read" : 'The last read'} created{' '}
+              {plural(created.suggested, 'suggestion')} in the owners' Inbox.
+            </p>
+            <ul className="mt-2 flex flex-col gap-1 text-muted-foreground">
+              {[
+                `${plural(created.suggested, 'new suggestion')}${created.replaced ? `, ${created.replaced} replaced an open one` : ''}`,
+                ...(created.skipped.length
+                  ? [
+                      `${plural(created.skipped.length, 'document')} skipped: ${[...new Set(created.skipped)].join(', ')}`,
+                    ]
+                  : []),
+                `Nothing published. Daily cap ${docs.madeToday} of ${docs.perDay}`,
+              ].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <CheckIcon aria-hidden className="size-3.5" />
+                  {t}
+                </li>
+              ))}
+            </ul>
+            {source.inbox && (
+              <Button size="sm" className="mt-3" onClick={() => navigate(source.inbox!)}>
+                Open the Inbox
+              </Button>
+            )}
+          </div>
+        )}
 
-          <Numbers
-            items={
-              isCube
-                ? h === 'failed'
-                  ? [
-                      {
-                        label: 'Last good read',
-                        value: '21 Oct',
-                        sub: '06:00, 24 hours ago',
-                        tone: 'bad',
-                      },
-                      { label: 'Next try', value: '07:00', sub: 'backing off' },
-                      { label: 'Definitions', value: '27', sub: 'as last read' },
-                      { label: 'Context affected', value: '0', sub: 'none flagged' },
-                    ]
-                  : [
-                      {
-                        label: h === 'reading' ? 'Last good read' : 'Last read',
-                        value: 'Today, 06:00',
-                        sub: 'complete, 3 s',
-                      },
-                      { label: 'Next read', value: '07:00', sub: 'every hour' },
-                      { label: 'Definitions', value: '27', sub: '22 metrics, 5 dimensions' },
-                      { label: 'Context to check', value: '2', sub: 'after the 7 Oct changes' },
-                    ]
-                : isWarehouse
-                  ? [
-                      { label: 'Reads', value: 'When asked', sub: 'one figure an answer' },
-                      {
-                        label: 'Metrics it answers',
-                        value: '0',
-                        sub: 'no definition comes from it',
-                      },
-                      {
-                        label: 'Tables it has',
-                        value: String(warehouseHas.length),
-                        sub: 'seen, not read',
-                      },
-                      { label: 'Data as of', value: '05:30', sub: 'today' },
-                    ]
-                  : isDrive
-                    ? [
-                        {
+        <Numbers
+          items={
+            d
+              ? h === 'failed'
+                ? [
+                    {
+                      label: 'Last good read',
+                      value: source.lastGood?.day ?? 'None',
+                      sub: source.lastGood
+                        ? `${source.lastGood.time}${source.lastGood.ago ? `, ${source.lastGood.ago}` : ''}`
+                        : 'not read yet',
+                      tone: 'bad',
+                    },
+                    { ...nextNumber(source, 'Next try'), sub: 'backing off' },
+                    {
+                      label: 'Definitions',
+                      value: String(d.metrics + d.dimensions),
+                      sub: 'as last read',
+                    },
+                    {
+                      label: 'Context affected',
+                      value: String(d.flagged),
+                      sub: d.flagged ? 'flagged' : 'none flagged',
+                    },
+                  ]
+                : [
+                    {
+                      label: h === 'reading' ? 'Last good read' : 'Last read',
+                      value: source.last
+                        ? `${source.last.at.day}, ${source.last.at.time}`
+                        : 'Not yet',
+                      sub: readSub(source),
+                    },
+                    nextNumber(source),
+                    {
+                      label: 'Definitions',
+                      value: String(d.metrics + d.dimensions),
+                      sub: `${plural(d.metrics, 'metric')}, ${plural(d.dimensions, 'dimension')}`,
+                    },
+                    {
+                      label: 'Context to check',
+                      value: String(d.flagged),
+                      sub: d.flagged
+                        ? page.changedOn
+                          ? `after the ${page.changedOn} changes`
+                          : 'after a change'
+                        : 'none flagged',
+                    },
+                  ]
+              : isWarehouse
+                ? [
+                    { label: 'Reads', value: 'When asked', sub: 'one figure an answer' },
+                    { label: 'Metrics it answers', value: '0', sub: 'no definition comes from it' },
+                    {
+                      label: 'Tables it has',
+                      value: String(warehouseHas.length),
+                      sub: 'seen, not read',
+                    },
+                    { label: 'Data as of', value: '05:30', sub: 'today' },
+                  ]
+                : [
+                    h === 'reauth'
+                      ? {
                           label: 'Last read',
-                          value: state === 'reauth' ? '21 Oct' : 'Today, 06:00',
-                          sub:
-                            state === 'reauth'
-                              ? 'paused: needs a new key'
-                              : '14 documents looked at',
-                          tone: state === 'reauth' ? 'warn' : undefined,
+                          value: source.last?.at.day ?? 'Not yet',
+                          sub: 'paused: needs a new key',
+                          tone: 'warn',
+                        }
+                      : {
+                          label: 'Last read',
+                          value: source.last
+                            ? `${source.last.at.day}, ${source.last.at.time}`
+                            : 'Not yet',
+                          sub: readSub(source),
                         },
-                        { label: 'Next read', value: 'Tomorrow', sub: '06:00, every day' },
-                        { label: 'Suggestions waiting', value: '3', sub: 'for 2 domains' },
-                        { label: 'Drafts today', value: '3 of 5', sub: 'the daily cap' },
-                      ]
-                    : [
-                        { label: 'Last read', value: 'Not yet', sub: 'first read at 07:00' },
-                        { label: 'Next read', value: '07:00', sub: 'every day' },
-                        { label: 'Suggestions waiting', value: '0', sub: 'none yet' },
-                        { label: 'Drafts today', value: '0 of 5', sub: 'the daily cap' },
-                      ]
-            }
-          />
+                    nextNumber(source),
+                    {
+                      label: 'Suggestions waiting',
+                      value: String(docs?.waiting ?? 0),
+                      sub: docs?.waiting ? `for ${plural(docs.domains, 'domain')}` : 'none yet',
+                    },
+                    {
+                      label: 'Drafts today',
+                      value: `${docs?.madeToday ?? 0} of ${docs?.perDay ?? 0}`,
+                      sub: 'the daily cap',
+                    },
+                  ]
+          }
+        />
 
-          {isCube && (
-            <>
-              <PanelSection
-                title="What it reads"
-                description={
-                  <>
-                    Each Cube view, and the domain it belongs to. It reads{' '}
-                    <code className="font-mono text-xs">meta.domain</code> on the view.
-                  </>
-                }
-              >
-                <DataTable
-                  head={['View', 'Metrics', 'Dimensions', 'Domain', 'Owners']}
-                  align={['left', 'right', 'right', 'left', 'left']}
-                  rows={cubeViews.map((v) => [
-                    <code key="v" className="font-mono text-dense">
-                      {v.view}
-                    </code>,
-                    v.metrics,
-                    v.dimensions,
-                    v.domain ? domains[v.domain]?.name : <NoDomain key="d" />,
-                    <Owners key="o" domain={v.domain} />,
-                  ])}
-                />
+        {isCube && (
+          <>
+            <PanelSection
+              title="What it reads"
+              description={
+                <>
+                  Each Cube view, and the domain it belongs to. It reads{' '}
+                  <code className="font-mono text-xs">meta.domain</code> on the view.
+                </>
+              }
+            >
+              <DataTable
+                head={['View', 'Metrics', 'Dimensions', 'Domain', 'Owners']}
+                align={['left', 'right', 'right', 'left', 'left']}
+                rows={views.map((v) => [
+                  <code key="v" className="font-mono text-dense">
+                    {v.view}
+                  </code>,
+                  v.metrics,
+                  v.dimensions,
+                  v.domain ? domains[v.domain]?.name : <NoDomain key="d" />,
+                  <Owners key="o" domain={v.domain} />,
+                ])}
+              />
+              {d && d.noDomain > 0 && (
                 <div className="flex flex-wrap items-center gap-3 border-t bg-caution/8 px-4 py-3 text-sm md:px-5">
                   <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-ink" />
                   <p className="min-w-0 flex-1">
-                    <span className="font-medium">2 views have no domain.</span> Their definitions
-                    stay shared, and no owner is told when they change.
+                    <span className="font-medium">
+                      {d.noDomain === 1
+                        ? '1 view has no domain.'
+                        : `${d.noDomain} views have no domain.`}
+                    </span>{' '}
+                    Their definitions stay shared, and no owner is told when they change.
                   </p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate('/settings/integrations/cube/connect', { step: '4' })}
+                    onClick={() =>
+                      navigate(`/settings/integrations/${c.id}/connect`, { step: '4' })
+                    }
                   >
                     Map to a domain
                   </Button>
                 </div>
-                <p className="flex items-center gap-2 border-t px-4 py-3 text-xs text-muted-foreground md:px-5">
-                  <LockIcon aria-hidden className="size-3.5" />
-                  It keeps a read-only copy: name, title, a description up to 500 characters, type,
-                  domain and a change mark. Never a calculation, a query or a row of data.
-                </p>
-              </PanelSection>
-              <PanelSection title="Activity" description="Every read, newest first.">
-                <ActivityList items={cubeActivity} />
-              </PanelSection>
-              <PanelSection title="Connection">
-                <Connection
-                  rows={[
-                    [
-                      'Repository',
-                      <code key="r" className="font-mono text-dense">
-                        https://git.example/larchwood/cube-definitions
-                      </code>,
-                    ],
-                    [
-                      'Branch or tag',
-                      <code key="b" className="font-mono text-dense">
-                        main
-                      </code>,
-                    ],
-                    [
-                      'Folder',
-                      <code key="f" className="font-mono text-dense">
-                        cube/
-                      </code>,
-                    ],
-                    ['Read-only token', 'Set, only used for reading'],
-                  ]}
-                  actions={
-                    <>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          navigate('/settings/integrations/cube/connect', { step: '2' })
-                        }
-                      >
-                        Change settings
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          toast('Reading paused for Cube', {
-                            description: "Agents keep getting what's published.",
-                          })
-                        }
-                      >
-                        <PauseIcon data-icon="inline-start" />
-                        Pause reading
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setLeaving(true)}
-                      >
-                        Disconnect
-                      </Button>
-                    </>
-                  }
-                />
-              </PanelSection>
-            </>
-          )}
-
-          {isDrive && (
-            <>
-              <PanelSection
-                title="What it reads"
-                description="Each shared folder goes to exactly one domain. Its suggestions go only to that domain's owners."
-              >
-                <DataTable
-                  head={['Folder', 'Domain', 'Owners', 'Documents']}
-                  align={['left', 'left', 'left', 'right']}
-                  rows={driveFolders.map((f) => [
-                    <span key="f" className="whitespace-nowrap">
-                      <span className="font-medium">{f.folder}</span>
-                      <span className="text-muted-foreground"> / {f.path}</span>
-                    </span>,
-                    domains[f.domain]?.name,
-                    <Owners key="o" domain={f.domain} />,
-                    f.documents,
-                  ])}
-                />
-              </PanelSection>
-              <PanelSection title="What happens to a document">
-                <ul className="flex flex-col gap-2.5 border-t px-4 py-4 text-sm md:px-5">
-                  <li className="flex gap-2.5">
-                    <GitPullRequestArrowIcon
-                      aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    />
-                    <span>
-                      A new or changed document becomes{' '}
-                      <span className="font-medium">one suggestion</span>. A changed document
-                      replaces its open suggestion. Nothing is published by a read.
-                    </span>
-                  </li>
-                  <li className="flex gap-2.5">
-                    <LockIcon
-                      aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    />
-                    <span>
-                      It keeps the link, the title, a quote of up to 500 characters and the date
-                      read. Never the document.
-                    </span>
-                  </li>
-                  <li className="flex gap-2.5">
-                    <EyeOffIcon
-                      aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    />
-                    <span>
-                      Documents that name people are skipped. Who can read a page is not copied:
-                      once published, anyone in the workspace can read the context.
-                    </span>
-                  </li>
-                </ul>
-              </PanelSection>
-              <PanelSection title="Recent documents">
-                <DataTable
-                  head={['Document', 'Domain', 'State', 'Read']}
-                  rows={driveDocuments.map((d) => [
-                    <span key="t" className="flex flex-col">
-                      {d.card ? (
-                        <a
-                          href={`/inbox?demo=week&card=${d.card}`}
-                          className="font-medium underline-offset-4 hover:underline"
-                        >
-                          {d.title}
-                        </a>
-                      ) : (
-                        <span className="font-medium">{d.title}</span>
-                      )}
-                      <span className="text-xs text-muted-foreground">{d.folder}</span>
-                    </span>,
-                    domains[d.domain]?.name,
-                    <Badge
-                      key="s"
+              )}
+              <p className="flex items-center gap-2 border-t px-4 py-3 text-xs text-muted-foreground md:px-5">
+                <LockIcon aria-hidden className="size-3.5" />
+                It keeps a read-only copy: name, title, a description up to 500 characters, type,
+                domain and a change mark. Never a calculation, a query or a row of data.
+              </p>
+            </PanelSection>
+            <PanelSection title="Activity" description="Every read, newest first.">
+              <ActivityList items={activity} />
+            </PanelSection>
+            <PanelSection title="Connection">
+              <Connection
+                rows={shownRows}
+                actions={
+                  <>
+                    <Button
                       variant="outline"
-                      className={cn('font-normal whitespace-nowrap', docLook[d.state])}
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })
+                      }
                     >
-                      {d.note ?? docLabel[d.state]}
-                    </Badge>,
-                    <span key="r" className="whitespace-nowrap text-muted-foreground">
-                      {d.read}
-                    </span>,
-                  ])}
-                />
-              </PanelSection>
-              <PanelSection title="Activity" description="Every read, newest first.">
-                <ActivityList
-                  items={
-                    state === 'reauth'
-                      ? [
-                          {
-                            when: '21 Oct, 06:00',
-                            tone: 'failed',
-                            what: 'Read refused',
-                            detail: 'Google refused the service account key. Reading paused.',
-                          },
-                          ...driveActivity.slice(1),
-                        ]
-                      : driveActivity
-                  }
-                />
-              </PanelSection>
-              <PanelSection title="Connection">
-                <Connection
-                  rows={[
-                    [
-                      'Reads as',
-                      <code key="a" className="font-mono text-dense break-all">
-                        {SERVICE_ACCOUNT}
-                      </code>,
-                    ],
-                    ['Access', 'Viewer on the folders above. Nothing else in Drive'],
-                    [
-                      'Service account key',
-                      state === 'reauth'
-                        ? 'Refused by Google on 21 Oct'
-                        : 'Set, only used for reading',
-                    ],
-                    [
-                      'Connected by',
-                      <span key="by" className="flex items-center gap-2">
-                        <PersonAvatar name="Ravi Kapoor" size={20} />
-                        Ravi Kapoor, 1 Oct
+                      Change settings
+                    </Button>
+                    <PauseButton source={source} c={c} />
+                    {disconnect}
+                  </>
+                }
+              />
+            </PanelSection>
+          </>
+        )}
+
+        {isContent && (
+          <>
+            <PanelSection
+              title="What it reads"
+              description={
+                isDrive
+                  ? "Each shared folder goes to exactly one domain. Its suggestions go only to that domain's owners."
+                  : 'Each folder goes to exactly one domain.'
+              }
+            >
+              <DataTable
+                head={['Folder', 'Domain', 'Owners', isDrive ? 'Documents' : 'Files']}
+                align={['left', 'left', 'left', 'right']}
+                rows={folders.map((f) => [
+                  <span key="f" className="whitespace-nowrap">
+                    <span className={cn(isDrive && 'font-medium')}>{f.folder}</span>
+                    {f.path && <span className="text-muted-foreground"> / {f.path}</span>}
+                  </span>,
+                  domains[f.domain]?.name,
+                  <Owners key="o" domain={f.domain} />,
+                  f.documents,
+                ])}
+              />
+            </PanelSection>
+            {documents.length > 0 && (
+              <>
+                <PanelSection title="What happens to a document">
+                  <ul className="flex flex-col gap-2.5 border-t px-4 py-4 text-sm md:px-5">
+                    <li className="flex gap-2.5">
+                      <GitPullRequestArrowIcon
+                        aria-hidden
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      />
+                      <span>
+                        A new or changed document becomes{' '}
+                        <span className="font-medium">one suggestion</span>. A changed document
+                        replaces its open suggestion. Nothing is published by a read.
+                      </span>
+                    </li>
+                    <li className="flex gap-2.5">
+                      <LockIcon
+                        aria-hidden
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      />
+                      <span>
+                        It keeps the link, the title, a quote of up to 500 characters and the date
+                        read. Never the document.
+                      </span>
+                    </li>
+                    <li className="flex gap-2.5">
+                      <EyeOffIcon
+                        aria-hidden
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      />
+                      <span>
+                        Documents that name people are skipped. Who can read a page is not copied:
+                        once published, anyone in the workspace can read the context.
+                      </span>
+                    </li>
+                  </ul>
+                </PanelSection>
+                <PanelSection title="Recent documents">
+                  <DataTable
+                    head={['Document', 'Domain', 'State', 'Read']}
+                    rows={documents.map((doc) => [
+                      <span key="t" className="flex flex-col">
+                        {doc.href ? (
+                          <a
+                            href={doc.href}
+                            className="font-medium underline-offset-4 hover:underline"
+                          >
+                            {doc.title}
+                          </a>
+                        ) : (
+                          <span className="font-medium">{doc.title}</span>
+                        )}
+                        <span className="text-xs text-muted-foreground">{doc.folder}</span>
                       </span>,
-                    ],
-                  ]}
-                  actions={
+                      doc.domain ? domains[doc.domain]?.name : null,
+                      <Badge
+                        key="s"
+                        variant="outline"
+                        className={cn('font-normal whitespace-nowrap', docLook[doc.state])}
+                      >
+                        {doc.note ?? docLabel[doc.state]}
+                      </Badge>,
+                      <span key="r" className="whitespace-nowrap text-muted-foreground">
+                        {doc.read}
+                      </span>,
+                    ])}
+                  />
+                </PanelSection>
+              </>
+            )}
+            <PanelSection title="Activity" description="Every read, newest first.">
+              <ActivityList items={activity} />
+            </PanelSection>
+            <PanelSection title="Connection">
+              <Connection
+                rows={shownRows}
+                actions={
+                  isDrive ? (
                     <>
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() =>
-                          navigate('/settings/integrations/google-drive/connect', { step: '3' })
+                          navigate(`/settings/integrations/${c.id}/connect`, { step: '3' })
                         }
                       >
                         Change folders
                       </Button>
                       <Button
-                        variant={state === 'reauth' ? 'default' : 'outline'}
+                        variant={h === 'reauth' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() =>
-                          navigate('/settings/integrations/google-drive/connect', { step: '2' })
+                          navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })
                         }
                       >
                         Replace key
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          toast('Reading paused for Google Drive', {
-                            description: 'Open suggestions stay in the Inbox.',
-                          })
-                        }
-                      >
-                        <PauseIcon data-icon="inline-start" />
-                        Pause reading
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setLeaving(true)}
-                      >
-                        Disconnect
-                      </Button>
+                      <PauseButton source={source} c={c} />
+                      {disconnect}
                     </>
-                  }
-                />
-              </PanelSection>
-            </>
-          )}
+                  ) : (
+                    disconnect
+                  )
+                }
+              />
+            </PanelSection>
+          </>
+        )}
 
-          {c.figures && <FiguresSection c={c} />}
-
-          {!isCube && !isDrive && !isWarehouse && (
-            <>
-              <PanelSection
-                title="What it reads"
-                description="Each folder goes to exactly one domain."
-              >
-                <DataTable
-                  head={['Folder', 'Domain', 'Owners', 'Files']}
-                  align={['left', 'left', 'left', 'right']}
-                  rows={[
-                    ['docs/sales', 'Sales', <Owners key="o" domain="sales" />, 5],
-                    ['docs/marketing', 'Marketing', <Owners key="o2" domain="marketing" />, 3],
-                  ]}
-                />
-              </PanelSection>
-              <PanelSection title="Activity" description="Every read, newest first.">
-                <ActivityList
-                  items={[
-                    {
-                      when: 'Today',
-                      tone: 'ok',
-                      what: 'Connected',
-                      detail: 'First read at 07:00. Nothing is published by a read.',
-                    },
-                  ]}
-                />
-              </PanelSection>
-              <PanelSection title="Connection">
-                <Connection
-                  rows={[
-                    [
-                      'Repository',
-                      <code key="r" className="font-mono text-dense">
-                        https://git.example/larchwood/handbook
-                      </code>,
-                    ],
-                    [
-                      'Branch or tag',
-                      <code key="b" className="font-mono text-dense">
-                        main
-                      </code>,
-                    ],
-                    ['Read-only token', 'Set, only used for reading'],
-                  ]}
-                  actions={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="ml-auto border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => setLeaving(true)}
-                    >
-                      Disconnect
-                    </Button>
-                  }
-                />
-              </PanelSection>
-            </>
-          )}
-        </Panel>
-      </FramePage>
+        {/* Figures show where the integration says how it is reached for one. */}
+        {c.figures && figureConnections[c.id] && <FiguresSection c={c} />}
+      </Panel>
       <DisconnectDialog c={c} open={leaving} onOpenChange={setLeaving} />
-    </Page>
+    </FramePage>
   )
 }
 

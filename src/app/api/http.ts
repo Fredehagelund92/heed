@@ -9,12 +9,14 @@
  * with their reactions and mentions, the Inbox and the review (the golden plan's P6b), Ask on the
  * answer engine, with the person's chats kept in their browser (P10, http-ask.ts), and People:
  * Admin and Member, a domain's owners, invites with their links, removing someone, and how the
- * sign-in screen signs people in (P8, http-people.ts), and Observability's Overview, Questions with
- * its replay and saved views, Quality with the saved questions, Feedback, Usage and Alerts (P12).
- * Every other method answers `not-available` until the pull request that wires its screen (P9 to
- * P13). The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes
- * carry the session's token in `X-Heed-CSRF`, as the service requires, and a retry key, kept until
- * the service answers; the session cookie is HttpOnly, so the token is read from `auth.session`.
+ * sign-in screen signs people in (P8, http-people.ts), Observability's Overview, Questions with
+ * its replay and saved views, Quality with the saved questions, Feedback, Usage and Alerts (P12),
+ * and Settings > Integrations: each source with how it is, its page, Read again and Pause reading
+ * (P11b, http-integrations.ts). Every other method answers `not-available` until the pull request
+ * that wires its screen (P9 to P13). The conformance suite (tests/app/conformance/heed-api.ts) runs
+ * the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
+ * a retry key, kept until the service answers; the session cookie is HttpOnly, so the token is
+ * read from `auth.session`.
  */
 import { createORPCClient } from '@orpc/client'
 import type { AnyContractRouter, ContractRouterClient } from '@orpc/contract'
@@ -74,6 +76,7 @@ import {
   type Words,
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
+import { catalogIdOf, integrationsOf, sourcePageOf } from './http-integrations'
 import { peopleOf } from './http-people'
 import { savedCheckOf, savedQuestionOf } from './http-saved'
 import { alertsOf } from './http-alerts'
@@ -179,6 +182,11 @@ export const wiredMethods = [
   'undo',
   'getConnectReview',
   'getSettings',
+  'getIntegrations',
+  'integrationsPage',
+  'integrationPage',
+  'readIntegration',
+  'pauseIntegration',
   'setLinks',
   'setTool',
   'setPause',
@@ -1441,20 +1449,69 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     getConnectReview: () => Promise.resolve(null),
 
     // Settings, agents and access. The switches are what everyone signed in may read: the tools on
-    // and what is paused. Figures and their data contacts come with the figures (P11a, part 2), and
-    // the integrations connected with their screens (P11b).
+    // and what is paused. Figures and their data contacts come with the figures (P11a, part 2).
     getSettings: async () => {
-      const [connect, stops] = await Promise.all([
+      const [connect, stops, who] = await Promise.all([
         read(() => client.connect.get()),
         read(() => client.serving.stops()),
+        signedIn(),
       ])
+      // The tools connected, which only an admin reads: Settings' menu counts them.
+      const connected = who.admin
+        ? [
+            ...new Set(
+              (await read(() => client.sources.list())).flatMap((row) => {
+                const id = catalogIdOf(row.type)
+                return id ? [id] : []
+              }),
+            ),
+          ]
+        : []
       return {
         mcpAddress: connect.address,
         ...switchesOf(connect.tools, stops),
         figures: {},
         contacts: {},
-        connected: [],
+        connected,
       }
+    },
+    // What the figures and the connect flow read: on the service the figures come with P11a,
+    // part 2, and a tool's views and folders from its test in the connect flow (P11b).
+    getIntegrations: () =>
+      Promise.resolve({ cubeViews: [], driveFolders: [], figureConnections: {}, warehouseHas: [] }),
+    // Settings › Integrations: the sources the service reads, each with how it is (CON-104).
+    integrationsPage: async () => {
+      const [rows, types] = await Promise.all([
+        read(() => client.sources.list()),
+        read(() => client.sources.types()),
+      ])
+      return integrationsOf(rows, types, new Date())
+    },
+    integrationPage: async ({ id }) => {
+      const row = (await read(() => client.sources.list())).find((r) => r.id === id)
+      if (!row) return null
+      const [activity, types, settings] = await Promise.all([
+        read(() => client.sources.activity({ id })),
+        read(() => client.sources.types()),
+        // The server's own sources are configured where it runs: their settings are not read here.
+        row.origin === 'workspace' ? orNull(() => client.sources.get({ id })) : null,
+      ])
+      const manifest = types.find((t) => t.manifest.id === row.type)?.manifest
+      return sourcePageOf(row, activity, settings, manifest, new Date())
+    },
+    // Read again: due now, at the job's next turn (CON-115).
+    readIntegration: async ({ id }) => {
+      await write('sources.read', { id }, (o) => client.sources.read({ id }, o))
+    },
+    pauseIntegration: async ({ id, paused }) => {
+      const input = {
+        id,
+        paused,
+        reason: paused
+          ? 'Paused reading, in Settings, Integrations.'
+          : 'Resumed reading, in Settings, Integrations.',
+      }
+      await write('sources.pause', input, (o) => client.sources.pause(input, o))
     },
     setLinks: async ({ on }) => {
       const input = { tool: 'get_related', enabled: on, reason: BY_SETTINGS }

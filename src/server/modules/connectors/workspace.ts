@@ -2,6 +2,7 @@ import { ORPCError } from '@orpc/client'
 import type {
   AddSourceInput,
   ConnectorListing,
+  PauseSourceInput,
   SourceCheck,
   SourceConfig,
   SourceSettings,
@@ -14,6 +15,7 @@ import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
 import { durationText } from '../../../domain/source-schedule.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
+import { createSourceOverview } from './overview.ts'
 import type { RegisteredConnector } from './platform.ts'
 import type { ConnectorRegistry } from './registry.ts'
 import { SecretStoreError, type SecretStore } from './secrets.ts'
@@ -129,6 +131,8 @@ export function createWorkspaceSources({
   // An admin adds a source of any connector: definitions, or content with its pipeline.
   const addable = () => registry.connectors()
   const typeOf = (type: string) => addable().find((candidate) => candidate.manifest.id === type)
+  // Every source as Integrations shows it, its activity, and Pause reading.
+  const overview = createSourceOverview({ connector: typeOf })
   const secretKeys = (connector: RegisteredConnector) =>
     connector.manifest.secrets.map((secret) => secret.key)
   /** The secrets a source holds; null when its store entry is gone or cannot be read. */
@@ -306,6 +310,10 @@ export function createWorkspaceSources({
   }
 
   return {
+    list: (tx: Queryable) => overview.list(tx),
+    activity: (tx: Queryable, id: string) => overview.activity(tx, id),
+    pause: (tx: Queryable, input: PauseSourceInput) => overview.pause(tx, input),
+
     /** The connectors an admin may add a source of: each manifest, with its access and form. */
     types(): ConnectorListing[] {
       return addable().map(({ manifest, writtenTo }) => ({

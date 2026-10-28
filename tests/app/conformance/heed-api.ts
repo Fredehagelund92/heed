@@ -15,6 +15,7 @@ import { plainOf } from '@/components/templates/comment-box/utils'
 import { readiness } from '@/model/review'
 import { findDefinition, meaningOf, type Definition } from '@/lib/definitions'
 import { emailOf } from '@/model/people'
+import { connectorById } from '@/model/integrations'
 
 /** Two names for the same word: case aside. */
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
@@ -849,6 +850,95 @@ export function describeHeedApi(
         expect(
           await (await signedIn()).checkConnect({ since: Date.now(), agent: 'Claude Code' }),
         ).toEqual({ state: 'waiting' })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'integrationsPage', 'integrationPage', 'getSettings'))(
+      "lists the tools connected, each with how it is, and opens each one's page",
+      async () => {
+        const live = await signedIn()
+        const { sources, connectable } = await live.integrationsPage()
+        expect(sources.length).toBeGreaterThan(0)
+        expect(new Set(sources.map((s) => s.id)).size).toBe(sources.length)
+        expect(connectable).toEqual(
+          expect.arrayContaining(['cube', 'google-drive', 'markdown-git']),
+        )
+        // Settings' menu counts the same tools.
+        expect((await live.getSettings()).connected).toEqual(
+          expect.arrayContaining([...new Set(sources.map((s) => s.connector))]),
+        )
+        for (const s of sources) {
+          const tool = connectorById(s.connector)
+          expect(tool, s.id).toBeDefined()
+          expect(tool!.soon, s.id).toBeFalsy()
+          expect(['healthy', 'reading', 'failed', 'reauth', 'paused'], s.id).toContain(s.health)
+          expect(s.every, s.id).toMatch(/^(every [a-z0-9 ]+|when asked)$/)
+          expect(s.staleAfter, s.id).toMatch(/^\d+ (minute|hour|day)s?$/)
+          if (s.last) expect(s.last.at.time, s.id).toMatch(/^\d{2}:\d{2}$/)
+          // A definitions tool holds definitions, a context tool documents; never both.
+          expect(!!(s.definitions && s.documents), s.id).toBe(false)
+          if (tool!.kind === 'definitions') expect(s.definitions, s.id).not.toBeNull()
+          if (tool!.kind === 'context') expect(s.documents, s.id).not.toBeNull()
+          const page = await live.integrationPage({ id: s.id })
+          expect(page?.source, s.id).toEqual(s)
+          for (const a of page!.activity) {
+            expect(['ok', 'changed', 'failed'], s.id).toContain(a.tone)
+            expect(a.what, s.id).not.toBe('')
+          }
+          for (const row of page!.connection) {
+            expect(row.label, s.id).not.toBe('')
+            // A secret is never shown: only whether one is set.
+            expect(row.value, s.id).not.toMatch(/token_|BEGIN PRIVATE KEY|private_key/)
+          }
+        }
+        expect(await live.integrationPage({ id: 'no-such-tool' })).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'integrationsPage', 'integrationPage'))(
+      "a document tool's page lists what its read made: suggestions waiting for owners, none published by the read",
+      async () => {
+        const live = await signedIn()
+        const drive = (await live.integrationsPage()).sources.find(
+          (s) => s.connector === 'google-drive',
+        )
+        expect(drive?.documents?.waiting).toBeGreaterThan(0)
+        expect(drive!.inbox).toMatch(/^\/inbox/)
+        const page = (await live.integrationPage({ id: drive!.id }))!
+        expect(page.folders.length).toBeGreaterThan(0)
+        for (const f of page.folders) {
+          expect(f.folder).not.toBe('')
+          expect(f.documents).toBeGreaterThanOrEqual(0)
+        }
+        const waiting = page.documents.filter((d) => d.state === 'waiting')
+        expect(waiting.length).toBeGreaterThan(0)
+        // Each links to its card in the Inbox where the binding knows it.
+        expect(waiting.some((d) => /^\/inbox\?(.*&)?card=/.test(d.href ?? ''))).toBe(true)
+        for (const d of page.documents)
+          expect(d.href === undefined || d.state === 'waiting').toBe(true)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'integrationsPage', 'readIntegration', 'pauseIntegration'))(
+      'reads a tool again, and pauses reading it until an admin lets it go on',
+      async () => {
+        const live = await signedIn()
+        const health = async (id: string) =>
+          (await live.integrationsPage()).sources.find((s) => s.id === id)!.health
+        const cube = (await live.integrationsPage()).sources.find((s) => s.connector === 'cube')!
+        await live.readIntegration({ id: cube.id })
+        expect(await health(cube.id)).toBe('reading')
+        await live.pauseIntegration({ id: cube.id, paused: true })
+        const paused = (await live.integrationsPage()).sources.find((s) => s.id === cube.id)!
+        expect(paused).toMatchObject({ health: 'paused', next: null })
+        await expect(live.readIntegration({ id: cube.id })).rejects.toMatchObject({
+          kind: 'conflict',
+        })
+        await live.pauseIntegration({ id: cube.id, paused: false })
+        expect(await health(cube.id)).not.toBe('paused')
+        await expect(live.readIntegration({ id: 'no-such-tool' })).rejects.toMatchObject({
+          kind: 'not-found',
+        })
       },
     )
 
