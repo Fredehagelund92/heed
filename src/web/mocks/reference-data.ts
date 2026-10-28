@@ -46,6 +46,7 @@ Facts here are mostly events and notes that move these numbers, such as a market
     ownerIds: ['per_jon', 'per_sofia'],
     label: 'teal',
     revision: 1,
+    demo: false,
   },
   {
     id: 'area_marketing',
@@ -58,6 +59,7 @@ Expect notes on campaign launches and pauses, tracking changes that break a seri
     ownerIds: ['per_tomas'],
     label: 'pink',
     revision: 1,
+    demo: false,
   },
   {
     id: 'area_customer_value',
@@ -70,6 +72,7 @@ Most facts here explain definitions (what counts as active, when a customer chur
     ownerIds: ['per_noor', 'per_alex'],
     label: 'indigo',
     revision: 1,
+    demo: false,
   },
   {
     id: 'area_paid_media',
@@ -81,6 +84,7 @@ Facts here are about attribution windows, tracking outages and campaigns whose s
     ownerIds: ['per_priya'],
     label: 'violet',
     revision: 1,
+    demo: false,
   },
   {
     id: 'area_sandbox',
@@ -92,6 +96,7 @@ Use it to practise, and never quote it about the real business.`,
     ownerIds: ['per_jon'],
     label: 'gray',
     revision: 1,
+    demo: true,
   },
 ]
 

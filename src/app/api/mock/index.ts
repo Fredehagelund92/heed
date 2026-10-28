@@ -2,6 +2,7 @@ import type { HeedApi, HeedApiMethod, Inbox } from '../client'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
 import { mentionNotesOf, type Subject } from '@/model/comments'
+import { servedToAgents } from '@/model/items'
 import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
@@ -30,6 +31,7 @@ import {
   readDefinitionsFrom,
   readQuestion,
 } from './data/ask'
+import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
@@ -217,7 +219,27 @@ export function createMockApi() {
     // Domains and people
     updateDomain: (input) => now(() => workspace.updateDomain(input)),
     addDomain: (input) => now(() => ({ id: workspace.addDomain(input) })),
-    removeDomain: ({ id }) => now(() => workspace.removeDomain(id)),
+    // Only an empty domain is deleted, and never the sandbox, as the service refuses.
+    removeDomain: ({ id }) =>
+      now(() => {
+        const domain = workspace.domainMap()[id]
+        if (!domain)
+          throw new ApiError('not-found', "We couldn't find this domain. It may have been deleted.")
+        if (domain.sandbox)
+          throw new ApiError(
+            'conflict',
+            "The sandbox can't be deleted. It is where people try context, and agents never get it.",
+          )
+        const holds =
+          factsOf(state).some((f) => f.domain === id && servedToAgents(f)) ||
+          definitions.list().some((d) => d.domain === id)
+        if (holds)
+          throw new ApiError(
+            'conflict',
+            'Only an empty domain can be deleted. Move its context and terms to another domain first.',
+          )
+        workspace.removeDomain(id)
+      }),
     setOwner: ({ name, domain, own }) =>
       now(() =>
         workspace.setOwner(name, domain, own) === 'last'
@@ -504,6 +526,20 @@ export function createMockApi() {
     // Settings, integrations and agents
     getSettings: () => now(() => settings.read(scenario.address())),
     setLinks: ({ on }) => now(() => settings.setLinks(on)),
+    setTool: ({ name, on }) => now(() => settings.setTool(name, on)),
+    setPause: (change) => now(() => settings.setPause(change)),
+    createAccessKey: () => now(() => ({ key: demoAccessKey() })),
+    advancedPage: () => read('advancedPage', '', () => advancedOf(state.log)),
+    checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
+    exportHistory: () => now(() => historyFile(state.log)),
+    exportContext: () =>
+      now(() =>
+        contextFile(
+          factsOf(state)
+            .filter((f) => f.status !== 'Draft' && f.status !== 'Archived')
+            .map((f) => ({ id: f.id, title: f.title })),
+        ),
+      ),
     setFigures: ({ source, on }) => now(() => settings.setFigures(source, on)),
     setDataContact: ({ source, name }) => now(() => settings.setContact(source, name)),
     connectIntegration: ({ id, setup }) =>

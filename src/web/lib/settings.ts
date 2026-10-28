@@ -485,6 +485,14 @@ export const settingMeta: Record<SettingKey, SettingMeta> = {
     fields: [{ name: 'value', label: 'About our business', kind: 'text', optional: true }],
     words: aboutBusinessWords,
   },
+  'workspace.name': {
+    title: 'Workspace name',
+    description: 'The name an answer shared from Ask carries. Empty until you name it.',
+    group: 'business',
+    shape: 'value',
+    fields: [{ name: 'value', label: 'Workspace name', kind: 'text', optional: true }],
+    words: (value) => (typeof value === 'string' && value ? value : 'Not named'),
+  },
 }
 
 /** Whether a stored key is one this screen describes (a key the API may change). */

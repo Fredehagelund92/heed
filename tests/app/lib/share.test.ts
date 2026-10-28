@@ -36,5 +36,7 @@ describe('Copy for Slack', () => {
     expect(cardFooter('Larchwood Outdoor', '2026-10-23')).toBe(
       'Larchwood Outdoor - answered 23 Oct 2026',
     )
+    // A workspace nobody named yet: when, and nothing before it.
+    expect(cardFooter('', '2026-10-23')).toBe('Answered 23 Oct 2026')
   })
 })

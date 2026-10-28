@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test'
-import { go } from './go.ts'
+import { agentSignsIn, expect, go, test } from './go.ts'
 
 // J12, connect an agent: copy the prompt, the page waits and checks every 3 seconds, the agent
 // signs in and joins Connected agents; past 2 minutes it shows what usually helps, at 10 it stops
-// and Check again resumes. One Claude cell switches between Claude Code and the app.
+// and Check again resumes. One Claude cell switches between Claude Code and the app. On the
+// service the agent really signs in (agentSignsIn), and each state of the live line happens.
 
 test('copy the prompt, wait, and the agent joins the list', async ({ page }) => {
   await page.clock.install()
@@ -12,6 +12,7 @@ test('copy the prompt, wait, and the agent joins the list', async ({ page }) => 
   await expect(live).toContainText('Not connected yet')
   await page.getByRole('button', { name: 'Copy prompt' }).click()
   await expect(live).toContainText('Waiting for your agent to connect…')
+  await agentSignsIn(page)
   await page.clock.runFor(9_000)
   await expect(live).toContainText('Connected: Claude Code, Jon Abara')
   const list = page.getByRole('list', { name: 'Connected agents' })
@@ -34,11 +35,14 @@ test('past 2 minutes it shows what helps; at 10 it stops, and Check again resume
 })
 
 test('each state has an address', async ({ page }) => {
+  // On the service a wait runs out in ten minutes of the page's own time.
+  await page.clock.install()
   for (const [flag, text] of [
     ['idle', 'Not connected yet'],
     ['connected', 'It can call get_context'],
-    ['timeout', 'Stopped checking after 10 minutes.'],
     ['declined', 'The connection was declined in the browser.'],
+    // Last: on the service, ten minutes of the page's own time pass.
+    ['timeout', 'Stopped checking after 10 minutes.'],
   ] as const) {
     await go(page, `/settings/agents?connect=${flag}`)
     await expect(page.getByText(text)).toBeVisible()
@@ -71,6 +75,7 @@ test('the dialog shows the same body, and a connect there reaches Settings', asy
   await go(page, '/inbox?open=connect')
   const dialog = page.getByRole('dialog', { name: 'Connect an agent' })
   await dialog.getByRole('button', { name: 'Copy prompt' }).click()
+  await agentSignsIn(page)
   await page.clock.runFor(9_000)
   await expect(dialog.getByText('Connected: Claude Code, Jon Abara')).toBeVisible()
   await dialog.getByRole('button', { name: 'Done' }).click()

@@ -8,6 +8,7 @@ import { describeHeedApi } from '../conformance/heed-api'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { apiDatabase, testDatabase } from '../../integration/support.ts'
 import { devPeople, OWNER, seedDemoWeek, TODAY } from '../http/demo-week.ts'
+import { demoLoginServer } from '../http/login.ts'
 
 /*
   The app's http binding against the real service and PostgreSQL 18. The conformance suite is the
@@ -24,6 +25,8 @@ const app = buildApp({
   logger: createLogger({ level: 'silent' }),
   clock: systemClock(TODAY),
   devPeople: devPeople(),
+  // The agents the demo week's people connected sign in with the service's own login server.
+  login: await demoLoginServer('http://localhost:3000', 'http://localhost:5173'),
 })
 let api: HeedApi | undefined
 let base = ''

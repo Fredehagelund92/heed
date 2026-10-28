@@ -339,6 +339,11 @@ const startingSettings: { key: SettingKey; value: unknown; reason: string }[] = 
     value: ABOUT_BUSINESS_STARTER,
     reason: 'default: the starter text, an outdoor-gear retailer',
   },
+  {
+    key: 'workspace.name',
+    value: '',
+    reason: 'default: no name until an admin gives the workspace one',
+  },
 ]
 
 /** Later versions a demo service would have: the history of these reads like a real one. */
@@ -1170,16 +1175,18 @@ export function createMockAdmin(world: MockAdminWorld) {
           text.trim() === text &&
           // eslint-disable-next-line no-control-regex
           !/[\u0000-\u001f\u007f]/.test(text))
+      // A new domain may leave its hue, review time, channel and team to the service's defaults.
+      const reviewDays = input.reviewDays ?? 2
       valid(
         /^[a-z][a-z0-9_]{1,39}$/.test(input.id) &&
-          (domainHues as readonly string[]).includes(input.label) &&
+          (domainHues as readonly string[]).includes(input.label ?? 'gray') &&
           line(input.name, 60) &&
-          line(input.chatChannel, 100) &&
-          line(input.ownerTeam, 100) &&
+          line(input.chatChannel ?? null, 100) &&
+          line(input.ownerTeam ?? null, 100) &&
           described(input) &&
-          Number.isInteger(input.reviewDays) &&
-          input.reviewDays >= 1 &&
-          input.reviewDays <= 30,
+          Number.isInteger(reviewDays) &&
+          reviewDays >= 1 &&
+          reviewDays <= 30,
       )
       // A new area needs no reason: creating it says what happened.
       if (input.reason !== undefined) plainReason(input.reason)
@@ -1514,16 +1521,17 @@ export function createMockAdmin(world: MockAdminWorld) {
         roster.areas.push({
           id: input.id,
           name: input.name,
-          label: input.label,
+          label: input.label ?? 'gray',
+          demo: false,
           summary: input.summary ?? '',
           description: input.description ?? '',
           ownerIds: [],
           revision: 1,
         })
         areaSettings.set(input.id, {
-          reviewDays: input.reviewDays,
-          chatChannel: input.chatChannel,
-          ownerTeam: input.ownerTeam,
+          reviewDays: input.reviewDays ?? 2,
+          chatChannel: input.chatChannel ?? null,
+          ownerTeam: input.ownerTeam ?? null,
           demo: false,
           createdAt: world.now(),
         })

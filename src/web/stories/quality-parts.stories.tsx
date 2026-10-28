@@ -42,6 +42,7 @@ const area = (id: string, name: string, label: Area['label']): Area => ({
   ownerIds: [],
   label,
   revision: 1,
+  demo: false,
 })
 const point = (run: string, day: string, passed: number, retrieval: number): HistoryPoint => ({
   run,

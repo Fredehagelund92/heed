@@ -59,6 +59,19 @@ export const adminDisconnectPersonSchema = z.strictObject({ personId: z.uuid(), 
 /** How many connections ended: none when they had all ended already. */
 export const adminDisconnectedSchema = z.object({ disconnected: z.number() })
 
+/**
+ * Connect an agent's live line (FR-418): whether the signed-in person's own agent signed in, or
+ * the person declined it in the browser, since the page began to wait. A wait is ten minutes on
+ * the page, so a moment more than an hour ago reads as an hour ago.
+ */
+export const connectPendingInputSchema = z.strictObject({ since: z.iso.datetime() })
+/** The newest outcome since then, with the agent's own name for itself; none is `waiting`. */
+export const connectPendingSchema = z.object({
+  state: z.enum(['waiting', 'connected', 'declined']),
+  agent: z.nullable(z.string()),
+  at: z.nullable(z.string()),
+})
+
 export type ConnectionScope = z.infer<typeof connectionScopeSchema>
 export type ConnectRequest = z.infer<typeof connectRequestSchema>
 export type Connection = z.infer<typeof connectionSchema>

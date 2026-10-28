@@ -140,8 +140,20 @@ export type SavedCheck = { run: 'idle' | 'running' | 'failed'; checked: number }
 
 /** The workspace's switches an admin sets in Settings and on an integration's page. */
 export type Settings = {
+  /**
+   * The address agents connect to, the MCP server's: the prompt and every agent's steps name it.
+   * Null where this workspace serves no agents.
+   */
+  mcpAddress: string | null
   /** Let agents follow links (get_related). */
   links: boolean
+  /** Which of the other tools agents may call, by name: on unless an admin switched it off. */
+  tools: Record<string, boolean>
+  /**
+   * Pause sharing, for an emergency: agents get no context at all, or none of one domain's.
+   * `domain` is the domain paused, or null.
+   */
+  pause: { all: boolean; domain: DomainId | null }
   /** Whether Ask shows figures, per figure-capable integration: off until an admin turns it on. */
   figures: Partial<Record<ConnectorId, boolean>>
   /** Who answers for each integration's data, by name. */
@@ -166,6 +178,25 @@ export type Integrations = {
 
 /** How a suggestion that overlaps a live item relates to it, as the owner chose. */
 export type Relation = 'replaces' | 'disagree' | 'unrelated'
+
+/** Settings, Advanced: what an admin reads there, for the day someone needs it. */
+export type Advanced = {
+  /** The tuning settings, read only: each by its key, its value in words and what it does. */
+  limits: { key: string; value: string; what: string }[]
+  /** How many tuning settings there are in all; the list names the ones people ask about. */
+  settings: number
+  /** Drafts and terms deleted for good, newest first, each with who, when and its domain. */
+  deleted: { key: string; title: string; hint: string; domain: DomainId | null }[]
+  /** The history log's latest entries, newest first. `href` opens what an entry names. */
+  history: { key: string; when: string; who: string; what: string; href?: string }[]
+  /** What runs on its own: each job, when it last ran and how it went; null when unread. */
+  jobs: { key: string; job: string; href?: string; last: string; result: string }[] | null
+  /** The latest sealed editions, newest first. */
+  editions: { label: string; sealed: string; change: string }[]
+}
+
+/** A file for the person to save: its name and its text. */
+export type Exported = { name: string; type: string; content: string }
 
 /** A context item's page: the item and its versions, newest first. */
 export type ItemPage = { item: Fact; history: Version[] }
@@ -424,6 +455,26 @@ export interface HeedApi {
   // Settings, integrations and agents
   getSettings: () => Promise<Settings>
   setLinks: (input: { on: boolean }) => Promise<void>
+  /** Switches one tool agents call on or off, for every agent. */
+  setTool: (input: { name: string; on: boolean }) => Promise<void>
+  /**
+   * Pauses sharing, or lets it go on: every agent at once (`all`), or one domain at a time
+   * (`domain`, null for none). It acts at once and is logged.
+   */
+  setPause: (input: { all: boolean } | { domain: DomainId | null }) => Promise<void>
+  /** A key for a bot or a scheduled job that can't sign in: shown this once, kept nowhere here. */
+  createAccessKey: () => Promise<{ key: string }>
+  /** Settings, Advanced's own read. */
+  advancedPage: () => Promise<Advanced>
+  /**
+   * Checks the history log's hash chain end to end: whether it is whole, and how many entries it
+   * checked when the binding counts them (null when it doesn't).
+   */
+  checkHistory: () => Promise<{ whole: boolean; entries: number | null }>
+  /** The history log as a file, oldest first. */
+  exportHistory: () => Promise<Exported>
+  /** What agents get now, every context item and term, as one file for a backup or a move. */
+  exportContext: () => Promise<Exported>
   setFigures: (input: { source: ConnectorId; on: boolean }) => Promise<void>
   setDataContact: (input: { source: ConnectorId; name: string }) => Promise<void>
   connectIntegration: (input: { id: ConnectorId; setup?: boolean }) => Promise<void>
@@ -547,6 +598,13 @@ export const heedApiMethods = [
   'setAlertThreshold',
   'getSettings',
   'setLinks',
+  'setTool',
+  'setPause',
+  'createAccessKey',
+  'advancedPage',
+  'checkHistory',
+  'exportHistory',
+  'exportContext',
   'setFigures',
   'setDataContact',
   'connectIntegration',
@@ -584,6 +642,7 @@ export const pageReads = [
   'getDefinitionHistory',
   'inboxPage',
   'observabilityPage',
+  'advancedPage',
 ] as const satisfies readonly HeedApiMethod[]
 
 export type PageRead = (typeof pageReads)[number]

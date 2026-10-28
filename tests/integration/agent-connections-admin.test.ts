@@ -51,7 +51,7 @@ describe('an administrator and the agents people connected', () => {
     const ownerApp = await connect('owner')
     const boss = await signedIn('admin')
 
-    const response = await boss.api('/ai-connections')
+    const response = await boss.api('/agent-connections')
     expect(response.status).toBe(200)
     const listed = (await response.json()) as Listed[]
     expect(listed).toEqual(
@@ -77,15 +77,15 @@ describe('an administrator and the agents people connected', () => {
 
     // A reason is required, and blank words are no reason.
     for (const body of [{}, { reason: '' }, { reason: '   ' }])
-      expect((await boss.api(`/ai-connections/${target.id}/disconnect`, body)).status).toBe(400)
+      expect((await boss.api(`/agent-connections/${target.id}/disconnect`, body)).status).toBe(400)
     // It is kept in the history log for good, so it must hold no secret.
-    const secret = await boss.api(`/ai-connections/${target.id}/disconnect`, {
+    const secret = await boss.api(`/agent-connections/${target.id}/disconnect`, {
       reason: 'password: hunter22',
     })
     expect(secret.status).toBe(422)
     expect(await mcpStatus(authorApp.access_token)).toBe(200)
 
-    const ended = await boss.api(`/ai-connections/${target.id}/disconnect`, {
+    const ended = await boss.api(`/agent-connections/${target.id}/disconnect`, {
       reason: '  The laptop it ran on was lost  ',
     })
     expect(ended.status).toBe(200)
@@ -100,9 +100,9 @@ describe('an administrator and the agents people connected', () => {
     const author = await signedIn('author')
     expect(await (await author.api('/connections')).json()).toEqual([])
     expect(
-      (await boss.api(`/ai-connections/${target.id}/disconnect`, { reason: 'Again' })).status,
+      (await boss.api(`/agent-connections/${target.id}/disconnect`, { reason: 'Again' })).status,
     ).toBe(404)
-    const after = (await (await boss.api('/ai-connections')).json()) as Listed[]
+    const after = (await (await boss.api('/agent-connections')).json()) as Listed[]
     expect(after.map((connection) => connection.id)).not.toContain(target.id)
 
     // The history log names who disconnected it, for whom, and why.
@@ -136,7 +136,7 @@ describe('an administrator and the agents people connected', () => {
     const second = await connect('stranger', 'read')
     const kept = await connect('owner')
     const boss = await signedIn('admin')
-    const ended = await boss.api(`/ai-connections/people/${people.stranger}/disconnect`, {
+    const ended = await boss.api(`/agent-connections/people/${people.stranger}/disconnect`, {
       reason: 'Left the company',
     })
     expect(ended.status).toBe(200)
@@ -146,7 +146,7 @@ describe('an administrator and the agents people connected', () => {
       expect((await refresh(app)).status).toBe(400)
     }
     expect(await mcpStatus(kept.access_token)).toBe(200)
-    const listed = (await (await boss.api('/ai-connections')).json()) as Listed[]
+    const listed = (await (await boss.api('/agent-connections')).json()) as Listed[]
     expect(listed.some((connection) => connection.person.id === people.stranger)).toBe(false)
 
     // Two history entries, one per connection, sharing the step's batch and its reason.
@@ -161,7 +161,7 @@ describe('an administrator and the agents people connected', () => {
     expect(audit.rows.map((row) => row.reason)).toEqual(['Left the company', 'Left the company'])
 
     // Nothing left to end: none, and no history entry.
-    const again = await boss.api(`/ai-connections/people/${people.stranger}/disconnect`, {
+    const again = await boss.api(`/agent-connections/people/${people.stranger}/disconnect`, {
       reason: 'Left the company',
     })
     expect(await again.json()).toEqual({ disconnected: 0 })
@@ -178,26 +178,26 @@ describe('an administrator and the agents people connected', () => {
   it('refuses anyone but an administrator, and leaves their apps working', async () => {
     const app = await connect('author')
     const boss = await signedIn('admin')
-    const [target] = ((await (await boss.api('/ai-connections')).json()) as Listed[]).filter(
+    const [target] = ((await (await boss.api('/agent-connections')).json()) as Listed[]).filter(
       (connection) => connection.person.id === people.author,
     )
     for (const name of ['author', 'owner', 'stranger']) {
       const person = await signedIn(name)
-      expect((await person.api('/ai-connections')).status).toBe(403)
+      expect((await person.api('/agent-connections')).status).toBe(403)
       expect(
-        (await person.api(`/ai-connections/${target!.id}/disconnect`, { reason: 'Mine now' }))
+        (await person.api(`/agent-connections/${target!.id}/disconnect`, { reason: 'Mine now' }))
           .status,
       ).toBe(403)
       expect(
         (
-          await person.api(`/ai-connections/people/${people.author}/disconnect`, {
+          await person.api(`/agent-connections/people/${people.author}/disconnect`, {
             reason: 'Mine now',
           })
         ).status,
       ).toBe(403)
     }
     // Signed out, the list is not there at all.
-    expect((await browser().api('/ai-connections')).status).toBe(401)
+    expect((await browser().api('/agent-connections')).status).toBe(401)
     expect(await mcpStatus(app.access_token)).toBe(200)
     expect((await refresh(app)).status).toBe(200)
   })

@@ -97,7 +97,7 @@ export function ObsControls({ view, compact }: { view: ObsView; compact?: boolea
   const obs = useObservability()
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
-  const doms = view.owned ?? domainIds.filter((d) => d !== 'sandbox')
+  const doms = view.owned ?? domainIds.filter((d) => !domains[d]?.sandbox)
   return (
     <div className="flex flex-wrap items-center gap-2">
       {!compact && (view.owned?.length !== 1 || !view.owned) && (

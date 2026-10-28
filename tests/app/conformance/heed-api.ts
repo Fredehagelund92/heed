@@ -687,6 +687,167 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getWorkspace'))(
+      'names the workspace, as an admin named it',
+      async () => {
+        expect((await (await signedIn()).getWorkspace()).name).not.toBe('')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'addDomain', 'updateDomain', 'removeDomain'))(
+      'adds a domain from its page, renames it and writes its text, and deletes it while empty',
+      async () => {
+        const live = await signedIn()
+        const name = `Finance ${Date.now() % 100_000}`
+        const { id } = await live.addDomain({ name, owners: [person], text: 'Costs and budgets.' })
+        let made = (await live.getWorkspace()).domains.find((d) => d.id === id)
+        expect(made).toMatchObject({ name, owners: [person], covers: 'Costs and budgets.' })
+        expect(made?.sandbox).toBeFalsy()
+        const text = 'Costs, budgets and payroll.\n\nHouse rules: money is in euros.'
+        await live.updateDomain({ id, name: `${name} and payroll`, text })
+        made = (await live.getWorkspace()).domains.find((d) => d.id === id)
+        expect(made).toMatchObject({
+          name: `${name} and payroll`,
+          text,
+          covers: 'Costs, budgets and payroll.',
+        })
+        await live.removeDomain({ id })
+        expect((await live.getWorkspace()).domains.some((d) => d.id === id)).toBe(false)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'getLibrary', 'removeDomain'))(
+      "doesn't delete a domain with context, nor the sandbox",
+      async () => {
+        const live = await signedIn()
+        const { domains } = await live.getWorkspace()
+        const items = (await live.getLibrary()).items
+        const held = domains.find((d) =>
+          items.some(
+            (f) => f.domain === d.id && (f.status === 'Live' || f.status === 'Needs checking'),
+          ),
+        )!
+        await expect(live.removeDomain({ id: held.id })).rejects.toMatchObject({
+          kind: 'conflict',
+          message: expect.stringMatching(/Only an empty domain can be deleted/) as unknown,
+        })
+        const sandbox = domains.find((d) => d.sandbox)!
+        expect(sandbox, 'a sandbox').toBeDefined()
+        await expect(live.removeDomain({ id: sandbox.id })).rejects.toMatchObject({
+          kind: 'conflict',
+        })
+        expect((await live.getWorkspace()).domains.map((d) => d.id)).toEqual(
+          domains.map((d) => d.id),
+        )
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getSettings', 'setLinks', 'setTool'))(
+      'switches a tool agents call off and on again, links among them',
+      async () => {
+        const live = await signedIn()
+        const before = await live.getSettings()
+        expect(Object.keys(before.tools)).toEqual(
+          expect.arrayContaining(['get_context', 'find_context', 'read_context', 'report']),
+        )
+        await live.setTool({ name: 'suggest_context', on: false })
+        expect((await live.getSettings()).tools.suggest_context).toBe(false)
+        await live.setTool({ name: 'suggest_context', on: true })
+        expect((await live.getSettings()).tools.suggest_context).toBe(true)
+        await live.setLinks({ on: !before.links })
+        expect((await live.getSettings()).links).toBe(!before.links)
+        await live.setLinks({ on: before.links })
+        expect((await live.getSettings()).links).toBe(before.links)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getSettings', 'getWorkspace', 'setPause'))(
+      'pauses sharing for everything, or for one domain at a time, and lets it go on',
+      async () => {
+        const live = await signedIn()
+        expect((await live.getSettings()).pause).toEqual({ all: false, domain: null })
+        await live.setPause({ all: true })
+        expect((await live.getSettings()).pause.all).toBe(true)
+        await live.setPause({ all: false })
+        const [first, second] = (await live.getWorkspace()).domains
+        await live.setPause({ domain: first!.id })
+        expect((await live.getSettings()).pause).toEqual({ all: false, domain: first!.id })
+        // Another domain paused lets the first go on.
+        await live.setPause({ domain: second!.id })
+        expect((await live.getSettings()).pause.domain).toBe(second!.id)
+        await live.setPause({ domain: null })
+        expect((await live.getSettings()).pause).toEqual({ all: false, domain: null })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgentConnection'))(
+      'lists the agents people connected, one row each, and revokes one',
+      async () => {
+        const live = await signedIn()
+        const rows = await live.listAgentConnections()
+        expect(rows.length).toBeGreaterThan(1)
+        expect(new Set(rows.map((r) => `${r.agent}/${r.who}`)).size).toBe(rows.length)
+        for (const r of rows) {
+          expect(r.agent).not.toBe('')
+          expect(r.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+          expect(r.used).not.toBe('')
+        }
+        const gone = rows.find((r) => r.who !== person) ?? rows[0]!
+        await live.revokeAgentConnection({ agent: gone.agent, who: gone.who })
+        const after = await live.listAgentConnections()
+        expect(after.some((r) => r.agent === gone.agent && r.who === gone.who)).toBe(false)
+        expect(after.length).toBe(rows.length - 1)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'checkConnect'))(
+      'waits while no agent signed in since the wait began',
+      async () => {
+        expect(
+          await (await signedIn()).checkConnect({ since: Date.now(), agent: 'Claude Code' }),
+        ).toEqual({ state: 'waiting' })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'advancedPage'))(
+      'reads Settings, Advanced: the limits in words, what was deleted, the log, jobs and editions',
+      async () => {
+        const page = await (await signedIn()).advancedPage()
+        expect(page.limits.length).toBeGreaterThan(2)
+        expect(page.settings).toBeGreaterThanOrEqual(page.limits.length)
+        for (const l of page.limits) {
+          expect(l.key).toMatch(/^[a-z_]+(\.[a-z_]+)+$/)
+          expect(l.value, l.key).not.toBe('')
+          expect(l.what, l.key).not.toBe('')
+        }
+        expect(page.limits.find((l) => l.key === 'privacy.min_count')?.value).toBe('5')
+        for (const d of page.deleted) expect(d.hint).toMatch(/^Deleted by .+, .+: .+\.$/)
+        expect(new Set(page.deleted.map((d) => d.key)).size).toBe(page.deleted.length)
+        expect(page.history.length).toBeGreaterThan(0)
+        for (const h of page.history) {
+          expect(h.who).not.toBe('')
+          expect(h.what).not.toBe('')
+        }
+        for (const e of page.editions) expect(e.label).toMatch(/^\d{4}-\d{2}-\d{2}\.\d+$/)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'checkHistory', 'exportHistory', 'exportContext'))(
+      'checks the history chain, and exports the log and the context as files',
+      async () => {
+        const live = await signedIn()
+        expect((await live.checkHistory()).whole).toBe(true)
+        const log = await live.exportHistory()
+        expect(log.name).toMatch(/^history-.+\.jsonl$/)
+        expect(log.content.split('\n').length).toBeGreaterThan(0)
+        for (const line of log.content.split('\n'))
+          expect(() => JSON.parse(line) as unknown).not.toThrow()
+        const context = await live.exportContext()
+        expect(context.name).toMatch(/^context-.+\.json$/)
+        expect(JSON.parse(context.content)).toBeTypeOf('object')
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getSession', 'getWorkspace', 'setAbout', 'completeSetupStep'))(
       'keeps what the business is about, and the setup checklist counts it written',
       async () => {

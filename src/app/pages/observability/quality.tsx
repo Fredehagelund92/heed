@@ -134,7 +134,7 @@ function Quality({ run }: { run: SavedCheck }) {
     }, 130)
   }
 
-  const domainChoices = own ?? domainIds.filter((d) => d !== 'sandbox')
+  const domainChoices = own ?? domainIds.filter((d) => !domains[d]?.sandbox)
   const actions = (
     <div className="flex flex-wrap items-center gap-2">
       {domainChoices.length > 1 && (

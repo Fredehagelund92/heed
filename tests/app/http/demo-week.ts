@@ -7,7 +7,8 @@ import { seedComments, seedReactions } from '@/api/mock/data/comments'
 import { TERMS } from '@/api/mock/data/terms'
 import { spainDraft } from '@/api/mock/data/drafts'
 import { reviews } from '@/api/mock/data/review'
-import { facts, people as worldPeople } from '@/api/mock/data/world'
+import { facts, people as worldPeople, WORKSPACE_NAME } from '@/api/mock/data/world'
+import { seedAgents } from '@/api/mock/data/agents'
 import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
@@ -859,6 +860,35 @@ async function seedAskedThisWeek(client: pg.Client) {
  * mock card's id on the service: a suggestion's proposal (the Not found card's draft for
  * gap-spain), the report's card, and each draft's proposal.
  */
+/**
+ * The agents people connected, as the mock lists them: each agent registered once with the
+ * login server, and a connection for each person, made the day the mock says, used as lately as
+ * it says. Nothing here is a token: a connection's tokens are only ever made by signing in.
+ */
+async function seedAgentConnections(client: pg.Client) {
+  const ago = { Today: '2 hours', Yesterday: '1 day' } as Record<string, string>
+  for (const [index, row] of seedAgents.entries()) {
+    const clientId = `demo-agent-${row.agent.toLowerCase().replace(/[^a-z]+/g, '-')}`
+    await client.query(
+      `insert into auth.oauth_clients (id, kind, name, redirect_uris)
+       values ($1, 'registered', $2, '{http://127.0.0.1:43123/callback}') on conflict (id) do nothing`,
+      [clientId, row.agent],
+    )
+    await client.query(
+      `insert into auth.oauth_grants (person_id, client_id, scopes, created_at, expires_at, last_used_at)
+       values ($1, $2, '{read,feedback,propose}', $3::timestamptz, now() + interval '30 days',
+               now() - $4::interval - make_interval(mins => $5))`,
+      [
+        seedPersonId(personId(row.who)),
+        clientId,
+        `${isoDay(row.since, TODAY)}T09:00:00Z`,
+        ago[row.used] ?? '3 days',
+        index,
+      ],
+    )
+  }
+}
+
 export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   let flag: string | undefined
   let topics: Map<string, string> | undefined
@@ -933,6 +963,14 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
       `insert into mcp_requests (client_label, tool, status, app_family) values ('claude', 'get_context', 'ok', 'claude_code')`,
     )
     await after.query(`insert into setup_marks (step) values ('ask') on conflict do nothing`)
+    // The workspace's name, as an admin named it, and the agents people connected (P11a).
+    await after.query(
+      `insert into settings_versions (key, version, value, reason)
+       select 'workspace.name', max(version) + 1, to_jsonb($1::text), 'Named in General.'
+         from settings_versions where key = 'workspace.name'`,
+      [WORKSPACE_NAME],
+    )
+    await seedAgentConnections(after)
     // What agents asked over the weeks Observability counts, and what they reported (P12).
     topics = await seedObservability(after)
     // Sent this morning, one minute apart, newest first in the mock's order.

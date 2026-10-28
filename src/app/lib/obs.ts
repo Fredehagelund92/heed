@@ -21,7 +21,7 @@ import {
 } from '@/model/observability'
 import type { DomainId } from '@/model/items'
 import { useRoute } from '@/lib/router'
-import { useMe } from '@/lib/workspace'
+import { useDomains, useMe } from '@/lib/workspace'
 
 // Observability's map: six pages in three small groups, who sees them, and what each is for.
 
@@ -83,8 +83,9 @@ export type ObsView = ObsAddress & { state: ObsState }
 export function useObsAddress(): ObsAddress {
   const { query } = useRoute()
   const me = useMe()
+  const domains = useDomains()
   const range = (Number(query.get('range')) as Range) || 7
-  const owned = me.admin ? null : me.owns.filter((d) => d !== 'sandbox')
+  const owned = me.admin ? null : me.owns.filter((d) => !domains[d]?.sandbox)
   const asked = query.get('domain')
   // An owner always sees one of their own domains.
   const domain = owned ? (asked && owned.includes(asked) ? asked : owned[0]) : (asked ?? undefined)

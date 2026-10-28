@@ -22,9 +22,10 @@ export default defineConfig({
   testDir: 'tests/e2e-app',
   // The Inbox, its quick view, the review and the setup checklist (P6b); Context, Definitions and
   // the editor (P7c); Ask (P10); Help and the docs (P13); People, invites and owners (P8);
-  // Observability (P12); comments, reactions and mentions (P9b).
+  // Observability (P12); comments, reactions and mentions (P9b); domains and connecting an agent
+  // (P11a).
   testMatch:
-    /\/j(1|2|3|4|5|7|10|13|14|15|16|17|18|19|20|22|23|24|25|26|27|28|30)-[a-z0-9-]+\.spec\.ts$/,
+    /\/j(1|2|3|4|5|7|9|10|12|13|14|15|16|17|18|19|20|22|23|24|25|26|27|28|30)-[a-z0-9-]+\.spec\.ts$/,
   outputDir: 'test-results/golden-http/output',
   globalSetup: './tests/e2e-app/http/global-setup.ts',
   // The demo week's fixtures live with the app (src/app), under its path aliases.

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { card, expect, go, inMockUntil, mode, signInAs, test } from './go.ts'
+import { card, expect, go, mode, signInAs, test } from './go.ts'
 
 // J28: the three Ask ideas to try first. An answer travels with its state and its sources; a
 // sentence shows where it says that; the empty page shows what is asked this week.
@@ -62,10 +62,8 @@ test('Share copies an answer for Slack with its state and sources, or as a card;
   await expect(message).toContainText(world.shareSource)
   await expect(share.getByRole('button', { name: 'Copy for Slack' })).toBeFocused()
   await tabs.getByRole('tab', { name: /Card/ }).click()
-  await inMockUntil('P11a', "the workspace's name, which an admin sets in General", () =>
-    expect(share.getByRole('tabpanel', { name: 'Card' })).toContainText(
-      'Larchwood Outdoor - answered 23 Oct 2026',
-    ),
+  await expect(share.getByRole('tabpanel', { name: 'Card' })).toContainText(
+    'Larchwood Outdoor - answered 23 Oct 2026',
   )
   await share.getByRole('button', { name: 'Copy card' }).click()
   await expect(page.getByText('Card copied')).toBeVisible()

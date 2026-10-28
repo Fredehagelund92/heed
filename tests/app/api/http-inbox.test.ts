@@ -20,6 +20,7 @@ describe('when something happened, as the Inbox says it', () => {
 
 const area = (id: string, name: string, ownerIds: string[]): Area => ({
   id,
+  demo: false,
   name,
   summary: `What ${name} covers.`,
   description: `What ${name} covers.\n\nHouse rules.`,

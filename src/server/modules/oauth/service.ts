@@ -190,6 +190,11 @@ export interface LoginServer {
     log: SignInLog,
   ): Promise<{ redirectTo: string } | null>
   connections(tx: Queryable, personId: string): Promise<Connection[]>
+  /**
+   * Connect an agent's live line (FR-418): the newest sign-in of the person's own agent, or their
+   * no on the consent screen, since `since` (at most an hour ago); waiting when there is neither.
+   */
+  pending(tx: Queryable, personId: string, since: Date): Promise<PendingConnect>
   disconnect(tx: Queryable, personId: string, id: string, log: SignInLog): Promise<boolean>
   /** Every person's open connections, for an administrator, the last used first. */
   everyConnection(tx: Queryable): Promise<PersonConnection[]>
@@ -240,6 +245,12 @@ export interface Connection {
   /** When the app last got a token: an app in use gets one every ten minutes. */
   lastUsedAt: string
   expiresAt: string
+}
+export interface PendingConnect {
+  state: 'waiting' | 'connected' | 'declined'
+  /** The agent's own name for itself, as it gave it: never trusted, only shown. */
+  agent: string | null
+  at: string | null
 }
 export interface PersonConnection extends Connection {
   person: { id: string; name: string; initials: string; email: string | null }
@@ -660,6 +671,13 @@ export function createLoginServer(options: {
           iss: issuer,
         })
       if (!allow) {
+        // The live line on Connect an agent says it was declined (FR-418): kept for an hour, for
+        // the person alone, with the app's name and nothing else.
+        await tx.query('delete from auth.oauth_declines where declined_at < $1', [at(-3600)])
+        await tx.query(
+          'insert into auth.oauth_declines(person_id,client_name,declined_at) values($1,$2,$3)',
+          [personId, request.clientName, now()],
+        )
         logSignIn(log, 'denied', 'person_denied', 'info')
         return {
           redirectTo: back({ error: 'access_denied', error_description: 'The person said no' }),
@@ -773,6 +791,25 @@ export function createLoginServer(options: {
         [personId, now()],
       )
       return rows.map(listed)
+    },
+
+    async pending(tx, personId, since) {
+      const from = new Date(Math.max(since.getTime(), now().getTime() - 3_600_000))
+      const [newest] = await tx.query<{ state: 'connected' | 'declined'; agent: string; at: Date }>(
+        `select * from (
+           select 'connected' as state, c.name as agent, g.created_at as at
+             from auth.oauth_grants g join auth.oauth_clients c on c.id = g.client_id
+            where g.person_id = $1 and g.created_at >= $2
+           union all
+           select 'declined', d.client_name, d.declined_at
+             from auth.oauth_declines d
+            where d.person_id = $1 and d.declined_at >= $2
+         ) x order by at desc, state limit 1`,
+        [personId, from],
+      )
+      return newest
+        ? { state: newest.state, agent: newest.agent, at: newest.at.toISOString() }
+        : { state: 'waiting', agent: null, at: null }
     },
 
     async everyConnection(tx) {

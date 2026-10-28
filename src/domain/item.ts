@@ -224,6 +224,8 @@ export const areaSchema = z.object({
   label: z.enum(domainHues),
   /** One more with every edit of the area; an edit of what it is names the one it read. */
   revision: z.number(),
+  /** The sandbox, the built-in demo domain (FR-811): agents never get it, and it is never deleted. */
+  demo: z.boolean(),
 })
 export type Area = z.infer<typeof areaSchema>
 

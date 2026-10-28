@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { test as base, type Page } from '@playwright/test'
 
@@ -81,6 +81,9 @@ export const claimsToCheck = (id: 'sug-agent') =>
 export const allHandled = () =>
   http ? '8 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
 
+/** A mock domain's id in this mode: the service names Sales `area_sales`. */
+export const domain = (id: string) => (http ? `area_${id}` : id)
+
 /** Skips the rest of a journey in http mode, until the pull request that builds what it needs. */
 export const untilInHttp = (pr: string, what: string) =>
   base.skip(http, `Needs ${what} on the service (${pr})`)
@@ -92,6 +95,15 @@ export const untilInHttp = (pr: string, what: string) =>
 export async function inMockUntil(pr: string, what: string, step: () => Promise<void>) {
   if (!http) return step()
   base.info().annotations.push({ type: 'skipped step', description: `Needs ${what} (${pr})` })
+}
+
+/**
+ * One step the service needs and the mock has from the start (a domain on a new install): it runs
+ * in http mode only.
+ */
+export async function inHttpOnly(what: string, step: () => Promise<void>) {
+  if (http) return step()
+  base.info().annotations.push({ type: 'skipped step', description: `The service's own ${what}` })
 }
 
 /**
@@ -210,8 +222,8 @@ async function httpRoute(
   route: string,
 ): Promise<{ route: string; after?: () => Promise<void>; load?: boolean }> {
   const url = new URL(route, 'http://app')
-  // A domain's page names it by the service's id, area_ and the mock's.
-  const domainPage = /^\/settings\/domains\/([a-z_]+)$/.exec(url.pathname)
+  // A domain's page names it by the service's id, area_ and the mock's; a new one has no id yet.
+  const domainPage = /^\/settings\/domains\/(?!new$)([a-z_]+)$/.exec(url.pathname)
   const path = domainPage
     ? `/settings/domains/area_${domainPage[1]}`
     : (
@@ -230,9 +242,11 @@ async function httpRoute(
   const demo = query.get('demo')
   const state = query.get('state')
   const bulk = query.get('bulk')
+  const connect = query.get('connect')
   query.delete('demo')
   query.delete('state')
   query.delete('bulk')
+  query.delete('connect')
   if (demo === 'last') await decideAllBut(page, path.split('/')[2] ?? '')
   // A new install: the journey moves to a copy of an empty workspace, Jon signed in there.
   else if (demo === 'setup') await startService(page, 'empty')
@@ -249,6 +263,8 @@ async function httpRoute(
     route: `${path}${search ? `?${search}` : ''}`,
     // Another workspace on another service: the app loads again, as the mock starts afresh.
     ...(demo === 'setup' ? { load: true } : {}),
+    // The live line's states happen for real: a wait, an agent's sign-in, a no in the browser.
+    ...(connect ? { after: () => connectState(page, connect) } : {}),
     ...(state === 'offline'
       ? {
           // Offline once the page and what it loads on demand are in, as the mock's flag is.
@@ -259,6 +275,98 @@ async function httpRoute(
         }
       : {}),
   }
+}
+
+/**
+ * The live line in a state the mock's `?connect=` shows, reached on the service: the wait starts
+ * with Copy prompt, the agent signs in or the person says no, or the wait runs out (a journey
+ * with the clock installed).
+ */
+async function connectState(page: Page, flag: string) {
+  if (flag === 'idle') return
+  await page.getByRole('button', { name: 'Copy prompt' }).first().click()
+  if (flag === 'waiting') return
+  if (flag === 'connected' || flag === 'declined')
+    return agentSignsIn(page, { allow: flag === 'connected' })
+  if (flag === 'hint' || flag === 'timeout')
+    return page.clock.runFor(flag === 'hint' ? 120_000 : 600_000)
+  throw new Error(`?connect=${flag} has no http meaning yet`)
+}
+
+/**
+ * The person's own agent signs in, as one does once its prompt is pasted (J12): it registers with
+ * the service's login server, opens the sign-in, the person answers on the consent page (`allow`,
+ * yes by default) and, on a yes, the agent collects its tokens. In mock mode the mock plays it.
+ */
+export async function agentSignsIn(
+  page: Page,
+  { allow = true, agent = 'Claude Code' }: { allow?: boolean; agent?: string } = {},
+) {
+  if (!http) return
+  const service = `http://127.0.0.1:${process.env.GOLDEN_API_PORT}`
+  const redirect = 'http://127.0.0.1:43123/callback'
+  const session = (await page.context().cookies()).find((c) => c.name === 'heed_session')
+  if (!session) throw new Error('Nobody is signed in to answer the consent page')
+  const registered = await fetch(`${service}/oauth/register`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      client_name: agent,
+      redirect_uris: [redirect],
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'none',
+    }),
+  })
+  if (registered.status !== 201)
+    throw new Error(`The agent could not register: ${await registered.text()}`)
+  const { client_id: clientId } = (await registered.json()) as { client_id: string }
+  const verifier = randomBytes(32).toString('base64url')
+  const authorize = new URL(`${service}/oauth/authorize`)
+  for (const [key, value] of Object.entries({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirect,
+    code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+    code_challenge_method: 'S256',
+    state: randomUUID(),
+    scope: 'read feedback propose',
+    resource: `${service}/mcp`,
+  }))
+    authorize.searchParams.set(key, value)
+  const started = await fetch(authorize, { redirect: 'manual' })
+  const consent = started.headers.get('location')
+  if (started.status !== 302 || !consent)
+    throw new Error('The sign-in did not reach the consent page')
+  const browserCookie = started.headers
+    .getSetCookie()
+    .map((c) => c.split(';')[0])
+    .join('; ')
+  const cookie = `heed_session=${session.value}; ${browserCookie}`
+  const { csrfToken } = (await (
+    await fetch(`${service}/api/v1/auth/session`, { headers: { cookie } })
+  ).json()) as { csrfToken: string }
+  const decided = await fetch(`${service}/api/v1/connections/request/decision`, {
+    method: 'POST',
+    headers: { cookie, origin, 'x-heed-csrf': csrfToken, 'content-type': 'application/json' },
+    body: JSON.stringify({ id: new URL(consent).searchParams.get('request'), allow }),
+  })
+  if (!decided.ok) throw new Error(`The consent answer was refused: ${await decided.text()}`)
+  if (!allow) return
+  const back = new URL(((await decided.json()) as { redirectTo: string }).redirectTo)
+  const token = await fetch(`${service}/oauth/token`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code',
+      code: back.searchParams.get('code') ?? '',
+      redirect_uri: redirect,
+      client_id: clientId,
+      code_verifier: verifier,
+      resource: `${service}/mcp`,
+    }).toString(),
+  })
+  if (!token.ok) throw new Error(`The agent got no tokens: ${await token.text()}`)
 }
 
 /**

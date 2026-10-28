@@ -1075,3 +1075,40 @@ over its months) found nothing at least the minimum times.
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,
   a domain, a kind of agent, what waits in the Inbox, a month), never a question. Only whoever saved
   a view, or an administrator, removes it.
+
+## Settings, domains and agents
+
+Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and change below is in
+`src/contract/index.ts`; the app's http binding words them for the screens
+(`src/app/api/http-settings.ts`).
+
+- `GET /workspace`: the workspace's name, for everyone signed in, and nothing else of the
+  settings. An administrator names it as any other setting, `PUT /settings/workspace.name` (one
+  line, at most 80 characters); a new install's is empty, and an answer's share card then says
+  only when it was answered.
+- `POST /areas` takes a domain from its own page with a name, its owners (`team.ownerIds`) and its
+  text alone: the hue is the one the fewest domains have, the review time the default, and no
+  chat channel or owner team. `PUT /areas/{id}/description` takes a `name` beside the summary and
+  the text, so a domain's owners rename it too; a name another domain has is refused (409).
+- `POST /areas/{id}/delete` (administrators): deletes a domain that holds no context item and no
+  term, never the sandbox (409, with what it holds). Its open suggestions are withdrawn, its
+  drafts stay with their authors and its owners' ownership ends; one that history names is kept as
+  history, as with `POST /areas/{id}/removal`, which deletes everything under a domain and stays
+  for the old front end until the switch.
+- `GET /connect/pending?since=` (Connect an agent's live line): the newest of the person's own
+  agent signing in (`connected`: it has its tokens) and their no on the consent screen
+  (`declined`), since `since`, at most an hour back, with the agent's name for itself; `waiting`
+  when there is neither. A no is kept for an hour, for that person alone, and the history log is
+  not told, as nothing changed.
+- `GET /agent-connections`, `POST /agent-connections/{id}/disconnect` and
+  `POST /agent-connections/people/{personId}/disconnect` (administrators, formerly
+  `/ai-connections`): every person's agents, and ending one, or all of a person's, with a reason
+  the history log keeps (docs/ai-sign-in.md).
+- Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the
+  Agents and access page; the tools agents call are switched with `POST /tools/{tool}`, and the
+  page reads both from `GET /connect` and `GET /serving/stops`, which everyone signed in may read.
+- Settings, Advanced reads the tuning settings (`GET /settings`, read only on the screen), what
+  was deleted (`GET /context/deleted`, `GET /terms/deleted`), the history log's latest entries
+  (`GET /audit`), the jobs (`GET /operations`) and the editions (`GET /editions`). Check the chain
+  is `GET /audit/verify`; the exports are `GET /audit/export` and the live edition's
+  `GET /editions/{label}/export`.

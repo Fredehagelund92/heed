@@ -211,15 +211,16 @@ describe('the API over HTTP', () => {
     expect(document.openapi).toMatch(/^3\./)
     expect(Object.keys(document.paths).sort()).toEqual([
       '/activity',
-      '/ai-connections',
-      '/ai-connections/people/{personId}/disconnect',
-      '/ai-connections/{id}/disconnect',
+      '/agent-connections',
+      '/agent-connections/people/{personId}/disconnect',
+      '/agent-connections/{id}/disconnect',
       '/archived-areas',
       '/archived-areas/{id}/restore',
       '/areas',
       '/areas/{areaId}/dashboard',
       '/areas/{areaId}/owners',
       '/areas/{id}',
+      '/areas/{id}/delete',
       '/areas/{id}/description',
       '/areas/{id}/removal',
       '/ask/asked',
@@ -250,6 +251,7 @@ describe('the API over HTTP', () => {
       '/comments/threads/read',
       '/comments/{id}',
       '/connect',
+      '/connect/pending',
       '/connections',
       '/connections/request',
       '/connections/request/decision',
@@ -420,6 +422,7 @@ describe('the API over HTTP', () => {
       '/vocabulary/proposals',
       '/vocabulary/search',
       '/vocabulary/terms',
+      '/workspace',
     ])
   })
 })

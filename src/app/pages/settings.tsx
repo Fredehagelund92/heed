@@ -40,10 +40,12 @@ import { GuideLink } from '@/components/heed/guide-link'
 import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
 import type { Connected } from '@/lib/connect'
 import { servedToAgents } from '@/model/items'
-import { useAgentConnections, useLibrary, useWrite } from '@/api/queries'
+import { useQuery } from '@tanstack/react-query'
+import type { Advanced as AdvancedPage, Exported } from '@/api/client'
+import { toApiError } from '@/api/errors'
+import { advancedPageQuery, useAgentConnections, useSettings, useWrite } from '@/api/queries'
+import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
 import { useFacts, useMe } from '@/lib/workspace'
-import type { LogEntry } from '@/model/items'
-import { relativeDate } from '@/model/history'
 import { useDomainList, useDomains } from '@/lib/workspace'
 import { useDefinitions } from '@/lib/definitions'
 import { DomainDot } from '@/components/heed/tag-chip'
@@ -57,7 +59,6 @@ import {
   type FrameColumn,
 } from '@/components/heed/frame'
 import { SLUG } from '@/lib/brand'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { ShowMoreButton } from '@/components/heed/show-more'
 import { useShowMore } from '@/hooks/use-show-more'
 import { People } from '@/pages/people'
@@ -82,7 +83,11 @@ function Domains() {
   // Sorted by name; the sandbox, which never reaches agents, comes last.
   const ids = [...domainIds]
     .sort((a, b) =>
-      a === 'sandbox' ? 1 : b === 'sandbox' ? -1 : domains[a]!.name.localeCompare(domains[b]!.name),
+      domains[a]?.sandbox
+        ? 1
+        : domains[b]?.sandbox
+          ? -1
+          : domains[a]!.name.localeCompare(domains[b]!.name),
     )
     .filter((id) =>
       `${domains[id]?.name} ${domains[id]?.covers}`.toLowerCase().includes(q.trim().toLowerCase()),
@@ -142,7 +147,7 @@ function Domains() {
                 <span className="flex items-center gap-2">
                   <DomainDot id={id} />
                   <span className="truncate font-medium">{domains[id]?.name}</span>
-                  {id === 'sandbox' && (
+                  {domains[id]?.sandbox && (
                     <span className="text-xs text-muted-foreground">Never reaches agents</span>
                   )}
                 </span>
@@ -270,7 +275,33 @@ function Agents() {
   const linksOn = useLinksEnabled()
   const setLinksEnabled = useSetLinksEnabled()
   const write = useWrite()
-  const [paused, setPaused] = React.useState(false)
+  const { pause, tools } = useSettings()
+  const paused = pause.all
+  const setPaused = (all: boolean) =>
+    void write('setPause', { all }).catch((e: unknown) =>
+      toast(all ? "Couldn't pause sharing" : "Couldn't let sharing go on", {
+        description: toApiError(e).message,
+      }),
+    )
+  const pauseDomain = (domain: string | null) =>
+    void write('setPause', { domain }).catch((e: unknown) =>
+      toast("Couldn't change what is paused", { description: toApiError(e).message }),
+    )
+  const setTool = (name: string, on: boolean) =>
+    void write('setTool', { name, on }).catch((e: unknown) =>
+      toast(`Couldn't switch ${name} ${on ? 'on' : 'off'}`, { description: toApiError(e).message }),
+    )
+  const createKey = async () => {
+    try {
+      const { key } = await write('createAccessKey', undefined)
+      toast('Access key created', {
+        description: 'Copy it now: it is shown once.',
+        action: { label: 'Copy', onClick: () => void navigator.clipboard?.writeText(key) },
+      })
+    } catch (e) {
+      toast("Couldn't create an access key", { description: toApiError(e).message })
+    }
+  }
   const rows = useAgentConnections()
   const [revoking, setRevoking] = React.useState<Connected>()
   const { shown, more, next, showMore } = useShowMore(rows, 5, 20)
@@ -373,7 +404,8 @@ function Agents() {
                     { label: 'No domain paused', value: 'none' },
                     ...domainIds.map((d) => ({ label: domains[d]?.name, value: d })),
                   ]}
-                  defaultValue="none"
+                  value={pause.domain ?? 'none'}
+                  onValueChange={(v) => pauseDomain(v === 'none' || !v ? null : String(v))}
                 >
                   <SelectTrigger id="pause-domain" className="w-full sm:w-52">
                     <SelectValue />
@@ -411,7 +443,13 @@ function Agents() {
                 </label>
               ),
               hint: what,
-              value: <Switch id={`tool-${name}`} defaultChecked />,
+              value: (
+                <Switch
+                  id={`tool-${name}`}
+                  checked={tools[name] ?? true}
+                  onCheckedChange={(on) => setTool(name, on)}
+                />
+              ),
             })),
             // Following links has its own switch: on in the demo, and it never changes what an answer includes.
             {
@@ -432,13 +470,7 @@ function Agents() {
               label: 'Access keys',
               hint: "For a bot or a scheduled job that can't sign in. None yet.",
               value: (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    toast('Access key created', { description: 'Copy it now: it is shown once.' })
-                  }
-                >
+                <Button variant="outline" size="sm" onClick={() => void createKey()}>
                   Create an access key
                 </Button>
               ),
@@ -460,38 +492,70 @@ const cols = (...labels: string[]): FrameColumn[] =>
     cell: i === 0 ? 'font-medium' : 'text-muted-foreground',
   }))
 
+/** A file the binding made, saved the way a download is. */
+function save(file: Exported) {
+  const url = URL.createObjectURL(new Blob([file.content], { type: file.type }))
+  const a = Object.assign(document.createElement('a'), { href: url, download: file.name })
+  document.body.append(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+/** A link inside a table cell, or the words alone when there is nowhere to go. */
+const cellLink = (text: string, href?: string) =>
+  href ? (
+    <a key={href} href={href} className={link}>
+      {text}
+    </a>
+  ) : (
+    text
+  )
+
 function Advanced() {
-  const { log } = useLibrary()
-  const domains = useDomains()
-  // What was deleted, newest first: drafts and terms. Published context is archived, never deleted.
-  const deleted = [
-    ...log
-      .filter((e) => e.what === 'deleted')
-      .flatMap((e) =>
-        e.items.map((i) => ({
-          key: `${e.id}.${i.id}`,
-          title: i.title,
-          hint: `Deleted by ${e.who}, ${relativeDate(e.on)}: ${e.summary.replace(/^Deleted: /, '')}`,
-          domain: i.domain,
-        })),
-      ),
-    {
-      key: 'seed',
-      title: 'Payment provider test in Sandbox',
-      hint: 'Deleted by Ravi Kapoor, 3 Oct: a draft nobody published.',
-      domain: 'sandbox' as const,
-    },
-  ]
+  const load = useQuery(advancedPageQuery())
   return (
     <Frame>
       <FrameSection
         title="Advanced"
         description="For the day someone needs them. Nothing here is needed day to day."
       />
+      <Loadable what="Advanced" skeleton={<RowsSkeleton rows={8} />} query={load}>
+        {load.data && <AdvancedSections page={load.data} />}
+      </Loadable>
+    </Frame>
+  )
+}
+
+function AdvancedSections({ page }: { page: AdvancedPage }) {
+  const domains = useDomains()
+  const write = useWrite()
+  const failed = (what: string) => (e: unknown) =>
+    toast(`Couldn't ${what}`, { description: toApiError(e).message })
+  const checkChain = () =>
+    void write('checkHistory', undefined).then(
+      ({ whole, entries }) =>
+        toast(whole ? 'The chain is whole' : 'The chain is broken', {
+          description:
+            entries === null
+              ? whole
+                ? 'Every entry checked.'
+                : 'An entry was changed after the fact.'
+              : `${entries.toLocaleString('en')} entries checked.`,
+        }),
+      failed('check the chain'),
+    )
+  const exported = (what: 'exportHistory' | 'exportContext') =>
+    void write(what, undefined).then((file) => {
+      save(file)
+      toast('Exported', { description: file.name })
+    }, failed('export'))
+  return (
+    <>
       <FrameSection
         title="Limits"
         level={3}
-        description={`28 tuning settings, read-only here. Change them with ${SLUG} settings set, or the API.`}
+        description={`${page.settings} tuning settings, read-only here. Change them with ${SLUG} settings set, or the API.`}
         collapsible
       >
         <FrameTable
@@ -499,31 +563,10 @@ function Advanced() {
           columns={[
             { label: 'Setting', className: 'w-56', cell: 'font-mono text-xs' },
             { label: 'Value', className: 'whitespace-nowrap' },
-            { label: 'What it does', cell: 'text-muted-foreground' },
+            // On a phone the table scrolls sideways rather than squeeze this to a word a line.
+            { label: 'What it does', className: 'min-w-64', cell: 'text-muted-foreground' },
           ]}
-          rows={[
-            ['review.default_days', '90', "Days until a context item's check is due"],
-            [
-              'gaps.no_item_threshold',
-              '5 in 7 days',
-              'Questions with nothing written down before a Not found card',
-            ],
-            ['privacy.min_count', '5', 'Counts under this are hidden'],
-            [
-              'privacy.questions',
-              'Scope and count',
-              "What is kept of an agent's question: what it was about and how often, never the words or who asked",
-            ],
-            ['serving.max_reply_bytes', '100 KB', 'The most an agent gets in one reply'],
-            ['limits.agent_suggestions', '20 a day', 'Suggestions one agent can send'],
-            [
-              'spend.monthly_cap',
-              '$50',
-              'All model use in a month; at the cap Ask and web reads stop and say why',
-            ],
-            ['spend.person_daily_cap', '$2', 'Model use by one person in a day'],
-            ['spend.answer_tests_cap', '$20', 'Answer tests in a month'],
-          ]}
+          rows={page.limits.map((l) => [l.key, l.value, l.what])}
         />
       </FrameSection>
       <FrameSection
@@ -531,21 +574,13 @@ function Advanced() {
         level={3}
         description="Who changed what, and when. Hash-chained, so a change after the fact shows."
         collapsible
-        defaultOpen={log.length > 0}
+        defaultOpen={page.history.length > 4}
         action={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('The chain is whole', { description: '1,284 entries checked.' })}
-            >
+            <Button variant="outline" size="sm" onClick={checkChain}>
               Check the chain
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('Exported', { description: 'history-2026-10-22.jsonl' })}
-            >
+            <Button variant="outline" size="sm" onClick={() => exported('exportHistory')}>
               Export
             </Button>
           </>
@@ -556,37 +591,9 @@ function Advanced() {
           columns={[
             { label: 'When', className: 'w-36 whitespace-nowrap', cell: 'text-muted-foreground' },
             { label: 'Who', className: 'w-56', cell: 'font-medium' },
-            { label: 'What' },
+            { label: 'What', className: 'min-w-64' },
           ]}
-          rows={[
-            ...log.map((e) => [
-              relativeDate(e.on).replace(/^./, (c) => c.toUpperCase()),
-              e.who,
-              logLine(e),
-            ]),
-            [
-              '22 Oct, 09:40',
-              'Jon Abara',
-              'Published “Units sold excludes test accounts”, version 2',
-            ],
-            [
-              '21 Oct, 16:40',
-              'Cursor for Kofi Mensah',
-              'Suggested “Payment provider delays order data in Poland”',
-            ],
-            [
-              '20 Oct, 11:02',
-              'Jon Abara',
-              'Suggested a change to “Norway launch campaign started on 24 March 2026”',
-            ],
-            [
-              '7 Oct, 06:00',
-              'Automatic',
-              <a key="cube" href="/settings/integrations/cube" className={link}>
-                Read {DEFINITIONS_TOOL}: 2 definitions changed
-              </a>,
-            ],
-          ]}
+          rows={page.history.map((h) => [h.when, h.who, cellLink(h.what, h.href)])}
         />
       </FrameSection>
       <FrameSection
@@ -596,28 +603,17 @@ function Advanced() {
         collapsible
         defaultOpen={false}
       >
-        <FrameTable
-          label="Jobs"
-          columns={cols('Job', 'Last run', 'Result')}
-          rows={[
-            [
-              <a key="cube" href="/settings/integrations/cube" className={link}>
-                Read {DEFINITIONS_TOOL}
-              </a>,
-              'Today, 06:00',
-              'Done',
-            ],
-            [
-              <a key="drive" href="/settings/integrations/google-drive" className={link}>
-                Read Google Drive
-              </a>,
-              'Today, 06:00',
-              'Done',
-            ],
-            ['Count what is not covered', 'Today, 06:05', 'Done'],
-            ['Remind owners of checks due', 'Today, 07:00', 'Done'],
-          ]}
-        />
+        {page.jobs ? (
+          <FrameTable
+            label="Jobs"
+            columns={cols('Job', 'Last run', 'Result')}
+            rows={page.jobs.map((j) => [cellLink(j.job, j.href), j.last, j.result])}
+          />
+        ) : (
+          <p className="border-t px-4 py-3 text-sm text-muted-foreground md:px-5">
+            The jobs aren&apos;t answering right now. Try again in a minute.
+          </p>
+        )}
       </FrameSection>
       <FrameSection
         title="Editions"
@@ -629,13 +625,13 @@ function Advanced() {
         <FrameTable
           label="Editions"
           columns={cols('Edition', 'Sealed', 'Change').map((c, i) =>
-            i === 0 ? { ...c, cell: 'font-mono text-xs' } : c,
+            i === 0
+              ? { ...c, cell: 'font-mono text-xs' }
+              : i === 2
+                ? { ...c, className: 'min-w-56' }
+                : c,
           )}
-          rows={[
-            ['2026-10-22.4', 'Today, 09:40', 'Units sold excludes test accounts'],
-            ['2026-10-22.3', 'Today, 08:15', 'Checked: Online sales to Norway stopped'],
-            ['2026-10-21.2', 'Yesterday', 'Archived: Payment provider switched in Norway'],
-          ]}
+          rows={page.editions.map((e) => [e.label, e.sealed, e.change])}
         />
       </FrameSection>
       <FrameSection
@@ -695,11 +691,7 @@ function Advanced() {
             >
               Import context
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('Exported', { description: 'context-2026-10-22.json' })}
-            >
+            <Button variant="outline" size="sm" onClick={() => exported('exportContext')}>
               Export context
             </Button>
           </>
@@ -710,47 +702,29 @@ function Advanced() {
         level={3}
         description="Drafts and terms that were deleted, by whom and when. Deleting is for good; published context is archived instead, so it keeps its history."
         collapsible
-        defaultOpen={deleted.length > 1}
+        defaultOpen={page.deleted.length > 1}
       >
-        <FrameRows
-          rows={deleted.map((d) => ({
-            id: d.key,
-            label: d.title,
-            hint: d.hint,
-            value: (
-              <span className="text-xs text-muted-foreground">
-                {d.domain ? domains[d.domain]?.name : ''}
-              </span>
-            ),
-          }))}
-        />
+        {page.deleted.length ? (
+          <FrameRows
+            rows={page.deleted.map((d) => ({
+              id: d.key,
+              label: d.title,
+              hint: d.hint,
+              value: (
+                <span className="text-xs text-muted-foreground">
+                  {d.domain ? domains[d.domain]?.name : ''}
+                </span>
+              ),
+            }))}
+          />
+        ) : (
+          <p className="border-t px-4 py-3 text-sm text-muted-foreground md:px-5">
+            Nothing deleted yet.
+          </p>
+        )}
       </FrameSection>
-    </Frame>
+    </>
   )
-}
-
-/** A change to many items, as the History log says it: "Archived “A”, “B” and 3 more". */
-function logLine(e: LogEntry) {
-  const names = e.items.map((i) => `“${i.title}”`)
-  const titles =
-    names.length > 2
-      ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`
-      : names.join(' and ')
-  const verb = {
-    archived: 'Archived',
-    deleted: 'Deleted',
-    moved: 'Moved',
-    kind: 'Changed the kind of',
-    owners: 'Changed the owners of',
-    checked: 'Checked',
-  }[e.what]
-  const detail =
-    e.what === 'moved'
-      ? e.summary.replace(/^Moved /, '').replace(/\.$/, '')
-      : e.what === 'kind' || e.what === 'owners'
-        ? e.summary.replace(/\.$/, '')
-        : ''
-  return `${verb} ${titles}${detail ? `: ${detail.charAt(0).toLowerCase()}${detail.slice(1)}` : ''}`
 }
 
 const TITLES: Record<string, string> = {
