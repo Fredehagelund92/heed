@@ -127,8 +127,10 @@ export const historyEntrySchema = z.object({
   domain: z.optional(z.string()),
 })
 
-/** What a mention can point at (section 2.1 of the mentions design: a typed link, never scope). */
-/** A `term` is a term written in Definitions (FR-138), by its id. */
+/**
+ * What a mention can point at (section 2.1 of the mentions design: a typed link, never scope). A
+ * `term` is a term written in Definitions (FR-138), by its id.
+ */
 export const linkTargetTypes = [
   'metric',
   'dimension',
