@@ -49,6 +49,58 @@ describe('the http binding shares identical reads', () => {
     ])
   })
 
+  it('does not keep a read that was in flight while a change was sent', async () => {
+    const sent: string[] = []
+    const pending: Array<() => void> = []
+    const send: typeof globalThis.fetch = (input, init) => {
+      const request = new Request(input, init)
+      sent.push(`${request.method} ${new URL(request.url).pathname}`)
+      const body = sent.length
+      return new Promise((resolve) =>
+        pending.push(() => resolve(new Response(JSON.stringify({ n: body })))),
+      )
+    }
+    const fetch = sharedReads(send, () => 0)
+    const read = fetch(at('/inbox/feed'))
+    const write = fetch(at('/inbox/cards/read'), { method: 'POST', body: '{}' })
+    pending[0]()
+    await read
+    pending[1]()
+    await write
+    const after = fetch(at('/inbox/feed'))
+    pending[2]()
+    expect(await (await after).json()).toEqual({ n: 3 })
+    expect(sent).toEqual([
+      'GET /api/v1/inbox/feed',
+      'POST /api/v1/inbox/cards/read',
+      'GET /api/v1/inbox/feed',
+    ])
+  })
+
+  it('does not keep a read sent while a change is in flight, once the change settles', async () => {
+    const sent: string[] = []
+    const pending: Array<() => void> = []
+    const send: typeof globalThis.fetch = (input, init) => {
+      const request = new Request(input, init)
+      sent.push(`${request.method} ${new URL(request.url).pathname}`)
+      const body = sent.length
+      return new Promise((resolve) =>
+        pending.push(() => resolve(new Response(JSON.stringify({ n: body })))),
+      )
+    }
+    const fetch = sharedReads(send, () => 0)
+    const write = fetch(at('/inbox/cards/read'), { method: 'POST', body: '{}' })
+    const during = fetch(at('/inbox/feed'))
+    pending[1]()
+    await during
+    pending[0]()
+    await write
+    const after = fetch(at('/inbox/feed'))
+    pending[2]()
+    expect(await (await after).json()).toEqual({ n: 3 })
+    expect(sent).toHaveLength(3)
+  })
+
   it('never keeps a refusal: the same read is asked again', async () => {
     const { send, sent } = service(503)
     const fetch = sharedReads(send, () => 0)

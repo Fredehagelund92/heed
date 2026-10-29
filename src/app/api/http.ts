@@ -358,28 +358,43 @@ const READ_SHARED_MS = 3000
  * A fetch where identical reads share one request: the shell starts its reads at once, a page then
  * reads its own, and several of them need the same people, domains or Inbox. A read in flight, or
  * answered in the last few seconds, serves the same read again, each caller with its own copy of
- * the answer. Any change (anything but a GET) starts afresh, so a read after it sees it.
+ * the answer. Any change (anything but a GET) starts afresh when it is sent and again when it settles, and a read
+ * that was in flight meanwhile is never kept, so a read after it sees it.
  */
 export function sharedReads(
   send: typeof globalThis.fetch,
   now: () => number = () => Date.now(),
 ): typeof globalThis.fetch {
-  const recent = new Map<string, { answer: Promise<Response>; at: number }>()
+  const recent = new Map<string, { answer: Promise<Response>; at: number; generation: number }>()
+  let generation = 0
+  const forget = (url: string, entry: object) => {
+    if (recent.get(url) === entry) recent.delete(url)
+  }
   return (input, init) => {
     const request = new Request(input, init)
     if (request.method !== 'GET') {
+      generation++
       recent.clear()
-      return send(request)
+      const settled = () => {
+        generation++
+        recent.clear()
+      }
+      const written = send(request)
+      written.then(settled, settled)
+      return written
     }
     const known = recent.get(request.url)
-    if (known && now() - known.at < READ_SHARED_MS) return known.answer.then((r) => r.clone())
+    if (known && known.generation === generation && now() - known.at < READ_SHARED_MS) {
+      return known.answer.then((r) => r.clone())
+    }
     const answer = send(request).then((response) => {
       // Only an answer that worked serves again; a refusal or a failure is asked again.
-      if (!response.ok) recent.delete(request.url)
+      if (!response.ok) forget(request.url, entry)
       return response
     })
-    answer.catch(() => recent.delete(request.url))
-    recent.set(request.url, { answer, at: now() })
+    const entry = { answer, at: now(), generation }
+    answer.catch(() => forget(request.url, entry))
+    recent.set(request.url, entry)
     return answer.then((r) => r.clone())
   }
 }
