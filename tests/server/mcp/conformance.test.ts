@@ -219,7 +219,7 @@ describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
             quote: 'Online sales are stopped from 4 August.',
           },
           not_to_conclude: 'cause not proven',
-          url: '/context/itm_norway01',
+          url: '/library/itm_norway01',
         },
       ],
       reply_id: expect.stringMatching(/^[0-9a-f-]{36}$/) as string,
@@ -570,13 +570,13 @@ describe.each(['legacy', 'auto'] as const)('item pages in Heed (FR-347), %s', (m
       })
     const reply = await client.callTool(call.params)
     expect(reply.structuredContent).toMatchObject({
-      context: [{ id: 'itm_norway01', url: 'http://localhost:5173/context/itm_norway01' }],
+      context: [{ id: 'itm_norway01', url: 'http://localhost:5173/library/itm_norway01' }],
     })
     expect(reply.content).toEqual([
       { type: 'text', text: JSON.stringify(reply.structuredContent) },
       {
         type: 'text',
-        text: 'Open in Heed - Norway closure: http://localhost:5173/context/itm_norway01 - Checked 4 Aug 2026 by the owner of Finance.',
+        text: 'Open in Heed - Norway closure: http://localhost:5173/library/itm_norway01 - Checked 4 Aug 2026 by the owner of Finance.',
       },
     ])
     // The full reply says how it was reviewed, in the words it always had.
@@ -585,7 +585,7 @@ describe.each(['legacy', 'auto'] as const)('item pages in Heed (FR-347), %s', (m
       arguments: { ...call.params.arguments, response_format: 'full' },
     })
     expect((full.content as { text: string }[])[1]!.text).toBe(
-      'Open in Heed - Norway closure: http://localhost:5173/context/itm_norway01 - Accepted 4 Aug 2026 by the owner of Finance, in edition 2026-08-04.1.',
+      'Open in Heed - Norway closure: http://localhost:5173/library/itm_norway01 - Accepted 4 Aug 2026 by the owner of Finance, in edition 2026-08-04.1.',
     )
   })
 })
@@ -1115,7 +1115,7 @@ it('answers find_context by names, with recovery when a name is unknown', async 
         kind: 'event',
         checked: { role: 'the owner of Finance', date: '2026-08-04' },
         match: 'all',
-        url: '/context/itm_norway01',
+        url: '/library/itm_norway01',
       },
     ],
     definitions: [

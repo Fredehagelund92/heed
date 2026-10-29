@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import type { Page } from '@playwright/test'
 import { expect, go, mode, signOut, test } from './go.ts'
 
@@ -29,8 +29,6 @@ type Agent = {
   back: (allowed: boolean) => Promise<void>
   /** Whether the agent's token still reads over MCP: 200, or 401 once it was revoked. */
   reads: () => Promise<number>
-  /** A tool call over MCP with the agent's token, and what it gave back (on the service only). */
-  calls: (name: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>
 }
 
 /** The agent asks to connect, and the browser lands on the consent page. */
@@ -45,7 +43,6 @@ async function agentAsks(page: Page): Promise<Agent> {
         await expect(page.getByRole('heading', { name: 'Inbox', level: 1 })).toBeVisible()
       },
       reads: () => Promise.resolve(200),
-      calls: () => Promise.reject(new Error('The mock has no agent')),
     }
   }
   // The login server's address, the issuer: on the web app's host (http/harness.ts), so the
@@ -106,17 +103,6 @@ async function agentAsks(page: Page): Promise<Agent> {
       token = ((await exchanged.json()) as { access_token: string }).access_token
     },
     reads: async () => (await mcp(page, issuer, token, 'tools/list', {})).status(),
-    calls: async (name, args) => {
-      const answer = await mcp(page, issuer, token, 'tools/call', { name, arguments: args })
-      expect(answer.status()).toBe(200)
-      // The answer is JSON, or one server-sent event that holds it.
-      const body = await answer.text()
-      const json = body.startsWith('{') ? body : /^data: (.*)$/m.exec(body)![1]!
-      const { result } = JSON.parse(json) as {
-        result: { structuredContent: Record<string, unknown> }
-      }
-      return result.structuredContent
-    },
   }
 }
 
@@ -195,53 +181,4 @@ test('a link with no sign-in in it, or one that ended, says to connect again', a
   ).toBeVisible()
   await go(page, `/connect/approve?request=${'x'.repeat(43)}`)
   await expect(page.getByRole('heading', { name: 'This sign-in has ended' })).toBeVisible()
-})
-
-test("an agent's suggestion links to where it waits, in the person's Inbox", async ({ page }) => {
-  test.skip(mode === 'mock', 'The mock has no agent to suggest')
-  await go(page, '/inbox')
-  await signOut(page)
-  const agent = await agentAsks(page)
-  await page.getByRole('button', { name: /Ines Duarte/ }).click()
-  await page.getByRole('button', { name: 'Allow' }).click()
-  await agent.back(true)
-  const sent = await agent.calls('suggest_context', {
-    text: 'Orders in Norway include the accounts our teams use to test the webshop until 1 November 2026.',
-    scope: { metrics: ['Orders'] },
-    window: { from: '2026-10-01' },
-    evidence: [{ url: 'https://wiki.example/test-accounts', quote: 'Test accounts are counted.' }],
-    new_item: true,
-  })
-  expect(sent).toMatchObject({ status: 'suggestion_sent' })
-  const url = sent.url as string
-  expect(url).toMatch(/\/inbox\?tab=all&card=waiting:[0-9a-f-]{36}$/)
-  await page.goto(url)
-  await expect(
-    page.getByText(/Waiting for .+\. You'll see here when it is published or returned\./),
-  ).toBeVisible()
-
-  // A draft the agent saved without sending (a check refused it) links to the editor at its own
-  // address, as tests/integration/draft-tool.test.ts says; it opens there with what it holds.
-  const { csrfToken } = (await (await page.request.get('/api/v1/auth/session')).json()) as {
-    csrfToken: string
-  }
-  const saved = await page.request.post('/api/v1/proposals', {
-    headers: {
-      'x-heed-csrf': csrfToken,
-      'idempotency-key': randomUUID(),
-      origin: new URL(page.url()).origin,
-    },
-    data: {
-      draft: {
-        areaId: 'area_sales',
-        kind: 'note',
-        title: 'Test accounts in Norway',
-        summary: 'Orders in Norway include the accounts our teams use to test the webshop.',
-      },
-    },
-  })
-  expect(saved.status()).toBe(200)
-  const { id } = (await saved.json()) as { id: string }
-  await page.goto(`/context/${id}/edit`)
-  await expect(page.getByRole('textbox', { name: /title/i })).toHaveValue('Test accounts in Norway')
 })

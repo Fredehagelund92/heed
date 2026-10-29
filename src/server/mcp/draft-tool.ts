@@ -174,10 +174,12 @@ export function createDraftTool(options: {
   web: string | null
 }): DraftTool {
   const { database, clock, web } = options
-  // A draft opens in the editor at its own address, new or a change to an item alike: finished
-  // there, it is sent or published as itself. A sent suggestion waits in the person's Inbox.
-  const linkTo = (p: { id: string }) => (web ? `${web}/context/${p.id}/edit` : null)
-  const waitingAt = (id: string) => (web ? `${web}/inbox?tab=all&card=waiting:${id}` : null)
+  const linkTo = (p: { id: string; itemId: string | null; action: string }) =>
+    web
+      ? p.action === 'change' && p.itemId
+        ? `${web}/library/${p.itemId}/suggest?draft=${p.id}`
+        : `${web}/library/new?draft=${p.id}`
+      : null
   return async (input, principal, round = firstCall, mode = 'suggest') => {
     const tool = mode === 'suggest' ? 'suggest_context' : 'draft_context'
     // A dev token or an access key names no person, so there is nobody to own or submit the draft.
@@ -360,7 +362,7 @@ export function createDraftTool(options: {
           draft_id: saved.id,
           number: saved.number,
           title: saved.draft.title ?? saved.title,
-          url: sent ? waitingAt(saved.id) : linkTo(saved),
+          url: sent ? (web ? `${web}/proposals/${saved.id}` : null) : linkTo(saved),
           fields,
           questions: listed(derived.questions),
           ...(answering ? { answered } : {}),

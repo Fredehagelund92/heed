@@ -121,7 +121,7 @@ export type ToolResult = {
  * shows already: the page applies the audience rules to whoever opens it.
  */
 export const itemUrl = (web: string | null, id: string) =>
-  `${web ?? ''}/context/${encodeURIComponent(id)}`
+  `${web ?? ''}/library/${encodeURIComponent(id)}`
 /** The page of a definition in Heed, by its name (docs/product.md, section 5): where a person reads a term. */
 export const definitionUrl = (web: string | null, name: string) =>
   `${web ?? ''}/definitions/${encodeURIComponent(name)}`
