@@ -474,8 +474,8 @@ export const invalidations: {
   setLinks: () => [queryKeys.settings, queryKeys.relateds],
   setTool: () => [queryKeys.settings],
   setPause: () => [queryKeys.settings, queryKeys.advancedPage],
-  // A new key is listed nowhere on the page; the history log notes it.
-  createAccessKey: () => [queryKeys.advancedPage],
+  // A new key is listed on Connected agents; the history log notes it.
+  createAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   // Checking and exporting change nothing.
   checkHistory: () => [],
   exportHistory: () => [],

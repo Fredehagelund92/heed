@@ -84,3 +84,34 @@ test('the dialog shows the same body, and a connect there reaches Settings', asy
     page.getByRole('list', { name: 'Connected agents' }).getByRole('listitem').first(),
   ).toContainText('Claude CodeNew')
 })
+
+test('an admin makes an access key, shown once, lists it, and revokes it', async ({ page }) => {
+  await go(page, '/settings/agents')
+  await page.getByRole('button', { name: /Show or hide Tools and access keys/ }).click()
+  await expect(
+    page.getByText("For a bot or a scheduled job that can't sign in. None yet."),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Create an access key' }).click()
+  await expect(page.getByText('Copy it now: it is shown once.')).toBeVisible()
+  await expect(
+    page.getByText(
+      "For a bot or a scheduled job that can't sign in. 1 key, in Connected agents above.",
+    ),
+  ).toBeVisible()
+  const key = page
+    .getByRole('list', { name: 'Connected agents' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Access key' })
+  await expect(key).toHaveCount(1)
+  await expect(key).toContainText('Access keyNew')
+  await expect(key).toContainText('Jon Abara')
+  await expect(key).toContainText(/never used/i)
+  await key.getByRole('button', { name: 'Revoke' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Revoke this access key?' })
+  await dialog.getByRole('button', { name: 'Revoke' }).click()
+  await expect(page.getByText('Access key revoked')).toBeVisible()
+  await expect(key).toHaveCount(0)
+  await expect(
+    page.getByText("For a bot or a scheduled job that can't sign in. None yet."),
+  ).toBeVisible()
+})

@@ -52,6 +52,31 @@ export const personConnectionSchema = z.extend(connectionSchema, {
     email: z.nullable(z.string()),
   }),
 })
+/**
+ * An access key an administrator made for a bot or a scheduled job that can't sign in. It names no
+ * person and may read context and give feedback; it lasts until revoked. The key itself is never
+ * in a read: only the answer that made it holds it.
+ */
+export const accessKeyConnectionSchema = z.object({
+  kind: z.literal('access_key'),
+  id: z.string(),
+  scopes: z.array(connectionScopeSchema),
+  createdAt: z.string(),
+  /** Null until an agent first uses it. */
+  lastUsedAt: z.nullable(z.string()),
+  madeBy: z.object({ id: z.string(), name: z.string(), initials: z.string() }),
+})
+/** The agents an administrator sees: every person's connections, and the access keys. */
+export const agentConnectionSchema = z.discriminatedUnion('kind', [
+  z.extend(personConnectionSchema, { kind: z.literal('agent') }),
+  accessKeyConnectionSchema,
+])
+/** A new access key: shown in this answer once, and kept only as its digest. */
+export const createdAccessKeySchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  createdAt: z.string(),
+})
 /** Kept in the history log for good, so it is required, trimmed and checked for sensitive text. */
 const reason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
 export const adminDisconnectSchema = z.strictObject({ id: z.uuid(), reason })
@@ -76,5 +101,8 @@ export type ConnectionScope = z.infer<typeof connectionScopeSchema>
 export type ConnectRequest = z.infer<typeof connectRequestSchema>
 export type Connection = z.infer<typeof connectionSchema>
 export type PersonConnection = z.infer<typeof personConnectionSchema>
+export type AccessKeyConnection = z.infer<typeof accessKeyConnectionSchema>
+export type AgentConnection = z.infer<typeof agentConnectionSchema>
+export type CreatedAccessKey = z.infer<typeof createdAccessKeySchema>
 export type AdminDisconnect = z.infer<typeof adminDisconnectSchema>
 export type AdminDisconnectPerson = z.infer<typeof adminDisconnectPersonSchema>

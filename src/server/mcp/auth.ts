@@ -14,7 +14,8 @@ export type Principal = {
   caller: 'agent' | 'eval'
   canSelectEdition: boolean
   /**
-   * The person a login server signed in (`sub`); absent for a dev token, which is no person.
+   * The person a login server signed in (`sub`); absent for a dev token or an access key, which
+   * are no person.
    * Only the per-person rate count reads it, as a digest; it never enters a record or a log line.
    */
   subject?: string
@@ -35,6 +36,7 @@ export type TokenFailure =
   | 'wrong_audience'
   | 'bad_claims'
   | 'revoked'
+  | 'unknown_key'
 
 export class TokenError extends Error {
   override name = 'TokenError'

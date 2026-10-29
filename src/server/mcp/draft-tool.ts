@@ -182,10 +182,10 @@ export function createDraftTool(options: {
       : null
   return async (input, principal, round = firstCall, mode = 'suggest') => {
     const tool = mode === 'suggest' ? 'suggest_context' : 'draft_context'
-    // A dev or service token names no person, so there is nobody to own or submit the draft.
+    // A dev token or an access key names no person, so there is nobody to own or submit the draft.
     if (!principal.subject)
       return refusal(
-        `${tool} needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
+        `${tool} needs a person signed in to ${productName} through an AI agent. A dev token or an access key names no person.`,
       )
     if (!uuid.test(principal.subject))
       return refusal("This sign-in doesn't name a person, so no draft was saved.")

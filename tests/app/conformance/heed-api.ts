@@ -943,16 +943,38 @@ export function describeHeedApi(
         const live = await signedIn()
         const rows = await live.listAgentConnections()
         expect(rows.length).toBeGreaterThan(1)
-        expect(new Set(rows.map((r) => `${r.agent}/${r.who}`)).size).toBe(rows.length)
+        expect(new Set(rows.map((r) => r.key ?? `${r.agent}/${r.who}`)).size).toBe(rows.length)
         for (const r of rows) {
           expect(r.agent).not.toBe('')
           expect(r.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
           expect(r.used).not.toBe('')
         }
-        const gone = rows.find((r) => r.who !== person) ?? rows[0]!
+        const gone = rows.find((r) => r.who !== person && !r.key) ?? rows[0]!
         await live.revokeAgentConnection({ agent: gone.agent, who: gone.who })
         const after = await live.listAgentConnections()
         expect(after.some((r) => r.agent === gone.agent && r.who === gone.who)).toBe(false)
+        expect(after.length).toBe(rows.length - 1)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'createAccessKey', 'listAgentConnections', 'revokeAgentConnection'))(
+      'creates an access key that is shown once, lists it by who made it, and revokes it',
+      async () => {
+        const live = await signedIn()
+        const before = await live.listAgentConnections()
+        const { key } = await live.createAccessKey()
+        expect(key.length).toBeGreaterThanOrEqual(32)
+        const rows = await live.listAgentConnections()
+        const made = rows.filter((r) => r.key && !before.some((b) => b.key === r.key))
+        expect(made).toHaveLength(1)
+        expect(made[0]).toMatchObject({ agent: 'Access key', who: person, used: 'Never' })
+        expect(made[0]!.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+        // Only the answer that made it holds the key: no read says it again.
+        expect(JSON.stringify(rows)).not.toContain(key)
+        expect(JSON.stringify(await live.getSettings())).not.toContain(key)
+        await live.revokeAgentConnection({ agent: 'Access key', who: person, key: made[0]!.key! })
+        const after = await live.listAgentConnections()
+        expect(after.some((r) => r.key === made[0]!.key)).toBe(false)
         expect(after.length).toBe(rows.length - 1)
       },
     )

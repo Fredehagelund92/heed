@@ -486,7 +486,11 @@ export interface HeedApi {
    * (`domain`, null for none). It acts at once and is logged.
    */
   setPause: (input: { all: boolean } | { domain: DomainId | null }) => Promise<void>
-  /** A key for a bot or a scheduled job that can't sign in: shown this once, kept nowhere here. */
+  /**
+   * A key for a bot or a scheduled job that can't sign in: shown this once, and kept only as its
+   * digest. It reads context and gives feedback, names no person, and is listed on Connected agents
+   * until it is revoked.
+   */
   createAccessKey: () => Promise<{ key: string }>
   /** Settings, Advanced's own read. */
   advancedPage: () => Promise<Advanced>
@@ -525,7 +529,8 @@ export interface HeedApi {
   readFigure: (input: FigureAsk) => Promise<FigureView | null>
   /** The agents connected, newest sign-in first. */
   listAgentConnections: () => Promise<Connected[]>
-  revokeAgentConnection: (input: { agent: string; who: string }) => Promise<void>
+  /** Ends every connection of that agent for that person, or one access key (`key`), at once. */
+  revokeAgentConnection: (input: { agent: string; who: string; key?: string }) => Promise<void>
   /**
    * Whether an agent signed in since a wait began (`since`, ms): the live line asks every few
    * seconds. Connected names the agent as it reported itself.

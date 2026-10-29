@@ -34,11 +34,13 @@ export async function connectInfo(
     enabled: on.has(tool),
     personOnly: personOnly(tool),
   }))
-  // The evaluation runner's label is the gateway's own (mcp/auth.ts), not a person's client, and
-  // `signed-in` is every app a person signs in with, which needs no token.
+  // The evaluation runner's label is the gateway's own (mcp/auth.ts), not a person's client,
+  // `signed-in` is every app a person signs in with, which needs no token, and `access-key` every
+  // key an administrator made for a bot.
   const clients = await tx.query<{ label: string; name: string }>(
     `select client_label as label,display_name as name from client_policies
-      where enabled and client_label not in ('eval','signed-in') order by display_name,client_label`,
+      where enabled and client_label not in ('eval','signed-in','access-key')
+      order by display_name,client_label`,
   )
   // Signing in needs the login server and the client label its apps share switched on.
   const [shared] = await tx.query<{ enabled: boolean }>(

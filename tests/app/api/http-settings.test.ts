@@ -72,6 +72,43 @@ describe('the agents people connected', () => {
     ])
   })
 
+  it('lists each access key as its own row, by who made it, a key no agent used yet as Never', () => {
+    const key = (id: string, createdAt: string, lastUsedAt: string | null) => ({
+      kind: 'access_key' as const,
+      id,
+      createdAt,
+      lastUsedAt,
+      madeBy: { name: 'Jon Abara' },
+    })
+    expect(
+      connectedOf(
+        [
+          key('k1', at(21), at(23, 8)),
+          {
+            clientName: 'Cursor',
+            person: { name: 'Jon Abara' },
+            connectedAt: at(22),
+            lastUsedAt: at(22),
+          },
+          key('k2', new Date(now.getTime() - 60_000).toISOString(), null),
+        ],
+        'Jon Abara',
+        now,
+      ),
+    ).toEqual([
+      {
+        agent: 'Access key',
+        who: 'Jon Abara',
+        since: '23 Oct 2026',
+        used: 'Never',
+        key: 'k2',
+        fresh: true,
+      },
+      { agent: 'Cursor', who: 'Jon Abara', since: '22 Oct 2026', used: 'Yesterday' },
+      { agent: 'Access key', who: 'Jon Abara', since: '21 Oct 2026', used: 'Today', key: 'k1' },
+    ])
+  })
+
   it("names the person's own agents by the person, when the list names nobody", () => {
     expect(
       connectedOf(

@@ -66,6 +66,7 @@ import { checkModelSetting, type ModelPort } from '../modules/models/index.ts'
 import { labelOperation } from '../observability/metrics.ts'
 import { createLimiter } from './rate-limit.ts'
 import { connectInfo, readTryItQuestion } from '../modules/agents/index.ts'
+import { createAccessKey, listAccessKeys, revokeAccessKey } from '../modules/access-keys/index.ts'
 import {
   askedThisWeek,
   createBundleCache,
@@ -619,9 +620,14 @@ export function createRouter({
       }),
     },
     agentConnections: {
-      list: authorized.agentConnections.list.handler(
-        async ({ context }) => (await login?.everyConnection(context.tx)) ?? [],
-      ),
+      // The access keys are listed with or without a login server: they need none.
+      list: authorized.agentConnections.list.handler(async ({ context }) => [
+        ...((await login?.everyConnection(context.tx)) ?? []).map((c) => ({
+          kind: 'agent' as const,
+          ...c,
+        })),
+        ...(await listAccessKeys(context.tx)).map((k) => ({ kind: 'access_key' as const, ...k })),
+      ]),
       disconnect: authorized.agentConnections.disconnect.handler(async ({ context, input }) => {
         plainReason(input.reason)
         const ended = await login?.disconnectAsAdmin(
@@ -631,12 +637,16 @@ export function createRouter({
           context.request.log,
         )
         if (ended === null) throw new ORPCError('FORBIDDEN')
+        if (ended) return { disconnected: ended }
+        // Not a person's connection: an access key with that id ends the same way, at once.
+        const revoked = await revokeAccessKey(context.tx, input.id, input.reason)
+        if (revoked === null) throw new ORPCError('FORBIDDEN')
         // One that ended already, or never was, answers alike.
-        if (!ended)
+        if (!revoked)
           throw new ORPCError('NOT_FOUND', {
             message: "We couldn't find this connection. It may be disconnected already.",
           })
-        return { disconnected: ended }
+        return { disconnected: 1 }
       }),
       disconnectPerson: authorized.agentConnections.disconnectPerson.handler(
         async ({ context, input }) => {
@@ -651,6 +661,14 @@ export function createRouter({
           return { disconnected: ended ?? 0 }
         },
       ),
+    },
+    accessKeys: {
+      // Never a retry write: an answer kept for a retry would keep the key.
+      create: authorized.accessKeys.create.handler(async ({ context }) => {
+        const created = await createAccessKey(context.tx)
+        if (!created) throw new ORPCError('FORBIDDEN')
+        return created
+      }),
     },
     roles: {
       list: authorized.roles.list.handler(({ context }) => listGrants(context.tx)),

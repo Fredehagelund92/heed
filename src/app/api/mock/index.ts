@@ -546,7 +546,11 @@ export function createMockApi() {
     setLinks: ({ on }) => now(() => settings.setLinks(on)),
     setTool: ({ name, on }) => now(() => settings.setTool(name, on)),
     setPause: (change) => now(() => settings.setPause(change)),
-    createAccessKey: () => now(() => ({ key: demoAccessKey() })),
+    createAccessKey: () =>
+      now(() => {
+        settings.addKey(me())
+        return { key: demoAccessKey() }
+      }),
     advancedPage: () => read('advancedPage', '', () => advancedOf(state.log)),
     checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
     exportHistory: () => now(() => historyFile(state.log)),
@@ -587,7 +591,7 @@ export function createMockApi() {
         return figureFor(asked, (id) => on[id] ?? false)
       }),
     listAgentConnections: () => now(() => settings.agents()),
-    revokeAgentConnection: ({ agent, who }) => now(() => settings.revoke(agent, who)),
+    revokeAgentConnection: ({ agent, who, key }) => now(() => settings.revoke(agent, who, key)),
     checkConnect: ({ since, agent }) =>
       now(() => settings.check(scenario.address(), since, agent, me())),
     getConnectReview: () => now(() => settings.review(scenario.address(), me())),

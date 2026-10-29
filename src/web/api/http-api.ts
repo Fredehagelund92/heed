@@ -373,7 +373,11 @@ export function createHttpApi({
     saveClient: (input) =>
       write('clients.save', input, (options) => client.clients.save(input, options)),
     getTraffic: (params = {}) => read(() => client.traffic.summary(params)),
-    listAiConnections: () => read(() => client.agentConnections.list()),
+    // The earlier screens list people's connections only: access keys belong to the new app.
+    listAiConnections: async () =>
+      (await read(() => client.agentConnections.list())).flatMap(({ kind: _kind, ...c }) =>
+        'person' in c ? [c] : [],
+      ),
     disconnectAiConnection: (input) =>
       write('agentConnections.disconnect', input, (options) =>
         client.agentConnections.disconnect(input, options),
