@@ -66,7 +66,13 @@ import {
   connectors,
   kindName,
   type Activity,
+  type ConnectField,
+  type ConnectForm,
   type Connector,
+  type ConnectScope,
+  type ConnectStep,
+  type ConnectTest,
+  type ConnectValues,
   type DocState,
   type Health,
   type IntegrationsView,
@@ -75,12 +81,13 @@ import {
   type When,
 } from '@/model/integrations'
 import type { DomainId } from '@/model/items'
-import { useConnectActions, useConnected } from '@/lib/integrations'
+import { useConnectActions } from '@/lib/integrations'
 import { useFigureActions, useFigures } from '@/lib/figures'
 import { navigate, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { toApiError } from '@/api'
+import { api, toApiError } from '@/api'
 import {
+  connectFormQuery,
   integrationPageQuery,
   integrationsPageQuery,
   useIntegrations,
@@ -90,7 +97,6 @@ import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
 import { useDomainList, useDomains, usePeople } from '@/lib/workspace'
 import { useDefinitions } from '@/lib/definitions'
 import { SettingsCrumbs } from '@/pages/settings'
-import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import { Frame, FrameNumbers, FramePage, FrameScroll, FrameSection } from '@/components/heed/frame'
 
 // Settings > Integrations: the tools Heed reads. Connected tools as rows (is it healthy, when did
@@ -795,9 +801,7 @@ function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onReque
           </p>
           <Button
             size="sm"
-            onClick={() =>
-              navigate(`/settings/integrations/${refused.connector}/connect`, { step: '2' })
-            }
+            onClick={() => navigate(`/settings/integrations/${refused.id}/connect`, { step: '2' })}
           >
             Replace key
           </Button>
@@ -946,6 +950,8 @@ function ConnectorMenu({
 }) {
   const pause = usePauseReading(source, c)
   const paused = source.health === 'paused'
+  // Whoever runs the server set its own tools up: their settings are theirs to change.
+  const own = source.added === null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -958,17 +964,21 @@ function ConnectorMenu({
           {paused ? <PlayIcon /> : <PauseIcon />}
           {paused ? 'Resume reading' : 'Pause reading'}
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })}
-        >
-          <KeyRoundIcon />
-          Change settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onDisconnect}>
-          <XIcon />
-          Disconnect
-        </DropdownMenuItem>
+        {!own && (
+          <>
+            <DropdownMenuItem
+              onClick={() => navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })}
+            >
+              <KeyRoundIcon />
+              Change settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDisconnect}>
+              <XIcon />
+              Disconnect
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -987,10 +997,12 @@ function PauseButton({ source, c }: { source: Source; c: Connector }) {
 }
 
 function DisconnectDialog({
+  source,
   c,
   open,
   onOpenChange,
 }: {
+  source: Source
   c: Connector
   open: boolean
   onOpenChange: (o: boolean) => void
@@ -1017,7 +1029,7 @@ function DisconnectDialog({
             variant="destructive"
             onClick={() => {
               onOpenChange(false)
-              disconnect(c.id).then(
+              disconnect(source.id).then(
                 () => {
                   toast(`${c.name} disconnected`, {
                     description: 'Kept in the history log. Connect it again from Integrations.',
@@ -1185,7 +1197,9 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   ]
   // Google Drive names who connected it; the definitions tools are connected by whoever runs Git.
   const shownRows = isDrive ? connectionRows : connectionRows.filter(([k]) => k !== 'Connected by')
-  const disconnect = (
+  // Whoever runs the server set its own tools up: their settings are theirs to change.
+  const own = source.added === null
+  const disconnect = own ? null : (
     <Button
       variant="outline"
       size="sm"
@@ -1270,12 +1284,16 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             </p>
             <div className="mt-3 flex gap-2 pl-6">
               <ReadAgain source={source} c={c} />
-              <Button
-                size="sm"
-                onClick={() => navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })}
-              >
-                Change settings
-              </Button>
+              {!own && (
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
+                  }
+                >
+                  Change settings
+                </Button>
+              )}
             </div>
           </div>
         )}
@@ -1445,15 +1463,17 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                     </span>{' '}
                     Their definitions stay shared, and no owner is told when they change.
                   </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      navigate(`/settings/integrations/${c.id}/connect`, { step: '4' })
-                    }
-                  >
-                    Map to a domain
-                  </Button>
+                  {!own && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/settings/integrations/${source.id}/connect`, { step: '4' })
+                      }
+                    >
+                      Map to a domain
+                    </Button>
+                  )}
                 </div>
               )}
               <p className="flex items-center gap-2 border-t px-4 py-3 text-xs text-muted-foreground md:px-5">
@@ -1470,15 +1490,17 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                 rows={shownRows}
                 actions={
                   <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })
-                      }
-                    >
-                      Change settings
-                    </Button>
+                    {!own && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
+                        }
+                      >
+                        Change settings
+                      </Button>
+                    )}
                     <PauseButton source={source} c={c} />
                     {disconnect}
                   </>
@@ -1595,7 +1617,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                         variant="outline"
                         size="sm"
                         onClick={() =>
-                          navigate(`/settings/integrations/${c.id}/connect`, { step: '3' })
+                          navigate(`/settings/integrations/${source.id}/connect`, { step: '3' })
                         }
                       >
                         Change folders
@@ -1604,7 +1626,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                         variant={h === 'reauth' ? 'default' : 'outline'}
                         size="sm"
                         onClick={() =>
-                          navigate(`/settings/integrations/${c.id}/connect`, { step: '2' })
+                          navigate(`/settings/integrations/${source.id}/connect`, { step: '2' })
                         }
                       >
                         Replace key
@@ -1624,7 +1646,7 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
         {/* Figures show where the integration says how it is reached for one. */}
         {c.figures && figureConnections[c.id] && <FiguresSection c={c} />}
       </Panel>
-      <DisconnectDialog c={c} open={leaving} onOpenChange={setLeaving} />
+      <DisconnectDialog source={source} c={c} open={leaving} onOpenChange={setLeaving} />
     </FramePage>
   )
 }
@@ -1667,29 +1689,59 @@ function Stepper({ at }: { at: number }) {
   )
 }
 
-function Checks({ items, running }: { items: string[]; running: number }) {
+/** A step of a tool's check: done, a warning, failed, or left out. */
+const stepLook: Record<ConnectStep['status'], React.ReactNode> = {
+  ok: <CircleCheckIcon aria-hidden className="size-4 shrink-0 text-good-icon" />,
+  warning: <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-ink" />,
+  failed: <CircleAlertIcon aria-hidden className="size-4 shrink-0 text-destructive" />,
+  skipped: <span aria-hidden className="size-4 shrink-0 rounded-full border" />,
+}
+
+/** What Test connection says: its checks while they run, then each step in the tool's words. */
+function Checks({ test }: { test: Testing }) {
   return (
     <ul className="flex flex-col gap-2 rounded-frame border p-4 text-sm" aria-live="polite">
-      {items.map((t, i) => (
-        <li
-          key={t}
-          className={cn('flex items-center gap-2', i >= running && 'text-muted-foreground')}
-        >
-          {i < running ? (
-            <CircleCheckIcon aria-hidden className="size-4 text-good-icon" />
-          ) : i === running ? (
-            <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
-          ) : (
-            <span aria-hidden className="size-4 rounded-full border" />
-          )}
-          {t}
+      {test.running ? (
+        <li className="flex items-center gap-2 text-muted-foreground">
+          <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
+          Testing the connection…
         </li>
-      ))}
+      ) : test.error ? (
+        <li className="flex items-start gap-2">
+          {stepLook.failed}
+          <span>{test.error}</span>
+        </li>
+      ) : (
+        <>
+          {test.result?.steps.map((step, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="mt-0.5 flex">{stepLook[step.status]}</span>
+              <span className="min-w-0">
+                {step.title}
+                {step.detail && <span className="text-muted-foreground">. {step.detail}</span>}
+                {step.fix && <span className="block text-muted-foreground">{step.fix}</span>}
+              </span>
+            </li>
+          ))}
+          {test.result?.failure && (
+            <li className="flex items-start gap-2">
+              <span className="mt-0.5 flex">{stepLook.failed}</span>
+              {test.result.failure}
+            </li>
+          )}
+        </>
+      )}
     </ul>
   )
 }
 
-function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: DomainId) => void }) {
+function DomainPick({
+  value,
+  onChange,
+}: {
+  value: DomainId | null
+  onChange: (d: DomainId) => void
+}) {
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
   return (
@@ -1722,476 +1774,708 @@ function DomainPick({ value, onChange }: { value?: DomainId; onChange: (d: Domai
   )
 }
 
-export function ConnectFlow({ id }: { id: string }) {
-  const c = connectorById(id)
-  const { query } = useRoute()
-  const { connect } = useConnectActions()
-  const { cubeViews, driveFolders } = useIntegrations()
-  const live = useConnected()
-  const at = Math.min(5, Math.max(1, Number(query.get('step')) || 1))
-  const setup = !!query.get('setup')
-  const [tested, setTested] = React.useState(-1)
-  const isCube = c?.kind === 'definitions'
-  const isDrive = c?.id === 'google-drive'
-  const scopes = isCube
-    ? cubeViews.map((v) => ({
-        name: v.view,
-        detail: [
-          v.metrics && plural(v.metrics, 'metric'),
-          v.dimensions && plural(v.dimensions, 'dimension'),
-        ]
-          .filter(Boolean)
-          .join(', '),
-        domain: v.domain,
-      }))
-    : isDrive
-      ? driveFolders.map((f) => ({
-          name: `${f.folder} / ${f.path}`,
-          detail: `${f.documents} documents`,
-          domain: f.domain,
-        }))
-      : [
-          { name: 'docs/sales', detail: '5 files', domain: 'sales' as DomainId | undefined },
-          { name: 'docs/marketing', detail: '3 files', domain: undefined },
-          { name: 'docs/people', detail: '1 file', domain: undefined },
-        ]
-  // The folders to read: Shift and a click ticks a run of them, as in every list.
-  const pickScopes = useSelection(
-    scopes.map((s) => s.name),
-    { keys: false, initial: scopes.map((s) => s.name).filter((n) => n !== 'docs/people') },
-  )
-  const chosen = pickScopes.ids
-  const [map, setMap] = React.useState<Record<string, DomainId | undefined>>(
-    Object.fromEntries(scopes.map((s) => [s.name, s.domain])),
-  )
-  const [why, setWhy] = React.useState(isCube ? 'Our metric definitions live in Cube' : '')
+/** A test of the form's settings: running, what it found, or why it could not be asked. */
+type Testing = {
+  /** Which test this is: a new one starts what may be chosen again. */
+  run: number
+  /** The settings it tested, so a change to them asks for a new test. */
+  of: string
+  running: boolean
+  result: ConnectTest | null
+  error: string | null
+}
 
-  if (!c || c.soon)
-    return (
-      <Page title={crumbs({ label: 'Connect' })}>
-        <p className="p-6 text-sm text-muted-foreground">
-          {c ? `${c.name} isn't ready to connect yet.` : 'There is no such integration.'}
-        </p>
-      </Page>
-    )
+const untested: Testing = { run: 0, of: '', running: false, result: null, error: null }
+
+/** How often a tool is read, as Connect says it: "once an hour", "once a day". */
+const onceWords = (every: string) =>
+  every === 'every hour' ? 'once an hour' : every === 'every day' ? 'once a day' : every
+
+/** The form's settings, read to compare: a test is of exactly these. */
+const settingsKey = (values: ConnectValues) => JSON.stringify([values.config, values.secrets])
+
+/** The service account a key file signs in as: its `client_email`, never anything else of it. */
+function accountOf(text: string): string | null {
+  try {
+    const key: unknown = JSON.parse(text)
+    const email =
+      typeof key === 'object' && key !== null
+        ? (key as { client_email?: unknown }).client_email
+        : null
+    return typeof email === 'string' ? email : null
+  } catch {
+    return null
+  }
+}
+
+/** Settings › Integrations › a tool › Connect: five steps on a full page, and Change settings. */
+export function ConnectFlow({ id }: { id: string }) {
+  const load = useQuery(connectFormQuery(id))
+  const form = load.data
+  const c = connectorById(form?.connector ?? id)
+  const label = form?.source ? 'Change settings' : c ? `Add ${c.name}` : 'Connect'
+  return (
+    <Page
+      title={
+        form?.source && c
+          ? crumbs({ label: c.name, href: `/settings/integrations/${form.source.id}` }, { label })
+          : crumbs({ label })
+      }
+    >
+      <Loadable what="The connect form" skeleton={<RowsSkeleton rows={6} />} query={load}>
+        {form === null || (c && c.soon) ? (
+          <p className="p-6 text-sm text-muted-foreground">
+            {c && c.soon
+              ? `${c.name} isn't ready to connect yet.`
+              : c
+                ? `${c.name}'s settings are set where the server runs.`
+                : 'There is no such integration.'}
+          </p>
+        ) : (
+          form && c && <ConnectSteps form={form} c={c} />
+        )}
+      </Loadable>
+    </Page>
+  )
+}
+
+function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
+  const { query } = useRoute()
+  const at = Math.min(5, Math.max(1, Number(query.get('step')) || 1))
+  const isDrive = c.keyFile !== undefined
+  const [values, setValues] = React.useState<ConnectValues>(() => ({
+    config: Object.fromEntries(form.fields.map((f) => [f.key, f.value])),
+    secrets: Object.fromEntries(form.secrets.map((s) => [s.key, ''])),
+  }))
+  const [files, setFiles] = React.useState<
+    Record<string, { name: string; account: string | null }>
+  >(() => Object.fromEntries(form.secrets.flatMap((s) => (s.file ? [[s.key, s.file]] : []))))
+  const [more, setMore] = React.useState(false)
+  const [test, setTest] = React.useState<Testing>(untested)
+  const tested = !!test.result?.ok && test.of === settingsKey(values)
 
   const go = (n: number) => setQuery({ step: String(n) })
-  const test = () => {
-    setTested(0)
-    ;[1, 2, 3].forEach((n) => window.setTimeout(() => setTested(n), n * 500))
-  }
-  const finish = async () => {
-    await connect(c.id, !!setup)
-    toast(`${c.name} connected`, {
-      description: isCube
-        ? 'First read now. Definitions show in Definitions as a read-only copy.'
-        : 'First read at 07:00. Documents become suggestions; nothing is published by a read.',
+  const cancel = () =>
+    navigate(form.source ? `/settings/integrations/${form.source.id}` : '/settings/integrations')
+  const runTest = React.useCallback(async () => {
+    const of = settingsKey(values)
+    setTest((t) => ({ ...untested, run: t.run + 1, of, running: true }))
+    try {
+      const result = await api.testIntegration({
+        connector: c.id,
+        ...(form.source ? { source: form.source.id } : {}),
+        ...values,
+      })
+      setTest((t) => ({ ...t, running: false, result }))
+    } catch (e: unknown) {
+      setTest((t) => ({ ...t, running: false, error: toApiError(e).message }))
+    }
+  }, [values, c.id, form.source])
+  // Choose, Map or Schedule opened by its address: the settings are tested first, as they are.
+  const needsTest = at >= 3 && !test.running && test.run === 0
+  React.useEffect(() => {
+    if (needsTest) void runTest()
+  }, [needsTest, runTest])
+
+  const setField = (key: string, value: string) =>
+    setValues((v) => ({ ...v, config: { ...v.config, [key]: value } }))
+  const setSecret = (key: string, value: string) =>
+    setValues((v) => ({ ...v, secrets: { ...v.secrets, [key]: value } }))
+  const upload = (key: string, file: File) =>
+    void file.text().then((text) => {
+      setSecret(key, text)
+      setFiles((f) => ({ ...f, [key]: { name: file.name, account: accountOf(text) } }))
     })
-    if (setup) navigate('/inbox')
-    else navigate(`/settings/integrations/${c.id}`)
+
+  if (at >= 3 && test.result?.ok && test.of === settingsKey(values))
+    return (
+      <ChoiceSteps
+        key={test.run}
+        form={form}
+        c={c}
+        at={at}
+        values={values}
+        scopes={test.result.scopes}
+        go={go}
+        cancel={cancel}
+      />
+    )
+
+  const main = form.fields.filter((f) => !f.advanced)
+  const advanced = form.fields.filter((f) => f.advanced)
+  const typed = form.secrets.filter((s) => s.key !== c.keyFile)
+  const keyFile = form.secrets.find((s) => s.key === c.keyFile)
+  const account = keyFile ? (files[keyFile.key]?.account ?? null) : null
+  const input = (f: ConnectField) => (
+    <Field key={f.key}>
+      <FieldLabel htmlFor={`field-${f.key}`}>{f.label}</FieldLabel>
+      <Input
+        id={`field-${f.key}`}
+        value={values.config[f.key] ?? ''}
+        onChange={(e) => setField(f.key, e.target.value)}
+        placeholder={f.placeholder}
+        required={f.required}
+        className={cn(f.kind !== 'text' && 'font-mono text-dense')}
+      />
+      {f.advanced && <FieldDescription>{f.description}</FieldDescription>}
+    </Field>
+  )
+  // A branch and a folder sit side by side, as the repository's own two parts.
+  const rows: ConnectField[][] = []
+  for (const f of main) {
+    const last = rows.at(-1)
+    if (last?.length === 1 && last[0]!.kind === 'ref' && f.kind === 'path') last.push(f)
+    else rows.push([f])
   }
-  const testItems = isCube
-    ? ['Reached the repository', 'Signed in with the token', 'Found 7 Cube views']
-    : isDrive
-      ? [
-          'Google accepted the service account',
-          'Found 3 shared folders',
-          'Read 14 Google Docs: titles only',
-        ]
-      : [
-          'Reached the repository',
-          'Signed in with the token',
-          'Found 9 Markdown files in 3 folders',
-        ]
-  const mapped = chosen.filter((n) => map[n]).length
-  const preview = isCube
-    ? 'It would hold 22 metrics and 5 dimensions.'
-    : isDrive
-      ? 'It would look at 14 documents in 3 folders.'
-      : 'It would look at 9 files in 3 folders.'
 
   return (
-    <Page title={crumbs({ label: `Add ${c.name}` })}>
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
-        <Stepper at={at} />
-        <Panel>
-          <div className="flex flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
-            {at === 1 && (
-              <>
-                <div className="flex items-center gap-3">
-                  <ToolLogo c={c} size="lg" />
-                  <div>
-                    <h2 className="text-xl font-semibold tracking-tight">{c.name}</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {isCube
-                        ? 'Definitions: which metrics and dimensions exist.'
-                        : 'Context: what people wrote down, as suggestions for owners.'}
-                    </p>
-                  </div>
-                </div>
-                <div className="overflow-hidden rounded-frame border">
-                  <div className="p-4">
-                    <h3 className="text-sm font-medium">What it will hold</h3>
-                    <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-                      {(isCube
-                        ? [
-                            'The name, title and a short description of each definition',
-                            'Its type, its domain and a change mark',
-                            'A link back to the Cube file',
-                          ]
-                        : [
-                            'The link and title of each document',
-                            'A quote of up to 500 characters, and the date read',
-                            'One suggestion per document, for the owners of its domain',
-                          ]
-                      ).map((t) => (
-                        <li key={t} className="flex items-center gap-2">
-                          <CheckIcon aria-hidden className="size-4 text-good-icon" />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div className="border-t p-4">
-                    <h3 className="text-sm font-medium">What it will never hold</h3>
-                    <ul className="mt-2 flex flex-col gap-1.5 text-sm">
-                      {(isCube
-                        ? ['A calculation, a query or a row of data']
-                        : [
-                            'The document itself, or who can read it',
-                            'Anything published without an owner',
-                          ]
-                      ).map((t) => (
-                        <li key={t} className="flex items-center gap-2">
-                          <XIcon aria-hidden className="size-4 text-destructive" />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-                <p className="flex gap-2 rounded-frame bg-primary/5 p-4 text-sm">
-                  <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
-                  {isCube
-                    ? 'You need a read-only token for the Git repository that holds your Cube files. Only admins can connect a source.'
-                    : isDrive
-                      ? 'You need a Google Cloud project to create a service account key, and the folders to share with it. Only admins can connect a source.'
-                      : 'You need a read-only token for the repository. Only admins can connect a source.'}
-                </p>
-              </>
-            )}
-
-            {at === 2 && (
-              <>
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">
-                    {isDrive
-                      ? 'Share folders with the service account'
-                      : `Connect to your ${isCube ? 'Cube files' : 'repository'}`}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {isDrive
-                      ? 'Google Docs are read by a service account that can only view.'
-                      : `It reads them from Git, ${isCube ? 'once an hour' : 'once a day'}.`}
-                  </p>
-                </div>
-                {isDrive ? (
-                  <FieldGroup>
-                    <Field>
-                      <FieldLabel>Service account key</FieldLabel>
-                      <div className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
-                        <KeyRoundIcon aria-hidden className="size-4 text-muted-foreground" />
-                        <span className="flex-1 truncate">{SLUG}-reader.json</span>
-                        <Badge
-                          variant="outline"
-                          className="border-good/35 font-normal text-good-ink"
-                        >
-                          Uploaded
-                        </Badge>
-                      </div>
-                      <FieldDescription>
-                        Created in your Google Cloud project. Stored where only this source can use
-                        it.
-                      </FieldDescription>
-                    </Field>
-                    <Field>
-                      <FieldLabel htmlFor="share-address">
-                        Share each folder with this address, as Viewer
-                      </FieldLabel>
-                      <div className="flex gap-2">
-                        <Input
-                          id="share-address"
-                          readOnly
-                          value={SERVICE_ACCOUNT}
-                          className="font-mono text-xs"
-                        />
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          aria-label="Copy the address"
-                          onClick={() => {
-                            navigator.clipboard?.writeText(SERVICE_ACCOUNT).catch(() => undefined)
-                            toast('Address copied')
-                          }}
-                        >
-                          <CopyIcon />
-                        </Button>
-                      </div>
-                      <FieldDescription>
-                        It can only see folders shared with it. It can't see the rest of your Drive.
-                      </FieldDescription>
-                    </Field>
-                  </FieldGroup>
-                ) : (
-                  <FieldGroup>
-                    <Field>
-                      <FieldLabel htmlFor="repo">Repository address</FieldLabel>
-                      <Input
-                        id="repo"
-                        defaultValue={
-                          isCube
-                            ? 'https://git.example/larchwood/cube-definitions'
-                            : 'https://git.example/larchwood/handbook'
-                        }
-                        className="font-mono text-dense"
-                      />
-                    </Field>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Field>
-                        <FieldLabel htmlFor="branch">Branch or tag</FieldLabel>
-                        <Input id="branch" defaultValue="main" className="font-mono text-dense" />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="folder">Folder</FieldLabel>
-                        <Input
-                          id="folder"
-                          defaultValue={isCube ? 'cube/' : 'docs/'}
-                          className="font-mono text-dense"
-                        />
-                      </Field>
-                    </div>
-                    <Field>
-                      <FieldLabel htmlFor="token">Read-only token</FieldLabel>
-                      <Input id="token" type="password" defaultValue="ghp_mock_read_only_token" />
-                      <FieldDescription>Stored where only this source can use it.</FieldDescription>
-                    </Field>
-                  </FieldGroup>
-                )}
-                <div className="flex flex-col gap-3">
-                  <Button
-                    variant="outline"
-                    className="w-fit"
-                    onClick={test}
-                    disabled={tested >= 0 && tested < 3}
-                  >
-                    <PlugIcon data-icon="inline-start" />
-                    Test connection
-                  </Button>
-                  {tested >= 0 && <Checks items={testItems} running={tested} />}
-                </div>
-              </>
-            )}
-
-            {at === 3 && (
-              <>
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">Choose what to read</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{preview}</p>
-                </div>
-                <ul className="overflow-hidden rounded-frame border">
-                  {scopes.map((s) => (
-                    <li key={s.name} className="border-t first:border-t-0">
-                      <label
-                        className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm hover:bg-muted/40"
-                        onMouseDown={pickScopes.onMouseDown}
-                      >
-                        <Checkbox {...pickScopes.checkbox(s.name)} />
-                        <span
-                          className={cn(
-                            'min-w-0 flex-1 truncate',
-                            isCube && 'font-mono text-dense',
-                          )}
-                        >
-                          {s.name}
-                        </span>
-                        <span className="text-muted-foreground">{s.detail}</span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-                {isCube && (
-                  <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
-                    <TriangleAlertIcon
-                      aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-caution-ink"
-                    />
-                    <span>
-                      2 views have no <code className="font-mono text-xs">meta.domain</code>. You
-                      can map them in the next step.
-                    </span>
-                  </p>
-                )}
-                {!isCube && !isDrive && (
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">docs/people</span> is left out:
-                    its file names people, and those are skipped.
-                  </p>
-                )}
-              </>
-            )}
-
-            {at === 4 && (
-              <>
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">
-                    Map to domains and owners
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {isCube
-                      ? 'Owners of a domain are told when a definition they rely on changes.'
-                      : "Each folder goes to exactly one domain. Its suggestions go only to that domain's owners."}
-                  </p>
-                </div>
-                <div className="overflow-x-auto rounded-frame border">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-band text-left text-xs text-muted-foreground">
-                        <th className="h-9 px-4 font-medium">{isCube ? 'Cube view' : 'Folder'}</th>
-                        <th className="h-9 px-4 font-medium">Domain</th>
-                        <th className="h-9 px-4 font-medium">Owners</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chosen.map((n) => (
-                        <tr key={n} className="border-t">
-                          <td className={cn('h-12 px-4', isCube && 'font-mono text-dense')}>{n}</td>
-                          <td className="px-4">
-                            <DomainPick
-                              value={map[n]}
-                              onChange={(d) => setMap((m) => ({ ...m, [n]: d }))}
-                            />
-                          </td>
-                          <td className="px-4">
-                            <Owners domain={map[n]} />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {isCube
-                    ? `A hint never creates a domain. Leave a view unmapped and its definitions stay shared. ${mapped} of ${chosen.length} mapped.`
-                    : `Every folder needs a domain before it is read. ${mapped} of ${chosen.length} mapped.`}
-                </p>
-              </>
-            )}
-
-            {at === 5 && (
-              <>
-                <div>
-                  <h2 className="text-xl font-semibold tracking-tight">Schedule and review</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">What happens on each read.</p>
-                </div>
-                <dl className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-frame border p-3">
-                    <dt className="text-xs text-muted-foreground">Read</dt>
-                    <dd className="mt-1 font-medium">
-                      {isCube ? 'Every hour' : 'Every day at 06:00'}
-                    </dd>
-                  </div>
-                  <div className="rounded-frame border p-3">
-                    <dt className="text-xs text-muted-foreground">
-                      {isCube ? 'Out of date after' : 'Suggestions per day'}
-                    </dt>
-                    <dd className="mt-1 font-medium">{isCube ? '6 hours' : 'At most 5'}</dd>
-                  </div>
-                </dl>
-                <ul className="flex flex-col gap-2 rounded-frame border p-4 text-sm">
-                  {(isCube
-                    ? [
-                        <>
-                          A changed or missing definition marks the context that relies on it{' '}
-                          <span className="font-medium">Needs checking</span> and tells its owner.
-                        </>,
-                        <>Nothing is published or changed by a read.</>,
-                        <>
-                          If Cube can't be reached, the last good read stays and nothing is flagged.
-                        </>,
-                      ]
-                    : [
-                        <>
-                          A new or changed document becomes{' '}
-                          <span className="font-medium">one suggestion</span> in its owners' Inbox.
-                        </>,
-                        <>
-                          Nothing is published by a read. An owner publishes, or returns it with a
-                          note.
-                        </>,
-                        <>
-                          If {c.name} can't be reached, what was read stays and nothing is created.
-                        </>,
-                      ]
-                  ).map((t, i) => (
-                    <li key={i} className="flex gap-2">
-                      <CircleCheckIcon
-                        aria-hidden
-                        className="mt-0.5 size-4 shrink-0 text-good-icon"
-                      />
-                      <span>{t}</span>
-                    </li>
-                  ))}
-                </ul>
+    <FlowFrame at={at}>
+      <div className="flex flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
+        {at === 1 && <PickStep c={c} />}
+        {at === 2 && (
+          <>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">
+                {isDrive
+                  ? 'Share folders with the service account'
+                  : `Connect to your ${c.kind === 'definitions' ? 'Cube files' : 'repository'}`}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isDrive
+                  ? 'Google Docs are read by a service account that can only view.'
+                  : `It reads them from Git, ${onceWords(form.every)}.`}
+              </p>
+            </div>
+            <FieldGroup>
+              {keyFile && (
                 <Field>
-                  <FieldLabel htmlFor="why">Why are you adding this?</FieldLabel>
-                  <Input
-                    id="why"
-                    value={why}
-                    onChange={(e) => setWhy(e.target.value)}
-                    placeholder="Our handbook lives in Git"
-                  />
-                  <FieldDescription>Kept in the history log.</FieldDescription>
+                  <FieldLabel htmlFor={`file-${keyFile.key}`}>{keyFile.label}</FieldLabel>
+                  <div className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
+                    <KeyRoundIcon aria-hidden className="size-4 text-muted-foreground" />
+                    <span className="flex-1 truncate">
+                      {files[keyFile.key]?.name ??
+                        (keyFile.set ? 'A key is set' : 'No key uploaded yet')}
+                    </span>
+                    {(files[keyFile.key] || keyFile.set) && (
+                      <Badge variant="outline" className="border-good/35 font-normal text-good-ink">
+                        {files[keyFile.key] ? 'Uploaded' : 'Set'}
+                      </Badge>
+                    )}
+                    <label className="cursor-pointer text-sm font-medium text-primary underline-offset-4 hover:underline">
+                      {files[keyFile.key] || keyFile.set ? 'Replace' : 'Upload'}
+                      <input
+                        id={`file-${keyFile.key}`}
+                        type="file"
+                        accept=".json,application/json"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) upload(keyFile.key, file)
+                          e.target.value = ''
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <FieldDescription>
+                    Created in your Google Cloud project. Stored where only this source can use it.
+                  </FieldDescription>
                 </Field>
-              </>
+              )}
+              {account && (
+                <Field>
+                  <FieldLabel htmlFor="share-address">
+                    Share each folder with this address, as Viewer
+                  </FieldLabel>
+                  <div className="flex gap-2">
+                    <Input
+                      id="share-address"
+                      readOnly
+                      value={account}
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Copy the address"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(account).catch(() => undefined)
+                        toast('Address copied')
+                      }}
+                    >
+                      <CopyIcon />
+                    </Button>
+                  </div>
+                  <FieldDescription>
+                    It can only see folders shared with it. It can't see the rest of your Drive.
+                  </FieldDescription>
+                </Field>
+              )}
+              {rows.map((row) =>
+                row.length === 2 ? (
+                  <div key={row[0]!.key} className="grid gap-4 sm:grid-cols-2">
+                    {row.map(input)}
+                  </div>
+                ) : (
+                  input(row[0]!)
+                ),
+              )}
+              {typed.map((secret) => (
+                <Field key={secret.key}>
+                  <FieldLabel htmlFor={`secret-${secret.key}`}>{secret.label}</FieldLabel>
+                  <Input
+                    id={`secret-${secret.key}`}
+                    type="password"
+                    autoComplete="off"
+                    value={values.secrets[secret.key] ?? ''}
+                    onChange={(e) => setSecret(secret.key, e.target.value)}
+                    placeholder={secret.set ? 'Set. Leave it empty to keep it' : undefined}
+                  />
+                  <FieldDescription>Stored where only this source can use it.</FieldDescription>
+                </Field>
+              ))}
+              {advanced.length > 0 && (
+                <div className="flex flex-col gap-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit"
+                    aria-expanded={more}
+                    onClick={() => setMore((m) => !m)}
+                  >
+                    <ChevronDownIcon
+                      data-icon="inline-start"
+                      className={cn('transition-transform', !more && '-rotate-90')}
+                    />
+                    More settings
+                  </Button>
+                  {more && advanced.map(input)}
+                </div>
+              )}
+            </FieldGroup>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="outline"
+                  className="w-fit"
+                  onClick={() => void runTest()}
+                  disabled={test.running}
+                >
+                  <PlugIcon data-icon="inline-start" />
+                  Test connection
+                </Button>
+                {!tested && !test.running && (
+                  <span className="text-sm text-muted-foreground">
+                    Test it before you continue.
+                  </span>
+                )}
+              </div>
+              {test.run > 0 && <Checks test={test} />}
+            </div>
+          </>
+        )}
+        {at >= 3 && (
+          <>
+            <Checks test={test} />
+            {!test.running && (
+              <p className="text-sm text-muted-foreground">
+                Go back to Connect, check the settings and test again.
+              </p>
             )}
-          </div>
-          <footer className="flex items-center gap-2 border-t px-4 py-3 md:px-6">
-            {at === 1 ? (
-              <span className="text-sm text-muted-foreground tabular-nums">1 of 5</span>
-            ) : (
-              <Button variant="ghost" onClick={() => go(at - 1)}>
-                <ArrowLeftIcon data-icon="inline-start" />
-                Back
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              className="ml-auto"
-              onClick={() =>
-                navigate(
-                  live.includes(c.id) ? `/settings/integrations/${c.id}` : '/settings/integrations',
-                )
-              }
-            >
-              Cancel
-            </Button>
-            {at < 5 ? (
-              <Button
-                onClick={() => go(at + 1)}
-                disabled={at === 4 && !isCube && mapped < chosen.length}
-              >
-                Continue
-                <ArrowRightIcon data-icon="inline-end" />
-              </Button>
-            ) : (
-              <Button onClick={() => void finish()} disabled={!why.trim()}>
-                {isCube ? `Add ${c.name}` : `Connect ${c.name}`}
-              </Button>
-            )}
-          </footer>
-        </Panel>
+          </>
+        )}
       </div>
-    </Page>
+      <FlowFooter at={at} go={go} cancel={cancel}>
+        <Button onClick={() => go(at + 1)} disabled={at === 2 ? !tested : at > 2}>
+          Continue
+          <ArrowRightIcon data-icon="inline-end" />
+        </Button>
+      </FlowFooter>
+    </FlowFrame>
+  )
+}
+
+/** The connect flow's page: its five steps above one panel. */
+function FlowFrame({ at, children }: { at: number; children: React.ReactNode }) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
+      <Stepper at={at} />
+      <Panel>{children}</Panel>
+    </div>
+  )
+}
+
+/** Back (or where the steps stand), Cancel, and the step's own button. */
+function FlowFooter({
+  at,
+  go,
+  cancel,
+  children,
+}: {
+  at: number
+  go: (n: number) => void
+  cancel: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <footer className="flex items-center gap-2 border-t px-4 py-3 md:px-6">
+      {at === 1 ? (
+        <span className="text-sm text-muted-foreground tabular-nums">1 of 5</span>
+      ) : (
+        <Button variant="ghost" onClick={() => go(at - 1)}>
+          <ArrowLeftIcon data-icon="inline-start" />
+          Back
+        </Button>
+      )}
+      <Button variant="ghost" className="ml-auto" onClick={cancel}>
+        Cancel
+      </Button>
+      {children}
+    </footer>
+  )
+}
+
+/** Pick: what the tool will hold and never hold, and what connecting it needs. */
+function PickStep({ c }: { c: Connector }) {
+  const isCube = c.kind === 'definitions'
+  const isDrive = c.keyFile !== undefined
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <ToolLogo c={c} size="lg" />
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">{c.name}</h2>
+          <p className="text-sm text-muted-foreground">
+            {isCube
+              ? 'Definitions: which metrics and dimensions exist.'
+              : 'Context: what people wrote down, as suggestions for owners.'}
+          </p>
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-frame border">
+        <div className="p-4">
+          <h3 className="text-sm font-medium">What it will hold</h3>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+            {(isCube
+              ? [
+                  'The name, title and a short description of each definition',
+                  'Its type, its domain and a change mark',
+                  'A link back to the Cube file',
+                ]
+              : [
+                  'The link and title of each document',
+                  'A quote of up to 500 characters, and the date read',
+                  'One suggestion per document, for the owners of its domain',
+                ]
+            ).map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <CheckIcon aria-hidden className="size-4 text-good-icon" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="border-t p-4">
+          <h3 className="text-sm font-medium">What it will never hold</h3>
+          <ul className="mt-2 flex flex-col gap-1.5 text-sm">
+            {(isCube
+              ? ['A calculation, a query or a row of data']
+              : ['The document itself, or who can read it', 'Anything published without an owner']
+            ).map((t) => (
+              <li key={t} className="flex items-center gap-2">
+                <XIcon aria-hidden className="size-4 text-destructive" />
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p className="flex gap-2 rounded-frame bg-primary/5 p-4 text-sm">
+        <InfoIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+        {isCube
+          ? 'You need a read-only token for the Git repository that holds your Cube files. Only admins can connect a source.'
+          : isDrive
+            ? 'You need a Google Cloud project to create a service account key, and the folders to share with it. Only admins can connect a source.'
+            : 'You need a read-only token for the repository. Only admins can connect a source.'}
+      </p>
+    </>
+  )
+}
+
+/**
+ * Choose, Map and Schedule, over what the test found: the views or folders ticked, the domain
+ * each maps to, and why it is added. A new test starts them again.
+ */
+function ChoiceSteps({
+  form,
+  c,
+  at,
+  values,
+  scopes,
+  go,
+  cancel,
+}: {
+  form: ConnectForm
+  c: Connector
+  at: number
+  values: ConnectValues
+  scopes: ConnectScope[]
+  go: (n: number) => void
+  cancel: () => void
+}) {
+  const { query } = useRoute()
+  const setup = !!query.get('setup')
+  const { connect, change } = useConnectActions()
+  const isCube = c.kind === 'definitions'
+  const isDrive = c.keyFile !== undefined
+  const ids = scopes.map((s) => s.id)
+  // A tool connected starts from what it reads (a definitions tool with nothing chosen reads all);
+  // a new one from everything found, but what is left out at first.
+  const before = new Map(form.chosen.map((choice) => [choice.id, choice.domain]))
+  const initial = form.source
+    ? before.size
+      ? ids.filter((i) => before.has(i))
+      : ids
+    : scopes.filter((s) => !s.leftOut).map((s) => s.id)
+  // The rows to read: Shift and a click ticks a run of them, as in every list.
+  const pickScopes = useSelection(ids, { keys: false, initial })
+  const chosen = scopes.filter((s) => pickScopes.ids.includes(s.id))
+  // A domain the tool suggests goes in only when it is one of the workspace's.
+  const domainIds = new Set(useDomainList().map((d) => d.id))
+  const [map, setMap] = React.useState<Record<string, DomainId | null>>(() =>
+    Object.fromEntries(
+      scopes.map((s) => {
+        const domain = before.has(s.id) ? (before.get(s.id) ?? null) : (s.domain ?? null)
+        return [s.id, domain && domainIds.has(domain) ? domain : null]
+      }),
+    ),
+  )
+  const [why, setWhy] = React.useState(
+    isCube && !form.source ? 'Our metric definitions live in Cube' : '',
+  )
+  const [saving, setSaving] = React.useState(false)
+  const mapped = chosen.filter((s) => map[s.id]).length
+  const unmapped = scopes.filter((s) => !s.domain).length
+  const leftOut = scopes.filter((s) => s.leftOut)
+  const sum = (key: 'metrics' | 'dimensions' | 'documents') =>
+    chosen.reduce((n, s) => n + (s[key] ?? 0), 0)
+  const preview = isCube
+    ? `It would hold ${plural(sum('metrics'), 'metric')} and ${plural(sum('dimensions'), 'dimension')}.`
+    : chosen.some((s) => s.documents !== undefined)
+      ? `It would look at ${plural(sum('documents'), isDrive ? 'document' : 'file')} in ${plural(chosen.length, 'folder')}.`
+      : `It would look at ${plural(chosen.length, 'folder')}.`
+
+  const finish = async () => {
+    const choices = chosen.map((s) => ({ id: s.id, title: s.title, domain: map[s.id] ?? null }))
+    // A definitions tool that reads every view as the tool maps it keeps nothing chosen: a view
+    // added later is read too.
+    const asFound =
+      isCube &&
+      chosen.length === scopes.length &&
+      choices.every((ch) => ch.domain === (scopes.find((s) => s.id === ch.id)?.domain ?? null))
+    const input = { ...values, chosen: asFound ? [] : choices, reason: why.trim() }
+    setSaving(true)
+    try {
+      if (form.source) {
+        await change({ id: form.source.id, revision: form.source.revision, ...input })
+        toast(`${c.name} settings saved`, {
+          description: 'They apply from its next read, which starts now. Kept in the history log.',
+        })
+        navigate(`/settings/integrations/${form.source.id}`)
+        return
+      }
+      const done = await connect({ connector: c.id, ...input, ...(setup ? { setup } : {}) })
+      toast(`${c.name} connected`, {
+        description: isCube
+          ? 'First read now. Definitions show in Definitions as a read-only copy.'
+          : `First read ${done.firstRead ? `at ${done.firstRead}` : 'now'}. Documents become suggestions; nothing is published by a read.`,
+      })
+      if (setup) navigate('/inbox')
+      else navigate(`/settings/integrations/${done.id}`)
+    } catch (e: unknown) {
+      toast(form.source ? `Couldn't save ${c.name}` : `Couldn't connect ${c.name}`, {
+        description: toApiError(e).message,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <FlowFrame at={at}>
+      <div className="flex flex-col gap-5 px-4 py-5 md:px-6 md:py-6">
+        {at === 3 && (
+          <>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Choose what to read</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{preview}</p>
+            </div>
+            <ul className="overflow-hidden rounded-frame border">
+              {scopes.map((s) => (
+                <li key={s.id} className="border-t first:border-t-0">
+                  <label
+                    className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm hover:bg-muted/40"
+                    onMouseDown={pickScopes.onMouseDown}
+                  >
+                    <Checkbox {...pickScopes.checkbox(s.id)} />
+                    <span
+                      className={cn('min-w-0 flex-1 truncate', isCube && 'font-mono text-dense')}
+                    >
+                      {s.title}
+                    </span>
+                    <span className="text-muted-foreground">{s.detail}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            {isCube && unmapped > 0 && (
+              <p className="flex items-start gap-2 rounded-frame border border-caution/45 bg-caution/8 p-3 text-sm">
+                <TriangleAlertIcon
+                  aria-hidden
+                  className="mt-0.5 size-4 shrink-0 text-caution-ink"
+                />
+                <span>
+                  {unmapped === 1 ? '1 view has' : `${unmapped} views have`} no{' '}
+                  <code className="font-mono text-xs">meta.domain</code>. You can map{' '}
+                  {unmapped === 1 ? 'it' : 'them'} in the next step.
+                </span>
+              </p>
+            )}
+            {leftOut.map((s) => (
+              <p key={s.id} className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">{s.title}</span> is left out:{' '}
+                {s.leftOut}.
+              </p>
+            ))}
+          </>
+        )}
+
+        {at === 4 && (
+          <>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Map to domains and owners</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isCube
+                  ? 'Owners of a domain are told when a definition they rely on changes.'
+                  : "Each folder goes to exactly one domain. Its suggestions go only to that domain's owners."}
+              </p>
+            </div>
+            <div className="overflow-x-auto rounded-frame border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-band text-left text-xs text-muted-foreground">
+                    <th className="h-9 px-4 font-medium">{isCube ? 'Cube view' : 'Folder'}</th>
+                    <th className="h-9 px-4 font-medium">Domain</th>
+                    <th className="h-9 px-4 font-medium">Owners</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {chosen.map((s) => (
+                    <tr key={s.id} className="border-t">
+                      <td className={cn('h-12 px-4', isCube && 'font-mono text-dense')}>
+                        {s.title}
+                      </td>
+                      <td className="px-4">
+                        <DomainPick
+                          value={map[s.id] ?? null}
+                          onChange={(d) => setMap((m) => ({ ...m, [s.id]: d }))}
+                        />
+                      </td>
+                      <td className="px-4">
+                        <Owners domain={map[s.id] ?? undefined} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {isCube
+                ? `A hint never creates a domain. Leave a view unmapped and its definitions stay shared. ${mapped} of ${chosen.length} mapped.`
+                : `Every folder needs a domain before it is read. ${mapped} of ${chosen.length} mapped.`}
+            </p>
+          </>
+        )}
+
+        {at === 5 && (
+          <>
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">Schedule and review</h2>
+              <p className="mt-1 text-sm text-muted-foreground">What happens on each read.</p>
+            </div>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-frame border p-3">
+                <dt className="text-xs text-muted-foreground">Read</dt>
+                <dd className="mt-1 font-medium">{sentence(form.every)}</dd>
+              </div>
+              <div className="rounded-frame border p-3">
+                <dt className="text-xs text-muted-foreground">
+                  {isCube ? 'Out of date after' : 'Suggestions per day'}
+                </dt>
+                <dd className="mt-1 font-medium">
+                  {isCube || form.perDay === null ? form.staleAfter : `At most ${form.perDay}`}
+                </dd>
+              </div>
+            </dl>
+            <ul className="flex flex-col gap-2 rounded-frame border p-4 text-sm">
+              {(isCube
+                ? [
+                    <>
+                      A changed or missing definition marks the context that relies on it{' '}
+                      <span className="font-medium">Needs checking</span> and tells its owner.
+                    </>,
+                    <>Nothing is published or changed by a read.</>,
+                    <>If Cube can't be reached, the last good read stays and nothing is flagged.</>,
+                  ]
+                : [
+                    <>
+                      A new or changed document becomes{' '}
+                      <span className="font-medium">one suggestion</span> in its owners' Inbox.
+                    </>,
+                    <>
+                      Nothing is published by a read. An owner publishes, or returns it with a note.
+                    </>,
+                    <>If {c.name} can't be reached, what was read stays and nothing is created.</>,
+                  ]
+              ).map((t, i) => (
+                <li key={i} className="flex gap-2">
+                  <CircleCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-good-icon" />
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+            <Field>
+              <FieldLabel htmlFor="why">
+                {form.source ? 'Why are you changing it?' : 'Why are you adding this?'}
+              </FieldLabel>
+              <Input
+                id="why"
+                value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                placeholder={form.source ? 'The handbook moved' : 'Our handbook lives in Git'}
+              />
+              <FieldDescription>Kept in the history log.</FieldDescription>
+            </Field>
+          </>
+        )}
+      </div>
+      <FlowFooter at={at} go={go} cancel={cancel}>
+        {at < 5 ? (
+          <Button
+            onClick={() => go(at + 1)}
+            disabled={
+              (at === 3 && !chosen.length) || (at === 4 && !isCube && mapped < chosen.length)
+            }
+          >
+            Continue
+            <ArrowRightIcon data-icon="inline-end" />
+          </Button>
+        ) : (
+          <Button onClick={() => void finish()} disabled={!why.trim() || saving}>
+            {form.source ? 'Save changes' : isCube ? `Add ${c.name}` : `Connect ${c.name}`}
+          </Button>
+        )}
+      </FlowFooter>
+    </FlowFrame>
   )
 }
 

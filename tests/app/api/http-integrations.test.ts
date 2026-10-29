@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import type { SourceActivity, SourceReadEntry, SourceRow, SourceSettings } from '@contract/sources'
+import type {
+  SourceActivity,
+  SourceCheck,
+  SourceReadEntry,
+  SourceRow,
+  SourceSettings,
+} from '@contract/sources'
+import { manifest as cubeManifest } from '../../../src/connectors/cube/manifest'
+import { manifest as gitManifest } from '../../../src/connectors/git-markdown/manifest'
 import {
   activityOf,
+  changedConfigOf,
+  configOf,
+  connectFormOf,
   connectionOf,
+  connectTestOf,
   documentOf,
   durationWords,
   everyWords,
@@ -395,5 +407,134 @@ describe('how a source is connected', () => {
     expect(page.views).toEqual([
       { view: 'orders', metrics: 2, dimensions: 1, domain: 'area_sales' },
     ])
+  })
+})
+
+describe('the connect flow, on the manifests', () => {
+  const settings: SourceSettings = {
+    id: 'markdown-in-git',
+    type: 'git-markdown',
+    name: 'Markdown in Git',
+    revision: 3,
+    config: { repository: 'https://git.example/handbook.git', ref: 'release', folder: 'docs' },
+    secrets: [{ key: 'token', set: true }],
+    scopes: [{ id: 'docs/sales', title: 'docs/sales', domain: 'sales' }],
+    schedule: 'PT6H',
+    nextReadAt: null,
+    changedAt: null,
+    changedBy: null,
+  }
+
+  it("draws a new connection's form from its manifest, with the manifest's defaults", () => {
+    const form = connectFormOf(gitManifest, null)!
+    expect(form).toMatchObject({
+      connector: 'markdown-git',
+      source: null,
+      every: 'every day',
+      staleAfter: '2 days',
+      perDay: 5,
+      chosen: [],
+    })
+    expect(form.fields.map((f) => [f.key, f.kind, f.required, f.advanced, f.value])).toEqual([
+      ['repository', 'address', true, false, ''],
+      ['ref', 'ref', true, false, 'main'],
+      ['folder', 'path', false, false, ''],
+      ['fileLink', 'text', false, true, ''],
+      ['username', 'text', false, true, ''],
+    ])
+    expect(form.secrets).toEqual([
+      expect.objectContaining({ key: 'token', label: 'Read-only token', set: false }),
+    ])
+  })
+
+  it("draws a source's form from what it has: its settings, its choices, whether its secret is set", () => {
+    const form = connectFormOf(gitManifest, settings)!
+    expect(form.source).toEqual({ id: 'markdown-in-git', revision: 3 })
+    expect(form.fields.find((f) => f.key === 'ref')?.value).toBe('release')
+    expect(form.secrets[0]?.set).toBe(true)
+    expect(form.every).toBe('every 6 hours')
+    expect(form.chosen).toEqual(settings.scopes)
+  })
+
+  it("leaves out a setting it can't draw, and a tool the app has no cell for", () => {
+    const form = connectFormOf(cubeManifest, null)!
+    expect(form.fields.map((f) => f.key)).not.toContain('domainNames')
+    expect(form.perDay).toBeNull()
+    expect(connectFormOf({ ...gitManifest, id: 'acme.wiki' }, null)).toBeNull()
+  })
+
+  it('says what a test found: its steps, and what may be read with what it holds', () => {
+    const check: SourceCheck = {
+      ok: true,
+      steps: [
+        { id: 'reach', title: 'Reach the model', status: 'ok', detail: 'Read commit 1a2b3c4.' },
+      ],
+      version: '1a2b3c4',
+      complete: true,
+      views: 2,
+      metrics: 3,
+      dimensions: 1,
+      warnings: [],
+      scopes: [
+        { id: 'orders', title: 'orders', suggestedDomain: 'sales', metrics: 2, dimensions: 1 },
+        { id: 'segments', title: 'segments', suggestedDomain: null, metrics: 1, dimensions: 0 },
+      ],
+    }
+    expect(connectTestOf(check)).toEqual({
+      ok: true,
+      steps: [{ title: 'Reach the model', status: 'ok', detail: 'Read commit 1a2b3c4.' }],
+      scopes: [
+        {
+          id: 'orders',
+          title: 'orders',
+          detail: '2 metrics, 1 dimension',
+          metrics: 2,
+          dimensions: 1,
+          domain: 'sales',
+        },
+        { id: 'segments', title: 'segments', detail: '1 metric', metrics: 1, dimensions: 0 },
+      ],
+    })
+    const folders = connectTestOf({
+      ...check,
+      scopes: [{ id: 'docs/sales', title: 'docs/sales', suggestedDomain: null }],
+    })
+    expect(folders.scopes).toEqual([{ id: 'docs/sales', title: 'docs/sales', detail: '' }])
+  })
+
+  it('says why a test failed when no step says it', () => {
+    const failed: SourceCheck = {
+      ok: false,
+      steps: [],
+      version: null,
+      complete: false,
+      views: 0,
+      metrics: 0,
+      dimensions: 0,
+      warnings: [{ code: 'unauthorized', target: 'https://git.example/handbook.git' }],
+    }
+    expect(connectTestOf(failed)).toEqual({
+      ok: false,
+      steps: [],
+      scopes: [],
+      failure: "It couldn't be read: the key was refused.",
+    })
+    const said = connectTestOf({
+      ...failed,
+      steps: [{ id: 'reach', title: 'Reach the repository', status: 'failed' }],
+    })
+    expect(said.failure).toBeUndefined()
+  })
+
+  it("sends the settings written, and keeps a source's settings the form doesn't draw", () => {
+    expect(configOf({ repository: ' https://git.example/handbook.git ', folder: '' })).toEqual({
+      repository: 'https://git.example/handbook.git',
+    })
+    expect(
+      changedConfigOf(
+        { repository: 'https://git.example/a.git', folder: 'docs', domainNames: { shop: 'sales' } },
+        { repository: 'https://git.example/b.git', folder: '' },
+      ),
+    ).toEqual({ repository: 'https://git.example/b.git', domainNames: { shop: 'sales' } })
   })
 })

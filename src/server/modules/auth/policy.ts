@@ -139,6 +139,7 @@ export const policies = {
   'sources.update': 'admin',
   'sources.test': 'admin',
   'sources.read': 'admin',
+  'sources.remove': 'admin',
   'vocabulary.get': 'read',
   'vocabulary.search': 'read',
   'vocabulary.describe': 'read',

@@ -271,7 +271,9 @@ five minutes and reads the sources that are due), and administrators watch them,
 and pause them in Settings › Integrations (`GET /api/v1/sources`,
 `GET /api/v1/sources/{id}/activity`, `PUT /api/v1/sources/{id}/paused`) and in Administration ›
 Sources. There an administrator also adds a source, such as a Cube model in a Git
-repository read with a read-only token, tests it before saving and changes its settings. See
+repository read with a read-only token, tests it before saving and changes its settings
+(`POST /api/v1/sources/test`, `POST /api/v1/sources`, `PUT /api/v1/sources/{id}`), choosing the
+views it reads and the domain of each, and disconnects it (`POST /api/v1/sources/{id}/disconnect`). See
 [the connector contract](connectors.md) for what a connector declares and reports, the
 invariants, sources an administrator adds and snapshot behavior;
 [Security and egress](connectors/security.md) for the secret store and the hosts a connector

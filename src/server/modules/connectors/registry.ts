@@ -1,10 +1,15 @@
-import type { ChosenScope, ConnectorModule } from '../../../domain/connector-runtime.ts'
+import type { ConnectorModule } from '../../../domain/connector-runtime.ts'
 import type { SourceConfig } from '../../../contract/sources.ts'
 import { builtInConnectors } from '../../../connectors/index.ts'
 import type { Config } from '../../config/env.ts'
 import type { Queryable } from '../../db/database.ts'
 import { createDemoSource, demoConnectorType } from './demo.ts'
-import { registerConnectors, type ContentSource, type RegisteredConnector } from './platform.ts'
+import {
+  registerConnectors,
+  type ContentSource,
+  type RegisteredConnector,
+  type StoredScope,
+} from './platform.ts'
 import { noSecretStore, SecretStoreError, type SecretStore } from './secrets.ts'
 import { createCubeSource, cubeServerType } from './server-source.ts'
 import type { ConnectorType, DefinitionSource } from './types.ts'
@@ -40,7 +45,7 @@ interface Row {
   name: string
   config: SourceConfig
   secret_ref: string | null
-  scopes: ChosenScope[]
+  scopes: StoredScope[]
 }
 
 /**
@@ -139,11 +144,13 @@ export class ConnectorRegistry {
       // A connector this build no longer knows is left out; its page still shows its last reads.
       const connector = this.#connectors.get(row.type)
       if (!connector) continue
+      // The groups an administrator chose, each with its domain: the read keeps only those.
       const source = connector.source({
         id: row.id,
         name: row.name,
         config: row.config,
         secrets: await this.secretsOf(row.secret_ref),
+        scopes: row.scopes,
       })
       checkSource(source)
       sources.push(source)

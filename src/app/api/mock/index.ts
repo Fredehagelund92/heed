@@ -6,7 +6,7 @@ import { servedToAgents } from '@/model/items'
 import { createComments } from './comments'
 import { createAlerts } from './data/alerts'
 import { historyOf, historyOfDefinition } from './data/history'
-import { DEFINITIONS_TOOL } from '@/model/integrations'
+import { connectorById, DEFINITIONS_TOOL, type ConnectorId } from '@/model/integrations'
 import { answerLinks, linksOf } from '@/lib/links'
 import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
@@ -36,8 +36,15 @@ import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
-import { cubeViews, driveFolders, warehouseHas } from './data/integrations'
-import { createIntegrations } from './integrations'
+import { warehouseHas } from './data/integrations'
+import {
+  checkConnect,
+  connectFormFor,
+  createIntegrations,
+  MOCK_TEST_MS,
+  testFor,
+  type Kept,
+} from './integrations'
 import { figureFor } from './data/figures'
 import { reportedOn, type AskInput } from '@/model/ask'
 import { createDefinitions } from './definitions'
@@ -67,6 +74,8 @@ export function createMockApi() {
   const chats = createChats()
   const settings = createSettings()
   const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
+  /** What the connect flow set for each tool this visit. */
+  const kept = new Map<ConnectorId, Kept>()
   let views: SavedView[] = []
   readDefinitionsFrom(definitions.list)
   let state: State = start
@@ -566,16 +575,55 @@ export function createMockApi() {
     setDataContact: ({ source, name }) => now(() => settings.setContact(source, name)),
     setFigureConnection: ({ source, endpoint }) =>
       now(() => settings.setConnection(source, endpoint)),
-    connectIntegration: ({ id, setup }) =>
+    connectForm: ({ id }) =>
+      read('connectForm', id, () =>
+        connectFormFor(
+          id,
+          settings.read(scenario.address()).connected,
+          kept.get(id as ConnectorId),
+        ),
+      ),
+    // The checks take a moment, as a tool's do.
+    testIntegration: ({ connector, config, secrets }) =>
+      new Promise((resolve) => setTimeout(resolve, MOCK_TEST_MS)).then(() =>
+        copy(testFor(connector, { config, secrets })),
+      ),
+    connectIntegration: ({ connector, config, chosen, reason, setup }) =>
       now(() => {
-        settings.connect(id)
+        checkConnect(connector, { chosen, reason })
+        settings.connect(connector)
+        kept.set(connector, { config, chosen, revision: 1 })
         if (setup) dispatch({ type: 'setupStep', step: 'definitions' })
+        // A content tool's first read is at its next morning read; a definitions tool's now.
+        return {
+          id: connector,
+          firstRead: connectorById(connector)?.kind === 'definitions' ? null : '07:00',
+        }
       }),
-    disconnectIntegration: ({ id }) => now(() => settings.disconnect(id)),
+    changeIntegration: ({ id, revision, config, chosen, reason }) =>
+      now(() => {
+        const tool = connectorById(id)
+        if (!tool || !settings.read(scenario.address()).connected.includes(tool.id))
+          throw new ApiError('not-found', "We couldn't find this source.")
+        checkConnect(tool.id, { chosen, reason })
+        const current = kept.get(tool.id)?.revision ?? 1
+        if (revision !== current)
+          throw new ApiError(
+            'conflict',
+            'Someone changed this source after you opened it. Look at the latest version, then try again.',
+          )
+        kept.set(tool.id, { config, chosen, revision: current + 1 })
+      }),
+    disconnectIntegration: ({ id }) =>
+      now(() => {
+        const tool = connectorById(id)
+        if (!tool || !settings.read(scenario.address()).connected.includes(tool.id))
+          throw new ApiError('not-found', "We couldn't find this source.")
+        settings.disconnect(tool.id)
+        kept.delete(tool.id)
+      }),
     getIntegrations: () =>
       now(() => ({
-        cubeViews,
-        driveFolders,
         figureConnections: settings.connections(),
         warehouseHas,
       })),

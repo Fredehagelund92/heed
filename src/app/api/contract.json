@@ -2118,6 +2118,22 @@
           "summary": "Read one source now, whatever its schedule (Read again)"
         }
       }
+    },
+    "remove": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/sources/{id}/disconnect",
+          "tags": [
+            "sources"
+          ],
+          "summary": "Disconnect a source an administrator added, with a reason: it is read no more, its secrets are removed and its open suggestions withdrawn; what it read stays"
+        }
+      }
     }
   },
   "members": {

@@ -10,6 +10,7 @@ import { apiDatabase, testDatabase } from '../../integration/support.ts'
 import { devPeople, OWNER, seedDemoWeek, TODAY } from '../http/demo-week.ts'
 import { demoLoginServer } from '../http/login.ts'
 import { demoCube, demoSecrets, inventedToken, seedDemoFigures } from '../http/demo-figures.ts'
+import { gitHost, type GitHost } from '../../server/connectors/git-server.ts'
 import {
   ConnectorRegistry,
   createWorkspaceSources,
@@ -27,6 +28,10 @@ const { client, url } = testDatabase()
 // Cube's figures in the demo week: a stand-in Cube over the demo warehouse, its token invented here.
 const cubeToken = inventedToken()
 let cube: Awaited<ReturnType<typeof demoCube>> | undefined
+// The handbook the connect flow's cases connect: Markdown in Git on this machine, behind a token
+// invented here.
+const handbookToken = inventedToken()
+let handbook: GitHost | undefined
 const app = buildApp({
   workspaceSources: createWorkspaceSources({
     secrets: demoSecrets(cubeToken),
@@ -65,6 +70,12 @@ beforeAll(async () => {
   admin.pathname = '/postgres'
   cube = await demoCube(admin.href, cubeToken)
   await seedDemoFigures(url, cube.endpoint)
+  handbook = await gitHost({ token: handbookToken })
+  await handbook.repository('handbook', {
+    'docs/sales/orders.md':
+      '# Orders in Germany\n\nOrders in Germany include marketplace orders.\n',
+    'docs/marketing/campaigns.md': '# Spring campaigns\n\nThe spring sale runs in April.\n',
+  })
   // The conformance suite sends more than the default 600 requests a minute as one person; the
   // request limit is not what this file tests.
   await client.query(
@@ -79,12 +90,19 @@ beforeAll(async () => {
 afterAll(async () => {
   await app.close()
   await cube?.drop()
+  await handbook?.close()
 })
 
 describeHeedApi('http binding on PostgreSQL', () => api!, {
   person: OWNER.name,
   wired: wiredMethods,
   colleague: colleague.name,
+  repository: {
+    get address() {
+      return handbook!.address('handbook')
+    },
+    token: handbookToken,
+  },
 })
 
 describe('the http binding', () => {
@@ -133,8 +151,6 @@ describe('the http binding', () => {
   it('answers a method it does not offer yet as not available', async () => {
     const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
     expect(unwired.length).toBeGreaterThan(0)
-    await expect(api!.disconnectIntegration({ id: 'cube' })).rejects.toMatchObject({
-      kind: 'not-available',
-    })
+    await expect(api!.createAccessKey()).rejects.toMatchObject({ kind: 'not-available' })
   })
 })

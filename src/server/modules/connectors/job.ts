@@ -1,6 +1,6 @@
 import { systemClock, type Clock } from '../../clock.ts'
 import type { ScheduledJob } from '../jobs/index.ts'
-import { ContentPipeline } from './content.ts'
+import { ContentPipeline, withdrawDisconnected } from './content.ts'
 import type { ConnectorRegistry } from './registry.ts'
 import { ConnectorService } from './service.ts'
 
@@ -13,6 +13,7 @@ import { ConnectorService } from './service.ts'
  * show; the job itself still succeeds, and the watchdog alerts once the data is older than the
  * connector allows (CON-104). A source that is switched off is left out. One source that breaks
  * the read itself does not keep the others from being read: the job reads them all, then fails.
+ * A content source an admin disconnected has its open suggestions withdrawn (CON-118).
  */
 export function connectorSyncJob(
   registry: ConnectorRegistry,
@@ -62,6 +63,15 @@ export function connectorSyncJob(
           return result
         })
       }
+      // A content source disconnected withdraws its open suggestions as it goes; one whose
+      // withdrawal failed then is finished here.
+      const removed = await database.query<{ id: string }>(
+        `select id from connectors where removed_at is not null and kind = 'context_source'`,
+      )
+      for (const { id } of removed)
+        await read(`${id}.disconnected`, async () => ({
+          withdrawn: await withdrawDisconnected(database, clock, id),
+        }))
       if (broken !== undefined) throw broken
       return { connectors }
     },

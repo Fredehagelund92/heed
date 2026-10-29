@@ -101,7 +101,7 @@ Where two requirements disagree, the changed one, the new one and the mockup win
 | FR-803 | Withdrawn | Removed on 14 October 2026. |
 | Section 1.5, "It is not a data tool" | Changed | Heed stores no numbers. It reads one when asked, if an administrator switches figures on for an integration. |
 
-**New.** FR-137 to FR-140 (owners publish, terms and synonyms, bulk actions, restore as a draft). FR-224 to FR-227 (the suggestion's body and its difference, the clash gate, read receipts, undo). FR-349 and FR-350 (six answer states, the overlap notice). FR-416 to FR-419 (sign-in, invites, the live line of Connect an agent, access keys). FR-526 (saved questions and the free check). FR-620 to FR-622 (observability, alerts, named reports). FR-716 and FR-717 (figures in Ask, Ask history). FR-815 to FR-818 (a domain as a document, the setup checklist, comments and reactions, the workspace's name). CON-611 and CON-612 (content sources, the figures capability). NFR-087 (the golden specs).
+**New.** FR-137 to FR-140 (owners publish, terms and synonyms, bulk actions, restore as a draft). FR-224 to FR-227 (the suggestion's body and its difference, the clash gate, read receipts, undo). FR-349 and FR-350 (six answer states, the overlap notice). FR-416 to FR-419 (sign-in, invites, the live line of Connect an agent, access keys). FR-526 (saved questions and the free check). FR-620 to FR-622 (observability, alerts, named reports). FR-716 and FR-717 (figures in Ask, Ask history). FR-815 to FR-818 (a domain as a document, the setup checklist, comments and reactions, the workspace's name). CON-611, CON-612 and CON-118 (content sources, the figures capability, Disconnect). NFR-087 (the golden specs).
 
 The roles table in section 3 still shows the earlier roles (auditor, approver). Read it with FR-804 as changed: v1 has two roles, Admin and Member, and ownership belongs to the domain. The earlier role values stay in the data for history and receive no new grants.
 
@@ -676,7 +676,8 @@ Three rules never change, in any version of the connector interface. The core en
 | CON-114 | A connector must receive only the secrets of its own source, and only toward the settings they were given for. | First build | Kept |
 | CON-115 | Each source must have its own schedule within the limits of its connector, and its own "Read again". | First build | Kept |
 | CON-116 | When a connector changes how it computes change marks, the system must store the new marks without flagging items, record that it did, and tell the owners once. | First build | Kept |
-| CON-117 | A definition id prefix belongs to a tool, not to a connector. Ownership of an id moves from one source to another only by an explicit hand-over by an administrator. | First build | Kept |
+| CON-117 | A definition id prefix belongs to a tool, not to a connector. Ownership of an id moves from one source to another only by an explicit hand-over by an administrator. (Amended 29 Oct 2026, Heed v1: disconnecting a source is that hand-over; see CON-118.) | First build | Kept |
+| CON-118 | An administrator must be able to disconnect a source they added, with a reason. It is read no more, its secrets leave the secret store, and it leaves the list of integrations; its open suggestions are withdrawn, and what owners published stays. What it read stays, unflagged, and the next source of the tool that reads one of its definitions takes it over. The history log records it, with its secrets only as removed. | First build | New |
 
 ### 6.3 Definition source connectors
 

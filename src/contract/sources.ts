@@ -68,6 +68,7 @@ export type StaleLink = z.infer<typeof staleLinkSchema>
 
 // ---- the sources an administrator adds (Administration › Sources, connector interface 3.0) ----
 
+const count = z.number().check(z.int(), z.minimum(0))
 const time = z.string()
 const reason = z.string().check(z.minLength(1), z.maxLength(500))
 const sourceId = z.string().check(z.regex(/^[a-z][a-z0-9_-]{1,39}$/))
@@ -104,13 +105,15 @@ export const sourceConfigSchema = z.record(
 )
 
 /**
- * A scope an admin chose for a content source (a folder, space or page), with the one domain its
- * documents go to (CON-602). Its id is the connector's, as discover gave it.
+ * A scope an admin chose: a folder, space or page of a content source, with the one domain its
+ * documents go to (CON-602); or a group of a definitions source (a Cube view), with the domain its
+ * definitions belong to, or none to leave them shared. Its id is the connector's, as discover or
+ * the test gave it.
  */
 export const chosenScopeSchema = z.strictObject({
   id: z.string().check(z.minLength(1), z.maxLength(500)),
   title: z.string().check(z.minLength(1), z.maxLength(300)),
-  domain: z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/)),
+  domain: z.nullable(z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))),
 })
 const chosenScopesSchema = z.array(chosenScopeSchema).check(z.maxLength(200))
 export type ChosenScopeInput = z.infer<typeof chosenScopeSchema>
@@ -137,7 +140,10 @@ export const sourceSettingsSchema = z.object({
   revision: z.number(),
   config: sourceConfigSchema,
   secrets: z.array(z.object({ key: z.string(), set: z.boolean() })),
-  /** The scopes chosen for a content source, each with its domain; none for definitions. */
+  /**
+   * The scopes chosen: a content source's, each with its domain; a definitions source's groups,
+   * each with its domain or none. A definitions source with none chosen reads every group.
+   */
   scopes: chosenScopesSchema,
   /** How often it is read; null for its connector's default. */
   schedule: z.nullable(scheduleSchema),
@@ -214,15 +220,32 @@ export const sourceCheckSchema = z.object({
   dimensions: z.number(),
   warnings: z.array(z.object({ code: z.string(), target: z.string() })),
   /**
-   * For a content connector, the scopes an admin may choose (folders, spaces or pages), each
-   * with the domain it most likely belongs to; absent for definitions.
+   * The scopes an admin may choose, each with the domain it most likely belongs to: a content
+   * connector's folders, spaces or pages (discover); a definitions connector's groups (a Cube
+   * view: a member's name up to its last dot), as the read found them, each with what it holds
+   * and the domain the tool names for most of it. Absent when the test could not read.
    */
   scopes: z.optional(
     z.array(
-      z.object({ id: z.string(), title: z.string(), suggestedDomain: z.nullable(z.string()) }),
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        suggestedDomain: z.nullable(z.string()),
+        /** A group's metrics and dimensions; absent for a content scope. */
+        metrics: z.optional(count),
+        dimensions: z.optional(count),
+      }),
     ),
   ),
 })
+
+/**
+ * Disconnects a source an admin added, with why (CON-118): it is read no more, its secrets are
+ * removed from the store, its open suggestions are withdrawn, and what it read stays.
+ */
+export const removeSourceSchema = z.strictObject({ id: sourceId, reason })
+
+export const removedSourceSchema = z.object({ id: z.string() })
 
 /** A read of one source queued now (Read again, CON-115). */
 export const sourceReadSchema = z.object({
@@ -237,6 +260,7 @@ export type AddSourceInput = z.infer<typeof addSourceSchema>
 export type UpdateSourceInput = z.infer<typeof updateSourceSchema>
 export type TestSourceInput = z.infer<typeof testSourceSchema>
 export type SourceCheck = z.infer<typeof sourceCheckSchema>
+export type RemoveSourceInput = z.infer<typeof removeSourceSchema>
 
 // ---- the sources as Settings › Integrations shows them (CON-104, CON-115) ----
 
@@ -246,8 +270,6 @@ export type SourceCheck = z.infer<typeof sourceCheckSchema>
  * its key; its last read failed for another reason; or read as it should be.
  */
 export const sourceHealths = ['healthy', 'reading', 'failed', 'reauth', 'paused'] as const
-
-const count = z.number().check(z.int(), z.minimum(0))
 
 /**
  * One read of a source, codes and counts only (CON-104): never a target, which may name a

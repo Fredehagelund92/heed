@@ -28,6 +28,8 @@ export type Connector = {
   soon?: boolean
   /** It can answer a figure for Ask (opt-in, off until an admin switches it on). */
   figures?: true
+  /** The secret the connect flow takes as a key file someone uploads, not as words typed in. */
+  keyFile?: string
 }
 
 export const connectors: Connector[] = [
@@ -53,6 +55,7 @@ export const connectors: Connector[] = [
     kind: 'context',
     logo: googledrive,
     blurb: 'Google Docs in folders you share become suggestions for owners.',
+    keyFile: 'serviceAccountKey',
   },
   {
     id: 'markdown-git',
@@ -222,3 +225,94 @@ export type FigureConnection = {
   /** When the integration last refreshed its data, when known. */
   asOf?: string
 }
+
+/* ---------- the connect flow (Pick, Connect, Choose, Map, Schedule) and Change settings ---------- */
+
+/**
+ * A setting of the connect form, as its connector's manifest declares it: an address, a branch,
+ * a folder, a name. Its value is what is set, or the manifest's default.
+ */
+export type ConnectField = {
+  key: string
+  kind: 'text' | 'address' | 'path' | 'ref'
+  label: string
+  description: string
+  placeholder?: string
+  required: boolean
+  /** Folded under More settings: what most people leave as it is. */
+  advanced: boolean
+  value: string
+}
+
+/**
+ * A secret of the connect form: a token, a key. It is written once and never read back: the form
+ * only knows whether the store holds one, so that leaving it empty keeps it.
+ */
+export type ConnectSecret = {
+  key: string
+  label: string
+  description: string
+  required: boolean
+  set: boolean
+  /** A key file the form already holds: its name, and the account it reads as, when known. */
+  file?: { name: string; account: string | null }
+}
+
+/** A tool's connect form: to connect it, or, for one connected, its settings to change. */
+export type ConnectForm = {
+  connector: ConnectorId
+  /** Change settings: the source and the revision read; null to connect the tool anew. */
+  source: { id: string; revision: number } | null
+  fields: ConnectField[]
+  secrets: ConnectSecret[]
+  /** How often it is read ("every hour") and how long it may go unread ("6 hours"). */
+  every: string
+  staleAfter: string
+  /** A content tool's suggestions a day, at most; null for definitions. */
+  perDay: number | null
+  /** What it reads now, with each one's domain: Change settings starts from these. */
+  chosen: ConnectChoice[]
+}
+
+/** What the form says for each setting and secret: settings by key, secrets as written. */
+export type ConnectValues = { config: Record<string, string>; secrets: Record<string, string> }
+
+/**
+ * What a tool may read, as its test found it: a view of a definitions tool, with what it holds, or
+ * a folder of a content tool; each with the domain it most likely belongs to.
+ */
+export type ConnectScope = {
+  id: string
+  title: string
+  /** What it holds, in words: "4 metrics, 3 dimensions", "14 documents"; empty when unknown. */
+  detail: string
+  metrics?: number
+  dimensions?: number
+  documents?: number
+  domain?: DomainId
+  /** Left out at first, and why: "its file names people, and those are skipped". */
+  leftOut?: string
+}
+
+/** One step of a tool's check, in its connector's words. */
+export type ConnectStep = {
+  title: string
+  status: 'ok' | 'warning' | 'failed' | 'skipped'
+  detail?: string
+  fix?: string
+}
+
+/** What Test connection found: its steps, and what may be chosen when it could read. */
+export type ConnectTest = {
+  ok: boolean
+  steps: ConnectStep[]
+  scopes: ConnectScope[]
+  /** Why it could not read, in words, when no step says. */
+  failure?: string
+}
+
+/** A view or folder chosen to read, and the domain it maps to (none: a view left shared). */
+export type ConnectChoice = { id: string; title: string; domain: DomainId | null }
+
+/** A tool connected: its page's id, and the time of its first read ("07:00"), or null for now. */
+export type ConnectedSource = { id: string; firstRead: string | null }

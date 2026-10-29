@@ -243,6 +243,8 @@ import {
   flaggedItemSchema,
   pausedSourceSchema,
   pauseSourceSchema,
+  removedSourceSchema,
+  removeSourceSchema,
   sourceActivitySchema,
   sourceCheckSchema,
   sourceReadSchema,
@@ -421,6 +423,7 @@ export type {
   SourceHealth,
   SourceReadEntry,
   SourceRow,
+  RemoveSourceInput,
   SourceConfig,
   SourceSettings,
   StaleLink,
@@ -1941,6 +1944,20 @@ export const contract = {
       })
       .input(sourceIdInputSchema)
       .output(sourceReadSchema),
+    // Disconnect (CON-118): read no more, its secrets removed, its open suggestions withdrawn.
+    remove: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this source among the ones an admin added." },
+      })
+      .route({
+        method: 'POST',
+        path: '/sources/{id}/disconnect',
+        tags: ['sources'],
+        summary:
+          'Disconnect a source an administrator added, with a reason: it is read no more, its secrets are removed and its open suggestions withdrawn; what it read stays',
+      })
+      .input(removeSourceSchema)
+      .output(removedSourceSchema),
   },
   // The people of the workspace as Heed v1 has them: Admin or Member, and the domains each owns.
   members: {

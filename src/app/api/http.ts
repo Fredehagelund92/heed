@@ -79,7 +79,18 @@ import {
   type Words,
 } from './http-context'
 import { inboxOf, refOf, reviewOf, workspaceOf, type SheetRef } from './http-inbox'
-import { catalogIdOf, integrationsOf, sourcePageOf } from './http-integrations'
+import {
+  catalogIdOf,
+  changedConfigOf,
+  configOf,
+  connectFormOf,
+  connectorOfCatalog,
+  connectTestOf,
+  integrationsOf,
+  scopesOf,
+  secretsOf,
+  sourcePageOf,
+} from './http-integrations'
 import { peopleOf } from './http-people'
 import { savedCheckOf, savedQuestionOf } from './http-saved'
 import { alertsOf } from './http-alerts'
@@ -194,6 +205,11 @@ export const wiredMethods = [
   'integrationPage',
   'readIntegration',
   'pauseIntegration',
+  'connectForm',
+  'testIntegration',
+  'connectIntegration',
+  'changeIntegration',
+  'disconnectIntegration',
   'setLinks',
   'setTool',
   'createAccessKey',
@@ -1570,11 +1586,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         new Date(),
       )
     },
-    // What the figures and the connect flow read: how each integration that reads figures is
-    // reached; a tool's views and folders come from its test in the connect flow (P11b).
+    // What the figures read: how each integration that reads figures is reached.
     getIntegrations: async () => ({
-      cubeViews: [],
-      driveFolders: [],
       figureConnections: Object.fromEntries(
         (await figureSources()).map(({ id, source }) => [
           id,
@@ -1621,6 +1634,78 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
           : 'Resumed reading, in Settings, Integrations.',
       }
       await write('sources.pause', input, (o) => client.sources.pause(input, o))
+    },
+    // The connect flow on the connectors' manifests (CON-112): a source an admin added, to
+    // change; or a tool of the catalog, to connect. The server's own sources are its operator's.
+    connectForm: async ({ id }) => {
+      const [rows, types] = await Promise.all([
+        read(() => client.sources.list()),
+        read(() => client.sources.types()),
+      ])
+      const row = rows.find((r) => r.id === id)
+      const type = row ? row.type : connectorOfCatalog(id as ConnectorId)
+      const manifest = types.find((t) => t.manifest.id === type)?.manifest
+      if (!manifest || row?.origin === 'server') return null
+      const settings = row ? await read(() => client.sources.get({ id })) : null
+      return connectFormOf(manifest, settings)
+    },
+    // Keeps nothing and changes nothing: a POST only because the settings hold secrets.
+    testIntegration: async ({ connector, source, config, secrets }) => {
+      const type = connectorOfCatalog(connector)
+      if (!type) throw new ApiError('not-found', "This tool can't be connected here.")
+      const input = {
+        ...(source ? { id: source } : {}),
+        type,
+        config: configOf(config),
+        secrets: secretsOf(secrets),
+      }
+      try {
+        return connectTestOf(await readPosted((o) => client.sources.test(input, o)))
+      } catch (error) {
+        // Settings the service refuses (an address that is not https, a folder outside the
+        // repository) fail the test, in its words.
+        if (error instanceof ApiError && error.kind === 'invalid')
+          return { ok: false, steps: [], scopes: [], failure: error.message }
+        throw error
+      }
+    },
+    // The source is named after its tool; the service reads it at once (CON-115).
+    connectIntegration: async ({ connector, config, secrets, chosen, reason }) => {
+      const type = connectorOfCatalog(connector)
+      const manifest = (await read(() => client.sources.types())).find(
+        (t) => t.manifest.id === type,
+      )?.manifest
+      if (!type || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
+      const input = {
+        type,
+        name: manifest.tool,
+        config: configOf(config),
+        secrets: secretsOf(secrets),
+        scopes: scopesOf(chosen),
+        reason,
+      }
+      // The retry key names the secrets, never their values.
+      const keyed = { ...input, secrets: Object.keys(input.secrets).sort() }
+      const added = await write('sources.add', keyed, (o) => client.sources.add(input, o))
+      return { id: added.id, firstRead: null }
+    },
+    changeIntegration: async ({ id, revision, config, secrets, chosen, reason }) => {
+      const before = await read(() => client.sources.get({ id }))
+      const input = {
+        id,
+        revision,
+        name: before.name,
+        config: changedConfigOf(before.config, config),
+        secrets: secretsOf(secrets),
+        scopes: scopesOf(chosen),
+        reason,
+      }
+      const keyed = { ...input, secrets: Object.keys(input.secrets).sort() }
+      await write('sources.update', keyed, (o) => client.sources.update(input, o))
+    },
+    disconnectIntegration: async ({ id }) => {
+      const input = { id, reason: 'Disconnected, in Settings, Integrations.' }
+      await write('sources.remove', input, (o) => client.sources.remove(input, o))
     },
     setLinks: async ({ on }) => {
       const input = { tool: 'get_related', enabled: on, reason: BY_SETTINGS }

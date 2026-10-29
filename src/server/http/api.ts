@@ -125,6 +125,7 @@ import {
   createWorkspaceSources,
   noSecretStore,
   ConnectorRegistry,
+  withdrawDisconnected,
   type TransactionHooks,
   type WorkspaceSources,
 } from '../modules/connectors/index.ts'
@@ -338,6 +339,14 @@ export function createRouter({
   }
   const webOrigin = (request: FastifyRequest) =>
     origins[0] ?? new URL(`${request.protocol}://${request.headers.host}`).origin
+  /**
+   * A source added or changed is due at once: its first read starts after the change commits,
+   * unless the job runner is not running, when the runner's next turn reads it.
+   */
+  const readSoon = (hooks: TransactionHooks) =>
+    hooks.onCommit(async () => {
+      await jobs.runNow('connectors.sync')
+    })
   const found = <T>(value: T | null): T => {
     if (value === null) throw new ORPCError('NOT_FOUND')
     return value
@@ -951,24 +960,26 @@ export function createRouter({
         found(await workspaceSources.get(context.tx, input.id)),
       ),
       // A retry is keyed on the input without its secrets, so no secret is kept, not even hashed.
-      add: authorized.sources.add.handler(({ context, input }) =>
-        retryWrite(
+      add: authorized.sources.add.handler(({ context, input }) => {
+        readSoon(context.hooks)
+        return retryWrite(
           context.tx,
           idempotencyKey(context),
           'sources.add',
           { ...input, secrets: Object.keys(input.secrets).sort() },
           () => workspaceSources.add(context.tx, input, context.hooks),
-        ),
-      ),
-      update: authorized.sources.update.handler(({ context, input }) =>
-        workspaceSources.update(context.tx, input, context.hooks),
-      ),
+        )
+      }),
+      update: authorized.sources.update.handler(({ context, input }) => {
+        readSoon(context.hooks)
+        return workspaceSources.update(context.tx, input, context.hooks)
+      }),
       test: authorized.sources.test.handler(({ context, input }) =>
         workspaceSources.test(context.tx, input),
       ),
       read: authorized.sources.read.handler(async ({ context, input }) => {
         const [row] = await context.tx.query<{ enabled: boolean }>(
-          'select enabled from connectors where id = $1',
+          'select enabled from connectors where id = $1 and removed_at is null',
           [input.id],
         )
         if (!row) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this source." })
@@ -985,6 +996,15 @@ export function createRouter({
           })
         // Already waiting or running: the job's next turn reads it.
         return { id: input.id, status: 'queued' as const }
+      }),
+      // A content source's open suggestions are withdrawn once it is disconnected, as the source.
+      remove: authorized.sources.remove.handler(async ({ context, input }) => {
+        const removed = await workspaceSources.remove(context.tx, input, context.hooks)
+        if (removed.kind === 'content')
+          context.hooks.onCommit(async () => {
+            await withdrawDisconnected(database, clock, removed.id)
+          })
+        return { id: removed.id }
       }),
     },
     members: {

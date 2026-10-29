@@ -812,7 +812,7 @@ export function createInboxFeedService(
                 (exists(select 1 from mcp_requests where client_label<>'eval')
                  or exists(select 1 from auth.oauth_grants)) as agent,
                 exists(select 1 from connectors c join connector_snapshots n on n.connector_id=c.id
-                         where n.status='ok') as definitions`,
+                         where n.status='ok' and c.removed_at is null) as definitions`,
       )
       const steps = setupSteps.map((id) => ({ id, done: Boolean(row?.[id]) }))
       return { steps, done: steps.every((s) => s.done) }

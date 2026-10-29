@@ -92,6 +92,50 @@ const skipWarning: Record<SkipReason | 'not_valid', SourceWarning['code']> = {
   not_valid: 'document_not_valid',
 }
 
+/**
+ * Withdraws the open suggestions of a content source an admin disconnected (CON-118), as the
+ * source itself, in a transaction of its own: row security lets only a source's own transaction
+ * write its suggestions, and a person's request never names a source. What owners published
+ * stays. Returns how many it withdrew; none for a source still connected.
+ */
+export async function withdrawDisconnected(
+  database: Database,
+  clock: Clock,
+  sourceId: string,
+): Promise<number> {
+  return database.transaction(
+    null,
+    async (tx) => {
+      const [source] = await tx.query<{ removed: boolean }>(
+        'select removed_at is not null as removed from connectors where id = $1',
+        [sourceId],
+      )
+      if (!source?.removed) return 0
+      const waiting = await tx.query<{
+        id: string
+        revision: number
+        document: string
+        read: string
+      }>(
+        `select id::text, revision, source_document_id as document, source_read_id::text as read
+           from proposals
+          where source_id = $1 and state::text = any($2::text[]) and discarded_at is null
+          order by created_at
+          for update`,
+        [sourceId, open],
+      )
+      for (const proposal of waiting)
+        await createSourceProposals(tx, clock, {
+          source: sourceId,
+          read: proposal.read,
+          document: proposal.document,
+        }).withdraw(proposal.id, proposal.revision, 'The source was disconnected.')
+      return waiting.length
+    },
+    { source: sourceId },
+  )
+}
+
 export class ContentPipeline {
   readonly #database: Database
   readonly #clock: Clock

@@ -201,9 +201,10 @@ describe('adding Markdown in Git (CON-601, CON-602)', () => {
       ['folders', 'ok'],
       ['documents', 'ok'],
     ])
+    // A folder suggests the domain its name says only when that is one of the workspace's.
     expect(check.scopes).toEqual([
       { id: 'finance', title: 'docs/finance', suggestedDomain: 'finance' },
-      { id: 'people', title: 'docs/people', suggestedDomain: 'people' },
+      { id: 'people', title: 'docs/people', suggestedDomain: null },
     ])
     // A refused token says so in its own step, and nothing is kept.
     const refused = await ok<SourceCheck>(
@@ -620,5 +621,74 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     await expect(
       database.transaction(people.admin, () => Promise.resolve(), { source: sourceId }),
     ).rejects.toThrow(/no person/)
+  })
+})
+
+describe('disconnecting a content source (CON-118)', () => {
+  it('reads it no more, withdraws its open suggestions and forgets its token; what owners published stays', async () => {
+    const waiting = await open(sourceId)
+    expect(waiting.length).toBeGreaterThan(0)
+    const [{ ref }] = (
+      await client.query<{ ref: string }>('select secret_ref as ref from connectors where id=$1', [
+        sourceId,
+      ])
+    ).rows as [{ ref: string }]
+    expect(await store.read(ref)).toEqual({ token: TOKEN })
+    const live = async () =>
+      (
+        await client.query<{ n: string }>(
+          `select count(*)::text as n from item_version_service
+            where editions @> (select seq from live_edition)`,
+        )
+      ).rows[0]!.n
+    const served = await live()
+    const reason = { reason: 'The handbook moved to the wiki' }
+    const refused = await call('POST', `/sources/${sourceId}/disconnect`, 'owner', reason)
+    expect(refused.statusCode).toBe(403)
+    expect(
+      await ok<{ id: string }>(call('POST', `/sources/${sourceId}/disconnect`, 'admin', reason)),
+    ).toEqual({
+      id: sourceId,
+    })
+    // Its open suggestions are withdrawn, as the source; what owners published is still served.
+    expect(await open(sourceId)).toEqual([])
+    const withdrawn = await client.query<{ reason: string }>(
+      `select reason from proposals where id = any($1::uuid[])`,
+      [waiting.map((s) => s.id)],
+    )
+    expect(withdrawn.rows.map((r) => r.reason)).toEqual(
+      waiting.map(() => 'The source was disconnected.'),
+    )
+    expect(await live()).toBe(served)
+    // Its token is gone from the store, and the history log says so without it.
+    expect(await store.read(ref)).toBeNull()
+    const logged = await client.query<{ details: Record<string, unknown> }>(
+      `select details from audit_log where action='source.removed' and subject_id=$1`,
+      [sourceId],
+    )
+    expect(logged.rows).toHaveLength(1)
+    expect(logged.rows[0]!.details).toMatchObject({
+      type: 'git-markdown',
+      secrets: { token: 'removed' },
+      reason: reason.reason,
+    })
+    expect(JSON.stringify(logged.rows)).not.toContain(TOKEN)
+    // It leaves Integrations, and nothing finds it again: settings, reads, Read again, Pause.
+    const list = await ok<{ id: string }[]>(call('GET', '/sources', 'admin'))
+    expect(list.map((s) => s.id)).not.toContain(sourceId)
+    for (const [method, path, payload] of [
+      ['GET', `/sources/${sourceId}`, undefined],
+      ['GET', `/sources/${sourceId}/activity`, undefined],
+      ['POST', `/sources/${sourceId}/read`, {}],
+      ['PUT', `/sources/${sourceId}/paused`, { paused: true, reason: 'x' }],
+      ['POST', `/sources/${sourceId}/disconnect`, reason],
+    ] as const) {
+      const response = await call(method, path, 'admin', payload)
+      expect(response.statusCode, `${method} ${path}`).toBe(404)
+    }
+    // The job reads it no more.
+    const result = await read()
+    expect(result.connectors[sourceId]).toBeUndefined()
+    expect(result.connectors[`${sourceId}.disconnected`]).toEqual({ withdrawn: 0 })
   })
 })

@@ -183,21 +183,21 @@ export function createSourceOverview({
               extract(epoch from schedule)::int as own_seconds,
               extract(epoch from stale_after)::int as stale_seconds, next_read_at,
               (next_read_at is not null and next_read_at <= now()) as due, failures, created_at
-         from connectors where id = $1`,
+         from connectors where id = $1 and removed_at is null`,
       [id],
     )
     return row ?? null
   }
 
   return {
-    /** Every source, the server's own first, each with how it is and what it holds. */
+    /** Every source, the server's own first, each with how it is and what it holds; none disconnected. */
     async list(tx: Queryable): Promise<SourceRow[]> {
       const rows = await tx.query<SourceRowData>(
         `select id, kind::text as kind, type, name, origin, enabled,
                 extract(epoch from schedule)::int as own_seconds,
               extract(epoch from stale_after)::int as stale_seconds, next_read_at,
                 (next_read_at is not null and next_read_at <= now()) as due, failures, created_at
-           from connectors order by origin = 'workspace', created_at, id`,
+           from connectors where removed_at is null order by origin = 'workspace', created_at, id`,
       )
       if (!rows.length) return []
       const ids = rows.map((row) => row.id)
@@ -396,7 +396,7 @@ export function createSourceOverview({
     async pause(tx: Queryable, input: PauseSourceInput): Promise<{ id: string; paused: boolean }> {
       plainReason(input.reason)
       const [row] = await tx.query<{ enabled: boolean }>(
-        'select enabled from connectors where id = $1 for update',
+        'select enabled from connectors where id = $1 and removed_at is null for update',
         [input.id],
       )
       if (!row) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this source." })

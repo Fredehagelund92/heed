@@ -129,7 +129,7 @@ const adminOperations = [
   'agentConnections.disconnectPerson',
   // Access keys for a bot or a scheduled job: made by administrators only.
   'accessKeys.create',
-  // Sources an administrator adds: their settings, secrets, test reads and Read again.
+  // Sources an administrator adds: their settings, secrets, test reads and Read again and Disconnect.
   'sources.types',
   'sources.get',
   'sources.add',
@@ -137,6 +137,7 @@ const adminOperations = [
   'sources.update',
   'sources.test',
   'sources.read',
+  'sources.remove',
   // Settings › Integrations: every source with how it is, its activity, and Pause reading.
   'sources.list',
   'sources.activity',

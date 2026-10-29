@@ -22,6 +22,7 @@ import {
   type DefinitionSource,
 } from '../../../src/server/modules/connectors/index.ts'
 import { SourceReadError } from '../../../src/server/modules/connectors/types.ts'
+import { withChosenGroups } from '../../../src/server/modules/connectors/platform.ts'
 
 /*
   Interface 3.0 in the core (docs/connectors.md): the registry checks every connector's manifest
@@ -365,6 +366,62 @@ describe('the sources admins add, over the registry', () => {
       ['static-definitions', 3],
       ['git-markdown', 3],
       ['google-drive', 3],
+    ])
+  })
+})
+
+describe('the groups an admin chose for a definitions source (CON-118)', () => {
+  const definition = (name: string, areaHint: string | null) => ({
+    ref: `cube:${name}`,
+    kind: 'metric' as const,
+    name,
+    title: null,
+    descriptionCopy: null,
+    valueType: null,
+    visibleGroups: null,
+    areaHint,
+    domainSource: areaHint === null ? ('none' as const) : ('cube' as const),
+    changeMark: 'a'.repeat(64),
+    modelFile: null,
+  })
+  const snapshot = {
+    sourceVersion: 'v1',
+    complete: true,
+    definitions: [
+      definition('orders.count', 'sales'),
+      definition('orders.revenue', null),
+      definition('segments.size', null),
+      definition('growth.rate', 'marketing'),
+    ],
+    warnings: [
+      { code: 'missing_domain', target: 'segments' },
+      { code: 'missing_domain', target: 'orders' },
+      { code: 'unsupported_file', target: 'model/old.yml' },
+      { code: 'invalid_domain', target: 'growth.rate' },
+    ],
+  }
+
+  it('reads them all as the tool gives them when none is chosen', () => {
+    expect(withChosenGroups(snapshot, [])).toBe(snapshot)
+  })
+
+  it('keeps the groups chosen, each in the domain mapped, or shared', () => {
+    const read = withChosenGroups(snapshot, [
+      { id: 'orders', title: 'orders', domain: 'finance' },
+      { id: 'segments', title: 'segments', domain: null },
+    ])
+    expect(read.complete).toBe(true)
+    expect(read.definitions.map((d) => [d.name, d.areaHint, d.domainSource])).toEqual([
+      ['orders.count', 'finance', 'override'],
+      ['orders.revenue', 'finance', 'override'],
+      ['segments.size', null, 'none'],
+    ])
+    // What the read said of a group left out, or a group mapped, says nothing now.
+    expect(read.warnings).toEqual([
+      { code: 'missing_domain', target: 'segments' },
+      { code: 'unsupported_file', target: 'model/old.yml' },
+      { code: 'domain_override', target: 'cube:orders.count' },
+      { code: 'domain_override', target: 'cube:orders.revenue' },
     ])
   })
 })

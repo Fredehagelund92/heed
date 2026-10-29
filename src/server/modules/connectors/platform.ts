@@ -60,14 +60,27 @@ import { runWorker, workerLimits, type WorkerLimits } from './worker.ts'
 /** The interface a registered connector was written to: every connector this build runs is 3. */
 export type WrittenTo = 3
 
+/**
+ * A scope an administrator chose, as stored: a content source's folder with its domain, or a
+ * definitions source's group (a Cube view) with its domain, or none to leave it shared.
+ */
+export interface StoredScope {
+  id: string
+  title: string
+  domain: string | null
+}
+
 /** A source's stored settings and the secrets the store holds for it (null when it lost them). */
 export interface StoredSource {
   id: string
   name: string
   config: SourceConfig
   secrets: Readonly<Record<string, string>> | null
-  /** The scopes an administrator chose, each with its domain; none for a definition source. */
-  scopes?: readonly ChosenScope[]
+  /**
+   * The scopes an administrator chose: a content source's, each with its domain; a definitions
+   * source's groups, which the core reads alone (every group when none is chosen).
+   */
+  scopes?: readonly StoredScope[]
   /**
    * The folder on the server that whoever runs it named for the source (`CUBE_MODEL_DIR`), which
    * the runtime reads as `ctx.folder`; only for a source the server's configuration selects.
@@ -341,7 +354,13 @@ function contextFor(
   const { manifest, worker, limits } = running
   return {
     config: stored.config,
-    scopes: stored.scopes ?? [],
+    // A runtime is handed a content source's scopes; a definitions source's groups are the core's.
+    scopes:
+      manifest.kind === 'content'
+        ? (stored.scopes ?? []).flatMap(({ domain, ...scope }) =>
+            domain === null ? [] : [{ ...scope, domain }],
+          )
+        : [],
     cursor,
     secret: (key) =>
       manifest.secrets.some((secret) => secret.key === key)
@@ -380,6 +399,49 @@ function failureOf(running: Running, error: unknown, signal: AbortSignal) {
   return new SourceReadError([{ code: 'invalid_output', target: manifest.id }])
 }
 
+/** A definition's group: its name up to the last dot (a Cube view); none without a dot. */
+export const groupOf = (name: string) => {
+  const dot = name.lastIndexOf('.')
+  return dot > 0 ? name.slice(0, dot) : null
+}
+
+/**
+ * A read of a definitions source narrowed to the groups an administrator chose, each with the
+ * domain they mapped it to: that domain for every definition of the group (`domain_override`),
+ * or none, which leaves them shared. A group left out is not read, so a complete read marks its
+ * definitions missing, as when the tool drops them. With no group chosen, the read is as the
+ * tool gave it.
+ */
+export function withChosenGroups(
+  snapshot: SourceSnapshot,
+  scopes: readonly StoredScope[],
+): SourceSnapshot {
+  if (!scopes.length) return snapshot
+  const chosen = new Map(scopes.map((scope) => [scope.id, scope.domain]))
+  const mapped: SourceWarning[] = []
+  const definitions = snapshot.definitions.flatMap((definition): Definition[] => {
+    const group = groupOf(definition.name)
+    if (group === null || !chosen.has(group)) return []
+    const domain = chosen.get(group) ?? null
+    if (domain === null) return [{ ...definition, areaHint: null, domainSource: 'none' }]
+    mapped.push({ code: 'domain_override', target: definition.ref })
+    return [{ ...definition, areaHint: domain, domainSource: 'override' }]
+  })
+  // A warning names a definition (by its ref or its name), a group, or neither (a file).
+  const kept = new Set(definitions.flatMap((definition) => [definition.ref, definition.name]))
+  const named = new Set(snapshot.definitions.flatMap((d) => [d.ref, d.name]))
+  const groups = new Set(snapshot.definitions.flatMap((d) => groupOf(d.name) ?? []))
+  // What it said of a group left out, of its definitions, or of a group mapped says nothing now.
+  const warnings = snapshot.warnings.filter((warning) =>
+    named.has(warning.target)
+      ? kept.has(warning.target)
+      : groups.has(warning.target)
+        ? chosen.has(warning.target) && chosen.get(warning.target) === null
+        : true,
+  )
+  return { ...snapshot, definitions, warnings: [...warnings, ...mapped] }
+}
+
 /** A stored definition source of a runtime's: a read gathers its messages into a snapshot. */
 function runtimeSource(running: Running, stored: StoredSource): DefinitionSource {
   const { manifest, runtime } = running
@@ -413,13 +475,16 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
             continue
           }
           if (message.type === 'end') {
-            return {
-              sourceVersion: message.version,
-              complete: message.complete && !capped,
-              definitions,
-              warnings,
-              ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
-            }
+            return withChosenGroups(
+              {
+                sourceVersion: message.version,
+                complete: message.complete && !capped,
+                definitions,
+                warnings,
+                ...(message.cursor === undefined ? {} : { cursor: message.cursor }),
+              },
+              stored.scopes ?? [],
+            )
           }
           // A definitions connector sends definitions, under its tool's prefix, each once.
           if (message.type !== 'definition') throw invalid()
@@ -462,7 +527,10 @@ function runtimeSource(running: Running, stored: StoredSource): DefinitionSource
  */
 function runtimeContent(running: Running, stored: StoredSource): ContentSource {
   const { manifest, runtime } = running
-  const scopes = stored.scopes ?? []
+  // Every scope of a content source has its domain: the service refuses one without.
+  const scopes = (stored.scopes ?? []).flatMap(({ domain, ...scope }) =>
+    domain === null ? [] : [{ ...scope, domain }],
+  )
   return {
     id: stored.id,
     type: manifest.id,

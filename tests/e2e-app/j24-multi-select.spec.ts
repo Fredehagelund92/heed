@@ -178,7 +178,9 @@ test('Inbox: a Shift-click ticks a range of cards, and Mark as read takes their 
 test("A source's folders: unticking one and Shift-clicking another unticks the run", async ({
   page,
 }) => {
-  untilInHttp('P11b', "a source's folders on its connect page")
+  // The demo week's Cube is the server's own, whose settings are its operator's: its connect page
+  // opens on the service only for a Cube an admin connected from Git.
+  untilInHttp('a demo week Cube connected from Git', "a Cube's views on its connect page")
   await go(page, '/settings/integrations/cube/connect?step=3')
   const box = (name: string) => page.locator('li', { hasText: name }).getByRole('checkbox')
   await box('orders').click()
