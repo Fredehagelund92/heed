@@ -239,4 +239,17 @@ describe('the catalogue on PostgreSQL', () => {
     })
     expect((await catalogue()).coverage.withoutDomain).toBe(2)
   })
+
+  it('lists no disconnected source, though what it read still names it', async () => {
+    await client.query(
+      `update connectors set origin = 'workspace', enabled = false, secret_ref = null,
+         removed_at = now(), removed_by = (select id from people order by id limit 1)
+       where id = 'cube'`,
+    )
+    expect((await catalogue()).sources).toEqual([])
+    expect((await get<CatalogueTermDetail>('/catalogue/metric/returns')).body).toMatchObject({
+      definition: { ref: 'cube:orders.returns' },
+      source: { id: 'cube', name: 'Cube local model', tool: 'Cube' },
+    })
+  })
 })
