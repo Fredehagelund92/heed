@@ -331,8 +331,14 @@ describe('tool switch and client policies', () => {
     await ok('PUT', '/clients/cursor', 'admin', { ...cursor, enabled: false, reason: 'Paused' })
     expect((await serving.policy('cursor')).client?.enabled).toBe(false)
     const clients = await ok<ClientPolicy[]>('GET', '/clients', 'admin')
-    // signed-in: every agent a person signs in with.
-    expect(clients.map((c) => c.label)).toEqual(['claude-code', 'cursor', 'eval', 'signed-in'])
+    // signed-in: every agent a person signs in with; access-key: every key an admin made.
+    expect(clients.map((c) => c.label)).toEqual([
+      'access-key',
+      'claude-code',
+      'cursor',
+      'eval',
+      'signed-in',
+    ])
     const actions = (
       await client.query<{ action: string }>(
         "select action from audit_log where subject_type='client' order by seq",

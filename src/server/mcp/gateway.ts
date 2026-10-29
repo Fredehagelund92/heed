@@ -279,11 +279,11 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
       )
       return deny(403, 'Insufficient scope', 'forbidden')
     }
-    // A token that names no person (a dev or service token) has nobody to write a draft for.
+    // A token that names no person (a dev token or an access key) has nobody to write a draft for.
     if (name && personOnly(name) && !principal.subject)
       return deny(
         403,
-        `${name} needs a person signed in to ${productName} through an AI agent. A dev or service token names no person.`,
+        `${name} needs a person signed in to ${productName} through an AI agent. A dev token or an access key names no person.`,
         'forbidden',
       )
     if (request.method !== 'POST') {

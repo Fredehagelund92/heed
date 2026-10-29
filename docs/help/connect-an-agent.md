@@ -4,7 +4,7 @@ line: One prompt for Claude, Cursor or another agent, and what approving does.
 group: Start
 order: 2
 minutes: 3
-reviewed: 2026-10-27
+reviewed: 2026-10-29
 open:
   label: Open Agents and access
   href: /settings/agents
@@ -60,3 +60,13 @@ The page checks every few seconds. After two minutes it shows what usually helps
 <!-- /include -->
 
 > **Revoking.** Revoke an agent from Connected agents. It signs out at once, and you can connect it again.
+
+## A bot or a scheduled job
+
+A job that runs on its own, with nobody there to approve a sign-in, uses an access key. Admins make them.
+
+1. In Agents and access, open Tools and access keys.
+2. Press **Create an access key**, then Copy. The key is shown once: keep it where the job keeps its secrets.
+3. Give the job the MCP address, with the key as its bearer token.
+
+A key reads published context and sends feedback. It names no person, so it never sends a suggestion. It shows in Connected agents as Access key, with who made it and when it was last used, until you **Revoke** it, which ends it at once.

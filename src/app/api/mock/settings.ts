@@ -1,7 +1,13 @@
 import type { Settings } from '../client'
 import { AGENT_TOOLS } from '@/lib/agents'
 import { MCP_URL } from '@/lib/brand'
-import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
+import {
+  ACCESS_KEY,
+  LIVE_PHASES,
+  MOCK_SIGN_IN_MS,
+  type Connected,
+  type LivePhase,
+} from '@/lib/connect'
 import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
 import { seedAgents } from './data/agents'
 import { figureConnections } from './data/integrations'
@@ -27,6 +33,7 @@ export function createSettings() {
   let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
   let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
+  let keys = 0
 
   /** A sign-in adds the agent on top, marked new; the same agent for the same person replaces its row. */
   const addAgent = (agent: string, who: string) => {
@@ -116,8 +123,22 @@ export function createSettings() {
       connected = connected.filter((c) => c !== id)
     },
     agents: () => agents,
-    revoke(agent: string, who: string) {
-      agents = agents.filter((r) => !(r.agent === agent && r.who === who))
+    /** A new access key goes on top of Connected agents, by who made it, never used yet. */
+    addKey(who: string) {
+      const row: Connected = {
+        agent: ACCESS_KEY,
+        who,
+        since: '23 Oct 2026',
+        used: 'Never',
+        fresh: true,
+        key: `key-${++keys}`,
+      }
+      agents = [row, ...agents.map((r) => (r.fresh ? { ...r, fresh: false } : r))]
+    },
+    revoke(agent: string, who: string, key?: string) {
+      agents = agents.filter((r) =>
+        key ? r.key !== key : r.key !== undefined || !(r.agent === agent && r.who === who),
+      )
     },
     /** In the demo an agent signs in 8 seconds after a copy; ?connect=declined says it was declined. */
     check(address: Address, since: number, agent: string, me: string) {

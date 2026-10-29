@@ -32,4 +32,40 @@ export function phaseAt(elapsed: number, signIn?: number): Exclude<LivePhase, 'i
 
 /* ---------- The connected agents, shared by the page, the dialog and the live line ---------- */
 
-export type Connected = { agent: string; who: string; since: string; used: string; fresh?: boolean }
+/**
+ * One row of Connected agents: an agent a person connected, or an access key an admin made, which
+ * names no person: `who` is who made it, and `key` its id. `used` is Never for a key no agent used yet.
+ */
+export type Connected = {
+  agent: string
+  who: string
+  since: string
+  used: string
+  fresh?: boolean
+  key?: string
+}
+
+/** What an access key is called on Connected agents. */
+export const ACCESS_KEY = 'Access key'
+
+/** When a row was last used, as its line ends: "used today", or "never used" for a new key. */
+export const usedLine = (r: Pick<Connected, 'used'>) =>
+  r.used === 'Never' ? 'never used' : `used ${r.used.toLowerCase()}`
+
+/** What Connected agents says above its rows: "3 agents people have connected, and 1 access key." */
+export function connectedLine(rows: readonly Connected[]) {
+  const keys = rows.filter((r) => r.key).length
+  const agents = rows.length - keys
+  const parts = [
+    ...(agents ? [`${agents} ${agents === 1 ? 'agent' : 'agents'} people have connected`] : []),
+    ...(keys ? [`${keys} access ${keys === 1 ? 'key' : 'keys'}`] : []),
+  ]
+  const line = parts.join(', and ')
+  return line ? `${line.charAt(0).toUpperCase()}${line.slice(1)}.` : 'None yet.'
+}
+
+/** The hint beside Create an access key: how many there are, and where they are listed. */
+export function keysHint(rows: readonly Connected[]) {
+  const keys = rows.filter((r) => r.key).length
+  return keys ? `${keys} ${keys === 1 ? 'key' : 'keys'}, in Connected agents above.` : 'None yet.'
+}

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { PlusIcon } from '@/components/icons'
+import { KeyRoundIcon, PlusIcon } from '@/components/icons'
 import { toast } from 'sonner'
 import { ConnectAgent } from '@/components/connect-agent'
 import { ToolLogo } from '@/components/heed/tool-logo'
@@ -38,7 +38,7 @@ import { Switch } from '@/components/ui/switch'
 import { AGENT_TOOLS, logoFor } from '@/lib/agents'
 import { GuideLink } from '@/components/heed/guide-link'
 import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
-import type { Connected } from '@/lib/connect'
+import { connectedLine, keysHint, usedLine, type Connected } from '@/lib/connect'
 import { servedToAgents } from '@/model/items'
 import { useQuery } from '@tanstack/react-query'
 import type { Advanced as AdvancedPage, Exported } from '@/api/client'
@@ -249,15 +249,25 @@ function RevokeDialog({
   return (
     <Dialog open={!!row} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            Revoke {row?.agent} for {row?.who}?
-          </DialogTitle>
-          <DialogDescription>
-            It signs out at once and stops reading context. {row?.who.split(' ')[0]} can connect it
-            again.
-          </DialogDescription>
-        </DialogHeader>
+        {row?.key ? (
+          <DialogHeader>
+            <DialogTitle>Revoke this access key?</DialogTitle>
+            <DialogDescription>
+              It stops working at once, and whatever uses it stops reading context. A job that still
+              needs one gets a new key.
+            </DialogDescription>
+          </DialogHeader>
+        ) : (
+          <DialogHeader>
+            <DialogTitle>
+              Revoke {row?.agent} for {row?.who}?
+            </DialogTitle>
+            <DialogDescription>
+              It signs out at once and stops reading context. {row?.who.split(' ')[0]} can connect
+              it again.
+            </DialogDescription>
+          </DialogHeader>
+        )}
         <DialogFooter>
           <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button variant="destructive" onClick={onRevoke}>
@@ -313,21 +323,24 @@ function Agents() {
       >
         <ConnectAgent />
       </FrameSection>
-      <FrameSection
-        title="Connected agents"
-        description={rows.length ? `${rows.length} agents people have connected.` : 'None yet.'}
-      >
+      <FrameSection title="Connected agents" description={connectedLine(rows)}>
         {rows.length > 0 && (
           <ul className="border-t" aria-label="Connected agents">
             {shown.map((r) => (
               <li
-                key={r.agent + r.who}
+                key={r.key ?? r.agent + r.who}
                 className={cn(
                   'grid grid-cols-(--cols-around) items-center gap-x-3 border-t px-4 py-3 first:border-t-0 md:px-5',
                   r.fresh && 'bg-fresh',
                 )}
               >
-                <ToolLogo c={{ logo: logoFor(r.agent) }} />
+                {r.key ? (
+                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-logo-plate text-muted-foreground">
+                    <KeyRoundIcon className="size-4" aria-hidden />
+                  </span>
+                ) : (
+                  <ToolLogo c={{ logo: logoFor(r.agent) }} />
+                )}
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
                     {r.agent}
@@ -338,12 +351,12 @@ function Agents() {
                     <span className="@max-xl/main:hidden">
                       , since {r.since.replace(' 2026', '')}
                     </span>
-                    <span className="@xl/main:hidden"> - used {r.used.toLowerCase()}</span>
+                    <span className="@xl/main:hidden"> - {usedLine(r)}</span>
                   </p>
                 </div>
                 <span className="flex items-center gap-4">
-                  <span className="hidden text-xs text-muted-foreground @xl/main:inline">
-                    Used {r.used.toLowerCase()}
+                  <span className="hidden text-xs text-muted-foreground first-letter:uppercase @xl/main:inline">
+                    {usedLine(r)}
                   </span>
                   <Button
                     variant="ghost"
@@ -369,8 +382,14 @@ function Agents() {
         onClose={() => setRevoking(undefined)}
         onRevoke={() => {
           if (!revoking) return
-          void write('revokeAgentConnection', { agent: revoking.agent, who: revoking.who })
-          toast(`${revoking.agent} for ${revoking.who} revoked`)
+          const { agent, who, key } = revoking
+          void write('revokeAgentConnection', { agent, who, ...(key ? { key } : {}) })
+            .then(() => toast(key ? 'Access key revoked' : `${agent} for ${who} revoked`))
+            .catch((e: unknown) =>
+              toast(key ? "Couldn't revoke the access key" : `Couldn't revoke ${agent}`, {
+                description: toApiError(e).message,
+              }),
+            )
           setRevoking(undefined)
         }}
       />
@@ -468,7 +487,7 @@ function Agents() {
             {
               id: 'keys',
               label: 'Access keys',
-              hint: "For a bot or a scheduled job that can't sign in. None yet.",
+              hint: `For a bot or a scheduled job that can't sign in. ${keysHint(rows)}`,
               value: (
                 <Button variant="outline" size="sm" onClick={() => void createKey()}>
                   Create an access key

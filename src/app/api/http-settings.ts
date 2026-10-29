@@ -10,7 +10,7 @@ import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import type { DeletedTerm } from '@contract/terms'
 import { AGENT_TOOLS } from '@/lib/agents'
-import type { Connected } from '@/lib/connect'
+import { ACCESS_KEY, type Connected } from '@/lib/connect'
 import { logLine } from '@/model/history'
 import type { Advanced, Settings } from './client'
 import { whenWords } from './http-inbox'
@@ -41,30 +41,66 @@ export type Listed = {
   lastUsedAt: string
   person?: { name: string }
 }
+/** An access key an admin made, which only an admin's list shows. */
+export type ListedKey = {
+  kind: 'access_key'
+  id: string
+  createdAt: string
+  lastUsedAt: string | null
+  madeBy: { name: string }
+}
 
-/** How long after it signed in an agent reads as new on the list. */
+/** How long after it signed in an agent, or was made, a row reads as new on the list. */
 const NEW_MS = 15 * 60_000
+
+const newestFirst = (a: { at: string }, b: { at: string }) =>
+  a.at < b.at ? 1 : a.at > b.at ? -1 : 0
 
 /**
  * The agents connected, newest sign-in first, one row per agent and person: an agent that signed
- * in again keeps one row, with its newest sign-in. `me` names the person's own.
+ * in again keeps one row, with its newest sign-in. Each access key is a row of its own, by who made
+ * it. `me` names the person's own.
  */
-export function connectedOf(rows: readonly Listed[], me: string, now: Date): Connected[] {
+export function connectedOf(
+  rows: readonly (Listed | ListedKey)[],
+  me: string,
+  now: Date,
+): Connected[] {
+  const fresh = (at: string) =>
+    now.getTime() - new Date(at).getTime() < NEW_MS ? { fresh: true } : {}
   const newest = new Map<string, Listed>()
+  const keys: (Connected & { at: string })[] = []
   for (const r of rows) {
-    const key = `${r.clientName}\n${r.person?.name ?? me}`
+    if ('kind' in r && r.kind === 'access_key') {
+      keys.push({
+        at: r.createdAt,
+        agent: ACCESS_KEY,
+        who: r.madeBy.name,
+        since: dayOf(r.createdAt),
+        used: r.lastUsedAt ? usedWords(r.lastUsedAt, now) : 'Never',
+        key: r.id,
+        ...fresh(r.createdAt),
+      })
+      continue
+    }
+    const listed = r as Listed
+    const key = `${listed.clientName}\n${listed.person?.name ?? me}`
     const kept = newest.get(key)
-    if (!kept || kept.connectedAt < r.connectedAt) newest.set(key, r)
+    if (!kept || kept.connectedAt < listed.connectedAt) newest.set(key, listed)
   }
-  return [...newest.values()]
-    .sort((a, b) => (a.connectedAt < b.connectedAt ? 1 : a.connectedAt > b.connectedAt ? -1 : 0))
-    .map((r) => ({
+  return [
+    ...keys,
+    ...[...newest.values()].map((r) => ({
+      at: r.connectedAt,
       agent: r.clientName,
       who: r.person?.name ?? me,
       since: dayOf(r.connectedAt),
       used: usedWords(r.lastUsedAt, now),
-      ...(now.getTime() - new Date(r.connectedAt).getTime() < NEW_MS ? { fresh: true } : {}),
-    }))
+      ...fresh(r.connectedAt),
+    })),
+  ]
+    .sort(newestFirst)
+    .map(({ at: _at, ...row }) => row)
 }
 
 /** The tools Settings switches, by the ids the service and agents know. */
@@ -225,6 +261,7 @@ const SUBJECTS: Record<string, string> = {
   report: 'a report',
   source: 'an integration',
   figures: 'figures in Ask',
+  access_key: 'an access key',
 }
 
 /** The verbs of the history log's actions, as a sentence starts. */

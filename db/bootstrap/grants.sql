@@ -213,3 +213,7 @@ grant execute on function cl_alert_raise(text, text, text[], text, jsonb), cl_al
 -- No figure is ever stored, and nothing here is granted to the serving or the analytics role.
 grant execute on function cl_is_figure_contact(text), cl_closes_figure_report(text),
   cl_figure_disputes(text, text, text[], date, date) to :api;
+-- Access keys (FR-403, FR-410): an administrator creates a key, kept only as its digest, and revokes it. The MCP
+-- server reads no key: one function that runs as the owner says whether a digest is an open key.
+grant select, insert, update (revoked_at, revoked_by) on auth.access_keys to :api;
+grant execute on function serving_access_key(text) to :serve;

@@ -210,6 +210,7 @@ describe('the API over HTTP', () => {
     const document = response.json<{ openapi: string; paths: Record<string, unknown> }>()
     expect(document.openapi).toMatch(/^3\./)
     expect(Object.keys(document.paths).sort()).toEqual([
+      '/access-keys',
       '/activity',
       '/agent-connections',
       '/agent-connections/people/{personId}/disconnect',

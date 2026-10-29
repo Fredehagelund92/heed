@@ -320,6 +320,7 @@ import {
   adminDisconnectedSchema,
   adminDisconnectPersonSchema,
   adminDisconnectSchema,
+  agentConnectionSchema,
   connectDecisionResultSchema,
   connectDecisionSchema,
   connectionIdSchema,
@@ -328,7 +329,7 @@ import {
   connectPendingSchema,
   connectRequestIdSchema,
   connectRequestSchema,
-  personConnectionSchema,
+  createdAccessKeySchema,
 } from './connections.ts'
 import {
   scopeDescribeInputSchema,
@@ -1080,16 +1081,16 @@ export const contract = {
         path: '/agent-connections',
         tags: ['admin'],
         summary:
-          "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends",
+          "Every person's agent connections that are still open: the person, the app as it names itself, what it may do, when it connected, last refreshed and ends; and every access key not revoked, with who made it, when, and when it was last used",
       })
-      .output(z.array(personConnectionSchema)),
+      .output(z.array(agentConnectionSchema)),
     disconnect: agentDisconnect
       .route({
         method: 'POST',
         path: '/agent-connections/{id}/disconnect',
         tags: ['admin'],
         summary:
-          "Disconnect one person's agent with a reason: its refresh tokens end and the MCP server refuses its access tokens at the next request. The history log keeps the reason",
+          "Disconnect one person's agent, or revoke an access key, with a reason: its refresh tokens end, or the key stops working, and the MCP server refuses it at the next request. The history log keeps the reason",
       })
       .input(adminDisconnectSchema)
       .output(adminDisconnectedSchema),
@@ -1103,6 +1104,18 @@ export const contract = {
       })
       .input(adminDisconnectPersonSchema)
       .output(adminDisconnectedSchema),
+  },
+  // Access keys, for administrators: a key for a bot or a scheduled job that can't sign in.
+  accessKeys: {
+    create: admin
+      .route({
+        method: 'POST',
+        path: '/access-keys',
+        tags: ['admin'],
+        summary:
+          'Create an access key for a bot or a scheduled job that cannot sign in: it may read context and give feedback, names no person, and lasts until revoked. The key is in this answer only; it is kept as a digest and never shown again',
+      })
+      .output(createdAccessKeySchema),
   },
   roles: {
     list: admin.route({ method: 'GET', path: '/roles', tags: ['roles'] }).output(grantsSchema),

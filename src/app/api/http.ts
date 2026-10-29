@@ -196,6 +196,7 @@ export const wiredMethods = [
   'pauseIntegration',
   'setLinks',
   'setTool',
+  'createAccessKey',
   'setPause',
   'listAgentConnections',
   'revokeAgentConnection',
@@ -1652,12 +1653,21 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         : await read(() => client.connections.list())
       return connectedOf(rows, who.name, new Date())
     },
-    // Every connection of that agent for that person ends at once, with the reason the log keeps.
-    revokeAgentConnection: async ({ agent, who }) => {
+    // Every connection of that agent for that person ends at once, or the one access key, with the
+    // reason the log keeps.
+    revokeAgentConnection: async ({ agent, who, key }) => {
       const me = await signedIn()
+      if (key) {
+        if (!me.admin) throw new ApiError('forbidden', 'Only an admin revokes an access key.')
+        const input = { id: key, reason: 'Access key revoked in Settings, Agents and access.' }
+        await write('agentConnections.disconnect', input, (o) =>
+          client.agentConnections.disconnect(input, o),
+        )
+        return
+      }
       if (me.admin) {
         const ended = (await read(() => client.agentConnections.list())).filter(
-          (c) => c.clientName === agent && c.person.name === who,
+          (c) => c.kind === 'agent' && c.clientName === agent && c.person.name === who,
         )
         for (const c of ended) {
           const input = { id: c.id, reason: 'Revoked in Settings, Agents and access.' }
@@ -1675,6 +1685,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         await write('connections.disconnect', { id: c.id }, (o) =>
           client.connections.disconnect({ id: c.id }, o),
         )
+    },
+    // The key is in this answer only: the service keeps its digest, and this binding keeps nothing.
+    createAccessKey: async () => {
+      const { key } = await write('accessKeys.create', null, (o) =>
+        client.accessKeys.create(undefined, o),
+      )
+      return { key }
     },
     checkConnect: async ({ since }) => {
       const answer = await read(() =>

@@ -4,6 +4,11 @@ import type { Logger } from 'pino'
 import type { Config } from '../config/env.ts'
 import { calendarDateTypes } from '../db/database.ts'
 import { createEditionSource } from '../modules/editions/index.ts'
+import {
+  createAccessKeyVerifier,
+  servingKeyCheck,
+  withAccessKeys,
+} from '../modules/access-keys/index.ts'
 import type { LoginServer } from '../modules/oauth/index.ts'
 import {
   createDevVerifier,
@@ -19,7 +24,8 @@ import { createAnonymousStore } from './store.ts'
 /**
  * The MCP server's dependencies. It verifies every token itself (FR-402), choosing by issuer: dev
  * tokens from `npm run token:dev`, and a person's tokens from the login server the settings name
- * (FR-404): the built-in one, whose keys it holds, or another one, whose key set it reads.
+ * (FR-404): the built-in one, whose keys it holds, or another one, whose key set it reads. An
+ * access key an administrator made is checked with the database at every request.
  */
 export async function createMcpDependencies(config: Config, logger: Logger, login?: LoginServer) {
   const key = await devKey(config.mcpDevKeyFile, config.nodeEnv)
@@ -64,7 +70,15 @@ export async function createMcpDependencies(config: Config, logger: Logger, logi
     ...(stateKey ? { stateKey } : {}),
     source: createEditionSource(pool),
     store: createAnonymousStore(pool),
-    verifier: createIssuerVerifier(verifiers),
+    verifier: withAccessKeys(
+      createIssuerVerifier(verifiers),
+      createAccessKeyVerifier(
+        servingKeyCheck({
+          query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
+            (await pool.query<Row>(sql, values)).rows,
+        }),
+      ),
+    ),
     resource: config.mcpResourceUrl,
     authorizationServers: servers,
     close: () => pool.end(),

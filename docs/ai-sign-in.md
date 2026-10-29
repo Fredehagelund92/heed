@@ -38,7 +38,8 @@ sign-in is kept, and the history log is not told, as nothing changed.
 An app needs either a client ID metadata document (preferred by the MCP specification) or
 dynamic client registration, which is on by default outside production and requires an explicit
 opt-in in production (see the settings). An app
-that supports neither cannot sign in, and its people keep using `npm run token:dev`.
+that supports neither cannot sign in: an administrator gives it an access key (below), and
+locally its people can keep using `npm run token:dev`.
 
 ## How it works
 
@@ -123,6 +124,31 @@ AI agent                Heed MCP server         Heed login server            Bro
   count against the client, so one client's people are not locked out by junk sent under its public
   ID from another address. One connection refreshes at most 5 times a minute.
 
+## Access keys for bots and scheduled jobs
+
+A bot or a scheduled job that can't sign in uses an access key. An administrator creates one in
+Settings, Agents and access, **Tools and access keys**, **Create an access key**
+(`accessKeys.create`). The job sends it as its bearer token to the MCP address, as an agent sends
+its access token.
+
+- **Shown once.** The key is in the answer that made it, and only there: the page offers to copy
+  it, and it is never shown again. The service keeps its SHA-256 only, and that answer is never
+  kept for a retry. A key is `hak_` and 43 random characters (256 bits).
+- **No person.** A key acts as a service with the `read` and `feedback` scopes. It names no person,
+  so `suggest_context` refuses it, as it refuses a dev token, and it reads the live edition. Every
+  key shares the client label `access-key` in the MCP request log, deliveries and client policies
+  (FR-410), where an administrator can switch it off or give it a rate; the per-person rate counts
+  each key on its own.
+- **Listed and revoked.** Connected agents lists each key as **Access key**, by who made it, since
+  when and when it was last used (to the minute), in `agentConnections.list`. **Revoke** there
+  (`agentConnections.disconnect`, with a reason the history log keeps) ends it at once: the MCP
+  server asks the database about the key at every request, through one function the serving role
+  may call (`serving_access_key`), and reads no key. A key lasts until it is revoked; one whose
+  maker leaves keeps working until an administrator revokes it.
+- **Logs.** The history log records `access_key.created` and `access_key.revoked`, by the
+  administrator, never with the key or its digest. A refused key is logged as `MCP token
+rejected` with a reason code (`unknown_key`, `revoked`, `malformed`) and the client label only.
+
 ## Settings
 
 | Variable                               | Default                                                                    | Meaning                                                                                                                          |
@@ -185,6 +211,9 @@ token it signed is refused at once, and apps get new ones with their refresh tok
   algorithm is fixed; tokens of another issuer, `alg: none` and unknown key ids are refused.
 - **Timing.** Proofs and handles are compared in constant time or by their SHA-256 digests;
   codes, refresh tokens and request handles are stored only as digests.
+- **Leaked access key.** It names no person and can only read context and give feedback;
+  revoking it refuses it at the next request, in every process, since each request asks the
+  database. Only its digest is stored, so a copy of the database holds no working key.
 - **Errors.** Answers say what is wrong in general words (`invalid_grant`) and never why a
   specific token failed; logs carry reason codes, never tokens, codes, people or addresses.
 

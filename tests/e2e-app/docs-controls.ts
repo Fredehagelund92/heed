@@ -25,6 +25,14 @@ export const docControls: DocControl[] = [
   { phrase: 'Agents and access', page: 'connect-an-agent', at: '/settings/general', drawn: 'link' },
   { phrase: 'Copy prompt', page: 'connect-an-agent', at: '/settings/agents', drawn: 'button' },
   {
+    phrase: 'Create an access key',
+    page: 'connect-an-agent',
+    at: '/settings/agents',
+    drawn: 'button',
+    open: 'Show or hide Tools and access keys',
+  },
+  { phrase: 'Revoke', page: 'connect-an-agent', at: '/settings/agents', drawn: 'button' },
+  {
     phrase: 'Say what the business is about',
     page: 'get-started',
     at: '/inbox?demo=setup',

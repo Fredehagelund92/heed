@@ -105,7 +105,7 @@ To run the whole product instead, with its database and your own Cube model, see
 
 Not in it, on purpose: the remaining stub screens and company sign-in (local dev
 sessions are available; without one, the app shows a signed-out page). Agents get the accepted
-facts over MCP, signed in or with a local access key.
+facts over MCP, signed in, with a local dev token or with an access key.
 
 ## Run the front end on the service
 

@@ -90,6 +90,7 @@ export const policies = {
   'agentConnections.list': 'admin',
   'agentConnections.disconnect': 'admin',
   'agentConnections.disconnectPerson': 'admin',
+  'accessKeys.create': 'admin',
   'me.get': 'read',
   // People as Heed v1 has them: anyone signed in reads them and the open invites; the service and
   // row security let an owner invite a member to their own domains, and set its owners.
