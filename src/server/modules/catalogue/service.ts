@@ -151,11 +151,13 @@ export function createCatalogueService(
     )
     const { vocabulary, definitions, mentions, items } = row!
     // The words on screen name the tool the source reads (CON-101: core names no vendor).
-    const sources: (CatalogueSource & { removed: boolean })[] = row!.sources.map(({ type, removed, ...source }) => ({
-      ...source,
-      removed,
-      tool: connectorType(type, source.name).tool,
-    }))
+    const sources: (CatalogueSource & { removed: boolean })[] = row!.sources.map(
+      ({ type, removed, ...source }) => ({
+        ...source,
+        removed,
+        tool: connectorType(type, source.name).tool,
+      }),
+    )
     const gaps = row!.gaps.map((keys) => ({ keys }))
     return { vocabulary, definitions, sources, mentions, gaps, items }
   }
