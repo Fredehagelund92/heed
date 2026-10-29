@@ -63,12 +63,12 @@ describe('the http binding shares identical reads', () => {
     const fetch = sharedReads(send, () => 0)
     const read = fetch(at('/inbox/feed'))
     const write = fetch(at('/inbox/cards/read'), { method: 'POST', body: '{}' })
-    pending[0]()
+    pending[0]?.()
     await read
-    pending[1]()
+    pending[1]?.()
     await write
     const after = fetch(at('/inbox/feed'))
-    pending[2]()
+    pending[2]?.()
     expect(await (await after).json()).toEqual({ n: 3 })
     expect(sent).toEqual([
       'GET /api/v1/inbox/feed',
@@ -91,12 +91,12 @@ describe('the http binding shares identical reads', () => {
     const fetch = sharedReads(send, () => 0)
     const write = fetch(at('/inbox/cards/read'), { method: 'POST', body: '{}' })
     const during = fetch(at('/inbox/feed'))
-    pending[1]()
+    pending[1]?.()
     await during
-    pending[0]()
+    pending[0]?.()
     await write
     const after = fetch(at('/inbox/feed'))
-    pending[2]()
+    pending[2]?.()
     expect(await (await after).json()).toEqual({ n: 3 })
     expect(sent).toHaveLength(3)
   })
