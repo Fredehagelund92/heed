@@ -409,6 +409,14 @@ describe('the views an admin chooses, and Disconnect (CON-118)', () => {
     expect(await stored()).toEqual(read)
     expect(await store.read(ref)).toBeNull()
     expect((await run()).connectors[sourceId]).toBeUndefined()
+    // It is no entry of the operations overview or the catalogue's sources: those are for the
+    // ones connected.
+    const operations = await ok<{ connectors: { id: string }[] }>(
+      call('GET', '/operations', 'admin'),
+    )
+    expect(operations.connectors.map((c) => c.id)).not.toContain(sourceId)
+    const catalogue = await ok<{ sources: { id: string }[] }>(call('GET', '/catalogue', 'admin'))
+    expect(catalogue.sources.map((c) => c.id)).not.toContain(sourceId)
     const again = await ok<SourceSettings>(
       call('POST', '/sources', 'admin', {
         type: 'cube',
