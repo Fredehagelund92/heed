@@ -237,6 +237,19 @@ jobs:
             test-results/e2e-seed
           retention-days: 7
 
+  docker:
+    # The images docker compose up runs (Dockerfile, compose.yaml): the service, and the web app's
+    # http build behind nginx. Built only, not started: the seed job runs the same app and service.
+    name: 'Docker images build'
+    needs: scope
+    if: needs.scope.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the service and web images
+        run: docker compose build
+
   app:
     # The web app on its mock binding (tests/e2e-app): the golden job specs J1 to J30, with the
     # motion journey a second time under reduced motion, and axe on every place at 390 and 1440 in
@@ -384,7 +397,7 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, check, seal, service, seed, app, golden-http, mockup, security]
+    needs: [scope, check, seal, service, seed, docker, app, golden-http, mockup, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -409,6 +422,7 @@ jobs:
           expect check "$CHECK"
           expect service "$APP"
           expect seed "$APP"
+          expect docker "$APP"
           expect app "$APP"
           expect golden-http "$APP"
           expect mockup "$MOCKUP"
