@@ -1,8 +1,0 @@
-/*
-  The app's stylesheet, with the classes only the stories write (index.css leaves them out). The
-  source is a file glob because a folder here loses to index.css's `@source not` for the same
-  folder.
-*/
-@import '../src/web/styles/index.css';
-
-@source '../src/web/stories/*.tsx';

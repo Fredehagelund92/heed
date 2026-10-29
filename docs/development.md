@@ -4,61 +4,41 @@ How the repository is laid out, how to run the front end, the commands, what CI 
 
 ## The two parts
 
-The repository holds two parts. The **front end** is a React app with the design contract's
-tokens and guard rails. It has these screens:
-
-- **Home**, the **library** with each fact's page, and the **Catalogue** of metrics.
-- **Proposals**, with the To review list, each proposal's status, and its review: the field
-  changes, the checks, the decision bar and the owner's edits.
-- **Editions**, for owners and admins, with a banner for everyone while agents are stopped from
-  getting facts.
-- **Health**, where owners see what needs them first: test questions, runs, gaps, facts and each
-  domain. The old Workbench, Quality, Areas and owners' Gaps addresses lead there.
-- **Gaps**, for everyone else: the topics nobody has written a fact for, with weekly counts, notes
-  and Start a draft.
-- **The assistant**, from a launcher in the corner of every page, with Ask and Try a question:
-  what an agent gets for a metric, a market and dates, without asking any AI.
-- **Settings**, from the user menu: profile, appearance, and connecting an agent.
-- **Administration**, where an admin runs domains, people and roles, limits, which agents can
-  connect and their tools, imports and operations, and an auditor reads the history log.
-- **Docs**, the help pages, at `/docs`.
-
-The sidebar shows each person only the places that are theirs. Other routes are stubs.
-
-The **new web app** in `src/app` is the approved mockup (`apps/mockup`, the acceptance
-specification) on the repository's router, icon module, class merge and lint. It is built beside
-the front end until it replaces it. Its pages read their data through one typed interface,
+The repository holds two parts. The **web app** in `src/app` is the approved mockup
+(`apps/mockup`, the acceptance specification) on the repository's router, icon module, class merge
+and lint. Its screens are listed with their addresses in [docs/product.md](product.md), section 5:
+the Inbox and the review, Ask, Context, Definitions, Observability, Settings, Help and the docs, the
+sign-in page and an agent's consent page. Its pages read their data through one typed interface,
 `HeedApi` (`src/app/api/client.ts`), with TanStack Query: the mock binding answers from the
 mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
-`?slow=1`, `?demo=` and the rest), and the http binding talks to the service. Run it with
-`npm run dev:app` on the mock; `VITE_API_MODE=http npm run dev:app` takes the http binding, which
-answers the wired methods so far (`wiredMethods` in `src/app/api/http.ts`); each other
-screen is wired by its own change. `npm run dev`, `docker compose up` and the Docker image still
-serve the front end in `src/web`.
+`?slow=1`, `?demo=` and the rest), and the http binding talks to the service. `npm run dev` runs it
+on the mock; `npm run dev:http` takes the http binding, which answers the wired methods
+(`wiredMethods` in `src/app/api/http.ts`).
 
 The **back end** is the service in `src/server`: a Fastify app with configuration, logging and a
 health check, a PostgreSQL 18 database, scheduled jobs with an operations view, and the API the
-app reads, described once in `src/contract` (oRPC, published as OpenAPI). The front end runs on
-mock data by default, or on the service with `npm run dev:http` (see
-[Run the front end on the service](#run-the-front-end-on-the-service)).
+app reads, described once in `src/contract` (oRPC, published as OpenAPI). See
+[Run the web app on the service](#run-the-web-app-on-the-service).
 
 ### Words on screen and words in code
 
-The screens, the help pages and the assistant name things as people say them. The code, the API,
-the database and the specification keep their own words. [src/domain/words-v1.ts](../src/domain/words-v1.ts)
-maps one to the other for the old front end, and [docs/design/voice.md](design/voice.md) says how
-to write; the new web app uses glossary v2 in [src/domain/words.ts](../src/domain/words.ts) and
-[docs/design/copy.md](design/copy.md). The ones you meet most in the old front end:
+The screens and the help pages name things as people say them. The code, the API, the database
+and the specification keep their own words. [src/domain/words.ts](../src/domain/words.ts) maps one
+to the other, and [docs/design/copy.md](design/copy.md) says how to write; the service's own
+sentences still follow the earlier glossary ([src/domain/words-v1.ts](../src/domain/words-v1.ts),
+[docs/design/voice.md](design/voice.md)). The ones you meet most:
 
-| On screen             | In code and the specification |
-| --------------------- | ----------------------------- |
-| fact                  | item, context item            |
-| admin                 | administrator                 |
-| archive               | retire                        |
-| what agents get today | the live edition              |
-| where it applies      | scope                         |
-| agent                 | AI app, client                |
-| check date            | review date                   |
+| On screen       | In code and the specification |
+| --------------- | ----------------------------- |
+| context item    | item                          |
+| suggestion      | proposal                      |
+| publish         | accept                        |
+| archive         | retire                        |
+| domain          | area                          |
+| Not found       | gap, `no_match`               |
+| integration     | source, connector             |
+| agent           | client                        |
+| what agents get | served, delivered             |
 
 This page is for the people who build the product, so from here on it uses the code's words
 where it describes code, the API or the database.
@@ -73,11 +53,9 @@ npm ci            # installs exact, locked versions
 npm run dev       # http://localhost:5173
 ```
 
-You should see the shell: a sidebar, a header with a breadcrumb, and Home. Press
-`g` then `l` for the library, `j` and `k` to move through it, `Enter` to open a fact,
-`Cmd+K` (or `Ctrl+K`) for the quick switcher and `?` for every shortcut. Appearance is in the user
-menu at the bottom of the sidebar. In development the design preview is at `/design-preview`; it
-also switches the mock API between the library's states (first run, slow, failed).
+You should see the sign-in page: pick a demo person, and the Inbox opens on the demo week.
+`Cmd+K` (or `Ctrl+K`) opens the search, and `?` every shortcut. The theme is in the menu at the
+right end of every header.
 
 Before you push, run everything that CI runs, except the browser tests:
 
@@ -86,37 +64,35 @@ npm run check     # type check, lint (ESLint and Stylelint), format check, unit 
 ```
 
 Browser tests (Playwright) need a browser once: `npx playwright install chromium`, then
-`npm run test:e2e`. Screenshot tests run only once CI baselines exist; see [Screenshot baselines](testing.md#screenshot-baselines).
+`npm run test:e2e` for the golden job specs on the mock build.
 
 To run the whole product instead, with its database and your own Cube model, see the [Quick start](../README.md#quick-start).
 
 ## What is in it
 
-| Area        | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| App         | Vite 8 single page app, React 19, TypeScript strict mode                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Routes      | TanStack Router, file based, with typed search params: Home, Context library, Catalogue, Item, Proposals, Proposal, Try it, Gaps (gaps, topic counts, a gap's panel), Health (with each domain and what it is), Editions (rollback, the stop switch), Settings (profile and appearance, Connect your AI), Administration (domains, About our business, people and roles, limits with their history, MCP and gateway with the clients, tools and the traffic by client and tool, item import, the history log, operations), Docs (the help pages in `docs/old-help`, at `/docs`), the agent consent page, Signed out; the old Evals and releases, Workbench, Quality, Areas, MCP and gateway and Connect your AI addresses, and the Settings sections Administration took over, lead to where they went, and an owner's Gaps address to Health. The ones not yet built are stubs. |
-| Data        | TanStack Query on one API boundary with two bindings: the mock (typed fixtures from a seeded generator for 1,500 context items) and the Heed service, through a client typed from the API contract                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Shell       | Sidebar (256px, a 48px rail below 1280px, a sheet on phones), 48px header (56px on phones), breadcrumb, command palette and hotkeys driven by one command registry, appearance in the user menu with a no-flash bootstrap                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Components  | shadcn/ui on Base UI (style `base-nova`): sidebar, breadcrumb, button, input, command, dropdown menu, popover, tooltip, dialog, sheet, tabs, badge, skeleton, empty, kbd, avatar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Styling     | Tailwind 4 with semantic tokens in one file, `src/web/styles/tokens.css`. Nunito Sans and Geist Mono are self-hosted. Lucide icons come from one module.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| Guard rails | ESLint and Stylelint rules that block arbitrary Tailwind values, off-scale spacing, raw colours and inline spacing, with tests that prove they fail loudly                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Quality     | Vitest, Storybook with a 1440, 1024 and 390 viewport matrix in light and dark, Playwright with axe, layout and screenshot tests, GitHub Actions CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Area        | What                                                                                                                                                                                   |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App         | Vite 8 single page app, React 19, TypeScript strict mode                                                                                                                               |
+| Routes      | TanStack Router, file based (`src/app/routes`), with zod search params, one to one with the mockup's addresses ([docs/product.md](product.md), section 5); old addresses redirect      |
+| Data        | TanStack Query on one API boundary, `HeedApi`, with two bindings: the mock over the mockup's demo world, and the Heed service through a client typed from the API contract             |
+| Shell       | Sidebar (Inbox, Ask, Context, Definitions; Help, Observability and Settings at its foot) that folds to a rail, a header with the breadcrumb and the theme menu, one right dock, search |
+| Components  | shadcn/ui on Base UI (style `base-nova`), Heed's own parts in `components/heed`, a Tiptap editor, sonner toasts                                                                        |
+| Styling     | Tailwind 4 with the tokens in one file, `src/app/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
+| Guard rails | ESLint and Stylelint rules for the class rules, raw values, icons and plain words, with tests that prove they fail loudly                                                              |
+| Quality     | Vitest; Playwright with the golden job specs J1 to J30 on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI              |
 
-Not in it, on purpose: the remaining stub screens and company sign-in (local dev
-sessions are available; without one, the app shows a signed-out page). Agents get the accepted
-facts over MCP, signed in, with a local dev token or with an access key.
+Agents get the published context over MCP, signed in, with a local dev token or with an access
+key.
 
-## Run the front end on the service
+## Run the web app on the service
 
 The API lives under `/api/v1`; its OpenAPI document is served at `/api/v1/openapi.json` and
 committed as [docs/api/openapi.json](api/openapi.json). Every operation is defined once in
 `src/contract`. After changing it, run `npm run api:generate`, which rewrites that document and
-the browser client's route table (`src/web/api/contract.json`); a test fails while either is
-stale.
+the web app's route table (`src/app/api/contract.json`); a test fails while either is stale.
 
 With the service set up as in [Run the service locally](operations.md#run-the-service-locally), the demo is loaded (`SEED_DEMO=on`); start both sides. The
-demo gives Quality, Gaps and Health their history ([db/README.md](../db/README.md), "Demo quality history"); on an
+demo gives the weekly runs and the gaps their history ([db/README.md](../db/README.md), "Demo quality history"); on an
 empty database `npm run seed -- --items-only` loads the items alone:
 
 ```sh
@@ -124,12 +100,8 @@ npm run dev:server
 npm run dev:http                  # http://localhost:5173, /api/v1 forwarded to the service
 ```
 
-For the scripted five-minute Norway show, side by side with Claude Code, use its own commands
-instead: `npm run demo` and the daily `npm run demo:check` ([docs/demo.md](demo.md)).
-
-Without a session the app opens the sign-in page: choose a demo person in Sign in as (the list is
-grouped by role, each person with their domains) and Continue (Enter on the chosen person does the same). Switch demo person in the user menu opens it again. The
-dev session API does the same from a script:
+Without a session the app opens the sign-in page: pick a demo person. Sign out in the user menu
+opens it again. The dev session API does the same from a script:
 
 ```js
 await fetch('/api/v1/auth/sign-in', {
@@ -171,21 +143,20 @@ single use. An invite is accepted at the person's first OIDC sign-in, by the add
 has verified (`CL_AUTH=oidc`, docs/ai-sign-in.md); `npm run heed -- invite <email> --admin` invites
 the first admin of a new install.
 
-The library then shows the same 1,500 items as the mock, read from PostgreSQL. The dev and preview
-servers forward `/api/v1` to `HEED_API_URL` (default `http://127.0.0.1:3000`). Favourites and
-recently opened items stay in the browser with either binding: the service records who writes and
-decides, never what a person reads.
+Context then shows the demo's items, read from PostgreSQL. The dev and preview servers forward
+`/api/v1` to `HEED_API_URL` (default `http://127.0.0.1:3000`). Ask's chats stay in the person's
+browser with either binding: the service records who writes and decides, never what a person
+reads.
 
-Both bindings pass one conformance suite (`tests/conformance/context-api.ts`): the mock in
-`npm test`, the http binding against PostgreSQL in `npm run test:integration`. The new web app's
-two bindings do the same with `tests/app/conformance/heed-api.ts`, the http one for the methods it
-wires (`wiredMethods` in `src/app/api/http.ts`, every method of the interface), on the mockup's demo
-week (`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
+Both bindings pass one conformance suite (`tests/app/conformance/heed-api.ts`): the mock in
+`npm test`, the http binding against PostgreSQL in `npm run test:integration`, for the methods it
+wires (`wiredMethods` in `src/app/api/http.ts`), on the mockup's demo week
+(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
 people wrote in Definitions, and the suggestions waiting for Jon Abara, sent through the service's
 own API, with Lars Dahl's suggestion to archive that he took back in the comments. A method added
 to the interface later answers not available on the service until its pull request wires it.
 
-The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
+The golden job specs run in both modes. `npm run test:e2e` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the
 setup checklist, People, Context, Definitions, the editor, Related, Observability, comments with their
 reactions and mentions, Settings' domains and agents, and figures in Ask so far) on an http mode
@@ -203,30 +174,29 @@ another run uses those. The specs read the mock's card, item and topic ids, the 
 through `tests/e2e-app/go.ts`, which gives the service's in http mode; a step that needs a later
 pull request's server work is skipped in http mode only, naming that pull request, and so is a step
 of a review flag only the mock has (`?state=quiet`).
-`npm run test:e2e:api` runs a Playwright smoke test of an http mode build against the service; it
-needs a migrated, seeded database named by `E2E_DATABASE_URL` (default: the local development
-database), and CI runs it on a PostgreSQL 18 container. Its service signs in the people in
-`tests/e2e-api/people.yml`: the demo identities and an administrator for each parallel spec that
-needs one, so the specs never share one person's request limit.
+`npm run test:e2e:seed` runs the web app on what `docker compose up` gives a new install: an
+http mode build against the service, on a database `npm run db:migrate` prepared with
+`SEED_DEMO=on`, named by `E2E_DATABASE_URL` (default: the local development database). CI runs it
+on a PostgreSQL 18 container.
 
 ## Folder map
 
 ```
 src/
   domain/         the item model (zod/mini), pure and shared with the server
-  contract/       the API contract (oRPC, zod/mini): every operation once, used by the service and the web
+  contract/       the API contract (oRPC, zod/mini): every operation once, used by the service and the app
   cli/            `heed`, the command-line tool: the contract client, never the service's code
   server/         the Heed service: main.ts (composition root), app.ts, config, db, http, observability
     modules/        one folder per feature, reached only through its index.ts
       jobs/           scheduled jobs, heartbeats, the watchdog and the operations endpoints
       evals/          golden questions, answer tests through the MCP wire, judges, scorecards
       gaps/           gap detection, gaps and notes, domain dashboards and topic counts
-      quality/        the Workbench's quality reads: score history, run comparison, feedback, upkeep, Fix next
+      quality/        quality reads: score history, run comparison, feedback, upkeep
       models/         the model port: the scripted mocks, the direct Anthropic adapter and the spend ledger
-      assistant/      the assistant: tools over the same services, the citation check, budgets, streaming
+      assistant/      the in-app assistant (no screen since the switch; it leaves with docs/old-help)
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev sessions and roles)
-  app/            the new web app, until it replaces web: the mockup's shell and pages on a typed API
+  app/            the web app: the mockup's shell and pages on a typed API
     api/            HeedApi (client.ts) and its method list, the query factories and what each write
                     makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
       mock/           the demo world: its fixtures (data/), its state, and its review flags (scenario.ts)
@@ -238,84 +208,57 @@ src/
     pages/          one file per screen
     styles/         index.css and tokens.css
     theme-bootstrap.js  inlined into <head> to apply the theme before first paint
-  web/            the front end, and nothing else
-    routes/         one file per route (TanStack Router, file based)
-    components/
-      ui/             shadcn components (regenerated by the CLI, normalised to the scale)
-      app-shell/      sidebar, header, breadcrumbs, command palette, appearance menu
-      page/           page regions and the stub page
-      form/           form kit: dates, validity range, markdown field, confirm dialog, error summary
-      docs/           the Docs area: its home, a help page and their parts
-      icons.ts        the only module that imports the icon library
-    hooks/          autosave, pending indicator, zod form
-    lib/            command registry, navigation list, appearance, search param schemas, form errors, markdown renderers (item text, assistant answers and help pages), the help pages' library
-    api/            the API boundary (ContextApi), mock implementation, query options
-    mocks/          seeded fixtures: people, areas, vocabulary, 1,500 items
-    design-preview/ one example per page template, and the tokens (dev only)
-    styles/         index.css and tokens.css
-    stories/        Storybook stories
-    theme-bootstrap.js  inlined into <head> to apply the saved appearance before first paint
 tests/
-  unit/           Vitest, front end
-  server/         Vitest, the service without a database
+  server/         Vitest, the service without a database, and the pure domain
   integration/    Vitest, the service against PostgreSQL 18
   lint/           tests that lint deliberately wrong code and CSS, and break the module boundaries
-  e2e/            Playwright: layout, shell, axe, screenshots
-  e2e-api/        Playwright: the front end in http mode against the service
-  app/            Vitest, the new web app (src/app); its HeedApi suite (conformance/), its http run (integration/)
-  e2e-app/        Playwright: the new web app's golden job specs and axe, on its mock build and in http mode (http/)
-  conformance/    the ContextApi suite that both API bindings pass
-docs/help/            the new app's documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
-docs/old-help/        the old app's help pages, Markdown with SVG pictures, shown at its /docs and on GitHub (its README)
+  app/            Vitest, the web app (src/app); its HeedApi suite (conformance/), its http run (integration/)
+  e2e-app/        Playwright: the golden job specs and axe, on the mock build and in http mode (http/)
+  e2e-seed/       Playwright: the web app on the demo install, as docker compose up gives it
+docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
+docs/old-help/        the earlier app's help pages, which only the in-app assistant still reads
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
-registry.json     the Heed registry for shadcn (built output in registry/r)
 apps/mockup/      the clickable mockup, the acceptance specification: its own package (apps/mockup/README.md)
 ```
 
 ### Why this layout
 
-Heed is one deployable and one npm package, not a workspace monorepo, with the front end
-under `src/web`. `src/domain` holds the item model, because it
-belongs to both sides. The service lives in `src/server`, next to `src/web`, with its own
+Heed is one deployable and one npm package, not a workspace monorepo, with the web app
+under `src/app`. `src/domain` holds the item model, because it
+belongs to both sides. The service lives in `src/server`, next to `src/app`, with its own
 `tsconfig.server.json`; its features become modules in `src/server/modules/<name>`. The root
 `package.json` serves both; add the server dependencies to it. Lint keeps the parts apart: see
 "Module boundaries" in `CONTRIBUTING.md`.
 
 ## Commands
 
-| Command                                         | What it does                                                                                                                                                                                                                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                   | Dev server at http://localhost:5173. `VITE_DEVTOOLS=true npm run dev` adds the Query and Router devtools.                                                                                                                             |
-| `npm run dev:http`                              | The dev server in http mode: the app reads the Heed service through `/api/v1` instead of the mock.                                                                                                                                    |
-| `npm run dev:app`                               | The new web app (`src/app`) at http://localhost:5174, on its mock binding.                                                                                                                                                            |
-| `npm run dev:server`                            | The service at http://127.0.0.1:3000, restarted on change. Loads `.env.local` if it exists.                                                                                                                                           |
-| `npm run api:generate`                          | Rewrites `docs/api/openapi.json` and `src/web/api/contract.json` from `src/contract`                                                                                                                                                  |
-| `npm run heed -- <command>`                     | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
-| `npm run db:migrate`                            | Gets the database ready: roles and database when missing, migrations, grants, and the demo with `SEED_DEMO=on` (see [Run the service locally](operations.md#run-the-service-locally))                                                 |
-| `npm run seed`                                  | Loads the demo into an empty local database by hand; `-- --items-only`, `--library golden\|norway` and `--practice` (the practice domain) are the variants the tests and the show use (see [db/README.md](../db/README.md))           |
-| `npm run demo` / `demo:check`                   | The Norway show on its own database and ports, and its daily headless check (see [docs/demo.md](demo.md))                                                                                                                             |
-| `npm run eval -- --area <id>`                   | Runs a domain's test questions on the live edition now, with the mock model; `--real` needs a key and `--max-cost-usd`; `--resume <run id>` makes what an incomplete run is missing                                                   |
-| `npm run eval:assistant -- --as <email>`        | Runs the assistant's test cases (`--golden`: the golden set's), three tries each, mock model; `--real` needs a key and `--max-cost-usd`; `--dry-run` prices it                                                                        |
-| `npm run eval:ask-words`                        | Runs the cases of Ask's words on the scripted mock model; `--real` uses `models.assistant` and needs a key and `--max-cost-usd`                                                                                                       |
-| `npm run db:restore-drill`                      | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
-| `npm run start:server`                          | The service without the file watcher                                                                                                                                                                                                  |
-| `npm run build`                                 | Type check, then a production build in `dist/web`                                                                                                                                                                                     |
-| `npm run build:app` / `npm run preview:app`     | Type check, then a production build of the new web app in `dist/app` / serve that build at http://localhost:4174                                                                                                                      |
-| `npm run size`                                  | Checks the first load against its budget (after a build)                                                                                                                                                                              |
-| `npm run typecheck`                             | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
-| `npm run lint`                                  | ESLint, then Stylelint                                                                                                                                                                                                                |
-| `npm run lint:words`                            | Checks the words people read against `plain-words.baseline.json`: no file may gain old words, a fall is only a note (`-- --list` prints them, `-- --update` lowers the counts); see [the voice guide](design/voice.md#the-guard-rail) |
-| `npm run format` / `npm run format:check`       | Prettier                                                                                                                                                                                                                              |
-| `npm test`                                      | Vitest: unit tests, the service's tests and the guard rail tests                                                                                                                                                                      |
-| `npm run test:integration`                      | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
-| `npm run storybook` / `npm run build-storybook` | Storybook at http://localhost:6006 / a static build                                                                                                                                                                                   |
-| `npm run test:e2e`                              | Playwright against a production build made for tests (layout, shell, axe; screenshots only if baselines exist, on Linux)                                                                                                              |
-| `npm run test:e2e:app`                          | Playwright: the new web app's golden job specs (`tests/e2e-app`) against its production build, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                                  |
-| `npm run test:e2e:api`                          | Playwright against an http mode build and the service (needs a seeded database, `E2E_DATABASE_URL`)                                                                                                                                   |
-| `npm run test:e2e:golden-http`                  | Playwright: the golden job specs whose screens are wired, on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                                                    |
-| `npm run registry:build` / `registry:validate`  | Build or validate `registry.json`                                                                                                                                                                                                     |
-| `npm run check`                                 | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
+| Command                                   | What it does                                                                                                                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                             | The web app at http://localhost:5173, on its mock binding.                                                                                                                                                                            |
+| `npm run dev:http`                        | The web app in http mode: it reads the Heed service through `/api/v1` instead of the mock.                                                                                                                                            |
+| `npm run dev:server`                      | The service at http://127.0.0.1:3000, restarted on change. Loads `.env.local` if it exists.                                                                                                                                           |
+| `npm run api:generate`                    | Rewrites `docs/api/openapi.json` and `src/app/api/contract.json` from `src/contract`                                                                                                                                                  |
+| `npm run heed -- <command>`               | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
+| `npm run db:migrate`                      | Gets the database ready: roles and database when missing, migrations, grants, and the demo with `SEED_DEMO=on` (see [Run the service locally](operations.md#run-the-service-locally))                                                 |
+| `npm run seed`                            | Loads the demo into an empty local database by hand; `-- --items-only`, `--library golden\|norway` and `--practice` (the practice domain) are the variants the tests and the show use (see [db/README.md](../db/README.md))           |
+| `npm run eval -- --area <id>`             | Runs a domain's test questions on the live edition now, with the mock model; `--real` needs a key and `--max-cost-usd`; `--resume <run id>` makes what an incomplete run is missing                                                   |
+| `npm run eval:assistant -- --as <email>`  | Runs the assistant's test cases (`--golden`: the golden set's), three tries each, mock model; `--real` needs a key and `--max-cost-usd`; `--dry-run` prices it                                                                        |
+| `npm run eval:ask-words`                  | Runs the cases of Ask's words on the scripted mock model; `--real` uses `models.assistant` and needs a key and `--max-cost-usd`                                                                                                       |
+| `npm run db:restore-drill`                | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
+| `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
+| `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/app` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
+| `npm run size`                            | Checks the first load of `dist/app` against its budget (after a build)                                                                                                                                                                |
+| `npm run typecheck`                       | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
+| `npm run lint`                            | ESLint, then Stylelint                                                                                                                                                                                                                |
+| `npm run lint:words`                      | Checks the words people read against `plain-words.baseline.json`: no file may gain old words, a fall is only a note (`-- --list` prints them, `-- --update` lowers the counts); see [the voice guide](design/voice.md#the-guard-rail) |
+| `npm run format` / `npm run format:check` | Prettier                                                                                                                                                                                                                              |
+| `npm test`                                | Vitest: the app's units, the service's tests and the guard rail tests                                                                                                                                                                 |
+| `npm run test:integration`                | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
+| `npm run test:e2e`                        | Playwright: the golden job specs (`tests/e2e-app`) against a production build on the mock binding, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                              |
+| `npm run test:e2e:golden-http`            | Playwright: the golden job specs whose screens are wired, on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                                                    |
+| `npm run test:e2e:seed`                   | Playwright: the web app on the demo install (needs a database `npm run db:migrate` prepared with `SEED_DEMO=on`, `E2E_DATABASE_URL`)                                                                                                  |
+| `npm run check`                           | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
 
 ## Continuous integration
 
@@ -331,21 +274,20 @@ it replaces; runs on `main` and at night always finish.
 
 A pull request takes the highest tier any of its files falls in.
 
-| Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                                                    |
-| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the four folders the apps read: `docs/help`, `docs/old-help`, `docs/templates` and `docs/api`                                                         | Type check, lint, plain words, format, unit tests (the docs check among them), registry and build                            |
-| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                                               |
-| Medium    | Anything else: the front end, the domain, the contract, the tests, scripts and configuration                                                                                                                                            | Every app job: the checks, the service tests, the library on the real API, Storybook, Playwright, the new app's golden specs |
-| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                          |
+| Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                          |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the four folders the apps read: `docs/help`, `docs/old-help`, `docs/templates` and `docs/api`                                                         | Type check, lint, plain words, format, unit tests (the docs check among them) and build            |
+| Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                     |
+| Medium    | Anything else: the web app, the domain, the contract, the tests, scripts and configuration                                                                                                                                              | Every app job: the checks, the service tests, the golden job specs in both modes, the demo install |
+| Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                |
 
 Every tier also runs the security scan (known vulnerabilities in dependencies, and secrets in the
 history) and the held-out seal. A path no rule names counts as Medium, and an empty change runs
 everything, so a gap in the rules runs more, never less. Change the rules in
 `.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
 
-The browser tests run in eleven parallel parts: seven for the pages, three for the Storybook
-tests, and one for the screenshot tests. Every job stops after 25 minutes at most, so a hung part
-fails instead of holding the run.
+The golden job specs on the mock build run in two parallel parts. Every job stops after 25 minutes
+at most, so a hung part fails instead of holding the run.
 
 ### On main and every night
 
@@ -368,82 +310,67 @@ CI time is spent per pull request, so fewer, well formed pull requests merge fas
 ## How to add a component
 
 1. Look before you build. Run `npx shadcn search @shadcn` for the part you need, and check
-   `registry.json` and `src/web/components` for a product component that already does it.
-2. Add it with the CLI: `npx shadcn add <name>`. The CLI writes into `src/web/components/ui`.
-3. Run `npm run lint -- --fix`. shadcn output uses half steps (`gap-1.5`), arbitrary values and
-   raw sizes. Every violation is a real mismatch with the scale: replace it with a step or a
-   token, or add a token to `tokens.css` and say why. The component is yours after that; the
-   rules apply to it like any other code.
-4. Icons: add the icon to `src/web/components/icons.ts` and import it from there. If the CLI
+   `src/app/components/ui` and `src/app/components/heed` ([components](design/components.md))
+   for a part that already does it.
+2. Add it with the CLI: `npx shadcn add <name>`. The CLI writes into `src/app/components/ui`.
+3. Run `npm run lint -- --fix`. Every violation the class rules report is a real mismatch:
+   replace it with a step or a token, or add a token to `tokens.css` and say why. The component is
+   yours after that; the rules apply to it like any other code.
+4. Icons: add the icon to `src/app/components/icons.ts` and import it from there. If the CLI
    wrote `from "lucide-react"`, change it.
-5. Add a story in `src/web/stories` that shows the states (default, disabled, long text, empty).
-6. If it is a new kind of page or region, add it to the design preview and the screenshot tests.
-7. Run `npm run check`, and `npm run test:e2e` for the layout, shell and axe tests. If the look
-   changed, refresh the screenshot baselines (see [Screenshot baselines](testing.md#screenshot-baselines)).
+5. Run `npm run check`, and `npm run test:e2e` for the golden job specs and axe.
 
-A component you write for this product (not from shadcn) lives in `src/web/components`, composes
-shadcn parts, owns its layout only, and takes colour, spacing and type from tokens. Shared variants
-own control height, type and radius; feature code never overrides them.
+A part you write for this product (not from shadcn) lives in `src/app/components/heed`, composes
+shadcn parts, owns its layout only, and takes colour, radius and motion from tokens. Shared
+variants own control height, type and radius; feature code never overrides them.
 
 ## The rules
 
 These are enforced by lint and tests, not by good intentions. `CONTRIBUTING.md` has the detail.
 
-- Spacing is 4, 8, 12, 16, 24, 32, 48 and 64 (Tailwind steps 1, 2, 3, 4, 6, 8, 12, 16).
-  `p-7` and margins are reported, with the fix. Layout sizes come from tokens: `w-sidebar`, `w-rail`,
-  `h-header`, `px-gutter`, `h-control-md`.
-- No arbitrary Tailwind values (`w-[13px]`, `text-[#fff]`), no raw palette colours, no
-  `!important`, no inline `style` for spacing or colour.
-- Colour, radius, type size and shadow come from `tokens.css`, which holds the design contract's
-  tokens (`docs/design/design-contract.md`, section 6). Every name in it is semantic.
-- One page gutter. The header, toolbar and content all use `px-gutter`; the page title is shown
-  once, in the breadcrumb.
-- One icon module, one component base (Base UI), one font family and one mono family.
-- Only parents set gaps. Children do not carry margins.
+- Tailwind's spacing and text scales, and weights 400 to 700, as the mockup uses them.
+- No arbitrary Tailwind values outside a short list of named tokens, no raw palette colours, no
+  numeric layers, no raw motion, no inline `style` for spacing or colour.
+- Colour, radius, shadow, motion and the layout metrics come from `src/app/styles/tokens.css`,
+  which holds the design contract's tokens ([design contract v2](design/design-contract.md),
+  section 2). Every name in it is semantic.
+- A part that can sit in the dock reads its container, never the viewport.
+- One icon module, one component base (Base UI), one font family.
 
 ## Versions, and why
 
 Every dependency is pinned to an exact version (`.npmrc` has `save-exact=true`), and the lock
 file is committed. Read the date as 7 October 2026.
 
-| Package                       | Version              | Why                                                                                                                               |
-| ----------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Node                          | 26                   | The stack decision: TypeScript on Node 26. Pinned in `.nvmrc` and `engines`.                                                      |
-| TypeScript                    | 6.0.3                | typescript-eslint 8.71 supports TypeScript below 6.1. TypeScript 7 is out, but the lint toolchain cannot use it yet.              |
-| Vite / plugin-react           | 8.3.3 / 6.1.2        | The recommended build tool; no server coupling. 8.3.3 is the newest release (6 October 2026).                                     |
-| React                         | 19.3.0               | The current release (9 September 2026). Pinned exactly so an update is a decision.                                                |
-| Tailwind CSS                  | 4.3.3                | Semantic tokens in CSS variables; spacing is computed, so the lint rules matter.                                                  |
-| shadcn CLI / style            | 4.22.1 / `base-nova` | Copy-in components on Base UI.                                                                                                    |
-| Base UI                       | 1.8.0                | The component base shadcn defaults to.                                                                                            |
-| TanStack Router / Query       | 1.170.41 / 5.104.1   | Typed search params and intent preloading; server state cache.                                                                    |
-| zod                           | 4.6.6                | Used as `zod/mini` in the front end and domain to keep the browser bundle small. The service uses full `zod`.                     |
-| Storybook                     | 10.6.1               | Component states as the review surface.                                                                                           |
-| Playwright / axe              | 1.63.0 / 4.13.0      | Layout, accessibility and screenshot tests.                                                                                       |
-| Vitest / jsdom                | 5.0.3 / 30.1.2       | Unit tests.                                                                                                                       |
-| ESLint / typescript-eslint    | 10.12.0 / 8.71.1     | With `eslint-plugin-better-tailwindcss` 4.9.0 for the class rules.                                                                |
-| Fastify / pino                | 5.12.5 / 10.4.0      | The service's HTTP server and its JSON logger (the one Fastify uses).                                                             |
-| pg                            | 8.23.1               | The PostgreSQL driver.                                                                                                            |
-| pg-boss                       | 12.37.0              | The job queue and cron schedules, in PostgreSQL. Its schema is vendored in the baseline migration (`0001_baseline.sql`).          |
-| eslint-plugin-boundaries      | 7.2.0                | The module boundaries, with `eslint-import-resolver-typescript` 4.4.5 to follow the path aliases.                                 |
-| Stylelint                     | 17.16.0              | With `stylelint-declaration-strict-value` for hand written CSS.                                                                   |
-| cn                            | 0.4.0                | The class merge helper the shadcn CLI now emits. It is pre 1.0; `@/lib/utils` re-exports it, so swapping it is one line.          |
-| React Hook Form / resolvers   | 7.89.0 / 5.9.1       | The form library of the design contract (7.1, "Field, Form"); the resolver checks a `zod/mini` schema. Used through `useZodForm`. |
-| react-day-picker              | 10.0.2               | The calendar of `DateField` and `ValidityRange` (contract 7.1), set to UTC days.                                                  |
-| storybook-addon-pseudo-states | 10.6.1               | Draws hover, focus-visible and pressed in the state grid of a story without a pointer (contract 7, "the state set").              |
-| diff (jsdiff)                 | 8.0.4                | The word diff of the review screen (`lib/field-diff.ts`): it compares words and keeps an @ mention whole.                         |
+| Package                    | Version              | Why                                                                                                                      |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Node                       | 26                   | The stack decision: TypeScript on Node 26. Pinned in `.nvmrc` and `engines`.                                             |
+| TypeScript                 | 6.0.3                | typescript-eslint 8.71 supports TypeScript below 6.1. TypeScript 7 is out, but the lint toolchain cannot use it yet.     |
+| Vite / plugin-react        | 8.3.3 / 6.1.2        | The recommended build tool; no server coupling. 8.3.3 is the newest release (6 October 2026).                            |
+| React                      | 19.3.0               | The current release (9 September 2026). Pinned exactly so an update is a decision.                                       |
+| Tailwind CSS               | 4.3.3                | Semantic tokens in CSS variables; spacing is computed, so the lint rules matter.                                         |
+| shadcn CLI / style         | 4.22.1 / `base-nova` | Copy-in components on Base UI.                                                                                           |
+| Base UI                    | 1.8.0                | The component base shadcn defaults to.                                                                                   |
+| TanStack Router / Query    | 1.170.41 / 5.104.1   | Typed search params and intent preloading; server state cache.                                                           |
+| zod                        | 4.6.6                | Used as `zod/mini` in the web app and domain to keep the browser bundle small. The service uses full `zod`.              |
+| Playwright / axe           | 1.63.0 / 4.13.0      | The golden job specs and the accessibility checks.                                                                       |
+| Vitest / jsdom             | 5.0.3 / 30.1.2       | Unit tests.                                                                                                              |
+| ESLint / typescript-eslint | 10.12.0 / 8.71.1     | With `eslint-plugin-better-tailwindcss` 4.9.0 for the class rules.                                                       |
+| Fastify / pino             | 5.12.5 / 10.4.0      | The service's HTTP server and its JSON logger (the one Fastify uses).                                                    |
+| pg                         | 8.23.1               | The PostgreSQL driver.                                                                                                   |
+| pg-boss                    | 12.37.0              | The job queue and cron schedules, in PostgreSQL. Its schema is vendored in the baseline migration (`0001_baseline.sql`). |
+| eslint-plugin-boundaries   | 7.2.0                | The module boundaries, with `eslint-import-resolver-typescript` 4.4.5 to follow the path aliases.                        |
+| Stylelint                  | 17.16.0              | With `stylelint-declaration-strict-value` for hand written CSS.                                                          |
+| cn                         | 0.4.0                | The class merge helper the shadcn CLI now emits. It is pre 1.0; `@/lib/utils` re-exports it, so swapping it is one line. |
+| react-day-picker           | 10.0.2               | The calendar of the date fields.                                                                                         |
+| diff (jsdiff)              | 8.0.4                | The word diff the review and history draw (`components/heed/bits.tsx`).                                                  |
 
 ## Known limits
 
-- The default build still uses the mock API; `VITE_API_MODE=http` switches to the service. The
-  library reads accepted context. Dev sign-in, sessions, role administration, proposal writes and
-  review use the real API; company sign-in is not built yet.
-- The `@heed` entry in `components.json` points at `registry/r` on the `main` branch of this
-  repository.
-- The design preview route is development only. It exists in `npm run dev` and in the build
-  Playwright uses (`VITE_DESIGN_PREVIEW=true`); in a normal production build it is a 404.
+- The default build uses the mock binding; `VITE_API_MODE=http` switches to the service, as the
+  Docker image builds it.
 - Dependency scanning (OSV-Scanner) passes with two reviewed exceptions, both in `extract-zip`,
   which the Cube compiler loads but never calls. They are listed with their reasons and an expiry
   date in `osv-scanner.toml`. Neither has a fixed version. `npm audit` shows the same findings;
   `.npmrc` turns off the audit on install, so look at it on purpose.
-- Several pages are only as accessible as the stubs. axe passes, but it does not replace a
-  keyboard and screen reader review of the real screens.
+- axe passes on every place, but it does not replace a keyboard and screen reader review.

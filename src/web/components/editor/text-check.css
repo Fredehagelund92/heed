@@ -1,9 +1,0 @@
-/*
-  The words the text check of FR-117 found: a wavy danger underline (the editor design, section
-  3). It loads with the editors' own chunks, not with the first page.
-*/
-@reference '../../styles/index.css';
-
-.text-check-mark {
-  @apply underline decoration-status-danger-fg decoration-wavy decoration-from-font underline-offset-4;
-}

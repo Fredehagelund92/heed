@@ -1,11 +1,11 @@
 import { codeMarks, pluralOf, readableWords, usesWord, wordPattern } from './words.ts'
 
 /*
-  The earlier glossary (glossary v1), kept for the old front end in src/web, the server's
-  sentences for people (the MCP `say`, notifications, error messages and the assistant) and the
-  help pages until each moves to glossary v2 (src/domain/words.ts, docs/design/copy.md). The switch
-  to the new web app deletes this file. Until then docs/design/voice.md says how to write with it,
-  and heed/plain-words with the ratchet in plain-words.baseline.json holds the old front end to it.
+  The earlier glossary (glossary v1), kept for the server's sentences for people (the MCP `say`,
+  notifications, error messages and the assistant), the demo's fixtures and the help pages the
+  assistant reads, until each moves to glossary v2 (src/domain/words.ts, docs/design/copy.md).
+  Until then docs/design/voice.md says how to write with it, and heed/plain-words with the ratchet
+  in plain-words.baseline.json holds the server's sentences to it.
 
   It names one plain name for each concept, the sentence that explains it, the words not to use on
   screen with what to write instead, and the map from the specification's and the code's words to
@@ -22,11 +22,11 @@ import { codeMarks, pluralOf, readableWords, usesWord, wordPattern } from './wor
   findable in search (`currentWords` in src/domain/words.ts) and is not written on a screen. A
   person who works as an agent is named by the role.
 
-  tests/unit/words-v1.test.ts keeps the list consistent: one concept per name, every banned word
+  tests/server/domain/words-v1.test.ts keeps the list consistent: one concept per name, every banned word
   with something to write instead, and no name, definition or replacement that uses a banned word.
   `wordsToChange` reads a text against it, with the negatives people say short: the lint rule
-  heed/plain-words reads the old screens with it and the docs check the help pages (voice guide,
-  "The guard rail").
+  heed/plain-words reads the server's sentences with it and the ratchet the help pages (voice
+  guide, "The guard rail").
 */
 
 /** One concept as people read it. */

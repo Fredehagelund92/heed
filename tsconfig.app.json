@@ -11,6 +11,15 @@
       "@contract/*": ["./src/contract/*"]
     }
   },
-  "include": ["src/app", "tests/app", "tests/e2e-app/http"],
+  "include": [
+    "src/app",
+    "src/domain",
+    "src/contract",
+    "src/connectors",
+    "tests/app",
+    "tests/e2e-app/http",
+    "tests/lint/fixtures",
+    "eslint.plain-words.d.ts"
+  ],
   "exclude": ["tests/app/e2e"]
 }

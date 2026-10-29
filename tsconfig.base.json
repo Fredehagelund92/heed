@@ -21,8 +21,9 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./src/web/*"],
-      "@domain/*": ["./src/domain/*"]
+      "@/*": ["./src/app/*"],
+      "@domain/*": ["./src/domain/*"],
+      "@contract/*": ["./src/contract/*"]
     }
   }
 }

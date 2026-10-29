@@ -2,7 +2,7 @@
 
 This page describes Heed's demo world: an invented outdoor-gear retailer, **Larchwood Outdoor**.
 The demo data, the Cube demo model, the Norway show, the golden set and the test questions all
-tell this one world. New demo text keeps to it (section 15).
+tell this one world. New demo text keeps to it (section 14).
 
 The words follow the voice guide (`docs/design/voice.md`) and the glossary (`src/domain/words.ts`).
 
@@ -29,14 +29,13 @@ The Heed v1 mockup tells the same world in its own fixtures: 22 context items, 1
    as one thing. The words "item", "term" and "member" were banned too. The glossary v2 of
    [Copy](copy.md) lifts that ban, because "context item", "term" and "Member" are product
    words in Heed v1. `src/domain/words.ts` holds glossary v2; the earlier list, which still
-   governs the old front end's lint, is in `src/domain/words-v1.ts` until the switch. Metric names such as "Units per order"
+   governs the service's own sentences, is in `src/domain/words-v1.ts`. Metric names such as "Units per order"
    and "On-time shipping rate" keep their names, since the tests name them.
 5. **The draft rules must read the kind.** The kind of a drafted fact comes from its first
    sentence (`kindByRule`, `src/domain/agent-draft.ts`). An event needs a date ("on 4 August
    2026") and an event verb from its list (`closed`, `switched`, `started`, `stopped`, `paused`
-   and others). The mock assistant's kind check (`src/web/api/mock-assistant.ts`) reads
-   `stopped` and `rule` too, so a draft of "online sales to Norway stopped ... after a new
-   customs rule" is an Event, not a Note. A first sentence must avoid the data-problem words
+   and others). So a draft of "online sales to Norway stopped ... after a new customs rule" is an
+   Event, not a Note. A first sentence must avoid the data-problem words
    (`since`, `still`, `ongoing`, `delays`, `gaps in`, `until further notice`, `dropped`), or the
    fact reads as an Issue. A metric's or a metric group's name in a template line reads as that
    metric, so the templates use it only where the fact is about it: two lines of section 9.1 say
@@ -47,7 +46,7 @@ The Heed v1 mockup tells the same world in its own fixtures: 22 context items, 1
    allows a reply of 6,000 bytes. The mock judge flags causal words in answers (because, due
    to, led to, drove). No title or summary has a `%`: write "percent". The golden set's leakage
    check refuses a wording that shares a phrase with the text of the facts it expects, so a
-   wording and its fact use different words for the same thing (section 13.3).
+   wording and its fact use different words for the same thing (section 12.3).
 7. **One name per thing.** The metric group for orders and returns is **Payments**, not "Orders"
    or "Sales": "Orders" is a metric and "Sales" the domain, and one name must not mean two
    things. The service reads a word that names both a group and a metric as either one, so
@@ -311,7 +310,7 @@ Where it lives:
 - `docs/old-help/tell-heed-about-your-business.md`: "a worked example, about an outdoor-gear
   retailer", with the examples _First-time buyer: a customer whose first paid order falls in the period_
   and "what first-time buyer, gross margin, marketplace commission or return mean here".
-- The golden set's industry cases (section 13.2).
+- The golden set's industry cases (section 12.2).
 
 ## 9. The fact templates, by kind
 
@@ -490,74 +489,9 @@ have no such limit, and a few large orders lift their average." Then "1. Compare
 itself over time. 2. If you need another market, leave out its orders over 500 euros first. 3.
 Look at the median order as well as the average."
 
-## 12. The Norway show
+## 12. The golden set and the test questions
 
-The show (`docs/demo.md`, `db/seed/norway.ts`, `tests/demo/norway.spec.ts`) tells this
-story.
-
-### 12.1 The story
-
-On 4 August 2026 a new customs rule stopped all online sales to Norway. Larchwood has no
-stores there, so orders from Norway fell to almost nothing. In October, an agent asked about
-orders in Norway finds nothing written down. Maria writes the fact. The checks run, Jon
-accepts it, and the agent answers with the fact, its source and who reviewed it. Ravi stops it,
-and the agent stops getting it. Asked about Spain, it says plainly that nothing is written
-down.
-
-### 12.2 The exact sentences
-
-| Where                             | Sentence                                                                                                          |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| The first question                | How did orders in Norway change in October 2026?                                                                  |
-| The last question                 | How did orders in Spain change in October 2026?                                                                   |
-| What it is about (Try it)         | Orders, Norway                                                                                                    |
-| The domain on the form            | Sales                                                                                                             |
-| Title                             | Online sales to Norway stopped on 4 August 2026                                                                   |
-| Summary                           | A new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing. |
-| From                              | 4 Aug 2026 (Until stays empty)                                                                                    |
-| Link to the source                | https://customs.example/norway/notices/2026-08-04                                                                 |
-| A sentence copied from the source | Parcels from webshops outside Norway are held at the border from 4 August 2026 until further notice.              |
-| What not to conclude              | Fewer orders in Norway after 4 August do not mean fewer customers.                                                |
-| Jon's reason to accept            | Matches the customs notice.                                                                                       |
-| Ravi's reason to stop it          | Show: taking the stop back out of delivery.                                                                       |
-| What Claude says (step 5)         | names the stop from 4 August 2026, cites the customs notice, says fewer orders do not mean fewer customers        |
-| The people table                  | Jon Abara (owner of Sales)                                                                                        |
-
-The summary's first sentence is dated ("from 4 August 2026") and uses "stopped", so the draft
-rules read it as an Event (section 1, rule 5). It avoids "since" and "until further notice",
-which would make it an Issue. The quote may say "until further notice": the draft rules read the
-summary, not the quote.
-
-The assistant's draft card example is "Draft this: online sales to Norway stopped on 4 August
-2026 after a new customs rule, so orders there fell." The source is `customs.example`, the metric
-is Orders and the market is Norway.
-
-### 12.3 What the seed and the check hold
-
-- `norwayShow.metric` is `'orders'`, with its two questions as above.
-- `stopsTheShowMarkets` matches `^Online sales to (Norway|Spain) stopped`.
-- The comments in `db/seed/norway.ts` and the last section of `docs/demo.md` say "the demo's
-  invented stops on online sales to those two markets on other days".
-
-### 12.4 The 7 screenshots
-
-Take them with `npm run demo:check -- --screenshots docs/demo` once the show is green, in the
-light theme at 1440 × 900. The file names are code, so they stay. Wait for every section to load
-before each picture.
-
-| File                    | Shows                                                                                                  | Alt text                                                                 |
-| ----------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
-| `01-try-it-nothing.png` | Try a question for Orders in Norway, October 2026: nothing written down, and Start a draft             | Try it: No match for Orders in Norway, October 2026, with Start a draft  |
-| `02-maria-writes.png`   | The form filled in with the title, summary, source and what not to conclude above, Sales and its owner | The Add a fact form, filled in: an event in Sales about Orders in Norway |
-| `03-checks.png`         | The fact waiting for review, every check passed                                                        | The proposal waiting for review, every check passed                      |
-| `04-jon-accepts.png`    | Jon's decision made: accepted, and when agents get it                                                  | Jon has accepted it: agents get it from the new edition                  |
-| `05-try-it-fact.png`    | Try a question now finds "Online sales to Norway stopped on 4 August 2026", with Sales and its dates   | Try it now gives the stop, with its domain and dates                     |
-| `06-stop-delivery.png`  | Stopping one fact, with the reason everyone sees                                                       | Stop sharing one fact, with the reason everyone sees                     |
-| `07-spain-nothing.png`  | Try a question for Orders in Spain: nothing written down                                               | Try it: No match for Orders in Spain                                     |
-
-## 13. The golden set and the test questions
-
-### 13.1 Ids
+### 12.1 Ids
 
 Case and test question ids carry the metric words, such as `orders`, `returns`, `gross-sales`,
 `units-sold`, `active-customers`, `first-buyers`, `repeat-purchase`, `discount-cost`, `margin`,
@@ -566,7 +500,7 @@ not follow the pattern: `gs-alias-net-sales-united-states`, `gs-alias-margin-rat
 `gs-definition-gmv-alias` and `gs-definition-unknown-net-shelf-yield`. The stored eval results
 use the same ids.
 
-### 13.2 The cases that depend on what the business is
+### 12.2 The cases that depend on what the business is
 
 Three cases of `type: industry` ask what the business is, with the forbidden phrases about About
 our business.
@@ -594,7 +528,7 @@ our business.
   the country of the store or webshop that took the order." "Says the two can differ." "Draws no
   conclusion about tax, customs or the law in any market."
 
-### 13.3 Wordings and fixtures
+### 12.3 Wordings and fixtures
 
 The leakage check refuses a wording that shares a phrase with its facts, so each wording below
 uses other words than the fixture it expects.
@@ -649,14 +583,13 @@ and suppliers" and "I said stores and suppliers".
 **The held-out cases.** None are sealed at present. Fresh ones, sealed with a new key, use the
 words of this page.
 
-### 13.4 The test questions
+### 12.4 The test questions
 
-The mock's 9 (`src/web/mocks/test-questions.ts`) and the seed's 18 (`db/seed/test-questions.ts`)
-use the same words and ids. Their source reads like "Sales analysts, September 2026". For
+The seed's 18 (`db/seed/test-questions.ts`) use the same words and ids as the golden set. Their source reads like "Sales analysts, September 2026". For
 example: "Why did units sold in Norway drop in August?", "Are test accounts counted as
 first-time buyers?" and "Is footwear gross sales in Canada for the last 2 days final?".
 
-## 14. The web lookup example
+## 13. The web lookup example
 
 The assistant's web lookup example (an eval case and stories) is a real, stable and neutral
 consumer rule: the EU Consumer Rights Directive (2011/83/EU) on `eur-lex.europa.eu`, which gives
@@ -671,7 +604,7 @@ customers 14 days to withdraw from an online purchase.
 Copy the page's address and one sentence exactly from the live page. If the page moves or cannot
 be read in CI, use an invented page on `consumer.example` instead.
 
-## 15. Writing new demo text
+## 14. Writing new demo text
 
 1. **Use the words on this page.** If a story needs an idea the page doesn't have, add it here in
    the same change.
@@ -687,6 +620,6 @@ be read in CI, use an invented page on `consumer.example` instead.
 5. **Real countries, invented everything else.** The twelve markets are real countries, and no
    place below a country (state, region, province, city) appears. The people, the events and the
    `.example` addresses are invented. No other real country, and no real law, company or brand,
-   apart from the one web lookup example (section 14).
+   apart from the one web lookup example (section 13).
 6. **Keep the random draws.** A template's lists keep their length, and a hand-written fact
    replaces words by id, as `story-facts.ts` does.

@@ -14,9 +14,6 @@ import type { GoldenQuestionInput } from '../../src/domain/golden-question.ts'
 
   Sales, Marketing and Sandbox wrote theirs in July, before the first weekly run of the demo;
   Customer value wrote its first ones in September, and Paid media in October.
-
-  The mock keeps its own set (src/web/mocks/test-questions.ts): it scripts what an edition
-  delivers instead of resolving wordings, and its other areas have no questions on purpose.
 */
 
 type Seeded = Omit<GoldenQuestionInput, 'wordings'> & {

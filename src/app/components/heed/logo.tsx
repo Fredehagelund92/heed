@@ -1,5 +1,5 @@
-// The two-blade symbol and the lockup, copied from the Heed repository
-// (src/web/components/app-shell/logo.tsx). The wordmark is Outfit 500, outlined, so no font loads.
+// The two-blade symbol and the lockup (docs/design/logo.md). The wordmark is Outfit 500, outlined,
+// so no font loads.
 // One colour: the ink of the text around it, never the primary.
 import type { ComponentProps } from 'react'
 import { cn } from '@/lib/utils'

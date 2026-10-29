@@ -131,8 +131,8 @@ export async function seedDemo(client: pg.Client) {
   await client.query('begin')
   try {
     await client.query("select pg_advisory_xact_lock(hashtextextended('heed.bulk_seed',0))")
-    // The items the questions expect. One they forbid may be missing: the Norway show's
-    // library (norway.ts) leaves out a few, and a missing item is never delivered.
+    // The items the questions expect. One they forbid may be missing: a smaller library leaves
+    // out a few, and a missing item is never delivered.
     const named = new Set(
       demoTestQuestions.flatMap(({ question: q }) => q.expected?.must_deliver ?? []),
     )
@@ -330,7 +330,7 @@ export type DemoCounts = {
 
 /**
  * The demo on an empty database, as a superuser: the bulk seed of a library (the demo library
- * unless another is given; golden-fixtures.ts and norway.ts have the others), then its quality
+ * unless another is given; golden-fixtures.ts has the other), then its quality
  * history and gaps (`seedDemo`). Each step is one transaction; a failed second step leaves the
  * library, which a rerun refuses, so start again from an empty database.
  */

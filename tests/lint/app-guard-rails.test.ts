@@ -79,21 +79,6 @@ describe('ESLint guard rails of the new app', () => {
     expect(await lintAs('src/app/components/icons.ts', source)).toEqual([])
     expect(await lintAs('src/app/components/other.ts', source)).toHaveLength(1)
   })
-
-  it('keeps the old rules on src/web', async () => {
-    const source = 'export const A = () => <p className="gap-1.5 text-sm">Facts</p>'
-    const app = await lintAs('src/app/pages/a.tsx', source)
-    const web = await lintAs('src/web/components/library/a.tsx', source)
-    expect(app.map((message) => message.message)).toEqual([
-      'Instead of "Facts", write: Context item. See docs/design/copy.md.',
-    ])
-    expect(web.map((message) => message.message)).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('Off-scale spacing "gap-1.5"'),
-        expect.stringContaining('Default text size "text-sm"'),
-      ]),
-    )
-  })
 })
 
 describe('Stylelint on the new token file', () => {

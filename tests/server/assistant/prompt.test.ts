@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { readdirSync } from 'node:fs'
 import type { Link, Nodes, Table } from 'mdast'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
@@ -27,7 +27,10 @@ const examples = assistantSystemPrompt.split('\n').filter((line) => line.startsW
 /** The statuses get_facts and find_facts reply with, which the instructions also name. */
 const statuses = new Set(['matched', 'conflict', 'no_match', 'need_more_detail', 'check_failed'])
 
-const routes = new URL('../../../src/web/routes/', import.meta.url)
+/** The web app's pages inside its shell, one file per address (src/app/routes/_app). */
+const appPages = readdirSync(new URL('../../../src/app/routes/_app/', import.meta.url))
+/** Whether the app has a page at an address's first part, such as context for /context?due=1. */
+const hasPage = (page: string) => appPages.some((file) => file.split('.')[0] === page)
 
 /** Every node of a type in a Markdown tree, at any depth. */
 function nodesOf<T extends Nodes>(node: Nodes, type: T['type']): T[] {
@@ -98,12 +101,8 @@ describe("the assistant's instructions", () => {
     const pages = nodesOf<Link>(tree, 'link').filter((link) => link.url.startsWith('/'))
     expect(pages.length).toBeGreaterThan(0)
     for (const { url } of pages) {
-      const page = new URL(url, 'https://heed.invalid').pathname.split('/')[1]
-      const route = (end: string) => new URL(`${page}${end}`, routes)
-      expect({ url, page: existsSync(route('.tsx')) || existsSync(route('/')) }).toEqual({
-        url,
-        page: true,
-      })
+      const page = new URL(url, 'https://heed.invalid').pathname.split('/')[1]!
+      expect({ url, page: hasPage(page) }).toEqual({ url, page: true })
     }
   })
 

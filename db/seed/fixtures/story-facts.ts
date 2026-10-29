@@ -1,7 +1,7 @@
 /**
- * The facts around the Norway show (docs/demo.md), written by hand. They're the facts people
- * meet on the show's path: orders and the Sales domain, and Norway and Spain, the two
- * markets the show asks about. Each one replaces the words of a generated fact (by id) and keeps
+ * The facts around the Norway story (docs/design/demo-world.md), written by hand. They're the
+ * facts people meet on its path: orders and the Sales domain, and Norway and Spain, the two
+ * markets it asks about. Each one replaces the words of a generated fact (by id) and keeps
  * everything else (its title, kind, domain, dates and where it applies), so the library, the test
  * questions and the golden set stay the same. Every name, market and address is invented; an
  * `.example` address never resolves.

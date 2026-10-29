@@ -81,7 +81,7 @@ export const assistantSystemPrompt = [
     '| --- | ---: | ---: |',
     '| <name> | <count> | <count> |',
     '',
-    'You can open them in [Needs a look](/library?view=attention).',
+    'You can open them in [Needs a look](/context?due=1).',
   ].join('\n'),
 
   // 6. Six examples of the voice. Names, dates and ids are made up; only tool results are facts.

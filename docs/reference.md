@@ -66,7 +66,7 @@ that data. Its default reply is short:
         "quote": "Online sales are stopped from 4 August."
       },
       "not_to_conclude": "cause not proven",
-      "url": "/library/itm_norway01"
+      "url": "/context/itm_norway01"
     }
   ],
   "reply_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
@@ -108,7 +108,7 @@ about with what their owners wrote (FR-813), `options`, `check_report` and `inst
 item carries `url`, its page in Heed, and the result's text has a line per item, `Open in Heed -
 <title>: <url>`, with who checked it, so the reader of an answer can check a cited item in one click
 (FR-347). The address is the first of `CL_WEB_ORIGINS`; the eval runner and the previews run
-without one and give the path (`/library/itm_...`). A link holds only the item's id: the page
+without one and give the path (`/context/itm_...`). A link holds only the item's id: the page
 applies the audience rules to whoever opens it. Metric and dimension names may be the member names
 the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed resolves them
 through the term's definition, and a member no term points at comes back with "Did you mean" and
@@ -182,10 +182,10 @@ saving, accepted items whose scope and dates overlap and whose words read alike 
 `new_item: true`; without one domain it answers `needs_area`. Then it saves the draft through the
 same function as the assistant's `create_draft` (`saveAgentDraft`) and sends it for review through
 the same path as the person's own Send for review (`proposals.submit`), so it waits in the owner's
-queue (`status: "suggestion_sent"`, with the link to the suggestion). Nothing is accepted or
-published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
-the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and the draft's
-link). It names the person on the proposal and its history only: the MCP request log keeps the
+queue (`status: "suggestion_sent"`, with a link to it waiting in the person's Inbox). Nothing is
+accepted or published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
+the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and a
+link that opens the draft in the editor). It names the person on the proposal and its history only: the MCP request log keeps the
 shared `signed-in` label. The setting `limits.agent_drafts` caps one person's agent drafts at 10 in
 24 hours and 20 waiting unsubmitted. `npm run eval:drafts` measures the derivation over the 1,500
 seeded items with a held-out third (`scripts/draft-eval.ts`, also run by `npm test`).
@@ -239,8 +239,8 @@ Several replicas of the service would need a shared limiter.
 The service also runs a login server, so a person's own agent can sign in as them without a
 dev token: the app reads `/.well-known/oauth-protected-resource/mcp`, the person signs in and
 allows it on the consent page (`/connect/approve` on the web app), and the app gets ten-minute
-access tokens and rotating refresh tokens. **Connect your AI** lists the apps connected as the
-person and disconnects them. Dynamic client registration, which Claude Code uses, is on
+access tokens and rotating refresh tokens. Settings, under Agents and access, lists the agents
+connected and revokes them. Dynamic client registration, which Claude Code uses, is on
 outside production and needs `CL_OAUTH_DYNAMIC_REGISTRATION=on` in production. How it works, the settings, key rotation and the threat notes
 are in [docs/ai-sign-in.md](ai-sign-in.md).
 
@@ -484,19 +484,9 @@ vocabulary proposals also take an `Idempotency-Key`.
     added and removed, and each edition in between that changed it, with who and why.
   - `GET /editions/{label}/rollback-preview` (administrator) compares the live edition with that
     one before anyone goes back, and lists the versions that cannot be served again.
-  - The web client reads the feed, the comparison and the one-item view through `ContextApi`
-    (`editionFeed`, `compareEditions`, `compareEditionItem`, with query options in
-    `src/web/api/edition-queries.ts`, loaded only by the pages that use them), one set of reads
-    for the Editions pages and the Workbench. The mock binding nets its own editions by the same
-    rules (`src/web/api/mock-edition-compare.ts`). Every version of a fixture item holds the same
-    content, as the database seed stores them, so its starting history reads as added, saved
-    again and retired, except the demo's one regression, whose second version ended its note. A
-    change accepted in the mock compares the version that was accepted, though the library keeps
-    the fixture text, and the mock keeps no vocabulary versions.
-  - The Editions page's What changed opens `/editions/compare` (administrators): Since and Until
-    in the address, ranges such as the last 7 days, the overall result grouped by the kind of
-    change in one windowed list with Filter and a Viewed box per item (`v`, kept in the browser),
-    an item field by field in the docked panel, or edition by edition from the feed.
+  - Every version of a seeded item holds the same content, so its starting history reads as
+    added, saved again and retired, except the demo's one regression, whose second version ended
+    its note.
 - `POST /serving/stops` (administrator) switches delivery off or on for an item, a domain or
   everything. Serving reads the overlay on every call, so it applies to the next request.
   `GET /serving/stops` lists the stops that are on for every signed-in person, so the app can
@@ -781,20 +771,14 @@ reviewer comments and decisions; and to the new reviewer on hand-over. Source no
 item, stale links, a changed domain) go to the domain's owners, or to the
 administrators for a term without a domain. Nobody is told about their own action.
 
-In the front end, the shell reads the stream (`src/web/api/live.ts`): each topic names the
-caches it makes stale, and open screens fetch them again; `stream.reset` refetches everything,
-and while the stream is down the app reconnects with `Last-Event-ID` and polls every 60 seconds.
-The header's bell shows the inbox (read, read all, archive), and the sidebar counts the
-proposals waiting for the person. The mock keeps an outbox and inboxes with the same rules
-(`src/web/api/mock-live.ts`, checked by `tests/conformance/context-api-live.ts`); outside
-production builds `window.heedMock.as('per_jon')` acts as another person in the page's mock
-world, so a change arrives live without a reload.
+The web app does not read the stream: it reads a screen again after each change it makes, and when
+its tab comes back into view with what is older than half a minute.
 
 ## Assistant
 
 The assistant runs behind `POST /assistant/chat` (FR-701 to FR-710). It explains deliveries
 and items, coaches questions, checks drafts and drafts items. It may propose, never accept or
-publish. The front end's Ask tab in the assistant panel calls it.
+publish. No screen of the web app calls it: Ask answers with the answer engine.
 
 - **One turn per request**: the client holds the conversation as AI SDK UI messages and sends it
   each turn (at most 60 messages and 200,000 characters) with the person's time zone (`timeZone`,
@@ -912,8 +896,8 @@ publish. The front end's Ask tab in the assistant panel calls it.
   person, session or address, and no history entry or log line names who rated. Nothing can find
   a rating again, so an answer is rated once; the page remembers which, in memory, until New chat.
   Each person may rate `limits.assistant_ratings_per_minute` (default 20) a minute; over it, 429
-  with `Retry-After`. Health shows the counts per domain and week (`GET /quality/ratings`,
-  [Quality reads](evaluations.md#quality-reads)).
+  with `Retry-After`. `GET /quality/ratings` gives the counts per domain and week
+  ([Quality reads](evaluations.md#quality-reads)).
 
 ## Connect your AI and What an agent would get
 
@@ -960,19 +944,7 @@ Two reads for every signed-in person, with no model and nothing recorded:
   Each person may report `limits.gap_reports_per_minute` (default 5) a minute; over it, 429 with
   `Retry-After`.
 
-The front end shows What an agent would get in the assistant's panel, expanding to its page,
-`/try-it`, which keeps the scope asked in its address (`about`, `from`, `to`). Connect your AI is
-a section of the person's own Settings (`/settings?section=connect`), reached from Home's quick
-action, the user menu and `g` then `y`; the old `/connect` and `/try-it?tab=connect` lead there. When nothing applies, Start a
-draft opens Add context with the scope and the first day (`/library/new?about=...&from=...`).
-Report a gap, beside it (and under the facts when some apply), opens a dialog with the scope in
-words, the gap type and a note, and a toast confirms it. The dialog
-(`components/gaps/report-gap-dialog.tsx`) takes any typed scope, so the assistant can offer the
-same action with the scope of its answer. The Gaps page and Health mark the gaps people reported (From
-people), filters by origin, and shows people's reports in the gap's panel, through the same
-privacy rule as every other count.
-Signing in from a person's own client (FR-403) is not built yet, so Connect says that a client
-connects with a token the data platform team gives out.
+The web app shows what an agent would get in Ask and in the review's Try it panel.
 
 ## The answer engine
 
@@ -1118,8 +1090,7 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
 - `POST /areas/{id}/delete` (administrators): deletes a domain that holds no context item and no
   term, never the sandbox (409, with what it holds). Its open suggestions are withdrawn, its
   drafts stay with their authors and its owners' ownership ends; one that history names is kept as
-  history, as with `POST /areas/{id}/removal`, which deletes everything under a domain and stays
-  for the old front end until the switch.
+  history, as with `POST /areas/{id}/removal`, which deletes everything under a domain.
 - `GET /connect/pending?since=` (Connect an agent's live line): the newest of the person's own
   agent signing in (`connected`: it has its tokens) and their no on the consent screen
   (`declined`), since `since`, at most an hour back, with the agent's name for itself; `waiting`

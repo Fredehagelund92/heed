@@ -2,7 +2,7 @@
 
 Part of the [design contract](design-contract.md). It says how every word people read is written: screens, toasts, errors, help pages, the documentation, the agent's one-line reply, demo text and release notes. It comes from the approved mockup, whose copy rules are checks, not habits.
 
-It replaces [the earlier voice guide](voice.md) for the new web app. The voice guide stays in place, and still governs the old front end, until the switch to the new one. [`src/domain/words.ts`](../../src/domain/words.ts) holds the names of this page in code (glossary v2). The earlier list stays in `src/domain/words-v1.ts` for the old front end until the switch.
+It replaces [the earlier voice guide](voice.md) for the web app. The voice guide stays for the service's own sentences until they move. [`src/domain/words.ts`](../../src/domain/words.ts) holds the names of this page in code (glossary v2). The earlier list stays in `src/domain/words-v1.ts` for the service.
 
 ## Who we write for
 
@@ -158,7 +158,7 @@ The code keeps its own words (item, area, retire, edition, scope, proposal). Onl
 ## 5. The checks
 
 - **Copy test.** `src/lib/copy.test.ts` in the mockup reads every string a person can read (string literals, template text and JSX text, through the TypeScript syntax tree) and fails on a hand-written product name, a definitions tool named outside its integration, the banned words, any answer label that is not one of the six, any kind label that is not one of the four, a hint over fourteen words, a state sentence over eight, and a contraction in an answer label, its sentence or its long form. The same test checks the connect steps and the live line in every state: the name only inside commands and the address, never an em dash. The app ports it as lint rules on `src/app` (`heed/plain-words` with glossary v2 and `brand/no-product-name`, `tests/lint/app-words.test.ts`) and as checks of the vocabularies in `words.ts` (`tests/unit/words.test.ts`). The checks of the connect steps read the app's own data, so they come with it.
-- **Plain-words lint.** `heed/plain-words` with the glossary reports old words. `brand/no-product-name` reports a hand-written name. A baseline ratchet applies to the old front end only.
+- **Plain-words lint.** `heed/plain-words` with the glossary reports old words. `brand/no-product-name` reports a hand-written name. A baseline ratchet applies to the service's sentences only.
 - **Review.** A reviewer reads the strings of a pull request aloud. If it needs a second reading, it is rewritten.
 
 ## 6. Demo text

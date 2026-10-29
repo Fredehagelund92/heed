@@ -9,12 +9,12 @@
   their own words (item, area, retire, edition, scope, proposal), and `internal` maps each of them
   to the name on screen.
 
-  The new web app in src/app follows this glossary, checked by the lint rule heed/plain-words
-  (eslint.plain-words.js) with no baseline. The old front end in src/web, the server's sentences
-  and the help pages keep the earlier glossary (src/domain/words-v1.ts, docs/design/voice.md)
-  until the switch to the new app, which deletes it.
+  The web app in src/app follows this glossary, checked by the lint rule heed/plain-words
+  (eslint.plain-words.js) with no baseline. The server's sentences and the help pages the in-app
+  assistant reads keep the earlier glossary (src/domain/words-v1.ts, docs/design/voice.md) until
+  each moves to this one.
 
-  tests/unit/words.test.ts keeps the list consistent: one concept per name, every banned word with
+  tests/server/domain/words.test.ts keeps the list consistent: one concept per name, every banned word with
   something to write instead, no name, definition or replacement that uses a banned word, and the
   vocabularies short enough for people who read English as a second language.
 */

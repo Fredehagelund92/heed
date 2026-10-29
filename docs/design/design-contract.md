@@ -51,7 +51,7 @@
 
 ## 2. Tokens
 
-All values live in one file (`src/web/styles/tokens.css`, and `src/app/styles/tokens.css` until the switch). A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/tokens.test.ts`, and `tests/lint/app-tokens.test.ts` for the new app) guards the file and recomputes every contrast pair.
+All values live in one file, `src/app/styles/tokens.css`. A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/app-tokens.test.ts`) guards the file and recomputes every contrast pair.
 
 ### 2.1 Colour
 
@@ -481,7 +481,7 @@ What stays from Draft 1: the order of authority idea and the change process (sec
 
 ## 12. Where Draft 1 went
 
-Draft 1 is in the git history (`git show 0cb7b42:docs/design/design-contract.md`). Code comments still cite its section numbers until the switch. This map says where each went.
+Draft 1 is in the git history (`git show 0cb7b42:docs/design/design-contract.md`). Code comments may still cite its section numbers. This map says where each went.
 
 | Draft 1 section                                                                                      | Now                                                                                  |
 | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |

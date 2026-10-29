@@ -5,7 +5,6 @@ export type Surface = { place: string; files: string[]; except?: string[] }
 export type AppSurface = { place: Place; files: string[] }
 export declare const plainWordsFiles: string[]
 export declare const errorMessageFiles: string[]
-export declare const notProductFiles: string[]
 export declare const surfaces: Surface[]
 export declare const appWordsFiles: string[]
 export declare const appNotProductFiles: string[]

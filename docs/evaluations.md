@@ -282,7 +282,7 @@ feedback's domain, and none of it returns a test question's or an agent's questi
   level 3 result (no answer test runs on a proposal, so `answer` is null). Attaching is
   report-only and changes no outcome: a domain question level 3 checks anyway counts as it always
   did. The assistant's draft check names the attached tests with their result.
-- The mock binding answers the same (`src/web/api/mock-quality.ts`): one weekly run every Monday
+- The demo seed holds the same history: one weekly run every Monday
   since the first edition, on the edition live then. A run is scored by the service's rules on
   what that edition delivers (each expected item it serves and that is in force on the run's day),
   so every question passes until an edition stops delivering what it expects. The demo has one

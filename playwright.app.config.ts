@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test'
 
 /*
-  The golden journeys of the new web app (src/app): the approved mockup's job specs (J1 to J30,
+  The golden journeys of the web app (src/app): the approved mockup's job specs (J1 to J30,
   apps/mockup/e2e), on a production build of the app with the mock binding, with axe on every
   place at 390 and 1440 in light and dark (axe.spec.ts). The motion journey runs twice: as most
   people see it, and with reduced motion, where nothing may move and every result must still
@@ -32,7 +32,7 @@ export default defineConfig({
   // A production build served as is: no module is compiled on first visit, so a journey never
   // waits on the dev server under parallel load.
   webServer: {
-    command: `npm run build:app && npm run preview:app -- --port ${port}`,
+    command: `npm run build && npm run preview -- --port ${port}`,
     url: `http://localhost:${port}`,
     reuseExistingServer: !ci,
     timeout: 120_000,

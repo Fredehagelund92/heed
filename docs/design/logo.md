@@ -23,7 +23,7 @@ The redraw keeps its design and cleans the construction:
 | Proportion | 0.9 to 1 (width to height), as supplied; the outline moves at most 1.5 percent of the width                   |
 | Slits      | About 1.6 units (4.4 percent of the width): they close below about 24 pixels, where the oval carries the mark |
 
-The source is `logoSymbolPath` in `src/web/components/app-shell/logo.tsx`.
+The source is `LogoSymbol` in `src/app/components/heed/logo.tsx`.
 
 ## The wordmark and the lockup
 
@@ -75,8 +75,8 @@ GitHub shows a README image as an `<img>`, where `currentColor` is black on any 
 uses the fixed-colour files in a `<picture>` with a `prefers-color-scheme: dark` source; they are
 the public files with only the fill changed.
 
-`tests/unit/logo.test.tsx` fails if a public SVG drifts from the paths in the component. The ICO and
-the touch icon are rendered from the same path. It does not check the `docs/images` files yet.
+The public files are in `src/app/public`. The ICO and the touch icon are rendered from the same
+path as the component. No test checks yet that a public file matches the component.
 
 ## The favicon and the touch icon
 

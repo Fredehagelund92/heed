@@ -61,7 +61,7 @@ view shows: each job's last success, overdue jobs, runs and queue, connector age
 for today and the month against its cap, the live edition's age, open live streams and the
 database pool. Labels come from closed sets (routes, operations, tools, jobs, connectors, app
 families), never a path, a question, a person or an agent's own name. The MCP counter's `app_family`
-label counts exactly, for operators holding the metrics token, unlike Health and the quality read, which hide counts below `privacy.min_count` (FR-614).
+label counts exactly, for operators holding the metrics token, unlike Observability and the quality read, which hide counts below `privacy.min_count` (FR-614).
 
 Configuration comes from the environment, read once at start-up by
 `src/server/config/env.ts`; `.env.example` lists every variable. The service refuses to start
@@ -97,7 +97,7 @@ in [db/README.md](../db/README.md).
 This part covers the administrator's settings, the tool switch and client policies, the history log's
 search and export, item import, edition export, the published item schema and `heed`, the
 command-line tool. Writes need the session cookie, allowed `Origin` and `x-heed-csrf`, as in
-[Run the front end on the service](development.md#run-the-front-end-on-the-service).
+[Run the web app on the service](development.md#run-the-web-app-on-the-service).
 
 - **Settings** (FR-809): `GET /settings` lists the current version of each limit, threshold,
   retention period, review time and model; `GET /settings/{key}/history` lists its versions.

@@ -6,16 +6,41 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { helpDocs } from './scripts/docs-plugin.ts'
 import { storageKey } from './src/app/lib/brand.ts'
-import { productTitle } from './vite.config.ts'
+import { productNameFrom } from './src/domain/brand.ts'
 
 /*
-  The new web app in src/app (the golden plan's P2): the approved mockup, on the repository's
-  router, icon module and class merge. It builds beside the old front end until it replaces it:
-  `npm run dev:app` and `npm run build:app`, to dist/app. Its pages read their data through one
-  typed API (src/app/api): the mock binding by default, the Heed service with VITE_API_MODE=http.
+  The web app in src/app: the approved mockup (apps/mockup) on the repository's router, icon
+  module and class merge. `npm run dev` serves it and `npm run build` builds it to dist/app. Its
+  pages read their data through one typed API (src/app/api): the mock binding by default, the Heed
+  service with VITE_API_MODE=http.
 */
 
 const apiProxy = { '/api/v1': process.env.HEED_API_URL ?? 'http://127.0.0.1:3000' }
+
+const HTML_ENTITIES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+}
+
+/**
+ * The product's name in the page title before the app runs (src/app/lib/brand.ts): the same
+ * `CL_PRODUCT_NAME` the app and the service read, so the tab does not flash another name.
+ */
+export function productTitle(): Plugin {
+  let name = productNameFrom(undefined)
+  return {
+    name: 'heed-app:product-title',
+    configResolved(config) {
+      name = productNameFrom((config.env as Record<string, string | undefined>).CL_PRODUCT_NAME)
+    },
+    transformIndexHtml: (html) =>
+      html.replace('%PRODUCT_NAME%', () =>
+        name.replace(/[&<>"]/g, (char) => HTML_ENTITIES[char] ?? char),
+      ),
+  }
+}
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const appRoot = fileURLToPath(new URL('./src/app', import.meta.url))
@@ -77,9 +102,9 @@ export default defineConfig(({ mode }) => ({
     productTitle(),
   ],
   // With VITE_API_MODE=http the app calls the Heed service at /api/v1 on its own origin; these
-  // forward it there (`npm run dev:server`), as the front end's do.
-  server: { port: 5174, strictPort: true, proxy: apiProxy },
-  preview: { port: 4174, strictPort: true, proxy: apiProxy },
+  // forward it there (`npm run dev:server`).
+  server: { port: 5173, strictPort: true, proxy: apiProxy },
+  preview: { port: 4173, strictPort: true, proxy: apiProxy },
   build: {
     outDir: fileURLToPath(new URL('./dist/app', import.meta.url)),
     emptyOutDir: true,

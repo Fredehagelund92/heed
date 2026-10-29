@@ -95,17 +95,10 @@ jobs:
         run: npm run format:check
       - name: Unit, service and guard rail tests
         run: npm test
-      - name: Registry is valid and its built output is committed
+      - name: Build the web app as it ships (http mode) and check the first load budget
         run: |
-          npm run registry:validate
-          npm run registry:build
-          git diff --exit-code -- registry
-      - name: Build and check the first load budget
-        run: |
-          npm run build
+          VITE_API_MODE=http npm run build
           npm run size
-      - name: Build the new app (src/app)
-        run: npm run build:app
       - name: Build the docs site (docs/help) and check its pages and index
         run: |
           npm run docs:build
@@ -181,8 +174,11 @@ jobs:
           pg_dump --version
           npm run test:integration
 
-  library-api:
-    name: Library on the real API (PostgreSQL 18, Playwright)
+  seed:
+    # The web app on what `docker compose up` gives a new install: a database prepared as the
+    # service image prepares it (db/prepare.ts with SEED_DEMO=on: the demo library, its people,
+    # quality history and gaps), the service, and an http mode build of the app.
+    name: 'Web app on the demo install (PostgreSQL 18, Playwright)'
     needs: scope
     if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
@@ -205,71 +201,12 @@ jobs:
     # takes the role each step needs: the owner migrates, the application role serves.
     env:
       DATABASE_URL_BOOTSTRAP: postgres://postgres:postgres@localhost:5432/postgres
-      DATABASE_URL_MIGRATE: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_owner
-      DATABASE_URL_SEED: postgres://postgres:postgres@localhost:5432/context_layer_dev
-      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_api
-      E2E_DATABASE_SERVE_URL: postgres://postgres:postgres@localhost:5432/context_layer_dev?options=-c%20role%3Dcontext_layer_serve
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Database (roles, schema, 1,500 demo items)
-        run: npm run db:migrate && npm run seed -- --items-only
-      - name: The front end in http mode against the service
-        run: npm run test:e2e:api
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: playwright-report-api
-          path: |
-            playwright-report/e2e-api
-            test-results/e2e-api
-          retention-days: 7
-
-  storybook:
-    name: Storybook build
-    needs: scope
-    if: needs.scope.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci
-      - run: npm run build-storybook
-
-  e2e:
-    # About 3,000 tests (every page at its widths and themes), split into parts that each take a
-    # share. The Storybook tests are few but slow (each plays dozens of stories), and the
-    # screenshot tests are many but skipped until baselines exist, so each has its own parts:
-    # sharding everything together by count left one part at 35 minutes and two empty.
-    name: Playwright ${{ matrix.suite }} (part ${{ matrix.shard }} of ${{ matrix.of }})
-    needs: scope
-    if: needs.scope.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { suite: pages, shard: 1, of: 7 }
-          - { suite: pages, shard: 2, of: 7 }
-          - { suite: pages, shard: 3, of: 7 }
-          - { suite: pages, shard: 4, of: 7 }
-          - { suite: pages, shard: 5, of: 7 }
-          - { suite: pages, shard: 6, of: 7 }
-          - { suite: pages, shard: 7, of: 7 }
-          - { suite: stories, shard: 1, of: 3 }
-          - { suite: stories, shard: 2, of: 3 }
-          - { suite: stories, shard: 3, of: 3 }
-          - { suite: screenshots, shard: 1, of: 1 }
+      DATABASE_URL_MIGRATE: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_owner
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_api
+      E2E_DATABASE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_api
+      E2E_DATABASE_SERVE_URL: postgres://postgres:postgres@localhost:5432/heed?options=-c%20role%3Dcontext_layer_serve
+      SEED_DEMO: 'on'
+      CUBE_MODEL_DIR: db/seed/cube
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -287,31 +224,24 @@ jobs:
         run: npx playwright install --with-deps chromium
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
-      - name: Every spec except the Storybook and screenshot tests
-        if: matrix.suite == 'pages'
-        run: |
-          printf '%s\n' stories.spec.ts screenshots.spec.ts > "$RUNNER_TEMP/elsewhere.txt"
-          npx playwright test --test-list-invert "$RUNNER_TEMP/elsewhere.txt" --shard=${{ matrix.shard }}/${{ matrix.of }}
-      - name: The Storybook tests
-        if: matrix.suite == 'stories'
-        run: npx playwright test tests/e2e/stories.spec.ts --shard=${{ matrix.shard }}/${{ matrix.of }}
-      - name: The screenshot tests (skipped until baselines exist)
-        if: matrix.suite == 'screenshots'
-        run: npx playwright test tests/e2e/screenshots.spec.ts
+      - name: The database as a new install prepares it (roles, schema, the demo)
+        run: npm run db:migrate
+      - name: The web app on the demo install
+        run: npm run test:e2e:seed
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-${{ matrix.suite }}-${{ matrix.shard }}
+          name: playwright-report-seed
           path: |
-            playwright-report
-            test-results
+            playwright-report/e2e-seed
+            test-results/e2e-seed
           retention-days: 7
 
   app:
-    # The new web app in src/app on its mock binding (tests/e2e-app): the golden job specs J1 to
-    # J30, with the motion journey a second time under reduced motion, and axe on every place at
-    # 390 and 1440 in light and dark. Split into parts that each take a share.
-    name: 'New app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 2)'
+    # The web app on its mock binding (tests/e2e-app): the golden job specs J1 to J30, with the
+    # motion journey a second time under reduced motion, and axe on every place at 390 and 1440 in
+    # light and dark. Split into parts that each take a share.
+    name: 'Web app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 2)'
     needs: scope
     if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
@@ -338,7 +268,7 @@ jobs:
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Golden job specs, the addresses and axe on the production build
-        run: npm run test:e2e:app -- --shard=${{ matrix.shard }}/2
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -350,9 +280,9 @@ jobs:
 
   golden-http:
     # The golden job specs whose screens are wired (tests/e2e-app), in http mode: an http mode
-    # build of the new web app against the service and the mockup's demo week, on a PostgreSQL 18
+    # build of the web app against the service and the mockup's demo week, on a PostgreSQL 18
     # container. Each journey copies the demo week from a template, so they run one at a time.
-    name: 'New app: golden job specs in http mode (PostgreSQL 18, Playwright)'
+    name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright)'
     needs: scope
     if: needs.scope.outputs.app == 'true'
     runs-on: ubuntu-latest
@@ -454,8 +384,7 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs:
-      [scope, check, seal, service, library-api, storybook, e2e, app, golden-http, mockup, security]
+    needs: [scope, check, seal, service, seed, app, golden-http, mockup, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -479,9 +408,7 @@ jobs:
           expect seal "$IS_PR"
           expect check "$CHECK"
           expect service "$APP"
-          expect library-api "$APP"
-          expect storybook "$APP"
-          expect e2e "$APP"
+          expect seed "$APP"
           expect app "$APP"
           expect golden-http "$APP"
           expect mockup "$MOCKUP"
