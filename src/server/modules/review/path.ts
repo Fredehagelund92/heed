@@ -317,6 +317,21 @@ export function createReviewPath(
     return row ?? { opened: false, read: false }
   }
 
+  /**
+   * The sheets of many suggestions, in the order asked, for the Inbox in one call: one that went
+   * since, or that the person may not read, is left out, as each alone answers not found.
+   */
+  async function sheets(ids: readonly string[]): Promise<ReviewSheet[]> {
+    const read: ReviewSheet[] = []
+    for (const id of new Set(ids))
+      try {
+        read.push(await sheet(id))
+      } catch (error) {
+        if (!(error instanceof ORPCError && error.code === 'NOT_FOUND')) throw error
+      }
+    return read
+  }
+
   async function sheet(id: string): Promise<ReviewSheet> {
     const p = await loadProposal(tx, id)
     const r = await shown(await reading(p))
@@ -738,7 +753,7 @@ export function createReviewPath(
     return { claims: ready.claimsToCheck, clash: r.clashes.some((id) => !relations.has(id)) }
   }
 
-  return { sheet, publish, returnWithNote, markRead, publishRead, undoDecisions, care }
+  return { sheet, sheets, publish, returnWithNote, markRead, publishRead, undoDecisions, care }
 }
 
 export type ReviewPath = ReturnType<typeof createReviewPath>

@@ -22,8 +22,12 @@ import { systemClock } from '../../../src/server/clock.ts'
 import { calendarDateTypes, databaseFromPool } from '../../../src/server/db/database.ts'
 import { localRoles } from '../../../src/server/db/roles.ts'
 import { createLogger } from '../../../src/server/observability/logger.ts'
-import { definitionRefOf, demoDefinitions } from '../../../src/web/mocks/cube-model.ts'
-import { areas, people as seedPeople, vocabulary } from '../../../src/web/mocks/reference-data.ts'
+import { definitionRefOf, demoDefinitions } from '../../../db/seed/fixtures/cube-model.ts'
+import {
+  areas,
+  people as seedPeople,
+  vocabulary,
+} from '../../../db/seed/fixtures/reference-data.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { seedDriveRead, type DriveCard } from './demo-drive.ts'
 import { seedObservability } from './demo-observability.ts'

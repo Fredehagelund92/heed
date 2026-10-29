@@ -1,8 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
 import type pg from 'pg'
-import { versionDays, type VersionDays } from '../../src/web/mocks/items.ts'
-import { addDays } from '../../src/web/mocks/random.ts'
-import { areas, people, roleGrants, vocabulary } from '../../src/web/mocks/reference-data.ts'
+import { versionDays, type VersionDays } from './fixtures/items.ts'
+import { addDays } from './fixtures/random.ts'
+import { areas, people, roleGrants, vocabulary } from './fixtures/reference-data.ts'
 import {
   DEMO_FIRST_READ_AT,
   DEMO_MODEL_URL,
@@ -13,7 +13,7 @@ import {
   demoDefinitions,
   demoWarnings,
   termAreas,
-} from '../../src/web/mocks/cube-model.ts'
+} from './fixtures/cube-model.ts'
 import { ABOUT_BUSINESS_STARTER } from '../../src/domain/about-business.ts'
 import { contentDigest } from '../../src/domain/canonical.ts'
 import type { ContextItem } from '../../src/domain/item.ts'
@@ -160,7 +160,7 @@ export type LibraryExtras = {
 }
 
 /**
- * What the Cube connector read from the demo model (db/seed/cube, src/web/mocks/cube-model.ts),
+ * What the Cube connector read from the demo model (db/seed/cube, db/seed/fixtures/cube-model.ts),
  * as two reads: a first one on DEMO_FIRST_READ_AT and the newest on DEMO_READ_AT. Between them
  * Cube changed a few definitions and removed a legacy view, whose members fixture items flagged
  * `source_missing` still reference. A new read of the demo model therefore changes no flag.

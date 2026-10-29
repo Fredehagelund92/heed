@@ -11,10 +11,10 @@
  * Admin and Member, a domain's owners, invites with their links, removing someone, and how the
  * sign-in screen signs people in (P8, http-people.ts), Observability's Overview, Questions with
  * its replay and saved views, Quality with the saved questions, Feedback, Usage and Alerts (P12),
- * and Settings > Integrations: each source with how it is, its page, Read again and Pause reading
- * (P11b, http-integrations.ts). Every other method answers `not-available` until the pull request
- * that wires its screen (P9 to P13). The conformance suite (tests/app/conformance/heed-api.ts) runs
- * the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
+ * Settings > Integrations: each source with how it is, its page, Read again and Pause reading
+ * (P11b, http-integrations.ts), and an agent's consent page (connections.request and decide).
+ * Every other method answers `not-available` until the pull request that wires its screen (P9 to
+ * P13). The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
  * a retry key, kept until the service answers; the session cookie is HttpOnly, so the token is
  * read from `auth.session`.
  */
@@ -26,7 +26,7 @@ import type { Contract } from '@contract/index'
 import type { Feed } from '@contract/inbox'
 import type { ProposalRecord } from '@contract/proposals'
 import { refusals } from '@contract/refusals'
-import type { ReviewSheet } from '@contract/review-path'
+import { REVIEW_SHEETS_MAX, type ReviewSheet } from '@contract/review-path'
 import { ABOUT_BUSINESS_STARTER } from '@domain/about-business'
 import { thresholdOfWords } from '@domain/alerts'
 import { canonicalJson } from '@domain/canonical'
@@ -133,7 +133,11 @@ export type HttpApiOptions = {
   shelf?: Shelf
 }
 
-type CallContext = { headers?: Record<string, string> }
+type CallContext = {
+  headers?: Record<string, string>
+  /** A read the service takes as a POST: not a change, so it leaves the shared reads alone. */
+  posted?: boolean
+}
 
 /** The methods this binding answers so far. */
 export const wiredMethods = [
@@ -195,6 +199,8 @@ export const wiredMethods = [
   'returnReview',
   'undo',
   'getConnectReview',
+  'getConnectRequest',
+  'answerConnectRequest',
   'getSettings',
   'setFigures',
   'setDataContact',
@@ -345,11 +351,47 @@ export function freeAreaId(name: string, taken: ReadonlySet<string>): string {
 /** Why a setting changed, for the history log: said once, in Settings. */
 const BY_SETTINGS = 'Changed in Settings, Agents and access.'
 
+/** How long a read's answer serves the same read again, while nothing was changed since. */
+const READ_SHARED_MS = 3000
+
+/**
+ * A fetch where identical reads share one request: the shell starts its reads at once, a page then
+ * reads its own, and several of them need the same people, domains or Inbox. A read in flight, or
+ * answered in the last few seconds, serves the same read again, each caller with its own copy of
+ * the answer. Any change (anything but a GET) starts afresh, so a read after it sees it.
+ */
+export function sharedReads(
+  send: typeof globalThis.fetch,
+  now: () => number = () => Date.now(),
+): typeof globalThis.fetch {
+  const recent = new Map<string, { answer: Promise<Response>; at: number }>()
+  return (input, init) => {
+    const request = new Request(input, init)
+    if (request.method !== 'GET') {
+      recent.clear()
+      return send(request)
+    }
+    const known = recent.get(request.url)
+    if (known && now() - known.at < READ_SHARED_MS) return known.answer.then((r) => r.clone())
+    const answer = send(request).then((response) => {
+      // Only an answer that worked serves again; a refusal or a failure is asked again.
+      if (!response.ok) recent.delete(request.url)
+      return response
+    })
+    answer.catch(() => recent.delete(request.url))
+    recent.set(request.url, { answer, at: now() })
+    return answer.then((r) => r.clone())
+  }
+}
+
 export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedApi {
+  const direct: typeof globalThis.fetch = fetch ?? ((input, init) => globalThis.fetch(input, init))
+  const shared = sharedReads(direct)
   const link = new OpenAPILink<CallContext>(routes as unknown as AnyContractRouter, {
     url: baseUrl,
     headers: ({ context }) => context.headers ?? {},
-    ...(fetch ? { fetch: (request, init) => fetch(request, init) } : {}),
+    fetch: (request, init, { context }) =>
+      context.posted ? direct(request, init) : shared(request, init),
   })
   const client: ContractRouterClient<Contract, CallContext> = createORPCClient(link)
 
@@ -436,7 +478,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
    */
   async function readPosted<T>(call: (options: { context: CallContext }) => Promise<T>) {
     const send = (token: string) =>
-      read(() => call({ context: { headers: { 'x-heed-csrf': token } } }))
+      read(() => call({ context: { headers: { 'x-heed-csrf': token }, posted: true } }))
     try {
       return await send(csrfToken ?? (await session()).csrfToken)
     } catch (error) {
@@ -659,19 +701,19 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
           : [],
       ),
     ]
-    const sheets = (
-      await Promise.all(
-        wanted.map(async (w) => {
-          try {
-            return { ...w, sheet: await read(() => client.review.sheet({ id: w.proposal })) }
-          } catch (error) {
-            // One that went while the list was read is left out; anything else is a failure.
-            if (toApiError(error).kind === 'not-found') return null
-            throw error
-          }
-        }),
-      )
-    ).filter((x): x is { card: string; proposal: string; sheet: ReviewSheet } => x !== null)
+    // Every sheet in one read, or a few for a long Inbox, rather than one read each: the service
+    // leaves out one that went while the list was read.
+    const sheets: { card: string; proposal: string; sheet: ReviewSheet }[] = []
+    for (let at = 0; at < wanted.length; at += REVIEW_SHEETS_MAX) {
+      const part = wanted.slice(at, at + REVIEW_SHEETS_MAX)
+      const input = { ids: part.map((w) => w.proposal) }
+      const read = await readPosted((o) => client.review.sheets(input, o))
+      const byId = new Map(read.sheets.map((sheet) => [sheet.proposal.id, sheet]))
+      for (const w of part) {
+        const sheet = byId.get(w.proposal)
+        if (sheet) sheets.push({ ...w, sheet })
+      }
+    }
     const sent = (s: ReviewSheet) => s.proposal.submittedAt ?? s.proposal.createdAt
     sheets.sort((a, b) =>
       sent(a.sheet) < sent(b.sheet) ? 1 : sent(a.sheet) > sent(b.sheet) ? -1 : 0,
@@ -1516,6 +1558,20 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     // The live line's state a review address shows is the mock's own: never on the service.
     getConnectReview: () => Promise.resolve(null),
+    // The consent page of an agent's sign-in (FR-403): the request the login server sent the
+    // browser here with, and the person's answer, which the service turns into the agent's code.
+    getConnectRequest: async ({ id }) => {
+      try {
+        return await read(() => client.connections.request({ id }))
+      } catch (error) {
+        // Answered, run out, started in another browser, or no sign-in at all: it has ended.
+        const kind = toApiError(error).kind
+        if (kind === 'not-found' || kind === 'invalid') return null
+        throw error
+      }
+    },
+    answerConnectRequest: (input) =>
+      write('connections.decide', input, (o) => client.connections.decide(input, o)),
 
     // Settings, agents and access. The switches are what everyone signed in may read: the tools on
     // and what is paused. Figures and their data contacts come with the figures (P11a, part 2).

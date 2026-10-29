@@ -7,7 +7,7 @@ import {
   goldenCaseSchema,
   sharedPhrases,
 } from '../../../src/domain/golden-set.ts'
-import { generateItems } from '../../../src/web/mocks/items.ts'
+import { generateItems } from '../../../db/seed/fixtures/items.ts'
 import { goldenSetChecks, wholeSetOnly } from './golden-checks.ts'
 
 const set = loadGoldenSet()

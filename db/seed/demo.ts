@@ -15,9 +15,9 @@ import {
 } from '../../src/server/modules/evals/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
-import { gapFixtures } from '../../src/web/mocks/gaps.ts'
-import { generateItems, regression } from '../../src/web/mocks/items.ts'
-import { areas } from '../../src/web/mocks/reference-data.ts'
+import { gapFixtures } from './fixtures/gaps.ts'
+import { generateItems, regression } from './fixtures/items.ts'
+import { areas } from './fixtures/reference-data.ts'
 import { bulkSeed, seedPersonId, type LibraryExtras } from './bulk.ts'
 import { seedGaps } from './gaps.ts'
 import { demoTestQuestions } from './test-questions.ts'
@@ -29,7 +29,7 @@ import { demoTestQuestions } from './test-questions.ts'
   the twelve weeks up to the newest edition. Offline and with no key: the runs and passes are the
   service's own, through the MCP gateway with the scripted mock model (MODELS=mock), on the
   edition that was live then and with the clock set to that day. The weekly run of the newest
-  Monday fails the demo's regression (`regression` in src/web/mocks/items.ts) on its note, and
+  Monday fails the demo's regression (`regression` in db/seed/fixtures/items.ts) on its note, and
   the open gap about the same question is linked to it.
 
   A run plans on the live edition, so each Monday the seed points the live edition back to the

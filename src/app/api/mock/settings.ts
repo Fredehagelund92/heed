@@ -9,7 +9,8 @@ import {
   type LivePhase,
 } from '@/lib/connect'
 import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
-import { seedAgents } from './data/agents'
+import type { ConnectRequest } from '@contract/connections'
+import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents } from './data/agents'
 import { figureConnections } from './data/integrations'
 import type { Address } from './scenario'
 
@@ -34,6 +35,8 @@ export function createSettings() {
   let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
   let keys = 0
+  /** Whether the demo's waiting agent sign-in was answered on the consent page. */
+  let answered = false
 
   /** A sign-in adds the agent on top, marked new; the same agent for the same person replaces its row. */
   const addAgent = (agent: string, who: string) => {
@@ -147,6 +150,19 @@ export function createSettings() {
       if (agents[0]?.agent !== agent || agents[0]?.who !== me || !agents[0]?.fresh)
         addAgent(agent, me)
       return { state: 'connected' as const, agent }
+    },
+    /** The demo's agent sign-in at the consent page, until it is answered; null for any other. */
+    connectRequest(id: string): ConnectRequest | null {
+      return id === MOCK_CONNECT_REQUEST && !answered
+        ? { ...mockConnectRequest, scopes: [...mockConnectRequest.scopes] }
+        : null
+    },
+    /** The answer: a yes signs the agent in as the person. False when there is nothing to answer. */
+    answerRequest(id: string, allow: boolean, me: string): boolean {
+      if (id !== MOCK_CONNECT_REQUEST || answered) return false
+      answered = true
+      if (allow) addAgent(mockConnectRequest.clientName, me)
+      return true
     },
     /** The live line's state a review address shows; ?connect=connected has the agent signed in. */
     review(address: Address, me: string): LivePhase | null {

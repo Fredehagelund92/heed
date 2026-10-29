@@ -66,7 +66,7 @@ that data. Its default reply is short:
         "quote": "Online sales are stopped from 4 August."
       },
       "not_to_conclude": "cause not proven",
-      "url": "/library/itm_norway01"
+      "url": "/context/itm_norway01"
     }
   ],
   "reply_id": "0f8fad5b-d9cb-469f-a165-70867728950e",
@@ -108,7 +108,7 @@ about with what their owners wrote (FR-813), `options`, `check_report` and `inst
 item carries `url`, its page in Heed, and the result's text has a line per item, `Open in Heed -
 <title>: <url>`, with who checked it, so the reader of an answer can check a cited item in one click
 (FR-347). The address is the first of `CL_WEB_ORIGINS`; the eval runner and the previews run
-without one and give the path (`/library/itm_...`). A link holds only the item's id: the page
+without one and give the path (`/context/itm_...`). A link holds only the item's id: the page
 applies the audience rules to whoever opens it. Metric and dimension names may be the member names
 the agent just queried in Cube (`orders.returns`, or `cube:orders.returns`): Heed resolves them
 through the term's definition, and a member no term points at comes back with "Did you mean" and
@@ -182,10 +182,10 @@ saving, accepted items whose scope and dates overlap and whose words read alike 
 `new_item: true`; without one domain it answers `needs_area`. Then it saves the draft through the
 same function as the assistant's `create_draft` (`saveAgentDraft`) and sends it for review through
 the same path as the person's own Send for review (`proposals.submit`), so it waits in the owner's
-queue (`status: "suggestion_sent"`, with the link to the suggestion). Nothing is accepted or
-published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
-the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and the draft's
-link). It names the person on the proposal and its history only: the MCP request log keeps the
+queue (`status: "suggestion_sent"`, with a link to it waiting in the person's Inbox). Nothing is
+accepted or published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
+the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and a
+link that opens the draft in the editor). It names the person on the proposal and its history only: the MCP request log keeps the
 shared `signed-in` label. The setting `limits.agent_drafts` caps one person's agent drafts at 10 in
 24 hours and 20 waiting unsubmitted. `npm run eval:drafts` measures the derivation over the 1,500
 seeded items with a held-out third (`scripts/draft-eval.ts`, also run by `npm test`).
@@ -521,6 +521,10 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   person's read state and Try it: the suggestion's own question answered on the live edition
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
   hides from the reader reads as its words only.
+- `POST /review/sheets` takes `{ ids }` (at most 100) and gives the same read for many
+  suggestions at once, in the order asked, leaving out one that went or that the reader may not
+  see: the Inbox reads every suggestion it lists in one call. It changes nothing; as a POST it
+  needs `Origin` and `x-heed-csrf`.
 - A clash (FR-225) is a live item an agent would get in the same answer as the suggestion,
   except the item it changes and those it already names as replaced or conflicting. An edit
   whose difference is only formatting, only order or only a change of dates has no clash; an edit

@@ -9,7 +9,7 @@ import { openPage, QUALITY_FAILED_TRY, QUALITY_WEEKLY_RUN, settle, themes, width
   domain overview with nothing open, the work list with its views, search and keys, the question,
   run and domain records with their tabs and the action panel, the gap and item records with
   theirs (the Gaps page's owner cases, ported), and the compare focus over a question's record,
-  on the demo's regression (src/web/mocks/items.ts, `regression`). As Jon (owner of Sales
+  on the demo's regression (db/seed/fixtures/items.ts, `regression`). As Jon (owner of Sales
   and Sandbox), Ravi (administrator) and Maria (contributor, refused). Since slice W8 it is the
   sidebar's entry in the lower group for the people it is for, it has Quality's cases (ported from
   quality.spec.ts), and the old Workbench, Quality and owners' Gaps addresses land on its

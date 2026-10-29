@@ -5,7 +5,7 @@ import { bulkSeed } from '../../db/seed/bulk.ts'
 import { contract } from '../../src/contract/index.ts'
 import { calendarDateTypes, databaseFromPool, type Database } from '../../src/server/db/database.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { seededName, seedingName } from './global-setup.ts'
 
 /**

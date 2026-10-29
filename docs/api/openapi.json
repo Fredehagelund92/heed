@@ -26220,6 +26220,3031 @@
         }
       }
     },
+    "/review/sheets": {
+      "post": {
+        "operationId": "review.sheets",
+        "summary": "The review page's read for many suggestions in one call, as the Inbox lists them: each sheet in the order asked, leaving out one that went or the person may not read",
+        "tags": [
+          "review"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                },
+                "required": [
+                  "ids"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sheets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "proposal": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "number": {
+                                "type": "number"
+                              },
+                              "subject": {
+                                "enum": [
+                                  "item",
+                                  "vocabulary"
+                                ],
+                                "type": "string"
+                              },
+                              "action": {
+                                "enum": [
+                                  "create",
+                                  "change",
+                                  "retire",
+                                  "recheck"
+                                ],
+                                "type": "string"
+                              },
+                              "state": {
+                                "enum": [
+                                  "draft",
+                                  "submitted",
+                                  "in_review",
+                                  "changes_requested",
+                                  "accepted",
+                                  "rejected",
+                                  "withdrawn"
+                                ],
+                                "type": "string"
+                              },
+                              "areaId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "itemId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "itemVersionId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "vocabularyVersionId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "termKey": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "riskLevel": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "low",
+                                      "normal",
+                                      "high"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "proposerId": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "channel": {
+                                "enum": [
+                                  "form",
+                                  "assistant",
+                                  "chat",
+                                  "command_line",
+                                  "mcp",
+                                  "import",
+                                  "source"
+                                ],
+                                "type": "string"
+                              },
+                              "revision": {
+                                "type": "number"
+                              },
+                              "reason": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "claimedBy": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "dueAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "submittedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "closedAt": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "createdAt": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "number",
+                              "subject",
+                              "action",
+                              "state",
+                              "areaId",
+                              "itemId",
+                              "itemVersionId",
+                              "vocabularyVersionId",
+                              "termKey",
+                              "title",
+                              "riskLevel",
+                              "proposerId",
+                              "channel",
+                              "revision",
+                              "reason",
+                              "claimedBy",
+                              "dueAt",
+                              "submittedAt",
+                              "closedAt",
+                              "createdAt"
+                            ]
+                          },
+                          "mode": {
+                            "enum": [
+                              "new",
+                              "edit",
+                              "retire"
+                            ],
+                            "type": "string"
+                          },
+                          "from": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "personId": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "personId",
+                                  "name"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "writtenBy": {
+                            "anyOf": [
+                              {
+                                "enum": [
+                                  "agent",
+                                  "assistant",
+                                  "source"
+                                ],
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "synced": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "type": "string"
+                                      },
+                                      "tool": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "name",
+                                      "tool"
+                                    ]
+                                  },
+                                  "scope": {
+                                    "type": "string"
+                                  },
+                                  "document": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "link": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "link"
+                                    ]
+                                  },
+                                  "read": {
+                                    "type": "object",
+                                    "properties": {
+                                      "id": {
+                                        "type": "string"
+                                      },
+                                      "at": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "id",
+                                      "at"
+                                    ]
+                                  },
+                                  "quote": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "source",
+                                  "scope",
+                                  "document",
+                                  "read",
+                                  "quote"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "gapId": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "note": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "diff": {
+                            "type": "object",
+                            "properties": {
+                              "mode": {
+                                "enum": [
+                                  "new",
+                                  "edit",
+                                  "retire"
+                                ],
+                                "type": "string"
+                              },
+                              "blocks": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "wording"
+                                        },
+                                        "field": {
+                                          "enum": [
+                                            "title",
+                                            "text",
+                                            "notToConclude",
+                                            "quote"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "runs": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "t": {
+                                                    "enum": [
+                                                      "same",
+                                                      "add",
+                                                      "del"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "text": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "t",
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "t": {
+                                                    "const": "fmt"
+                                                  },
+                                                  "text": {
+                                                    "type": "string"
+                                                  },
+                                                  "added": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "anyOf": [
+                                                        {},
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "removed": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "anyOf": [
+                                                        {},
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "t",
+                                                  "text",
+                                                  "added",
+                                                  "removed"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "changes": {
+                                          "type": "number"
+                                        },
+                                        "rewrite": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "runs",
+                                        "changes",
+                                        "rewrite"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "wording"
+                                        },
+                                        "field": {
+                                          "const": "kind"
+                                        },
+                                        "before": {
+                                          "type": "string"
+                                        },
+                                        "after": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "before",
+                                        "after"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "added",
+                                            "removed"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "field": {
+                                          "enum": [
+                                            "title",
+                                            "text",
+                                            "notToConclude",
+                                            "quote"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "added",
+                                            "removed"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "field": {
+                                          "const": "where"
+                                        },
+                                        "parts": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "parts"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "added"
+                                        },
+                                        "field": {
+                                          "const": "when"
+                                        },
+                                        "from": {
+                                          "type": "string"
+                                        },
+                                        "until": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "from",
+                                        "until"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "enum": [
+                                            "added",
+                                            "removed"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "field": {
+                                          "const": "sources"
+                                        },
+                                        "url": {
+                                          "type": "string"
+                                        },
+                                        "quote": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "url",
+                                        "quote"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "formatting"
+                                        },
+                                        "field": {
+                                          "const": "text"
+                                        },
+                                        "change": {
+                                          "type": "object",
+                                          "properties": {
+                                            "what": {
+                                              "const": "list"
+                                            },
+                                            "was": {
+                                              "enum": [
+                                                "bullet",
+                                                "number"
+                                              ],
+                                              "type": "string"
+                                            },
+                                            "now": {
+                                              "enum": [
+                                                "bullet",
+                                                "number"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "what",
+                                            "was",
+                                            "now"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "change",
+                                        "items"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "formatting"
+                                        },
+                                        "field": {
+                                          "const": "text"
+                                        },
+                                        "change": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "what": {
+                                                  "const": "marks"
+                                                },
+                                                "added": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "enum": [
+                                                      "bold",
+                                                      "italic",
+                                                      "strike",
+                                                      "code"
+                                                    ],
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "removed": {
+                                                  "type": "array",
+                                                  "items": {
+                                                    "enum": [
+                                                      "bold",
+                                                      "italic",
+                                                      "strike",
+                                                      "code"
+                                                    ],
+                                                    "type": "string"
+                                                  }
+                                                }
+                                              },
+                                              "required": [
+                                                "what",
+                                                "added",
+                                                "removed"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "what": {
+                                                  "const": "list"
+                                                },
+                                                "was": {
+                                                  "enum": [
+                                                    "bullet",
+                                                    "number"
+                                                  ],
+                                                  "type": "string"
+                                                },
+                                                "now": {
+                                                  "enum": [
+                                                    "bullet",
+                                                    "number"
+                                                  ],
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "what",
+                                                "was",
+                                                "now"
+                                              ],
+                                              "additionalProperties": false
+                                            },
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "what": {
+                                                  "const": "block"
+                                                },
+                                                "was": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {},
+                                                        "level": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {},
+                                                        "depth": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                },
+                                                "now": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {},
+                                                        "level": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    },
+                                                    {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "type": {},
+                                                        "depth": {}
+                                                      },
+                                                      "additionalProperties": false
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "what",
+                                                "was",
+                                                "now"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          ]
+                                        },
+                                        "runs": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "t": {
+                                                    "enum": [
+                                                      "same",
+                                                      "add",
+                                                      "del"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "text": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "t",
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "t": {
+                                                    "const": "fmt"
+                                                  },
+                                                  "text": {
+                                                    "type": "string"
+                                                  },
+                                                  "added": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "anyOf": [
+                                                        {},
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "removed": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "anyOf": [
+                                                        {},
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "t",
+                                                  "text",
+                                                  "added",
+                                                  "removed"
+                                                ],
+                                                "additionalProperties": false
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "change",
+                                        "runs"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "link"
+                                        },
+                                        "field": {
+                                          "enum": [
+                                            "text",
+                                            "sources"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "before": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "after": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "text",
+                                        "before",
+                                        "after"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "link"
+                                        },
+                                        "field": {
+                                          "const": "text"
+                                        },
+                                        "mention": {
+                                          "type": "object",
+                                          "properties": {
+                                            "target": {
+                                              "type": "string"
+                                            },
+                                            "label": {
+                                              "type": "string"
+                                            },
+                                            "change": {
+                                              "enum": [
+                                                "added",
+                                                "removed"
+                                              ],
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "target",
+                                            "label",
+                                            "change"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "mention"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "order"
+                                        },
+                                        "field": {
+                                          "const": "text"
+                                        },
+                                        "steps": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "object",
+                                            "properties": {
+                                              "text": {
+                                                "type": "string"
+                                              },
+                                              "from": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "number"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "text",
+                                              "from"
+                                            ],
+                                            "additionalProperties": false
+                                          }
+                                        },
+                                        "moved": {
+                                          "type": "number"
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "steps",
+                                        "moved"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "kind": {
+                                          "const": "dates"
+                                        },
+                                        "field": {
+                                          "enum": [
+                                            "when",
+                                            "checkDate"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "before": {
+                                          "type": "object",
+                                          "properties": {
+                                            "from": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "until": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "from",
+                                            "until"
+                                          ]
+                                        },
+                                        "after": {
+                                          "type": "object",
+                                          "properties": {
+                                            "from": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            },
+                                            "until": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "from",
+                                            "until"
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "kind",
+                                        "field",
+                                        "before",
+                                        "after"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  ]
+                                }
+                              },
+                              "counts": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "kind": {
+                                      "enum": [
+                                        "wording",
+                                        "formatting",
+                                        "link",
+                                        "order",
+                                        "added",
+                                        "removed",
+                                        "dates"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "n": {
+                                      "type": "number"
+                                    }
+                                  },
+                                  "required": [
+                                    "kind",
+                                    "n"
+                                  ]
+                                }
+                              },
+                              "unchanged": {
+                                "type": "array",
+                                "items": {
+                                  "enum": [
+                                    "title",
+                                    "text",
+                                    "kind",
+                                    "where",
+                                    "when",
+                                    "checkDate",
+                                    "sources",
+                                    "notToConclude"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "values": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "what": {
+                                      "enum": [
+                                        "number",
+                                        "date",
+                                        "source"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "field": {
+                                      "anyOf": [
+                                        {
+                                          "enum": [
+                                            "title",
+                                            "text",
+                                            "kind",
+                                            "where",
+                                            "when",
+                                            "checkDate",
+                                            "sources",
+                                            "notToConclude"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        {
+                                          "const": "quote"
+                                        }
+                                      ]
+                                    },
+                                    "before": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "after": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "what",
+                                    "field",
+                                    "before",
+                                    "after"
+                                  ]
+                                }
+                              },
+                              "only": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "wording",
+                                      "formatting",
+                                      "link",
+                                      "order",
+                                      "added",
+                                      "removed",
+                                      "dates"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "mode",
+                              "blocks",
+                              "counts",
+                              "unchanged",
+                              "values",
+                              "only"
+                            ]
+                          },
+                          "source": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "type": "string"
+                              },
+                              "after": {
+                                "type": "string"
+                              },
+                              "rows": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "t": {
+                                      "enum": [
+                                        " ",
+                                        "-",
+                                        "+"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "line": {
+                                      "type": "string"
+                                    },
+                                    "words": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "text": {
+                                            "type": "string"
+                                          },
+                                          "changed": {
+                                            "type": "boolean"
+                                          }
+                                        },
+                                        "required": [
+                                          "text",
+                                          "changed"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "t",
+                                    "line"
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after",
+                              "rows"
+                            ]
+                          },
+                          "claims": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "sentence": {
+                                    "type": "string"
+                                  },
+                                  "rows": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "claim": {
+                                          "type": "string"
+                                        },
+                                        "source": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "verdict": {
+                                          "enum": [
+                                            "same",
+                                            "different",
+                                            "check"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "claim",
+                                        "source",
+                                        "verdict"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "sentence",
+                                  "rows"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "clashes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "itemId": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "summary": {
+                                  "type": "string"
+                                },
+                                "relation": {
+                                  "anyOf": [
+                                    {
+                                      "enum": [
+                                        "replaces",
+                                        "disagrees",
+                                        "unrelated"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "itemId",
+                                "title",
+                                "summary",
+                                "relation"
+                              ]
+                            }
+                          },
+                          "overlaps": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "note",
+                                    "event",
+                                    "guide",
+                                    "example",
+                                    "issue"
+                                  ],
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "title",
+                                "kind"
+                              ]
+                            }
+                          },
+                          "readiness": {
+                            "type": "object",
+                            "properties": {
+                              "state": {
+                                "enum": [
+                                  "draft",
+                                  "claims",
+                                  "clash",
+                                  "related",
+                                  "withdrawn",
+                                  "archive",
+                                  "unsourced",
+                                  "link",
+                                  "layout",
+                                  "order",
+                                  "synced",
+                                  "ready"
+                                ],
+                                "type": "string"
+                              },
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "bulk": {
+                                "type": "boolean"
+                              },
+                              "publishable": {
+                                "type": "boolean"
+                              },
+                              "claimsToCheck": {
+                                "type": "number"
+                              },
+                              "unsourced": {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "relation": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "replaces",
+                                      "disagrees",
+                                      "unrelated"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "title": {
+                                "type": "string"
+                              },
+                              "text": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "state",
+                              "ok",
+                              "bulk",
+                              "publishable",
+                              "claimsToCheck",
+                              "unsourced",
+                              "relation",
+                              "title",
+                              "text"
+                            ]
+                          },
+                          "readMs": {
+                            "type": "number"
+                          },
+                          "read": {
+                            "type": "object",
+                            "properties": {
+                              "opened": {
+                                "type": "boolean"
+                              },
+                              "read": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "opened",
+                              "read"
+                            ]
+                          },
+                          "tryIt": {
+                            "type": "object",
+                            "properties": {
+                              "question": {
+                                "type": "string"
+                              },
+                              "before": {
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "enum": [
+                                      "failed",
+                                      "missing",
+                                      "conflict",
+                                      "partial",
+                                      "stale",
+                                      "grounded"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "say": {
+                                    "type": "string"
+                                  },
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": [
+                                            "note",
+                                            "event",
+                                            "guide",
+                                            "example",
+                                            "issue"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "title",
+                                        "kind"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "state",
+                                  "say",
+                                  "items"
+                                ]
+                              },
+                              "after": {
+                                "type": "object",
+                                "properties": {
+                                  "state": {
+                                    "enum": [
+                                      "failed",
+                                      "missing",
+                                      "conflict",
+                                      "partial",
+                                      "stale",
+                                      "grounded"
+                                    ],
+                                    "type": "string"
+                                  },
+                                  "say": {
+                                    "type": "string"
+                                  },
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "kind": {
+                                          "enum": [
+                                            "note",
+                                            "event",
+                                            "guide",
+                                            "example",
+                                            "issue"
+                                          ],
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "title",
+                                        "kind"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "state",
+                                  "say",
+                                  "items"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "question",
+                              "before",
+                              "after"
+                            ]
+                          },
+                          "reach": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "questions": {
+                                    "type": "number"
+                                  },
+                                  "week": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "questions",
+                                  "week"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "saved": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string"
+                                },
+                                "question": {
+                                  "type": "string"
+                                },
+                                "result": {
+                                  "enum": [
+                                    "same",
+                                    "changed",
+                                    "look"
+                                  ],
+                                  "type": "string"
+                                },
+                                "reason": {
+                                  "enum": [
+                                    "saved",
+                                    "same",
+                                    "kept",
+                                    "published",
+                                    "words",
+                                    "items",
+                                    "better",
+                                    "worse",
+                                    "gone"
+                                  ],
+                                  "type": "string"
+                                },
+                                "live": {
+                                  "type": "object",
+                                  "properties": {
+                                    "state": {
+                                      "enum": [
+                                        "grounded",
+                                        "partial",
+                                        "missing",
+                                        "conflict",
+                                        "stale",
+                                        "failed"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "say": {
+                                      "type": "string"
+                                    },
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "summary": {
+                                            "type": "string"
+                                          },
+                                          "unverified": {
+                                            "anyOf": [
+                                              {
+                                                "enum": [
+                                                  "needs_check",
+                                                  "source_missing",
+                                                  "past_review_date"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "title",
+                                          "summary",
+                                          "unverified"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "state",
+                                    "say",
+                                    "items"
+                                  ]
+                                },
+                                "draft": {
+                                  "type": "object",
+                                  "properties": {
+                                    "state": {
+                                      "enum": [
+                                        "grounded",
+                                        "partial",
+                                        "missing",
+                                        "conflict",
+                                        "stale",
+                                        "failed"
+                                      ],
+                                      "type": "string"
+                                    },
+                                    "say": {
+                                      "type": "string"
+                                    },
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "summary": {
+                                            "type": "string"
+                                          },
+                                          "unverified": {
+                                            "anyOf": [
+                                              {
+                                                "enum": [
+                                                  "needs_check",
+                                                  "source_missing",
+                                                  "past_review_date"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "title",
+                                          "summary",
+                                          "unverified"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "state",
+                                    "say",
+                                    "items"
+                                  ]
+                                },
+                                "expectItems": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "question",
+                                "result",
+                                "reason",
+                                "live",
+                                "draft",
+                                "expectItems"
+                              ]
+                            }
+                          },
+                          "canPublish": {
+                            "type": "boolean"
+                          },
+                          "whyNot": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "proposal",
+                          "mode",
+                          "from",
+                          "writtenBy",
+                          "synced",
+                          "gapId",
+                          "note",
+                          "diff",
+                          "source",
+                          "claims",
+                          "clashes",
+                          "overlaps",
+                          "readiness",
+                          "readMs",
+                          "read",
+                          "tryIt",
+                          "reach",
+                          "saved",
+                          "canPublish",
+                          "whyNot"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "sheets"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find it. It may have been deleted, or you may not have access."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNPROCESSABLE_CONTENT"
+                        },
+                        "status": {
+                          "const": 422
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Fix the problems shown, then try again."
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "findings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  },
+                                  "severity": {
+                                    "enum": [
+                                      "error",
+                                      "warning"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "field",
+                                  "message",
+                                  "severity"
+                                ]
+                              }
+                            },
+                            "gate": {
+                              "type": "object",
+                              "properties": {
+                                "required": {
+                                  "type": "array",
+                                  "items": {
+                                    "enum": [
+                                      "format",
+                                      "matching",
+                                      "delivery",
+                                      "answer_impact",
+                                      "answer_full"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "levels": {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "format"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "findings": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "code": {
+                                                      "type": "string"
+                                                    },
+                                                    "field": {
+                                                      "type": "string"
+                                                    },
+                                                    "message": {
+                                                      "type": "string"
+                                                    },
+                                                    "severity": {
+                                                      "enum": [
+                                                        "error",
+                                                        "warning"
+                                                      ],
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "code",
+                                                    "field",
+                                                    "message",
+                                                    "severity"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "matching"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "probes": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "name": {
+                                                      "type": "string"
+                                                    },
+                                                    "scope": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "metrics": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "filters": {
+                                                          "type": "object",
+                                                          "propertyNames": {
+                                                            "type": "string"
+                                                          },
+                                                          "additionalProperties": {
+                                                            "type": "array",
+                                                            "items": {
+                                                              "anyOf": [
+                                                                {},
+                                                                {
+                                                                  "type": "null"
+                                                                }
+                                                              ]
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "start": {
+                                                              "type": "string"
+                                                            },
+                                                            "end": {
+                                                              "type": "string"
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "start",
+                                                            "end"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "metrics",
+                                                        "filters",
+                                                        "window"
+                                                      ]
+                                                    },
+                                                    "expect": {
+                                                      "enum": [
+                                                        "delivered",
+                                                        "silent"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "actual": {
+                                                      "enum": [
+                                                        "delivered",
+                                                        "silent"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "match": {
+                                                      "enum": [
+                                                        "exact",
+                                                        "partial"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "withheld": {
+                                                      "type": "string"
+                                                    },
+                                                    "passed": {
+                                                      "type": "boolean"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "name",
+                                                    "scope",
+                                                    "expect",
+                                                    "actual",
+                                                    "passed"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "delivery"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "probe": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "question": {
+                                                    "type": "string"
+                                                  },
+                                                  "metrics": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "dimension_filters": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "dimension": {
+                                                          "type": "string"
+                                                        },
+                                                        "values": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "string"
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimension",
+                                                        "values"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "window": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "from": {
+                                                        "type": "string"
+                                                      },
+                                                      "to": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "from",
+                                                      "to"
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "question",
+                                                  "metrics",
+                                                  "dimension_filters",
+                                                  "window"
+                                                ]
+                                              },
+                                              "status": {
+                                                "type": "string"
+                                              },
+                                              "delivered": {
+                                                "type": "boolean"
+                                              },
+                                              "cut": {
+                                                "type": "boolean"
+                                              },
+                                              "replacedShown": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "questions": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "candidate": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "regression": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "error": {
+                                                      "type": "string"
+                                                    },
+                                                    "attached": {
+                                                      "type": "boolean"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "regression"
+                                                  ]
+                                                }
+                                              },
+                                              "note": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "answer_impact"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "message": {
+                                                "type": "string"
+                                              },
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "runState": {
+                                                "enum": [
+                                                  "estimated",
+                                                  "awaiting_approval",
+                                                  "queued",
+                                                  "running",
+                                                  "finished",
+                                                  "failed",
+                                                  "cancelled",
+                                                  "incomplete"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "questions": {
+                                                "type": "number"
+                                              },
+                                              "setAside": {
+                                                "type": "number"
+                                              },
+                                              "estimate": {
+                                                "type": "string"
+                                              },
+                                              "previous": {
+                                                "enum": [
+                                                  "passed",
+                                                  "failed",
+                                                  "error",
+                                                  "not_run"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "previousEdition": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "attached": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "candidate": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "baseline",
+                                                    "candidate"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "answer_full"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "message": {
+                                                "type": "string"
+                                              },
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "runState": {
+                                                "enum": [
+                                                  "estimated",
+                                                  "awaiting_approval",
+                                                  "queued",
+                                                  "running",
+                                                  "finished",
+                                                  "failed",
+                                                  "cancelled",
+                                                  "incomplete"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "questions": {
+                                                "type": "number"
+                                              },
+                                              "setAside": {
+                                                "type": "number"
+                                              },
+                                              "estimate": {
+                                                "type": "string"
+                                              },
+                                              "previous": {
+                                                "enum": [
+                                                  "passed",
+                                                  "failed",
+                                                  "error",
+                                                  "not_run"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "previousEdition": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "attached": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "candidate": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "baseline",
+                                                    "candidate"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "approvals": {
+                                  "type": "object",
+                                  "properties": {
+                                    "owner": {
+                                      "type": "boolean"
+                                    },
+                                    "approver": {
+                                      "anyOf": [
+                                        {
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "owner",
+                                    "approver"
+                                  ]
+                                },
+                                "problem": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "attached": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "question": {
+                                        "type": "string"
+                                      },
+                                      "active": {
+                                        "type": "boolean"
+                                      },
+                                      "attachedHour": {
+                                        "type": "string"
+                                      },
+                                      "retrieval": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "baseline": {
+                                                "type": "boolean"
+                                              },
+                                              "candidate": {
+                                                "type": "boolean"
+                                              }
+                                            },
+                                            "required": [
+                                              "baseline",
+                                              "candidate"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "answer": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "baseline": {
+                                                "anyOf": [
+                                                  {
+                                                    "enum": [
+                                                      "pass",
+                                                      "fail",
+                                                      "no_answer"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "candidate": {
+                                                "anyOf": [
+                                                  {
+                                                    "enum": [
+                                                      "pass",
+                                                      "fail",
+                                                      "no_answer"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "run",
+                                              "baseline",
+                                              "candidate"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "question",
+                                      "active",
+                                      "attachedHour",
+                                      "retrieval",
+                                      "answer"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "required",
+                                "levels",
+                                "approvals",
+                                "problem",
+                                "attached"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/review/{id}/read": {
       "post": {
         "operationId": "review.markRead",

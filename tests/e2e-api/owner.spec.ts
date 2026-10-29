@@ -78,7 +78,7 @@ const verification = (page: Page) => actions(page).locator('[data-slot="gap-veri
 const fact = (page: Page, name: string) =>
   verification(page).locator('dt', { hasText: name }).locator('xpath=following-sibling::dd')
 
-// The demo's regression (db/seed/test-questions.ts, `regression` in src/web/mocks/items.ts).
+// The demo's regression (db/seed/test-questions.ts, `regression` in db/seed/fixtures/items.ts).
 const QUESTION = 'net-revenue-month-to-date'
 const TITLE = 'How is net revenue in Spain doing in October 2026?'
 const NOTE = 'itm_q2upr28v'

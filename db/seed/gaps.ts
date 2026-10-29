@@ -1,8 +1,8 @@
 import type pg from 'pg'
-import { gapFixtures, gapTopics } from '../../src/web/mocks/gaps.ts'
+import { gapFixtures, gapTopics } from './fixtures/gaps.ts'
 
 /**
- * The fixture topics and gaps of src/web/mocks/gaps.ts, written straight into the tables the
+ * The fixture topics and gaps of db/seed/fixtures/gaps.ts, written straight into the tables the
  * gateway and the detection job fill, so the service answers about them as the mock does. Runs
  * in the caller's transaction.
  */

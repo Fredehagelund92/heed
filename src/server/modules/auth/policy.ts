@@ -19,6 +19,7 @@ export const policies = {
   'proposals.detachTest': 'propose',
   'review.queue': 'propose',
   'review.sheet': 'propose',
+  'review.sheets': 'propose',
   'review.markRead': 'propose',
   'review.publish': 'propose',
   'review.return': 'propose',

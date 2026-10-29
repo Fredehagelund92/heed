@@ -1,5 +1,5 @@
 import type { ContextItem } from '../../src/domain/item.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from './fixtures/items.ts'
 import { demoTestQuestions } from './test-questions.ts'
 
 /*

@@ -265,6 +265,7 @@ const readOperations = [
   'threads.markRead',
   'setup.state',
   'review.sheet',
+  'review.sheets',
   'review.markRead',
   'review.publish',
   'review.return',

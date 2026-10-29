@@ -424,6 +424,9 @@ export function createRouter({
     },
     review: {
       sheet: authorized.review.sheet.handler(({ context, input }) => context.path.sheet(input.id)),
+      sheets: authorized.review.sheets.handler(async ({ context, input }) => ({
+        sheets: await context.path.sheets(input.ids),
+      })),
       markRead: authorized.review.markRead.handler(({ context, input }) =>
         context.path.markRead(input),
       ),

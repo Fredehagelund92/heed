@@ -239,6 +239,14 @@ export const reviewSheetSchema = z.object({
 })
 export type ReviewSheet = z.infer<typeof reviewSheetSchema>
 
+/** The most suggestions one read of many sheets names; the Inbox reads more in turns. */
+export const REVIEW_SHEETS_MAX = 100
+export const reviewSheetsInputSchema = z.strictObject({
+  ids: z.array(z.string().check(z.uuid())).check(z.minLength(1), z.maxLength(REVIEW_SHEETS_MAX)),
+})
+/** Each sheet asked for, in the order asked; one that went, or the person may not read, is left out. */
+export const reviewSheetsSchema = z.object({ sheets: z.array(reviewSheetSchema) })
+
 /** A token that takes one decision, or one step of several, back (FR-227). */
 export const undoTokenSchema = z.string().check(z.regex(/^[a-z]+:[A-Za-z0-9_.:,-]{1,4000}$/))
 

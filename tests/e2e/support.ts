@@ -107,7 +107,7 @@ export const tryItPages = [
 
 /**
  * The mock's weekly run of Sales on Monday 5 October 2026, one of its tries, and the first
- * try of the demo's regression, which fails (src/web/mocks/items.ts, `regression`).
+ * try of the demo's regression, which fails (db/seed/fixtures/items.ts, `regression`).
  */
 export const QUALITY_WEEKLY_RUN = '00000000-0000-4000-b000-000000000090'
 export const QUALITY_TRY = '00000000-0000-4000-b000-00000009002b'

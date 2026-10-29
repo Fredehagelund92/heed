@@ -25,8 +25,12 @@ import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
   and stays there.
 */
 
-/** The files whose strings people read. */
-export const plainWordsFiles = ['src/web/**/*.{ts,tsx}', 'src/server/modules/notifications/**/*.ts']
+/** The files whose strings people read, and the demo's fixtures, which the demo shows them. */
+export const plainWordsFiles = [
+  'src/web/**/*.{ts,tsx}',
+  'src/server/modules/notifications/**/*.ts',
+  'db/seed/fixtures/**/*.ts',
+]
 /** Of the rest of the server, only the messages of the errors it answers with. */
 export const errorMessageFiles = ['src/server/**/*.ts']
 /** Code that is not the product: generated tables, stories and the design preview. */

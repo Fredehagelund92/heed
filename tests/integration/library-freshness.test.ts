@@ -5,7 +5,7 @@ import { shiftDate } from '../../src/domain/validity.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 

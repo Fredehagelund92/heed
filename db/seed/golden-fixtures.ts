@@ -5,9 +5,9 @@ import {
   type RiskLevel,
 } from '../../src/domain/item.ts'
 import { defaultNotToConclude } from '../../src/domain/proposal-rules.ts'
-import { definitionRefOf, demoDefinitions } from '../../src/web/mocks/cube-model.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
-import { areas, vocabulary } from '../../src/web/mocks/reference-data.ts'
+import { definitionRefOf, demoDefinitions } from './fixtures/cube-model.ts'
+import { generateItems } from './fixtures/items.ts'
+import { areas, vocabulary } from './fixtures/reference-data.ts'
 import type { LibraryExtras } from './bulk.ts'
 
 /*

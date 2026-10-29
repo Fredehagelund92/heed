@@ -59,6 +59,7 @@ export const queryKeys = {
   figures: ['readFigure'] as const,
   agentConnections: ['listAgentConnections'] as const,
   connectReview: ['getConnectReview'] as const,
+  connectRequest: ['getConnectRequest'] as const,
   observabilityPage: (input: ObsPageInput) => ['observabilityPage', input] as const,
   observabilityPages: ['observabilityPage'] as const,
   replay: (topic: string, when: string) => ['replayTopic', topic, when] as const,
@@ -221,6 +222,19 @@ export const agentConnectionsQuery = () =>
 export const connectReviewQuery = () =>
   queryOptions({ queryKey: queryKeys.connectReview, queryFn: () => api.getConnectReview() })
 
+/**
+ * An agent's sign-in waiting for the person's answer, for the consent page: read once while the
+ * page is open, and forgotten when it closes, since an answer ends it.
+ */
+export const connectRequestQuery = (id: string) =>
+  queryOptions({
+    queryKey: [...queryKeys.connectRequest, id],
+    queryFn: () => api.getConnectRequest({ id }),
+    staleTime: Infinity,
+    gcTime: 0,
+    retry: false,
+  })
+
 export const savedViewsQuery = () =>
   queryOptions({ queryKey: queryKeys.savedViews, queryFn: () => api.getSavedViews() })
 
@@ -375,6 +389,7 @@ type Read =
   | 'listAgentConnections'
   | 'checkConnect'
   | 'getConnectReview'
+  | 'getConnectRequest'
   | 'observabilityPage'
   | 'replayTopic'
 export type WriteOperation = Exclude<HeedApiMethod, Read>
@@ -503,6 +518,8 @@ export const invalidations: {
   readIntegration: () => integrations,
   pauseIntegration: () => [...integrations, queryKeys.advancedPage],
   revokeAgentConnection: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  // A yes adds a connected agent; the page then leaves for the agent.
+  answerConnectRequest: () => [queryKeys.agentConnections],
   renameChat: () => [queryKeys.chats],
   deleteChat: () => [queryKeys.chats],
   removeView: () => [queryKeys.savedViews],

@@ -291,8 +291,9 @@ function Gate() {
   const route = useRoute()
   useInAppLinks()
   React.useEffect(() => {
-    // The documentation is a public site: it needs nobody signed in.
-    if (!user && route.parts[0] !== 'signin' && route.parts[0] !== 'docs') navigate('/signin')
+    // The documentation is a public site: it needs nobody signed in. An agent's consent page asks
+    // a person who is not signed in to sign in there, and stays.
+    if (!user && !['signin', 'docs', 'connect'].includes(route.parts[0] ?? '')) navigate('/signin')
     // Signed in, there is nobody to pick: a sign-in that just finished, or /signin opened again,
     // lands in the Inbox.
     if (user && route.parts[0] === 'signin') redirectTo('/inbox')

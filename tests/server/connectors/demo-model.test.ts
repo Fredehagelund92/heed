@@ -9,15 +9,15 @@ import {
   demoDefinitions,
   demoWarnings,
   goneRefOf,
-} from '../../../src/web/mocks/cube-model.ts'
-import { generateItems } from '../../../src/web/mocks/items.ts'
-import { vocabulary } from '../../../src/web/mocks/reference-data.ts'
+} from '../../../db/seed/fixtures/cube-model.ts'
+import { generateItems } from '../../../db/seed/fixtures/items.ts'
+import { vocabulary } from '../../../db/seed/fixtures/reference-data.ts'
 
 const modelDir = fileURLToPath(new URL('../../../db/seed/cube/', import.meta.url))
 
 /*
   The demo Cube model (db/seed/cube) and what the bulk seed and the mock binding say the
-  connector reads from it (src/web/mocks/cube-model.ts). When the model changes, this test names
+  connector reads from it (db/seed/fixtures/cube-model.ts). When the model changes, this test names
   the difference: copy the new read into cube-model.ts.
 */
 describe('the demo Cube model', () => {

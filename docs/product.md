@@ -149,6 +149,9 @@ Inside Observability the sidebar gives way to its own menu, with Back to app on 
 | The documentation, its own site                  | `/docs`, `/docs/<page>` |
 | The plain-text index for agents                  | `/docs/llms.txt`        |
 | Sign-in                                          | `/signin`               |
+| An agent's consent page: allow or deny           | `/connect/approve`      |
+
+The consent page is where the login server sends a person whose agent asked to connect (`?request=` names the sign-in): they sign in there if they have not, read which agent asks and what it may do, and allow or deny it. The mockup does not draw it; it keeps the earlier app's page in this design.
 
 The Help menu in the sidebar's foot opens a small menu: the Help page, the keys, the documentation and What's new in new tabs, Contact support, Report a problem. Old addresses `/library`, `/settings/about` and `/settings/definitions` redirect to Context, General and Definitions.
 

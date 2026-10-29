@@ -9,7 +9,7 @@ import {
 } from '../../../src/domain/golden-set.ts'
 import { assistantCases } from '../../../src/server/modules/assistant/cases.ts'
 import { assistantToolNames } from '../../../src/server/modules/assistant/tools.ts'
-import { vocabulary } from '../../../src/web/mocks/reference-data.ts'
+import { vocabulary } from '../../../db/seed/fixtures/reference-data.ts'
 import { expect } from 'vitest'
 
 /*

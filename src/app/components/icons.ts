@@ -148,6 +148,7 @@ export {
   ShapesIcon,
   ShareIcon,
   ShieldAlertIcon,
+  ShieldCheckIcon,
   SigmaIcon,
   SlidersHorizontalIcon,
   SmilePlusIcon,
