@@ -12,6 +12,7 @@ import {
   createWorkspaceSources,
   openLocalSecretStore,
 } from '../../src/server/modules/connectors/index.ts'
+import { readConnectors } from '../../src/server/modules/jobs/operations.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -315,4 +316,119 @@ describe('a Cube model in Git, on interface 3', () => {
     // A changed calculation moves marks; nothing is published, decided or suggested.
     expect(await published()).toEqual(before)
   }, 120_000)
+})
+
+describe('the views an admin chooses, and Disconnect (CON-118)', () => {
+  const stored = async (id = sourceId) =>
+    (
+      await client.query<{ ref: string; area_hint: string | null; missing: boolean }>(
+        `select ref, area_hint, missing_since_snapshot is not null as missing
+           from definitions where connector_id = $1 order by ref`,
+        [id],
+      )
+    ).rows
+  const settings = () => ok<SourceSettings>(call('GET', `/sources/${sourceId}`, 'admin'))
+  const change = async (scopes: object[]) => {
+    const now = await settings()
+    return call('PUT', `/sources/${sourceId}`, 'admin', {
+      id: sourceId,
+      revision: now.revision,
+      name: now.name,
+      config: now.config,
+      secrets: {},
+      scopes,
+      reason: 'Choose the views to read',
+    })
+  }
+
+  it('lists its views to choose from, each with what it holds and the domain the model names', async () => {
+    await host.commit('analytics', { 'cube/model/model.yml': model })
+    const check = await ok<SourceCheck>(
+      call('POST', '/sources/test', 'admin', {
+        id: sourceId,
+        type: 'cube',
+        config: config(),
+        secrets: {},
+      }),
+    )
+    expect(check.scopes).toEqual([
+      { id: 'growth', title: 'growth', suggestedDomain: 'marketing', metrics: 1, dimensions: 0 },
+      { id: 'marketing', title: 'marketing', suggestedDomain: null, metrics: 1, dimensions: 1 },
+      { id: 'operations', title: 'operations', suggestedDomain: null, metrics: 1, dimensions: 0 },
+      { id: 'sales', title: 'sales', suggestedDomain: 'finance', metrics: 2, dimensions: 1 },
+    ])
+  }, 120_000)
+
+  it('reads only the views chosen, each in the domain an admin mapped it to, or shared', async () => {
+    const unknown = await change([{ id: 'sales', title: 'sales', domain: 'people' }])
+    expect(unknown.statusCode).toBe(422)
+    expect(unknown.body).toContain("people isn't a domain")
+    const twice = await change([
+      { id: 'sales', title: 'sales', domain: null },
+      { id: 'sales', title: 'sales', domain: 'finance' },
+    ])
+    expect(twice.statusCode).toBe(422)
+    const chosen = await change([
+      { id: 'sales', title: 'sales', domain: null },
+      { id: 'operations', title: 'operations', domain: 'marketing' },
+    ])
+    expect(chosen.statusCode, chosen.body).toBe(200)
+    const before = await published()
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 4 })
+    expect(await stored()).toEqual([
+      { ref: 'cube:growth.revenue', area_hint: 'marketing', missing: true },
+      { ref: 'cube:marketing.orders_country', area_hint: null, missing: true },
+      { ref: 'cube:marketing.orders_income', area_hint: null, missing: true },
+      { ref: 'cube:operations.revenue', area_hint: 'marketing', missing: false },
+      { ref: 'cube:sales.count', area_hint: null, missing: false },
+      { ref: 'cube:sales.country', area_hint: null, missing: false },
+      { ref: 'cube:sales.revenue', area_hint: null, missing: false },
+    ])
+    // With none chosen, it reads every view again, each in the domain the model names.
+    expect((await change([])).statusCode).toBe(200)
+    expect((await run()).connectors[sourceId]).toMatchObject({ status: 'ok', definitionsSeen: 7 })
+    const all = await stored()
+    expect(all.every((d) => !d.missing)).toBe(true)
+    expect(all.find((d) => d.ref === 'cube:sales.revenue')?.area_hint).toBe('finance')
+    // Choosing never publishes, decides or suggests.
+    expect(await published()).toEqual(before)
+  }, 240_000)
+
+  it('keeps what a disconnected source read, which the next source of the model takes over', async () => {
+    const [{ ref }] = (
+      await client.query<{ ref: string }>('select secret_ref as ref from connectors where id=$1', [
+        sourceId,
+      ])
+    ).rows as [{ ref: string }]
+    const read = await stored()
+    await ok(
+      call('POST', `/sources/${sourceId}/disconnect`, 'admin', {
+        reason: 'The model moved to another repository',
+      }),
+    )
+    // Nothing it read is gone or flagged, its token is forgotten, and the job reads it no more.
+    expect(await stored()).toEqual(read)
+    expect(await store.read(ref)).toBeNull()
+    expect((await run()).connectors[sourceId]).toBeUndefined()
+    // It is no entry of the operations overview or the catalogue's sources: those are for the
+    // ones connected.
+    expect((await readConnectors(database)).map((c) => c.id)).not.toContain(sourceId)
+    const catalogue = await ok<{ sources: { id: string }[] }>(call('GET', '/catalogue', 'admin'))
+    expect(catalogue.sources.map((c) => c.id)).not.toContain(sourceId)
+    const again = await ok<SourceSettings>(
+      call('POST', '/sources', 'admin', {
+        type: 'cube',
+        name: 'Analytics model',
+        config: config(),
+        secrets: { token: TOKEN },
+        reason: 'Read the analytics model again',
+      }),
+      201,
+    )
+    expect(again.id).not.toBe(sourceId)
+    // Its read is whole: the definitions are handed over, not taken by the old source.
+    expect((await run()).connectors[again.id]).toMatchObject({ status: 'ok', definitionsSeen: 7 })
+    expect(await stored()).toEqual([])
+    expect((await stored(again.id)).map((d) => d.ref)).toEqual(read.map((d) => d.ref))
+  }, 240_000)
 })

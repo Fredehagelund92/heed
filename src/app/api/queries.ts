@@ -53,6 +53,8 @@ export const queryKeys = {
   integrationsPage: ['integrationsPage'] as const,
   integrationPage: (id: string) => ['integrationPage', id] as const,
   integrationPages: ['integrationPage'] as const,
+  connectForm: (id: string) => ['connectForm', id] as const,
+  connectForms: ['connectForm'] as const,
   figure: (asked: FigureAsk) => ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
   agentConnections: ['listAgentConnections'] as const,
@@ -202,6 +204,10 @@ export const integrationPageQuery = (id: string) =>
     refetchInterval: (query) =>
       query.state.data?.source.health === 'reading' ? READING_POLL_MS : false,
   })
+
+/** The connect flow's form: a tool to connect, or one connected whose settings change. */
+export const connectFormQuery = (id: string) =>
+  queryOptions({ queryKey: queryKeys.connectForm(id), queryFn: () => api.connectForm({ id }) })
 
 export const figureQuery = (asked: FigureAsk) =>
   queryOptions({ queryKey: queryKeys.figure(asked), queryFn: () => api.readFigure(asked) })
@@ -363,6 +369,8 @@ type Read =
   | 'getIntegrations'
   | 'integrationsPage'
   | 'integrationPage'
+  | 'connectForm'
+  | 'testIntegration'
   | 'readFigure'
   | 'listAgentConnections'
   | 'checkConnect'
@@ -405,8 +413,12 @@ const definitions: QueryKey[] = [
   queryKeys.askedWeek,
 ]
 const inbox: QueryKey[] = [queryKeys.inbox, queryKeys.inboxPage, queryKeys.myReports]
-/** What a change to a connected tool makes stale: its row, and its page. */
-const integrations: QueryKey[] = [queryKeys.integrationsPage, queryKeys.integrationPages]
+/** What a change to a connected tool makes stale: its row, its page, and its connect form. */
+const integrations: QueryKey[] = [
+  queryKeys.integrationsPage,
+  queryKeys.integrationPages,
+  queryKeys.connectForms,
+]
 /** What a decision on a suggestion makes stale: the Inbox, the items it changed, the saved questions. */
 const decision: QueryKey[] = [...inbox, ...items, queryKeys.savedQuestions, queryKeys.comments]
 
@@ -485,7 +497,9 @@ export const invalidations: {
   setFigureConnection: () => [queryKeys.settings, queryKeys.figures, queryKeys.integrations],
   // Connecting the definitions tool can be the setup checklist's last step.
   connectIntegration: () => [queryKeys.settings, ...integrations, ...workspace, queryKeys.session],
-  disconnectIntegration: () => [queryKeys.settings, ...integrations],
+  changeIntegration: () => integrations,
+  // A content tool's open suggestions leave the Inbox with it.
+  disconnectIntegration: () => [queryKeys.settings, ...integrations, ...inbox],
   readIntegration: () => integrations,
   pauseIntegration: () => [...integrations, queryKeys.advancedPage],
   revokeAgentConnection: () => [queryKeys.agentConnections, queryKeys.advancedPage],

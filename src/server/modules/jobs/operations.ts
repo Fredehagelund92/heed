@@ -222,6 +222,7 @@ export async function readConnectors(database: Database): Promise<ConnectorOverv
      left join lateral (select fetched_at, error from connector_snapshots s
        where s.connector_id = c.id and s.status = 'failed'
        order by fetched_at desc limit 1) bad on true
+    where c.removed_at is null
      order by c.id`,
   )
   const members = await database.query<SourceMember & { connectorId: string }>(

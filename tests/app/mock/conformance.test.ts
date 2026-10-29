@@ -14,4 +14,5 @@ describeHeedApi('mock binding', () => api, {
   person: 'Jon Abara',
   wired: heedApiMethods,
   colleague: 'Tomas Eriksen',
+  repository: { address: 'https://git.example/larchwood/handbook', token: null },
 })

@@ -62,6 +62,24 @@ export const docControls: DocControl[] = [
   { phrase: 'Warning', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Rule', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
   { phrase: 'Guide', page: 'write-context', at: '/context/new', drawn: 'option', open: 'Kind' },
+  {
+    phrase: 'Test connection',
+    page: 'integrations',
+    at: '/settings/integrations/markdown-git/connect?step=2',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Change settings',
+    page: 'integrations',
+    at: '/settings/integrations/cube',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Disconnect',
+    page: 'integrations',
+    at: '/settings/integrations/cube',
+    drawn: 'button',
+  },
   { phrase: 'Replace', page: 'integrations', at: '/settings/integrations/cube', drawn: 'button' },
   {
     phrase: 'Data contact',

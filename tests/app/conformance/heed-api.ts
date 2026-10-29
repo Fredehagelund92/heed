@@ -31,12 +31,18 @@ export type HeedApiConformance = {
   wired: readonly HeedApiMethod[]
   /** Someone else the sign-in offers, by name: the comments' second voice. */
   colleague: string
+  /**
+   * The address of a Markdown repository the binding's Markdown in Git can read, with Markdown
+   * files in folders under `docs`, and the token it wants (or none): the connect flow's cases
+   * connect it. The mock reads any address.
+   */
+  repository: { address: string; token: string | null }
 }
 
 export function describeHeedApi(
   name: string,
   getApi: () => HeedApi,
-  { person, wired, colleague }: HeedApiConformance,
+  { person, wired, colleague, repository }: HeedApiConformance,
 ) {
   const api = () => getApi()
   const lacks = (...methods: HeedApiMethod[]) => methods.some((m) => !wired.includes(m))
@@ -1074,6 +1080,132 @@ export function describeHeedApi(
         await expect(live.readIntegration({ id: 'no-such-tool' })).rejects.toMatchObject({
           kind: 'not-found',
         })
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'connectForm'))(
+      "draws a tool's connect form from its connector's manifest, and a connected one's settings without a secret",
+      async () => {
+        const live = await signedIn()
+        const fresh = (await live.connectForm({ id: 'markdown-git' }))!
+        expect(fresh).toMatchObject({ connector: 'markdown-git', source: null, chosen: [] })
+        const field = (key: string) => fresh.fields.find((f) => f.key === key)
+        expect(field('repository')).toMatchObject({ kind: 'address', required: true })
+        expect(field('ref')?.value).toBe('main')
+        expect(fresh.secrets).toEqual([expect.objectContaining({ key: 'token', set: false })])
+        expect(fresh.every).toBe('every day')
+        expect(fresh.perDay).toBeGreaterThan(0)
+        // A connected tool's form is its settings, by its page's id: secrets only as set or not.
+        const drive = (await live.integrationsPage()).sources.find(
+          (s) => s.connector === 'google-drive',
+        )!
+        const settings = (await live.connectForm({ id: drive.id }))!
+        expect(settings.source).toMatchObject({ id: drive.id })
+        expect(settings.source!.revision).toBeGreaterThan(0)
+        expect(settings.chosen.length).toBeGreaterThan(0)
+        for (const c of settings.chosen) expect(c.domain, c.id).not.toBeNull()
+        expect(settings.secrets.map((s) => s.key)).toEqual(['serviceAccountKey'])
+        expect(JSON.stringify(settings)).not.toMatch(/private_key|BEGIN PRIVATE KEY/)
+        expect(await live.connectForm({ id: 'no-such-tool' })).toBeNull()
+        expect(await live.connectForm({ id: 'notion' })).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'testIntegration'))(
+      "tests a tool's settings, keeping nothing: what it may read, or why it can't",
+      async () => {
+        const live = await signedIn()
+        const config = { repository: repository.address, ref: 'main', folder: 'docs' }
+        const secrets = { token: repository.token ?? '' }
+        const test = await live.testIntegration({ connector: 'markdown-git', config, secrets })
+        expect(test.ok, JSON.stringify(test)).toBe(true)
+        expect(test.steps.length).toBeGreaterThan(0)
+        for (const step of test.steps) expect(step.status, step.title).not.toBe('failed')
+        expect(test.scopes.length).toBeGreaterThan(0)
+        expect(new Set(test.scopes.map((s) => s.id)).size).toBe(test.scopes.length)
+        // Nothing was connected by the test.
+        expect(
+          (await live.integrationsPage()).sources.some((s) => s.connector === 'markdown-git'),
+        ).toBe(false)
+        const empty = await live.testIntegration({
+          connector: 'markdown-git',
+          config: { ...config, repository: '' },
+          secrets,
+        })
+        expect(empty.ok).toBe(false)
+      },
+    )
+
+    it.skipIf(
+      lacks(
+        'signIn',
+        'testIntegration',
+        'connectIntegration',
+        'changeIntegration',
+        'disconnectIntegration',
+        'connectForm',
+        'integrationsPage',
+        'getLibrary',
+      ),
+    )(
+      'connects a tool, changes its settings and disconnects it; nothing is published by any of it',
+      async () => {
+        const live = await signedIn()
+        const published = async () =>
+          (await live.getLibrary()).items.filter((f) => f.status === 'Live').length
+        const before = await published()
+        const config = { repository: repository.address, ref: 'main', folder: 'docs' }
+        const secrets = { token: repository.token ?? '' }
+        const test = await live.testIntegration({ connector: 'markdown-git', config, secrets })
+        const { domains } = await live.getWorkspace()
+        const scope = test.scopes[0]!
+        const chosen = [{ id: scope.id, title: scope.title, domain: domains[0]!.id }]
+        await expect(
+          live.connectIntegration({
+            connector: 'markdown-git',
+            config,
+            secrets,
+            chosen,
+            reason: '',
+          }),
+        ).rejects.toMatchObject({ kind: 'invalid' })
+        const added = await live.connectIntegration({
+          connector: 'markdown-git',
+          config,
+          secrets,
+          chosen,
+          reason: 'Our handbook lives in Git',
+        })
+        const row = (await live.integrationsPage()).sources.find((s) => s.id === added.id)
+        expect(row?.connector).toBe('markdown-git')
+        const form = (await live.connectForm({ id: added.id }))!
+        expect(form.source?.id).toBe(added.id)
+        expect(form.chosen).toEqual(chosen)
+        expect(form.fields.find((f) => f.key === 'repository')?.value).toBe(repository.address)
+        if (repository.token) {
+          expect(form.secrets.find((s) => s.key === 'token')?.set).toBe(true)
+          expect(JSON.stringify(form)).not.toContain(repository.token)
+        }
+        // Change settings: a secret left empty stays, and the change keeps what it was given.
+        const changed = [{ ...chosen[0]!, domain: domains.at(-1)!.id }]
+        await live.changeIntegration({
+          id: added.id,
+          revision: form.source!.revision,
+          config: { ...config, ref: 'main' },
+          secrets: { token: '' },
+          chosen: changed,
+          reason: 'The handbook moved to another domain',
+        })
+        const after = (await live.connectForm({ id: added.id }))!
+        expect(after.chosen).toEqual(changed)
+        if (repository.token) expect(after.secrets.find((s) => s.key === 'token')?.set).toBe(true)
+        await live.disconnectIntegration({ id: added.id })
+        expect((await live.integrationsPage()).sources.some((s) => s.id === added.id)).toBe(false)
+        expect(await live.integrationPage({ id: added.id })).toBeNull()
+        await expect(live.disconnectIntegration({ id: added.id })).rejects.toMatchObject({
+          kind: 'not-found',
+        })
+        expect(await published()).toBe(before)
       },
     )
 

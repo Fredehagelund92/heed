@@ -21,6 +21,9 @@ import type { Queryable } from '../../db/database.ts'
 import { connectorType } from '../connectors/index.ts'
 import { libraryIndexItems } from '../library/index.ts'
 
+const withoutRemoved = <T extends { removed: boolean }>({ removed: _removed, ...source }: T) =>
+  source
+
 /**
  * The catalogue read model (FR-136): the live vocabulary's metrics and dimensions, joined to what
  * the definition source last read (the `definitions` the connectors store) and to what the
@@ -79,7 +82,7 @@ export function createCatalogueService(
     const [row] = await database.query<{
       vocabulary: VocabularyRow[]
       definitions: DefinitionRow[]
-      sources: (Omit<CatalogueSource, 'tool'> & { type: string })[]
+      sources: (Omit<CatalogueSource, 'tool'> & { type: string; removed: boolean })[]
       mentions: { key: string; items: number }[]
       gaps: string[][]
       items: IndexedItem[]
@@ -120,7 +123,8 @@ export function createCatalogueService(
           where d.ref in (select unnest(v."definitionRefs") from vocabulary v)),
        sources as (
          select c.id, c.name, c.type, ${iso('ok.fetched_at')} as "readAt", ok.source_version as "sourceVersion",
-                coalesce(latest.status = 'failed', false) as failing
+                coalesce(latest.status = 'failed', false) as failing,
+                c.removed_at is not null as removed
            from connectors c
            left join lateral (select s.fetched_at, s.source_version from connector_snapshots s
                                where s.connector_id = c.id and s.status <> 'failed'
@@ -147,10 +151,13 @@ export function createCatalogueService(
     )
     const { vocabulary, definitions, mentions, items } = row!
     // The words on screen name the tool the source reads (CON-101: core names no vendor).
-    const sources: CatalogueSource[] = row!.sources.map(({ type, ...source }) => ({
-      ...source,
-      tool: connectorType(type, source.name).tool,
-    }))
+    const sources: (CatalogueSource & { removed: boolean })[] = row!.sources.map(
+      ({ type, removed, ...source }) => ({
+        ...source,
+        removed,
+        tool: connectorType(type, source.name).tool,
+      }),
+    )
     const gaps = row!.gaps.map((keys) => ({ keys }))
     return { vocabulary, definitions, sources, mentions, gaps, items }
   }
@@ -174,6 +181,10 @@ export function createCatalogueService(
       ).length
     const items = data.items
 
+    const sourceOf = (sourceId: string | undefined) => {
+      const found = data.sources.find((source) => source.id === sourceId)
+      return found ? withoutRemoved(found) : null
+    }
     const toolOf = (sourceId: string) =>
       data.sources.find((source) => source.id === sourceId)?.tool ?? sourceId
 
@@ -225,7 +236,7 @@ export function createCatalogueService(
         .sort(byName)
         .flatMap((row) => term(row) ?? [])
 
-    return { today, definitions, mentionedBy, items, term, terms }
+    return { today, definitions, mentionedBy, items, term, terms, sourceOf }
   }
 
   return {
@@ -235,7 +246,7 @@ export function createCatalogueService(
       const metrics = terms('metric')
       return {
         terms: [...metrics, ...terms('dimension')],
-        sources: data.sources,
+        sources: data.sources.filter((source) => !source.removed).map(withoutRemoved),
         coverage: {
           metrics: metrics.length,
           withoutDomain: metrics.filter((metric) => metric.domain.areaId === null).length,
@@ -246,7 +257,7 @@ export function createCatalogueService(
 
     async get(kind, id) {
       const data = await read()
-      const { today, definitions, mentionedBy, items, term } = build(data)
+      const { today, definitions, mentionedBy, items, term, sourceOf } = build(data)
       const key = `${termKinds[kind]}:${id}`
       const row = data.vocabulary.find((candidate) => candidate.key === key)
       const found = row && term(row)
@@ -281,7 +292,7 @@ export function createCatalogueService(
       return {
         ...found,
         values,
-        source: data.sources.find((source) => source.id === found.definition?.sourceId) ?? null,
+        source: sourceOf(found.definition?.sourceId),
         modelFile: modelFileAddress(setting?.url ?? null, stored?.modelFile ?? null),
         today,
       }

@@ -169,10 +169,14 @@ export class ConnectorService {
         snapshot = undefined
       }
       if (snapshot) {
-        // A ref belongs to one source for good. A member another source already reads stays
-        // with it: this read leaves it out, says so, and is in part, so it marks nothing missing.
+        // A ref belongs to one source for good (CON-117). A member another source already reads
+        // stays with it: this read leaves it out, says so, and is in part, so it marks nothing
+        // missing. Disconnecting a source hands its refs over: the next source to read one
+        // takes it (CON-118).
         const taken = await tx.query<{ ref: string }>(
-          'select ref from definitions where ref = any($1::text[]) and connector_id <> $2 order by ref',
+          `select d.ref from definitions d join connectors c on c.id = d.connector_id
+            where d.ref = any($1::text[]) and d.connector_id <> $2 and c.removed_at is null
+            order by d.ref`,
           [snapshot.definitions.map((definition) => definition.ref), source.id],
         )
         if (taken.length) {
@@ -241,11 +245,14 @@ export class ConnectorService {
           change_mark: string
           area_hint: string | null
           missing_since_snapshot: string | null
+          handed_over: boolean
         }>(
-          'select connector_id,change_mark,area_hint,missing_since_snapshot from definitions where ref=$1',
+          `select d.connector_id, d.change_mark, d.area_hint, d.missing_since_snapshot,
+                  c.removed_at is not null as handed_over
+             from definitions d join connectors c on c.id = d.connector_id where d.ref=$1`,
           [definition.ref],
         )
-        if (previous && previous.connector_id !== source.id)
+        if (previous && previous.connector_id !== source.id && !previous.handed_over)
           throw new Error('Definition belongs to another connector')
         const upserted = await tx.query(
           `insert into definitions
@@ -255,8 +262,10 @@ export class ConnectorService {
              description_copy=excluded.description_copy,value_type=excluded.value_type,visible_groups=null,
              area_hint=excluded.area_hint,change_mark=excluded.change_mark,last_seen_snapshot=excluded.last_seen_snapshot,
              model_file=excluded.model_file,synonyms=excluded.synonyms,base_name=excluded.base_name,
-             missing_since_snapshot=null,renamed_to=null
-             where definitions.connector_id=excluded.connector_id returning ref`,
+             missing_since_snapshot=null,renamed_to=null,connector_id=excluded.connector_id
+             where definitions.connector_id=excluded.connector_id
+                or definitions.connector_id in (select id from connectors where removed_at is not null)
+             returning ref`,
           [
             definition.ref,
             source.id,

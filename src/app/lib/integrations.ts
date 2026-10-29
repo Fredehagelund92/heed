@@ -1,4 +1,4 @@
-import { useSettings, useWrite } from '@/api/queries'
+import { useSettings, useWrite, type WriteInput } from '@/api/queries'
 import type { ConnectorId } from '@/model/integrations'
 
 // Which tools are connected: Cube, Google Drive and the warehouse in the demo world; Markdown in Git
@@ -9,8 +9,11 @@ export const useConnected = (): ConnectorId[] => useSettings().connected
 export function useConnectActions() {
   const write = useWrite()
   return {
-    /** `setup`: connected from the setup checklist, whose last step it is. */
-    connect: (id: ConnectorId, setup?: boolean) => write('connectIntegration', { id, setup }),
-    disconnect: (id: ConnectorId) => write('disconnectIntegration', { id }),
+    /** Connects a tool with what the flow gathered; from the setup checklist, its last step. */
+    connect: (input: WriteInput<'connectIntegration'>) => write('connectIntegration', input),
+    /** Change settings of a connected tool. */
+    change: (input: WriteInput<'changeIntegration'>) => write('changeIntegration', input),
+    /** Disconnects a tool, by its page's id. */
+    disconnect: (id: string) => write('disconnectIntegration', { id }),
   }
 }

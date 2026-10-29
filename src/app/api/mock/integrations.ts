@@ -1,15 +1,218 @@
+import type { SourceSettings } from '@contract/sources'
+import type { ConnectorManifest } from '@domain/connector-manifest'
+import { builtInManifests } from '../../../connectors/manifests'
+import { SERVICE_ACCOUNT, SLUG } from '@/lib/brand'
 import {
+  connectorById,
   connectors,
+  DEFINITIONS_TOOL,
+  type ConnectChoice,
+  type ConnectForm,
   type ConnectorId,
+  type ConnectScope,
+  type ConnectTest,
+  type ConnectValues,
   type IntegrationsView,
   type SourcePage,
 } from '@/model/integrations'
 import { ApiError } from '../errors'
-import { integrationState, sourcePageOf, sources } from './data/integrations'
+import { connectFormOf, connectorOfCatalog } from '../http-integrations'
+import {
+  cubeViews,
+  driveFolders,
+  handbookFolders,
+  integrationState,
+  sourcePageOf,
+  sources,
+} from './data/integrations'
 import type { Address } from './scenario'
 
 /** How long a read the mock runs takes: Read again shows Reading for this long. */
 export const MOCK_READ_MS = 1_200
+
+/** How long Test connection takes on the mock: its checks, one after another. */
+export const MOCK_TEST_MS = 1_500
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/**
+ * The manifest a tool's connect form is drawn from: its connector's. The warehouse has none on
+ * the mock, so its form is the repository one the mockup draws for it.
+ */
+const manifestOf = (id: ConnectorId): ConnectorManifest | undefined =>
+  builtInManifests.find(
+    (m) => m.id === connectorOfCatalog(id === 'warehouse' ? 'markdown-git' : id),
+  )
+
+/** What the demo world's tools are connected with: addresses only, never a secret. */
+const demoConfig: Partial<Record<ConnectorId, Record<string, string>>> = {
+  cube: {
+    repository: 'https://git.example/larchwood/cube-definitions',
+    ref: 'main',
+    folder: 'cube/',
+  },
+  'markdown-git': {
+    repository: 'https://git.example/larchwood/handbook',
+    ref: 'main',
+    folder: 'docs/',
+  },
+  warehouse: {
+    repository: 'https://git.example/larchwood/handbook',
+    ref: 'main',
+    folder: 'docs/',
+  },
+}
+
+/** What each tool's test finds on the mock: the views and folders it may read. */
+const demoScopes = (id: ConnectorId): ConnectScope[] =>
+  id === 'cube'
+    ? cubeViews.map((v) => ({
+        id: v.view,
+        title: v.view,
+        detail: [
+          v.metrics && plural(v.metrics, 'metric'),
+          v.dimensions && plural(v.dimensions, 'dimension'),
+        ]
+          .filter(Boolean)
+          .join(', '),
+        metrics: v.metrics,
+        dimensions: v.dimensions,
+        ...(v.domain ? { domain: v.domain } : {}),
+      }))
+    : id === 'google-drive'
+      ? driveFolders.map((f) => ({
+          id: `${f.folder} / ${f.path}`,
+          title: `${f.folder} / ${f.path}`,
+          detail: plural(f.documents, 'document'),
+          documents: f.documents,
+          domain: f.domain,
+        }))
+      : [
+          {
+            id: 'docs/sales',
+            title: 'docs/sales',
+            detail: '5 files',
+            documents: 5,
+            domain: 'sales',
+          },
+          { id: 'docs/marketing', title: 'docs/marketing', detail: '3 files', documents: 3 },
+          {
+            id: 'docs/people',
+            title: 'docs/people',
+            detail: '1 file',
+            documents: 1,
+            leftOut: 'its file names people, and those are skipped',
+          },
+        ]
+
+/** The checks each tool's test runs on the mock, in the mockup's words. */
+const demoSteps = (id: ConnectorId) =>
+  (id === 'cube'
+    ? ['Reached the repository', 'Signed in with the token', `Found 7 ${DEFINITIONS_TOOL} views`]
+    : id === 'google-drive'
+      ? [
+          'Google accepted the service account',
+          'Found 3 shared folders',
+          'Read 14 Google Docs: titles only',
+        ]
+      : [
+          'Reached the repository',
+          'Signed in with the token',
+          'Found 9 Markdown files in 3 folders',
+        ]
+  ).map((title) => ({ title, status: 'ok' as const }))
+
+/** What a connected tool of the demo world reads, with each one's domain. */
+const demoChosen = (id: ConnectorId): ConnectChoice[] =>
+  id === 'cube'
+    ? cubeViews.map((v) => ({ id: v.view, title: v.view, domain: v.domain ?? null }))
+    : id === 'google-drive'
+      ? driveFolders.map((f) => {
+          const name = `${f.folder} / ${f.path}`
+          return { id: name, title: name, domain: f.domain }
+        })
+      : handbookFolders.map((f) => ({ id: f.folder, title: f.folder, domain: f.domain }))
+
+/** What the connect flow set for a tool this visit: its settings, its choices, its revision. */
+export type Kept = { config: Record<string, string>; chosen: ConnectChoice[]; revision: number }
+
+/**
+ * A tool's connect form on the mock: drawn from its connector's manifest, as on the service, with
+ * what the flow set for it this visit, or the demo world's.
+ */
+export function connectFormFor(
+  id: string,
+  connected: readonly ConnectorId[],
+  kept?: Kept,
+): ConnectForm | null {
+  const tool = connectorById(id)
+  const manifest = tool && !tool.soon ? manifestOf(tool.id) : undefined
+  if (!tool || !manifest) return null
+  const live = connected.includes(tool.id)
+  const config = (live && kept?.config) || (demoConfig[tool.id] ?? {})
+  // A connected tool's settings as the service keeps them; a new one starts from the demo's.
+  const settings: SourceSettings = {
+    id: tool.id,
+    type: manifest.id,
+    name: tool.name,
+    revision: kept?.revision ?? 1,
+    config,
+    secrets: manifest.secrets.map((secret) => ({ key: secret.key, set: live })),
+    scopes: live ? (kept?.chosen ?? demoChosen(tool.id)) : [],
+    schedule: null,
+    nextReadAt: null,
+    changedAt: null,
+    changedBy: null,
+  }
+  const form = connectFormOf(manifest, settings)!
+  return {
+    ...form,
+    connector: tool.id,
+    source: live ? form.source : null,
+    // The demo's key file is already uploaded, as the mockup draws it.
+    secrets: form.secrets.map((secret) =>
+      secret.key === tool.keyFile
+        ? { ...secret, set: true, file: { name: `${SLUG}-reader.json`, account: SERVICE_ACCOUNT } }
+        : secret,
+    ),
+  }
+}
+
+/** Test connection on the mock: the mockup's checks, then what the tool may read. */
+export function testFor(connector: ConnectorId, values: ConnectValues): ConnectTest {
+  const tool = connectorById(connector)
+  const manifest = manifestOf(connector)
+  if (!tool || !manifest) throw new ApiError('not-found', "This tool can't be connected here.")
+  const missing = manifest.config.fields.find(
+    (field) => field.required && !values.config[field.key]?.trim(),
+  )
+  if (missing)
+    return {
+      ok: false,
+      steps: [
+        {
+          title: 'Reach the repository',
+          status: 'failed',
+          detail: `${missing.label} is empty.`,
+          fix: `Give the ${missing.label.toLowerCase()}.`,
+        },
+      ],
+      scopes: [],
+    }
+  return { ok: true, steps: demoSteps(connector), scopes: demoScopes(connector) }
+}
+
+/** What connecting, or changing, takes on the mock: a reason, and a domain for every folder. */
+export function checkConnect(
+  connector: ConnectorId,
+  input: { chosen: readonly ConnectChoice[]; reason: string },
+) {
+  if (!input.reason.trim()) throw new ApiError('invalid', 'Say why you are adding it.')
+  if (connectorById(connector)?.kind !== 'definitions' && !input.chosen.length)
+    throw new ApiError('invalid', 'Choose at least one folder to read.')
+  if (connectorById(connector)?.kind !== 'definitions' && input.chosen.some((c) => !c.domain))
+    throw new ApiError('invalid', 'Choose a domain for each folder.')
+}
 
 // The mock's integrations: the tools connected (Settings' own list, which the connect flow adds
 // to), each as the demo world has it, in the state the address names (?state=) on the

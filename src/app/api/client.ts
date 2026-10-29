@@ -23,9 +23,12 @@ import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
 import type { FigureAsk, FigureReport, FigureView } from '@/model/figures'
 import type {
+  ConnectChoice,
+  ConnectedSource,
+  ConnectForm,
   ConnectorId,
-  CubeView,
-  DriveFolder,
+  ConnectTest,
+  ConnectValues,
   FigureConnection,
   IntegrationsView,
   SourcePage,
@@ -174,12 +177,10 @@ export type Settings = {
 }
 
 /**
- * What the connect flow and the figures read: the views and folders a tool offers to choose from,
- * how each figure-capable integration is reached, and what the warehouse has tables for.
+ * What the figures read: how each figure-capable integration is reached, and what the warehouse
+ * has tables for.
  */
 export type Integrations = {
-  cubeViews: CubeView[]
-  driveFolders: DriveFolder[]
   /** How each figure-capable integration is reached. */
   figureConnections: Partial<Record<ConnectorId, FigureConnection>>
   /** What the warehouse has tables for. It answers none of them: no metric's definition comes from it. */
@@ -514,8 +515,46 @@ export interface HeedApi {
     endpoint: string
     token: string
   }) => Promise<void>
-  connectIntegration: (input: { id: ConnectorId; setup?: boolean }) => Promise<void>
-  disconnectIntegration: (input: { id: ConnectorId }) => Promise<void>
+  /**
+   * The connect flow's form, by the address's id: a connected tool's settings to change (its
+   * page's id), or a tool of the catalog to connect anew; null for neither, or for a tool whoever
+   * runs the server connected, whose settings are theirs.
+   */
+  connectForm: (input: { id: string }) => Promise<ConnectForm | null>
+  /**
+   * Test connection: the tool's check with the form's settings, and what it may read. It keeps
+   * nothing and changes nothing; to change a tool connected, a secret left empty is the stored one.
+   */
+  testIntegration: (
+    input: { connector: ConnectorId; source?: string } & ConnectValues,
+  ) => Promise<ConnectTest>
+  /**
+   * Connects a tool with the form's settings, what was chosen to read with each one's domain, and
+   * why (kept in the history log). Nothing is published by a read. `setup`: from the setup
+   * checklist, whose last step it is.
+   */
+  connectIntegration: (
+    input: {
+      connector: ConnectorId
+      chosen: ConnectChoice[]
+      reason: string
+      setup?: boolean
+    } & ConnectValues,
+  ) => Promise<ConnectedSource>
+  /** Change settings of a connected tool, on the revision its form read; a secret left empty stays. */
+  changeIntegration: (
+    input: {
+      id: string
+      revision: number
+      chosen: ConnectChoice[]
+      reason: string
+    } & ConnectValues,
+  ) => Promise<void>
+  /**
+   * Disconnects a tool, by its page's id: it is read no more and its secrets are forgotten; a
+   * content tool's open suggestions are withdrawn. What it read, and what owners published, stays.
+   */
+  disconnectIntegration: (input: { id: string }) => Promise<void>
   getIntegrations: () => Promise<Integrations>
   /** Settings › Integrations: the tools connected, each with how it is, and what can be connected. */
   integrationsPage: () => Promise<IntegrationsView>
@@ -660,7 +699,10 @@ export const heedApiMethods = [
   'setFigures',
   'setDataContact',
   'setFigureConnection',
+  'connectForm',
+  'testIntegration',
   'connectIntegration',
+  'changeIntegration',
   'disconnectIntegration',
   'getIntegrations',
   'integrationsPage',
@@ -703,6 +745,7 @@ export const pageReads = [
   'advancedPage',
   'integrationsPage',
   'integrationPage',
+  'connectForm',
 ] as const satisfies readonly HeedApiMethod[]
 
 export type PageRead = (typeof pageReads)[number]

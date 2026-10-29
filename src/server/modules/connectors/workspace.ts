@@ -3,6 +3,7 @@ import type {
   AddSourceInput,
   ConnectorListing,
   PauseSourceInput,
+  RemoveSourceInput,
   SourceCheck,
   SourceConfig,
   SourceSettings,
@@ -10,13 +11,12 @@ import type {
   UpdateSourceInput,
 } from '../../../contract/sources.ts'
 import { durationSeconds } from '../../../domain/connector-manifest.ts'
-import type { ChosenScope } from '../../../domain/connector-runtime.ts'
 import { reservedSourceIds, sourceIdFrom } from '../../../domain/source-id.ts'
 import { durationText } from '../../../domain/source-schedule.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
 import { createSourceOverview } from './overview.ts'
-import type { RegisteredConnector } from './platform.ts'
+import { groupOf, type RegisteredConnector, type StoredScope } from './platform.ts'
 import type { ConnectorRegistry } from './registry.ts'
 import { createFigureSources } from './figures.ts'
 import { SecretStoreError, type SecretStore } from './secrets.ts'
@@ -55,7 +55,7 @@ interface Row {
   revision: number
   changed_at: Date | null
   changed_by: string | null
-  scopes: ChosenScope[]
+  scopes: StoredScope[]
   schedule_seconds: number | null
   next_read_at: Date | null
 }
@@ -79,27 +79,54 @@ const invalid = (problems: readonly FieldProblem[]): never => {
   })
 }
 
-/** How many views, metrics and dimensions a read holds, as a test says it. */
+/**
+ * The groups a read found (a Cube view: a member's name up to its last dot), each with what it
+ * holds and the domain the tool names for most of its definitions: what an admin may choose.
+ */
+function groupsOf(snapshot: SourceSnapshot): NonNullable<SourceCheck['scopes']> {
+  const groups = new Map<
+    string,
+    { metrics: number; dimensions: number; domains: Map<string, number> }
+  >()
+  for (const definition of snapshot.definitions) {
+    const name = groupOf(definition.name)
+    if (name === null) continue
+    const group = groups.get(name) ?? { metrics: 0, dimensions: 0, domains: new Map() }
+    if (definition.kind === 'metric') group.metrics++
+    else group.dimensions++
+    if (definition.areaHint !== null)
+      group.domains.set(definition.areaHint, (group.domains.get(definition.areaHint) ?? 0) + 1)
+    groups.set(name, group)
+  }
+  return [...groups]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([name, group]) => ({
+      id: name,
+      title: name,
+      suggestedDomain:
+        [...group.domains].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1))[0]?.[0] ?? null,
+      metrics: group.metrics,
+      dimensions: group.dimensions,
+    }))
+}
+
+/** How many views, metrics and dimensions a read holds, as a test says it, and its groups. */
 function summary(
   snapshot: SourceSnapshot,
   warnings: SourceWarning[],
   steps: SourceCheck['steps'],
 ): SourceCheck {
-  const views = new Set(
-    snapshot.definitions.flatMap((definition) => {
-      const dot = definition.name.lastIndexOf('.')
-      return dot > 0 ? [definition.name.slice(0, dot)] : []
-    }),
-  )
+  const scopes = groupsOf(snapshot)
   return {
     ok: true,
     steps,
     version: snapshot.sourceVersion,
     complete: snapshot.complete && warnings.every((warning) => warning.code !== 'taken'),
-    views: views.size,
+    views: scopes.length,
     metrics: snapshot.definitions.filter((definition) => definition.kind === 'metric').length,
     dimensions: snapshot.definitions.filter((definition) => definition.kind === 'dimension').length,
     warnings: warnings.slice(0, 200),
+    scopes: scopes.slice(0, 200),
   }
 }
 
@@ -230,27 +257,36 @@ export function createWorkspaceSources({
 
   /**
    * The scopes and the schedule, checked: a content source covers at least one scope, each once
-   * and each in a Heed domain (CON-601, CON-602); a definition source has none. A schedule is at
-   * or above its connector's minimum and reads the source before it goes out of date (CON-115).
+   * and each in a Heed domain (CON-601, CON-602); a definitions source reads the groups chosen,
+   * each once and each in a Heed domain or in none, or every group when none is chosen. A
+   * schedule is at or above its connector's minimum and reads the source before it goes out of
+   * date (CON-115).
    */
   async function checkPlan(
     tx: Queryable,
     connector: RegisteredConnector,
-    scopes: readonly ChosenScope[],
+    scopes: readonly StoredScope[],
     schedule: string | null,
-  ): Promise<{ scopes: ChosenScope[]; scheduleSeconds: number | null }> {
+  ): Promise<{ scopes: StoredScope[]; scheduleSeconds: number | null }> {
     const { manifest } = connector
     const problems: FieldProblem[] = []
-    if (manifest.kind === 'definitions' && scopes.length)
-      problems.push({ field: 'scopes', message: 'A definitions source reads all it can see.' })
-    if (manifest.kind === 'content' && !scopes.length)
+    const content = manifest.kind === 'content'
+    if (content && !scopes.length)
       problems.push({
         field: 'scopes',
         message: 'Choose at least one folder to read, and the domain its documents go to.',
       })
+    if (content && scopes.some((scope) => scope.domain === null))
+      problems.push({
+        field: 'scopes',
+        message: 'Choose a domain for each folder.',
+      })
     if (new Set(scopes.map((scope) => scope.id)).size !== scopes.length)
-      problems.push({ field: 'scopes', message: 'Choose each folder once.' })
-    const domains = [...new Set(scopes.map((scope) => scope.domain))]
+      problems.push({
+        field: 'scopes',
+        message: content ? 'Choose each folder once.' : 'Choose each view once.',
+      })
+    const domains = [...new Set(scopes.flatMap((scope) => scope.domain ?? []))]
     if (domains.length) {
       const found = await tx.query<{ id: string }>(
         'select id from areas where id = any($1::text[]) and archived_at is null',
@@ -283,7 +319,8 @@ export function createWorkspaceSources({
 
   async function workspaceRow(tx: Queryable, id: string, lock = false): Promise<Row | null> {
     const [row] = await tx.query<Row>(
-      `select ${columns} from connectors where id = $1 and origin = 'workspace'${lock ? ' for update' : ''}`,
+      `select ${columns} from connectors
+        where id = $1 and origin = 'workspace' and removed_at is null${lock ? ' for update' : ''}`,
       [id],
     )
     return row ?? null
@@ -301,14 +338,38 @@ export function createWorkspaceSources({
     } catch (error) {
       return failed(error instanceof SourceReadError ? error.warnings : [], steps)
     }
+    // What a disconnected source read is handed over to the next that reads it (CON-118).
     const taken = await tx.query<{ ref: string }>(
-      `select ref from definitions where ref = any($1::text[]) and connector_id <> $2 order by ref`,
+      `select d.ref from definitions d join connectors c on c.id = d.connector_id
+        where d.ref = any($1::text[]) and d.connector_id <> $2 and c.removed_at is null
+        order by d.ref`,
       [snapshot.definitions.map((definition) => definition.ref), source.id],
     )
-    return summary(
+    const check = summary(
       snapshot,
       [...snapshot.warnings, ...taken.map(({ ref }) => ({ code: 'taken' as const, target: ref }))],
       steps,
+    )
+    return { ...check, scopes: await suggestingDomains(tx, check.scopes ?? []) }
+  }
+
+  /** What may be chosen, each suggesting a domain only when it is one of this workspace's. */
+  async function suggestingDomains<T extends { suggestedDomain: string | null }>(
+    tx: Queryable,
+    scopes: readonly T[],
+  ): Promise<T[]> {
+    const named = [...new Set(scopes.flatMap((scope) => scope.suggestedDomain ?? []))]
+    const found = named.length
+      ? await tx.query<{ id: string }>(
+          'select id from areas where id = any($1::text[]) and archived_at is null',
+          [named],
+        )
+      : []
+    const known = new Set(found.map((row) => row.id))
+    return scopes.map((scope) =>
+      scope.suggestedDomain === null || known.has(scope.suggestedDomain)
+        ? scope
+        : { ...scope, suggestedDomain: null },
     )
   }
 
@@ -485,6 +546,61 @@ export function createWorkspaceSources({
     },
 
     /**
+     * Disconnect (CON-118): the source is read no more and leaves the integrations' list. Its
+     * secrets, its own and its figures' token, leave the store once this commits; what it read
+     * stays, and so does its row, which its reads, suggestions and definitions name. The caller
+     * withdraws a content source's open suggestions after the commit, as the source.
+     */
+    async remove(
+      tx: Queryable,
+      input: RemoveSourceInput,
+      hooks: TransactionHooks,
+    ): Promise<{ id: string; kind: 'definitions' | 'content' }> {
+      plainReason(input.reason)
+      const row = await workspaceRow(tx, input.id, true)
+      if (!row)
+        throw new ORPCError('NOT_FOUND', {
+          message: "We couldn't find this source among the ones an admin added.",
+        })
+      const [before] = await tx.query<{ kind: string; figures_ref: string | null }>(
+        `select kind::text as kind, capabilities #>> '{figures,secretRef}' as figures_ref
+           from connectors where id = $1`,
+        [row.id],
+      )
+      await tx.query(
+        `update connectors set enabled = false, secret_ref = null, next_read_at = null,
+           removed_at = now(), removed_by = cl_person(),
+           -- Figures in Ask stop with it, and forget their token.
+           capabilities = case when capabilities ? 'figures'
+             then jsonb_set(capabilities #- '{figures,secretRef}', '{figures,enabled}', 'false')
+             else capabilities end
+         where id = $1`,
+        [row.id],
+      )
+      for (const ref of [row.secret_ref, before?.figures_ref ?? null])
+        if (ref) hooks.onCommit(() => secrets.remove(ref))
+      const connector = typeOf(row.type)
+      await recordAudit(tx, {
+        action: 'source.removed',
+        subjectType: 'source',
+        subjectId: row.id,
+        details: {
+          type: row.type,
+          ...(connector ? { version: connector.manifest.version } : {}),
+          name: row.name,
+          secrets: Object.fromEntries(
+            [
+              ...(row.secret_ref && connector ? secretKeys(connector) : []),
+              ...(before?.figures_ref ? ['figuresToken'] : []),
+            ].map((key) => [key, 'removed']),
+          ),
+          reason: input.reason,
+        },
+      })
+      return { id: row.id, kind: before?.kind === 'context_source' ? 'content' : 'definitions' }
+    },
+
+    /**
      * Runs the connector's check with the settings of the form, then reads the source once,
      * keeping nothing. With an id, a secret left out of the form is the one in the store.
      */
@@ -527,7 +643,7 @@ export function createWorkspaceSources({
       // A content connector says what it may cover; nothing is read or drafted (CON-604).
       if (connector!.manifest.kind === 'content') {
         try {
-          const scopes = (await connector!.discover?.(settings)) ?? []
+          const scopes = await suggestingDomains(tx, (await connector!.discover?.(settings)) ?? [])
           return { ...failed([], steps), ok: true, scopes }
         } catch (error) {
           return failed(error instanceof SourceReadError ? error.warnings : [], steps)

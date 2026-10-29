@@ -6,6 +6,7 @@
 import type { ConnectorManifest } from '@domain/connector-manifest'
 import type {
   SourceActivity,
+  SourceCheck,
   SourceDocumentState,
   SourceReadEntry,
   SourceRow,
@@ -13,7 +14,11 @@ import type {
 } from '@contract/sources'
 import type {
   Activity,
+  ConnectChoice,
+  ConnectField,
+  ConnectForm,
   ConnectorId,
+  ConnectTest,
   DocState,
   DriveDocument,
   DriveFolder,
@@ -99,12 +104,17 @@ const FAILURES: Record<string, string> = {
   private_address: 'its address is not one it may reach',
 }
 
-export function failureOf(read: SourceReadEntry): string {
-  for (const warning of read.warnings) {
+/** Why a read failed, by the first of its warnings that says so. */
+const failureWords = (warnings: readonly { code: string }[]) => {
+  for (const warning of warnings) {
     const words = FAILURES[warning.code]
     if (words) return words
   }
   return "it couldn't be read"
+}
+
+export function failureOf(read: SourceReadEntry): string {
+  return failureWords(read.warnings)
 }
 
 /** Why a document was not offered. */
@@ -395,3 +405,135 @@ export function sourcePageOf(
     connection: connectionOf(settings, manifest),
   }
 }
+
+/* ---------- the connect flow and Change settings ---------- */
+
+/** The kinds of setting the connect form draws: words, an address, a branch, a folder. */
+const formKinds: readonly string[] = ['text', 'address', 'path', 'ref']
+
+/**
+ * A tool's connect form from its connector's manifest: its settings, with what is set or their
+ * defaults, and its secrets, each only as set or not (never their value). With a source's
+ * settings, it is that source's Change settings; without, a new connection.
+ */
+export function connectFormOf(
+  manifest: Pick<
+    ConnectorManifest,
+    'id' | 'kind' | 'config' | 'secrets' | 'schedule' | 'staleAfter' | 'limits'
+  >,
+  settings: SourceSettings | null,
+): ConnectForm | null {
+  const connector = catalogOf[manifest.id]
+  if (!connector) return null
+  const fields = manifest.config.fields.flatMap((field): ConnectField[] => {
+    if (!formKinds.includes(field.kind)) return []
+    const set = settings?.config[field.key]
+    // A new connection starts from the manifest's default; a source's form from what it has.
+    const value =
+      typeof set === 'string' || typeof set === 'number'
+        ? String(set)
+        : !settings && typeof field.default === 'string'
+          ? field.default
+          : ''
+    return [
+      {
+        key: field.key,
+        kind: field.kind as ConnectField['kind'],
+        label: field.label,
+        description: field.description,
+        ...(field.placeholder ? { placeholder: field.placeholder } : {}),
+        required: field.required ?? false,
+        advanced: field.advanced ?? false,
+        value,
+      },
+    ]
+  })
+  return {
+    connector,
+    source: settings ? { id: settings.id, revision: settings.revision } : null,
+    fields,
+    secrets: manifest.secrets.map((secret) => ({
+      key: secret.key,
+      label: secret.label,
+      description: secret.description,
+      required: secret.required ?? false,
+      set: settings?.secrets.find((s) => s.key === secret.key)?.set ?? false,
+    })),
+    every: everyWords(settings?.schedule ?? manifest.schedule.default),
+    staleAfter: durationWords(manifest.staleAfter),
+    perDay: manifest.kind === 'content' ? (manifest.limits.draftsPerDay ?? null) : null,
+    chosen: (settings?.scopes ?? []).map((scope) => ({
+      id: scope.id,
+      title: scope.title,
+      domain: scope.domain,
+    })),
+  }
+}
+
+/** What Test connection found, in the flow's words: the check's steps, and what may be read. */
+export function connectTestOf(check: SourceCheck): ConnectTest {
+  const scopes = (check.scopes ?? []).map((scope) => {
+    const holds =
+      scope.metrics === undefined && scope.dimensions === undefined
+        ? ''
+        : [
+            scope.metrics ? plural(scope.metrics, 'metric') : '',
+            scope.dimensions ? plural(scope.dimensions, 'dimension') : '',
+          ]
+            .filter(Boolean)
+            .join(', ')
+    return {
+      id: scope.id,
+      title: scope.title,
+      detail: holds,
+      ...(scope.metrics === undefined ? {} : { metrics: scope.metrics }),
+      ...(scope.dimensions === undefined ? {} : { dimensions: scope.dimensions }),
+      ...(scope.suggestedDomain ? { domain: scope.suggestedDomain } : {}),
+    }
+  })
+  const steps = check.steps.map((step) => ({
+    title: step.title,
+    status: step.status,
+    ...(step.detail ? { detail: step.detail } : {}),
+    ...(step.fix ? { fix: step.fix } : {}),
+  }))
+  const said = steps.some((step) => step.status === 'failed')
+  return {
+    ok: check.ok,
+    steps,
+    scopes: check.ok ? scopes : [],
+    ...(check.ok || said
+      ? {}
+      : { failure: `It couldn't be read: ${failureWords(check.warnings)}.` }),
+  }
+}
+
+/** The form's settings as the service keeps them: each one written, trimmed; none left empty. */
+export function configOf(config: Readonly<Record<string, string>>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(config).flatMap(([key, value]) => (value.trim() ? [[key, value.trim()]] : [])),
+  )
+}
+
+/**
+ * Change settings' settings: the source's own, with each the form draws as the form says it; a
+ * setting the form does not draw (a map of domain names) stays as it was.
+ */
+export function changedConfigOf(
+  before: SourceSettings['config'],
+  form: Readonly<Record<string, string>>,
+): SourceSettings['config'] {
+  const config = { ...before }
+  for (const [key, value] of Object.entries(form))
+    if (value.trim()) config[key] = value.trim()
+    else delete config[key]
+  return config
+}
+
+/** The secrets written in the form; one left empty is not sent, so the stored one stays. */
+export const secretsOf = (secrets: Readonly<Record<string, string>>): Record<string, string> =>
+  Object.fromEntries(Object.entries(secrets).filter(([, value]) => value !== ''))
+
+/** What was chosen to read, as the service keeps it: each with its domain, or none. */
+export const scopesOf = (chosen: readonly ConnectChoice[]) =>
+  chosen.map((choice) => ({ id: choice.id, title: choice.title, domain: choice.domain }))

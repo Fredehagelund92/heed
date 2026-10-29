@@ -200,24 +200,26 @@ queues a read. The source's page shows its settings, each secret only as set or 
 **Change settings** opens the same form filled in; a secret left empty keeps the one the store
 holds, and a new one replaces it.
 
-| Operation          | Path                         | What it does                                                                                                           |
-| ------------------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `sources.types`    | `GET /sources/types`         | The connectors an administrator may add a source of: each manifest, and the interface it was written to                |
-| `sources.get`      | `GET /sources/{id}`          | An added source's settings, and for each secret whether it is set (404 for the server's own)                           |
-| `sources.add`      | `POST /sources`              | Adds one with its settings, secrets and reason; needs an `Idempotency-Key`                                             |
-| `sources.update`   | `PUT /sources/{id}`          | Changes one on the revision read (409 when stale), with a reason; a secret left out is kept                            |
-| `sources.test`     | `POST /sources/test`         | The connector's check, then one read with these settings, kept nowhere; with `id`, a secret left out is the stored one |
-| `sources.list`     | `GET /sources`               | Every source, the server's own first: its connector, how it is, when it was read and is read next, and what it holds   |
-| `sources.activity` | `GET /sources/{id}/activity` | A source's reads, newest first, codes and counts only; what it reads, with each part's domain; its recent documents    |
-| `sources.pause`    | `PUT /sources/{id}/paused`   | Pauses reading a source, or lets it go on, with a reason; the server's own too                                         |
+| Operation          | Path                            | What it does                                                                                                           |
+| ------------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `sources.types`    | `GET /sources/types`            | The connectors an administrator may add a source of: each manifest, and the interface it was written to                |
+| `sources.get`      | `GET /sources/{id}`             | An added source's settings, and for each secret whether it is set (404 for the server's own)                           |
+| `sources.add`      | `POST /sources`                 | Adds one with its settings, secrets and reason; needs an `Idempotency-Key`                                             |
+| `sources.update`   | `PUT /sources/{id}`             | Changes one on the revision read (409 when stale), with a reason; a secret left out is kept                            |
+| `sources.test`     | `POST /sources/test`            | The connector's check, then one read with these settings, kept nowhere; with `id`, a secret left out is the stored one |
+| `sources.list`     | `GET /sources`                  | Every source, the server's own first: its connector, how it is, when it was read and is read next, and what it holds   |
+| `sources.activity` | `GET /sources/{id}/activity`    | A source's reads, newest first, codes and counts only; what it reads, with each part's domain; its recent documents    |
+| `sources.pause`    | `PUT /sources/{id}/paused`      | Pauses reading a source, or lets it go on, with a reason; the server's own too                                         |
+| `sources.remove`   | `POST /sources/{id}/disconnect` | Disconnects an added source, with a reason: read no more, its secrets removed, its open suggestions withdrawn          |
 
 Every operation is for administrators; the service refuses anyone else (403) whatever the screen
 shows. Settings with problems are refused (422) with a finding per field: an address that is not
 https (plain http only to this machine), credentials in an address, a ref git could read as an
 option or a range, a folder that leaves the repository, a domain name that is not a Heed domain,
 and a secret pasted into another field. Changes are kept in the history log (`source.added`,
-`source.changed`, `source.paused`, `source.resumed`) with the settings and, for each secret, only
-`set` or `replaced`.
+`source.changed`, `source.paused`, `source.resumed`, `source.removed`) with the settings and, for
+each secret, only `set`, `replaced` or `removed`. A source added or changed is read at once: the
+change makes it due, and the job runs once it commits.
 
 Settings › Integrations in the new web app reads `sources.list` for its rows: a source is
 **Paused** when an admin paused it, **Reading** while a read it was asked for (Read again, or a
@@ -233,6 +235,29 @@ warnings by code with how many times each and never their targets, what it reads
 source's last 20 documents, never their text (CON-605). A paused source is left out by the job
 and refused by Read again (409); resuming one past its next read reads it at the job's next
 turn.
+
+**Connect** is five steps on a full page, drawn from the connector's manifest (CON-112): **Pick**
+says what the tool will hold and never hold; **Connect** is the manifest's form, its secrets as
+password fields (Google Drive's key as a file, whose service account address the page shows to
+share folders with), and **Test connection** (`sources.test`), which must pass before the flow
+goes on; **Choose** lists what the test found (a content source's folders, a definitions
+source's views with their metrics and dimensions); **Map** gives each one domain, which every
+folder needs and a view may go without; **Schedule** says how often it is read, what a read does,
+and asks why. The source is named after its tool. **Change settings** is the same steps, filled in
+from `sources.get`: a secret left empty keeps the stored one, and the test runs with it. A
+definitions source whose views are all chosen, each in the domain the tool names, keeps none
+chosen, so a view the model adds later is read too. The server's own sources offer neither:
+their settings are whoever runs the server's.
+
+**Disconnect** (CON-118, `sources.remove`) ends a source an admin added: it is switched off for
+good, its secrets (and its figures' token) leave the store once the change commits, and it leaves
+Integrations; settings, reads, Read again, Pause and a second Disconnect find nothing (404). Its row
+stays (`connectors.removed_at`, `removed_by`, migration 0027), since its reads, suggestions and
+definitions name it. A content source's open suggestions are withdrawn as the source, in a
+transaction of its own after the change commits (the job finishes any it could not); what owners
+published stays. A definitions source's definitions stay as they were, unflagged, and its refs
+are handed over (CON-117): the next source that reads one takes it, so connecting the tool again
+reads it whole.
 
 The settings are `connectors.config` (addresses and names only), the row says `origin =
 'workspace'`, and `secret_ref` names the source's entry in the secret store. A
@@ -520,24 +545,24 @@ capabilities a manifest declares:
 The first slices of interface 3.0 are in this build. The rest of this section is decided and
 comes in the next slices ([what the next slices build](#what-the-next-slices-build)).
 
-| Part                 | Where                                                      | Status                                                                                                                                                                                      |
-| -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manifest             | `src/domain/connector-manifest.ts`                         | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `src/domain/define-manifest.ts`                                                           |
-| Settings form        | `src/domain/connector-config.ts`                           | Built: every field kind, checked the same way in the form and in the service                                                                                                                |
-| Runtime and messages | `src/domain/connector-runtime.ts`                          | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                                                                                    |
-| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; the server's own sources beside them                                                                                                   |
-| Built-in connectors  | `src/connectors/`                                          | Built: the list, Cube (`cube`, stable), the static list of definitions (`static-definitions`, experimental), Markdown in Git (`git-markdown`, beta) and Google Drive (`google-drive`, beta) |
-| Workers (T1)         | `src/server/modules/connectors/worker.ts`                  | Built: `ctx.worker`, a connector's own worker in a child process under Node's permission model; Cube's compiler is the first                                                                |
-| Sources              | Administration › Sources                                   | Built: Add a connector, a form from the manifest, the check step by step, status, last read and errors on the source's page                                                                 |
-| Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                                                 |
-| Content pipeline     | `src/server/modules/connectors/content.ts`                 | Built: documents to suggestions, one per document, grouped by the read, never published; full reads, and reads from a cursor with tombstones ([content sources](#content-sources))          |
-| Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built for content: Test connection lists the scopes, an admin maps each to a domain, and every read gets them                                                                               |
-| Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                             |
-| Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                         |
-| Integrations         | Settings › Integrations (`src/app/pages/integrations.tsx`) | Built in part: the rows and cells, a source's page with its health, reads, documents and settings, Read again and Pause reading; the five-step connect comes next                           |
-| Figures              | `src/server/modules/connectors/figures.ts`, `platform.ts`  | Built: the `figures` capability on a definitions connector, Cube's `figure` (REST `/v1/load`), the settings on the source, `figures.read` ([figures in Ask](#figures-in-ask))               |
-| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, secret and figure checks, run against every built-in connector                |
-| Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                          |
+| Part                 | Where                                                      | Status                                                                                                                                                                                       |
+| -------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manifest             | `src/domain/connector-manifest.ts`                         | Built: the schema, `checkManifest`, `checkManifests` and the interface range; `defineManifest` in `src/domain/define-manifest.ts`                                                            |
+| Settings form        | `src/domain/connector-config.ts`                           | Built: every field kind, checked the same way in the form and in the service                                                                                                                 |
+| Runtime and messages | `src/domain/connector-runtime.ts`                          | Built: the types, the message schemas, `SourceError`, `defineRuntime`, `defineConnector`                                                                                                     |
+| Registry             | `src/server/modules/connectors/registry.ts`, `platform.ts` | Built: manifest and runtime pairs, checked at start; the server's own sources beside them                                                                                                    |
+| Built-in connectors  | `src/connectors/`                                          | Built: the list, Cube (`cube`, stable), the static list of definitions (`static-definitions`, experimental), Markdown in Git (`git-markdown`, beta) and Google Drive (`google-drive`, beta)  |
+| Workers (T1)         | `src/server/modules/connectors/worker.ts`                  | Built: `ctx.worker`, a connector's own worker in a child process under Node's permission model; Cube's compiler is the first                                                                 |
+| Sources              | Administration › Sources                                   | Built: Add a connector, a form from the manifest, the check step by step, status, last read and errors on the source's page                                                                  |
+| Definitions pipeline | `ConnectorService.syncSource`                              | Built for interface 3 runtimes: a read's messages are checked and gathered into one snapshot, and interface 2's rules apply                                                                  |
+| Content pipeline     | `src/server/modules/connectors/content.ts`                 | Built: documents to suggestions, one per document, grouped by the read, never published; full reads, and reads from a cursor with tombstones ([content sources](#content-sources))           |
+| Scopes, discover     | `platform.ts`, `workspace.ts`                              | Built: a content connector's scopes from discover, a definitions source's groups from the test's read; an admin maps each to a domain, and every read gets them                              |
+| Git                  | `src/server/modules/connectors/egress-git.ts`              | Built: `ctx.git`, interface 2's Git fetch behind the manifest's declared repository and the secrets bound to it                                                                              |
+| Schedules and health | `src/domain/source-schedule.ts`, `job.ts`                  | Built: each source's own schedule at or above its connector's minimum, backoff for a `transient` failure, `staleAfter` from the manifest, Read again for one source                          |
+| Integrations         | Settings › Integrations (`src/app/pages/integrations.tsx`) | Built: the rows and cells, a source's page with its health, reads, documents and settings, Read again, Pause reading, the five-step connect on the manifests, Change settings and Disconnect |
+| Figures              | `src/server/modules/connectors/figures.ts`, `platform.ts`  | Built: the `figures` capability on a definitions connector, Cube's `figure` (REST `/v1/load`), the settings on the source, `figures.read` ([figures in Ask](#figures-in-ask))                |
+| Conformance kit      | `tests/server/connectors/kit.ts`                           | Built in part: the manifest, form, check, read, determinism, partial read, calculation, cursor and tombstone, secret and figure checks, run against every built-in connector                 |
+| Packages             |                                                            | Decided, later ([Connectors as packages](connectors/packaging.md))                                                                                                                           |
 
 Where the build differs from the decided text above:
 
@@ -588,7 +613,10 @@ Where the build differs from the decided text above:
   `invalid_output`, since its message could hold what was read.
 - **The definitions pipeline** is interface 2's: a read is gathered into its snapshot and stored
   by `ConnectorService.syncSource`, with every rule of [what the core does with a
-  read](#what-the-core-does-with-a-read). The core still calls a domain from the tool `cube`
+  read](#what-the-core-does-with-a-read). A source with groups chosen (its scopes, each a group
+  with a domain or none) keeps only those: each definition of a chosen group takes the domain an
+  admin mapped it to (`domain_override`) or none, and a group left out is not read, so a complete
+  read marks its definitions missing. With none chosen it keeps every group, as the tool gives it. The core still calls a domain from the tool `cube`
   there and in the API (`domainSource`, and the coverage it counts), so a runtime's `source` is
   stored as that.
 - **Cube** is one connector, `cube`, for a model in a Git repository an administrator adds and
@@ -627,11 +655,11 @@ into a read-only token at a sign-in host the manifest declares, documents export
 now and then (`deletions: 'both'`), with the core choosing which by the cursor it hands
 ([content sources](#full-reads-and-reads-from-a-cursor)).
 
-Slice 5, the screens, is built in part: the Integrations pages of the new web app read the
-service (`sources.list`, `sources.activity`), with Read again and Pause reading. The Figures section
-of a definitions integration's page is on the service too ([figures in Ask](#figures-in-ask)). What
-remains: the five-step connect (Pick, Connect, Choose, Map, Schedule) drawn from the manifests,
-Change settings and Disconnect.
+Slice 5, the screens, is built: the Integrations pages of the new web app read the service
+(`sources.list`, `sources.activity`), with Read again and Pause reading, the five-step connect
+(Pick, Connect, Choose, Map, Schedule) drawn from the manifests, Change settings and Disconnect
+([sources an administrator adds](#sources-an-administrator-adds)). The Figures section of a
+definitions integration's page is on the service too ([figures in Ask](#figures-in-ask)).
 
 ### Figures in Ask
 
@@ -675,7 +703,7 @@ An admin adds a content source like any other, with its scopes: **Test connectio
 connector's check, then lists the scopes it may cover (`discover`), each with the domain it most
 likely belongs to, and reads nothing. The admin chooses at least one scope and maps each to one
 Heed domain (CON-602); **Add** saves them on the source (`connectors.scopes`). A change to the
-scopes applies from the next read. The source's form says that who may read a document is not
+scopes applies from the next read. **Disconnect** withdraws its open suggestions (CON-118). The source's form says that who may read a document is not
 copied (CON-610).
 
 ### What a read does
