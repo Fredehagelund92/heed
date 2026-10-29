@@ -276,6 +276,7 @@ const VERBS: Record<string, string> = {
   accepted: 'Published',
   rejected: 'Returned',
   withdrawn: 'Withdrew',
+  withdrawal_taken_back: 'Took back the withdrawal of',
   connected: 'Connected',
   disconnected: 'Disconnected',
   revoked: 'Ended',

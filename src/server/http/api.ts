@@ -102,6 +102,7 @@ import {
   createInvites,
   listInvites,
   listMembers,
+  memberActivity,
   lookupInvite,
   type OidcSignIn,
   removeMember,
@@ -445,6 +446,11 @@ export function createRouter({
       return: authorized.review.return.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'review.return', input, () =>
           context.path.returnWithNote(input),
+        ),
+      ),
+      close: authorized.review.close.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'review.close', input, () =>
+          context.path.close(input),
         ),
       ),
       publishRead: authorized.review.publishRead.handler(async ({ context, input }) => {
@@ -1012,6 +1018,9 @@ export function createRouter({
     },
     members: {
       list: authorized.members.list.handler(({ context }) => listMembers(context.tx)),
+      activity: authorized.members.activity.handler(({ context, input }) =>
+        memberActivity(context.tx, input),
+      ),
       setRole: authorized.members.setRole.handler(({ context, input }) =>
         setMemberRole(context.tx, input),
       ),
@@ -1122,6 +1131,11 @@ export function createRouter({
       remove: authorized.comments.remove.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'comments.remove', input, () =>
           context.comments.remove(input),
+        ),
+      ),
+      withdraw: authorized.comments.withdraw.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'comments.withdraw', input, () =>
+          context.comments.withdraw(input),
         ),
       ),
       markMentionsRead: authorized.comments.markMentionsRead.handler(({ context, input }) =>

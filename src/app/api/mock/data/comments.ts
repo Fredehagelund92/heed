@@ -36,6 +36,7 @@ export const seedComments: Partial<Record<Subject, CommentItem[]>> = {
           author: 'Lars Dahl',
           when: 'Today, 08:50',
           content: text(LARS_REPLY),
+          withdrew: true,
         },
       ],
     },

@@ -76,13 +76,8 @@ export const place = (id: string) => `${queue().indexOf(id) + 1} of ${queue().le
 export const claimsToCheck = (id: 'sug-agent') =>
   (http ? { 'sug-agent': 4 } : { 'sug-agent': 2 })[id]
 
-/**
- * How the queue ends in each mode once every suggestion is decided. The mock closes Lars's
- * withdrawn retirement; on the service, which keeps no withdrawal in the comments yet (P9c), it is
- * archived.
- */
-export const allHandled = () =>
-  http ? '10 published, 1 returned, 1 archived.' : '10 published, 1 returned, 1 closed.'
+/** How the queue ends once every suggestion is decided: Lars's withdrawn retirement is closed. */
+export const allHandled = '10 published, 1 returned, 1 closed.'
 
 /** A mock domain's id in this mode: the service names Sales `area_sales`. */
 export const domain = (id: string) => (http ? `area_${id}` : id)
@@ -582,20 +577,25 @@ async function decideAllBut(page: Page, keep: string) {
             headers,
             data: { revision, note: 'Which provider page says two days?' },
           })
-        : await page.request.post(`/api/v1/review/${proposal}/publish`, {
-            headers,
-            data: {
-              revision,
-              ...(sheet.clashes.length
-                ? {
-                    relations: sheet.clashes.map((c) => ({
-                      itemId: c.itemId,
-                      relation: 'disagrees',
-                    })),
-                  }
-                : {}),
-            },
-          })
+        : id === 'sug-lars-retire'
+          ? await page.request.post(`/api/v1/review/${proposal}/close`, {
+              headers,
+              data: { revision },
+            })
+          : await page.request.post(`/api/v1/review/${proposal}/publish`, {
+              headers,
+              data: {
+                revision,
+                ...(sheet.clashes.length
+                  ? {
+                      relations: sheet.clashes.map((c) => ({
+                        itemId: c.itemId,
+                        relation: 'disagrees',
+                      })),
+                    }
+                  : {}),
+              },
+            })
     if (!decided.ok()) throw new Error(`Could not decide ${id}: ${await decided.text()}`)
   }
 }

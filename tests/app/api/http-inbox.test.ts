@@ -462,6 +462,7 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
   synced: null,
   gapId: null,
   note: 'The returns team started its own test accounts in October.',
+  withdrawn: null,
   diff: {
     mode: 'edit',
     blocks: [],

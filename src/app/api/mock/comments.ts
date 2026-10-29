@@ -83,13 +83,15 @@ export function createComments() {
     )
   }
 
-  const read = (): Comments => ({
+  /** The threads, with where the reader may take back what a thread hangs on: the caller knows. */
+  const read = (withdrawable: Comments['withdrawable'] = {}): Comments => ({
     threads: state.comments,
     reactions: state.reactions,
     newReplies: Object.fromEntries(
       Object.entries(newReplies).filter(([subject]) => !state.seen[subject as Subject]),
     ),
     mentionSeen: state.mentionSeen,
+    withdrawable,
   })
 
   const seenMention = (subject: Subject, person: string) => {
@@ -157,6 +159,26 @@ export function createComments() {
     remove(subject: Subject, id: string, who: string) {
       own(subject, id, who)
       drop(subject, id)
+    },
+    /**
+     * Marks the writer's own comment as taking back what the thread hangs on, or takes the mark
+     * back. One comment of a thread holds it: marking another moves it there.
+     */
+    withdraw(subject: Subject, id: string, who: string, withdrew: boolean) {
+      own(subject, id, who)
+      at(subject, (list) =>
+        list.map((c) => {
+          const mark = (x: CommentItem) =>
+            x.id === id ? { ...x, withdrew } : withdrew ? { ...x, withdrew: false } : x
+          return { ...mark(c), replies: c.replies?.map(mark) }
+        }),
+      )
+    },
+    /** The comment that took back what the thread hangs on, by the person who sent it. */
+    withdrawal(subject: Subject, sender: string) {
+      return (state.comments[subject] ?? [])
+        .flatMap((c) => [c, ...(c.replies ?? [])])
+        .find((c) => c.withdrew && !c.deleted && c.author === sender)
     },
     /** Undoing a return takes its note away, unless it is gone already. */
     unpost(subject: Subject, id: string) {

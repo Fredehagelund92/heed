@@ -374,9 +374,14 @@ function PersonSheet({
             </ul>
           </section>
           <section className="p-4">
-            <p className="text-sm font-medium">Lately</p>
+            <p id="person-lately" className="text-sm font-medium">
+              Lately
+            </p>
             {recent.length ? (
-              <ul className="mt-2 flex flex-col gap-1.5 text-sm text-muted-foreground">
+              <ul
+                aria-labelledby="person-lately"
+                className="mt-2 flex flex-col gap-1.5 text-sm text-muted-foreground"
+              >
                 {recent.map((r) => (
                   <li key={r.what} className="flex gap-2">
                     <span className="min-w-0 flex-1 truncate">{r.what}</span>

@@ -326,6 +326,22 @@
         }
       }
     },
+    "close": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/{id}/close",
+          "tags": [
+            "review"
+          ],
+          "summary": "Closes a suggestion to archive that its sender took back in the comments: nothing changes, and the context item stays live; answers with a token that undoes it"
+        }
+      }
+    },
     "publishRead": {
       "~orpc": {
         "errorMap": {},
@@ -2169,6 +2185,22 @@
         }
       }
     },
+    "activity": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/members/{personId}/activity",
+          "tags": [
+            "roles"
+          ],
+          "summary": "What someone did lately, as People shows it: the context items they checked last, newest first, of those the reader may read"
+        }
+      }
+    },
     "setRole": {
       "~orpc": {
         "errorMap": {},
@@ -2639,6 +2671,22 @@
             "comments"
           ],
           "summary": "Deletes a comment, its author only: one something answers keeps its place without its words, one nobody answered goes"
+        }
+      }
+    },
+    "withdraw": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/comments/{id}/withdraw",
+          "tags": [
+            "comments"
+          ],
+          "summary": "Marks one's own comment on a suggestion to archive, while it waits, as taking it back, or takes the mark back: its owners see it in the review and close it or archive anyway"
         }
       }
     },

@@ -23,6 +23,8 @@ export interface CommentReply {
   deleted?: boolean
   /** "Return with a note" posts the note as a comment with this mark. */
   returned?: boolean
+  /** Its writer took back their suggestion to archive with it. */
+  withdrew?: boolean
 }
 
 export interface CommentItem extends CommentReply {

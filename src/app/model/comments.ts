@@ -18,6 +18,11 @@ export type Comments = {
   newReplies: Partial<Record<Subject, NewReply>>
   /** `${subject}|${person}`: the person has read the comments that mention them there. */
   mentionSeen: Partial<Record<string, boolean>>
+  /**
+   * The threads where the person may take back what they hang on with a comment of theirs: a
+   * suggestion to archive they sent, while it waits.
+   */
+  withdrawable: Partial<Record<Subject, boolean>>
 }
 
 /** A comment that mentions someone, as their Inbox shows it. */

@@ -14,6 +14,7 @@ import {
   type ReactionEmoji,
 } from '../../../domain/comments.ts'
 import type { Queryable } from '../../db/database.ts'
+import { proposalEvent } from '../proposals/index.ts'
 
 /*
   Comments, reactions and mentions (FR-817; docs/product.md, sections 4 and 9). A thread hangs on
@@ -21,6 +22,10 @@ import type { Queryable } from '../../db/database.ts'
   row security says the same (db/migrations/0007_comments.sql). People change and delete only their
   own words. A mention of a person is kept beside the comment, so their Inbox shows it until they
   read it; a reply since someone last opened a thread they take part in is new to them.
+
+  The person who suggested archiving a context item may mark a comment of theirs on it as taking
+  the suggestion back, while it waits (db/migrations/0028_withdrawn_in_comments.sql). It stays with
+  its owners, whose review quotes the comment, until they close it or archive anyway.
 
   Agents never read any of this: the MCP read path has no grant on these tables, and nothing an
   edition holds is built from them.
@@ -41,6 +46,7 @@ type Row = {
   at: string
   editedAt: string | null
   deletedAt: string | null
+  withdrewAt: string | null
 }
 
 type ReactionRow = {
@@ -55,7 +61,7 @@ type ReactionRow = {
 const columns = `c.id::text, c.item_id as item, c.proposal_id::text as proposal, c.parent_id::text as parent,
   c.author_id::text as "authorId", (select display_name from people where id=c.author_id) as "authorName",
   c.kind, c.body, ${iso('c.created_at')} as at, ${iso('c.edited_at')} as "editedAt",
-  ${iso('c.deleted_at')} as "deletedAt"`
+  ${iso('c.deleted_at')} as "deletedAt", ${iso('c.withdrew_at')} as "withdrewAt"`
 
 const subjectOfRow = (row: { item: string | null; proposal: string | null }): CommentSubject =>
   row.item ? { kind: 'item', id: row.item } : { kind: 'proposal', id: row.proposal! }
@@ -195,14 +201,13 @@ export function createCommentsService(tx: Queryable) {
     )
     const unread = new Set(mentions.map((m) => m.comment))
     const proposals = [...new Set(rows.flatMap((r) => (r.proposal ? [r.proposal] : [])))]
-    const sent = new Set(
-      (
-        await tx.query<{ id: string }>(
-          'select id::text from proposals where id=any($1::uuid[]) and proposer_id=cl_person()',
-          [proposals],
-        )
-      ).map((r) => r.id),
+    const own = await tx.query<{ id: string; withdrawable: boolean }>(
+      `select id::text, (action='retire' and state in ('submitted','in_review')) as withdrawable
+         from proposals where id=any($1::uuid[]) and proposer_id=cl_person()`,
+      [[...new Set([...proposals, ...(only?.kind === 'proposal' ? [only.id] : [])])]],
     )
+    const sent = new Set(own.map((r) => r.id))
+    const withdrawable = new Set(own.filter((r) => r.withdrawable).map((r) => r.id))
 
     const key = (s: CommentSubject) => subjectName(s)
     const bySubject = new Map<string, { subject: CommentSubject; rows: Row[] }>()
@@ -233,6 +238,7 @@ export function createCommentsService(tx: Queryable) {
       id: row.id,
       author: { personId: row.authorId, name: row.authorName },
       returned: row.kind === 'returned',
+      withdrew: row.withdrewAt !== null,
       body: row.body as Record<string, unknown>,
       at: row.at,
       editedAt: row.editedAt,
@@ -263,6 +269,7 @@ export function createCommentsService(tx: Queryable) {
         subject: key(subject),
         comments,
         reactions: gathered(reactionsOf.get(`subject:${key(subject)}`) ?? []),
+        withdrawable: subject.kind === 'proposal' && withdrawable.has(subject.id),
         newReply: reply ? note(reply) : null,
         mentions: list.filter((row) => unread.has(row.id) && !row.deletedAt).map(note),
       }
@@ -342,6 +349,80 @@ export function createCommentsService(tx: Queryable) {
       const removed = await removeRow(row)
       await audit('comment.deleted', row)
       return { removed }
+    },
+
+    /**
+     * Marks the person's own comment on their suggestion to archive, while it waits, as taking it
+     * back, or takes the mark back. One comment of a suggestion holds the mark: marking another
+     * moves it there. The suggestion's timeline and the history log say who did which.
+     */
+    async withdraw(input: { id: string; withdrew: boolean }) {
+      const row = await loadComment(input.id)
+      if (row.authorId !== (await me()))
+        throw new ORPCError('FORBIDDEN', {
+          message: 'Only its author takes a suggestion back with a comment.',
+        })
+      if (row.deletedAt) throw new ORPCError('CONFLICT', { message: 'This comment was deleted.' })
+      const [p] = row.proposal
+        ? await tx.query<{
+            id: string
+            areaId: string | null
+            state: 'submitted' | 'in_review'
+            revision: number
+          }>(
+            `select id::text, area_id as "areaId", state::text, revision from proposals
+              where id=$1 and proposer_id=cl_person() and action='retire'
+                and state in ('submitted','in_review') for update`,
+            [row.proposal],
+          )
+        : []
+      if (!p || row.kind !== 'comment')
+        throw new ORPCError('CONFLICT', {
+          message:
+            'Only the person who suggested archiving it takes it back here, while it waits for a decision.',
+        })
+      if (input.withdrew === (row.withdrewAt !== null)) return shaped(row.id)
+      if (input.withdrew)
+        await tx
+          .query(
+            'update comments set withdrew_at=null where proposal_id=$1 and withdrew_at is not null',
+            [p.id],
+          )
+          .catch(refusal)
+      await tx
+        .query(`update comments set withdrew_at=case when $2 then now() end where id=$1`, [
+          row.id,
+          input.withdrew,
+        ])
+        .catch(refusal)
+      await proposalEvent(
+        tx,
+        p,
+        input.withdrew ? 'withdrawn_in_comments' : 'withdrawal_taken_back',
+        { commentId: row.id },
+        input.withdrew ? 'proposal.withdrawn' : 'proposal.withdrawal_taken_back',
+      )
+      return shaped(row.id)
+    },
+
+    /**
+     * The comment with which the sender of a suggestion to archive took it back, if they did: who,
+     * when and its words, for the review.
+     */
+    async withdrawal(proposalId: string) {
+      const [row] = await tx.query<Row>(
+        `select ${columns} from comments c
+          where c.proposal_id=$1 and c.withdrew_at is not null and c.deleted_at is null
+            and c.author_id=(select proposer_id from proposals where id=$1)`,
+        [proposalId],
+      )
+      if (!row) return null
+      return {
+        commentId: row.id,
+        by: { personId: row.authorId, name: row.authorName },
+        at: row.withdrewAt!,
+        quote: plainOf(row.body),
+      }
     },
 
     async toggleReaction(input: {

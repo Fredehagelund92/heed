@@ -34,6 +34,14 @@ export const dateLabel = (iso: string) => {
   return `${p.d} ${p.m} ${p.y}`
 }
 
+/** The ISO day of a day's label: "4 Aug 2026" is 2026-08-04; anything else is null. */
+export function labelDay(label: string): string | null {
+  const [d, m, y] = label.split(' ')
+  const month = MONTHS.indexOf(m ?? '') + 1
+  if (!d || !month || !/^\d{4}$/.test(y ?? '')) return null
+  return `${y}-${String(month).padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
 /** The When people read: "Always", "From 4 Aug 2026, still going on", "12 to 19 May 2026", "Until 19 Jan 2026", "4 Aug 2026". */
 export function whenLabel(v: Validity): string {
   if (v.from && v.until) {

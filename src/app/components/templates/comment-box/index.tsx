@@ -2,7 +2,12 @@ import * as React from 'react'
 import { MessageSquarePlusIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { useCommentActions, useComments, useSubjectReactions } from '@/lib/comments'
+import {
+  useCommentActions,
+  useComments,
+  useSubjectReactions,
+  useWithdrawable,
+} from '@/lib/comments'
 import type { Subject } from '@/model/comments'
 import { Composer } from './composer'
 import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from './thread'
@@ -35,6 +40,7 @@ export function CommentBox({
 }) {
   const comments = useComments(subject)
   const reactions = useSubjectReactions(subject)
+  const withdrawable = useWithdrawable(subject)
   const commentActions = useCommentActions()
   const [adding, setAdding] = React.useState(false)
   const total = countComments(comments)
@@ -51,6 +57,9 @@ export function CommentBox({
     react: (id, emoji) => void commentActions.react(subject, id, emoji),
     edit: (id, content) => void commentActions.edit(subject, id, content),
     remove: (id) => void commentActions.remove(subject, id),
+    ...(withdrawable
+      ? { withdraw: (id, withdrew) => void commentActions.withdraw(subject, id, withdrew) }
+      : {}),
   }
 
   return (

@@ -383,7 +383,9 @@ The person who made a decision may undo it within `limits.undo_seconds` (migrati
 (row security), and the `decision_undone` edition that served again what the decision changed;
 rows never change. An item leaves service in that edition only when it records an undo
 (`item_version_service_closing_authorized`), and an accepted proposal waits again only when its
-accept is undone in the same transaction (`proposals_guard_reopen`). A decision is never
+accept is undone in the same transaction (`proposals_guard_reopen`); so does a closed one, a
+suggestion to archive its sender took back, when its close is undone (migration 0028), with no
+edition. A decision is never
 deleted: `decisions.round` counts how often its maker undid the same decision on the version
 before, so they may decide it again (`decisions_once_item`).
 
@@ -404,6 +406,11 @@ of its own, one level, on the same subject (`comments_guard`); what a comment ha
 and its time never change, and a delete that keeps its place empties its words for good and takes
 its reactions and mentions with it (`comments_clear_reactions`). A return with a note is the
 suggestion's comment of kind `returned`, tied to its decision, and leaves with the decision's undo.
+The person who suggested archiving a context item may mark one of their own comments on it as taking
+it back, while it waits (`comments.withdrew_at`, migration 0028): one comment of a suggestion holds
+the mark, only its writer sets or clears it, and only while the suggestion to archive waits
+(`comments_guard`); deleting the comment clears it. The owners then close it, a `reject` decision
+that changes nothing agents get.
 `reactions` takes one of five emoji, once per person, on a comment, an item or a suggestion.
 `comment_mentions` keeps the people a comment mentions, written by its author, and when each saw
 it, marked by that person only. `thread_reads` keeps when a person last opened a thread, for them

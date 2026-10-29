@@ -369,6 +369,11 @@ export interface HeedApi {
   reactToSubject: (input: { subject: Subject; emoji: ReactionEmoji }) => Promise<void>
   editComment: (input: { subject: Subject; id: string; content: JSONContent }) => Promise<void>
   removeComment: (input: { subject: Subject; id: string }) => Promise<void>
+  /**
+   * The person takes back their suggestion to archive with a comment of theirs on it, while it
+   * waits, or takes the mark back (`withdrew: false`). Its owners then close it or archive anyway.
+   */
+  withdrawWithComment: (input: { subject: Subject; id: string; withdrew: boolean }) => Promise<void>
   /** The person opened the thread: a new reply's marker goes. */
   markThreadSeen: (input: { subject: Subject }) => Promise<void>
   /** The person read the comments that mention them there: their Inbox marker goes. */
@@ -655,6 +660,7 @@ export const heedApiMethods = [
   'reactToSubject',
   'editComment',
   'removeComment',
+  'withdrawWithComment',
   'markThreadSeen',
   'markMentionSeen',
   'getDefinitions',

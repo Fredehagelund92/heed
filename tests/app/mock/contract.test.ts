@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkDue, toServerValidity, whenLabel } from '@/model/validity'
+import { checkDue, dateLabel, labelDay, toServerValidity, whenLabel } from '@/model/validity'
 import { facts, domains, people, metrics } from '@/api/mock/data/world'
 import { checkFlags, itemKinds, itemStatuses, validitySchema } from '@domain/item'
 import { toServerStatus, toServerTermDomain } from '@/model/items'
@@ -26,6 +26,12 @@ describe('the When people read', () => {
 
   it('is derived for every context item, never typed by hand', () => {
     for (const f of facts) expect(f.when).toBe(whenLabel(f.valid))
+  })
+
+  it("reads a day's label back as its day, and nothing else", () => {
+    for (const day of ['2026-10-03', '2026-01-19', '2025-12-31'])
+      expect(labelDay(dateLabel(day))).toBe(day)
+    for (const label of ['', 'Today', '3 Oct', '3 October 2026']) expect(labelDay(label)).toBeNull()
   })
 
   it('says a check is due once its date has passed', () => {

@@ -286,6 +286,8 @@ function samples(): Record<string, string[]> {
     job: ['retention.run'],
     question: ['00000000-0000-4000-8000-00000000abcd'],
     batchId: ['00000000-0000-4000-8000-00000000abcd'],
+    // Everyone, so what each person checked lately is read as every reader.
+    personId: Object.values(members),
   }
 }
 
@@ -353,6 +355,12 @@ describe('the audience rule on every read path', () => {
     }
     const activity = await send('owner', 'GET', '/api/v1/activity')
     expect(leaks(activity.body)).toContain('Vaultsunrise')
+    // What the owner checked lately names the item a reader may read, and never the hidden one.
+    const checked = await send('reader', 'GET', `/api/v1/members/${people.owner}/activity`)
+    expect(checked.statusCode, checked.body).toBe(200)
+    const entries = checked.json<{ entries: { itemId: string; title: string }[] }>().entries
+    expect(entries.find((e) => e.itemId === linking.id)?.title).toBe('Harbour opening hours')
+    expect(leaks(checked.body)).toEqual([])
   })
 
   it(

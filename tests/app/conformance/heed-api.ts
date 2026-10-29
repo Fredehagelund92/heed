@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest'
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
-import { whenLabel } from '@/model/validity'
+import { labelDay, whenLabel } from '@/model/validity'
 import type { CardType, InboxCard } from '@/model/inbox'
 import { mentionNotesOf, type Subject } from '@/model/comments'
 import { plainOf } from '@/components/templates/comment-box/utils'
@@ -37,12 +37,17 @@ export type HeedApiConformance = {
    * connect it. The mock reads any address.
    */
   repository: { address: string; token: string | null }
+  /**
+   * Someone the sign-in offers who sent a suggestion to archive that waits for the person: they
+   * take it back with a comment. The mock's sign-in offers nobody who did.
+   */
+  sender?: string
 }
 
 export function describeHeedApi(
   name: string,
   getApi: () => HeedApi,
-  { person, wired, colleague, repository }: HeedApiConformance,
+  { person, wired, colleague, repository, sender }: HeedApiConformance,
 ) {
   const api = () => getApi()
   const lacks = (...methods: HeedApiMethod[]) => methods.some((m) => !wired.includes(m))
@@ -1565,6 +1570,139 @@ export function describeHeedApi(
         expect((await api().inboxPage()).done[retire!.id]?.label).toBe('Archived')
         await api().undo({ token: undo })
         expect((await api().inboxPage()).done[retire!.id]).toBeUndefined()
+      },
+    )
+
+    /* ---------- a suggestion to archive taken back in the comments ---------- */
+
+    /** The person's suggestion to archive that its sender took back, still waiting. */
+    async function withdrawnRetirement() {
+      await api().signIn({ name: person, fresh: false })
+      const inbox = await api().inboxPage()
+      return (await api().getReviews()).find(
+        (r) =>
+          r.mode === 'retire' &&
+          r.retire?.withdrawn &&
+          inbox.cards.some((c) => c.id === r.id && c.for === person && !inbox.done[c.id]),
+      )
+    }
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'getLibrary', 'closeReview', 'undo'))(
+      'closes a suggestion to archive its sender took back: nothing changes, and Undo brings it back',
+      async () => {
+        const r = await withdrawnRetirement()
+        expect(r, `a withdrawn suggestion to archive for ${person}`).toBeDefined()
+        expect(r!.retire!.withdrawn).toMatchObject({ by: r!.from })
+        expect(r!.retire!.withdrawn!.quote).not.toBe('')
+        expect(readiness(r!)).toMatchObject({ ok: false, title: `Withdrawn by ${r!.from}` })
+        const live = async () =>
+          (await api().getLibrary()).items.find((f) => f.id === r!.retire!.factId)?.status
+        const before = await live()
+        expect(before).not.toBe('Archived')
+        const { undo } = await api().closeReview({ id: r!.id })
+        expect((await api().inboxPage()).done[r!.id]?.label).toBe('Closed')
+        expect(await live()).toBe(before)
+        await api().undo({ token: undo })
+        expect((await api().inboxPage()).done[r!.id]).toBeUndefined()
+        expect((await withdrawnRetirement())?.id).toBe(r!.id)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'inboxPage', 'getReviews', 'closeReview'))(
+      'closes nothing its sender did not take back',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const inbox = await api().inboxPage()
+        const plain = (await api().getReviews()).find(
+          (r) =>
+            r.mode !== 'retire' &&
+            inbox.cards.some((c) => c.id === r.id && c.for === person && !inbox.done[c.id]),
+        )
+        expect(plain, `a suggestion for ${person}`).toBeDefined()
+        await expect(api().closeReview({ id: plain!.id })).rejects.toMatchObject({
+          kind: 'conflict',
+        })
+        expect((await api().inboxPage()).done[plain!.id]).toBeUndefined()
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'getReviews', 'removeComment', 'withdrawWithComment'))(
+      "takes a suggestion back with a comment only for its sender: not with the owner's words",
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const r = (await api().getReviews()).find((x) => x.mode === 'retire' && x.from !== person)
+        expect(r, `someone else's suggestion to archive for ${person}`).toBeDefined()
+        const subject = `review:${r!.id}` as Subject
+        expect((await api().getComments()).withdrawable[subject]).toBeFalsy()
+        const { id } = await api().postComment({ subject, content: said('Is January complete?') })
+        await expect(
+          api().withdrawWithComment({ subject, id, withdrew: true }),
+        ).rejects.toMatchObject({ kind: 'conflict' })
+        expect((await find(subject, id))?.withdrew).toBeFalsy()
+        await api().removeComment({ subject, id })
+      },
+    )
+
+    it.skipIf(!sender || lacks(...comments, 'getReviews', 'removeComment', 'withdrawWithComment'))(
+      'lets its sender take their suggestion to archive back with a comment, and the mark back again',
+      async () => {
+        await api().signIn({ name: sender!, fresh: false })
+        const all = await api().getComments()
+        const subject = (Object.keys(all.withdrawable) as Subject[]).find(
+          (s) => all.withdrawable[s],
+        )
+        expect(subject, `a suggestion to archive ${sender} sent`).toBeDefined()
+        const marked = () =>
+          (all.threads[subject!] ?? [])
+            .flatMap((c) => [c, ...(c.replies ?? [])])
+            .find((c) => c.withdrew)?.id
+        const before = marked()
+        const words = 'On second thought, two days are still short.'
+        const { id } = await api().postComment({ subject: subject!, content: said(words) })
+        await api().withdrawWithComment({ subject: subject!, id, withdrew: true })
+        const thread = (await api().getComments()).threads[subject!] ?? []
+        expect(
+          thread
+            .flatMap((c) => [c, ...(c.replies ?? [])])
+            .filter((c) => c.withdrew)
+            .map((c) => c.id),
+        ).toEqual([id])
+        // Its owner reads the sender's words in the review.
+        await api().signIn({ name: person, fresh: false })
+        const review = (await api().getReviews()).find((x) => `review:${x.id}` === subject)
+        expect(review?.retire?.withdrawn).toMatchObject({ by: sender, quote: words })
+        // The mark goes back, and so does the comment.
+        await api().signIn({ name: sender!, fresh: false })
+        await api().withdrawWithComment({ subject: subject!, id, withdrew: false })
+        expect((await find(subject!, id))?.withdrew).toBeFalsy()
+        if (before)
+          await api().withdrawWithComment({ subject: subject!, id: before, withdrew: true })
+        await api().removeComment({ subject: subject!, id })
+      },
+    )
+
+    /* ---------- People: what someone checked lately ---------- */
+
+    it.skipIf(lacks('signIn', 'getLibrary', 'getActivity'))(
+      'says what someone checked lately: up to three items they checked, newest first, as the library has them',
+      async () => {
+        const live = await signedIn()
+        const { items } = await live.getLibrary()
+        const checkers = [...new Set(items.map((f) => f.checkedBy).filter(Boolean))]
+        expect(checkers.length).toBeGreaterThan(0)
+        for (const name of checkers) {
+          const theirs = items.filter((f) => f.checkedBy === name)
+          const recent = await live.getActivity({ name })
+          expect(recent, name).toHaveLength(Math.min(3, theirs.length))
+          for (const line of recent)
+            expect(
+              theirs.some((f) => line.what === `Checked ${f.title}` && line.when === f.checkedOn),
+              `${name}: ${line.what}, ${line.when}`,
+            ).toBe(true)
+          const days = recent.map((line) => labelDay(line.when) ?? '')
+          expect(days, name).toEqual([...days].sort().reverse())
+        }
+        expect(await live.getActivity({ name: 'Nobody Here' })).toEqual([])
       },
     )
 

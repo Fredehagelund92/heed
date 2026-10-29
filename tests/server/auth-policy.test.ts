@@ -200,6 +200,7 @@ const readOperations = [
   // invites a member to their own domains and sets their owners; the service and row security
   // narrow to that, and to an invite's sender or an admin for sending it again or taking it back.
   'members.list',
+  'members.activity',
   'invites.list',
   'invites.create',
   'invites.resend',
@@ -260,6 +261,7 @@ const readOperations = [
   'comments.create',
   'comments.edit',
   'comments.remove',
+  'comments.withdraw',
   'comments.markMentionsRead',
   'reactions.toggle',
   'threads.markRead',
@@ -269,6 +271,7 @@ const readOperations = [
   'review.markRead',
   'review.publish',
   'review.return',
+  'review.close',
   'review.publishRead',
   'decisions.undo',
   'activity.list',

@@ -14,6 +14,8 @@ import { obsData } from './data/observability'
 import { obsPage } from './obs-page'
 import { BEFORE, changedSteps, replay } from './replay'
 import { reviews } from './data/review'
+import type { Review } from '@/model/review'
+import { plainOf } from '@/components/templates/comment-box/utils'
 import {
   ABOUT_BUSINESS,
   dimensions,
@@ -151,6 +153,29 @@ export function createMockApi() {
       })
       touched.also?.()
     })
+  }
+
+  /** The threads where `who` may take back what they hang on: a suggestion to archive they sent, while it waits. */
+  const withdrawableBy = (who: string) =>
+    Object.fromEntries(
+      state.fresh
+        ? []
+        : reviews
+            .filter((r) => r.mode === 'retire' && r.from === who && !state.done[r.id])
+            .map((r) => [`review:${r.id}`, true]),
+    )
+
+  /** A suggestion as its review reads it now: a retirement says whether its sender took it back. */
+  const reviewNow = (r: Review): Review => {
+    if (!r.retire) return r
+    const c = comments.withdrawal(`review:${r.id}`, r.from)
+    const { withdrawn: _seeded, ...retire } = r.retire
+    return {
+      ...r,
+      retire: c
+        ? { ...retire, withdrawn: { by: c.author, when: c.when, quote: plainOf(c.content) } }
+        : retire,
+    }
   }
 
   const publishOne = (id: string, relation?: string | null, saveQuestion = true) => {
@@ -366,7 +391,7 @@ export function createMockApi() {
       }),
 
     // Comments
-    getComments: () => now(() => comments.read()),
+    getComments: () => now(() => comments.read(withdrawableBy(me()))),
     postComment: ({ subject, content, parentId, returned }) =>
       now(() => ({ id: comments.post(subject, me(), content, { parentId, returned }) })),
     reactToComment: ({ subject, id, emoji }) => now(() => comments.react(subject, id, emoji, me())),
@@ -374,6 +399,15 @@ export function createMockApi() {
       now(() => comments.reactToSubject(subject, emoji, me())),
     editComment: ({ subject, id, content }) => now(() => comments.edit(subject, id, content, me())),
     removeComment: ({ subject, id }) => now(() => comments.remove(subject, id, me())),
+    withdrawWithComment: ({ subject, id, withdrew }) =>
+      now(() => {
+        if (!withdrawableBy(me())[subject])
+          throw new ApiError(
+            'conflict',
+            'Only the person who suggested archiving it takes it back here, while it waits for a decision.',
+          )
+        comments.withdraw(subject, id, me(), withdrew)
+      }),
     markThreadSeen: ({ subject }) => now(() => comments.seen(subject)),
     markMentionSeen: ({ subject }) => now(() => comments.seenMention(subject, me())),
 
@@ -409,7 +443,7 @@ export function createMockApi() {
     // The Inbox and the review
     getInbox: () => now(inbox),
     inboxPage: () => read('inboxPage', '', inbox),
-    getReviews: () => now(() => reviews),
+    getReviews: () => now(() => reviews.map(reviewNow)),
     markOpened: ({ ids }) => now(() => ids.forEach((card) => dispatch({ type: 'opened', card }))),
     markReviewed: ({ id }) => now(() => dispatch({ type: 'reviewed', card: id })),
     decideCard: ({ card, outcome, patch }) =>
@@ -457,7 +491,15 @@ export function createMockApi() {
         }),
       ),
     closeReview: ({ id }) =>
-      scenario.send('closeReview', () => decideReview(id, 'Closed', () => {})),
+      scenario.send('closeReview', () => {
+        const r = reviews.find((x) => x.id === id)
+        if (!r || !reviewNow(r).retire?.withdrawn || state.done[id])
+          throw new ApiError(
+            'conflict',
+            'Only a suggestion to archive that its sender took back in the comments is closed. Decide this one instead.',
+          )
+        return decideReview(id, 'Closed', () => {})
+      }),
     returnReview: ({ id, note }) =>
       scenario.send('returnReview', () =>
         decideReview(id, 'Returned', () => {

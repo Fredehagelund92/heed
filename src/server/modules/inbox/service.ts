@@ -64,6 +64,8 @@ const outcomeWords: Record<string, string> = {
   request_changes: 'Returned',
   reject: 'Rejected',
   retire: 'Archived',
+  // A suggestion to archive that is not archived: closed once its sender took it back.
+  close: 'Closed',
   recheck: 'Checked',
   not_a_problem: 'Not a problem',
   not_written: 'Not something we write down',
@@ -384,7 +386,14 @@ export function createInboxFeedService(
       const p = await loadProposal(tx, row.proposal).catch(() => null)
       if (!p) continue
       const doneAs = {
-        outcome: outcomeWords[row.action === 'recheck' ? 'recheck' : row.outcome] ?? 'Decided',
+        outcome:
+          outcomeWords[
+            row.action === 'recheck'
+              ? 'recheck'
+              : row.action === 'retire' && row.outcome === 'reject'
+                ? 'close'
+                : row.outcome
+          ] ?? 'Decided',
         at: row.at,
       }
       if (row.action === 'recheck' && p.itemId) {

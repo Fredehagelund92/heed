@@ -245,6 +245,7 @@ function commentOf(c: Omit<ThreadComment, 'replies'>, people: People, now: Date)
     ...(c.editedAt ? { edited: true } : {}),
     ...(c.deleted ? { deleted: true } : {}),
     ...(c.returned ? { returned: true } : {}),
+    ...(c.withdrew ? { withdrew: true } : {}),
   }
 }
 
@@ -258,7 +259,13 @@ export function commentsOf(
   me: string,
   now: Date,
 ): Comments {
-  const out: Comments = { threads: {}, reactions: {}, newReplies: {}, mentionSeen: {} }
+  const out: Comments = {
+    threads: {},
+    reactions: {},
+    newReplies: {},
+    mentionSeen: {},
+    withdrawable: {},
+  }
   for (const t of threads) {
     const subject = t.subject as Subject
     out.threads[subject] = t.comments.map((c): CommentItem => ({
@@ -273,6 +280,7 @@ export function commentsOf(
         excerpt: t.newReply.excerpt,
       }
     if (!t.mentions.length) out.mentionSeen[`${subject}|${me}`] = true
+    if (t.withdrawable) out.withdrawable[subject] = true
   }
   return out
 }

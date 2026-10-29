@@ -9,12 +9,14 @@
  * with their reactions and mentions, the Inbox and the review (the golden plan's P6b), Ask on the
  * answer engine, with the person's chats kept in their browser (P10, http-ask.ts), and People:
  * Admin and Member, a domain's owners, invites with their links, removing someone, and how the
- * sign-in screen signs people in (P8, http-people.ts), Observability's Overview, Questions with
- * its replay and saved views, Quality with the saved questions, Feedback, Usage and Alerts (P12),
+ * sign-in screen signs people in, and what someone checked lately (P8, P9c, http-people.ts),
+ * Observability's Overview, Questions with its replay and saved views, Quality with the saved
+ * questions, Feedback, Usage and Alerts (P12),
  * Settings > Integrations: each source with how it is, its page, Read again and Pause reading
- * (P11b, http-integrations.ts), and an agent's consent page (connections.request and decide).
- * Every other method answers `not-available` until the pull request that wires its screen (P9 to
- * P13). The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
+ * (P11b, http-integrations.ts), an agent's consent page (connections.request and decide), and a
+ * suggestion to archive taken back in the comments, with the owner's Close (P9c). Every method of
+ * the interface is wired; one added later answers `not-available` until its pull request wires it.
+ * The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
  * a retry key, kept until the service answers; the session cookie is HttpOnly, so the token is
  * read from `auth.session`.
  */
@@ -41,6 +43,7 @@ import type { FigureReport } from '@/model/figures'
 import { connectorById, type ConnectorId } from '@/model/integrations'
 import type { Fact, Sent } from '@/model/items'
 import { excerptOf, type Domains } from '@/model/people'
+import { dateLabel } from '@/model/validity'
 import routes from './contract.json' with { type: 'json' }
 import {
   heedApiMethods,
@@ -154,6 +157,7 @@ export const wiredMethods = [
   'invite',
   'resendInvite',
   'removePerson',
+  'getActivity',
   'updateDomain',
   'getLibrary',
   'contextPage',
@@ -184,6 +188,7 @@ export const wiredMethods = [
   'reactToSubject',
   'editComment',
   'removeComment',
+  'withdrawWithComment',
   'markThreadSeen',
   'markMentionSeen',
   'getInbox',
@@ -197,6 +202,7 @@ export const wiredMethods = [
   'publishReviews',
   'archiveReview',
   'returnReview',
+  'closeReview',
   'undo',
   'getConnectReview',
   'getConnectRequest',
@@ -1004,6 +1010,14 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       )
       return { link: sent.link }
     },
+    // What someone did lately: the context they checked last, of what the person may read. An
+    // invite not yet taken is nobody in the workspace yet, and has done nothing.
+    getActivity: async ({ name }) => {
+      const member = (await read(() => client.members.list())).find((m) => m.name === name)
+      if (!member) return []
+      const { entries } = await read(() => client.members.activity({ personId: member.id }))
+      return entries.map((e) => ({ what: `Checked ${e.title}`, when: dateLabel(e.on) }))
+    },
     // Removing waits while a domain has them as its only owner: those domains come back to hand
     // over first. Undo brings the person back with the roles the removal ended, or invites again.
     removePerson: async ({ name }) => {
@@ -1454,6 +1468,12 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     removeComment: async ({ id }) => {
       await write('comments.remove', { id }, (o) => client.comments.remove({ id }, o))
     },
+    withdrawWithComment: async ({ id, withdrew }) => {
+      const input = { id, withdrew }
+      await write('comments.withdraw', input, (o) => client.comments.withdraw(input, o))
+      // The review now reads it as taken back, or not.
+      refs.clear()
+    },
     // Only a suggestion's review and a context item hold a thread on the service: a card of
     // another kind (a check, a report) has none to open.
     markThreadSeen: async ({ subject }) => {
@@ -1552,6 +1572,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         body: bodyToService(note, await readPeople()),
       }
       const done = await write('review.return', input, (o) => client.review.return(input, o))
+      refs.delete(id)
+      return { undo: done.undo }
+    },
+    closeReview: async ({ id }) => {
+      const ref = await refFor(id)
+      const input = { id: ref.proposalId, revision: ref.revision }
+      const done = await write('review.close', input, (o) => client.review.close(input, o))
       refs.delete(id)
       return { undo: done.undo }
     },

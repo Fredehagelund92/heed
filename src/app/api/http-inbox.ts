@@ -15,6 +15,7 @@ import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
 import { mentionIdOf, type Words } from './http-context'
+import { commentWhen } from './http-map'
 import type { Subject } from '@/model/comments'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
@@ -751,6 +752,16 @@ export function reviewOf(
             reason: sheet.note ?? '',
             used: reach,
             checkFirst: '',
+            // Its sender took it back in the comments: said with their words, as the thread has them.
+            ...(sheet.withdrawn
+              ? {
+                  withdrawn: {
+                    by: sheet.withdrawn.by.name ?? from,
+                    when: commentWhen(sheet.withdrawn.at, new Date()),
+                    quote: sheet.withdrawn.quote,
+                  },
+                }
+              : {}),
           },
         }
       : {}),

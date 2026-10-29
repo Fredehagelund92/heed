@@ -97,6 +97,8 @@ describeHeedApi('http binding on PostgreSQL', () => api!, {
   person: OWNER.name,
   wired: wiredMethods,
   colleague: colleague.name,
+  // Lars sent the demo week's suggestion to archive, which waits for Jon.
+  sender: 'Lars Dahl',
   repository: {
     get address() {
       return handbook!.address('handbook')
@@ -148,11 +150,8 @@ describe('the http binding', () => {
     expect(sent.join('\n')).not.toContain('Quillfeather')
   })
 
-  it('answers a method it does not offer yet as not available', async () => {
+  it('answers every method of the interface on the service: none says not available', () => {
     const unwired = heedApiMethods.filter((m) => !(wiredMethods as readonly string[]).includes(m))
-    expect(unwired.length).toBeGreaterThan(0)
-    await expect(api!.getActivity({ name: OWNER.name })).rejects.toMatchObject({
-      kind: 'not-available',
-    })
+    expect(unwired).toEqual([])
   })
 })

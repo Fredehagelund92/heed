@@ -4,7 +4,9 @@
  * ("context:<id>"); its comments are the comment box's small document, checked on the server
  * (src/domain/comments.ts). Anyone who may read what a thread hangs on may comment there and react
  * with one of the five reactions; people edit and delete only their own words. A mention of a
- * person puts a "Mentioned you" card in their Inbox until they read it. Agents never read any of it.
+ * person puts a "Mentioned you" card in their Inbox until they read it. The person who suggested
+ * archiving a context item may mark a comment of theirs on it as taking the suggestion back, while it
+ * waits: its owners then close it or archive anyway. Agents never read any of it.
  */
 import * as z from 'zod/mini'
 import { cleanComment, reactionEmoji, subjectPattern } from '../domain/comments.ts'
@@ -35,6 +37,8 @@ const commentFields = {
   author: person,
   /** A return with a note writes its note as a comment with this mark. */
   returned: z.boolean(),
+  /** Its writer takes back their suggestion to archive with it: the review quotes it. */
+  withdrew: z.boolean(),
   /** The words; an empty document once deleted. */
   body: commentBodySchema,
   at: z.string(),
@@ -52,6 +56,11 @@ export const threadSchema = z.object({
   subject: subjectSchema,
   comments: z.array(commentSchema),
   reactions: z.array(reactionSchema),
+  /**
+   * The reader may take back with one of their comments here what it hangs on: they suggested
+   * archiving a context item, and it waits for a decision.
+   */
+  withdrawable: z.boolean(),
   /** The newest reply since the reader last opened it, in a thread they take part in. */
   newReply: z.nullable(
     z.object({ commentId: z.string(), from: person, at: z.string(), excerpt: z.string() }),
@@ -82,6 +91,12 @@ export const editCommentSchema = z.strictObject({
 })
 
 export const commentIdSchema = z.object({ id: z.string().check(z.uuid()) })
+
+/** Marks one's own comment as taking back the suggestion to archive it hangs on, or takes the mark back. */
+export const withdrawCommentSchema = z.strictObject({
+  id: z.string().check(z.uuid()),
+  withdrew: z.boolean(),
+})
 
 export const removeCommentResultSchema = z.object({
   /** Gone, or kept in its place without its words because something answers it. */

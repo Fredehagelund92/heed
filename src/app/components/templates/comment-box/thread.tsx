@@ -7,6 +7,7 @@ import {
   PencilIcon,
   SmilePlusIcon,
   Trash2Icon,
+  Undo2Icon,
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -39,6 +40,11 @@ export type ThreadActions = {
   react: (id: string, emoji: ReactionEmoji) => void
   edit: (id: string, content: JSONContent) => void
   remove: (id: string) => void
+  /**
+   * The person may take back what the thread hangs on with a comment of theirs (a suggestion to
+   * archive they sent, while it waits), and how; left out where they may not.
+   */
+  withdraw?: (id: string, withdrew: boolean) => void
 }
 
 const reveal =
@@ -241,6 +247,12 @@ function Entry({
             Returned with a note
           </p>
         )}
+        {comment.withdrew && (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Undo2Icon className="size-3" aria-hidden />
+            Withdrew the suggestion
+          </p>
+        )}
         {editing ? (
           <Composer
             className="mt-1"
@@ -283,6 +295,27 @@ function Entry({
             {onReply && (
               <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={onReply}>
                 Reply
+              </Button>
+            )}
+            {mine && actions.withdraw && (
+              <Button
+                variant="ghost"
+                size="xs"
+                className="text-muted-foreground"
+                onClick={() => {
+                  actions.withdraw!(comment.id, !comment.withdrew)
+                  if (comment.withdrew)
+                    toast('The suggestion stands', {
+                      description: 'Its owners decide it as before.',
+                    })
+                  else
+                    toast('Withdrawn in the comments', {
+                      description:
+                        'Its owners see your words in the review: they close it, or archive anyway.',
+                    })
+                }}
+              >
+                {comment.withdrew ? 'Keep the suggestion' : 'Withdraw the suggestion'}
               </Button>
             )}
             <ReactionPicker onPick={(e) => actions.react(comment.id, e)} className={reveal} />

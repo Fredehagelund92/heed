@@ -214,6 +214,18 @@ export const reviewSheetSchema = z.object({
   gapId: z.nullable(z.string()),
   /** The reason the sender gave, if any. */
   note: z.nullable(z.string()),
+  /**
+   * A suggestion to archive its sender took back in the comments: who, when, and the comment's
+   * words. It waits until an owner closes it or archives anyway.
+   */
+  withdrawn: z.nullable(
+    z.object({
+      commentId: z.string(),
+      by: z.object({ personId: z.string(), name: z.nullable(z.string()) }),
+      at: z.string(),
+      quote: z.string(),
+    }),
+  ),
   diff: docDiffSchema,
   source: z.object({ before: z.string(), after: z.string(), rows: z.array(sourceRowSchema) }),
   /** The claims against the sentence copied from the source, when an agent or the assistant wrote it. */
@@ -281,6 +293,16 @@ export const returnInputSchema = z.strictObject({
   body: z.optional(commentInputBodySchema),
 })
 export const returnResultSchema = z.object({
+  proposal: reviewProposalSchema,
+  undo: undoTokenSchema,
+})
+
+/** Closes a suggestion to archive that its sender took back in the comments: nothing changes. */
+export const closeInputSchema = z.strictObject({
+  id: z.string().check(z.uuid()),
+  revision: z.number().check(z.int(), z.minimum(1)),
+})
+export const closeResultSchema = z.object({
   proposal: reviewProposalSchema,
   undo: undoTokenSchema,
 })
