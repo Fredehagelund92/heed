@@ -20,9 +20,3 @@ description = "Fake test fixture: the made-up idempotency key in the Sources int
 condition = "AND"
 paths = ['''^tests/integration/sources\.test\.ts$''']
 regexes = ['''a1b2c3d4e5f60718293a4b5c6d7e8f90''']
-
-[[allowlists]]
-description = "Not a secret: the generated digest of the OpenAPI document (scripts/generate-api.ts)"
-condition = "AND"
-paths = ['''^src/web/api/api-version\.json$''']
-regexes = ['''^[0-9a-f]{16}$''']
