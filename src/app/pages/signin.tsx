@@ -108,10 +108,6 @@ export function SignInPage() {
 
 // The demo person picker.
 function PickerSignIn({ token }: { token: string | null }) {
-  const signIn = useApiWrite('signIn')
-  const offered = useQuery(signInPeopleQuery()).data ?? []
-  // Signed out on the service, nobody's workspace can be read: the picker shows names alone.
-  const people = useQuery(workspaceQuery()).data?.people ?? []
   const [fresh, setFresh] = React.useState(false)
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
@@ -125,40 +121,7 @@ function PickerSignIn({ token }: { token: string | null }) {
           <CardContent>
             <FieldGroup>
               {token && <InviteLine token={token} />}
-              <ItemGroup className="gap-2">
-                {offered.map((name) => {
-                  const role = people.find((x) => x.name === name)?.role
-                  return (
-                    <div role="listitem" key={name}>
-                      <Item
-                        variant="outline"
-                        size="sm"
-                        render={
-                          <button
-                            type="button"
-                            // Signed in, the app moves to the Inbox (App.tsx). Not from here:
-                            // while the shell loads the person's workspace this page is unmounted,
-                            // so a callback of this click would never run.
-                            onClick={() => signIn.mutate({ name, fresh })}
-                          />
-                        }
-                        className="w-full text-left hover:bg-muted"
-                      >
-                        <ItemMedia>
-                          <PersonAvatar name={name} />
-                        </ItemMedia>
-                        <ItemContent>
-                          <ItemTitle>{name}</ItemTitle>
-                          {role && <ItemDescription>{role}</ItemDescription>}
-                        </ItemContent>
-                        <ItemActions>
-                          <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
-                        </ItemActions>
-                      </Item>
-                    </div>
-                  )
-                })}
-              </ItemGroup>
+              <PeoplePicker fresh={fresh} />
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or
               </FieldSeparator>
@@ -179,5 +142,66 @@ function PickerSignIn({ token }: { token: string | null }) {
         </p>
       </div>
     </main>
+  )
+}
+
+/** The demo's people, one button each: a press signs in as them. */
+function PeoplePicker({ fresh = false }: { fresh?: boolean }) {
+  const signIn = useApiWrite('signIn')
+  const offered = useQuery(signInPeopleQuery()).data ?? []
+  // Signed out on the service, nobody's workspace can be read: the picker shows names alone.
+  const people = useQuery(workspaceQuery()).data?.people ?? []
+  return (
+    <ItemGroup className="gap-2">
+      {offered.map((name) => {
+        const role = people.find((x) => x.name === name)?.role
+        return (
+          <div role="listitem" key={name}>
+            <Item
+              variant="outline"
+              size="sm"
+              render={
+                <button
+                  type="button"
+                  // Signed in, the app moves on (App.tsx). Not from here: while the shell loads the
+                  // person's workspace this page is unmounted, so a callback of this click would
+                  // never run.
+                  onClick={() => signIn.mutate({ name, fresh })}
+                />
+              }
+              className="w-full text-left hover:bg-muted"
+            >
+              <ItemMedia>
+                <PersonAvatar name={name} />
+              </ItemMedia>
+              <ItemContent>
+                <ItemTitle>{name}</ItemTitle>
+                {role && <ItemDescription>{role}</ItemDescription>}
+              </ItemContent>
+              <ItemActions>
+                <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+              </ItemActions>
+            </Item>
+          </div>
+        )
+      })}
+    </ItemGroup>
+  )
+}
+
+/**
+ * How this workspace signs people in, for a page that asks for it on the way somewhere (an agent's
+ * consent page): the company's provider, which brings the person back to `returnTo`, or in a demo
+ * the people to pick from.
+ */
+export function SignInChoices({ returnTo }: { returnTo: string }) {
+  const method = useQuery(signInMethodQuery())
+  if (method.isPending) return null
+  if (method.data?.kind !== 'oidc') return <PeoplePicker />
+  const start = `${method.data.start}?returnTo=${encodeURIComponent(returnTo)}`
+  return (
+    <Button nativeButton={false} render={<a href={start} />} className="w-full">
+      Sign in with {method.data.name}
+    </Button>
   )
 }

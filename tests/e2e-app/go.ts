@@ -362,7 +362,8 @@ export async function agentSignsIn(
   { allow = true, agent = 'Claude Code' }: { allow?: boolean; agent?: string } = {},
 ) {
   if (!http) return
-  const service = `http://127.0.0.1:${process.env.GOLDEN_API_PORT}`
+  // The login server's address, the issuer: on the web app's host (http/harness.ts).
+  const service = `http://localhost:${process.env.GOLDEN_API_PORT}`
   const redirect = 'http://127.0.0.1:43123/callback'
   const session = (await page.context().cookies()).find((c) => c.name === 'heed_session')
   if (!session) throw new Error('Nobody is signed in to answer the consent page')

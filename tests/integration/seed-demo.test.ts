@@ -2,8 +2,8 @@ import { expect, it } from 'vitest'
 import { bulkSeed } from '../../db/seed/bulk.ts'
 import { seedDemo } from '../../db/seed/demo.ts'
 import { demoTestQuestions } from '../../db/seed/test-questions.ts'
-import { gapFixtures } from '../../src/web/mocks/gaps.ts'
-import { generateItems, regression } from '../../src/web/mocks/items.ts'
+import { gapFixtures } from '../../db/seed/fixtures/gaps.ts'
+import { generateItems, regression } from '../../db/seed/fixtures/items.ts'
 import { testDatabase } from './support.ts'
 
 const { client } = testDatabase()

@@ -4,7 +4,7 @@ import { expect, it } from 'vitest'
 import { bulkSeed } from '../../db/seed/bulk.ts'
 import { identifier } from '../../src/server/db/roles.ts'
 import { restoreDrill, type DrillReport } from '../../src/server/db/restore-drill.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { testDatabase, transaction } from './support.ts'
 
 /**

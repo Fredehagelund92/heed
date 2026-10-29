@@ -6,11 +6,16 @@ import {
   personSchema,
   SUMMARY_MAX_LENGTH,
   vocabularySchema,
-} from '@domain/item'
-import { areas, FIXTURE_TODAY, people, vocabulary } from '@/mocks/reference-data'
-import { DEFAULT_ITEM_COUNT, generateItems, regression, versionDays } from '@/mocks/items'
-import { addDays } from '@/mocks/random'
-import { storyFacts } from '@/mocks/story-facts'
+} from '../../src/domain/item.ts'
+import { areas, FIXTURE_TODAY, people, vocabulary } from '../../db/seed/fixtures/reference-data.ts'
+import {
+  DEFAULT_ITEM_COUNT,
+  generateItems,
+  regression,
+  versionDays,
+} from '../../db/seed/fixtures/items.ts'
+import { addDays } from '../../db/seed/fixtures/random.ts'
+import { storyFacts } from '../../db/seed/fixtures/story-facts.ts'
 
 describe('item fixtures', () => {
   const items = generateItems()

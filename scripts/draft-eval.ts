@@ -4,9 +4,9 @@ import { deriveAgentDraft, type AgentDraftInput } from '../src/domain/agent-draf
 import type { ContextItem, ItemKind } from '../src/domain/item.ts'
 import { itemKinds } from '../src/domain/item.ts'
 import type { Term } from '../src/domain/vocabulary.ts'
-import { demoDefinitions, definitionRefsOf, termAreas } from '../src/web/mocks/cube-model.ts'
-import { generateItems } from '../src/web/mocks/items.ts'
-import { areas, FIXTURE_TODAY, vocabulary } from '../src/web/mocks/reference-data.ts'
+import { demoDefinitions, definitionRefsOf, termAreas } from '../db/seed/fixtures/cube-model.ts'
+import { generateItems } from '../db/seed/fixtures/items.ts'
+import { areas, FIXTURE_TODAY, vocabulary } from '../db/seed/fixtures/reference-data.ts'
 
 /*
   The offline evaluation of the MCP draft tool's derivation (FR-121; the agent capture report,

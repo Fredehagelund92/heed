@@ -274,6 +274,24 @@ describe('the review sheet (FR-224)', () => {
   })
 })
 
+describe('the review sheets of an Inbox in one read', () => {
+  it('gives each sheet in the order asked, the same as one at a time, and leaves out one it cannot show', async () => {
+    const first = await submitted({ title: 'Payments delayed in Spain' })
+    const second = await submitted({ title: 'Returns counted late in Norway' })
+    const gone = randomUUID()
+    const many = (who: Who, ids: string[]) =>
+      ok<{ sheets: ReviewSheet[] }>(call('POST', '/review/sheets', who, { ids }))
+    const read = await many('owner', [second.id, gone, first.id, second.id])
+    expect(read.sheets.map((s) => s.proposal.id)).toEqual([second.id, first.id])
+    expect(read.sheets[1]).toEqual(await sheet(first.id))
+    // Someone who may not see them reads none of them.
+    expect((await many('stranger', [first.id, second.id])).sheets).toEqual([])
+    // At most a hundred in one read.
+    const ids = Array.from({ length: 101 }, () => randomUUID())
+    expect((await call('POST', '/review/sheets', 'owner', { ids })).statusCode).toBe(400)
+  })
+})
+
 describe('a clash with live context (FR-225)', () => {
   it('waits for the owner to say how the two relate, keeps every answer, and acts on it', async () => {
     const theirs = await live({

@@ -11,6 +11,7 @@
  * token, and `undo` puts back exactly what it changed. Both bindings throw `ApiError` (errors.ts).
  */
 import type { JSONContent } from '@tiptap/core'
+import type { ConnectRequest } from '@contract/connections'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
@@ -42,6 +43,8 @@ import type { Review } from '@/model/review'
 import type { SavedQuestion } from '@/model/saved-questions'
 
 /* ---------- session and workspace ---------- */
+
+export type { ConnectRequest }
 
 export type Session = {
   /** Who is signed in, by name; null when nobody is. */
@@ -580,6 +583,13 @@ export interface HeedApi {
   }) => Promise<{ state: 'waiting' | 'connected' | 'declined'; agent?: string }>
   /** The live line's state a review address shows (the mock's ?connect=); null otherwise. */
   getConnectReview: () => Promise<LivePhase | null>
+  /**
+   * An agent's sign-in that this browser started, for the consent page (FR-403): which agent asks
+   * and what it may do. Null once it was answered, ran out, or was started in another browser.
+   */
+  getConnectRequest: (input: { id: string }) => Promise<ConnectRequest | null>
+  /** The person's answer on the consent page: where the browser goes back to the agent. */
+  answerConnectRequest: (input: { id: string; allow: boolean }) => Promise<{ redirectTo: string }>
 
   // Saved questions
   getSavedQuestions: () => Promise<SavedQuestion[]>
@@ -714,6 +724,8 @@ export const heedApiMethods = [
   'revokeAgentConnection',
   'checkConnect',
   'getConnectReview',
+  'getConnectRequest',
+  'answerConnectRequest',
   'getSavedQuestions',
   'getSavedCheck',
   'checkSavedQuestions',

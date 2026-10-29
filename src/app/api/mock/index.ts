@@ -643,6 +643,14 @@ export function createMockApi() {
     checkConnect: ({ since, agent }) =>
       now(() => settings.check(scenario.address(), since, agent, me())),
     getConnectReview: () => now(() => settings.review(scenario.address(), me())),
+    getConnectRequest: ({ id }) => now(() => settings.connectRequest(id)),
+    // The demo has no agent to send the browser back to: either answer lands in the Inbox.
+    answerConnectRequest: ({ id, allow }) =>
+      settings.answerRequest(id, allow, me())
+        ? now(() => ({ redirectTo: '/inbox' }))
+        : Promise.reject(
+            new ApiError('not-found', 'This sign-in has ended. Connect from your agent again.'),
+          ),
 
     // Saved questions
     // ?quality=same shows the calm week, when every saved question answers as saved.

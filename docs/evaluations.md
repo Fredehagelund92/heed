@@ -286,7 +286,7 @@ feedback's domain, and none of it returns a test question's or an agent's questi
   since the first edition, on the edition live then. A run is scored by the service's rules on
   what that edition delivers (each expected item it serves and that is in force on the run's day),
   so every question passes until an edition stops delivering what it expects. The demo has one
-  such regression (`regression` in `src/web/mocks/items.ts`): on 1 October Sales' note "Net
+  such regression (`regression` in `db/seed/fixtures/items.ts`): on 1 October Sales' note "Net
   revenue excludes test accounts" was ended on 30 September, so `net-revenue-month-to-date` fails
   the weekly run of 5 October on the delivered and caveat checks, and an open gap on the same
   scope has a first week below the minimum. It keeps no feedback, so feedback counts are zero;

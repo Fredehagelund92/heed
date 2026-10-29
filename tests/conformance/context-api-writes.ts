@@ -16,7 +16,7 @@ import { proposalRecordSchema } from '../../src/contract/proposals.ts'
 import { appFamilies } from '../../src/domain/app-family.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { shiftDate } from '../../src/domain/validity.ts'
-import { FIXTURE_TODAY } from '../../src/web/mocks/reference-data.ts'
+import { FIXTURE_TODAY } from '../../db/seed/fixtures/reference-data.ts'
 
 export const conformancePeople = ['maria', 'jon', 'sofia', 'lars', 'ravi', 'kofi'] as const
 export type ConformancePerson = (typeof conformancePeople)[number]

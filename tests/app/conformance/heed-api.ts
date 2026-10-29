@@ -624,6 +624,20 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getConnectRequest', 'answerConnectRequest'))(
+      "an agent's sign-in nobody started has ended: nothing to show, and no answer is taken",
+      async () => {
+        const live = await signedIn()
+        const unknown = 'no-agent-asked-to-connect-with-this-link-00'
+        expect(await live.getConnectRequest({ id: unknown })).toBeNull()
+        await expect(live.answerConnectRequest({ id: unknown, allow: true })).rejects.toMatchObject(
+          {
+            kind: 'not-found',
+          },
+        )
+      },
+    )
+
     it.skipIf(
       lacks(
         'signIn',

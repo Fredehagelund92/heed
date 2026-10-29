@@ -145,7 +145,7 @@ per metric group plus `segments` for the dimensions, with titles, descriptions a
 `Return on ad spend` takes its domain from its member. The bulk seed stores its read (see
 `db/README.md`); point `CUBE_MODEL_DIR` at it to keep reading it, as `.env.example` does. After a
 change to the model, run `tests/server/connectors/demo-model.test.ts` and copy the new read into
-`src/web/mocks/cube-model.ts`.
+`db/seed/fixtures/cube-model.ts`.
 
 ## Compilation and stored data
 

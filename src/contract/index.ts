@@ -58,6 +58,8 @@ import {
   returnResultSchema,
   reviewIdInputSchema,
   reviewSheetSchema,
+  reviewSheetsInputSchema,
+  reviewSheetsSchema,
   undoInputSchema,
   undoResultSchema,
 } from './review-path.ts'
@@ -763,6 +765,16 @@ export const contract = {
       })
       .input(reviewIdInputSchema)
       .output(reviewSheetSchema),
+    sheets: review
+      .route({
+        method: 'POST',
+        path: '/review/sheets',
+        tags: ['review'],
+        summary:
+          "The review page's read for many suggestions in one call, as the Inbox lists them: each sheet in the order asked, leaving out one that went or the person may not read",
+      })
+      .input(reviewSheetsInputSchema)
+      .output(reviewSheetsSchema),
     markRead: review
       .route({
         method: 'POST',

@@ -556,7 +556,7 @@ export function seedDemoGaps(workflow: MockWorkflow) {
     })
 }
 
-/** The fixture gaps the demo and the stories point at (src/web/mocks/gaps.ts). */
+/** The fixture gaps the demo and the stories point at (db/seed/fixtures/gaps.ts). */
 export const demoGapIds = {
   /** Orders in Norway: open, Sales, notes from an agent and from Jon. */
   open: 'ca9a0000-0000-4000-8000-000000000001',

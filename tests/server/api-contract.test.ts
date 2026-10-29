@@ -389,6 +389,7 @@ describe('the API over HTTP', () => {
       '/review/decisions/plan',
       '/review/publish-read',
       '/review/queue',
+      '/review/sheets',
       '/review/{id}/publish',
       '/review/{id}/read',
       '/review/{id}/return',

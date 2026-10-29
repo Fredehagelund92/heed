@@ -1,12 +1,12 @@
 import { expect, it } from 'vitest'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { analyzeLibrary, bulkSeed, seedPersonId } from '../../db/seed/bulk.ts'
 import type { ContextItem } from '../../src/domain/item.ts'
 import { editionExportSchema } from '../../src/contract/admin.ts'
 import { verifyEditionExport } from '../../src/domain/edition-export.ts'
 import { exportEdition } from '../../src/server/modules/admin/index.ts'
 import { rollbackTo } from '../../src/server/modules/editions/release.ts'
-import { areas } from '../../src/web/mocks/reference-data.ts'
+import { areas } from '../../db/seed/fixtures/reference-data.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 const { client, url } = testDatabase()
 // A 1,500-item load and roundtrip: generous, because a busy machine can take a few minutes.

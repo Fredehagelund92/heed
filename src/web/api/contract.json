@@ -262,6 +262,22 @@
         }
       }
     },
+    "sheets": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/review/sheets",
+          "tags": [
+            "review"
+          ],
+          "summary": "The review page's read for many suggestions in one call, as the Inbox lists them: each sheet in the order asked, leaving out one that went or the person may not read"
+        }
+      }
+    },
     "markRead": {
       "~orpc": {
         "errorMap": {},

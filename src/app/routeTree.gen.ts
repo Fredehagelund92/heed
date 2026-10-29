@@ -15,6 +15,7 @@ import { Route as SigninRouteImport } from './routes/signin'
 import { Route as AppSplatRouteImport } from './routes/_app/$'
 import { Route as AppAskRouteImport } from './routes/_app/ask'
 import { Route as AppHelpRouteImport } from './routes/_app/help'
+import { Route as ConnectApproveRouteImport } from './routes/connect.approve'
 import { Route as DocsIndexRouteImport } from './routes/docs/index'
 import { Route as DocsSlugRouteImport } from './routes/docs/$slug'
 import { Route as AppContextIndexRouteImport } from './routes/_app/context.index'
@@ -63,6 +64,11 @@ const AppHelpRoute = AppHelpRouteImport.update({
   id: '/help',
   path: '/help',
   getParentRoute: () => AppRoute,
+} as any)
+const ConnectApproveRoute = ConnectApproveRouteImport.update({
+  id: '/connect/approve',
+  path: '/connect/approve',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/docs/',
@@ -180,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/$': typeof AppSplatRoute
   '/ask': typeof AppAskRoute
   '/help': typeof AppHelpRoute
+  '/connect/approve': typeof ConnectApproveRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/docs/': typeof DocsIndexRoute
   '/context/new': typeof AppContextNewRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/$': typeof AppSplatRoute
   '/ask': typeof AppAskRoute
   '/help': typeof AppHelpRoute
+  '/connect/approve': typeof ConnectApproveRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/docs': typeof DocsIndexRoute
   '/context/new': typeof AppContextNewRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/_app/$': typeof AppSplatRoute
   '/_app/ask': typeof AppAskRoute
   '/_app/help': typeof AppHelpRoute
+  '/connect/approve': typeof ConnectApproveRoute
   '/docs/$slug': typeof DocsSlugRoute
   '/docs/': typeof DocsIndexRoute
   '/_app/context/new': typeof AppContextNewRoute
@@ -262,6 +271,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/ask'
     | '/help'
+    | '/connect/approve'
     | '/docs/$slug'
     | '/docs/'
     | '/context/new'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/$'
     | '/ask'
     | '/help'
+    | '/connect/approve'
     | '/docs/$slug'
     | '/docs'
     | '/context/new'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/_app/$'
     | '/_app/ask'
     | '/_app/help'
+    | '/connect/approve'
     | '/docs/$slug'
     | '/docs/'
     | '/_app/context/new'
@@ -340,6 +352,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   SigninRoute: typeof SigninRoute
+  ConnectApproveRoute: typeof ConnectApproveRoute
   DocsSlugRoute: typeof DocsSlugRoute
   DocsIndexRoute: typeof DocsIndexRoute
 }
@@ -387,6 +400,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/help'
       preLoaderRoute: typeof AppHelpRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/connect/approve': {
+      id: '/connect/approve'
+      path: '/connect/approve'
+      fullPath: '/connect/approve'
+      preLoaderRoute: typeof ConnectApproveRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/docs/': {
       id: '/docs/'
@@ -576,6 +596,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   SigninRoute: SigninRoute,
+  ConnectApproveRoute: ConnectApproveRoute,
   DocsSlugRoute: DocsSlugRoute,
   DocsIndexRoute: DocsIndexRoute,
 }

@@ -10,7 +10,7 @@ import {
   createCubeSource,
 } from '../../src/server/modules/connectors/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 

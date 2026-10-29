@@ -282,7 +282,7 @@ mock's. These fixtures bypass the review path itself and must never be treated a
 production content.
 
 The seed also stores what the Cube connector reads from the demo model in `db/seed/cube`
-(`src/web/mocks/cube-model.ts`, kept equal to a real read by
+(`db/seed/fixtures/cube-model.ts`, kept equal to a real read by
 `tests/server/connectors/demo-model.test.ts`): the connector `cube`, two reads (a first one and
 the newest, on 7 October 2026), the definitions with their description copies, types and domains,
 and their change marks. Every metric and dimension of the vocabulary names its definition, and

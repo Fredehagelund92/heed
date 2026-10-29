@@ -1,4 +1,23 @@
 {
+  "db/seed/fixtures/caveats.ts": {
+    "do not": 1
+  },
+  "db/seed/fixtures/cube-model.ts": {
+    "are not": 1
+  },
+  "db/seed/fixtures/gaps.ts": {
+    "item": 1
+  },
+  "db/seed/fixtures/items.ts": {
+    "are not": 3,
+    "could not": 1,
+    "is not": 2,
+    "source tool": 1,
+    "were not": 1
+  },
+  "db/seed/fixtures/story-facts.ts": {
+    "are not": 2
+  },
   "docs/old-help/assistant.md": {
     "model": 1
   },
@@ -137,28 +156,9 @@
   "src/web/mocks/catalogue.ts": {
     "model": 1
   },
-  "src/web/mocks/caveats.ts": {
-    "do not": 1
-  },
-  "src/web/mocks/cube-model.ts": {
-    "are not": 1
-  },
-  "src/web/mocks/gaps.ts": {
-    "item": 1
-  },
-  "src/web/mocks/items.ts": {
-    "are not": 3,
-    "could not": 1,
-    "is not": 2,
-    "source tool": 1,
-    "were not": 1
-  },
   "src/web/mocks/sources.ts": {
     "could not": 1,
     "model": 1
-  },
-  "src/web/mocks/story-facts.ts": {
-    "are not": 2
   },
   "src/web/mocks/test-questions.ts": {
     "source tool": 1

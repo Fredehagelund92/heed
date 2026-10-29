@@ -68,6 +68,11 @@ export const shellSearch = lenient(
   }),
 )
 
+/** An agent's sign-in waiting for the person's answer: the id the login server put in the address. */
+export const connectApproveSearch = lenient(
+  z.object({ request: z.optional(z.string().check(z.regex(/^[A-Za-z0-9_-]{43}$/))) }),
+)
+
 export const inboxSearch = lenient(
   z.object({ tab: oneOf(['all']), card: text, decide: oneOf(['fail']) }),
 )

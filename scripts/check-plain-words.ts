@@ -36,7 +36,7 @@ async function codeFindings(): Promise<Finding[]> {
     // src/app holds no code until the screens of the new app land.
     errorOnUnmatchedPattern: false,
   })
-  const results = await eslint.lintFiles(['src/web', 'src/server', 'src/app'])
+  const results = await eslint.lintFiles(['src/web', 'src/server', 'src/app', 'db/seed/fixtures'])
   return results.flatMap((result) =>
     result.messages
       .filter((message) => message.ruleId === 'heed/plain-words')

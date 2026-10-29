@@ -2,7 +2,7 @@
  * The gaps side of the `ContextApi` conformance suite (FR-604 to FR-616): the same steps run
  * against the mock binding (tests/unit/mock-gaps.test.ts) and against the http binding on the
  * real service and PostgreSQL (tests/integration/gaps-api.test.ts), both holding the fixture gaps
- * of src/web/mocks/gaps.ts. So the mock keeps the service's privacy rule (FR-614): who sees which
+ * of db/seed/fixtures/gaps.ts. So the mock keeps the service's privacy rule (FR-614): who sees which
  * gap, which counts come back hidden, who reads notes and who may change a status.
  *
  * Maria has no role, Jon is owner of Sales and Sandbox, Sofia owner of Sales and
@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ContextApi } from '../../src/web/api/client.ts'
 import { ApiError } from '../../src/web/api/errors.ts'
-import { GAP_MINIMUM_COUNT, gapFixtures } from '../../src/web/mocks/gaps.ts'
+import { GAP_MINIMUM_COUNT, gapFixtures } from '../../db/seed/fixtures/gaps.ts'
 
 export const gapPeople = ['maria', 'jon', 'sofia', 'ravi'] as const
 export type GapPerson = (typeof gapPeople)[number]

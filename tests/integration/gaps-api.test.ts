@@ -11,7 +11,7 @@ import { apiDatabase, testDatabase } from './support.ts'
 
 /*
   The http binding's gap reads and changes against the real service and PostgreSQL 18, on the
-  bulk seed plus the fixture gaps of src/web/mocks/gaps.ts written straight into the tables the
+  bulk seed plus the fixture gaps of db/seed/fixtures/gaps.ts written straight into the tables the
   gateway and the detection job fill. The same suite runs against the mock
   (tests/unit/mock-gaps.test.ts), so the mock keeps the service's privacy rule.
 */

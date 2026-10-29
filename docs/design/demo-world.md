@@ -83,7 +83,7 @@ business never name it, so a new name is one search away.
 The second approver for high-risk facts is Lars Dahl, on Sales. Ravi Kapoor is the admin and Ella
 Voss the auditor.
 
-The summaries and descriptions (`src/web/mocks/reference-data.ts`, and the seeds that copy them):
+The summaries and descriptions (`db/seed/fixtures/reference-data.ts`, and the seeds that copy them):
 
 **Sales.** Summary: "Orders, revenue and the basket: what customers buy and send back, and what
 we earn." Description:
@@ -266,7 +266,7 @@ The dimension descriptions in `segments.yml`:
 | platform | Where the order was placed: the website, the iOS app or the Android app.        |
 | campaign | The marketing campaign the customer was acquired through. There are thousands.  |
 
-The mock model in `src/web/mocks/cube-model.ts` follows these files
+The mock model in `db/seed/fixtures/cube-model.ts` follows these files
 (`tests/server/connectors/demo-model.test.ts` fails when they differ):
 
 - Every `cube:` ref, name, title ("Basket Average order value", "Orders Orders", "Customers
@@ -315,7 +315,7 @@ Where it lives:
 
 ## 9. The fact templates, by kind
 
-The generator writes 1,490 facts from templates (`src/web/mocks/items.ts`). Each template keeps
+The generator writes 1,490 facts from templates (`db/seed/fixtures/items.ts`). Each template keeps
 its place in its list and its number of `more` and `quotes` lines.
 
 ### 9.1 Events (7)
@@ -350,7 +350,7 @@ its place in its list and its number of `more` and `quotes` lines.
 |        | `From ${date}, retailers in ${market} charge the new rate on all sales.`                  |
 | source | `https://tax.example/${marketId}/vat/${day}`                                              |
 
-**3. Payment provider switched.** Its text is in `src/web/mocks/items.ts`.
+**3. Payment provider switched.** Its text is in `db/seed/fixtures/items.ts`.
 
 **4. Launch campaign started.** Welcome discounts were doubled while it ran.
 
@@ -368,7 +368,7 @@ its place in its list and its number of `more` and `quotes` lines.
 |        | `No retailer may advertise price reductions in ${market} from ${date}.`      |
 | source | `https://regulator.example/${marketId}/promotions/${day}`                    |
 
-**6. Outage affected tracking.** Its text is in `src/web/mocks/items.ts`.
+**6. Outage affected tracking.** Its text is in `db/seed/fixtures/items.ts`.
 
 **7. Returns rules.** The title is long on purpose: it tests how lists and tables take a long
 title.
@@ -397,7 +397,7 @@ weekend started that week."
 
 ### 9.4 Examples (3)
 
-Their text is in `src/web/mocks/items.ts`, as is every template's.
+Their text is in `db/seed/fixtures/items.ts`, as is every template's.
 
 ## 10. The demo issues and the facts about any value
 
@@ -413,8 +413,8 @@ Their text is in `src/web/mocks/items.ts`, as is every template's.
 | Clothing order lines were missing in Germany for three days | units_per_order  |
 | Returns were counted twice in the United Kingdom            | returns          |
 
-Their summaries and sources are in `src/web/mocks/items.ts`. The what not to conclude of the
-Poland issue (`src/web/mocks/caveats.ts`) is "Low orders in Poland for these days do not mean
+Their summaries and sources are in `db/seed/fixtures/items.ts`. The what not to conclude of the
+Poland issue (`db/seed/fixtures/caveats.ts`) is "Low orders in Poland for these days do not mean
 that customers ordered less. Wait until the data catches up before comparing Poland with other
 markets."
 
@@ -432,7 +432,7 @@ markets."
 
 ## 11. The story facts on the show's path
 
-`src/web/mocks/story-facts.ts` holds 24 facts written by hand. Each replaces the words of a
+`db/seed/fixtures/story-facts.ts` holds 24 facts written by hand. Each replaces the words of a
 generated fact by id and keeps its kind, domain, dates and where it applies. None of them answers
 the show's two questions.
 

@@ -10,8 +10,8 @@ import { describe, expect, it } from 'vitest'
 import type { ContextApi } from '../../src/web/api/client.ts'
 import { personOnly, toolNames } from '../../src/server/mcp/tools.ts'
 import { ApiError } from '../../src/web/api/errors.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
-import { areas } from '../../src/web/mocks/reference-data.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
+import { areas } from '../../db/seed/fixtures/reference-data.ts'
 
 const known = new Set(areas.map((area) => area.id))
 // An item every agent gets in both worlds: accepted, for everyone, in any domain, not high risk.

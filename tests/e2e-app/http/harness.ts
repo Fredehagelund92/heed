@@ -4,6 +4,8 @@ import { systemClock } from '../../../src/server/clock.ts'
 import { calendarDateTypes, databaseFromPool } from '../../../src/server/db/database.ts'
 import { identifier, localRoles } from '../../../src/server/db/roles.ts'
 import { createLogger } from '../../../src/server/observability/logger.ts'
+import { createEditionSource } from '../../../src/server/modules/editions/index.ts'
+import { createAnonymousStore } from '../../../src/server/mcp/store.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { devPeople, TODAY } from '../../app/http/demo-week.ts'
 import { demoLoginServer } from '../../app/http/login.ts'
@@ -83,6 +85,19 @@ export async function freshService(
   })
   // Dropping the copy for the next journey ends any idle connection a closing app still holds.
   pool.on('error', () => undefined)
+  // What agents read over MCP, on the serving role, as the service reads it (src/server/mcp/runtime.ts).
+  const serving = new pg.Pool({
+    connectionString: url.href,
+    max: 2,
+    options: `-c role=${localRoles.serve}`,
+    types: calendarDateTypes,
+  })
+  serving.on('error', () => undefined)
+  const issuer = `http://localhost:${apiPort}`
+  // An agent signs in with the service's own login server, as a person's agent does (J12). Its
+  // address is on the web app's host, as the service requires of the consent page, so the
+  // browser's sign-in cookie goes with the consent page's requests.
+  const login = await demoLoginServer(issuer, webOrigin)
   const app = buildApp({
     database: databaseFromPool(pool),
     jobs: idleJobs(),
@@ -95,8 +110,16 @@ export async function freshService(
       secrets: demoSecrets(cubeToken),
       registry: new ConnectorRegistry([]),
     }),
-    // An agent signs in with the service's own login server, as a person's agent does (J12).
-    login: await demoLoginServer(`http://127.0.0.1:${apiPort}`, webOrigin),
+    login,
+    // An agent that signed in reads over MCP with the login server's tokens.
+    mcp: {
+      source: createEditionSource(serving),
+      store: createAnonymousStore(serving),
+      verifier: login.verifier,
+      resource: `${issuer}/mcp`,
+      authorizationServers: [issuer],
+      close: () => serving.end(),
+    },
   })
   await app.listen({ host: '127.0.0.1', port: apiPort })
   running = { close: () => app.close() }

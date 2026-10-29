@@ -3,7 +3,7 @@ import { createToolService, searchHint } from '../../src/server/mcp/service.ts'
 import type { AnonymousRecord } from '../../src/server/mcp/records.ts'
 import { editionDomains } from '../../src/server/mcp/outcomes.ts'
 import { loadLiveBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
-import { regression } from '../../src/web/mocks/items.ts'
+import { regression } from '../../db/seed/fixtures/items.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
 /*

@@ -11,20 +11,20 @@ import { mentionsInFields } from '../../src/domain/mentions.ts'
 import { addDays, itemDisplayStatus, itemTrust, needsALook } from '../../src/domain/status.ts'
 import { ITEMS_PAGE_MAX } from '../../src/contract/limits.ts'
 import type { ContextApi, LibraryItem } from '../../src/web/api/client.ts'
-import { generateItems, versionDays } from '../../src/web/mocks/items.ts'
+import { generateItems, versionDays } from '../../db/seed/fixtures/items.ts'
 import {
   DEMO_MODEL_URL,
   DEMO_READ_AT,
   DEMO_SOURCE_VERSION,
   demoDefinitions,
-} from '../../src/web/mocks/cube-model.ts'
+} from '../../db/seed/fixtures/cube-model.ts'
 import {
   FIXTURE_TODAY,
   areas,
   currentUserId,
   people,
   vocabulary,
-} from '../../src/web/mocks/reference-data.ts'
+} from '../../db/seed/fixtures/reference-data.ts'
 
 export type ConformanceOptions = {
   /** The binding's id for a fixture person, for example `per_maria`. */

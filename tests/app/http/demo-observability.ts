@@ -1,7 +1,7 @@
 import type pg from 'pg'
 import { daySeed, obsData, topicSeed } from '@/api/mock/data/observability'
 import type { Topic as FixtureTopic } from '@/api/mock/obs-engine'
-import { vocabulary } from '../../../src/web/mocks/reference-data.ts'
+import { vocabulary } from '../../../db/seed/fixtures/reference-data.ts'
 
 /*
   The mockup's Observability on the real service, for the http journeys and the http binding's

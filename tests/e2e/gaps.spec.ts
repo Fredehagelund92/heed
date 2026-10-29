@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { openPage, settle, themes, widths } from './support'
 
 /*
-  The Gaps page on the mock (slice W9): the fixture gaps of src/web/mocks/gaps.ts, as Maria (no
+  The Gaps page on the mock (slice W9): the fixture gaps of db/seed/fixtures/gaps.ts, as Maria (no
   role) sees them. Since Workbench slice W8 the page is for everyone Health (the Workbench then)
   is not for: an owner's, deputy's or administrator's address lands in Health's Gaps view, where
   their cases are (health.spec.ts), and only the topic counts stay here for them. Each test gets its

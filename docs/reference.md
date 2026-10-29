@@ -521,6 +521,10 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   person's read state and Try it: the suggestion's own question answered on the live edition
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
   hides from the reader reads as its words only.
+- `POST /review/sheets` takes `{ ids }` (at most 100) and gives the same read for many
+  suggestions at once, in the order asked, leaving out one that went or that the reader may not
+  see: the Inbox reads every suggestion it lists in one call. It changes nothing; as a POST it
+  needs `Origin` and `x-heed-csrf`.
 - A clash (FR-225) is a live item an agent would get in the same answer as the suggestion,
   except the item it changes and those it already names as replaced or conflicting. An edit
   whose difference is only formatting, only order or only a change of dates has no clash; an edit

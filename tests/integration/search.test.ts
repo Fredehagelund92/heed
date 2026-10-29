@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { SEARCH_GROUP_MAX } from '../../src/contract/index.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLibraryService } from '../../src/server/modules/library/index.ts'
-import { generateItems } from '../../src/web/mocks/items.ts'
+import { generateItems } from '../../db/seed/fixtures/items.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
 /*
