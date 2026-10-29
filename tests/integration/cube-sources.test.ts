@@ -12,6 +12,7 @@ import {
   createWorkspaceSources,
   openLocalSecretStore,
 } from '../../src/server/modules/connectors/index.ts'
+import { readConnectors } from '../../src/server/modules/jobs/operations.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { gitHost, type GitHost } from '../server/connectors/git-server.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -411,10 +412,7 @@ describe('the views an admin chooses, and Disconnect (CON-118)', () => {
     expect((await run()).connectors[sourceId]).toBeUndefined()
     // It is no entry of the operations overview or the catalogue's sources: those are for the
     // ones connected.
-    const operations = await ok<{ connectors: { id: string }[] }>(
-      call('GET', '/operations', 'admin'),
-    )
-    expect(operations.connectors.map((c) => c.id)).not.toContain(sourceId)
+    expect((await readConnectors(database)).map((c) => c.id)).not.toContain(sourceId)
     const catalogue = await ok<{ sources: { id: string }[] }>(call('GET', '/catalogue', 'admin'))
     expect(catalogue.sources.map((c) => c.id)).not.toContain(sourceId)
     const again = await ok<SourceSettings>(

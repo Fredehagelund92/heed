@@ -234,7 +234,7 @@ export function createCatalogueService(
         .sort(byName)
         .flatMap((row) => term(row) ?? [])
 
-    return { today, definitions, mentionedBy, items, term, terms }
+    return { today, definitions, mentionedBy, items, term, terms, sourceOf }
   }
 
   return {
@@ -255,7 +255,7 @@ export function createCatalogueService(
 
     async get(kind, id) {
       const data = await read()
-      const { today, definitions, mentionedBy, items, term } = build(data)
+      const { today, definitions, mentionedBy, items, term, sourceOf } = build(data)
       const key = `${termKinds[kind]}:${id}`
       const row = data.vocabulary.find((candidate) => candidate.key === key)
       const found = row && term(row)
