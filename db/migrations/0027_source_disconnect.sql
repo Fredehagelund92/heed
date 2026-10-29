@@ -1,4 +1,4 @@
--- 0026_source_disconnect: Disconnect in Settings › Integrations (CON-118).
+-- 0027_source_disconnect: Disconnect in Settings › Integrations (CON-118).
 --
 -- An admin disconnects a source they added: it is read no more, its secrets leave the secret
 -- store, and it leaves the integrations' list. Its row stays, because its reads, the suggestions

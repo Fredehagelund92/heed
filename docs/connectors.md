@@ -252,7 +252,7 @@ their settings are whoever runs the server's.
 **Disconnect** (CON-118, `sources.remove`) ends a source an admin added: it is switched off for
 good, its secrets (and its figures' token) leave the store once the change commits, and it leaves
 Integrations; settings, reads, Read again, Pause and a second Disconnect find nothing (404). Its row
-stays (`connectors.removed_at`, `removed_by`, migration 0026), since its reads, suggestions and
+stays (`connectors.removed_at`, `removed_by`, migration 0027), since its reads, suggestions and
 definitions name it. A content source's open suggestions are withdrawn as the source, in a
 transaction of its own after the change commits (the job finishes any it could not); what owners
 published stays. A definitions source's definitions stay as they were, unflagged, and its refs
