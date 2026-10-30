@@ -1,13 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { SettingsPage } from '@/pages/settings'
+import { Loading } from '@/App'
 import { settingsSearch } from '@/lib/search'
 
 export const Route = createFileRoute('/_app/settings/$section/$sub/$step')({
   validateSearch: settingsSearch,
-  component: Page,
+  pendingComponent: () => <Loading shape="page" />,
 })
-
-function Page() {
-  const { section, sub, step } = Route.useParams()
-  return <SettingsPage section={section} sub={sub} step={step} />
-}

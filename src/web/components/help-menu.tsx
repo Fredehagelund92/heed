@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
-import { CHANGELOG_SLUG, DOCS_HOME, docHref } from '@/lib/docs'
+import { CHANGELOG_SLUG, DOCS_HOME, docHref } from '@/lib/doc-links'
 import { supportMail } from '@/lib/help-content'
 import { open } from '@/lib/events'
 import { navigate, useRoute } from '@/lib/router'

@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { DefinitionPage } from '@/pages/definition-page'
+import { Loading } from '@/App'
 
-export const Route = createFileRoute('/_app/definitions/$name/')({ component: Page })
-
-function Page() {
-  return <DefinitionPage name={Route.useParams().name} />
-}
+export const Route = createFileRoute('/_app/definitions/$name/')({
+  pendingComponent: () => <Loading shape="page" />,
+})

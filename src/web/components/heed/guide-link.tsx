@@ -1,11 +1,11 @@
 import { ArrowUpRightIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { docHref, docPage } from '@/lib/docs'
+import { docHref, docTitle } from '@/lib/doc-links'
 
 /** Under an aside's help: one quiet link to its guide in the documentation, which opens as its own site. */
 export function GuideLink({ slug, className }: { slug: string; className?: string }) {
-  const page = docPage(slug)
-  if (!page) return null
+  const title = docTitle(slug)
+  if (!title) return null
   return (
     <a
       href={docHref(slug)}
@@ -18,7 +18,7 @@ export function GuideLink({ slug, className }: { slug: string; className?: strin
     >
       Read the guide
       <ArrowUpRightIcon className="size-3.5" aria-hidden />
-      <span className="sr-only">: {page.title} (opens in a new tab)</span>
+      <span className="sr-only">: {title} (opens in a new tab)</span>
     </a>
   )
 }

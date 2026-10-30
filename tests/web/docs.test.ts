@@ -19,6 +19,7 @@ import { format, resolveConfig } from 'prettier'
 import { parse } from 'yaml'
 import { includeMarkdown } from '@/lib/docs-includes'
 import { CHANGES, DOC_PAGES, llmsTxt, searchDocs } from '@/lib/docs'
+import { docTitle } from '@/lib/doc-links'
 import { docControls } from '../e2e/docs-controls.ts'
 
 /*
@@ -205,6 +206,14 @@ describe('the docs check', () => {
       expect(Date.parse(p.reviewed), p.slug).toBeLessThanOrEqual(Date.now())
     for (const c of CHANGES.changes)
       expect(Date.parse(c.date), c.title).toBeLessThanOrEqual(Date.now())
+  })
+})
+
+describe('the links into the docs', () => {
+  // A guide link reads only the titles (lib/doc-links.ts), so the pages stay off the first load.
+  it('name every page by its own title, and no page that does not exist', () => {
+    for (const p of DOC_PAGES) expect(docTitle(p.slug)).toBe(p.title)
+    expect(docTitle('no-such-page')).toBeUndefined()
   })
 })
 

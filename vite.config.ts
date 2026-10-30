@@ -85,9 +85,10 @@ export default defineConfig(({ mode }) => ({
         : [],
   },
   plugins: [
-    // The pages load with the app, as the mockup's do; the review and the editors, which carry
-    // Tiptap, are lazy routes of their own (routes/**/*.lazy.tsx), fetched once the browser is
-    // idle after the first page (main.tsx).
+    // The Inbox and Ask load with the app; every other page is a lazy route of its own
+    // (routes/**/*.lazy.tsx), fetched when a link to it is hovered or once the browser is idle
+    // after the first page (main.tsx). scripts/check-bundle-size.mjs holds the first load to its
+    // budget.
     tanstackRouter({
       target: 'react',
       autoCodeSplitting: false,

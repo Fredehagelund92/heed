@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { createRouter, RouterProvider } from '@tanstack/react-router'
+import { createRouter, RouterProvider, type AnyRoute } from '@tanstack/react-router'
 import './styles/index.css'
 import { bindRouter } from '@/lib/router'
 import { mockControls, startApi } from '@/api'
@@ -31,15 +31,6 @@ const router = createRouter({
   defaultPendingMinMs: 0,
 })
 
-const lazyRoutes = [
-  '/_app/inbox/$id/review',
-  '/_app/context/new',
-  '/_app/context/$id/edit',
-  '/_app/context/$id/suggest',
-  '/_app/definitions/new',
-  '/_app/definitions/$name/edit',
-] as const
-
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router
@@ -61,13 +52,15 @@ const ready = router.subscribe('onResolved', () => {
   requestAnimationFrame(() =>
     requestAnimationFrame(() => document.documentElement.setAttribute('data-ready', '')),
   )
-  // The review and the editors load on their own (routes/**/*.lazy.tsx); they are fetched once the
-  // browser is idle after the first page, so opening them rarely waits.
+  // The pages that are not on the first load (routes/**/*.lazy.tsx: the review, the editors,
+  // Observability, Settings, Help and the documentation) are fetched once the browser is idle
+  // after the first page, so opening one rarely waits; hovering a link fetches it sooner.
   const idle = (fn: () => void) =>
     typeof window.requestIdleCallback === 'function'
       ? window.requestIdleCallback(fn, { timeout: 3000 })
       : setTimeout(fn, 1500)
   idle(() => {
-    for (const id of lazyRoutes) void router.loadRouteChunk(router.routesById[id])
+    for (const route of Object.values(router.routesById) as AnyRoute[])
+      if (route.lazyFn) void router.loadRouteChunk(route)
   })
 })

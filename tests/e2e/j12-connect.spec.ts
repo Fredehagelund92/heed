@@ -26,6 +26,9 @@ test('past 2 minutes it shows what helps; at 10 it stops, and Check again resume
   await page.clock.install()
   await go(page, '/settings/agents?connect=waiting')
   const live = page.getByRole('status').filter({ hasText: /waiting|checking/i })
+  // Settings is a lazy route that can arrive after the load event: the wait starts once it is on
+  // screen, so the clock moves from there.
+  await expect(live).toContainText('Waiting for your agent to connect…')
   await page.clock.runFor(120_000)
   await expect(live).toContainText('Still waiting. Nothing has signed in yet.')
   await page.clock.runFor(480_000)

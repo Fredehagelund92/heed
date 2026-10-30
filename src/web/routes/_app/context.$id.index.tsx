@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { FactPage } from '@/pages/fact'
+import { Loading } from '@/App'
 
-export const Route = createFileRoute('/_app/context/$id/')({ component: Page })
-
-function Page() {
-  return <FactPage id={Route.useParams().id} />
-}
+export const Route = createFileRoute('/_app/context/$id/')({
+  pendingComponent: () => <Loading shape="page" />,
+})

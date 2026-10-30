@@ -4,3 +4,9 @@ declare module 'virtual:help-docs' {
   const docs: Docs
   export default docs
 }
+
+// Each page's title by its slug, without the pages (scripts/docs-plugin.ts).
+declare module 'virtual:help-docs-titles' {
+  const titles: Record<string, string>
+  export default titles
+}
