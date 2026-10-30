@@ -822,7 +822,7 @@ The alternative, route C from the start, is recorded as an open question (OQ-9).
 | CON-514 | The connector may read the values of a dimension from Cube if the organisation allows it. Without it, owners keep dimension values in the vocabulary. Cube metadata lists members, not the values of a dimension. | Later | Kept |
 | CON-515 | A second connector should read Ossie documents as a definition source, with ids such as `ossie:<model>.<name>`. It depends on a stable Ossie release (OQ-9). | Later | Kept |
 | CON-516 | The connector must read the `meta.domain` entry of each view as the domain of its members. It must show a warning in the operations view for each view that has none. [OQ-24] | First build | Kept |
-| CON-517 | Scope inputs (`get_facts`, `find_facts`, `improve_question`, `report_gap` and drafts) must accept a definition id (`cube:orders.orders`) or a source member name (`orders.orders`) and resolve it through the term's definition references: the member of any view that a shared dimension holds resolves to that one term. A member that no term points at must come back with the closest names, never be read as the words inside it. | First build | Kept |
+| CON-517 | Scope inputs (`get_facts`, `find_facts`, `report_gap` and drafts) must accept a definition id (`cube:orders.orders`) or a source member name (`orders.orders`) and resolve it through the term's definition references: the member of any view that a shared dimension holds resolves to that one term. A member that no term points at must come back with the closest names, never be read as the words inside it. | First build | Kept |
 
 ### 7.6 Sources
 
