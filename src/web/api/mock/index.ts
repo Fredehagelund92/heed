@@ -607,7 +607,7 @@ export function createMockApi() {
         settings.addKey(me())
         return { key: demoAccessKey() }
       }),
-    advancedPage: () => read('advancedPage', '', () => advancedOf(state.log)),
+    advancedPage: () => read('advancedPage', '', () => advancedOf(state.log, state.about)),
     checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
     exportHistory: () => now(() => historyFile(state.log)),
     exportContext: () =>

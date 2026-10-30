@@ -54,6 +54,7 @@ import {
   Frame,
   FramePage,
   FrameRows,
+  FrameScroll,
   FrameSection,
   FrameTable,
   type FrameColumn,
@@ -546,6 +547,74 @@ function Advanced() {
   )
 }
 
+/** Every tuning setting in one table, a header row for each group, so the columns line up. */
+function SettingsTable({ groups }: { groups: AdvancedPage['settings'] }) {
+  const cell = 'px-4 py-2 align-middle first:md:pl-5 last:md:pr-5'
+  const columns = ['Setting', 'Value', 'Default or changed', 'Set by', 'What it does']
+  return (
+    <FrameScroll>
+      <table className="w-full text-sm" aria-label="Tuning settings">
+        <thead>
+          <tr className="bg-band text-xs text-muted-foreground">
+            {columns.map((c) => (
+              <th
+                key={c}
+                className="h-9 px-4 text-left font-medium whitespace-nowrap first:md:pl-5 last:md:pr-5"
+              >
+                {c}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        {groups.map((g) => (
+          <tbody key={g.group}>
+            <tr className="border-t bg-band-soft">
+              <th
+                scope="rowgroup"
+                colSpan={columns.length}
+                className="h-9 px-4 text-left text-xs font-medium md:px-5"
+              >
+                {g.group}
+              </th>
+            </tr>
+            {g.rows.map((r) => (
+              <tr key={r.key} className="border-t">
+                <th
+                  scope="row"
+                  className={cn(cell, 'w-56 text-left font-mono text-xs font-normal')}
+                >
+                  {r.key}
+                </th>
+                <td className={cn(cell, 'min-w-40 break-words')}>{r.value}</td>
+                <td className={cn(cell, 'whitespace-nowrap')}>
+                  {r.changed ? 'Changed' : 'Default'}
+                </td>
+                <td className={cn(cell, 'min-w-48')}>
+                  {r.changed ? (
+                    <>
+                      {r.changed.who ?? 'An update or a script'}, {r.changed.when}
+                      {r.changed.why && (
+                        <span className="block text-xs text-muted-foreground">{r.changed.why}</span>
+                      )}
+                    </>
+                  ) : (
+                    'Install'
+                  )}
+                </td>
+                {/* On a phone the table scrolls sideways rather than squeeze this to a word a line. */}
+                <td className={cn(cell, 'min-w-64 text-muted-foreground')}>{r.what}</td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
+      </table>
+    </FrameScroll>
+  )
+}
+
+/** An API address in a sentence. */
+const CODE = 'rounded-sm bg-muted px-1 py-0.5 font-mono text-xs text-foreground'
+
 function AdvancedSections({ page }: { page: AdvancedPage }) {
   const domains = useDomains()
   const write = useWrite()
@@ -569,24 +638,31 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
       save(file)
       toast('Exported', { description: file.name })
     }, failed('export'))
+  const count = page.settings.reduce((sum, g) => sum + g.rows.length, 0)
   return (
     <>
       <FrameSection
-        title="Limits"
+        title="Tuning settings"
         level={3}
-        description={`${page.settings} tuning settings, read-only here. Change them with ${SLUG} settings set, or the API.`}
+        description={`All ${count} settings and their values now. This page only shows them.`}
         collapsible
       >
-        <FrameTable
-          label="Limits"
-          columns={[
-            { label: 'Setting', className: 'w-56', cell: 'font-mono text-xs' },
-            { label: 'Value', className: 'whitespace-nowrap' },
-            // On a phone the table scrolls sideways rather than squeeze this to a word a line.
-            { label: 'What it does', className: 'min-w-64', cell: 'text-muted-foreground' },
-          ]}
-          rows={page.limits.map((l) => [l.key, l.value, l.what])}
-        />
+        <div className="space-y-2 border-t px-4 py-3 text-sm text-muted-foreground md:px-5">
+          <p>
+            Each setting is kept in the database, and only an Admin can change one, through the API:{' '}
+            <code className={CODE}>PUT /api/v1/settings/{'{key}'}</code> with the version they read,
+            the new value and a reason. The change applies at once, and the History log keeps who
+            made it and why. About our business can also be changed in General, and the Not found
+            threshold in Observability, Alerts.
+          </p>
+          <p>
+            Default means the value the app was installed with. Changed names who changed it last:
+            an Admin, or, with no person, an update of the app or a script run on the database.
+            Whether a real model is called at all, and its key, are set by whoever runs the app,
+            where it runs, not here.
+          </p>
+        </div>
+        <SettingsTable groups={page.settings} />
       </FrameSection>
       <FrameSection
         title="History log"
@@ -664,20 +740,8 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
           rows={[
             {
               label: 'Needs a model key',
-              hint: 'Answer tests only run with a real model, so a passed test always means something. Add a key to start.',
-              value: (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    toast('Add a model key', {
-                      description: 'Paste a key from your model provider.',
-                    })
-                  }
-                >
-                  Add a key
-                </Button>
-              ),
+              hint: "Answer tests only run with a real model, so a passed test always means something. Whoever runs the app turns real models on and adds the model provider's key where it runs.",
+              value: <span className="text-xs text-muted-foreground">Not set here</span>,
             },
             {
               label: 'With and without context',
@@ -700,20 +764,17 @@ function AdvancedSections({ page }: { page: AdvancedPage }) {
       <FrameSection
         title="Import and export"
         level={3}
-        description="Context as JSON, for a backup or a move."
-        action={
+        description={
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('Import', { description: 'Pick a JSON file of context.' })}
-            >
-              Import context
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => exported('exportContext')}>
-              Export context
-            </Button>
+            Context as JSON, for a backup or a move. To bring context in, the command line&apos;s{' '}
+            <code className={CODE}>{SLUG} import</code> checks a file, and sends its items as
+            suggestions with <code className={CODE}>--apply</code>.
           </>
+        }
+        action={
+          <Button variant="outline" size="sm" onClick={() => exported('exportContext')}>
+            Export context
+          </Button>
         }
       />
       <FrameSection

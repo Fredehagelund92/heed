@@ -3,42 +3,67 @@ import { SLUG } from '@/lib/brand'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { logLine, relativeDate } from '@/model/history'
 import type { LogEntry } from '@/model/items'
+import { type SettingChange, settingGroups } from '@/model/settings'
+import { WORKSPACE_NAME } from './data/world'
 
-// Settings, Advanced in the demo: the tuning settings people ask about, what was deleted, the
+// Settings, Advanced in the demo: every tuning setting, what was deleted, the
 // history log, the jobs and the editions, as Larchwood Outdoor's week has them. The deletions and
 // the log's first lines come from the changes made to many items this visit.
 
-const limits: Advanced['limits'] = [
-  { key: 'review.default_days', value: '90', what: "Days until a context item's check is due" },
-  {
-    key: 'gaps.no_item_threshold',
-    value: '5 in 7 days',
-    what: 'Questions with nothing written down before a Not found card',
-  },
-  { key: 'privacy.min_count', value: '5', what: 'Counts under this are hidden' },
-  {
-    key: 'privacy.questions',
-    value: 'Scope and count',
-    what: "What is kept of an agent's question: what it was about and how often, never the words or who asked",
-  },
-  { key: 'serving.max_reply_bytes', value: '100 KB', what: 'The most an agent gets in one reply' },
-  { key: 'limits.agent_suggestions', value: '20 a day', what: 'Suggestions one agent can send' },
-  {
-    key: 'spend.monthly_cap',
-    value: '$50',
-    what: 'All model use in a month; at the cap Ask and web reads stop and say why',
-  },
-  { key: 'spend.person_daily_cap', value: '$2', what: 'Model use by one person in a day' },
-  { key: 'spend.answer_tests_cap', value: '$20', what: 'Answer tests in a month' },
-]
+/** Who changed the demo's money caps, so its Observability reads $50 and $20 a month. */
+const capped = {
+  who: 'Jon Abara',
+  when: '5 Oct',
+  why: 'Keep the pilot cheap until the answer tests prove their worth',
+}
+
+/** Every tuning setting in the demo: the values it was installed with, but for the name and caps. */
+function settingsOf(name: string, about: string) {
+  const values: [key: string, value: unknown, changed?: SettingChange][] = [
+    ['workspace.name', name, { who: 'Jon Abara', when: '1 Oct', why: 'Name the workspace' }],
+    ['business.about', about],
+    ['sources.cube_model_url', null],
+    ['review.default_days', 90],
+    ['review.open_issue_days', 14],
+    ['gaps.no_item_threshold', { calls: 5, days: 7 }],
+    ['limits.undo_seconds', 15],
+    ['limits.mentions_per_version', 50],
+    ['privacy.min_count', 5],
+    ['retention.delivery_days', 180],
+    ['retention.note_days', 180],
+    ['retention.request_log_days', 90],
+    ['retention.outbox_days', 30],
+    ['limits.agent_drafts', { per_day: 10, open: 20 }],
+    ['limits.mcp_requests_per_minute', { person: 30, client: 120 }],
+    ['limits.mcp_rate_per_minute', { get_context: 120, report: 20 }],
+    ['limits.api_rate_per_minute', { person: 600, ip: 120 }],
+    ['limits.gap_reports_per_minute', { person: 5 }],
+    ['limits.assistant_ratings_per_minute', { person: 20 }],
+    ['limits.web_searches_per_day', 0],
+    ['serving.max_overlay_age_seconds', 60],
+    ['limits.llm_monthly_cap_micros', 50_000_000, capped],
+    ['limits.llm_daily_micros_per_person', 2_000_000],
+    ['limits.llm_feature_monthly_micros', { eval: 20_000_000, assistant: 250_000_000 }, capped],
+    ['evals.run_budget_micros', 2_000_000],
+    ['models.assistant', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],
+    ['models.eval_answer', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],
+    ['models.judge', 'different_family'],
+    ['models.test_authoring', { provider: 'anthropic', model: 'claude-sonnet-5-5' }],
+    ['models.call_limits', { concurrency: 4 }],
+    ['evals.tries', 3],
+    ['evals.flip_repeats', 7],
+  ]
+  return settingGroups(
+    values.map(([key, value, changed]) => ({ key, value, changed: changed ?? null })),
+  )
+}
 
 const toolHref = '/settings/integrations/cube'
 
 /** What Settings, Advanced shows in the demo, with what this visit changed on top. */
-export function advancedOf(log: readonly LogEntry[]): Advanced {
+export function advancedOf(log: readonly LogEntry[], about = ''): Advanced {
   return {
-    limits,
-    settings: 28,
+    settings: settingsOf(WORKSPACE_NAME, about),
     // Newest first: drafts and terms. Published context is archived, never deleted.
     deleted: [
       ...log
@@ -89,6 +114,24 @@ export function advancedOf(log: readonly LogEntry[]): Advanced {
         who: 'Automatic',
         what: `Read ${DEFINITIONS_TOOL}: 2 definitions changed`,
         href: toolHref,
+      },
+      {
+        key: 'h0',
+        when: '5 Oct, 10:12',
+        who: 'Jon Abara',
+        what: 'Changed a setting: limits.llm_monthly_cap_micros',
+      },
+      {
+        key: 'h-1',
+        when: '5 Oct, 10:11',
+        who: 'Jon Abara',
+        what: 'Changed a setting: limits.llm_feature_monthly_micros',
+      },
+      {
+        key: 'h-2',
+        when: '1 Oct, 09:30',
+        who: 'Jon Abara',
+        what: 'Changed a setting: workspace.name',
       },
     ],
     jobs: [

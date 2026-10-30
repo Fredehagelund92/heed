@@ -393,6 +393,34 @@ test('Usage: tools with their results, agents by kind, and spend against the cap
   await expect(page.getByText('No agent has called yet')).toBeVisible()
 })
 
+test('Limits: every tuning setting, read only, with where its value comes from', async ({
+  page,
+}) => {
+  await go(page, '/observability/usage')
+  await page.getByRole('link', { name: 'Limits' }).click()
+  await expect(page).toHaveURL(/\/settings\/advanced$/)
+  await expect(
+    page.getByText('All 32 settings and their values now. This page only shows them.'),
+  ).toBeVisible()
+  // The page says how a setting is really changed, and names no command that does not exist.
+  await expect(page.getByText('PUT /api/v1/settings/{key}')).toBeVisible()
+  await expect(page.getByText(/settings set/)).toHaveCount(0)
+  const settings = page.getByRole('table', { name: 'Tuning settings' })
+  // A header for each of the 7 groups, and one for each of the 32 settings.
+  await expect(settings.getByRole('rowheader')).toHaveCount(7 + 32)
+  await expect(settings.getByRole('rowheader', { name: 'Model spend', exact: true })).toBeVisible()
+  // The cap Usage reads was changed after the install; the privacy minimum keeps its default.
+  await expect(settings.getByRole('row', { name: /limits\.llm_monthly_cap_micros/ })).toContainText(
+    /\$50\s*Changed/,
+  )
+  await expect(settings.getByRole('row', { name: /privacy\.min_count/ })).toContainText(
+    /5\s*Default\s*Install/,
+  )
+  // Read only: nothing in the table changes a value.
+  await expect(settings.getByRole('button')).toHaveCount(0)
+  await expect(settings.getByRole('textbox')).toHaveCount(0)
+})
+
 test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, mute for owners', async ({
   page,
 }) => {
