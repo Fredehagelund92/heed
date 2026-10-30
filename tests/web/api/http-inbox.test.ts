@@ -911,11 +911,13 @@ describe('the review', () => {
         { claim: 'Poland', source: 'Poland', same: 'same' },
       ],
     })
+    // Every live item it overlaps, each with its own answer: none stands for another.
     expect(agent.clash).toEqual({
-      factId: 'itm_b',
-      title: 'Norway orders count store credit',
       mine: 'Poland orders arrive late. The last days are short.',
-      theirs: 'They count it.',
+      items: [
+        { factId: 'itm_a', title: 'Answered', theirs: 'Said before.', relation: 'unrelated' },
+        { factId: 'itm_b', title: 'Norway orders count store credit', theirs: 'They count it.' },
+      ],
     })
     const retire = reviewOf(
       sheet({ mode: 'retire', note: 'Finance restated it.', reach: null }, { mode: 'retire' }),

@@ -766,20 +766,23 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     return { undo: decided.undo }
   }
 
-  /** Publishes a suggestion, or archives what a retirement names: one accept by an owner. */
-  const publish = async (id: string, relation?: string | null) => {
+  /**
+   * Publishes a suggestion, or archives what a retirement names: one accept by an owner. Each
+   * answer goes to the live item it was given for, and only to it: one answer never stands for
+   * another item, so the service refuses while an overlap has none.
+   */
+  const publish = async (id: string, answers: Record<string, Relation> = {}) => {
     const ref = await refFor(id)
-    const relations =
-      relation && ref.clashes.length
-        ? ref.clashes.map((itemId) => ({
-            itemId,
-            relation: relation === 'disagree' ? ('disagrees' as const) : (relation as 'replaces'),
-          }))
-        : undefined
+    const relations = ref.clashes.flatMap((itemId) => {
+      const relation = answers[itemId]
+      return relation
+        ? [{ itemId, relation: relation === 'disagree' ? ('disagrees' as const) : relation }]
+        : []
+    })
     const input = {
       id: ref.proposalId,
       revision: ref.revision,
-      ...(relations ? { relations } : {}),
+      ...(relations.length ? { relations } : {}),
     }
     const done = await write('review.publish', input, (o) => client.review.publish(input, o))
     // Deciding gives it a new revision: the next decision on it reads it again.
@@ -1528,9 +1531,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     completeCard: decideCard,
     // A Not found card's draft also saves its question, unless the person said not to (FR-526);
     // Undo takes both back. The publish stands if the question cannot be saved.
-    publishReview: async ({ id, relation, saveQuestion }) => {
+    publishReview: async ({ id, relations, saveQuestion }) => {
       const { gap } = await refFor(id)
-      const done = await publish(id, relation)
+      const done = await publish(id, relations)
       if (!gap || saveQuestion === false) return done
       const input = {
         areaId: gap.areaId,

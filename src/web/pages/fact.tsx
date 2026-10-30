@@ -184,7 +184,7 @@ export function FactPage({ id }: { id: string }) {
       {other && (
         <SideSection
           title="Disagrees with"
-          description="Choose which one stays: keep one, narrow one to where it applies, or keep both."
+          description="Choose which one stays: archive the other from its page, narrow one to where it applies, or keep both."
         >
           <button
             type="button"
@@ -195,15 +195,6 @@ export function FactPage({ id }: { id: string }) {
           </button>
           {owner && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  toast('Kept this one', { description: `${other.title} was archived.` })
-                }
-              >
-                Keep this one
-              </Button>
               <Button
                 variant="outline"
                 size="sm"

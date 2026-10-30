@@ -40,7 +40,7 @@ import type { Filters, SavedView } from '@/lib/obs-views'
 import type { ObsData, Range } from '@/model/observability'
 import type { Replay, When } from '@/model/replay'
 import type { Domain, Person } from '@/model/people'
-import type { Review } from '@/model/review'
+import type { Relation, Review } from '@/model/review'
 import type { SettingGroup } from '@/model/settings'
 import type { SavedQuestion } from '@/model/saved-questions'
 
@@ -193,8 +193,7 @@ export type Integrations = {
   figureConnections: Partial<Record<ConnectorId, FigureConnection>>
 }
 
-/** How a suggestion that overlaps a live item relates to it, as the owner chose. */
-export type Relation = 'replaces' | 'disagree' | 'unrelated'
+export type { Relation } from '@/model/review'
 
 /** Settings, Advanced: what an admin reads there, for the day someone needs it. */
 export type Advanced = {
@@ -421,10 +420,14 @@ export interface HeedApi {
   decideCard: (input: { card: string; outcome: string; patch?: Partial<Fact> }) => Promise<Undoable>
   /** A card closed without a decision of its own (a report that is not a problem). */
   completeCard: (input: { card: string; outcome: string }) => Promise<Undoable>
-  /** Publishes a suggestion; `saveQuestion` also saves a Not found draft's question. */
+  /**
+   * Publishes a suggestion. `relations` says how it relates to each live item it overlaps, by that
+   * item's id: Publish needs an answer for every one, and each answer acts on its own item only.
+   * `saveQuestion` also saves a Not found draft's question.
+   */
   publishReview: (input: {
     id: string
-    relation?: Relation | null
+    relations?: Record<string, Relation>
     saveQuestion?: boolean
   }) => Promise<Undoable>
   /** Publishes the ready suggestions the person has read, each as one Publish would. */

@@ -3,7 +3,8 @@ import { card, claimsToCheck, expect, go, inHttpOnly, signInAs, test } from './g
 // J16, saying what needs care before anyone publishes: the quick view and the Inbox row show the
 // claims to check; an edit's Ready line says its numbers weren't checked; a withdrawn retirement
 // shows the thread's outcome, and archiving always asks first, from the button or the key. Its
-// sender takes it back, or lets it stand, with a comment of theirs.
+// sender takes it back, or lets it stand, with a comment of theirs. A suggestion that overlaps
+// several live items asks how it relates to each, and Publish acts on each answer alone.
 
 test('the quick view and the row show the claims to check before Review', async ({ page }) => {
   const claims = `${claimsToCheck('sug-agent')} claims to check`
@@ -24,6 +25,47 @@ test("a new date with no source says it isn't checked; one with a new source pag
   await go(page, '/inbox/sug-ines/review')
   await expect(decide.getByText('not checked')).toHaveCount(0)
   await expect(decide.getByText(/Complete/)).toHaveCount(0)
+})
+
+test('an overlap with several live items asks about each, and archives only the one it replaces', async ({
+  page,
+}) => {
+  const stop = 'Online sales to Norway stopped on 4 August 2026'
+  const cardOnly = 'Norway orders are card and cash payments only'
+  const credit = 'Norway orders count store credit'
+  const decide = page.getByRole('complementary', { name: 'Try it and decide' })
+  const relate = (title: string, answer: string) =>
+    page
+      .getByRole('radiogroup', { name: `How this relates to ${title}` })
+      .getByRole('radio', { name: answer })
+      .click()
+  await go(page, '/inbox/sug-sofia-clash/review')
+  await expect(page.getByText('It overlaps 3 live context items.')).toBeVisible()
+  for (const title of [stop, cardOnly, credit])
+    await expect(page.getByText(`: ${title}`, { exact: false }).first()).toBeVisible()
+  // One answer is not an answer for the others: Publish waits until each has its own.
+  await relate(credit, 'This replaces it')
+  await relate(stop, 'Unrelated')
+  await expect(decide.getByText('Not ready: choose how they relate.')).toBeVisible()
+  await expect(decide.getByRole('button', { name: 'Publish' })).toBeDisabled()
+  await relate(cardOnly, 'These disagree')
+  await expect(
+    decide.getByText('When you publish, 1 live item is archived and 2 stay.'),
+  ).toBeVisible()
+  await decide.getByRole('button', { name: 'Publish' }).click()
+  await expect(page.getByText(`Archived: ${credit}.`)).toBeVisible()
+  // The one it replaces is archived; the unrelated stop and the one it disagrees with stay live.
+  await go(page, '/context/itm_gift_store_credit')
+  await expect(page.getByRole('heading', { name: credit })).toBeVisible()
+  await expect(page.getByText('Archived', { exact: true }).first()).toBeVisible()
+  for (const [id, title] of [
+    ['itm_norway_stop', stop],
+    ['itm_gift_card_only', cardOnly],
+  ] as const) {
+    await go(page, `/context/${id}`)
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.getByText('Archived', { exact: true })).toHaveCount(0)
+  }
 })
 
 test('a withdrawn retirement closes; archiving asks first, from the key too', async ({ page }) => {

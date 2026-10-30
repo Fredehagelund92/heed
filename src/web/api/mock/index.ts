@@ -14,7 +14,7 @@ import { obsData } from './data/observability'
 import { obsPage } from './obs-page'
 import { BEFORE, changedSteps, replay } from './replay'
 import { reviews } from './data/review'
-import type { Review } from '@/model/review'
+import type { Relation, Review } from '@/model/review'
 import { plainOf } from '@/components/templates/comment-box/utils'
 import {
   ABOUT_BUSINESS,
@@ -179,10 +179,14 @@ export function createMockApi() {
     }
   }
 
-  const publishOne = (id: string, relation?: string | null, saveQuestion = true) => {
+  const publishOne = (
+    id: string,
+    relations: Record<string, Relation> = {},
+    saveQuestion = true,
+  ) => {
     const r = reviews.find((x) => x.id === id)
     if (!r) return () => {}
-    const { itemId, domain } = publishEffects(r, me(), dispatch, relation)
+    const { itemId, domain } = publishEffects(r, me(), dispatch, relations)
     return saved.afterPublish(r, me(), itemId, domain, saveQuestion)
   }
 
@@ -468,10 +472,21 @@ export function createMockApi() {
         dispatch({ type: 'complete', card, outcome })
         return revertTo(before, { cards: [card] })
       }),
-    publishReview: ({ id, relation, saveQuestion }) =>
-      scenario.send('publishReview', () =>
-        decideReview(id, 'Published', () => ({ also: publishOne(id, relation, saveQuestion) })),
-      ),
+    publishReview: ({ id, relations = {}, saveQuestion }) =>
+      scenario.send('publishReview', () => {
+        // As the service: every live item it overlaps needs its own answer first.
+        const open = reviews
+          .find((r) => r.id === id)
+          ?.clash?.items.find((c) => !relations[c.factId])
+        if (open)
+          throw new ApiError(
+            'invalid',
+            `Say how this relates to “${open.title}” first: it replaces it, they disagree, or they are unrelated.`,
+          )
+        return decideReview(id, 'Published', () => ({
+          also: publishOne(id, relations, saveQuestion),
+        }))
+      }),
     publishReviews: ({ ids }) =>
       scenario.send('publishReviews', () => {
         const before = state

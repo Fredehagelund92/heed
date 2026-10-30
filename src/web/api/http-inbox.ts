@@ -9,6 +9,7 @@
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
+import type { ClashRelation } from '@domain/readiness'
 import { alertCardWords, alertRule, lookTitle } from '@domain/alerts'
 import { hrefOf } from './http-alerts'
 import { answerText, savedWhy } from '@domain/saved-check'
@@ -21,7 +22,7 @@ import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { describe, type Domain, type Domains, type Person } from '@/model/people'
-import type { Block, ChangeKind, Review } from '@/model/review'
+import type { Block, ChangeKind, Relation, Review } from '@/model/review'
 import { dateLabel, whenLabel } from '@/model/validity'
 
 /* ---------- words for times ---------- */
@@ -646,6 +647,13 @@ export const refOf = (sheet: ReviewSheet): SheetRef => ({
       : null,
 })
 
+/** An owner's answer to a clash, in the app's words. */
+const relationOf = {
+  replaces: 'replaces',
+  disagrees: 'disagree',
+  unrelated: 'unrelated',
+} as const satisfies Record<ClashRelation, Relation>
+
 /** The plain words of the suggested text, for a clash's side by side. */
 const firstParagraph = (markdown: string) => markdown.split('\n\n')[0] ?? ''
 
@@ -675,7 +683,6 @@ export function reviewOf(
     diff.blocks.flatMap((b) =>
       b.kind === 'added' && b.field === 'sources' && 'url' in b ? [b.url] : [],
     )[0] ?? diff.values.find((v) => v.what === 'source' && v.after)?.after
-  const clash = sheet.clashes.find((c) => !c.relation) ?? sheet.clashes[0]
   const say = (a: ReviewSheet['tryIt']['before']) => ({ state: a.state, text: a.say })
   const reach = sheet.reach?.questions ?? 0
   return {
@@ -735,13 +742,17 @@ export function reviewOf(
           },
         }
       : {}),
-    ...(clash
+    // Every live item it overlaps, each answered on its own, with the answer it already has.
+    ...(sheet.clashes.length
       ? {
           clash: {
-            factId: clash.itemId,
-            title: clash.title,
             mine: firstParagraph(sheet.source.after),
-            theirs: clash.summary,
+            items: sheet.clashes.map((c) => ({
+              factId: c.itemId,
+              title: c.title,
+              theirs: c.summary,
+              ...(c.relation ? { relation: relationOf[c.relation] } : {}),
+            })),
           },
         }
       : {}),

@@ -134,6 +134,10 @@ describe('the Ready line', () => {
       title: 'Not ready: choose how they relate',
       text: 'Publish waits until you say how this relates to the live item.',
     })
+    // Several live items: each needs its own answer, and the line says so.
+    expect(readinessWords(readiness(clash), { clashes: 3 }).text).toBe(
+      'Publish waits until you say how this relates to each of the 3 live items.',
+    )
     for (const relation of ['replaces', 'disagrees', 'unrelated'] as const) {
       const answered = readiness({ ...clash, clash: { itemId: 'itm_gift', relation } })
       expect(answered).toMatchObject({

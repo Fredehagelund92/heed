@@ -127,7 +127,12 @@ const list = (xs: readonly string[]) =>
 /** The Ready line in words: its title and the sentence under it. */
 export function readinessWords(
   r: Readiness,
-  context: { withdrawnBy?: string; diff?: Pick<DocDiff, 'counts'> } = {},
+  context: {
+    withdrawnBy?: string
+    diff?: Pick<DocDiff, 'counts'>
+    /** How many live items it clashes with: each needs its own answer. */
+    clashes?: number
+  } = {},
 ): { title: string; text: string } {
   const n = r.claimsToCheck
   switch (r.state) {
@@ -144,7 +149,10 @@ export function readinessWords(
     case 'clash':
       return {
         title: 'Not ready: choose how they relate',
-        text: 'Publish waits until you say how this relates to the live item.',
+        text:
+          (context.clashes ?? 1) > 1
+            ? `Publish waits until you say how this relates to each of the ${context.clashes} live items.`
+            : 'Publish waits until you say how this relates to the live item.',
       }
     case 'related':
       return { title: 'Ready', text: relationWords[r.relation!].hint }

@@ -109,6 +109,7 @@ const curated: Record<string, Omit<Answer, 'id' | 'question'>> = {
     state: 'conflict',
     text: 'One context item says Norway orders count store credit and gift cards [1]. Another says they count card and cash payments only [2]. Both are kept until an owner chooses.',
     sources: ['itm_gift_store_credit', 'itm_gift_card_only'],
+    conflict: ['itm_gift_store_credit', 'itm_gift_card_only'],
     said: '2 context items apply to Orders in Norway, and they disagree. Give both sides; do not pick one.',
   },
   stale: {
@@ -420,6 +421,13 @@ function answerCore(
       state: 'conflict',
       text: `${text} Both are kept until an owner chooses.`,
       sources,
+      // The pairs that disagree, not every item that applies.
+      conflict: all
+        .filter(
+          (f) =>
+            all.some((x) => x.id === f.disagreesWith) || all.some((x) => x.disagreesWith === f.id),
+        )
+        .map((f) => f.id),
       said: `${all.length} context items apply to ${scope}, and they disagree. Give both sides.`,
     }
   }
