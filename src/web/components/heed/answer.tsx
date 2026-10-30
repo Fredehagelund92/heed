@@ -15,7 +15,7 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TypeGlyph } from '@/components/heed/definition'
-import { PersonAvatar } from '@/components/heed/bits'
+import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
 import { ReadingLine } from '@/components/heed/reading'
@@ -764,6 +764,7 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const write = useWrite()
   const owns = me.owns.includes('sales') || me.admin
   const scope = scopeText({ metric: answer.metric, markets: answer.markets.slice(-1) })
+  const tellReason = React.useId()
   // A question that matched nothing has nothing to write for yet: say how to ask it.
   if (answer.state === 'missing' && !scope)
     return (
@@ -792,17 +793,16 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
             Write context for {scope}
           </Button>
         ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              toast('Sent to the owner of Sales', {
-                description: `${scope} now counts as not covered.`,
-              })
-            }
-          >
-            Tell the owner of Sales
-          </Button>
+          // Not built yet: the button stays disabled where it will be, and the reason is text.
+          <>
+            <Button size="sm" variant="outline" aria-disabled aria-describedby={tellReason}>
+              Tell the owner
+              <ComingSoon />
+            </Button>
+            <span id={tellReason} className="text-xs text-muted-foreground">
+              Sending this to the owner from here comes later.
+            </span>
+          </>
         )}
         {answer.times && (
           <span className="text-xs text-muted-foreground">

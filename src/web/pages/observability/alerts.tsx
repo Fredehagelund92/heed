@@ -17,6 +17,7 @@ import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
+import { ComingSoon } from '@/components/heed/bits'
 import { lastOf, rulesFor, thresholdOf, type AlertSettings, type Rule } from '@/model/alerts'
 import type { DomainId } from '@/model/items'
 import { OBS_PURPOSE, useObsPageQuery, useObsView } from '@/lib/obs'
@@ -74,9 +75,7 @@ function Alerts() {
           <Button variant="outline" size="sm" aria-disabled aria-describedby="add-rule-reason">
             <PlusIcon data-icon="inline-start" />
             Add a rule
-            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal">
-              Coming soon
-            </span>
+            <ComingSoon />
           </Button>
         }
       />

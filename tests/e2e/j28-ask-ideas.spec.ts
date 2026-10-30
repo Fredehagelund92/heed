@@ -148,6 +148,20 @@ test('Asked this week: topics with the state Ask gives now and a count; an owner
   )
 })
 
+test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({
+  page,
+}) => {
+  await signInAs(page, 'Tomas Eriksen')
+  await ask(page, 'How did orders in Spain change in October 2026?')
+  const tell = page.getByRole('button', { name: 'Tell the owner Coming soon' })
+  await expect(tell).toHaveAttribute('aria-disabled', 'true')
+  await expect(tell).toHaveAccessibleDescription('Sending this to the owner from here comes later.')
+  await expect(page.getByText('Sending this to the owner from here comes later.')).toBeVisible()
+  // A press sends nothing, so nothing says it was sent.
+  await tell.click({ force: true })
+  await expect(page.getByText(/^Sent to/)).toHaveCount(0)
+})
+
 test('Asked this week shows no draft to someone who does not own the domain, and a new workspace gets starters', async ({
   page,
 }) => {
