@@ -798,7 +798,10 @@ over its months) found nothing at least the minimum times.
   the delivery records for the rest), what is still open (topics that found nothing, with what
   waits for each in the Inbox), and the changes published after review, with who approved each.
   Every number goes through one disclosure pass in `src/domain/obs-summary.ts`, so none can be
-  worked out from the others (FR-614); `hidden` counts the ones kept back.
+  worked out from the others (FR-614); `hidden` counts the ones kept back. The change counts
+  (`changes.total`, `changes.before`) go through it too, and the latest list is dropped when its
+  total is hidden. Days up to the first day agents asked (`since`) count as a known zero, and the
+  open-spot counts are left out of the pass while the period is not `complete`.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,

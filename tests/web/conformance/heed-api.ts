@@ -2150,7 +2150,9 @@ export function describeHeedApi(
         ]
         for (const n of shown) expect(n === null || n === 0 || n >= 5, String(n)).toBe(true)
         expect(month.open.spots.length).toBeLessThanOrEqual(3)
-        expect(month.changes.latest.length).toBeLessThanOrEqual(Math.min(5, month.changes.total ?? 0))
+        expect(month.changes.latest.length).toBeLessThanOrEqual(
+          Math.min(5, month.changes.total ?? 0),
+        )
 
         const quarter = await api().observabilitySummary({ period: 'quarter' })
         expect(quarter.now).toEqual({ start: Date.UTC(2026, 6, 1), end: Date.UTC(2026, 9, 1) })
