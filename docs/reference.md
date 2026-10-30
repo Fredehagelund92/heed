@@ -786,13 +786,8 @@ over its months) found nothing at least the minimum times.
 - Weekly counts, kept without limit. The delivery records last `retention.delivery_days` (180
   by default), so the `observability.rollup` job keeps, each night before retention, every
   completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
-  answer state, by kind of agent, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
-  The observability service reads them with `weekly({ from, to, areaId?, agent? })`: every week
-  from the one `from` falls in up to the one `to` falls in, a week with no calls as 0, each with
-  its total, its answer states and its domains' totals. The domains read, `areaId` and `agent`
-  are as for `/observability/agents`, and every count goes through the same disclosure: a week's
-  total is kept before its finer counts, and what found nothing is hidden last. No route or screen
-  reads it yet.
+  answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
+  No reader exists yet: no route, screen or service method reads them.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,

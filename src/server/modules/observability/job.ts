@@ -4,7 +4,7 @@ import type { ScheduledJob } from '../jobs/index.ts'
 /**
  * The weekly counts Observability keeps without limit (FR-612, FR-620): each night, before
  * retention, every completed week (Monday to Sunday, UTC) is counted from the deliveries into
- * `obs_weekly`, by domain, answer state and kind of agent, and nothing else. The function runs as
+ * `obs_weekly`, by domain and answer state, and nothing else. The function runs as
  * the owner and is safe to run twice: a week counted again keeps the same counts, and a week whose
  * deliveries retention may have started to drop is never counted again.
  */

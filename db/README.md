@@ -97,7 +97,7 @@ partitions that retention drops.
 `obs_weekly` (migration 0029) keeps Observability's weekly counts without limit, the deliberate
 exception to `retention.delivery_days` that FR-612 allows: for each completed week (Monday to
 Sunday, UTC), the agent calls about a topic in each domain (or none), in each of the five answer
-states a chart tells apart, by kind of agent from FR-410's fixed list. It holds no topic, no words
+states a chart tells apart. It holds no topic, no words
 and no person; check constraints refuse anything but the fixed lists, a Monday and a count over 0.
 `cl_obs_weekly_rollup(week)` counts a week again from the deliveries and replaces it, so a second
 run keeps the same counts, but leaves a week as it was kept once its deliveries may be gone: when

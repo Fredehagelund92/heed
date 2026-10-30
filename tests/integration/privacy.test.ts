@@ -62,8 +62,8 @@ const columns = {
   topic_week_counts: ['topic_id', 'week', 'status', 'calls', 'no_item_calls'],
   gap_weekly_counts: ['gap_id', 'week', 'reports', 'no_item_calls', 'human_reports'],
   // Observability's weekly counts, kept without limit (FR-612): a week, a domain, an answer state
-  // and a kind of agent from fixed lists, and a count. Never a topic, a question or who asked.
-  obs_weekly: ['week', 'area_id', 'answer_state', 'app_family', 'calls'],
+  // from fixed lists, and a count. Never a topic, a question or who asked.
+  obs_weekly: ['week', 'area_id', 'answer_state', 'calls'],
   // A person's report (FR-606 case 5) keeps digests of its retry key and request, never who sent it.
   gap_report_keys: ['retry_digest', 'request_digest', 'gap_id', 'expires_hour'],
   // FR-410: the agent is kept as its family from a fixed list, never its own name or version.

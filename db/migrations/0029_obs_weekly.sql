@@ -7,7 +7,7 @@
 --
 -- - `obs_weekly` keeps, for each completed week (Monday to Sunday, in UTC), how many agent calls
 --   each domain had in each of the five answer states (grounded, partial, conflict, stale,
---   missing), by kind of agent (FR-410's fixed list). Counts only: never the words of a question,
+--   missing). Counts only: never the words of a question,
 --   never a topic or any scope finer than the domain, never who asked (FR-602, FR-613). A call
 --   about a topic with no domain counts with no domain. A call that failed its check, or that
 --   could not be read, is not in it, as in Observability's views.
@@ -28,12 +28,8 @@ create table public.obs_weekly (
     answer_state text not null
       constraint obs_weekly_answer_state_check
       check (answer_state in ('grounded', 'partial', 'conflict', 'stale', 'missing')),
-    app_family text not null
-      constraint obs_weekly_app_family_check
-      check (app_family in ('claude_code', 'claude_ai', 'chatgpt', 'codex', 'cursor', 'vscode_copilot',
-                            'windsurf', 'gemini_cli', 'goose', 'heed', 'other', 'unknown')),
     calls integer not null constraint obs_weekly_calls_check check (calls > 0),
-    constraint obs_weekly_key unique nulls not distinct (week, area_id, answer_state, app_family)
+    constraint obs_weekly_key unique nulls not distinct (week, area_id, answer_state)
 );
 
 -- Whether every delivery of a week is still kept: it starts inside the delivery period, or at or
@@ -54,7 +50,7 @@ begin
     into v_oldest
     from pg_inherits i join pg_class c on c.oid = i.inhrelid
    where i.inhparent = 'public.deliveries'::regclass;
-  return v_start >= now() - make_interval(days => v_kept) or v_start >= v_oldest;
+  return coalesce(v_start >= now() - make_interval(days => v_kept) or (v_oldest is not null and v_start >= v_oldest), false);
 end $$;
 
 -- One week counted again from the deliveries: the rows it now keeps, or null when the week's
@@ -72,13 +68,13 @@ begin
     return null;
   end if;
   delete from obs_weekly where week = p_week;
-  insert into obs_weekly (week, area_id, answer_state, app_family, calls)
-  select p_week, t.area_id, d.answer_state, d.app_family, count(*)
+  insert into obs_weekly (week, area_id, answer_state, calls)
+  select p_week, t.area_id, d.answer_state, count(*)
     from deliveries d join topics t on t.id = d.topic_id
    where d.caller = 'agent' and d.answer_state in ('grounded', 'partial', 'conflict', 'stale', 'missing')
      and d.delivered_hour >= p_week::timestamp at time zone 'UTC'
      and d.delivered_hour < (p_week + 7)::timestamp at time zone 'UTC'
-   group by t.area_id, d.answer_state, d.app_family;
+   group by t.area_id, d.answer_state;
   get diagnostics k = row_count;
   return k;
 end $$;

@@ -182,8 +182,8 @@ grant execute on function auth.join_by_group(text, text), auth.sync_group_admin(
 -- Observability (FR-620): the views people save on Questions are kept for everyone in the workspace
 -- and removed by whoever saved them; nothing in them names a question or who asked.
 grant insert, delete on observability_views to :api;
--- The weekly counts Observability keeps without limit (obs_weekly): counts by week, domain, answer state
--- and kind of agent, never a question or who asked. The API role reads them; only the roll-up job writes
+-- The weekly counts Observability keeps without limit (obs_weekly): counts by week, domain and answer
+-- state, never a question or who asked. The API role reads them; only the roll-up job writes
 -- them, through one function that runs as the owner. Nothing here is granted to the serving or the
 -- analytics role.
 grant execute on function cl_obs_weekly_rollup_due(date) to :api;
