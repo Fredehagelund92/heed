@@ -8,7 +8,6 @@ test-results/
 .env
 .env.*
 !.env.example
-!.env.e2e
 .tanstack/
 
 .heed-dev-key.pem
