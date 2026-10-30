@@ -79,8 +79,8 @@ tables and has no DDL there: every queue shares the one job table, and index reb
 
 `job_heartbeats.registered_at` makes a job that never succeeded still become overdue. Both
 partition helpers run as the owner and make at most 12 months of monthly partitions ahead; the
-baseline makes this month's and the next two. The API role may execute `cl_retention_run()`, `cl_ensure_delivery_partitions(int)` and
-`cl_ensure_request_partitions(int)`, which all run as the owner. Because the API role can also
+baseline makes this month's and the next two. The API role may execute `cl_retention_run()`, `cl_ensure_delivery_partitions(int)`,
+`cl_ensure_request_partitions(int)` and `cl_obs_weekly_rollup_due(date)`, which all run as the owner. Because the API role can also
 write settings, `cl_retention_run()` refuses a missing retention period or one under a day,
 which would otherwise drop partitions still being written. Notes follow `retention.note_days` at
 delete time, by their creation hour, so a changed setting also re-ages existing notes. Of pg-boss's functions the API role
@@ -93,6 +93,21 @@ The serving and analytics roles can reach neither the maintenance functions nor 
 delivery with a topic adds one call (and one no-item call when it delivered nothing) to its week
 and status. Evaluation, preview and replay calls are not demand. The counts outlive the delivery
 partitions that retention drops.
+
+`obs_weekly` (migration 0029) keeps Observability's weekly counts without limit, the deliberate
+exception to `retention.delivery_days` that FR-612 allows: for each completed week (Monday to
+Sunday, UTC), the agent calls about a topic in each domain (or none), in each of the five answer
+states a chart tells apart. It holds no topic, no words and no person; check constraints refuse
+anything but the fixed lists, a Monday and a count over 0.
+`cl_obs_weekly_rollup(week)` counts a week again from the deliveries and replaces it, so a second
+run keeps the same counts, but leaves a week as it was kept once its deliveries may be gone: when
+it starts before both the delivery period and the oldest delivery partition, as retention drops
+whole partitions, the oldest first. `cl_obs_weekly_rollup_due(today)`, which the
+`observability.rollup` job runs each night before retention, counts every completed week from the
+latest one kept (again, for a late call), or from the oldest delivery when nothing is kept yet;
+the migration ran it once to count the weeks already held. Small counts are kept as they are and
+hidden when they are read (FR-614). The API role reads the table and runs only
+`cl_obs_weekly_rollup_due`; the serving and analytics roles reach neither.
 
 Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
 updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores

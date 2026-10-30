@@ -39,8 +39,9 @@ it, the answer is 429 with `Retry-After` in seconds. The counts live in the proc
 instance counts on its own, and an address is the connection's peer, so behind a proxy everyone
 before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are not limited.
 
-The service also runs its scheduled jobs (pg-boss on the same database): `partitions.ensure` and
-`retention.run` each night (UTC), `outbox.relay` every minute (a backstop for the relay, see
+The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
+(the weekly counts Observability keeps without limit, see [Observability](reference.md#observability)),
+`partitions.ensure` and `retention.run` each night (UTC), in that order, `outbox.relay` every minute (a backstop for the relay, see
 [The outbox](reference.md#the-outbox-and-inbox-items)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
 alert rules raise Inbox cards, see [Alerts](reference.md#alerts)), `connectors.sync` every five minutes (reads each source that is
 due on its own schedule, hourly for a definition source by default, see [Definition

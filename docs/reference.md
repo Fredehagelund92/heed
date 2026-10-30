@@ -783,6 +783,11 @@ over its months) found nothing at least the minimum times.
   ended (answered, needed more detail, found nothing, failed), the calls of each kind of agent
   with its last hour, reply times (the median and 95 of 100, a day each for 7 days, a week each
   otherwise) and this month's model spend by feature against the caps (NFR-062).
+- Weekly counts, kept without limit. The delivery records last `retention.delivery_days` (180
+  by default), so the `observability.rollup` job keeps, each night before retention, every
+  completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
+  answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
+  No reader exists yet: no route, screen or service method reads them.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,

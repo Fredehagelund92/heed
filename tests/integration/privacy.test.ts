@@ -61,6 +61,9 @@ const columns = {
   assistant_ratings: ['id', 'verdict', 'area_id', 'created_hour'],
   topic_week_counts: ['topic_id', 'week', 'status', 'calls', 'no_item_calls'],
   gap_weekly_counts: ['gap_id', 'week', 'reports', 'no_item_calls', 'human_reports'],
+  // Observability's weekly counts, kept without limit (FR-612): a week, a domain, an answer state
+  // from fixed lists, and a count. Never a topic, a question or who asked.
+  obs_weekly: ['week', 'area_id', 'answer_state', 'calls'],
   // A person's report (FR-606 case 5) keeps digests of its retry key and request, never who sent it.
   gap_report_keys: ['retry_digest', 'request_digest', 'gap_id', 'expires_hour'],
   // FR-410: the agent is kept as its family from a fixed list, never its own name or version.
@@ -224,6 +227,7 @@ it('lets anonymous tables reference only non-person tables, in every schema', as
     { source: 'gaps', target: 'editions' },
     { source: 'gaps', target: 'editions' },
     { source: 'gaps', target: 'topics' },
+    { source: 'obs_weekly', target: 'areas' },
     { source: 'proposals', target: 'gaps' },
     { source: 'topic_week_counts', target: 'topics' },
     { source: 'topics', target: 'areas' },

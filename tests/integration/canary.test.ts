@@ -5,12 +5,14 @@ import { promisify } from 'node:util'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { buildApp } from '../../src/server/app.ts'
+import { systemClock } from '../../src/server/clock.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { createDevVerifier, mintDevToken } from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
 import { gapDetectionJob } from '../../src/server/modules/gaps/index.ts'
 import { retentionJob, type JobContext } from '../../src/server/modules/jobs/index.ts'
+import { weeklyRollupJob } from '../../src/server/modules/observability/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, servingEdition } from './fixtures.ts'
@@ -256,6 +258,9 @@ it(
     const jobContext = { database } as JobContext
     await gapDetectionJob.run(jobContext)
     await retentionJob.run(jobContext)
+    // A week on, the week of the calls is over and its counts are kept without limit.
+    const weekOn = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
+    await weeklyRollupJob({ clock: systemClock(weekOn) }).run(jobContext)
 
     const after = await dump()
     const added = after.filter((row) => !beforeRows.has(row))
@@ -277,6 +282,13 @@ it(
       'select sum(calls)::int as calls from topic_week_counts',
     )
     expect(counts.rows).toEqual([{ calls: 1000 }])
+    const weekly = await client.query<{ kept: number; answered: number }>(
+      `select (select sum(calls)::int from obs_weekly) as kept,
+              (select count(*)::int from deliveries where topic_id is not null and caller = 'agent'
+                  and answer_state in ('grounded', 'partial', 'conflict', 'stale', 'missing')) as answered`,
+    )
+    expect(weekly.rows[0]!.kept).toBeGreaterThan(900)
+    expect(weekly.rows[0]!.kept).toBe(weekly.rows[0]!.answered)
 
     // Exports: what an administrator and the analytics role can read out.
     const admin = await signIn('admin@example.test')
