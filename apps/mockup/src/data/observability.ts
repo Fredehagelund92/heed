@@ -5,7 +5,7 @@ import { markets, type DomainId } from "@/data/world"
 // The words of a question and who asked are never kept, so there are no threads to open: a topic
 // (a metric, a market, dates) and how often it was asked takes their place.
 //
-// The last 7 days are the numbers the Inbox already says: 142 asked, 117 found checked context
+// The last 7 days are the numbers the Inbox already says: 142 asked, 117 found something written down
 // (94 based on it, 12 covering part, 4 where it disagrees, 7 that may be out of date) and 25 found
 // nothing written down. Longer ranges run back from those, a week at a time, so every page, filter
 // and range adds up the same way. A count under 5 is never shown as a number: it could point to
@@ -23,8 +23,33 @@ export const STATE_WORDS: Record<Shown, string> = stateLabel
 export type Counts = Record<Shown, number>
 const zero = (): Counts => ({ grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 })
 export const total = (c: Counts) => SHOWN.reduce((n, k) => n + c[k], 0)
-/** Found checked context: every answer that rests on something written down. */
+/** Found something written down: every answer that rests on it, Checked or not. */
 export const found = (c: Counts) => c.grounded + c.partial + c.conflict + c.stale
+
+/* ---------- two periods compared ---------- */
+
+/** Under this many questions in either period, a share or a per cent change says nothing. */
+export const COMPARE_FROM = 30
+/**
+ * How a number moved from the period before: up or down only when the move is bigger than chance
+ * would make it (about 95%), else the same. `by` is the move, in calls or in whole points.
+ */
+export type Change = { direction: "up" | "down" | "same"; by: number }
+const directionOf = (by: number, margin: number): Change["direction"] => (Math.abs(by) <= margin ? "same" : by > 0 ? "up" : "down")
+/** Two counts over the same length of time, each read as a Poisson count. */
+export function countChange(now: number, before: number): Change {
+  const by = now - before
+  return { direction: directionOf(by, 1.96 * Math.sqrt(now + before)), by }
+}
+/** Two shares in whole points, against the margin of two proportions; null under COMPARE_FROM asked. */
+export function shareChange(part: number, asked: number, partBefore: number, askedBefore: number): Change | null {
+  if (asked < COMPARE_FROM || askedBefore < COMPARE_FROM) return null
+  const p = (part + partBefore) / (asked + askedBefore)
+  const margin = 1.96 * Math.sqrt(p * (1 - p) * (1 / asked + 1 / askedBefore))
+  const diff = part / asked - partBefore / askedBefore
+  const by = Math.round(diff * 100)
+  return { direction: by === 0 ? "same" : directionOf(diff, margin), by }
+}
 
 /** Under this, a count is shown as "Fewer than 5". */
 export const HIDE_UNDER = 5
@@ -334,17 +359,19 @@ export function numbersOf(v: View) {
   const before = sum(daysOf(v, 1))
   const asked = total(now)
   const was = total(before)
-  const share = asked ? found(now) / asked : 0
-  const shareWas = was ? found(before) / was : 0
   return {
     asked,
     askedBefore: was,
-    askedChange: was ? Math.round(((asked - was) / was) * 100) : 0,
+    // More questions is neither good nor bad; a per cent only from enough questions before.
+    askedChange: { ...countChange(asked, was), percent: was >= COMPARE_FROM ? Math.round(((asked - was) / was) * 100) : null },
     found: found(now),
-    foundShare: Math.round(share * 100),
-    foundChange: Math.round((share - shareWas) * 100),
+    // Checked answers only, never one with a warning: the checked share.
+    checked: now.grounded,
+    checkedShare: asked ? Math.round((now.grounded / asked) * 100) : 0,
+    checkedChange: shareChange(now.grounded, asked, before.grounded, was),
     nothing: now.missing,
-    nothingChange: now.missing - before.missing,
+    // By its share, as Checked: more questions bring more that found nothing, and that alone is no worse.
+    nothingChange: now.missing >= HIDE_UNDER ? shareChange(now.missing, asked, before.missing, was) : null,
     nothingShare: asked ? Math.round((now.missing / asked) * 100) : 0,
     counts: now,
   }

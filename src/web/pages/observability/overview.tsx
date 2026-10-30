@@ -32,7 +32,7 @@ import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { BarRows, Legend, StackedBars } from '@/components/obs/charts'
-import { Kpi, ObsControls } from '@/components/obs/controls'
+import { Kpi, kpiChange, moreOrFewer, ObsControls } from '@/components/obs/controls'
 import {
   dateLabel,
   dayLabel,
@@ -63,12 +63,18 @@ import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { href, setQuery, useRoute } from '@/lib/router'
 import { ObsPage } from '@/pages/observability'
 
-// Overview: one frame. Four numbers, each a way into its rows; questions per day, stacked by how
-// they were answered, with a dashed line at each publish; the topics asked most with the share that
-// found nothing; what found nothing (to the Inbox, where its draft or suggestion waits); what the
-// last publish changed; and, for admins, the kinds of agent that asked.
+// Overview: one frame. Four numbers, each a way into its rows, a change marked up or down only when
+// it is bigger than chance would make it; questions per day, stacked by how they were answered,
+// with a dashed line at each publish; the topics asked most with the share that found nothing;
+// what found nothing (to the Inbox, where its draft or suggestion waits); what the last publish
+// changed; and, for admins, the kinds of agent that asked.
 
 const pct = (n: number) => `${n > 0 ? '+' : ''}${n}`
+
+/** The share of answers that were Checked: never one with a warning, never one that found nothing. */
+const CHECKED = 'Checked answers'
+/** What a hidden headline count says: true whether it is small itself or keeps a small one safe. */
+const HIDDEN = 'hidden: under 5, or it would give one under 5 away'
 
 /** A question link into Questions, keeping the range and filters. */
 const questionsHref = (v: View, extra: Record<string, string | undefined> = {}) =>
@@ -161,8 +167,10 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
           icon={<MessageSquareIcon />}
           label="Asked"
           value={n.asked === null ? '-' : shownCount(n.asked)}
-          change={n.askedChange !== null ? `${pct(n.askedChange)}%` : undefined}
-          tone="up"
+          // More questions is neither good nor bad: an arrow, never a colour.
+          change={kpiChange(n.askedChange, (c) =>
+            n.askedChange?.percent != null ? `${pct(n.askedChange.percent)}%` : moreOrFewer(c),
+          )}
           sub={
             n.asked === null
               ? 'hidden: it would give a count under 5 away'
@@ -174,36 +182,29 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
         />
         <Kpi
           icon={<CircleCheckIcon />}
-          label="Found checked context"
-          value={n.foundShare === null ? '-' : `${n.foundShare}%`}
-          change={n.foundChange ? `${pct(n.foundChange)} pts` : undefined}
-          tone="up"
+          label={CHECKED}
+          value={n.checkedShare === null ? '-' : `${n.checkedShare}%`}
+          change={kpiChange(n.checkedChange, (c) => `${pct(c.by)} pts`, 'up')}
           sub={
-            n.found !== null && n.asked !== null
-              ? `${n.found.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')}`
-              : 'counts under 5 are hidden'
+            n.checked !== null && n.asked !== null
+              ? `${n.checked.toLocaleString('en-GB')} of ${n.asked.toLocaleString('en-GB')} asked`
+              : HIDDEN
           }
-          href={questionsHref(view, { answer: 'found' })}
+          href={questionsHref(view, { answer: 'grounded' })}
         />
         <Kpi
           icon={<CircleDashedIcon />}
           label="Not found"
-          value={shownCount(n.nothing)}
+          // A hidden count may be under 5 or keep one under 5 safe, so it never says which.
+          value={n.nothing === null ? '-' : shownCount(n.nothing)}
           // A count under 5 shows no change and no share either: they would give the number away.
-          change={
-            n.nothing === null || n.nothing < HIDE_UNDER || n.nothingChange === null
-              ? undefined
-              : n.nothingChange < 0
-                ? `${-n.nothingChange} fewer`
-                : n.nothingChange > 0
-                  ? `${n.nothingChange} more`
-                  : undefined
-          }
-          tone="warn"
+          change={kpiChange(n.nothingChange, (c) => `${pct(c.by)} pts`, 'down')}
           sub={
-            n.nothing === null || n.nothing < HIDE_UNDER || n.nothingShare === null
-              ? undefined
-              : `${n.nothingShare}% of questions`
+            n.nothing === null
+              ? HIDDEN
+              : n.nothing < HIDE_UNDER || n.nothingShare === null
+                ? undefined
+                : `${n.nothingShare}% of questions`
           }
           href={questionsHref(view, { answer: 'missing' })}
         />
@@ -310,14 +311,17 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                     >
                       {t.name}
                     </a>
-                    <span className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-                      {t.domain && <DomainDot id={t.domain} />}
-                      {t.domain ? domains[t.domain]?.name : 'No domain'} - asked {groupCount(t)}{' '}
-                      times, not found{' '}
-                      {t.counts.missing === null ? '(hidden)' : shownCount(t.counts.missing)}
-                      {t.months.length > 1
-                        ? `, across ${monthsLabel(t.months)}, counted together`
-                        : ''}
+                    {/* The dot stays beside the first line however the words wrap. */}
+                    <span className="flex items-start gap-x-1.5 text-xs text-muted-foreground">
+                      {t.domain && <DomainDot id={t.domain} className="mt-0.75" />}
+                      <span className="min-w-0">
+                        {t.domain ? domains[t.domain]?.name : 'No domain'} - asked {groupCount(t)}{' '}
+                        times, not found{' '}
+                        {t.counts.missing === null ? '(hidden)' : shownCount(t.counts.missing)}
+                        {t.months.length > 1
+                          ? `, across ${monthsLabel(t.months)}, counted together`
+                          : ''}
+                      </span>
                     </span>
                   </span>
                   {t.rows[0]!.gap && (
@@ -418,7 +422,7 @@ function NothingConnected() {
       <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4">
         {[
           [<MessageSquareIcon key="i" />, 'Asked'],
-          [<CircleCheckIcon key="i" />, 'Found checked context'],
+          [<CircleCheckIcon key="i" />, CHECKED],
           [<CircleDashedIcon key="i" />, 'Not found'],
           [<ListChecksIcon key="i" />, 'Saved questions'],
         ].map(([icon, label]) => (
@@ -499,12 +503,7 @@ function TooFew({ view }: { view: ReturnType<typeof useObsView> }) {
           value={<span className="text-xl">Fewer than 5</span>}
           sub={view.label}
         />
-        <Kpi
-          icon={<CircleCheckIcon />}
-          label="Found checked context"
-          value="-"
-          sub="counts under 5 are hidden"
-        />
+        <Kpi icon={<CircleCheckIcon />} label={CHECKED} value="-" sub="counts under 5 are hidden" />
         <Kpi icon={<CircleDashedIcon />} label="Not found" value="-" />
         <Kpi icon={<ListChecksIcon />} label="Saved questions" value="0" sub="of 0" />
       </div>

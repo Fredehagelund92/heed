@@ -4,6 +4,8 @@ import { found, observability, shownCount, statusOf, total } from '@/api/mock/ob
 import { week } from '@/api/mock/data/inbox'
 import { savedSeed } from '@/api/mock/data/saved-questions'
 import { savedCounts } from '@/model/saved-questions'
+import { obsPage } from '@/api/mock/obs-page'
+import { askedChange, observability as readModel } from '@/model/observability'
 
 const { data, barsOf, speedOf, daysOf, numbersOf, publishesIn, topicsOf, rollUp } = observability(
   obsData('normal'),
@@ -94,6 +96,45 @@ describe('what a topic says', () => {
 
   it('counts found as everything that rests on something written down', () => {
     expect(found({ grounded: 1, partial: 1, conflict: 1, stale: 1, missing: 9 })).toBe(4)
+  })
+})
+
+describe("Overview's numbers, as the page reads them", () => {
+  const page = (range: 7 | 30 | 90, domain?: 'sales') =>
+    readModel(obsPage(obsData('normal'), { range, domain }, { admin: true, owns: [] })).numbers()
+
+  it('lead with the checked share: Checked answers only, never one with a warning', () => {
+    const n = page(7)
+    // 94 of 142 were Checked (66%); the 117 that found something include partial, conflicting
+    // and out-of-date answers, so they are not the checked share.
+    expect(n).toMatchObject({ asked: 142, checked: 94, checkedShare: 66, nothing: 25 })
+  })
+
+  it('say about the same for a move chance would make, and up or down only beyond it', () => {
+    // +10% asked (142 against 129), +2 points checked, 3 points fewer not found: all inside the
+    // margin.
+    expect(page(7).askedChange).toMatchObject({ direction: 'same', percent: 10 })
+    expect(page(7).checkedChange).toEqual({ direction: 'same', by: 2 })
+    expect(page(7).nothingChange).toEqual({ direction: 'same', by: -3 })
+    // 90 days against the 90 before: 1,537 against 1,101, and 66% checked against 55%.
+    expect(page(90).askedChange).toMatchObject({ direction: 'up', percent: 40 })
+    expect(page(90).checkedChange).toEqual({ direction: 'up', by: 11 })
+  })
+
+  it('give no per cent change from a small range before, and no change at all for a hidden count', () => {
+    expect(askedChange(60, 20)).toEqual({ direction: 'up', by: 40, percent: null })
+    expect(askedChange(60, 30)).toMatchObject({ direction: 'up', percent: 100 })
+    const quiet = readModel({
+      ...obsPage(obsData('normal'), { range: 7 }, { admin: true, owns: [] }),
+      numbers: {
+        asked: 142,
+        counts: { grounded: 94, partial: null, conflict: null, stale: null, missing: 3 },
+        before: { asked: 129, missing: 27, grounded: null },
+      },
+    }).numbers()
+    expect(quiet.checkedChange).toBeNull()
+    // A count under 5 shows no change: it would give the number away.
+    expect(quiet.nothingChange).toBeNull()
   })
 })
 

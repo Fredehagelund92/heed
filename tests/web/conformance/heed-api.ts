@@ -1893,6 +1893,11 @@ export function describeHeedApi(
         ...page.domains.map((d) => d.total),
       ]
       for (const n of counts) expect(fine(n), `a count of ${n}`).toBe(true)
+      // Overview's numbers: what they leave over of everything asked is safe too.
+      if (page.numbers.asked !== null)
+        expect(fine(left(page.numbers.asked, Object.values(page.numbers.counts))), 'asked').toBe(
+          true,
+        )
       const byId = new Map(page.topics.map((t) => [t.id, t]))
       for (const t of page.topics)
         if (t.total !== null) expect(fine(left(t.total, Object.values(t.counts))), t.id).toBe(true)
@@ -1919,6 +1924,8 @@ export function describeHeedApi(
           const page = await api().observabilityPage({ section: 'overview', range })
           expect(page.state, `${range} days`).toBe('normal')
           expect(page.numbers.asked, `${range} days`).toBeGreaterThanOrEqual(5)
+          // What was checked, never what was answered with a warning: the strict share.
+          if (range === 7) expect(page.numbers.counts.grounded).toBe(94)
           expect(page.bars).toHaveLength(range === 90 ? 13 : range)
           expect(new Set(page.topics.map((t) => t.id)).size).toBe(page.topics.length)
           expectDisclosed(page)

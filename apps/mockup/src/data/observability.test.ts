@@ -8,6 +8,8 @@ import {
   TOOL_CALLS,
   daysOf,
   numbersOf,
+  countChange,
+  shareChange,
   publishesIn,
   shownCount,
   statusOf,
@@ -29,7 +31,9 @@ describe("the last 7 days", () => {
     expect(n.asked).toBe(week.asked)
     expect(n.found).toBe(week.found)
     expect(n.nothing).toBe(week.nothing)
-    expect(n.foundShare).toBe(82)
+    // The checked share counts Checked answers only: 94 of 142, not the 117 that found something.
+    expect(n.checked).toBe(94)
+    expect(n.checkedShare).toBe(66)
     expect(n.counts).toEqual({ grounded: 94, partial: 12, conflict: 4, stale: 7, missing: 25 })
   })
 
@@ -42,9 +46,16 @@ describe("the last 7 days", () => {
   it("compare with the 7 days before", () => {
     const n = numbersOf({ range: 7 })
     expect(n.askedBefore).toBe(129)
-    expect(n.askedChange).toBe(10)
-    expect(n.foundChange).toBe(3)
-    expect(n.nothingChange).toBe(-2)
+    // +10%, +2 points checked, 3 points fewer not found: moves chance would make, so the same.
+    expect(n.askedChange).toEqual({ direction: "same", by: 13, percent: 10 })
+    expect(n.checkedChange).toEqual({ direction: "same", by: 2 })
+    expect(n.nothingChange).toEqual({ direction: "same", by: -3 })
+  })
+
+  it("say up or down only beyond what chance would make, and compare a share only from 30 asked", () => {
+    expect(countChange(600, 400)).toEqual({ direction: "up", by: 200 })
+    expect(shareChange(450, 563, 300, 514)).toEqual({ direction: "up", by: 22 })
+    expect(shareChange(20, 29, 10, 200)).toBeNull()
   })
 })
 

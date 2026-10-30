@@ -52,7 +52,7 @@ function empty(state: ObsState, range: Range, last: number): ObsData {
     state,
     range,
     last,
-    numbers: { asked: null, counts: none, before: { asked: null, missing: null } },
+    numbers: { asked: null, counts: none, before: { asked: null, missing: null, grounded: null } },
     bars: [],
     topics: [],
     subjects: [],

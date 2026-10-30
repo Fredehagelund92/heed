@@ -28,7 +28,7 @@ export const emptyObs = (range: Range, state: ObsData['state'] = 'normal'): ObsD
   state,
   range,
   last: Date.now(),
-  numbers: { asked: null, counts: none, before: { asked: null, missing: null } },
+  numbers: { asked: null, counts: none, before: { asked: null, missing: null, grounded: null } },
   bars: [],
   topics: [],
   subjects: [],

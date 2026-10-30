@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   barsOf,
   beforeView,
+  countChange,
   disclose,
+  shareChange,
   shownParts,
   shownStates,
   topicView,
@@ -349,11 +351,14 @@ describe('topicView with its chart', () => {
     }
   }
 
-  it('keeps everything asked and what found nothing, and hides a state or a bar before either', () => {
+  it('keeps everything asked, what found nothing and what was checked, and hides a state or a bar before them', () => {
     const view = topicView(week, min, { bars: chartOf(week, 7) })
     expect(view.asked).toBe(142)
     expect(view.counts.missing).toBe(25)
+    // Overview's checked share: 94 of 142, never what was answered with a warning.
+    expect(view.counts.grounded).toBe(94)
     expect(view.counts.conflict).toBeNull()
+    expect(view.counts.partial).toBeNull()
     expectSafe(week, view)
     expectSafeChart(view)
   })
@@ -395,18 +400,97 @@ describe('topicView with its chart', () => {
 
 describe('beforeView', () => {
   it('keeps what was asked before, and what found nothing only when what found something shows', () => {
-    expect(beforeView(counts([100, 2, 1, 0, 27]), min)).toEqual({ asked: 130, missing: 27 })
-    expect(beforeView(counts([3, 0, 0, 0, 27]), min)).toEqual({ asked: 30, missing: null })
-    expect(beforeView(counts([3, 0, 0, 0, 1]), min)).toEqual({ asked: null, missing: null })
+    expect(beforeView(counts([100, 2, 1, 0, 27]), min)).toMatchObject({ asked: 130, missing: 27 })
+    expect(beforeView(counts([3, 0, 0, 0, 27]), min)).toMatchObject({ asked: 30, missing: null })
+    expect(beforeView(counts([3, 0, 0, 0, 1]), min)).toEqual({
+      asked: null,
+      missing: null,
+      grounded: null,
+    })
     // One kind of agent: what the others asked may not be a hidden count either.
     expect(beforeView(counts([20, 0, 0, 0, 0]), min, counts([22, 0, 0, 0, 0]))).toEqual({
       asked: null,
       missing: null,
+      grounded: null,
     })
     expect(beforeView(counts([20, 0, 0, 0, 5]), min, counts([30, 0, 0, 0, 5]))).toEqual({
       asked: 25,
       missing: 5,
+      grounded: 20,
     })
+  })
+
+  it('keeps what was checked only when nothing it lets a reader work out is a hidden count', () => {
+    // 100 checked of 130 with 27 not found leaves 3 answered with a warning: checked hides.
+    expect(beforeView(counts([100, 2, 1, 0, 27]), min).grounded).toBeNull()
+    expect(beforeView(counts([100, 4, 1, 0, 27]), min).grounded).toBe(100)
+    // What found nothing hides (3 found something), so only checked against asked is known.
+    expect(beforeView(counts([0, 3, 0, 0, 27]), min)).toEqual({
+      asked: 30,
+      missing: null,
+      grounded: 0,
+    })
+    // 2 not checked, here or among the other kinds of agent: hidden.
+    expect(beforeView(counts([28, 1, 1, 0, 0]), min).grounded).toBeNull()
+    expect(
+      beforeView(counts([20, 5, 0, 0, 5]), min, counts([22, 10, 0, 0, 10])).grounded,
+    ).toBeNull()
+  })
+
+  it('never shows a count from which a hidden one can be worked out, for any counts', () => {
+    const five = fc.array(
+      fc.oneof(fc.integer({ min: 0, max: 6 }), fc.integer({ min: 0, max: 40 })),
+      {
+        minLength: 5,
+        maxLength: 5,
+      },
+    )
+    fc.assert(
+      fc.property(five, five, fc.boolean(), (now, more, filtered) => {
+        const c = counts(now)
+        const whole = filtered ? counts(now.map((n, i) => n + more[i]!)) : undefined
+        const seen = beforeView(c, min, whole)
+        const sum = (x: StateCounts) => shownStates.reduce((n, s) => n + x[s], 0)
+        if (seen.grounded !== null) expect(seen.asked).toBe(sum(c))
+        // Every count a reader knows or can work out from what shows.
+        const known = (x: StateCounts) => [
+          ...(seen.asked !== null ? [sum(x)] : []),
+          ...(seen.missing !== null ? [x.missing, sum(x) - x.missing] : []),
+          ...(seen.grounded !== null ? [x.grounded, sum(x) - x.grounded] : []),
+          ...(seen.missing !== null && seen.grounded !== null
+            ? [x.partial + x.conflict + x.stale]
+            : []),
+        ]
+        const mine = known(c)
+        // With one kind of agent, what the other kinds asked can be worked out too.
+        const others = whole ? known(whole).map((n, i) => n - mine[i]!) : []
+        for (const n of [...mine, ...others])
+          expect(fine(n), `${n}: ${now.join()} ${more.join()}`).toBe(true)
+      }),
+      { numRuns: 500 },
+    )
+  })
+})
+
+describe('countChange and shareChange', () => {
+  it('says the same for a move chance would make, and up or down beyond it', () => {
+    // 563 against 514: 49 more, inside a margin of about 64.
+    expect(countChange(563, 514)).toEqual({ direction: 'same', by: 49 })
+    expect(countChange(25, 27)).toEqual({ direction: 'same', by: -2 })
+    expect(countChange(600, 400)).toEqual({ direction: 'up', by: 200 })
+    expect(countChange(5, 30)).toEqual({ direction: 'down', by: -25 })
+    expect(countChange(0, 0)).toEqual({ direction: 'same', by: 0 })
+  })
+
+  it('compares shares in whole points, and not at all under 30 asked in either period', () => {
+    // 80% of 563 against 77% of 514: 3 points, inside a margin of about 5.
+    expect(shareChange(450, 563, 396, 514)).toEqual({ direction: 'same', by: 3 })
+    expect(shareChange(450, 563, 300, 514)).toEqual({ direction: 'up', by: 22 })
+    expect(shareChange(300, 563, 450, 514)).toMatchObject({ direction: 'down' })
+    expect(shareChange(20, 29, 10, 200)).toBeNull()
+    expect(shareChange(20, 200, 10, 29)).toBeNull()
+    // Everything checked both times: no move, whatever the counts.
+    expect(shareChange(30, 30, 40, 40)).toEqual({ direction: 'same', by: 0 })
   })
 })
 

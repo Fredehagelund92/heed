@@ -82441,11 +82441,22 @@
                                   "type": "null"
                                 }
                               ]
+                            },
+                            "grounded": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
                             }
                           },
                           "required": [
                             "asked",
-                            "missing"
+                            "missing",
+                            "grounded"
                           ]
                         }
                       },

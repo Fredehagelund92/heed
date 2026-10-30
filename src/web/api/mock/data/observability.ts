@@ -17,8 +17,8 @@ import { markets } from './world'
 // The words of a question and who asked are never kept, so there are no threads to open: a topic
 // (a metric, a market, dates) and how often it was asked takes their place.
 //
-// The last 7 days are the numbers the Inbox already says: 142 asked, 117 found checked context
-// (94 based on it, 12 covering part, 4 where it disagrees, 7 that may be out of date) and 25 found
+// The last 7 days are the numbers the Inbox already says: 142 asked, 117 found something written
+// down (94 checked, 12 covering part, 4 where it disagrees, 7 that may be out of date) and 25 found
 // nothing written down. Longer ranges run back from those, a week at a time, so every page, filter
 // and range adds up the same way. A count under 5 is never shown as a number: it could point to
 // one person.

@@ -41,9 +41,17 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await go(page, "/observability")
   const cells = page.locator("a", { hasText: "Asked" }).first()
   await expect(cells).toContainText("142")
-  await expect(cells).toContainText("+10%")
-  await expect(page.getByRole("link", { name: /Found checked context/ })).toContainText("82%")
-  await expect(page.getByRole("link", { name: /^Not found/ })).toContainText("2 fewer")
+  // 142 against 129 the 7 days before is a move chance would make: no arrow, no colour, no per cent.
+  await expect(cells).toContainText("About the same")
+  await expect(cells).not.toContainText("%")
+  // The checked share counts Checked answers only: 94 of 142, not the 117 that found something.
+  const checked = page.getByRole("link", { name: /^Checked answers/ })
+  await expect(checked).toContainText("66%")
+  await expect(checked).toContainText("94 of 142 asked")
+  await expect(checked).toHaveAttribute("href", /answer=grounded/)
+  const nothing = page.getByRole("link", { name: /^Not found/ })
+  await expect(nothing).toContainText("About the same")
+  await expect(nothing.locator("[data-slot=kpi-change] svg")).toHaveCount(0)
   // One source for saved questions: 9 same of 12.
   await expect(page.getByRole("link", { name: /Saved questions/ })).toContainText(/9\s*same\s*of 12/)
   // The chart's numbers, for a screen reader, with the publish marked.

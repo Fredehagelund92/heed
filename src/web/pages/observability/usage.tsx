@@ -24,9 +24,9 @@ import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { LineChart } from '@/components/obs/charts'
-import { Kpi, RangeSwitch } from '@/components/obs/controls'
+import { Kpi, kpiChange, moreOrFewer, RangeSwitch } from '@/components/obs/controls'
 import { AGENT_TOOLS } from '@/lib/agents'
-import { HIDE_UNDER, money, shownCount } from '@/model/observability'
+import { askedChange, HIDE_UNDER, money, shownCount } from '@/model/observability'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { ObsPage } from '@/pages/observability'
 
@@ -90,8 +90,8 @@ function Usage() {
   const speed = usage.speed
   const median = middle(speed.median)
   const p95 = middle(speed.p95)
-  const change =
-    usage.before && calls ? Math.round(((calls - usage.before) / usage.before) * 100) : null
+  // More calls is neither good nor bad: an arrow, never a colour.
+  const change = usage.before !== null ? askedChange(calls, usage.before) : null
 
   return (
     <Frame>
@@ -105,8 +105,11 @@ function Usage() {
           icon={<WrenchIcon />}
           label="Tool calls"
           value={calls.toLocaleString('en')}
-          change={change !== null ? `${change > 0 ? '+' : ''}${change}%` : undefined}
-          tone="up"
+          change={kpiChange(change, (c) =>
+            change?.percent != null
+              ? `${change.percent > 0 ? '+' : ''}${change.percent}%`
+              : moreOrFewer(c),
+          )}
           sub={`by ${agents.length} kinds of agent`}
         />
         <Kpi

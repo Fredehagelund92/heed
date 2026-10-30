@@ -104,7 +104,8 @@ export const obsAgentsSchema = z.object({
   numbers: z.object({
     asked: shown,
     counts: shownCounts,
-    before: z.object({ asked: shown, missing: shown }),
+    /** The range before: what was checked is kept only with everything asked. */
+    before: z.object({ asked: shown, missing: shown, grounded: shown }),
   }),
   /** The chart: a bar a day for 7 and 30 days, a week a bar for 90, oldest first. */
   bars: z.array(z.object({ start: day, days: z.number(), counts: shownCounts })),
