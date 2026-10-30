@@ -55,10 +55,13 @@ import { seedSavedQuestions } from './demo-saved.ts'
   The two suggestions this morning's Google Drive read made come in through the service's own
   sources job and content pipeline (demo-drive.ts), made by the read and never published by it.
 
+  The thread in which Lars takes back his suggestion to archive is the mock's too: Jon's question
+  as a plain comment (a suggestion to archive is closed or archived on the service, never
+  returned), and Lars's answer, which Lars marks as taking the suggestion back (P9c), dated as the
+  mock dates it.
+
   What the service cannot hold yet stays out, and the journeys skip the steps that need it (decided
-  27 October 2026): the thread in which Lars withdraws his retirement, since the service has no
-  withdrawal in the comments yet (P9c).
-  Jon's own suggestion to Marketing, and Tomas's question on it, stay out too: Jon is an admin, so
+  27 October 2026): Jon's own suggestion to Marketing, and Tomas's question on it, stay out too: Jon is an admin, so
   on the service it would wait in his own review queue. So does Tomas's thread on Sofia's
   suggestion: on the service a waiting suggestion is read by its sender, its domain's owners and
   the admins, and Tomas owns Marketing, not Sales. The mock's drafts are drafts on the service
@@ -641,15 +644,14 @@ function atOf(when: string): string {
   return `${date}T${time}:00Z`
 }
 
-/** A seeded comment's id on the service, and when the mock says it was written and edited. */
-type DatedComment = { id: string; at: string; edited: boolean }
+/**
+ * A seeded comment's id on the service, and when the mock says it was written and edited; one that
+ * took its suggestion back did so as it was written.
+ */
+type DatedComment = { id: string; at: string; edited: boolean; withdrew: boolean }
 
 /** The mock's threads the service does not hold (see the note at the top). */
-const leftOut = new Set<Subject>([
-  'review:sug-lars-retire',
-  'review:sug-jon',
-  'review:sug-sofia-clash',
-])
+const leftOut = new Set<Subject>(['review:sug-jon', 'review:sug-sofia-clash'])
 
 /** The threads the service holds, by the mock's subject. */
 const seededThreads = (Object.keys(seedComments) as Subject[]).filter((s) => !leftOut.has(s))
@@ -699,9 +701,10 @@ async function seedThreads(call: Inject, ids: Record<QueueCard, string>) {
       ...(parentId ? { parentId } : {}),
     })
     const id = posted.id as string
-    dated.push({ id, at: atOf(c.when), edited: Boolean(c.edited) })
+    dated.push({ id, at: atOf(c.when), edited: Boolean(c.edited), withdrew: Boolean(c.withdrew) })
     if (c.deleted) deleted.push({ id, by: c.author })
     else await react(subject, c.reactions, id)
+    if (c.withdrew) await call('POST', `/comments/${id}/withdraw`, c.author, { withdrew: true })
     return id
   }
   for (const mockSubject of seededThreads) {
@@ -730,9 +733,10 @@ async function dateComments(client: pg.Client, comments: readonly DatedComment[]
     for (const c of comments)
       await client.query(
         `update comments set created_at=$2::timestamptz,
-                edited_at=case when $3 then $2::timestamptz + interval '2 hours' end
+                edited_at=case when $3 then $2::timestamptz + interval '2 hours' end,
+                withdrew_at=case when $4 then $2::timestamptz end
           where id=$1`,
-        [c.id, c.at, c.edited],
+        [c.id, c.at, c.edited, c.withdrew],
       )
   } finally {
     await client.query('set session_replication_role = origin')

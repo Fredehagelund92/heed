@@ -49,6 +49,8 @@ import {
   setupSchema,
 } from './inbox.ts'
 import {
+  closeInputSchema,
+  closeResultSchema,
   markReadInputSchema,
   publishInputSchema,
   publishReadInputSchema,
@@ -203,6 +205,8 @@ import {
   inviteResentSchema,
   inviteSchema,
   invitesCreatedSchema,
+  memberActivityInputSchema,
+  memberActivitySchema,
   memberIdSchema,
   memberRemovedSchema,
   memberSchema,
@@ -309,6 +313,7 @@ import {
   threadInputSchema,
   toggleReactionResultSchema,
   toggleReactionSchema,
+  withdrawCommentSchema,
 } from './comments.ts'
 import { chatChunkSchema, chatInputSchema, ratingInputSchema, ratingSchema } from './assistant.ts'
 import { createReportSchema, myReportsSchema, sentReportSchema } from './reports.ts'
@@ -805,6 +810,16 @@ export const contract = {
       })
       .input(returnInputSchema)
       .output(returnResultSchema),
+    close: review
+      .route({
+        method: 'POST',
+        path: '/review/{id}/close',
+        tags: ['review'],
+        summary:
+          'Closes a suggestion to archive that its sender took back in the comments: nothing changes, and the context item stays live; answers with a token that undoes it',
+      })
+      .input(closeInputSchema)
+      .output(closeResultSchema),
     publishRead: review
       .route({
         method: 'POST',
@@ -1982,6 +1997,16 @@ export const contract = {
           'Everyone in the workspace: their role (Admin or Member), the domains they own and when they last signed in',
       })
       .output(z.array(memberSchema)),
+    activity: read
+      .route({
+        method: 'GET',
+        path: '/members/{personId}/activity',
+        tags: ['roles'],
+        summary:
+          'What someone did lately, as People shows it: the context items they checked last, newest first, of those the reader may read',
+      })
+      .input(memberActivityInputSchema)
+      .output(memberActivitySchema),
     setRole: admin
       .route({
         method: 'POST',
@@ -2271,6 +2296,16 @@ export const contract = {
       })
       .input(commentIdSchema)
       .output(removeCommentResultSchema),
+    withdraw: commentWrite
+      .route({
+        method: 'POST',
+        path: '/comments/{id}/withdraw',
+        tags: ['comments'],
+        summary:
+          "Marks one's own comment on a suggestion to archive, while it waits, as taking it back, or takes the mark back: its owners see it in the review and close it or archive anyway",
+      })
+      .input(withdrawCommentSchema)
+      .output(threadCommentSchema),
     markMentionsRead: read
       .route({
         method: 'POST',

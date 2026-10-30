@@ -1325,6 +1325,55 @@ export function createReviewService(tx: Queryable, clock: Clock) {
       return { proposal: publicRecord(result.proposal), edition: result.edition }
     },
 
+    /**
+     * Closes a suggestion to archive that its sender took back in the comments (migration 0028):
+     * the owners' decision not to archive, so nothing changes and the item stays live. An owner of
+     * its domain or an admin closes it, as they would decide it, and may undo it in the window.
+     */
+    async close(input: { id: string; revision: number }) {
+      const p = await loadProposal(tx, input.id, true)
+      if (p.revision !== input.revision)
+        throw new ORPCError('CONFLICT', {
+          message:
+            'Someone changed this suggestion after you opened it. Look at the latest version, then try again.',
+        })
+      if (!['submitted', 'in_review'].includes(p.state))
+        throw new ORPCError('CONFLICT', { message: 'It no longer waits for a decision.' })
+      const [withdrawn] = await tx.query<{ yes: boolean }>(
+        `select exists(select 1 from comments c where c.proposal_id=$1 and c.withdrew_at is not null
+                         and c.deleted_at is null and c.author_id=$2::uuid) as yes`,
+        [p.id, p.proposerId],
+      )
+      if (p.subject !== 'item' || p.action !== 'retire' || !withdrawn?.yes)
+        throw new ORPCError('CONFLICT', {
+          message:
+            'Only a suggestion to archive that its sender took back in the comments is closed. Decide this one instead.',
+        })
+      const capacity = await capacityFor(p.areaId!, undefined, p.proposerId)
+      if (p.claimedBy && p.claimedBy !== (await me()))
+        throw new ORPCError('CONFLICT', { message: 'Another owner is reviewing it.' })
+      const reason = 'Closed: its sender took it back in the comments.'
+      const id = await insertDecision(tx, {
+        proposalId: p.id,
+        itemVersionId: p.itemVersionId,
+        areaId: p.areaId,
+        capacity,
+        outcome: 'reject',
+        reason,
+      })
+      if (!id) throw new ORPCError('CONFLICT', { message: 'You already closed it.' })
+      const data = {
+        decisionId: id,
+        outcome: 'reject',
+        capacity,
+        reason,
+        closed: true,
+        ...byProposer(p, await me()),
+      }
+      const closed = await moved(p, 'rejected', 'decided', data, 'proposal.closed')
+      return { proposal: publicRecord(closed), decision: id }
+    },
+
     /** FR-218: an owner or administrator retires an item at once, with a reason. */
     async retire(itemId: string, reason: string): Promise<Edition> {
       await lockReleases(tx)

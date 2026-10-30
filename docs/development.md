@@ -179,12 +179,11 @@ decides, never what a person reads.
 Both bindings pass one conformance suite (`tests/conformance/context-api.ts`): the mock in
 `npm test`, the http binding against PostgreSQL in `npm run test:integration`. The new web app's
 two bindings do the same with `tests/app/conformance/heed-api.ts`, the http one for the methods it
-wires so far (`wiredMethods` in `src/app/api/http.ts`), on the mockup's demo week
-(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
+wires (`wiredMethods` in `src/app/api/http.ts`, every method of the interface), on the mockup's demo
+week (`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
 people wrote in Definitions, and the suggestions waiting for Jon Abara, sent through the service's
-own API. Reads whose screens a later pull request wires
-answer what the service holds for them today, which is nothing, so the shell and the Inbox draw;
-their writes are not available yet.
+own API, with Lars Dahl's suggestion to archive that he took back in the comments. A method added
+to the interface later answers not available on the service until its pull request wires it.
 
 The golden job specs run in both modes. `npm run test:e2e:app` runs every one on the mock build;
 `npm run test:e2e:golden-http` runs those whose screens are wired (the Inbox, the review, the

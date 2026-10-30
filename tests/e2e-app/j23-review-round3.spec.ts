@@ -26,7 +26,7 @@ test('after the last decision: all handled, with Undo for the last one', async (
   await expect(decide(page).getByRole('button', { name: 'Undo' })).toBeVisible()
   await page.keyboard.press('j')
   await expect(page.getByRole('heading', { name: `All ${queue().length} handled` })).toBeVisible()
-  await expect(page.getByText(allHandled(), { exact: false })).toBeVisible()
+  await expect(page.getByText(allHandled, { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Undo the last one' }).click()
   await expect(decide(page).getByRole('button', { name: 'Publish', exact: true })).toBeVisible()
 })

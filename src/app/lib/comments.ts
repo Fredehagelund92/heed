@@ -21,6 +21,9 @@ export const useComments = (subject: Subject) => useAllComments().threads[subjec
 
 export const useSubjectReactions = (subject: Subject) => useAllComments().reactions[subject] ?? NONE
 
+/** Whether the person may take back what the thread hangs on with a comment of theirs. */
+export const useWithdrawable = (subject: Subject) => !!useAllComments().withdrawable[subject]
+
 /** A reply the owner hasn't opened yet: the Inbox's quiet marker. */
 export const useNewReply = (subject: Subject) => useAllComments().newReplies[subject]
 
@@ -48,6 +51,9 @@ export function useCommentActions() {
     edit: (subject: Subject, id: string, content: JSONContent) =>
       write('editComment', { subject, id, content }),
     remove: (subject: Subject, id: string) => write('removeComment', { subject, id }),
+    /** Takes back what the thread hangs on with this comment of theirs, or takes the mark back. */
+    withdraw: (subject: Subject, id: string, withdrew: boolean) =>
+      write('withdrawWithComment', { subject, id, withdrew }),
     /** The person opened the thread: a new reply's marker goes. */
     seen: (subject: Subject) => write('markThreadSeen', { subject }),
     /** The person has read the comments that mention them here: their Inbox marker goes. */

@@ -23,6 +23,7 @@ export const policies = {
   'review.markRead': 'propose',
   'review.publish': 'propose',
   'review.return': 'propose',
+  'review.close': 'propose',
   'review.publishRead': 'propose',
   'decisions.undo': 'propose',
   'review.get': 'propose',
@@ -96,6 +97,8 @@ export const policies = {
   // People as Heed v1 has them: anyone signed in reads them and the open invites; the service and
   // row security let an owner invite a member to their own domains, and set its owners.
   'members.list': 'read',
+  // What someone checked lately, of the items the reader may read.
+  'members.activity': 'read',
   'members.setRole': 'admin',
   'members.remove': 'admin',
   'members.restore': 'admin',
@@ -189,12 +192,13 @@ export const policies = {
   'cards.markRead': 'read',
   'cards.decide': 'propose',
   // Comments (FR-817): anyone signed in, on what they may read; the service and row security keep
-  // edits and deletes to the author.
+  // edits and deletes to the author, and taking a suggestion to archive back to its sender.
   'comments.list': 'read',
   'comments.create': 'read',
   'comments.edit': 'read',
   'comments.remove': 'read',
   'comments.markMentionsRead': 'read',
+  'comments.withdraw': 'read',
   'reactions.toggle': 'read',
   'threads.markRead': 'read',
   'setup.state': 'read',

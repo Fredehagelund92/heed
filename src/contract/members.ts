@@ -27,6 +27,28 @@ export const memberSchema = z.object({
 export const setRoleSchema = z.strictObject({ personId, role: memberRoleSchema })
 export const memberIdSchema = z.strictObject({ personId })
 
+/** How many lines a person's recent activity holds unless asked for another number. */
+export const ACTIVITY_SHOWN = 3
+export const memberActivityInputSchema = z.strictObject({
+  personId,
+  limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(20))),
+})
+/**
+ * What a person did lately, as People shows it: the context items they checked last, newest first.
+ * Only items the reader may read are named.
+ */
+export const memberActivitySchema = z.object({
+  entries: z.array(
+    z.object({
+      what: z.literal('checked'),
+      itemId: z.string(),
+      title: z.string(),
+      /** The day of the check. */
+      on: z.string(),
+    }),
+  ),
+})
+
 /** A removal, named by the batch its ended roles share, so Undo puts back exactly those. */
 export const memberRemovedSchema = z.object({ removed: z.literal(true), batchId: z.string() })
 
@@ -106,6 +128,7 @@ export type Invite = z.infer<typeof inviteSchema>
 export type InvitesCreated = z.infer<typeof invitesCreatedSchema>
 export type InviteResent = z.infer<typeof inviteResentSchema>
 export type MemberRemoved = z.infer<typeof memberRemovedSchema>
+export type MemberActivity = z.infer<typeof memberActivitySchema>
 
 /** An invite link's token, as the sign-in screen sends it. */
 export const inviteTokenSchema = z.strictObject({

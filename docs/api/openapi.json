@@ -23536,6 +23536,55 @@
                         }
                       ]
                     },
+                    "withdrawn": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "commentId": {
+                              "type": "string"
+                            },
+                            "by": {
+                              "type": "object",
+                              "properties": {
+                                "personId": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "personId",
+                                "name"
+                              ]
+                            },
+                            "at": {
+                              "type": "string"
+                            },
+                            "quote": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "commentId",
+                            "by",
+                            "at",
+                            "quote"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "diff": {
                       "type": "object",
                       "properties": {
@@ -25093,6 +25142,7 @@
                     "synced",
                     "gapId",
                     "note",
+                    "withdrawn",
                     "diff",
                     "source",
                     "claims",
@@ -26619,6 +26669,55 @@
                               }
                             ]
                           },
+                          "withdrawn": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "commentId": {
+                                    "type": "string"
+                                  },
+                                  "by": {
+                                    "type": "object",
+                                    "properties": {
+                                      "personId": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "personId",
+                                      "name"
+                                    ]
+                                  },
+                                  "at": {
+                                    "type": "string"
+                                  },
+                                  "quote": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "commentId",
+                                  "by",
+                                  "at",
+                                  "quote"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "diff": {
                             "type": "object",
                             "properties": {
@@ -28112,6 +28211,7 @@
                           "synced",
                           "gapId",
                           "note",
+                          "withdrawn",
                           "diff",
                           "source",
                           "claims",
@@ -31956,6 +32056,1383 @@
                 "required": [
                   "revision",
                   "note"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "proposal": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "number": {
+                          "type": "number"
+                        },
+                        "subject": {
+                          "enum": [
+                            "item",
+                            "vocabulary"
+                          ],
+                          "type": "string"
+                        },
+                        "action": {
+                          "enum": [
+                            "create",
+                            "change",
+                            "retire",
+                            "recheck"
+                          ],
+                          "type": "string"
+                        },
+                        "state": {
+                          "enum": [
+                            "draft",
+                            "submitted",
+                            "in_review",
+                            "changes_requested",
+                            "accepted",
+                            "rejected",
+                            "withdrawn"
+                          ],
+                          "type": "string"
+                        },
+                        "areaId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "itemId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "itemVersionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "vocabularyVersionId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "termKey": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "title": {
+                          "type": "string"
+                        },
+                        "riskLevel": {
+                          "anyOf": [
+                            {
+                              "enum": [
+                                "low",
+                                "normal",
+                                "high"
+                              ],
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "proposerId": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "channel": {
+                          "enum": [
+                            "form",
+                            "assistant",
+                            "chat",
+                            "command_line",
+                            "mcp",
+                            "import",
+                            "source"
+                          ],
+                          "type": "string"
+                        },
+                        "revision": {
+                          "type": "number"
+                        },
+                        "reason": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "claimedBy": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "dueAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "submittedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "closedAt": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "createdAt": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "number",
+                        "subject",
+                        "action",
+                        "state",
+                        "areaId",
+                        "itemId",
+                        "itemVersionId",
+                        "vocabularyVersionId",
+                        "termKey",
+                        "title",
+                        "riskLevel",
+                        "proposerId",
+                        "channel",
+                        "revision",
+                        "reason",
+                        "claimedBy",
+                        "dueAt",
+                        "submittedAt",
+                        "closedAt",
+                        "createdAt"
+                      ]
+                    },
+                    "undo": {
+                      "type": "string",
+                      "pattern": "^[a-z]+:[A-Za-z0-9_.:,-]{1,4000}$"
+                    }
+                  },
+                  "required": [
+                    "proposal",
+                    "undo"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find it. It may have been deleted, or you may not have access."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "The proposal, or what agents get, changed after you opened it. Look at the latest version, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNPROCESSABLE_CONTENT"
+                        },
+                        "status": {
+                          "const": 422
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Fix the problems shown, then try again."
+                        },
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "findings": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "code": {
+                                    "type": "string"
+                                  },
+                                  "field": {
+                                    "type": "string"
+                                  },
+                                  "message": {
+                                    "type": "string"
+                                  },
+                                  "severity": {
+                                    "enum": [
+                                      "error",
+                                      "warning"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "code",
+                                  "field",
+                                  "message",
+                                  "severity"
+                                ]
+                              }
+                            },
+                            "gate": {
+                              "type": "object",
+                              "properties": {
+                                "required": {
+                                  "type": "array",
+                                  "items": {
+                                    "enum": [
+                                      "format",
+                                      "matching",
+                                      "delivery",
+                                      "answer_impact",
+                                      "answer_full"
+                                    ],
+                                    "type": "string"
+                                  }
+                                },
+                                "levels": {
+                                  "type": "array",
+                                  "items": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "format"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "findings": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "code": {
+                                                      "type": "string"
+                                                    },
+                                                    "field": {
+                                                      "type": "string"
+                                                    },
+                                                    "message": {
+                                                      "type": "string"
+                                                    },
+                                                    "severity": {
+                                                      "enum": [
+                                                        "error",
+                                                        "warning"
+                                                      ],
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "code",
+                                                    "field",
+                                                    "message",
+                                                    "severity"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "matching"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "probes": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "name": {
+                                                      "type": "string"
+                                                    },
+                                                    "scope": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "metrics": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "string"
+                                                          }
+                                                        },
+                                                        "filters": {
+                                                          "type": "object",
+                                                          "propertyNames": {
+                                                            "type": "string"
+                                                          },
+                                                          "additionalProperties": {
+                                                            "type": "array",
+                                                            "items": {
+                                                              "anyOf": [
+                                                                {},
+                                                                {
+                                                                  "type": "null"
+                                                                }
+                                                              ]
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": {
+                                                          "type": "object",
+                                                          "properties": {
+                                                            "start": {
+                                                              "type": "string"
+                                                            },
+                                                            "end": {
+                                                              "type": "string"
+                                                            }
+                                                          },
+                                                          "required": [
+                                                            "start",
+                                                            "end"
+                                                          ]
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "metrics",
+                                                        "filters",
+                                                        "window"
+                                                      ]
+                                                    },
+                                                    "expect": {
+                                                      "enum": [
+                                                        "delivered",
+                                                        "silent"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "actual": {
+                                                      "enum": [
+                                                        "delivered",
+                                                        "silent"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "match": {
+                                                      "enum": [
+                                                        "exact",
+                                                        "partial"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    "withheld": {
+                                                      "type": "string"
+                                                    },
+                                                    "passed": {
+                                                      "type": "boolean"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "name",
+                                                    "scope",
+                                                    "expect",
+                                                    "actual",
+                                                    "passed"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "delivery"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "probe": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "question": {
+                                                    "type": "string"
+                                                  },
+                                                  "metrics": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "dimension_filters": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "object",
+                                                      "properties": {
+                                                        "dimension": {
+                                                          "type": "string"
+                                                        },
+                                                        "values": {
+                                                          "type": "array",
+                                                          "items": {
+                                                            "type": "string"
+                                                          }
+                                                        }
+                                                      },
+                                                      "required": [
+                                                        "dimension",
+                                                        "values"
+                                                      ]
+                                                    }
+                                                  },
+                                                  "window": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "from": {
+                                                        "type": "string"
+                                                      },
+                                                      "to": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "from",
+                                                      "to"
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "question",
+                                                  "metrics",
+                                                  "dimension_filters",
+                                                  "window"
+                                                ]
+                                              },
+                                              "status": {
+                                                "type": "string"
+                                              },
+                                              "delivered": {
+                                                "type": "boolean"
+                                              },
+                                              "cut": {
+                                                "type": "boolean"
+                                              },
+                                              "replacedShown": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "questions": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "candidate": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "regression": {
+                                                      "type": "boolean"
+                                                    },
+                                                    "error": {
+                                                      "type": "string"
+                                                    },
+                                                    "attached": {
+                                                      "type": "boolean"
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "regression"
+                                                  ]
+                                                }
+                                              },
+                                              "note": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "answer_impact"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "message": {
+                                                "type": "string"
+                                              },
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "runState": {
+                                                "enum": [
+                                                  "estimated",
+                                                  "awaiting_approval",
+                                                  "queued",
+                                                  "running",
+                                                  "finished",
+                                                  "failed",
+                                                  "cancelled",
+                                                  "incomplete"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "questions": {
+                                                "type": "number"
+                                              },
+                                              "setAside": {
+                                                "type": "number"
+                                              },
+                                              "estimate": {
+                                                "type": "string"
+                                              },
+                                              "previous": {
+                                                "enum": [
+                                                  "passed",
+                                                  "failed",
+                                                  "error",
+                                                  "not_run"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "previousEdition": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "attached": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "candidate": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "baseline",
+                                                    "candidate"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      },
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "level": {
+                                            "const": "answer_full"
+                                          },
+                                          "outcome": {
+                                            "enum": [
+                                              "passed",
+                                              "failed",
+                                              "error",
+                                              "not_run"
+                                            ],
+                                            "type": "string"
+                                          },
+                                          "ranAt": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "details": {
+                                            "type": "object",
+                                            "properties": {
+                                              "message": {
+                                                "type": "string"
+                                              },
+                                              "edition": {
+                                                "type": "string"
+                                              },
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "runState": {
+                                                "enum": [
+                                                  "estimated",
+                                                  "awaiting_approval",
+                                                  "queued",
+                                                  "running",
+                                                  "finished",
+                                                  "failed",
+                                                  "cancelled",
+                                                  "incomplete"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "questions": {
+                                                "type": "number"
+                                              },
+                                              "setAside": {
+                                                "type": "number"
+                                              },
+                                              "estimate": {
+                                                "type": "string"
+                                              },
+                                              "previous": {
+                                                "enum": [
+                                                  "passed",
+                                                  "failed",
+                                                  "error",
+                                                  "not_run"
+                                                ],
+                                                "type": "string"
+                                              },
+                                              "previousEdition": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "attached": {
+                                                "type": "array",
+                                                "items": {
+                                                  "type": "object",
+                                                  "properties": {
+                                                    "id": {
+                                                      "type": "string"
+                                                    },
+                                                    "baseline": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    },
+                                                    "candidate": {
+                                                      "anyOf": [
+                                                        {
+                                                          "enum": [
+                                                            "pass",
+                                                            "fail",
+                                                            "no_answer"
+                                                          ],
+                                                          "type": "string"
+                                                        },
+                                                        {
+                                                          "type": "null"
+                                                        }
+                                                      ]
+                                                    }
+                                                  },
+                                                  "required": [
+                                                    "id",
+                                                    "baseline",
+                                                    "candidate"
+                                                  ]
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "level",
+                                          "outcome",
+                                          "ranAt",
+                                          "details"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "approvals": {
+                                  "type": "object",
+                                  "properties": {
+                                    "owner": {
+                                      "type": "boolean"
+                                    },
+                                    "approver": {
+                                      "anyOf": [
+                                        {
+                                          "type": "boolean"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "owner",
+                                    "approver"
+                                  ]
+                                },
+                                "problem": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "attached": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "question": {
+                                        "type": "string"
+                                      },
+                                      "active": {
+                                        "type": "boolean"
+                                      },
+                                      "attachedHour": {
+                                        "type": "string"
+                                      },
+                                      "retrieval": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "baseline": {
+                                                "type": "boolean"
+                                              },
+                                              "candidate": {
+                                                "type": "boolean"
+                                              }
+                                            },
+                                            "required": [
+                                              "baseline",
+                                              "candidate"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "answer": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "run": {
+                                                "type": "string"
+                                              },
+                                              "baseline": {
+                                                "anyOf": [
+                                                  {
+                                                    "enum": [
+                                                      "pass",
+                                                      "fail",
+                                                      "no_answer"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              },
+                                              "candidate": {
+                                                "anyOf": [
+                                                  {
+                                                    "enum": [
+                                                      "pass",
+                                                      "fail",
+                                                      "no_answer"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "run",
+                                              "baseline",
+                                              "candidate"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "question",
+                                      "active",
+                                      "attachedHour",
+                                      "retrieval",
+                                      "answer"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "required",
+                                "levels",
+                                "approvals",
+                                "problem",
+                                "attached"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/review/{id}/close": {
+      "post": {
+        "operationId": "review.close",
+        "summary": "Closes a suggestion to archive that its sender took back in the comments: nothing changes, and the context item stays live; answers with a token that undoes it",
+        "tags": [
+          "review"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "revision": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "revision"
                 ],
                 "additionalProperties": false
               }
@@ -108672,6 +110149,320 @@
         }
       }
     },
+    "/members/{personId}/activity": {
+      "get": {
+        "operationId": "members.activity",
+        "summary": "What someone did lately, as People shows it: the context items they checked last, newest first, of those the reader may read",
+        "tags": [
+          "roles"
+        ],
+        "parameters": [
+          {
+            "name": "personId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            },
+            "allowEmptyValue": true,
+            "allowReserved": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "what": {
+                            "const": "checked"
+                          },
+                          "itemId": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "on": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "what",
+                          "itemId",
+                          "title",
+                          "on"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "entries"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find it. It may have been deleted, or you may not have access."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Someone changed this after you opened it. Look at the latest version, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/members/{personId}/role": {
       "post": {
         "operationId": "members.setRole",
@@ -122602,6 +124393,9 @@
                                 "returned": {
                                   "type": "boolean"
                                 },
+                                "withdrew": {
+                                  "type": "boolean"
+                                },
                                 "body": {
                                   "type": "object",
                                   "propertyNames": {
@@ -122705,6 +124499,9 @@
                                       "returned": {
                                         "type": "boolean"
                                       },
+                                      "withdrew": {
+                                        "type": "boolean"
+                                      },
                                       "body": {
                                         "type": "object",
                                         "propertyNames": {
@@ -122765,6 +124562,7 @@
                                       "id",
                                       "author",
                                       "returned",
+                                      "withdrew",
                                       "body",
                                       "at",
                                       "editedAt",
@@ -122778,6 +124576,7 @@
                                 "id",
                                 "author",
                                 "returned",
+                                "withdrew",
                                 "body",
                                 "at",
                                 "editedAt",
@@ -122833,6 +124632,9 @@
                                 "by"
                               ]
                             }
+                          },
+                          "withdrawable": {
+                            "type": "boolean"
                           },
                           "newReply": {
                             "anyOf": [
@@ -122933,6 +124735,7 @@
                           "subject",
                           "comments",
                           "reactions",
+                          "withdrawable",
                           "newReply",
                           "mentions"
                         ]
@@ -123262,6 +125065,9 @@
                     "returned": {
                       "type": "boolean"
                     },
+                    "withdrew": {
+                      "type": "boolean"
+                    },
                     "body": {
                       "type": "object",
                       "propertyNames": {
@@ -123365,6 +125171,9 @@
                           "returned": {
                             "type": "boolean"
                           },
+                          "withdrew": {
+                            "type": "boolean"
+                          },
                           "body": {
                             "type": "object",
                             "propertyNames": {
@@ -123440,6 +125249,7 @@
                           "id",
                           "author",
                           "returned",
+                          "withdrew",
                           "body",
                           "at",
                           "editedAt",
@@ -123453,6 +125263,7 @@
                     "id",
                     "author",
                     "returned",
+                    "withdrew",
                     "body",
                     "at",
                     "editedAt",
@@ -123844,6 +125655,9 @@
                     "returned": {
                       "type": "boolean"
                     },
+                    "withdrew": {
+                      "type": "boolean"
+                    },
                     "body": {
                       "type": "object",
                       "propertyNames": {
@@ -123947,6 +125761,9 @@
                           "returned": {
                             "type": "boolean"
                           },
+                          "withdrew": {
+                            "type": "boolean"
+                          },
                           "body": {
                             "type": "object",
                             "propertyNames": {
@@ -124022,6 +125839,7 @@
                           "id",
                           "author",
                           "returned",
+                          "withdrew",
                           "body",
                           "at",
                           "editedAt",
@@ -124035,6 +125853,7 @@
                     "id",
                     "author",
                     "returned",
+                    "withdrew",
                     "body",
                     "at",
                     "editedAt",
@@ -124383,6 +126202,592 @@
                   },
                   "required": [
                     "removed"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "401",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNAUTHORIZED"
+                        },
+                        "status": {
+                          "const": 401
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You're signed out. Sign in, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "403",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "FORBIDDEN"
+                        },
+                        "status": {
+                          "const": 403
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "You can't do this. Ask the owner of the domain or an admin."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "NOT_FOUND"
+                        },
+                        "status": {
+                          "const": 404
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "We couldn't find it. It may have been deleted, or you may not have access."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "409",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "CONFLICT"
+                        },
+                        "status": {
+                          "const": 409
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Someone changed this after you opened it. Look at the latest version, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "422",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": true
+                        },
+                        "code": {
+                          "const": "UNPROCESSABLE_CONTENT"
+                        },
+                        "status": {
+                          "const": 422
+                        },
+                        "message": {
+                          "type": "string",
+                          "default": "Check the comment, then try again."
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "defined": {
+                          "const": false
+                        },
+                        "code": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "number"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "data": {}
+                      },
+                      "required": [
+                        "defined",
+                        "code",
+                        "status",
+                        "message"
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comments/{id}/withdraw": {
+      "post": {
+        "operationId": "comments.withdraw",
+        "summary": "Marks one's own comment on a suggestion to archive, while it waits, as taking it back, or takes the mark back: its owners see it in the review and close it or archive anyway",
+        "tags": [
+          "comments"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "withdrew": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "withdrew"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "author": {
+                      "type": "object",
+                      "properties": {
+                        "personId": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "personId",
+                        "name"
+                      ]
+                    },
+                    "returned": {
+                      "type": "boolean"
+                    },
+                    "withdrew": {
+                      "type": "boolean"
+                    },
+                    "body": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "at": {
+                      "type": "string"
+                    },
+                    "editedAt": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "deleted": {
+                      "type": "boolean"
+                    },
+                    "reactions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "emoji": {
+                            "enum": [
+                              "👍",
+                              "👀",
+                              "✅",
+                              "🤔",
+                              "🙏"
+                            ],
+                            "type": "string"
+                          },
+                          "by": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "personId": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "personId",
+                                "name"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "emoji",
+                          "by"
+                        ]
+                      }
+                    },
+                    "replies": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "object",
+                            "properties": {
+                              "personId": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "personId",
+                              "name"
+                            ]
+                          },
+                          "returned": {
+                            "type": "boolean"
+                          },
+                          "withdrew": {
+                            "type": "boolean"
+                          },
+                          "body": {
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {}
+                          },
+                          "at": {
+                            "type": "string"
+                          },
+                          "editedAt": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "deleted": {
+                            "type": "boolean"
+                          },
+                          "reactions": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "emoji": {
+                                  "enum": [
+                                    "👍",
+                                    "👀",
+                                    "✅",
+                                    "🤔",
+                                    "🙏"
+                                  ],
+                                  "type": "string"
+                                },
+                                "by": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "personId": {
+                                        "type": "string"
+                                      },
+                                      "name": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "personId",
+                                      "name"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "emoji",
+                                "by"
+                              ]
+                            }
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "author",
+                          "returned",
+                          "withdrew",
+                          "body",
+                          "at",
+                          "editedAt",
+                          "deleted",
+                          "reactions"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "author",
+                    "returned",
+                    "withdrew",
+                    "body",
+                    "at",
+                    "editedAt",
+                    "deleted",
+                    "reactions",
+                    "replies"
                   ]
                 }
               }

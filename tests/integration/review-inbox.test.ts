@@ -36,7 +36,12 @@ const app = buildApp({
 type Headers = { cookie: string; origin: string; 'x-heed-csrf': string }
 const headers: Record<string, Headers> = {}
 type Who = keyof typeof people
-const call = (method: 'GET' | 'POST' | 'PUT', path: string, who: Who, payload?: object) =>
+const call = (
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  who: Who,
+  payload?: object,
+) =>
   app.inject({
     method,
     url: '/api/v1' + path,
@@ -120,6 +125,9 @@ const markets = [
   'latvia',
   'lithuania',
   'estonia',
+  'malta',
+  'cyprus',
+  'romania',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -497,6 +505,213 @@ describe('a suggestion to archive', () => {
     expect(after.mode).toBe('retire')
     expect(after.proposal.state).toBe('accepted')
     expect(after.canPublish).toBe(false)
+  })
+})
+
+describe('a suggestion to archive taken back in the comments (P9c)', () => {
+  const words = (text: string) => ({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+  })
+  const comment = (proposal: string, who: Who, text: string, parentId?: string) =>
+    ok<{ id: string; withdrew: boolean }>(
+      call('POST', '/comments', who, {
+        subject: `review:${proposal}`,
+        body: words(text),
+        ...(parentId ? { parentId } : {}),
+      }),
+    )
+  const withdraw = (id: string, who: Who, withdrew = true) =>
+    call('POST', `/comments/${id}/withdraw`, who, { withdrew })
+  const thread = async (proposal: string, who: Who) =>
+    (
+      await ok<{
+        threads: {
+          withdrawable: boolean
+          comments: {
+            id: string
+            withdrew: boolean
+            replies: { id: string; withdrew: boolean }[]
+          }[]
+        }[]
+      }>(call('GET', `/comments?subject=review:${proposal}`, who))
+    ).threads[0]!
+  const retirement = async (market: string) => {
+    const itemId = await live({ title: `${market} orders lag a day`, ...inMarket(market) })
+    const proposal = await ok<ProposalRecord>(
+      call('POST', `/items/${itemId}/retire-proposals`, 'author', {
+        reason: 'The provider sends the files on time again.',
+      }),
+    )
+    return { itemId, proposal }
+  }
+
+  it('lets only its sender take it back with their own comment, while it waits, and keeps it with the owners', async () => {
+    const { itemId, proposal } = await retirement('estonia')
+    const ask = await comment(proposal.id, 'owner', 'Are the files really on time every day?')
+    const answer = await comment(
+      proposal.id,
+      'author',
+      "No: two days in January are still short. I'll suggest new dates instead.",
+      ask.id,
+    )
+    expect((await thread(proposal.id, 'author')).withdrawable).toBe(true)
+    expect((await thread(proposal.id, 'owner')).withdrawable).toBe(false)
+    // Only the sender, and only with a comment of their own.
+    expect((await withdraw(ask.id, 'owner')).statusCode).toBe(409)
+    expect((await withdraw(ask.id, 'author')).statusCode).toBe(403)
+    const marked = await ok<{ withdrew: boolean }>(withdraw(answer.id, 'author'))
+    expect(marked.withdrew).toBe(true)
+    // It stays with its owners, as their review says.
+    const s = await sheet(proposal.id)
+    expect(s.proposal.state).toMatch(/submitted|in_review/)
+    expect(s.withdrawn).toMatchObject({
+      commentId: answer.id,
+      by: { personId: people.author, name: 'author' },
+      quote: "No: two days in January are still short. I'll suggest new dates instead.",
+    })
+    expect(s.readiness).toMatchObject({
+      state: 'withdrawn',
+      ok: false,
+      publishable: true,
+      title: 'Withdrawn by author',
+    })
+    // Archive anyway is still open to the owner; the item is still served meanwhile.
+    expect(s.canPublish).toBe(true)
+    expect(await served(itemId)).toBe(1)
+    // One comment holds the mark: marking another moves it, and the mark can be taken back.
+    const again = await comment(proposal.id, 'author', 'To be clear: please close it.')
+    await ok(withdraw(again.id, 'author'))
+    const t = await thread(proposal.id, 'owner')
+    const all = t.comments.flatMap((c) => [c, ...c.replies])
+    expect(all.filter((c) => c.withdrew).map((c) => c.id)).toEqual([again.id])
+    expect((await sheet(proposal.id)).withdrawn?.commentId).toBe(again.id)
+    await ok(withdraw(again.id, 'author', false))
+    expect((await sheet(proposal.id)).withdrawn).toBeNull()
+    expect((await sheet(proposal.id)).readiness.state).toBe('archive')
+    // Deleting the comment takes its mark with its words.
+    await ok(withdraw(again.id, 'author'))
+    await ok(call('DELETE', `/comments/${again.id}`, 'author'))
+    expect((await sheet(proposal.id)).withdrawn).toBeNull()
+    // The history log says who took it back, never the words.
+    const { rows } = await client.query<{ action: string; details: object }>(
+      `select action, details from audit_log where subject_type='proposal' and subject_id=$1
+        and action in ('proposal.withdrawn','proposal.withdrawal_taken_back') order by seq`,
+      [proposal.id],
+    )
+    expect(rows.map((r) => r.action)).toEqual([
+      'proposal.withdrawn',
+      'proposal.withdrawn',
+      'proposal.withdrawal_taken_back',
+      'proposal.withdrawn',
+    ])
+    expect(JSON.stringify(rows)).not.toContain('please close it')
+  })
+
+  it('refuses the mark on a suggestion that is no retirement, or that no longer waits', async () => {
+    const edit = await submitted({ title: 'Malta orders', ...inMarket('malta') })
+    const mine = await comment(edit.id, 'author', 'I take it back.')
+    expect((await thread(edit.id, 'author')).withdrawable).toBe(false)
+    expect((await withdraw(mine.id, 'author')).statusCode).toBe(409)
+    // The database keeps the rule too, whoever writes.
+    await expect(
+      transaction(client, async () => {
+        await client.query("select set_config('cl.person_id', $1, true)", [people.author])
+        await client.query('update comments set withdrew_at=now() where id=$1', [mine.id])
+      }),
+    ).rejects.toThrow(/takes back only its writer's suggestion to archive/)
+  })
+
+  it('closes it as its owner: nothing changes, the Inbox says Closed, and Undo brings it back', async () => {
+    const { itemId, proposal } = await retirement('cyprus')
+    // Not before its sender took it back.
+    const early = await call('POST', `/review/${proposal.id}/close`, 'owner', {
+      revision: (await sheet(proposal.id)).proposal.revision,
+    })
+    expect(early.statusCode).toBe(409)
+    const said = await comment(proposal.id, 'author', 'Please close it: the files are late again.')
+    await ok(withdraw(said.id, 'author'))
+    const s = await sheet(proposal.id)
+    // Only an owner or an admin closes it; the sender cannot.
+    expect(
+      (
+        await call('POST', `/review/${proposal.id}/close`, 'author', {
+          revision: s.proposal.revision,
+        })
+      ).statusCode,
+    ).toBe(403)
+    const editions = async () =>
+      Number((await client.query<{ n: string }>('select count(*) as n from editions')).rows[0]!.n)
+    const before = await editions()
+    const closed = await ok<{ proposal: { state: string }; undo: string }>(
+      call('POST', `/review/${proposal.id}/close`, 'owner', { revision: s.proposal.revision }),
+    )
+    expect(closed.proposal.state).toBe('rejected')
+    expect(closed.undo).toMatch(/^decision:/)
+    // The context item stays live, and no edition was written.
+    expect(await served(itemId)).toBe(1)
+    expect(await editions()).toBe(before)
+    const all = await feed('owner', 'all')
+    expect(all.cards.find((c) => c.id === `proposal:${proposal.id}`)?.done?.outcome).toBe('Closed')
+    // Once closed, the sender's mark stays as it was.
+    expect((await thread(proposal.id, 'author')).withdrawable).toBe(false)
+    expect((await withdraw(said.id, 'author', false)).statusCode).toBe(409)
+    const { rows } = await client.query<{ action: string }>(
+      `select action from audit_log where subject_type='proposal' and subject_id=$1 and action='proposal.closed'`,
+      [proposal.id],
+    )
+    expect(rows).toHaveLength(1)
+    // Undo: it waits again, still taken back.
+    await ok(call('POST', '/decisions/undo', 'owner', { token: closed.undo }))
+    const back = await sheet(proposal.id)
+    expect(back.proposal.state).toBe('submitted')
+    expect(back.withdrawn?.commentId).toBe(said.id)
+    expect(await editions()).toBe(before)
+    // Archive anyway: the owner disagrees, and archives it after all.
+    await ok<Published>(publish(proposal.id, back.proposal.revision))
+    expect(await served(itemId)).toBeNull()
+  })
+})
+
+describe('what someone checked lately (P9c)', () => {
+  type Activity = { entries: { what: string; itemId: string; title: string; on: string }[] }
+  it('names the items whose version they checked last, newest first, three unless asked for more', async () => {
+    const newest = await live({ title: 'Romania orders lag a day', ...inMarket('romania') })
+    const lately = await ok<Activity>(call('GET', `/members/${people.owner}/activity`, 'author'))
+    expect(lately.entries).toHaveLength(3)
+    const [first] = lately.entries
+    expect(first).toMatchObject({
+      what: 'checked',
+      itemId: newest,
+      title: 'Romania orders lag a day',
+    })
+    // The day of the check, as the database keeps it.
+    expect(first!.on).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    const more = await ok<Activity>(
+      call('GET', `/members/${people.owner}/activity?limit=20`, 'author'),
+    )
+    expect(more.entries.length).toBeGreaterThan(3)
+    expect(more.entries.slice(0, 3)).toEqual(lately.entries)
+    // The same items say who checked them in the library.
+    for (const e of more.entries)
+      expect(
+        (
+          await client.query<{ by: string }>(
+            `select d.decided_by::text as by from decisions d
+               join item_versions v on v.id=d.item_version_id
+              where v.item_id=$1 and d.outcome='accept' order by d.decided_at desc limit 1`,
+            [e.itemId],
+          )
+        ).rows[0]?.by,
+      ).toBe(people.owner)
+    // Someone who checked nothing has done nothing lately; someone unknown is not found.
+    expect(
+      await ok<Activity>(call('GET', `/members/${people.stranger}/activity`, 'author')),
+    ).toEqual({ entries: [] })
+    expect(
+      (await call('GET', '/members/00000000-0000-4000-8000-00000000dead/activity', 'author'))
+        .statusCode,
+    ).toBe(404)
   })
 })
 
@@ -977,7 +1192,7 @@ describe('row security and guards of what the Inbox and undo keep', () => {
       transaction(client, () =>
         q("update proposals set state='submitted', closed_at=null where id=$1", [proposal]),
       ),
-    ).rejects.toThrow(/reopens only when its accept is undone/)
+    ).rejects.toThrow(/reopens only when its decision is undone/)
     await expect(
       transaction(client, () =>
         q(

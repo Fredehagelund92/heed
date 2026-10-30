@@ -298,6 +298,18 @@ describe('Settings, Advanced', () => {
         }),
       ),
     ).toEqual({ what: 'Published “Units sold”', href: '/context/itm_units01' })
+    // A suggestion to archive its sender took back in the comments, then let stand, then closed.
+    const suggestion = { subjectType: 'proposal', subjectId: 'p1', areaId: 'area_sales' }
+    const sales = (id: string) => ({ area_sales: 'Sales' })[id] ?? id
+    expect(historyLine(entry({ action: 'proposal.withdrawn', ...suggestion }), sales)).toEqual({
+      what: 'Withdrew a suggestion in Sales',
+    })
+    expect(
+      historyLine(entry({ action: 'proposal.withdrawal_taken_back', ...suggestion }), sales),
+    ).toEqual({ what: 'Took back the withdrawal of a suggestion in Sales' })
+    expect(historyLine(entry({ action: 'proposal.closed', ...suggestion }), sales)).toEqual({
+      what: 'Closed a suggestion in Sales',
+    })
     const names = (id: string) => ({ finance: 'Finance', area_sales: 'Sales' })[id] ?? id
     expect(
       historyLine(

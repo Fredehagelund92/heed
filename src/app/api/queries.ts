@@ -473,6 +473,8 @@ export const invalidations: {
   reactToSubject: () => [queryKeys.comments],
   editComment: () => comments,
   removeComment: () => comments,
+  // The suggestion's review reads whether its sender took it back.
+  withdrawWithComment: () => [...comments, queryKeys.reviews],
   markThreadSeen: () => [queryKeys.comments],
   markMentionSeen: () => comments,
   saveTerm: () => definitions,

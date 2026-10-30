@@ -4,6 +4,7 @@ import { expect, go, signInAs, signOut, test, userMenu } from './go.ts'
 // owner of a domain can't leave until someone takes over; an owner who isn't an admin can add
 // owners to their own domain and nothing else; ownership is the same on both pages. Picking a
 // person on the sign-in page opens their Inbox, and sign-in is no place for someone signed in.
+// A person's sheet says what they checked lately.
 
 test('invited people show as pending, and as owners on their domain', async ({ page }) => {
   await go(page, '/settings/people')
@@ -17,6 +18,29 @@ test('invited people show as pending, and as owners on their domain', async ({ p
   ).toBeVisible()
   await go(page, '/settings/domains/marketing')
   await expect(page.getByRole('button', { name: /Owners/ })).toContainText('nina@larchwood.example')
+})
+
+/** A day's label as a day to sort by: "3 Oct 2026" is 2026-10-03. */
+const dayOf = (label: string) => {
+  const [d = '', m = '', y = ''] = label.split(' ')
+  const month = 'JanFebMarAprMayJunJulAugSepOctNovDec'.indexOf(m) / 3 + 1
+  return `${y}-${String(month).padStart(2, '0')}-${d.padStart(2, '0')}`
+}
+
+test("a person's sheet says what they checked lately, newest first", async ({ page }) => {
+  await go(page, '/settings/people')
+  await page
+    .getByRole('list', { name: 'People' })
+    .getByRole('button', { name: /Sofia Brandt/ })
+    .click()
+  const lines = page.getByRole('dialog').getByRole('list', { name: 'Lately' }).getByRole('listitem')
+  await expect(lines).toHaveCount(3)
+  const days: string[] = []
+  for (const line of await lines.all()) {
+    await expect(line).toContainText(/^Checked .+\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+    days.push(dayOf((await line.textContent())!.match(/\d{1,2} [A-Z][a-z]{2} \d{4}$/)![0]))
+  }
+  expect(days).toEqual([...days].sort().reverse())
 })
 
 test('the only owner of a domain hands over before leaving', async ({ page }) => {

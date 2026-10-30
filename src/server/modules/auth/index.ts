@@ -19,7 +19,14 @@ export {
   lockRoles,
   setOwners,
 } from './roles.ts'
-export { listMembers, removeMember, restoreMember, setMemberRole, soleOwnerOf } from './members.ts'
+export {
+  listMembers,
+  memberActivity,
+  removeMember,
+  restoreMember,
+  setMemberRole,
+  soleOwnerOf,
+} from './members.ts'
 export {
   acceptInvite,
   createInvites,

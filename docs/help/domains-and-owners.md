@@ -4,7 +4,7 @@ line: Who publishes what, how to add a domain, the sandbox, and inviting people.
 group: Set up
 order: 1
 minutes: 4
-reviewed: 2026-10-27
+reviewed: 2026-10-29
 ---
 
 Who publishes what, how to add a domain, the sandbox, and inviting people.
@@ -35,6 +35,7 @@ Everyone is an Admin or a Member. Owning a domain isn't a role: it's set on the 
 
 - **Invite people** in Settings, People: their addresses, Admin or Member, and the domains they own from the start. An owner who isn't an admin invites from their own domain's page.
 - Each invite gives a link to copy and send them. It works for 7 days. Resend makes a new link, and the old one stops working.
+- A person's row opens what they did lately: the context they checked last, newest first, of what you may read.
 - Removing someone waits until no domain has them as its only owner. What they published stays, with their name, and Undo brings them back.
 
 ## Signing in

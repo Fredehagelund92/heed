@@ -1,6 +1,12 @@
 import { ORPCError } from '@orpc/client'
 import type { GrantChange } from '../../../contract/auth.ts'
-import type { Member, MemberRemoved, MemberRole } from '../../../contract/members.ts'
+import {
+  ACTIVITY_SHOWN,
+  type Member,
+  type MemberActivity,
+  type MemberRemoved,
+  type MemberRole,
+} from '../../../contract/members.ts'
 import type { Queryable } from '../../db/database.ts'
 import { initialsOf } from './people.ts'
 import { changeGrants, lockRoles } from './roles.ts'
@@ -30,6 +36,40 @@ export async function listMembers(tx: Queryable): Promise<Member[]> {
       order by p.display_name collate "en-x-icu", p.id`,
   )
   return rows.map((row) => ({ ...row, initials: initialsOf(row.name) }))
+}
+
+/**
+ * What someone did lately, as People shows it: the context items whose current version they
+ * checked last, newest first. A check is the last acceptance of the version, by the rule the
+ * library's "checked by" reads (a re-check is one; an approver's accept is not). Only items the
+ * reader may read are named, so it says no more than each item's page already does.
+ */
+export async function memberActivity(
+  tx: Queryable,
+  input: { personId: string; limit?: number | undefined },
+): Promise<MemberActivity> {
+  const personId = await activePerson(tx, input.personId.toLowerCase())
+  const entries = await tx.query<MemberActivity['entries'][number]>(
+    `with listed as materialized (
+       select i.id, i.entry->>'title' as title, v.id as version_id
+         from v_item_index i
+         join item_versions v on v.item_id = i.id and v.version_no = (i.entry->>'version')::int
+        where cl_audience_allows(i.audience_groups)),
+     checked as (
+       select distinct on (d.item_version_id) d.item_version_id as version_id, d.id, d.decided_at,
+              d.decided_by
+         from decisions d join listed on listed.version_id = d.item_version_id
+        where d.outcome = 'accept' and d.capacity <> 'approver'
+        order by d.item_version_id, d.decided_at desc, d.id desc)
+     select 'checked' as what, l.id as "itemId", l.title,
+            to_char((c.decided_at at time zone 'UTC')::date, 'YYYY-MM-DD') as on
+       from listed l join checked c on c.version_id = l.version_id
+      where c.decided_by = $1::uuid
+      order by c.decided_at desc, c.id desc
+      limit $2`,
+    [personId, input.limit ?? ACTIVITY_SHOWN],
+  )
+  return { entries }
 }
 
 async function actorOf(tx: Queryable) {

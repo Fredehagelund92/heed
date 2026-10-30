@@ -87,8 +87,11 @@ export function createReviewPath(
   review: ReviewService,
   /** The proposal as its write API reads it, for the reach of its draft. */
   proposalRecord: (id: string) => Promise<ProposalRecord>,
-  /** Where a return's note becomes the suggestion's first comment, and goes again on its undo. */
-  comments: Pick<CommentsService, 'returned' | 'unreturn'>,
+  /**
+   * Where a return's note becomes the suggestion's first comment, and goes again on its undo; and
+   * the comment with which the sender of a suggestion to archive took it back.
+   */
+  comments: Pick<CommentsService, 'returned' | 'unreturn' | 'withdrawal'>,
 ) {
   let person: string | undefined
   async function me() {
@@ -266,7 +269,15 @@ export function createReviewPath(
     return { sentence, rows: claimCheck(text, sentence) }
   }
 
-  function readinessOf(r: Reading, relations: Map<string, ClashRelation>) {
+  /** The comment with which the sender of a suggestion to archive took it back, if they did. */
+  const withdrawalOf = (r: Reading) =>
+    r.mode === 'retire' ? comments.withdrawal(r.p.id) : Promise.resolve(null)
+
+  function readinessOf(
+    r: Reading,
+    relations: Map<string, ClashRelation>,
+    withdrawn: { by: { name: string | null } } | null,
+  ) {
     const names = r.candidate
     const diff = docDiff(
       r.before ? sideOf(r.before.version, names) : null,
@@ -283,7 +294,7 @@ export function createReviewPath(
       clash: clashItem
         ? { itemId: clashItem, relation: unanswered ? null : (relations.get(clashItem) ?? null) }
         : null,
-      withdrawn: false,
+      withdrawn: withdrawn !== null,
       // Made by a content source's read from a document, never by a person (CON-611).
       synced: r.p.channel === 'source',
     })
@@ -336,8 +347,12 @@ export function createReviewPath(
     const p = await loadProposal(tx, id)
     const r = await shown(await reading(p))
     const relations = await relationsOf(r)
-    const { diff, claims, ready } = readinessOf(r, relations)
-    const words = readinessWords(ready, { diff })
+    const withdrawn = await withdrawalOf(r)
+    const { diff, claims, ready } = readinessOf(r, relations, withdrawn)
+    const words = readinessWords(ready, {
+      diff,
+      ...(withdrawn?.by.name ? { withdrawnBy: withdrawn.by.name } : {}),
+    })
     const beforeMarkdown = r.before
       ? docMarkdown({
           summary: r.before.version.summaryMarkup ?? r.before.version.summary,
@@ -372,6 +387,7 @@ export function createReviewPath(
       synced: (await syncedOf(tx, [p.id])).get(p.id) ?? null,
       gapId: r.gapId,
       note: p.reason,
+      withdrawn,
       diff,
       source: {
         before: beforeMarkdown,
@@ -554,6 +570,16 @@ export function createReviewPath(
     return { proposal: decided.proposal, undo: `decision:${decision}` }
   }
 
+  /**
+   * Closes a suggestion to archive its sender took back in the comments: nothing changes, and the
+   * context item stays live. The review service checks who may (an owner or an admin, as for a
+   * decision) and that it was taken back.
+   */
+  async function close(input: { id: string; revision: number }) {
+    const closed = await review.close(input)
+    return { proposal: closed.proposal, undo: `decision:${closed.decision}` }
+  }
+
   async function markRead(input: { id: string; itemVersionId: string }) {
     const p = await loadProposal(tx, input.id)
     if (p.itemVersionId !== input.itemVersionId)
@@ -599,7 +625,7 @@ export function createReviewPath(
       await tx.query('savepoint publish_read')
       try {
         const r = await reading(p)
-        const { ready } = readinessOf(r, await relationsOf(r))
+        const { ready } = readinessOf(r, await relationsOf(r), await withdrawalOf(r))
         if (!ready.bulk) {
           await tx.query('release savepoint publish_read')
           skip('needs_care', 'It needs a look of its own first, so it stays out.')
@@ -627,7 +653,8 @@ export function createReviewPath(
    * Takes back decisions their maker made within the window (FR-227), in one new edition that
    * serves again what they changed: a publish's earlier version (or no item, for a new one) and
    * the items it replaced; an archive's item. A suggestion whose publish is undone waits again; a
-   * returned one too, and its note leaves its comments (the history keeps the decision).
+   * returned one too, and its note leaves its comments (the history keeps the decision); and a
+   * closed one, which changed nothing agents get.
    */
   async function undoDecisions(ids: readonly string[]): Promise<{ edition: string | null }> {
     const seconds = await undoSeconds(tx)
@@ -673,6 +700,8 @@ export function createReviewPath(
         await comments.unreturn(d.id)
         continue
       }
+      // A close changed nothing agents get: the suggestion waits again.
+      if (d.outcome === 'reject' && d.action === 'retire') continue
       if (d.outcome === 'retire') {
         // An archive: the archived version comes back, unless something else is live for it now.
         if (await liveVersionId(tx, d.itemId))
@@ -684,7 +713,7 @@ export function createReviewPath(
       }
       if (d.outcome !== 'accept')
         throw new ORPCError('CONFLICT', {
-          message: 'Only a publish, an archive or a return is undone.',
+          message: 'Only a publish, an archive, a close or a return is undone.',
         })
       if ((await liveVersionId(tx, d.itemId)) !== d.versionId)
         throw new ORPCError('CONFLICT', {
@@ -719,12 +748,14 @@ export function createReviewPath(
     for (const d of rows) {
       await tx.query(
         'insert into decision_undos (decision_id,undone_by,edition_seq) values ($1,cl_person(),$2)',
-        [d.id, d.outcome === 'request_changes' ? null : (edition?.seq ?? null)],
+        [d.id, ['request_changes', 'reject'].includes(d.outcome) ? null : (edition?.seq ?? null)],
       )
       if (!d.proposalId) continue
       const p = await loadProposal(tx, d.proposalId, true)
       if (d.outcome === 'request_changes' && p.state === 'changes_requested') {
         await tx.query("update proposals set state='submitted' where id=$1", [p.id])
+      } else if (d.outcome === 'reject' && p.state === 'rejected') {
+        await tx.query("update proposals set state='submitted',closed_at=null where id=$1", [p.id])
       } else if (p.state === 'accepted') {
         await tx.query("update proposals set state='submitted',closed_at=null where id=$1", [p.id])
         // A check undone is no suggestion to decide: it goes, and the item is due again.
@@ -749,11 +780,21 @@ export function createReviewPath(
   async function care(p: LoadedProposal): Promise<{ claims: number; clash: boolean }> {
     const r = await reading(p)
     const relations = await relationsOf(r)
-    const { ready } = readinessOf(r, relations)
+    const { ready } = readinessOf(r, relations, await withdrawalOf(r))
     return { claims: ready.claimsToCheck, clash: r.clashes.some((id) => !relations.has(id)) }
   }
 
-  return { sheet, sheets, publish, returnWithNote, markRead, publishRead, undoDecisions, care }
+  return {
+    sheet,
+    sheets,
+    publish,
+    returnWithNote,
+    close,
+    markRead,
+    publishRead,
+    undoDecisions,
+    care,
+  }
 }
 
 export type ReviewPath = ReturnType<typeof createReviewPath>

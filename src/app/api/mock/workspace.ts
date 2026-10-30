@@ -1,6 +1,7 @@
 import { inviteLinkOf } from '@contract/members'
 import type { Invited } from '@/api/client'
 import type { Fact } from '@/model/items'
+import { labelDay } from '@/model/validity'
 import {
   describe,
   emailOf,
@@ -215,10 +216,12 @@ export function createWorkspace() {
       }
     },
 
-    /** A few quiet lines on what someone did lately: the context they checked. */
+    /** A few quiet lines on what someone did lately: the context they checked last, newest first. */
     activityOf(name: string, facts: Fact[]) {
+      const day = (f: Fact) => labelDay(f.checkedOn) ?? ''
       return facts
         .filter((f) => f.checkedBy === name)
+        .sort((a, b) => (day(a) < day(b) ? 1 : day(a) > day(b) ? -1 : 0))
         .slice(0, 3)
         .map((f) => ({ what: `Checked ${f.title}`, when: f.checkedOn }))
     },
