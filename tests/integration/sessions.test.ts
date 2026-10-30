@@ -199,9 +199,6 @@ describe('roles, assignments and operations', () => {
         ).statusCode,
       ).toBe(allowed ? 202 : name ? 403 : 401)
       expect(runs - before).toBe(allowed ? 1 : 0)
-      expect((await app.inject({ url: '/api/v1/roles', headers })).statusCode).toBe(
-        allowed ? 200 : name ? 403 : 401,
-      )
       for (const path of [
         '/roles/grant',
         '/roles/revoke',

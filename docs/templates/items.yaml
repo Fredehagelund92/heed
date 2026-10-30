@@ -4,16 +4,15 @@
 #   npm run heed -- import my-items.yaml --apply --as <your email>   # proposals, sent for review
 #
 # (`--drafts` with `--apply` keeps them as drafts.) `heed` talks to http://127.0.0.1:3000; name
-# another service with --url.
-# Administration › Import facts does the same in the browser. An import never accepts anything:
-# each item becomes a proposal that the domain's owner accepts in Heed. The web form,
-# the assistant ("draft a caveat from this") and capture from a page make the same proposals. A law
-# or a regulation has a template of its own: docs/templates/regulatory-event.yaml. To turn lessons
-# or instructions you already have into this format, see convert-lessons.md.
+# another service with --url. An import never publishes anything: each item becomes a suggestion
+# that the domain's owner publishes in Heed. The web app's editor and an agent's suggest_context
+# make the same suggestions. A law or a regulation has a template of its own:
+# docs/templates/regulatory-event.yaml. To turn lessons or instructions you already have into this
+# format, see convert-lessons.md.
 #
-# The examples are about the practice domain (`npm run seed -- --practice`): an invented bakery
-# with three kiosks. They describe no real metric, so on a database with that domain they pass
-# the dry run as they are.
+# The examples are about the demo data (`npm run seed`, or `docker compose up`): orders and
+# markets in its Sales domain. They describe no real business, so on a database with the demo they pass the dry run
+# as they are.
 #
 # What goes in (the pilot's data rule): metric and dimension names, dates, launches, tracking
 # changes, known data breaks and caveats in your own words. Never partner or customer names,
@@ -23,6 +22,7 @@
 #
 # Every field: `npm run heed -- schema`. The ones you need:
 #   title          what an agent reads first, up to 200 characters
+#   areaId         the domain's id; needed when the scope's metrics belong to no one domain
 #   kind           note (a standing caveat), issue (a problem with a window), event (something
 #                  that happened), guide or example; a note when left out
 #   summary        the caveat itself, 1 to 3 sentences. Or summaryMarkup, the same text with
@@ -43,72 +43,75 @@
 #                  from it, in one or two plain sentences. Start with "It doesn't tell you ...",
 #                  "Don't use this for ..." or "Check with ...". Left out: cause not proven.
 #
-# Left out, Heed fills in: the domain (from the scope's metrics), the owner (the domain's
+# Left out, Heed fills in: the domain (from the scope's metrics, when they name one), the owner (the domain's
 # owner), the kind, the risk (low for a note), the claim level and a review date in 90 days.
 # A change to an accepted item names its id (`id: itm_...`) and only the fields that change.
 
 items:
   # 1. A standing caveat: no end date, so it needs a review date. Mentions link the metric.
-  - title: 'Practice: loaves baked counts a loaf when it leaves the oven'
+  - title: 'Example: orders count an order when it is paid, not when it is placed'
     kind: note
+    areaId: area_sales
     summaryMarkup: >-
-      @[Loaves baked](metric:practice_loaves_baked) counts a loaf when it leaves the oven, so
-      loaves that burn or are given away still count.
-    body: Invented for the practice domain; it describes no real metric.
+      @[Orders](metric:orders) counts an order on the day it is paid, so an order placed late on
+      the last day of a month can count in the next month.
+    body: An example on the demo data; it describes no real business.
     scope:
-      metrics: [metric:practice_loaves_baked]
+      metrics: [metric:orders]
       dimensions: []
       dimensionValues: []
     validity: { start: '2026-09-01', end: null }
     reviewDate: '2027-01-15'
     evidence:
-      - url: https://example.test/practice/bakery-handbook
-        quote: A loaf is logged as it comes out of the oven
+      - url: https://example.test/demo/order-handbook
+        quote: An order is counted when its payment clears
         date: '2026-09-01'
     riskLevel: low
     claimLevel: fact_only
-    notToConclude: It doesn't tell you how many loaves were sold.
+    notToConclude: It doesn't tell you how many orders were placed in a month.
 
-  # 2. A known data break with a window: an issue for one kiosk, ending on a set day.
-  - title: 'Practice: Old Town door sensor missed visits for a week'
+  # 2. A known data break with a window: an issue for one market, ending on a set day.
+  - title: 'Example: Spain orders were counted twice for three days'
     kind: issue
+    areaId: area_sales
     summary: >-
-      The Old Town door sensor was faulty for a week, so kiosk visits there are too low for those
-      days and should not be compared with other weeks.
+      A checkout fault counted some Spain orders twice for three days, so orders in Spain are too
+      high for those days and should not be compared with other weeks.
     scope:
-      metrics: [metric:practice_kiosk_visits]
+      metrics: [metric:orders]
       dimensions: []
       dimensionValues:
-        - { dimension: dim:practice_kiosk, value: val:practice_kiosk/old_town }
-    validity: { start: '2026-09-14', end: '2026-09-20' }
+        - { dimension: dim:market, value: val:market/spain }
+    validity: { start: '2026-09-14', end: '2026-09-16' }
     reviewDate: null
     evidence:
-      - url: https://example.test/practice/maintenance-log
-        quote: Old Town door sensor replaced after a week of missed counts
-        date: '2026-09-21'
+      - url: https://example.test/demo/incident-log
+        quote: Duplicate Spain orders removed after a three-day checkout fault
+        date: '2026-09-17'
     riskLevel: low
     claimLevel: fact_only
-    notToConclude: Low visits that week do not mean fewer people came. Don't compare it with other weeks.
+    notToConclude: High orders those days do not mean more people bought. Don't compare them with other weeks.
 
   # 3. An event whose effect someone named has stated: effect_stated needs who and their words.
-  - title: 'Practice: North Pier opened an hour earlier from October'
+  - title: 'Example: Norway had free delivery from October'
     kind: event
+    areaId: area_sales
     summary: >-
-      North Pier opens an hour earlier from 1 October, and the kiosk team says the extra hour
-      brings more morning visits.
+      Norway has free delivery on every order from 1 October, and the Nordic sales team says it
+      brings more small orders.
     scope:
-      metrics: [metric:practice_kiosk_visits, metric:practice_loaves_baked]
+      metrics: [metric:orders, metric:units_sold]
       dimensions: []
       dimensionValues:
-        - { dimension: dim:practice_kiosk, value: val:practice_kiosk/north_pier }
+        - { dimension: dim:market, value: val:market/norway }
     validity: { start: '2026-10-01', end: null }
     reviewDate: '2027-01-31'
     evidence:
-      - url: https://example.test/practice/opening-hours
-        quote: From 1 October North Pier opens at seven
+      - url: https://example.test/demo/delivery-terms
+        quote: From 1 October delivery in Norway is free on every order
         date: '2026-09-25'
     riskLevel: low
     claimLevel: effect_stated
-    claimAuthority: The practice kiosk team
-    claimQuote: The early hour brings in the morning commuters
-    notToConclude: The earlier opening is not proven to explain any other change
+    claimAuthority: The Nordic sales team
+    claimQuote: Free delivery brings in the small orders
+    notToConclude: Free delivery is not proven to explain any other change

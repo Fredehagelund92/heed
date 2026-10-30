@@ -6,10 +6,8 @@ import {
   matchDomain,
   storedNameNote,
 } from '../../domain/domain-match.ts'
-import { changeSentence, noChanges, type EditionChangeKind } from '../../domain/editions.ts'
 import { audienceAllows, itemKinds, noGroups, type ItemKind } from '../../domain/item.ts'
 import { canRead, withholding } from '../../domain/links.ts'
-import { proposalAttributes } from '../../domain/proposal-attributes.ts'
 import { ownCaveat } from '../../domain/proposal-rules.ts'
 import {
   agentInstructions,
@@ -21,9 +19,7 @@ import {
 } from '../../domain/resolver.ts'
 import { termShown } from '../../domain/links.ts'
 import { assumedDate, extractScope, unknownName } from '../../domain/scope.ts'
-import { itemDisplayStatus, needsALook } from '../../domain/status.ts'
 import { acceptedByRole, ownerRole } from '../../domain/served-review.ts'
-import { fullDayWords } from '../../domain/dates.ts'
 import { shiftDate } from '../../domain/validity.ts'
 import {
   memberNames,
@@ -33,17 +29,10 @@ import {
   suggestTerms,
 } from '../../domain/vocabulary.ts'
 import type { ServingBundle, ServingItem, ServingTerm } from '../modules/editions/index.ts'
-import type { Changes, ServingReads, WaitingTerms } from './reads.ts'
+import type { WaitingTerms } from './reads.ts'
 import type * as z from 'zod'
-import type { changesInput, findInput, overviewInput } from './schemas.ts'
-import {
-  changesSaid,
-  factVoice,
-  refusedSaid,
-  unknownDomainWords,
-  type Voice,
-} from '../../domain/say.ts'
-import { concepts } from '../../domain/words-v1.ts'
+import type { findInput } from './schemas.ts'
+import { factVoice, refusedSaid, unknownDomainWords, type Voice } from '../../domain/say.ts'
 
 /*
   The outcome tools (FR-338 to FR-340): a few task-shaped reads that each answer one thing
@@ -56,8 +45,6 @@ import { concepts } from '../../domain/words-v1.ts'
 
 type Area = ServingBundle['areas'][number]
 export type FindArgs = z.output<typeof findInput>
-export type OverviewArgs = z.output<typeof overviewInput>
-export type ChangesArgs = z.output<typeof changesInput>
 
 /** Why an agent does not get an item, in words (the resolver's withheld reasons, FR-314). */
 export const withheldWords: Record<string, string> = {
@@ -90,7 +77,7 @@ export function domainAbout(area: Area, full: boolean) {
 /**
  * The domains a get_facts question is about: the domain of each asked metric, by name, with
  * what it is. A concise reply names them only: what a domain is does not answer the question,
- * and domain_overview gives it. None when the question names no metric with a domain.
+ * and the full reply gives it. None when the question names no metric with a domain.
  */
 export function askedDomains(
   bundle: ServingBundle,
@@ -109,22 +96,6 @@ export function askedDomains(
     .sort(byName)
     .map((area) => (concise ? { id: area.id, name: area.name } : domainAbout(area, true)))
 }
-const months = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-const monthWords = (month: string) =>
-  `${months[Number(month.slice(5, 7)) - 1] ?? month.slice(5, 7)} ${month.slice(0, 4)}`
 
 /** The choice whose names read closest to what was typed, when one is close enough. */
 export function closest<T>(input: string, choices: readonly T[], names: (choice: T) => string[]) {
@@ -309,7 +280,7 @@ const heldWords: Record<string, [string, string]> = {
  * the resolver delivers for their own scope (FR-314); the others are held back, counted by why.
  * A search's domain or kind never narrows them: they describe the term.
  */
-export function termItems(bundle: ServingBundle, term: ServingTerm, today: string) {
+function termItems(bundle: ServingBundle, term: ServingTerm, today: string) {
   const given: ServingItem[] = []
   const held = new Map<string, number>()
   let about = 0
@@ -329,7 +300,7 @@ export function termItems(bundle: ServingBundle, term: ServingTerm, today: strin
  * are high risk and need a check or a review first". It says what each number counts, so a count
  * of items about the term and a count agents get never read as two answers to one question.
  */
-export function agentsGetWords({ about, given, held }: ReturnType<typeof termItems>) {
+function agentsGetWords({ about, given, held }: ReturnType<typeof termItems>) {
   const back = about - given.length
   if (!back) return about === 1 ? 'AI agents get it' : 'AI agents get all of them'
   const reasons = [...held]
@@ -825,416 +796,5 @@ export function findContext(
       statements: [coverageStatement, ...(assumed ? [assumed.statement] : [])],
     },
     instructions: `${agentInstructions} Read an item in full with ${voice.read}. Quote a definition only as the source words it, and say where it comes from.${assumed ? ` ${assumed.instruction}` : ''}${items.some((item) => 'not_to_conclude' in item) ? ` ${caveatInstruction}` : ''}${readAs.length || domains.some((d) => 'name_note' in d) ? ` ${domainReadAsInstruction}` : ''}${status === 'no_match' && domains.some((d) => !d.items && !d.vocabulary.metrics && !d.vocabulary.dimensions) ? ` ${emptyDomainInstruction}` : ''}`,
-  }
-}
-
-/** Why an item needs a look, in words, or null (the Library's "Needs a look", A8). */
-function lookReason(item: ServingItem, today: string): string | null {
-  const status = itemDisplayStatus({ ...item, status: 'accepted' }, today)
-  if (!needsALook(status)) return null
-  if (status === 'stale')
-    return item.reviewDate
-      ? `Its check date, ${fullDayWords(item.reviewDate)}, has passed.`
-      : 'Its check date has passed.'
-  if (status === 'source_missing') return 'Its definition is gone from the source.'
-  return 'Its source definition changed, so it waits for a check.'
-}
-
-/** A gap's topic in words: "Net revenue, Spain, October 2026". */
-function gapTopic(
-  bundle: ServingBundle,
-  gap: { metrics: string[]; dimensionValues: string[]; month: string },
-) {
-  return [
-    ...gap.metrics.map((key) => termName(bundle, key)),
-    ...gap.dimensionValues.map((key) => termName(bundle, key)),
-    monthWords(gap.month),
-  ].join(', ')
-}
-
-/** The domains of an edition with a line on each, and the names of its metrics and dimensions. */
-export function editionDomains(bundle: ServingBundle, today: string) {
-  const name = new Map(bundle.terms.map((t) => [t.key, t.name]))
-  const shown = bundle.items.filter((i) => canRead(bundle, i, today))
-  return {
-    edition: bundle.edition,
-    domains: bundle.areas
-      .map((area) => {
-        const items = shown.filter((i) => i.areaId === area.id)
-        const counts = new Map<string, number>()
-        for (const item of items)
-          for (const metric of item.scope.metrics) counts.set(metric, (counts.get(metric) ?? 0) + 1)
-        const top = [...counts]
-          .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-          .slice(0, 4)
-          .map(([key]) => name.get(key) ?? key)
-        return {
-          ...domainAbout(area, false),
-          items: items.length,
-          holds: `${plural(items.length, 'item', 'items')}${top.length ? `, mostly about ${top.join(', ')}` : ''}.`,
-        }
-      })
-      .sort(byName),
-    metrics: bundle.terms
-      .filter((t) => t.kind === 'metric' && termShown(bundle, t))
-      .map((t) => {
-        const domain = areaName(bundle, t.areaId ?? bundle.metricArea[t.key])
-        return {
-          key: t.key,
-          name: t.name,
-          ...(domain ? { domain } : {}),
-          ...(t.parentKey ? { group: name.get(t.parentKey) ?? t.parentKey } : {}),
-          ...(t.aliases.length ? { other_names: t.aliases } : {}),
-        }
-      })
-      .sort(byName),
-    dimensions: bundle.terms
-      .filter((t) => t.kind === 'dimension' && termShown(bundle, t))
-      .map((dimension) => {
-        const values = bundle.terms.filter(
-          (t) =>
-            t.kind === 'dimension_value' && t.parentKey === dimension.key && termShown(bundle, t),
-        )
-        return {
-          key: dimension.key,
-          name: dimension.name,
-          value_count: values.length,
-          ...(values.length <= LISTED_VALUES
-            ? { values: values.map((v) => v.name).sort() }
-            : { note: 'Too many values to list: name one in find_facts or get_facts.' }),
-        }
-      })
-      .sort(byName),
-  }
-}
-/** A dimension with more values than this lists only its count: search them by name. */
-const LISTED_VALUES = 30
-
-/** Where in Heed a person finds the full view of a domain. */
-const inHeed = (areaId: string) => ({
-  library: `/library?area=${areaId}`,
-  needs_a_look: `/library?view=attention&area=${areaId}`,
-  gaps: `/gaps?area=${areaId}`,
-  what_changed: `/editions/compare?area=${areaId}`,
-})
-
-/**
- * domain_overview (FR-339): with no domain, every domain with its summary line, owners, how
- * many items agents get, what needs a look and the open gaps, and the names Heed knows. With a
- * domain, that domain in full: what its owner wrote about it, its owners, what it covers, the
- * items that need a look, its open gaps and its recent changes. An item agents do not get is
- * counted, never shown.
- */
-export async function domainOverview(
-  bundle: ServingBundle,
-  args: OverviewArgs,
-  today: string,
-  reads: ServingReads,
-) {
-  const domain = domainOf(args.domain, bundle)
-  if ('refusal' in domain) return domain.refusal
-  const area = domain.area
-  // One connection runs one query at a time, so these follow each other.
-  const owners = await reads.owners()
-  const gaps = await reads.openGaps(area?.id)
-  const waiting = await reads.waiting()
-  const readable = bundle.items.filter((item) => canRead(bundle, item, today))
-  // Roles, never names (FR-326): how many owners a domain has, and who reviews its items.
-  const ownersOf = (domain: { id: string; name: string }) => {
-    const count = owners.find((s) => s.areaId === domain.id)?.count ?? 0
-    return { count, reviewed_by: count ? ownerRole(domain.name) : `an ${concepts.admin.name}` }
-  }
-  if (!area) {
-    const overview = editionDomains(bundle, today)
-    return {
-      status: 'matched',
-      domains: overview.domains.map((line) => {
-        const items = readable.filter((item) => item.areaId === line.id)
-        const vocabulary = domainVocabulary(bundle, line)
-        const inSource = waitingIn(line, waiting)
-        return {
-          ...line,
-          owners: ownersOf(line),
-          needs_a_look: items.filter((item) => lookReason(item, today)).length,
-          open_gaps: gaps.filter((gap) => gap.areaId === line.id).length,
-          vocabulary: {
-            metrics: vocabulary.metrics.length,
-            dimensions: vocabulary.dimensions.length,
-          },
-          ...(inSource
-            ? {
-                not_in_vocabulary_yet: {
-                  metrics: inSource.metrics,
-                  dimensions: inSource.dimensions,
-                },
-              }
-            : {}),
-        }
-      }),
-      metrics: overview.metrics,
-      dimensions: overview.dimensions,
-      next: 'Call domain_overview with a domain for its facts that need checking, its open gaps and its recent changes.',
-    }
-  }
-  // An item for a narrower audience counts as absent, as in the library (groups are parked).
-  const all = bundle.items.filter(
-    (item) => item.areaId === area.id && audienceAllows(item.audience, noGroups),
-  )
-  const items = readable.filter((item) => item.areaId === area.id)
-  const metrics = new Map<string, number>()
-  for (const item of items)
-    for (const metric of item.scope.metrics) metrics.set(metric, (metrics.get(metric) ?? 0) + 1)
-  const looks = items.flatMap((item) => {
-    const why = lookReason(item, today)
-    return why ? [{ id: item.id, kind: item.kind, title: item.title, why }] : []
-  })
-  const recent = await reads.editions(11)
-  const since = recent.length > 1 ? recent.at(-1)!.label : undefined
-  const changes = since ? await reads.changes({ from: since, limit: 200 }) : null
-  const changed = changes ? changeLines(bundle, changes, area, today) : null
-  const vocabulary = domainVocabulary(bundle, area)
-  const inSource = waitingIn(area, waiting)
-  const empty = !items.length && !vocabulary.metrics.length && !vocabulary.dimensions.length
-  const nameNote = storedNameNote(area)
-  const listed = (names: string[]) => names.slice(0, 30)
-  return {
-    status: 'matched',
-    domain: {
-      ...domainAbout(area, true),
-      ...(area.team ? { team: area.team } : {}),
-    },
-    ...(domain.readAs ? { domain_read_as: domain.readAs } : {}),
-    ...(nameNote && !domain.readAs?.misspelt ? { name_note: nameNote } : {}),
-    owners: ownersOf(area),
-    // The domain's own metrics and dimensions: the vocabulary terms whose domain it is.
-    vocabulary: {
-      count: { metrics: vocabulary.metrics.length, dimensions: vocabulary.dimensions.length },
-      metrics: listed(vocabulary.metrics),
-      dimensions: listed(vocabulary.dimensions),
-      ...(vocabulary.metrics.length > 30 || vocabulary.dimensions.length > 30
-        ? {
-            note: `${plural(vocabulary.metrics.length, 'metric', 'metrics')} and ${plural(vocabulary.dimensions.length, 'dimension', 'dimensions')} in all; the first 30 of each by name. The Catalogue (/catalogue) lists them all.`,
-          }
-        : {}),
-    },
-    ...(inSource ? { waiting_in_source: inSource } : {}),
-    coverage: {
-      items: items.length,
-      ...(items.length ? { kinds: kindWords(items) } : {}),
-      active_issues: activeIssues(items, today),
-      metrics: [...metrics]
-        .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))
-        .slice(0, 10)
-        .map(([key, count]) => ({ name: termName(bundle, key), items: count })),
-      ...(all.length > items.length
-        ? {
-            withheld: all.length - items.length,
-            withheld_note: `${plural(all.length - items.length, 'fact is', 'facts are')} not shared with AI agents: paused, or high risk and waiting for a check. People can read them in the library.`,
-          }
-        : {}),
-    },
-    needs_a_look: { count: looks.length, items: looks.slice(0, 10) },
-    open_gaps: {
-      count: gaps.length,
-      gaps: gaps.slice(0, 10).map((gap) => ({
-        id: gap.ref,
-        topic: gapTopic(bundle, gap),
-        status: gap.status === 'proposal_made' ? 'a draft is open for it' : 'open',
-        ...(gap.noItemCalls === null ? {} : { agent_calls_that_found_nothing: gap.noItemCalls }),
-        ...(gap.reports === null ? {} : { reports: gap.reports }),
-        last_seen: gap.lastSeen,
-      })),
-    },
-    ...(changed
-      ? {
-          recent_changes: {
-            since: changes!.from,
-            edition: changes!.to,
-            sentence: changed.sentence,
-            changes: changed.lines.slice(0, 5),
-          },
-        }
-      : {}),
-    in_heed: inHeed(area.id),
-    ...(empty || domain.readAs || nameNote
-      ? {
-          instructions: [
-            ...(domain.readAs || nameNote ? [domainReadAsInstruction] : []),
-            ...(empty ? [emptyDomainInstruction] : []),
-          ].join(' '),
-        }
-      : {}),
-  }
-}
-
-const changeVerbs: Record<EditionChangeKind, string> = {
-  added: 'Added',
-  changed: 'Changed',
-  checked: 'Checked against its source, still correct',
-  resaved: 'Saved again with nothing different',
-  retired: 'Archived',
-  removed: 'Taken back (an earlier set of facts was restored)',
-}
-
-/** What each field change means, in words: "when it applies and what not to conclude". */
-function fieldWords(fields: readonly string[]) {
-  const words = [
-    ...new Set(
-      fields
-        .filter((field) => field !== 'changeMarks' && field !== 'references')
-        .map(
-          (field) =>
-            (proposalAttributes as Record<string, { words: string } | undefined>)[field]?.words ??
-            field,
-        ),
-    ),
-  ]
-  return words.length ? list(words) : null
-}
-
-/**
- * The changes an agent may read, in plain words: an item in service now with its title, one that
- * left without its text (its domain must still be live), and a count of the rest.
- */
-function changeLines(bundle: ServingBundle, changes: Changes, area: Area | null, today: string) {
-  const inScope = changes.items.filter((change) => !area || change.areaId === area.id)
-  const lines: Record<string, unknown>[] = []
-  const counts = noChanges()
-  let hidden = 0
-  let only: { title: string } | null = null
-  for (const change of inScope) {
-    const now = bundle.items.find((item) => item.id === change.itemId)
-    const left = change.change === 'retired' || change.change === 'removed'
-    const domain = areaName(bundle, change.areaId)
-    if (now && !left && canRead(bundle, now, today)) {
-      const what = change.change === 'changed' ? fieldWords(change.fields) : null
-      lines.push({
-        id: change.itemId,
-        change: change.change,
-        kind: change.kind,
-        title: now.title,
-        domain,
-        words: `${changeVerbs[change.change]} "${now.title}" (${change.kind}${domain ? `, ${domain}` : ''})${what ? `: ${what}` : ''}.`,
-      })
-      only = { title: now.title }
-    } else if (left) {
-      lines.push({
-        id: change.itemId,
-        change: change.change,
-        kind: change.kind,
-        domain,
-        words: `${changeVerbs[change.change]} ${/^[aeiou]/.test(change.kind) ? 'an' : 'a'} ${change.kind} in ${domain ?? 'a domain'}. AI agents no longer get it, so its text isn't shown.`,
-      })
-      only = null
-    } else {
-      hidden += 1
-      continue
-    }
-    counts[change.change] += 1
-  }
-  const areas = [...new Set(lines.map((line) => line.domain as string | null))].filter(
-    (name): name is string => !!name,
-  )
-  const sentence = [
-    changeSentence({
-      reason: null,
-      counts,
-      only: lines.length === 1 ? only : null,
-      areas: areas.sort(),
-      vocabulary: area ? 0 : changes.vocabulary,
-      withheld: 0,
-      editions: changes.editions,
-    }),
-    ...(hidden
-      ? [
-          `${plural(hidden, 'other change is', 'other changes are')} not shown: in a domain AI agents don't get yet, paused, or for one group only.`,
-        ]
-      : []),
-  ].join(' ')
-  return { lines, hidden, sentence, counts }
-}
-
-/** An edition number Heed does not know: the closest one, and the recent ones to choose from. */
-function unknownEdition(input: string, editions: readonly { label: string; live: boolean }[]) {
-  const near = closest(input, editions, (edition) => [edition.label])
-  const named = (edition: { label: string; live: boolean }) =>
-    `${edition.label}${edition.live ? ' (live)' : ''}`
-  const message = `Unknown edition '${input}'.${near ? ` Did you mean ${named(near)}?` : ''} Name one of the editions listed, or leave it out for the live edition.`
-  return {
-    // The person named an edition, so the sentence may say the word back (words.ts).
-    ...refusedSaid(
-      `There's no edition called "${input}".${near ? ` Did you mean ${near.label}?` : ''}`,
-      message,
-    ),
-    status: 'need_more_detail',
-    message,
-    options: [{ field: 'edition', input, options: editions.map((e) => e.label) }],
-    editions: editions.map((edition) => ({ label: edition.label, live: edition.live })),
-  }
-}
-
-/**
- * what_changed (FR-340): what changed between two sealed editions, by default the live edition
- * and the one before, in plain words, reusing the edition comparison. Only what an agent may
- * read of the live edition is named; the rest is counted.
- */
-export async function whatChanged(
-  bundle: ServingBundle,
-  args: ChangesArgs,
-  today: string,
-  reads: ServingReads,
-) {
-  const domain = domainOf(args.domain, bundle)
-  if ('refusal' in domain) return domain.refusal
-  const area = domain.area
-  const recent = await reads.editions(20)
-  // An edition number that is not among the recent ones may be older: the comparison says.
-  const malformed = [args.edition, args.since].find(
-    (label) => label !== undefined && !/^\d{4}-\d{2}-\d{2}\.\d+$/.test(label),
-  )
-  if (malformed !== undefined) return unknownEdition(malformed, recent)
-  let changes: Changes
-  try {
-    changes = await reads.changes({
-      ...(args.since ? { from: args.since } : {}),
-      ...(args.edition ? { to: args.edition } : {}),
-      limit: 200,
-    })
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'NOT_FOUND') {
-      const missing = [args.edition, args.since].find(
-        (label) => label !== undefined && !recent.some((edition) => edition.label === label),
-      )
-      if (missing !== undefined) return unknownEdition(missing, recent)
-    }
-    throw error
-  }
-  const { lines, hidden, sentence, counts } = changeLines(bundle, changes, area, today)
-  const shown = lines.slice(0, args.limit)
-  return {
-    // A set of facts is saved as an edition labelled by its day: "2026-10-07.2".
-    ...changesSaid({
-      since: changes.from ? changes.from.slice(0, 10) : null,
-      domain: area?.name ?? null,
-      counts,
-      hidden,
-    }),
-    status: 'matched',
-    edition: changes.to,
-    since: changes.from,
-    editions_between: changes.editions,
-    ...(area ? { domain: area.name } : {}),
-    sentence,
-    changes: shown,
-    ...(lines.length > shown.length ? { more: lines.length - shown.length } : {}),
-    ...(hidden ? { not_shown: hidden } : {}),
-    ...(changes.total > changes.items.length
-      ? { note: `Only the first ${changes.items.length} of ${changes.total} changes were read.` }
-      : {}),
-    in_heed: `/editions/compare?${new URLSearchParams({
-      ...(changes.from ? { since: changes.from } : {}),
-      until: changes.to,
-      ...(area ? { area: area.id } : {}),
-    }).toString()}`,
   }
 }

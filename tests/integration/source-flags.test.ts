@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewProposal } from '../../src/contract/review.ts'
-import type { FlaggedItem, StaleLink } from '../../src/contract/sources.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -28,8 +27,8 @@ import { apiDatabase, servingPool, testDatabase, transaction } from './support.t
   items that reference or mention it. A referenced definition that changed flags its items
   `needs_check`, one that disappeared flags them `source_missing` with the renamed id; both are
   delivered as unverified and their owners are told. A definition an item only mentions never
-  flags it: the link shows `source_changed` or `source_missing`, the stale-link list holds it,
-  and the owner is informed. An outage changes nothing (CON-213, CON-214).
+  flags it: the link shows `source_changed` or `source_missing`, the database's stale links hold
+  it, and the owner is informed. An outage changes nothing (CON-213, CON-214).
 */
 
 const { client, url } = testDatabase()
@@ -112,15 +111,15 @@ function ok<T>(response: Awaited<ReturnType<typeof call>>): T {
   expect(response.statusCode, response.body).toBe(200)
   return response.json<T>()
 }
+/** The owner publishes a suggestion, as the review in the Inbox does: unrelated to any clash. */
 async function decide(id: string) {
-  const review = ok<{ proposal: ReviewProposal }>(
-    await call('GET', `/proposals/${id}/review`, 'owner'),
+  const sheet = ok<{ proposal: ReviewProposal; clashes: { itemId: string }[] }>(
+    await call('GET', `/review/${id}/sheet`, 'owner'),
   )
   return ok(
-    await call('POST', `/proposals/${id}/decisions`, 'owner', {
-      revision: review.proposal.revision,
-      outcome: 'accept',
-      reason: 'Reviewed against the evidence',
+    await call('POST', `/review/${id}/publish`, 'owner', {
+      revision: sheet.proposal.revision,
+      relations: sheet.clashes.map((clash) => ({ itemId: clash.itemId, relation: 'unrelated' })),
     }),
   )
 }
@@ -164,6 +163,13 @@ const activeFlags = async () =>
   (
     await client.query<{ item_id: string; flag: string; reason: string }>(
       "select item_id, flag::text, reason from v_overlay_on where kind = 'flag_on' order by item_id, flag",
+    )
+  ).rows
+/** Mentions in live items whose target went stale: item and status, by item. */
+const staleLinks = async () =>
+  (
+    await client.query<{ item_id: string; status: string }>(
+      'select item_id, status from v_stale_links order by item_id, field, position',
     )
   ).rows
 const overlayEvents = async () =>
@@ -260,7 +266,7 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
     expect(all.every((item) => item.freshness === 'verified')).toBe(true)
     expect(mention(await delivery(items.b))?.target.status).toBe('current')
     expect(await activeFlags()).toEqual([])
-    expect(ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))).toEqual([])
+    expect(await staleLinks()).toEqual([])
     expect(noticesBefore).toBe(0)
   })
 
@@ -293,40 +299,7 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
       { kind: 'item.flagged', subject: items.a, state: 'needs_check' },
       { kind: 'item.links_stale', subject: items.b, state: 'stale' },
     ])
-    const flags = ok<FlaggedItem[]>(await call('GET', '/sources/flags', 'author'))
-    expect(flags).toEqual([
-      expect.objectContaining({
-        itemId: items.a,
-        title: 'Order count caveat',
-        areaId: 'finance',
-        flag: 'needs_check',
-        definitions: [
-          { ref: 'cube:sales.count', name: 'sales.count', status: 'changed', renamedTo: null },
-        ],
-      }),
-    ])
-    expect(ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))).toEqual([
-      {
-        itemId: items.b,
-        title: 'Revenue note',
-        areaId: 'finance',
-        field: 'summary',
-        position: 0,
-        words: 'orders',
-        target: {
-          type: 'metric',
-          key: 'metric:order_count',
-          status: 'source_changed',
-          definition: 'cube:sales.count',
-          renamedTo: null,
-          replacedBy: null,
-        },
-      },
-    ])
-    const links = ok<{ mentions: { target: { status: string } }[] }>(
-      await call('GET', `/items/${items.b}/links`, 'author'),
-    )
-    expect(links.mentions.map((m) => m.target.status)).toEqual(['source_changed'])
+    expect(await staleLinks()).toEqual([{ item_id: items.b, status: 'source_changed' }])
     // A second read of the same model changes nothing and tells nobody again.
     expect(await cube.sync('cube')).toMatchObject({
       flags: { raised: 0, cleared: 0 },
@@ -338,13 +311,13 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
   it('keeps every flag, link status and reply while the source cannot be read', async () => {
     const events = await overlayEvents()
     const before = await deliveries()
-    const stale = ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))
+    const stale = await staleLinks()
     await writeFile(join(modelDir, 'model.yml'), 'cubes: [')
     const result = await cube.sync('cube')
     expect(result).toMatchObject({ status: 'failed', flags: { raised: 0, cleared: 0 } })
     expect(await overlayEvents()).toBe(events)
     expect(await deliveries()).toEqual(before)
-    expect(ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))).toEqual(stale)
+    expect(await staleLinks()).toEqual(stale)
     expect(await ownerNotices()).toHaveLength(2)
   }, 30_000)
 
@@ -384,20 +357,7 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
       { kind: 'item.flagged', subject: items.c, state: 'source_missing' },
       { kind: 'item.links_stale', subject: items.d, state: 'stale' },
     ])
-    const flags = ok<FlaggedItem[]>(await call('GET', '/sources/flags', 'owner'))
-    expect(flags.find((f) => f.itemId === items.c)).toMatchObject({
-      flag: 'source_missing',
-      definitions: [
-        {
-          ref: 'cube:growth.revenue',
-          name: 'growth.revenue',
-          status: 'missing',
-          renamedTo: 'cube:expansion.revenue',
-        },
-      ],
-    })
-    const stale = ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))
-    expect(stale.map((link) => [link.itemId, link.target.status])).toEqual(
+    expect((await staleLinks()).map((link) => [link.item_id, link.status])).toEqual(
       [
         [items.b, 'source_changed'],
         [items.d, 'source_missing'],
@@ -410,10 +370,15 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
     expect(source?.views.map((view) => view.name)).not.toContain('growth')
   }, 30_000)
 
-  it('clears needs_check when an owner records "checked, still correct", and refreshes mentions', async () => {
-    const rechecked = await call('POST', `/items/${items.a}/recheck`, 'owner', {
-      reason: 'The new description does not change this caveat',
-    })
+  it('clears needs_check when an owner says it is still true, and refreshes mentions', async () => {
+    // The Inbox's Due for a check card, Still true (FR-139).
+    const still = (item: string, reason: string) =>
+      call('POST', '/inbox/cards/decide', 'owner', {
+        card: `check:${item}`,
+        action: 'still_true',
+        reason,
+      })
+    const rechecked = await still(items.a, 'The new description does not change this caveat')
     expect(rechecked.statusCode, rechecked.body).toBe(200)
     expect((await activeFlags()).map((f) => f.item_id)).toEqual([items.c])
     expect(await delivery(items.a)).toMatchObject({ freshness: 'verified' })
@@ -423,54 +388,10 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
     )
     expect(cleared.rows).toEqual([{ reason: 'The new description does not change this caveat' }])
     // B only had a stale mention: the recheck records the current mark, so the link is current.
-    const again = await call('POST', `/items/${items.b}/recheck`, 'owner', {
-      reason: 'Still right with the new order count description',
-    })
+    const again = await still(items.b, 'Still right with the new order count description')
     expect(again.statusCode, again.body).toBe(200)
     expect(mention(await delivery(items.b))?.target.status).toBe('current')
-    const stale = ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))
-    expect(stale.map((link) => link.itemId)).toEqual([items.d])
-    // Nothing is left to check on A.
-    expect(
-      (await call('POST', `/items/${items.a}/recheck`, 'owner', { reason: 'Again' })).statusCode,
-    ).toBe(409)
-  }, 30_000)
-
-  it('repairs a rename through the vocabulary and clears source_missing with a new version', async () => {
-    const repoint = ok<ReviewProposal>(
-      await call('POST', '/vocabulary/proposals', 'author', {
-        key: 'metric:growth_revenue',
-        kind: 'metric',
-        parentKey: null,
-        name: 'Growth revenue',
-        aliases: [],
-        areaId: 'finance',
-        definitionRefs: ['cube:expansion.revenue'],
-      }),
-    )
-    await decide(repoint.id)
-    // D's mention recorded the old definition; the term now points at the new one: current.
-    expect(mention(await delivery(items.d))?.target).toMatchObject({ status: 'current' })
-    expect(ok<StaleLink[]>(await call('GET', '/sources/stale-links', 'owner'))).toEqual([])
-    // C still references the missing definition until a version written against the new one.
-    expect((await activeFlags()).map((f) => f.item_id)).toEqual([items.c])
-    await accepted(
-      {
-        title: 'Growth revenue caveat',
-        summary: 'Growth revenue excludes refunds',
-        scope: { metrics: ['metric:growth_revenue'], dimensions: [], dimensionValues: [] },
-        references: [],
-        changeMarks: {},
-      },
-      items.c,
-    )
-    expect(await activeFlags()).toEqual([])
-    expect(await delivery(items.c)).toMatchObject({ freshness: 'verified' })
-    const cleared = await client.query(
-      "select 1 from outbox_events where topic = 'item.unflagged' and aggregate_id = $1",
-      [items.c],
-    )
-    expect(cleared.rowCount).toBe(1)
+    expect((await staleLinks()).map((link) => link.item_id)).toEqual([items.d])
   }, 30_000)
 
   it('informs about a changed domain without flagging anything', async () => {
@@ -486,27 +407,22 @@ describe('Cube change flags, the needs-check flow and stale links', () => {
       { kind: 'vocabulary.domain_changed', subject: 'metric:order_count', state: 'treasury' },
       { kind: 'vocabulary.domain_changed', subject: 'metric:revenue', state: 'treasury' },
     ])
-    // Serving keeps the accepted area until a vocabulary proposal changes it.
-    expect((await deliveries()).every((item) => item.freshness === 'verified')).toBe(true)
+    // Serving keeps the accepted area; C still waits for its missing definition.
+    expect(
+      (await deliveries())
+        .filter((item) => item.id !== items.c)
+        .every((item) => item.freshness === 'verified'),
+    ).toBe(true)
   }, 30_000)
 
-  it('shows source notices in the inbox and the live stream with the item title', async () => {
-    const inbox = ok<{ items: { kind: string; title: string | null; state: string }[] }>(
-      await call('GET', '/inbox', 'owner'),
+  it('tells the owners only: the author has no source notice', async () => {
+    await relay()
+    const author = await client.query<{ kind: string }>(
+      'select kind from inbox_items where person_id = $1',
+      [people.author],
     )
-    expect(inbox.items).toContainEqual(
-      expect.objectContaining({
-        kind: 'item.flagged',
-        title: 'Order count caveat',
-        state: 'needs_check',
-      }),
-    )
-    expect(inbox.items).toContainEqual(
-      expect.objectContaining({ kind: 'vocabulary.domain_changed', title: 'Orders' }),
-    )
-    // The author is not an owner: no source notices in their inbox.
-    const author = ok<{ items: { kind: string }[] }>(await call('GET', '/inbox', 'author'))
-    expect(author.items.some((item) => item.kind.startsWith('item.'))).toBe(false)
+    expect(author.rows.some((row) => row.kind.startsWith('item.'))).toBe(false)
+    expect(author.rows.some((row) => row.kind.startsWith('vocabulary.domain'))).toBe(false)
   })
 })
 

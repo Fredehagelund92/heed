@@ -14,9 +14,8 @@ first build, which runs on one computer (FR-413).
    Authenticate (Claude Code registers itself, so it needs dynamic registration on).
 2. The app opens a browser at Heed. Sign in (locally: choose who you are from the dev people),
    read which app asks and what it may do, and choose **Allow** or **Deny**.
-3. The browser returns to the app. Its tools work as you. On **Connect an agent** (user
-   menu, Home and the assistant panel) you see every app connected as you, and **Disconnect** ends
-   one at once.
+3. The browser returns to the app. Its tools work as you. On **Connect an agent** (the user
+   menu, or Settings) you see every app connected as you, and **Disconnect** ends one at once.
 
 An administrator sees every person's connections in Administration, MCP and gateway,
 **Connections** (`agentConnections.list`): the person, the agent's own name and where it came from, its

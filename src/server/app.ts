@@ -23,10 +23,8 @@ import {
   ConnectorRegistry,
   type WorkspaceSources,
 } from './modules/connectors/index.ts'
-import { repositoryHelp } from './modules/help/index.ts'
 import type { JobRunner } from './modules/jobs/index.ts'
 import { createModelPort, type ModelPort } from './modules/models/index.ts'
-import { createHub, type Hub } from './modules/notifications/index.ts'
 import { registerLoginRoutes, type LoginServer } from './modules/oauth/index.ts'
 import type { PageReader } from './modules/web/index.ts'
 import { createMetrics, operationOf, type Metrics } from './observability/metrics.ts'
@@ -58,11 +56,6 @@ export interface AppDependencies {
   models?: ModelPort
   origins?: readonly string[]
   nodeEnv?: string
-  /**
-   * Wakes the live event streams; the composition root shares it with the outbox relay. Without
-   * one, streams find new events by polling.
-   */
-  notifications?: Hub
   /** The process's counters. Defaults to a new set. */
   metrics?: Metrics
   /** `CL_METRICS_TOKEN`: the bearer token `/metrics` asks for. Without one it is off. */
@@ -90,7 +83,6 @@ export function buildApp({
   models = createModelPort({ mode: 'mock' }),
   origins = [],
   nodeEnv,
-  notifications,
   metrics = createMetrics(),
   metricsToken,
   login,
@@ -103,7 +95,6 @@ export function buildApp({
     genReqId: () => randomUUID(),
     requestIdHeader: false,
   })
-  const hub = notifications ?? createHub(database)
   app.addHook('onSend', async (request, reply, payload) => {
     reply.header('x-request-id', request.id)
     return payload
@@ -122,17 +113,10 @@ export function buildApp({
     metrics.close()
     done()
   })
-  // Open live streams would hold the server open: end them before it stops listening.
-  app.addHook('preClose', () => hub.close())
-
-  // Heed's help pages, read once at start for search_help (FR-348, FR-715). A page that cannot be
-  // read is left out, and said here.
-  const help = repositoryHelp()
-  for (const problem of help.problems) logger.warn({ page: problem }, 'help page left out')
 
   registerRateLimit(app, { database, clock })
   registerHealthRoutes(app, database)
-  registerMetricsRoutes(app, { metrics, token: metricsToken, database, jobs, hub })
+  registerMetricsRoutes(app, { metrics, token: metricsToken, database, jobs })
   const signIn = chosenSignIn ?? createDevSignIn(devPeople, nodeEnv)
   if (signIn.method === 'oidc')
     registerOidcRoutes(app, {
@@ -151,9 +135,9 @@ export function buildApp({
         drafts: createDraftTool({ database, clock, web: origins[0] ?? null }),
         // Each delivered item's page in Heed, on the same address (FR-347).
         web: origins[0] ?? null,
-        // Owners, gaps and editions for domain_overview and what_changed, read as nobody.
-        reads: createServingReads(database, clock),
-        help,
+        // What a domain's definition source has beyond the vocabulary, for find_context, read
+        // as nobody.
+        reads: createServingReads(database),
         ...mcp,
       },
       metrics,
@@ -165,7 +149,6 @@ export function buildApp({
     database,
     clock,
     origins,
-    hub,
     models,
     // The login server's resource is the MCP server's address, which its tokens are for.
     mcpAddress: mcp?.resource ?? login?.resource ?? null,
@@ -173,7 +156,6 @@ export function buildApp({
     jobs,
     sources,
     workspaceSources,
-    help,
     ...(readPage ? { readPage } : {}),
   })
 

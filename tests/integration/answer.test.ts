@@ -1,15 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { seedPersonId } from '../../db/seed/bulk.ts'
-import type {
-  AnswerResult,
-  Asked,
-  LookupEvent,
-  Reach,
-  Replay,
-  TryItRun,
-} from '../../src/contract/answer.ts'
-import type { PreviewReply, ProposalRecord } from '../../src/contract/proposals.ts'
+import type { AnswerResult, Asked, LookupEvent, Replay } from '../../src/contract/answer.ts'
+import type { ProposalRecord } from '../../src/contract/proposals.ts'
+import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import { answer, startersOf, topicScope } from '../../src/domain/answer.ts'
 import { followedFrom } from '../../src/domain/links.ts'
 import { ownCaveat } from '../../src/domain/proposal-rules.ts'
@@ -27,8 +21,8 @@ import { apiDatabase, tableContents, testDatabase, transaction } from './support
 
 /*
   The answer engine over HTTP, on the demo library (the bulk seed of 1,500 Larchwood items and
-  its 1,400 editions): Ask's look-up streamed step by step, Try it on a draft, the reach of a
-  draft, Asked this week and the replay of a topic on the live edition and the one before it.
+  its 1,400 editions): Ask's look-up streamed step by step, the reach of a draft in its review,
+  Asked this week and the replay of a topic on the live edition and the one before it.
   Each answer is held to get_context's own code on the same edition (`deliver`), nothing is
   recorded, and no question is kept or logged (FR-602).
 */
@@ -114,11 +108,6 @@ const engine = (target: AnswerResult['target'], ...args: Parameters<typeof answe
 
 let live: ServingBundle
 let draft: ProposalRecord
-const draftScope = {
-  metrics: ['metric:orders'],
-  dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
-}
-const october = { from: '2026-10-01', to: '2026-10-31' }
 
 async function topicWithCalls(
   topic: { area: string | null; metrics: string[]; values: string[]; month: string },
@@ -363,7 +352,6 @@ describe('Ask with a real model (FR-701)', () => {
     otherLine: () => scriptedWordsModel(),
     check: () => undefined,
     creditsUsed: () => Promise.resolve(null),
-    webSearch: () => null,
   }
   const modelLogs: string[] = []
   const withModel = buildApp({
@@ -540,67 +528,16 @@ describe('a named report keeps its words in the report only (FR-602, FR-622)', (
   })
 })
 
-describe('Try it on a draft', () => {
-  const scope = { ...draftScope, window: october }
-
-  it('answers with the draft in the live edition, as its preview does, beside the live answer', async () => {
-    const tried = await ok<TryItRun>('POST', '/try-it', 'maria', { ...scope, draft: draft.id })
-    const preview = await ok<{ result: PreviewReply }>(
-      'POST',
-      `/proposals/${draft.id}/preview`,
-      'maria',
-      { question: '', ...scope },
-    )
-    const item = tried.answer!.target.kind === 'draft' ? tried.answer!.target.item : ''
-    expect(tried.answer!.target).toEqual({ kind: 'draft', proposal: draft.id, item })
-    expect(asAnswered(tried.answer!)).toEqual(asGiven(preview.result))
-    expect(tried.result.items?.map((i) => i.id)).toEqual(tried.answer!.items.map((i) => i.id))
-    expect(tried.answer!.items[0]).toMatchObject({ id: item, kind: 'event' })
-    // On the live edition the draft is nowhere.
-    const now = await ok<TryItRun>('POST', '/try-it', 'maria', scope)
-    expect(now.answer!.target).toEqual({ kind: 'live' })
-    expect(asAnswered(now.answer!)).toEqual(
-      asGiven(await deliver(live, systemClock(today), { question: '', ...scope })),
-    )
-    expect(now.answer!.items.map((i) => i.id)).not.toContain(item)
-  })
-
-  it('is no way to read a draft the person may not see', async () => {
-    const response = await call('POST', '/try-it', 'kofi', { ...scope, draft: draft.id })
-    expect(response.statusCode, response.body).toBe(404)
-  })
-})
-
 describe('the reach of a draft', () => {
   it("counts this week's questions that would get it, from topics asked at least five times", async () => {
-    // Each topic this week, previewed with the draft in it: get_context's own answer.
-    const topics = [
-      { values: ['val:market/norway'], from: '2026-10-01', to: '2026-10-31', calls: 12 },
-      { values: ['val:market/norway'], from: '2026-09-01', to: '2026-09-30', calls: 3 },
-      { values: ['val:market/spain'], from: '2026-10-01', to: '2026-10-31', calls: 9 },
-    ]
-    let expected = 0
-    for (const t of topics) {
-      const preview = await ok<{ result: PreviewReply }>(
-        'POST',
-        `/proposals/${draft.id}/preview`,
-        'maria',
-        {
-          question: '',
-          metrics: ['metric:orders'],
-          dimension_filters: [{ dimension: 'dim:market', values: t.values }],
-          window: { from: t.from, to: t.to },
-        },
-      )
-      const gets = (preview.result.items ?? []).some((i) => i.title.startsWith('Online orders'))
-      if (gets && t.calls >= 5) expected += t.calls
-    }
-    expect(expected).toBe(12)
-    expect(await ok<Reach>('POST', '/engine/reach', 'maria', { draft: draft.id })).toEqual({
-      questions: 12,
-      week,
+    // Of this week's topics, Orders in Norway in October (12 questions) gets the draft; the
+    // September one is asked fewer than five times, and Spain does not get it.
+    const sent = await ok<ProposalRecord>('POST', `/proposals/${draft.id}/submit`, 'maria', {
+      revision: draft.revision,
     })
-    expect((await call('POST', '/engine/reach', 'kofi', { draft: draft.id })).statusCode).toBe(404)
+    const sheet = await ok<ReviewSheet>('GET', `/review/${sent.id}/sheet`, 'ravi')
+    expect(sheet.reach).toEqual({ questions: 12, week })
+    expect((await call('GET', `/review/${sent.id}/sheet`, 'kofi')).statusCode).toBe(404)
   })
 })
 
@@ -613,16 +550,22 @@ describe('Asked this week', () => {
       ['Orders in Norway', null, 12, ['2026-10-01']],
       ['Orders in Spain', 9, 9, ['2026-10-01']],
     ])
+    // Each row's state is the engine's own answer to its topic on the live edition.
     for (const row of asked.rows) {
-      const tried = await ok<TryItRun>('POST', '/try-it', 'kofi', {
-        metrics: row.scope.metrics,
-        dimension_filters: Object.entries(row.scope.filters).map(([dimension, values]) => ({
-          dimension,
-          values,
-        })),
-        window: { from: row.scope.window.start, to: '2026-10-31' },
-      })
-      expect([row.state, row.items]).toEqual([tried.answer!.state, tried.answer!.items.length])
+      const given = answer(
+        live,
+        {
+          question: '',
+          metrics: row.scope.metrics,
+          dimension_filters: Object.entries(row.scope.filters).map(([dimension, values]) => ({
+            dimension,
+            values,
+          })),
+          window: { from: row.scope.window.start, to: '2026-10-31' },
+        },
+        { today },
+      )
+      expect([row.state, row.items]).toEqual([given.state, given.items.length])
     }
     expect(JSON.stringify(asked)).not.toMatch(/per_|@example/)
   })

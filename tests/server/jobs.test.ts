@@ -16,7 +16,6 @@ import {
   type RunNowResult,
 } from '../../src/server/modules/jobs/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
-import type { Hub } from '../../src/server/modules/notifications/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 
 const now = new Date('2026-10-07T12:00:00Z')
@@ -207,7 +206,6 @@ describe('the operations view and manual runs', () => {
       signIn: { currentSession: () => Promise.resolve(session) } as unknown as SignIn,
       clock: systemClock('2026-10-07'),
       origins: ['http://localhost:3000'],
-      hub: {} as Hub,
       models: createModelPort({ mode: 'mock' }),
       jobs: {
         overview: options.overview ?? (() => Promise.resolve(overview)),

@@ -73,21 +73,6 @@ export function speakingDefinition<T extends { state: DefinitionState }>(
 }
 
 /**
- * Where a definition's model file is in the Git host's web view: the configured address of the
- * model folder and the file's path in it, each segment encoded. Null unless both are known. Only
- * an address is built; nothing is fetched.
- */
-export function modelFileAddress(
-  folderUrl: string | null,
-  path: string | null,
-): { path: string; url: string | null } | null {
-  if (path === null) return null
-  if (folderUrl === null) return { path, url: null }
-  const segments = path.split('/').map((segment) => encodeURIComponent(segment))
-  return { path, url: `${folderUrl.replace(/\/+$/, '')}/${segments.join('/')}` }
-}
-
-/**
  * The one status a catalogue row shows, most urgent first: the definition is gone from the
  * source, it changed there, issues about the term still apply, nothing on the shelf names it, it
  * is not linked to a definition, or all is well.

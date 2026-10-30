@@ -1,10 +1,9 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Catalogue } from '../../src/contract/catalogue.ts'
-import type { TryIt } from '../../src/contract/connect.ts'
-import type { Gap, GapDetail, GapReport } from '../../src/contract/gaps.ts'
+import type { GapDetail } from '../../src/contract/gaps.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
-import type { Gate } from '../../src/contract/review.ts'
+import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import { editionDigest } from '../../src/domain/canonical.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -15,6 +14,8 @@ import {
   type DefinitionSource,
   type SourceSnapshot,
 } from '../../src/server/modules/connectors/index.ts'
+import { createToolService } from '../../src/server/mcp/service.ts'
+import { createAnonymousStore } from '../../src/server/mcp/store.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -92,11 +93,6 @@ const source: DefinitionSource = {
 }
 const connectors = new ConnectorService(apiDatabase(url), new ConnectorRegistry([source]))
 
-const orders = {
-  metrics: ['metric:orders'],
-  dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
-  window: { from: '2026-08-01', to: '2026-08-31' },
-}
 const activePlayers = {
   metrics: ['metric:active_customers'],
   window: { from: '2026-09-01', to: '2026-09-30' },
@@ -274,12 +270,10 @@ describe('after a sync pins them', () => {
     expect(rows).toEqual([{ key: 'area_commercial' + legacyKey, area_id: 'area_commercial' }])
   })
 
-  it('counts a new report about Orders in Norway against that gap, managed by its owner', async () => {
-    const reported = await call('POST', '/gaps/reports', 'author', { ...orders, type: 'missing' })
-    expect(reported.statusCode, reported.body).toBe(200)
-    expect(reported.json<GapReport>().id).toBe(legacyGap)
-    const listed = (await call('GET', '/gaps?areaId=area_commercial', 'owner')).json<Gap[]>()
-    expect(listed.find((gap) => gap.id === legacyGap)).toMatchObject({
+  it('lets the owner manage that gap', async () => {
+    const owned = await call('GET', `/gaps/${legacyGap}`, 'owner')
+    expect(owned.statusCode, owned.body).toBe(200)
+    expect(owned.json<GapDetail>()).toMatchObject({
       canManage: true,
       topic: { areaId: 'area_commercial', areaIds: ['area_commercial'] },
     })
@@ -288,54 +282,58 @@ describe('after a sync pins them', () => {
     if (other.statusCode === 200) expect(other.json<GapDetail>().canManage).toBe(false)
   })
 
-  it("serves Active customers from Customer value in Try it, and names the metric's domain", async () => {
+  it("serves Active customers from Customer value to agents, and names the metric's domain", async () => {
     await client.query("update areas set summary='Customers over their lifetime.' where id=$1", [
       'area_customer_value',
     ])
-    const tried = await call('POST', '/try-it', 'admin', activePlayers)
-    expect(tried.statusCode, tried.body).toBe(200)
-    const result = tried.json<TryIt>().result
+    const execute = createToolService(editions, createAnonymousStore(pool))
+    const reply = await execute(
+      'get_facts',
+      { question: 'Active customers in September 2026', ...activePlayers },
+      { client: 'claude-code', scopes: ['read'], caller: 'agent', canSelectEdition: false },
+      100000,
+      () => {},
+    )
+    const result = reply.structuredContent as {
+      status: string
+      items: unknown[]
+      domains: { id: string; name: string; summary?: string }[]
+    }
     expect(result.status).toBe('matched')
     expect(result.items).toHaveLength(2)
     expect(result.domains).toEqual([
-      {
+      expect.objectContaining({
         id: 'area_customer_value',
         name: 'Customer value',
         summary: 'Customers over their lifetime.',
-      },
+      }),
     ])
   })
 
   it('shows a topic that spans domains to the owners of each, and names them', async () => {
-    const spanning = {
-      metrics: ['metric:active_customers', 'metric:marketing_spend'],
-      window: { from: '2026-09-01', to: '2026-09-30' },
-    }
-    const reported = await call('POST', '/gaps/reports', 'author', {
-      ...spanning,
-      type: 'missing',
-      note: 'Nothing on either',
-    })
-    expect(reported.statusCode, reported.body).toBe(200)
-    const id = reported.json<GapReport>().id
-    for (const [who, area] of [
-      ['approver', 'area_customer_value'],
-      ['stranger', 'area_marketing'],
-    ] as const) {
-      const listed = (await call('GET', `/gaps?areaId=${area}`, who)).json<Gap[]>()
-      expect(
-        listed.find((gap) => gap.id === id),
-        who,
-      ).toMatchObject({
+    // A report about two domains' metrics, as report_gap records it: its topic has no one area.
+    const topic = await client.query<{ id: string }>(
+      `insert into topics (key,area_id,metric_keys,value_keys,month)
+       values ('|metric:active_customers,metric:marketing_spend||2026-09',null,
+               '{metric:active_customers,metric:marketing_spend}','{}','2026-09-01') returning id`,
+    )
+    const id = (
+      await client.query<{ id: string }>(
+        "select cl_gap_touch($1,'missing',2::smallint,now(),null,1,'Nothing on either','report_gap')::text as id",
+        [topic.rows[0]!.id],
+      )
+    ).rows[0]!.id
+    for (const who of ['approver', 'stranger'] as const) {
+      const detail = (await call('GET', `/gaps/${id}`, who)).json<GapDetail>()
+      expect(detail, who).toMatchObject({
         canManage: true,
         topic: { areaId: null, areaIds: ['area_customer_value', 'area_marketing'] },
       })
       // The owners of each read its notes (FR-611), through the same rule in row security.
-      const detail = (await call('GET', `/gaps/${id}`, who)).json<GapDetail>()
       expect(detail.notes?.map((note) => note.note)).toEqual(['Nothing on either'])
     }
-    const commercial = (await call('GET', '/gaps?limit=200', 'owner')).json<Gap[]>()
-    expect(commercial.find((gap) => gap.id === id)?.canManage ?? false).toBe(false)
+    const commercial = await call('GET', `/gaps/${id}`, 'owner')
+    if (commercial.statusCode === 200) expect(commercial.json<GapDetail>().canManage).toBe(false)
   })
 
   it('groups the catalogue by the same map serving reads', async () => {
@@ -354,9 +352,9 @@ describe('after a sync pins them', () => {
     })
   })
 
-  it('passes the delivery check of an item of a live domain about a metric of a domain not live', async () => {
+  it('delivers an item of a live domain about a metric of a domain not live', async () => {
     // FR-320, option A: Commercial is live, Active customers is Customer value's (starting). Items of
-    // live domains about it are delivered, so the review gate says this one is.
+    // live domains about it are delivered, so the review says agents get this one.
     const created = await call('POST', '/proposals', 'author', {
       draft: {
         areaId: 'area_commercial',
@@ -380,13 +378,12 @@ describe('after a sync pins them', () => {
       revision: p.revision,
     })
     expect(submitted.statusCode, submitted.body).toBe(200)
-    const screen = (await call('GET', `/proposals/${p.id}/review`, 'owner')).json<{
-      gate: Gate | null
-    }>()
-    expect(screen.gate!.levels.find((l) => l.level === 'delivery')).toMatchObject({
-      outcome: 'passed',
-      details: { delivered: true, status: 'matched' },
-    })
+    const sheet = await call('GET', `/review/${p.id}/sheet`, 'owner')
+    expect(sheet.statusCode, sheet.body).toBe(200)
+    // With it published, agents asking its own question get it.
+    expect(sheet.json<ReviewSheet>().tryIt.after.items.map((item) => item.title)).toContain(
+      'Norway campaign',
+    )
   })
 
   it('follows the source when it moves a domain, in a new edition', async () => {

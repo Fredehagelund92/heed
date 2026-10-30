@@ -386,31 +386,8 @@ describe('the other read tools say', () => {
     }
   })
 
-  it('domain_overview, what_changed, improve_question and report_gap say what they did', async () => {
+  it('report_gap says what it did', async () => {
     const run = setup()
-    expect(said(await run('domain_overview', {}))).toBe(
-      "Here's the one domain, with what it covers and how many facts AI agents get from it.",
-    )
-    expect(said(await run('domain_overview', { domain: 'Finance' }))).toBe(
-      'Finance: Orders and returns, by market. AI agents get 1 fact from it. It has 1 metric of its own.',
-    )
-    expect(said(await run('domain_overview', { domain: 'Finanse' }))).toMatch(
-      /^"Finanse" is taken to mean Finance\. Finance: /,
-    )
-    expect(said(await run('domain_overview', { domain: 'Nowhere' }))).toBe(
-      `${notLookedUp} There's no domain called "Nowhere".`,
-    )
-    expect(said(await run('what_changed', {}))).toBe(
-      "2 facts changed for AI agents since 6 October 2026: 1 changed and 1 archived. 1 other change isn't shown.",
-    )
-    const improve = await run('improve_question', ask())
-    expect(said(improve)).toBe('The question reads as Orders in Norway in August 2026.')
-    expect(nextOf(improve)).toBe(
-      'suggestions, events and guides say what would make it sharper. For what applies, call get_facts.',
-    )
-    expect(said(await run('improve_question', { question: 'Orders in Norway' }))).toBe(
-      `${notLookedUp} The question needs dates, such as September 2026 or last week.`,
-    )
     expect(said(await run('report_gap', ask()))).toBe(
       'Gap reported for Orders in Norway in August 2026. The owners of the domain will see it was asked.',
     )

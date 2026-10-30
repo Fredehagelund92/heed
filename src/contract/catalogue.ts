@@ -5,7 +5,6 @@ import {
   definitionStates,
   termDomainSources,
 } from '../domain/catalogue.ts'
-import { catalogueTermIdPattern } from '../domain/catalogue-term-id.ts'
 import type { ItemKind } from '../domain/item.ts'
 import { calendarDateSchema } from '../domain/validity.ts'
 
@@ -128,28 +127,8 @@ export const catalogueValueSchema = z.object({
   mentionedBy: z.number(),
 })
 
-export const catalogueTermDetailSchema = z.extend(catalogueTermSchema, {
-  /** The values of a dimension, by name; owners keep them in the vocabulary (CON-514). Empty for a metric. */
-  values: z.array(catalogueValueSchema),
-  /** The source that reads the definition, and its newest read. */
-  source: z.nullable(catalogueSourceSchema),
-  /**
-   * The model file that defines the definition, when the source names one: its path in the model
-   * folder, and its address in the Git host's web view, built from the `sources.cube_model_url`
-   * setting (null while that is off). The service never calls Git. Null with no definition or file.
-   */
-  modelFile: z.nullable(z.object({ path: z.string(), url: z.nullable(z.string()) })),
-  today: calendarDateSchema,
-})
-
-export const catalogueTermInputSchema = z.strictObject({
-  kind: z.enum(catalogueTermKinds),
-  id: z.string().check(z.regex(catalogueTermIdPattern)),
-})
-
 export type Catalogue = z.infer<typeof catalogueSchema>
 export type CatalogueTerm = z.infer<typeof catalogueTermSchema>
-export type CatalogueTermDetail = z.infer<typeof catalogueTermDetailSchema>
 export type CatalogueDefinition = z.infer<typeof catalogueDefinitionSchema>
 export type CatalogueSource = z.infer<typeof catalogueSourceSchema>
 export type CatalogueValue = z.infer<typeof catalogueValueSchema>

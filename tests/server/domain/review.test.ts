@@ -3,26 +3,13 @@ import {
   addWorkingDays,
   matchingCheck,
   matchingProbes,
-  mentionDiff,
-  narrowerAudienceWarnings,
   noneWorseWords,
   testChange,
   testChangeWords,
   versionDiff,
   vocabularyChangeOf,
-  vocabularyFindings,
-  type VocabularyChange,
-  type VocabularyContext,
 } from '../../../src/domain/review.ts'
-import type { Mention } from '../../../src/domain/mentions.ts'
 import { bundle, event, terms, version } from './fixtures.ts'
-
-const mention = (target: string, label = 'Words', field: Mention['field'] = 'summary') => ({
-  field,
-  position: 0,
-  target,
-  label,
-})
 
 describe('versionDiff', () => {
   it('lists every governed field of a new item and only the changed fields of a change', () => {
@@ -64,48 +51,6 @@ describe('versionDiff', () => {
     expect(changes.map((change) => change.field)).toEqual(['scope'])
     expect(changes[0]!.before).toMatchObject({ dimensions: [] })
     expect(changes[0]!.after).toMatchObject({ dimensions: ['dim:product'] })
-  })
-})
-
-describe('mentionDiff', () => {
-  it('reports added and removed mentions by field, target and words, counting repeats', () => {
-    const before = [mention('metric:orders'), mention('metric:orders'), mention('area:finance')]
-    const after = [
-      mention('metric:orders'),
-      mention('area:finance', 'Finance'),
-      mention('item:itm_00000002', 'Old note', 'body'),
-    ]
-    expect(mentionDiff(before, after)).toEqual({
-      added: [mention('area:finance', 'Finance'), mention('item:itm_00000002', 'Old note', 'body')],
-      removed: [mention('metric:orders'), mention('area:finance')],
-    })
-  })
-})
-
-describe('narrowerAudienceWarnings', () => {
-  it('warns once per target that fewer people can see, and stays quiet while audiences are everyone', () => {
-    const mentions = [mention('metric:orders'), mention('metric:orders'), mention('area:x')]
-    expect(
-      narrowerAudienceWarnings(null, mentions, [
-        { target: 'metric:orders', groups: null },
-        { target: 'area:x', groups: null },
-      ]),
-    ).toEqual([])
-    const warnings = narrowerAudienceWarnings(null, mentions, [
-      { target: 'metric:orders', groups: ['finance'] },
-    ])
-    expect(warnings).toHaveLength(1)
-    expect(warnings[0]).toMatchObject({ target: 'metric:orders', label: 'Words' })
-    expect(
-      narrowerAudienceWarnings(['finance'], mentions, [
-        { target: 'metric:orders', groups: ['finance', 'risk'] },
-      ]),
-    ).toEqual([])
-    expect(
-      narrowerAudienceWarnings(['finance', 'risk'], mentions, [
-        { target: 'metric:orders', groups: ['finance'] },
-      ]),
-    ).toHaveLength(1)
   })
 })
 
@@ -194,168 +139,6 @@ describe('matching probes (level 2)', () => {
       passed: false,
       probes: [],
     })
-  })
-})
-
-describe('vocabularyFindings', () => {
-  const change = (overrides: Partial<VocabularyChange> = {}): VocabularyChange => ({
-    key: 'val:market/norway',
-    kind: 'dimension_value',
-    parentKey: 'dim:market',
-    name: 'Norway',
-    aliases: ['Norge', 'Nordland'],
-    areaId: null,
-    definitionRefs: [],
-    ...overrides,
-  })
-  const context = (overrides: Partial<VocabularyContext> = {}): VocabularyContext => ({
-    live: terms,
-    existing: { kind: 'dimension_value', parentKey: 'dim:market' },
-    definitions: new Map([
-      ['cube:payments.orders', { kind: 'metric', missing: false, areaHint: 'finance' }],
-      ['cube:payments.market', { kind: 'dimension', missing: false, areaHint: 'finance' }],
-      ['cube:traffic.market', { kind: 'dimension', missing: false, areaHint: 'marketing' }],
-      ['cube:traffic.country', { kind: 'dimension', missing: false, areaHint: 'marketing' }],
-      ['cube:gone', { kind: 'metric', missing: true, areaHint: null }],
-    ] as const),
-    areas: new Map([
-      ['finance', 'Finance'],
-      ['marketing', 'Marketing'],
-    ]),
-    ...overrides,
-  })
-  const codes = (findings: { code: string }[]) => findings.map((f) => f.code)
-  it('accepts a new other name for a live term', () => {
-    expect(vocabularyFindings(change(), context())).toEqual([])
-  })
-  it('refuses no change, a changed identity, unknown parents and clashing or repeated names', () => {
-    expect(codes(vocabularyFindings(change({ aliases: ['Norge'] }), context()))).toEqual([
-      'no_change',
-    ])
-    expect(
-      codes(
-        vocabularyFindings(
-          change({ key: 'val:market/eastland', name: 'Spain', aliases: ['East', 'east'] }),
-          context({ existing: null }),
-        ),
-      ),
-    ).toEqual(['duplicate_name', 'name_taken'])
-    expect(
-      codes(
-        vocabularyFindings(
-          change({ key: 'metric:orders', kind: 'metric', parentKey: null, name: 'Orders' }),
-          context({ existing: { kind: 'metric', parentKey: 'group:payments' } }),
-        ),
-      ),
-    ).toContain('term_identity')
-    expect(
-      codes(
-        vocabularyFindings(
-          change({ key: 'val:brand/x', parentKey: 'dim:brand', name: 'X', aliases: [] }),
-          context({ existing: null }),
-        ),
-      ),
-    ).toEqual(['unknown_parent'])
-    expect(codes(vocabularyFindings(change({ parentKey: 'dim:other' }), context()))).toContain(
-      'format',
-    )
-  })
-  it('checks the area and the definition, and treats a Cube domain mismatch as an error at decision', () => {
-    const metric = change({
-      key: 'metric:orders',
-      kind: 'metric',
-      parentKey: 'group:payments',
-      name: 'Orders',
-      aliases: ['Order amount', 'Paid orders'],
-      areaId: 'marketing',
-      definitionRefs: ['cube:payments.orders'],
-    })
-    const ctx = context({ existing: { kind: 'metric', parentKey: 'group:payments' } })
-    // Named as people know them, never by ref or id.
-    expect(vocabularyFindings(metric, ctx)).toEqual([
-      expect.objectContaining({
-        code: 'domain_mismatch',
-        severity: 'warning',
-        message: 'Cube puts Orders in Finance',
-      }),
-    ])
-    expect(vocabularyFindings(metric, ctx, true)).toEqual([
-      expect.objectContaining({ code: 'domain_mismatch', severity: 'error' }),
-    ])
-    expect(
-      codes(
-        vocabularyFindings({ ...metric, areaId: 'nowhere', definitionRefs: ['cube:gone'] }, ctx),
-      ),
-    ).toEqual(['unknown_area', 'source_missing'])
-    expect(codes(vocabularyFindings({ ...metric, definitionRefs: ['cube:unknown'] }, ctx))).toEqual(
-      ['unknown_definition'],
-    )
-    // A dimension such as market is in every view: its Cube domain is only a suggestion, so any
-    // area, or none, may hold it.
-    const market = change({
-      key: 'dim:market',
-      kind: 'dimension',
-      parentKey: null,
-      name: 'Market',
-      aliases: [],
-      areaId: 'marketing',
-      definitionRefs: ['cube:payments.market'],
-    })
-    const fresh = context({ existing: null, live: [] })
-    expect(vocabularyFindings(market, fresh, true)).toEqual([])
-    expect(vocabularyFindings({ ...market, areaId: null }, fresh, true)).toEqual([])
-  })
-  it("lets a dimension name each view's member, one per view, and anything else one at most", () => {
-    const market = change({
-      key: 'dim:market',
-      kind: 'dimension',
-      parentKey: null,
-      name: 'Market',
-      aliases: [],
-      areaId: null,
-      definitionRefs: ['cube:payments.market', 'cube:traffic.market'],
-    })
-    const fresh = context({ existing: null, live: [] })
-    expect(vocabularyFindings(market, fresh, true)).toEqual([])
-    expect(
-      codes(
-        vocabularyFindings(
-          { ...market, definitionRefs: ['cube:traffic.market', 'cube:traffic.country'] },
-          fresh,
-        ),
-      ),
-    ).toEqual(['definition_view'])
-    expect(
-      codes(
-        vocabularyFindings(
-          { ...market, definitionRefs: ['cube:traffic.market', 'cube:traffic.market'] },
-          fresh,
-        ),
-      ),
-    ).toEqual(['duplicate_definition', 'definition_view'])
-    expect(
-      codes(
-        vocabularyFindings(
-          change({
-            key: 'metric:orders',
-            kind: 'metric',
-            parentKey: null,
-            name: 'Orders',
-            aliases: [],
-            areaId: 'finance',
-            definitionRefs: ['cube:payments.orders', 'cube:payments.market'],
-          }),
-          fresh,
-        ),
-      ),
-    ).toEqual(['definition_count'])
-    // Linking one more view's member is a change; the same members in another order is none.
-    const live = { ...market, definitionRefs: ['cube:traffic.market', 'cube:payments.market'] }
-    const linked = context({ existing: { kind: 'dimension', parentKey: null }, live: [live] })
-    expect(codes(vocabularyFindings(market, linked))).toEqual(['no_change'])
-    expect(
-      vocabularyFindings({ ...market, definitionRefs: ['cube:payments.market'] }, linked),
-    ).toEqual([])
   })
 })
 

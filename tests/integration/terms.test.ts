@@ -1,8 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { PublishItemResult } from '../../src/contract/context.ts'
 import type {
-  DefinitionCoverage,
   DeletedTerm,
   Term,
   TermChangeResult,
@@ -10,7 +8,6 @@ import type {
   TermRestoreResult,
   TermVersion,
 } from '../../src/contract/terms.ts'
-import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
@@ -64,7 +61,6 @@ const refused = async (response: Promise<Reply>, status: number) => {
 }
 
 const markets = Array.from({ length: 12 }, (_, i) => `m${String(i).padStart(2, '0')}`)
-let nextMarket = 0
 let words = 0
 /** A word nothing has yet. */
 const fresh = (stem = 'Word') => `${stem} ${String.fromCharCode(97 + (words % 26))}${++words}`
@@ -168,31 +164,6 @@ const update = (who: Who, t: Term, change: object) =>
 const remove = (who: Who, ids: string[]) =>
   ok<TermChangeResult>(call('POST', '/terms/delete', who, { ids }))
 const undo = (who: Who, token: string) => call('POST', '/decisions/undo', who, { token })
-
-/** A context item agents get, published by Finance's owner, about metrics of its own. */
-async function live(extra: Draft, metrics: string[] = []) {
-  const market = markets[nextMarket++]!
-  const r = await ok<PublishItemResult>(
-    call('POST', '/items/publish', 'owner', {
-      draft: {
-        areaId: 'finance',
-        kind: 'note',
-        title: `A note about ${market}`,
-        summary: 'Plain words with nothing in them.',
-        scope: {
-          metrics,
-          dimensions: [],
-          dimensionValues: [{ dimension: 'dim:market', value: `val:market/${market}` }],
-        },
-        validity: { start: '2026-01-01', end: null },
-        evidence: [{ url: 'https://wiki.example/x', quote: 'Plain words', date: '2026-10-01' }],
-        ...extra,
-      },
-    }),
-  )
-  if (!r.published) throw new Error('not published')
-  return r.itemId
-}
 
 describe('writing a term (FR-138)', () => {
   it('keeps a word with its own meaning in its domain, with who wrote it', async () => {
@@ -586,34 +557,6 @@ describe("a term's history", () => {
   })
 })
 
-describe('coverage', () => {
-  it('counts the live context about each metric and each term with its own meaning, none first', async () => {
-    const before = await ok<DefinitionCoverage>(call('GET', '/definitions/coverage', 'author'))
-    const peak = await own(fresh('Peak week'))
-    const quiet = await own(fresh('Quiet week'))
-    const synonym = await term('owner', { name: fresh('High week'), sameAs: `term:${peak.id}` })
-    await live({ summary: `Orders fall in ${peak.name.toLowerCase()}s, as every year.` })
-    await live({ summary: `In a ${synonym.name} the queue is longer.` })
-    await live({ summary: 'Orders are counted when paid.' }, ['metric:orders'])
-    const c = await ok<DefinitionCoverage>(call('GET', '/definitions/coverage', 'author'))
-    const row = (ref: string) => c.rows.find((r) => r.ref === ref)
-    expect(row(`term:${peak.id}`)).toMatchObject({ type: 'term', items: 2, areaId: 'finance' })
-    expect(row(`term:${quiet.id}`)).toMatchObject({ items: 0 })
-    expect(row('metric:orders')).toMatchObject({ type: 'metric', name: 'Orders' })
-    expect(row('metric:orders')!.items).toBeGreaterThan(0)
-    // Dimensions, synonyms and a metric the source limits to groups are not counted.
-    expect(row('dim:market')).toBeUndefined()
-    expect(row(`term:${synonym.id}`)).toBeUndefined()
-    expect(row('metric:hidden')).toBeUndefined()
-    expect(c.measurable).toBe(before.measurable + 2)
-    expect(c.uncovered).toBe(c.rows.filter((r) => r.items === 0).length)
-    const firstCovered = c.rows.findIndex((r) => r.items > 0)
-    expect(c.rows.slice(firstCovered).every((r) => r.items > 0)).toBe(true)
-    // The list gives each term the same count.
-    expect((await listed(peak.id))!.items).toBe(2)
-  })
-})
-
 describe('what the database keeps', () => {
   /** A statement as the service's role, for a person: row security applies. */
   async function as<T extends object>(who: Who, statement: string, values: unknown[] = []) {
@@ -718,10 +661,5 @@ describe('when what a synonym means leaves the definitions', () => {
     await refused(create('owner', { name: fresh(), sameAs: 'metric:gone' }), 404)
     const now = await ok<Term>(update('owner', (await listed(s.id))!, { sameAs: 'metric:orders' }))
     expect(now).toMatchObject({ sameAs: { ref: 'metric:orders' }, conflict: null })
-    expect(
-      (await ok<DefinitionCoverage>(call('GET', '/definitions/coverage', 'owner'))).rows.map(
-        (r) => r.ref,
-      ),
-    ).not.toContain('metric:gone')
   })
 })

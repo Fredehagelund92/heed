@@ -18,54 +18,8 @@
   "db/seed/fixtures/story-facts.ts": {
     "are not": 2
   },
-  "docs/old-help/assistant.md": {
-    "model": 1
-  },
-  "docs/old-help/common-questions.md": {
-    "edition": 1
-  },
-  "docs/old-help/editions.md": {
-    "live edition": 1
-  },
-  "docs/old-help/glossary.md": {
-    "administrator": 1,
-    "ai app": 1,
-    "audience": 1,
-    "dimension": 2,
-    "edition": 3,
-    "item": 1,
-    "language model": 1,
-    "live edition": 1,
-    "model": 1,
-    "re-check": 1,
-    "retire": 1,
-    "steward": 1,
-    "try it": 1,
-    "vocabulary": 1
-  },
-  "docs/old-help/mcp.md": {
-    "model": 3
-  },
-  "docs/old-help/tour.md": {
-    "edition": 1
-  },
-  "src/server/modules/notifications/activity.ts": {
-    "is not": 1
-  },
-  "src/server/modules/notifications/inbox.ts": {
-    "is not": 1
-  },
   "src/server/modules/notifications/relay.ts": {
     "cannot": 1,
     "delivered": 1
-  },
-  "src/server/modules/notifications/stream.ts": {
-    "is not": 1
-  },
-  "src/server/modules/notifications/visibility.ts": {
-    "area": 3,
-    "edition": 1,
-    "item": 2,
-    "vocabulary": 2
   }
 }

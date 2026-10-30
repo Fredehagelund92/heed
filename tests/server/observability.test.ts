@@ -187,7 +187,7 @@ describe('/metrics', () => {
     const { instance, lines } = app({ metricsToken: token })
     await instance.inject({ method: 'GET', url: '/health?question=who-asked' })
     await instance.inject({ method: 'GET', url: '/api/v1/me' })
-    await instance.inject({ method: 'GET', url: '/api/v1/items/itm_marker0001' })
+    await instance.inject({ method: 'GET', url: '/api/v1/items/itm_marker0001/page' })
     await instance.inject({ method: 'GET', url: '/api/v1/no-such-marker' })
     await instance.inject({ method: 'GET', url: '/nowhere/person-marker' })
     const response = await scrape(instance)
@@ -197,7 +197,7 @@ describe('/metrics', () => {
     expect(text).toContain('heed_http_requests_total{method="GET",route="/health",status="200"} 1')
     expect(text).toContain('heed_http_requests_total{method="GET",route="me.get",status="401"} 1')
     expect(text).toContain(
-      'heed_http_requests_total{method="GET",route="items.get",status="401"} 1',
+      'heed_http_requests_total{method="GET",route="items.page",status="401"} 1',
     )
     expect(text).toContain(
       'heed_http_requests_total{method="GET",route="unmatched",status="404"} 2',
@@ -225,7 +225,6 @@ describe('/metrics', () => {
       'heed_model_spend_month_cap_usd 50',
       'heed_live_edition_age_seconds 90',
       'heed_db_pool_connections{state="idle"} 2',
-      'heed_sse_streams 0',
       'heed_mcp_records_dropped_total 0',
       'heed_metrics_sources_up 1',
     ])

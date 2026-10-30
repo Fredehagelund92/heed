@@ -9,7 +9,7 @@
 import * as z from 'zod/mini'
 import { answerStates, leftOutReasons } from '../domain/answer.ts'
 import { itemKinds } from '../domain/item.ts'
-import { tryItInputSchema, tryItSchema } from './connect.ts'
+import { tryItInputSchema } from './connect.ts'
 
 /** The resolver's status, as get_context gives it. */
 const statusSchema = z.enum(['matched', 'conflict', 'no_match', 'need_more_detail', 'check_failed'])
@@ -248,21 +248,6 @@ export const askedSchema = z.object({
 })
 export type Asked = z.infer<typeof askedSchema>
 
-/**
- * Try it on a draft: what an agent would get once the draft (a proposal) is published, beside
- * what it gets now. Without `draft`, Try it runs on the live edition, as before.
- */
-export const tryItRunInputSchema = z.strictObject({
-  ...tryItInputSchema.shape,
-  draft: z.optional(z.string().check(z.uuid())),
-})
-export const tryItRunSchema = z.object({
-  ...tryItSchema.shape,
-  /** The answer engine's answer for the same scope: its state, items, left out and steps. */
-  answer: z.optional(answerSchema),
-})
-export type TryItRun = z.infer<typeof tryItRunSchema>
-
 /** The answer panel's replay: a topic answered now, or before the last publish. */
 export const replayInputSchema = z.strictObject({
   topic: z.string().check(z.uuid()),
@@ -273,9 +258,6 @@ export const replaySchema = z.object({
   answer: answerSchema,
 })
 export type Replay = z.infer<typeof replaySchema>
-
-/** How many questions agents asked this week would get a draft ("12 questions would get it"). */
-export const reachInputSchema = z.strictObject({ draft: z.string().check(z.uuid()) })
 export const reachSchema = z.object({
   /** Questions about topics asked at least the minimum times this week whose answer gives it. */
   questions: z.number(),

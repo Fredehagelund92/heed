@@ -309,15 +309,10 @@ it('gives agents the item, and no word of a comment, from every tool', async () 
 })
 
 it("gives people's Ask and Try it, built on the same answers, no word of a comment", async () => {
-  const scope = {
-    metrics: ['metric:orders'],
-    dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
-  }
   const reads: [string, object][] = [
     ['/ask/lookup', { question: 'Orders in Norway 2026' }],
     ['/ask/lookup', { question: 'test accounts in Norway' }],
-    ['/try-it', scope],
-    ['/try-it', { ...scope, draft: change.id }],
+    ['/try-it/read', { question: 'Orders in Norway 2026' }],
   ]
   for (const [path, body] of reads) {
     const response = await call('POST', path, 'owner', body)
@@ -326,10 +321,8 @@ it("gives people's Ask and Try it, built on the same answers, no word of a comme
       expect(response.body, `${path} ${JSON.stringify(body)}`).not.toContain(words)
   }
   // The items people read there are the item, with its own words.
-  const tried = await ok<{ result: { items?: { id: string }[] } }>(
-    call('POST', '/try-it', 'owner', scope),
-  )
-  expect(tried.result.items?.map((i) => i.id)).toContain(item)
+  const asked = await call('POST', '/ask/lookup', 'owner', { question: 'Orders in Norway 2026' })
+  expect(asked.body).toContain(item)
 })
 
 it('builds the edition agents read without the comments', async () => {

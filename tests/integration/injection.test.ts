@@ -126,8 +126,7 @@ describe('SQL and control characters in reading operations', () => {
       let requests = 0
       for (const [path, methods] of Object.entries(document.paths)) {
         const operation = methods.get
-        // The live event stream has no parameters and stays open.
-        if (!operation || path === '/events') continue
+        if (!operation) continue
         const parameters = operation.parameters ?? []
         for (const parameter of parameters)
           for (const payload of payloads) {
@@ -160,19 +159,18 @@ describe('SQL and control characters in reading operations', () => {
   )
 
   it('matches search wildcards literally', async () => {
-    const all = await app.inject({ method: 'GET', url: '/api/v1/items', headers })
-    expect(all.json<{ total: number }>().total).toBeGreaterThan(0)
-    for (const q of ['%', '_', '%%', '\\'])
-      expect(
-        (
-          await app.inject({
-            method: 'GET',
-            url: `/api/v1/items?${new URLSearchParams({ q }).toString()}`,
-            headers,
-          })
-        ).json<{ total: number }>().total,
-        q,
-      ).toBe(0)
+    const search = async (q: string) => {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/v1/search?${new URLSearchParams({ q }).toString()}`,
+        headers,
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const found = response.json<Record<string, unknown[]>>()
+      return Object.values(found).reduce((n, group) => n + group.length, 0)
+    }
+    expect(await search('note')).toBeGreaterThan(0)
+    for (const q of ['%', '_', '%%', '\\']) expect(await search(q), q).toBe(0)
   })
 })
 

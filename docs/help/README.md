@@ -2,8 +2,6 @@
 
 These Markdown files are the documentation of the web app (`src/app`). The same files make the app's Docs area, at `/docs`, and the static docs site that `npm run docs:build` writes to `dist/docs`, with its search and its index for agents, `llms.txt`. A page changes in the same pull request as the screen, word or tool it describes.
 
-The service's in-app assistant reads the earlier pages, in [`docs/old-help`](../old-help/README.md), until it leaves.
-
 ## The pages
 
 | Page                                                    | Group            |

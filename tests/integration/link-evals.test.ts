@@ -3,7 +3,11 @@ import { afterAll, beforeAll, expect, it } from 'vitest'
 import type { EvalRun } from '../../src/contract/evals.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
-import { workEvaluations } from '../../src/server/modules/evals/index.ts'
+import {
+  createEvalsService,
+  queueAreaRun,
+  workEvaluations,
+} from '../../src/server/modules/evals/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
@@ -35,7 +39,7 @@ const app = buildApp({
 })
 type Who = keyof typeof people
 const headers: Partial<Record<Who, Record<string, string>>> = {}
-const call = (method: 'GET' | 'POST' | 'PUT', path: string, who: Who, payload?: object) =>
+const call = (method: 'GET' | 'POST', path: string, who: Who, payload?: object) =>
   app.inject({
     method,
     url: '/api/v1' + path,
@@ -49,6 +53,9 @@ const wordings = [
   { text: 'Orders from 2026-08-01 to 2026-08-31', kind: 'precise' },
 ]
 const scope = { metrics: ['metric:orders'], window: { from: '2026-08-01', to: '2026-08-31' } }
+/** Imports test questions as the command line does (`heed evals import`). */
+const importQuestions = (questions: object[], dryRun = false) =>
+  call('POST', '/evals/import', 'owner', { content: JSON.stringify({ questions }), dryRun })
 
 beforeAll(async () => {
   await foundation(client)
@@ -122,61 +129,67 @@ beforeAll(async () => {
       'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
     }
   }
-  for (const question of [
-    {
-      id: 'link-refund-rule',
-      expected: {
-        must_deliver: [ids.closure],
-        reachable_via_link: [ids.refunds],
-        caveat: 'Orders are counted net of refunds',
+  const saved = await importQuestions(
+    [
+      {
+        id: 'link-refund-rule',
+        expected: {
+          must_deliver: [ids.closure],
+          reachable_via_link: [ids.refunds],
+          caveat: 'Orders are counted net of refunds',
+        },
       },
-    },
-    { id: 'stale-old-rule', expected: { must_deliver: [ids.closure], forbidden_links: [ids.old] } },
-  ]) {
-    const saved = await call('PUT', `/evals/questions/${question.id}`, 'owner', {
-      id: question.id,
-      question: {
-        ...question,
-        area: 'finance',
-        wordings,
-        scope,
-        source: 'Link-follow tests',
+      {
+        id: 'stale-old-rule',
+        expected: { must_deliver: [ids.closure], forbidden_links: [ids.old] },
       },
-    })
-    expect(saved.statusCode, saved.body).toBe(200)
-  }
+    ].map((question) => ({
+      ...question,
+      area: 'finance',
+      wordings,
+      scope,
+      source: 'Link-follow tests',
+    })),
+  )
+  expect(saved.json()).toMatchObject({ applied: true })
 })
 afterAll(async () => {
   await app.close()
 })
 
 it('refuses a link target that is both reachable and forbidden', async () => {
-  const response = await call('PUT', '/evals/questions/link-both-ways', 'owner', {
-    id: 'link-both-ways',
-    question: {
-      id: 'link-both-ways',
-      area: 'finance',
-      wordings,
-      scope,
-      expected: { reachable_via_link: [ids.refunds], forbidden_links: [ids.refunds] },
-      source: 'Link-follow tests',
-    },
-  })
-  expect(response.statusCode).toBe(400)
+  const response = await importQuestions(
+    [
+      {
+        id: 'link-both-ways',
+        area: 'finance',
+        wordings,
+        scope,
+        expected: { reachable_via_link: [ids.refunds], forbidden_links: [ids.refunds] },
+        source: 'Link-follow tests',
+      },
+    ],
+    true,
+  )
+  expect(response.statusCode, response.body).toBe(200)
+  expect(response.json<{ errors: { id: string }[] }>().errors.map((e) => e.id)).toEqual([
+    'link-both-ways',
+  ])
 })
 
-it('estimates a links run as both sides of every question, for maintainers only', async () => {
-  const estimate = await call('GET', '/evals/areas/finance/estimate?kind=links', 'owner')
-  expect(estimate.statusCode, estimate.body).toBe(200)
+it('estimates a links run as both sides of every question', async () => {
+  const estimate = await database.transaction(people.owner, (tx) =>
+    createEvalsService(tx, { port: models, clock }).runs.estimate('finance', 'links'),
+  )
   // Two questions, two wordings, three tries, two sides.
-  expect(estimate.json()).toMatchObject({ kind: 'links', questions: 2, cells: 24 })
-  expect((await call('POST', '/evals/areas/finance/link-runs', 'author')).statusCode).toBe(403)
+  expect(estimate).toMatchObject({ kind: 'links', questions: 2, cells: 24 })
 })
 
 it('shows that following links helps, what it costs, and leaves the switch as it was', async () => {
-  const started = await call('POST', '/evals/areas/finance/link-runs', 'owner')
-  expect(started.statusCode, started.body).toBe(200)
-  const run = started.json<EvalRun>()
+  const queued = await database.transaction(people.owner, (tx) =>
+    queueAreaRun(tx, { port: models, clock }, 'finance', 'links', true),
+  )
+  const run = (await call('GET', `/evals/runs/${queued!.id}`, 'owner')).json<{ run: EvalRun }>().run
   expect(run).toMatchObject({ kind: 'links', state: 'queued', questions: 2 })
   await workEvaluations(
     database,
@@ -233,8 +246,14 @@ it('shows that following links helps, what it costs, and leaves the switch as it
 
   const transcript = async (arm: string) => {
     const cell = result.cells.find((c) => c.questionId === 'link-refund-rule' && c.arm === arm)!
-    const response = await call('GET', `/evals/cells/${cell.id}/transcript`, 'owner')
-    return response.json<{ toolCalls: { tool: string; items: string[] }[] }>()
+    const [row] = (
+      await client.query<{ toolCalls: { tool: string; items: string[] }[] }>(
+        `select t.tool_calls as "toolCalls" from eval_cells c
+           join eval_transcripts t on t.cell_id = coalesce(c.reused_from, c.id) where c.id = $1`,
+        [cell.id],
+      )
+    ).rows
+    return row!
   }
   expect((await transcript('baseline')).toolCalls.map((c) => c.tool)).toEqual(['get_context'])
   const followed = (await transcript('candidate')).toolCalls
@@ -242,8 +261,8 @@ it('shows that following links helps, what it costs, and leaves the switch as it
   // The retired rule is a marker with the author's words: never read, never cited.
   expect(followed[1]!.items).toEqual([ids.refunds])
 
-  const tools = await call('GET', '/tools', 'admin')
-  expect(tools.json<{ tool: string; enabled: boolean }[]>()).toContainEqual(
-    expect.objectContaining({ tool: 'get_related', enabled: true }),
+  const tools = await client.query<{ enabled: boolean }>(
+    "select enabled from tool_config where tool = 'get_related'",
   )
+  expect(tools.rows).toEqual([{ enabled: true }])
 })

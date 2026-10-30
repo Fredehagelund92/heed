@@ -1,15 +1,11 @@
 import { ORPCError } from '@orpc/client'
 import type * as z from 'zod/mini'
 import {
-  AREA_DELETION_LIST_MAX,
   type AreaHoldings,
-  type AreaRemoval,
   type AreaRemoved,
-  type AreaRestored,
   type ArchivedArea,
   type deleteEmptyAreaSchema,
   type removeAreaSchema,
-  type restoreAreaSchema,
 } from '../../../contract/areas.ts'
 import type { GrantChange } from '../../../contract/auth.ts'
 import type { Edition } from '../../../contract/review.ts'
@@ -31,15 +27,12 @@ import { proposalEvents } from '../proposals/index.ts'
 import { getArea } from './settings.ts'
 
 /*
-  Deleting a domain in one step (FR-814; src/domain/area-removal.ts decides), and restoring one.
-  The administrator reads what goes (`areaRemoval`), types `permanently delete`, and `removeArea`
-  does it all in the request's transaction, so it happens whole or not at all: the domain's
-  accepted items move to the Bin and its terms are retired, in one edition, so agents stop getting
-  them at once; its open proposals are withdrawn; its drafts stay with their authors; its team's
-  roles end; and one history log record names everything it did. A domain that nothing names is
-  deleted for good; one that history names is archived, which people read as deleted, and an
-  administrator can restore it at any time (`restoreArea`), with its roles and its terms in one
-  edition. Its items come back through the Bin's Restore.
+  Deleting a domain (FR-814, FR-815; src/domain/area-removal.ts decides). The web app deletes only
+  an empty domain (`deleteEmptyArea`); `removeArea` does the rest in the request's transaction, so
+  it happens whole or not at all: its open proposals are withdrawn, its drafts stay with their
+  authors, its team's roles end, and one history log record names everything it did. A domain that
+  nothing names is deleted for good; one that history names is archived, which people read as
+  deleted (`archivedAreas`). What a deletion did is stored with it (0076).
 */
 
 type TermKind = Term['kind']
@@ -84,7 +77,7 @@ type Plan = {
   history: boolean
 }
 
-/** What a deletion did, stored with it (0076) so restoring serves its terms again. */
+/** What a deletion did, stored with it (0076). */
 type Contents = {
   items: { id: string; versionId: string; title: string | null }[]
   terms: { key: string; versionId: string; fate: 'retired' | 'kept'; keptVersionId?: string }[]
@@ -127,37 +120,6 @@ const named = <T extends { title: string | null; withheld: boolean }>(entries: r
   entries.flatMap((entry) =>
     entry.withheld || entry.title === null ? [] : [{ ...entry, title: entry.title }],
   )
-
-/** What deleting an area would do, named by kind: for the person to read before they do it. */
-export async function areaRemoval(tx: Queryable, id: string): Promise<AreaRemoval> {
-  await adminOnly(tx)
-  const area = await getArea(tx, id)
-  const plan = await readPlan(tx, id)
-  const holdings = holdingsOf(plan)
-  const fates = fatesOf(plan)
-  const first = <T>(list: readonly T[]) => list.slice(0, AREA_DELETION_LIST_MAX)
-  return {
-    id,
-    name: area.name,
-    revision: area.revision,
-    demo: area.demo,
-    outcome: areaRemovalOutcome(holdings, area.demo),
-    holdings,
-    items: first(named(plan.items)).map(({ id, title, kind }) => ({ id, title, kind })),
-    terms: first([
-      ...plan.terms.map(({ key, name, kind }) => ({ key, name, kind, fate: fates.get(key)! })),
-      ...plan.sourceTerms.map((term) => ({ ...term, fate: 'source' as const })),
-    ]),
-    openProposals: first(named(plan.openProposals)).map(({ id, number, subject, title }) => ({
-      id,
-      number,
-      subject,
-      title,
-    })),
-    drafts: first(plan.drafts).map(({ id, title, author }) => ({ id, title, author })),
-    team: first(plan.team),
-  }
-}
 
 /**
  * A term another domain still uses stays in service, without a domain: a new version of it, made
@@ -252,7 +214,7 @@ async function keepWithoutDomain(
  * an accepted item without a domain or a term in the deleted one. Refused only for the demo
  * domain, or when the domain changed since it was read.
  */
-export async function removeArea(
+async function removeArea(
   tx: Queryable,
   input: z.infer<typeof removeAreaSchema>,
 ): Promise<AreaRemoved> {
@@ -498,131 +460,4 @@ export async function archivedAreas(tx: Queryable): Promise<ArchivedArea[]> {
      from areas a where a.archived_at is not null
      order by a.archived_at desc, a.id`,
   )
-}
-
-/**
- * Restores a deleted domain (FR-814): it is listed again, the roles that ended
- * when it was deleted are given back to those of their people who are still active, and the
- * terms deleting it retired or took it from are served again, as they were, in one edition. A
- * term changed since then keeps its change. Its items wait in the Bin, where the person restores
- * them; the answer lists them.
- */
-export async function restoreArea(
-  tx: Queryable,
-  input: z.infer<typeof restoreAreaSchema>,
-): Promise<AreaRestored> {
-  await lockReleases(tx)
-  await adminOnly(tx)
-  if (input.reason !== undefined) plainReason(input.reason)
-  await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
-  // Before the first history entry, as a role change takes it: areas, then roles, then the log.
-  await lockRoles(tx)
-  const [archived] = await tx.query<{ name: string }>(
-    `select a.name from areas a where a.id = $1 and a.archived_at is not null for update`,
-    [input.id],
-  )
-  if (!archived)
-    throw new ORPCError('NOT_FOUND', {
-      message: "We couldn't find this deleted domain. Someone may have restored it already.",
-    })
-  const [deletion] = await tx.query<{ id: string; contents: Contents }>(
-    `select id::text, contents from area_deletions
-      where area_id = $1 and restored_at is null for update`,
-    [input.id],
-  )
-  // The roles deleting it ended end at the instant it was archived.
-  const team = await tx.query<{ personId: string; role: Role }>(
-    `select x.person_id::text as "personId", x.role::text as role
-       from area_assignments x join areas a on a.id = x.area_id
-       join people p on p.id = x.person_id
-      where x.area_id = $1 and upper(x.valid_at) = a.archived_at
-        and p.deactivated_at is null and p.erased_at is null
-      order by x.role, x.person_id`,
-    [input.id],
-  )
-  await tx.query('update areas set archived_at = null, revision = revision + 1 where id = $1', [
-    input.id,
-  ])
-  // A term comes back as it was only while it is still as deleting left it: retired, or served
-  // on the version without a domain that deleting made. Its version must pass the serving guard
-  // again (an accept by an owner of the domain or an administrator, 0006).
-  const terms = deletion?.contents.terms ?? []
-  const servable = terms.length
-    ? await tx.query<{ versionId: string }>(
-        `select t.version_id::text as "versionId"
-           from jsonb_to_recordset($1::jsonb) as t(key text, version_id uuid, kept_version_id uuid)
-           join vocab_term_versions v on v.id = t.version_id
-          where (select s.version_id from vocab_term_service s
-                  where s.term_key = t.key and upper_inf(s.editions)) is not distinct from t.kept_version_id
-            and exists (select 1 from decisions d where d.vocab_version_id = v.id and d.outcome = 'accept'
-                  and (d.decided_by <> v.proposer_id or v.proposer_id is null
-                    or cl_decides_own(d.decided_by, v.area_id, d.decided_at))
-                  and ((v.area_id is not null and d.capacity in ('owner', 'deputy')
-                        and cl_has_area_role(d.decided_by, v.area_id, 'owner', d.decided_at))
-                    or (d.capacity = 'administrator' and cl_is_admin(d.decided_by, d.decided_at))))
-          order by t.key`,
-        [
-          JSON.stringify(
-            terms.map((term) => ({
-              key: term.key,
-              version_id: term.versionId,
-              kept_version_id: term.keptVersionId ?? null,
-            })),
-          ),
-        ],
-      )
-    : []
-  const [behind] = await tx.query<{ behind: boolean }>(
-    'select cl_source_domains_behind() as behind',
-  )
-  const edition =
-    servable.length || behind?.behind
-      ? await publishEdition(
-          tx,
-          {
-            reason: 'area_restored',
-            note: input.reason ?? `Domain restored: ${archived.name}`,
-            vocabulary: servable.map((row) => row.versionId),
-          },
-          input.id,
-        )
-      : null
-  if (deletion)
-    await tx.query(
-      `update area_deletions set restored_by=cl_person(),restored_at=now(),restored_edition=$2
-        where id=$1`,
-      [deletion.id, edition?.seq ?? null],
-    )
-  await recordAudit(tx, {
-    action: 'area.restored',
-    areaId: input.id,
-    subjectType: 'area',
-    subjectId: input.id,
-    details: {
-      team: team.length,
-      terms: servable.length,
-      edition: edition?.label ?? null,
-      ...(input.reason === undefined ? {} : { reason: input.reason }),
-    },
-  })
-  if (team.length)
-    await changeGrants(
-      tx,
-      team.map((held) => ({ ...held, op: 'grant' as const, areaId: input.id })),
-      { batch: true, reason: input.reason ?? null },
-    )
-  const binnedItems = await tx.query<{ id: string; title: string; kind: ItemKind }>(
-    `select b.item_id as id, v.title, v.kind::text as kind
-       from item_bin b join item_versions v on v.id = b.version_id
-      where b.area_id = $1 and b.restored_at is null and cl_version_open(b.version_id)
-      order by b.binned_at desc, b.item_id collate "C"`,
-    [input.id],
-  )
-  return {
-    area: await getArea(tx, input.id),
-    edition,
-    terms: servable.length,
-    team: team.length,
-    binnedItems,
-  }
 }

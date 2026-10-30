@@ -159,30 +159,6 @@ export const termVersionSchema = z.object({
   at: z.string(),
 })
 
-/**
- * Coverage (Definitions, coverage first): what agents can be asked about that has nothing written
- * down. Every metric and every term with its own meaning counts; a dimension is about every item,
- * and a synonym's context is its meaning's.
- */
-export const definitionCoverageSchema = z.object({
-  /** Metrics and terms with their own meaning. */
-  measurable: z.number(),
-  /** Those of them no live context item is about: agents asking about them get Not found. */
-  uncovered: z.number(),
-  /** Each of them, those with no context first, then by name. */
-  rows: z.array(
-    z.object({
-      /** `metric:orders` or `term:<id>`. */
-      ref: z.string(),
-      name: z.string(),
-      type: z.enum(['metric', 'term']),
-      areaId: z.nullable(z.string()),
-      /** Live context items about it. */
-      items: z.number(),
-    }),
-  ),
-})
-
 export type Term = z.infer<typeof termSchema>
 export type TermList = z.infer<typeof termListSchema>
 export type TermCreateInput = z.infer<typeof termCreateInputSchema>
@@ -192,4 +168,3 @@ export type TermChangeResult = z.infer<typeof termChangeResultSchema>
 export type TermRestoreResult = z.infer<typeof termRestoreResultSchema>
 export type DeletedTerm = z.infer<typeof deletedTermSchema>
 export type TermVersion = z.infer<typeof termVersionSchema>
-export type DefinitionCoverage = z.infer<typeof definitionCoverageSchema>

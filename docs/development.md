@@ -123,8 +123,8 @@ or erasure. Cookies are HttpOnly and SameSite=Strict, with Secure on HTTPS. Only
 are stored, in the separate `auth` schema; roles are read afresh on every request. There are no
 groups and no company identity provider yet.
 
-Administrators use `GET /api/v1/roles`, `POST /roles/grant`, `POST /roles/revoke`,
-`POST /assignments/grant` and `POST /assignments/revoke` (all under `/api/v1`). Role bodies are
+Administrators use `POST /roles/grant`, `POST /roles/revoke`, `POST /assignments/grant` and
+`POST /assignments/revoke` (all under `/api/v1`; API only, with no screen in the web app). Role bodies are
 `{ personId, role }`; assignment bodies also include `areaId`. Global roles are `administrator`
 and `auditor`; domain roles are `owner` and `approver` (the deputy role went on 16 October 2026; every deputy became an
 owner of the same domain, and `deputy` is no longer accepted as a role). A domain may have several owners (giving the owner
@@ -190,10 +190,8 @@ src/
     modules/        one folder per feature, reached only through its index.ts
       jobs/           scheduled jobs, heartbeats, the watchdog and the operations endpoints
       evals/          golden questions, answer tests through the MCP wire, judges, scorecards
-      gaps/           gap detection, gaps and notes, domain dashboards and topic counts
-      quality/        quality reads: score history, run comparison, feedback, upkeep
+      gaps/           gap detection and gaps
       models/         the model port: the scripted mocks, the direct Anthropic adapter and the spend ledger
-      assistant/      the in-app assistant (no screen since the switch; it leaves with docs/old-help)
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev sessions and roles)
   app/            the web app: the mockup's shell and pages on a typed API
@@ -216,7 +214,6 @@ tests/
   e2e-app/        Playwright: the golden job specs and axe, on the mock build and in http mode (http/)
   e2e-seed/       Playwright: the web app on the demo install, as docker compose up gives it
 docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
-docs/old-help/        the earlier app's help pages, which only the in-app assistant still reads
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/
 apps/mockup/      the clickable mockup, the acceptance specification: its own package (apps/mockup/README.md)
@@ -241,9 +238,8 @@ belongs to both sides. The service lives in `src/server`, next to `src/app`, wit
 | `npm run api:generate`                    | Rewrites `docs/api/openapi.json` and `src/app/api/contract.json` from `src/contract`                                                                                                                                                  |
 | `npm run heed -- <command>`               | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
 | `npm run db:migrate`                      | Gets the database ready: roles and database when missing, migrations, grants, and the demo with `SEED_DEMO=on` (see [Run the service locally](operations.md#run-the-service-locally))                                                 |
-| `npm run seed`                            | Loads the demo into an empty local database by hand; `-- --items-only`, `--library golden` and `--practice` (the practice domain) are the variants the tests and the show use (see [db/README.md](../db/README.md))                   |
+| `npm run seed`                            | Loads the demo into an empty local database by hand; `-- --items-only` and `--library golden` are the variants the tests use (see [db/README.md](../db/README.md))                                                                    |
 | `npm run eval -- --area <id>`             | Runs a domain's test questions on the live edition now, with the mock model; `--real` needs a key and `--max-cost-usd`; `--resume <run id>` makes what an incomplete run is missing                                                   |
-| `npm run eval:assistant -- --as <email>`  | Runs the assistant's test cases (`--golden`: the golden set's), three tries each, mock model; `--real` needs a key and `--max-cost-usd`; `--dry-run` prices it                                                                        |
 | `npm run eval:ask-words`                  | Runs the cases of Ask's words on the scripted mock model; `--real` uses `models.assistant` and needs a key and `--max-cost-usd`                                                                                                       |
 | `npm run db:restore-drill`                | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
 | `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
@@ -276,7 +272,7 @@ A pull request takes the highest tier any of its files falls in.
 
 | Tier      | Paths                                                                                                                                                                                                                                   | What runs                                                                                                             |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the four folders the apps read: `docs/help`, `docs/old-help`, `docs/templates` and `docs/api`                                                         | Type check, lint, plain words, format, unit tests (the docs check among them) and build                               |
+| Docs      | `docs/**` and Markdown files outside `src`, `tests`, `scripts` and `apps`, except the three folders the apps read: `docs/help`, `docs/templates` and `docs/api`                                                                         | Type check, lint, plain words, format, unit tests (the docs check among them) and build                               |
 | Import    | `apps/mockup/**` only                                                                                                                                                                                                                   | The mockup job                                                                                                        |
 | Medium    | Anything else: the web app, the domain, the contract, the tests, scripts and configuration                                                                                                                                              | Every app job: the checks, the service tests, the golden job specs in both modes, the demo install, the Docker images |
 | Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                   |

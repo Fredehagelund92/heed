@@ -1,7 +1,6 @@
-import { ORPCError } from '@orpc/server'
 import type { ServingBundle } from '../../../src/server/modules/editions/index.ts'
 import type { AnonymousRecord, AnonymousStore } from '../../../src/server/mcp/records.ts'
-import type { Changes, ServingReads, WaitingTerms } from '../../../src/server/mcp/reads.ts'
+import type { ServingReads, WaitingTerms } from '../../../src/server/mcp/reads.ts'
 
 export function bundle(): ServingBundle {
   return {
@@ -186,80 +185,17 @@ export function memoryStore() {
   return { store, records, feedback, gaps }
 }
 
-/**
- * Owners, gaps and editions beside the fixture edition: an edition comparison that changed the
- * Norway item, retired one in Finance and added one in a domain agents do not get.
- */
+/** What a domain's definition source has beyond the vocabulary, beside the fixture edition. */
 export function fakeReads(
   /** The source members that are no term yet, and who may propose them: none by default. */
   waiting: WaitingTerms = { members: [], canPropose: false },
 ): ServingReads & { asked: unknown[] } {
   const asked: unknown[] = []
-  const changes: Changes = {
-    from: '2026-10-06.1',
-    to: '2026-10-07.1',
-    editions: 1,
-    items: [
-      {
-        itemId: 'itm_norway01',
-        change: 'changed',
-        title: 'Norway closure',
-        areaId: 'finance',
-        kind: 'event',
-        fields: ['validity', 'notToConclude', 'changeMarks'],
-      },
-      {
-        itemId: 'itm_retired001',
-        change: 'retired',
-        title: 'A retired note',
-        areaId: 'finance',
-        kind: 'note',
-        fields: [],
-      },
-      {
-        itemId: 'itm_hidden0001',
-        change: 'added',
-        title: 'Not for agents yet',
-        areaId: 'payments',
-        kind: 'note',
-        fields: [],
-      },
-    ],
-    total: 3,
-    vocabulary: 0,
-  }
   return {
     asked,
-    owners: () => Promise.resolve([{ areaId: 'finance', count: 2 }]),
-    openGaps: (areaId) => {
-      asked.push({ openGaps: areaId ?? null })
-      return Promise.resolve([
-        {
-          ref: 'gap_k2m4p6q8',
-          status: 'open',
-          areaId: 'finance',
-          metrics: ['metric:orders'],
-          dimensionValues: ['val:market/norway'],
-          month: '2026-10-01',
-          reports: 6,
-          noItemCalls: 12,
-          lastSeen: '2026-10-06',
-        },
-      ])
+    waiting: () => {
+      asked.push('waiting')
+      return Promise.resolve(structuredClone(waiting))
     },
-    editions: () =>
-      Promise.resolve([
-        { label: '2026-10-07.1', live: true, reason: 'proposal_accepted', sealedAt: null },
-        { label: '2026-10-06.1', live: false, reason: 'item_retired', sealedAt: null },
-      ]),
-    changes: (input) => {
-      asked.push({ changes: input })
-      if (input.from === '2026-01-01.9' || input.to === '2026-01-01.9')
-        return Promise.reject(
-          new ORPCError('NOT_FOUND', { message: 'Nothing is shared with agents yet.' }),
-        )
-      return Promise.resolve(structuredClone(changes))
-    },
-    waiting: () => Promise.resolve(structuredClone(waiting)),
   }
 }

@@ -144,7 +144,7 @@ export function termsInText(
 
 /**
  * The names and the period of a question, read once for every reader: get_facts, find_facts,
- * report_gap, improve_question and Try it. The dates are read in the words the names did not take
+ * report_gap and Ask. The dates are read in the words the names did not take
  * (`readDates`).
  */
 function readWords(
@@ -213,15 +213,13 @@ export function unknownName(
  * Structured fields take precedence. Text extraction uses whole, longest vocabulary phrases, and
  * the dates in the words are read by `readDates`, which says how it read them (`dates`). Dates the
  * words give are never replaced: words Heed cannot read as dates ask for them, and say what Heed
- * reads. A question that gives no dates is read at today, and the result says so (`assumed`),
- * unless `datesRequired` asks for dates, as improve_question does to coach a question (FR-307).
+ * reads. A question that gives no dates is read at today, and the result says so (`assumed`).
  */
 export function extractScope(
   question: string,
   terms: readonly Term[],
   today: string,
   structured: ScopeInput = {},
-  { datesRequired = false }: { datesRequired?: boolean } = {},
 ): ScopeResult {
   calendarDateSchema.parse(today)
   const issues: ScopeIssue[] = []
@@ -296,13 +294,6 @@ export function extractScope(
       dates = { words: found.datesWords, reads_as: read.readsAs }
     } else if (read.status === 'unreadable')
       issues.push({ field: 'dates', input: found.datesWords, options: [], message: read.message })
-    else if (datesRequired)
-      issues.push({
-        field: 'dates',
-        input: question,
-        options: [],
-        message: `The question gives no dates. ${whatHeedReads(today)}`,
-      })
     else {
       window = { start: today, end: shiftDate(today, 1) }
       assumed = { date: today, time_zone: 'UTC', reason: 'no date given' }

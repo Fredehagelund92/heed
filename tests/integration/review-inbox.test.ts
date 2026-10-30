@@ -846,10 +846,13 @@ describe('reading, publishing what was read, and undo (FR-226, FR-227)', () => {
       }),
     )
     expect(returned.proposal.state).toBe('changes_requested')
-    const events = await ok<{ kind: string; data: { text?: string } }[]>(
-      call('GET', `/proposals/${p.id}/events`, 'author'),
+    const { threads } = await ok<{
+      threads: { comments: { returned: boolean; body: unknown }[] }[]
+    }>(call('GET', `/comments?subject=review:${p.id}`, 'author'))
+    expect(threads[0]!.comments[0]).toMatchObject({ returned: true })
+    expect(JSON.stringify(threads[0]!.comments[0]!.body)).toContain(
+      'Which markets does this cover?',
     )
-    expect(events.map((e) => e.kind)).toContain('commented')
     await ok(call('POST', '/decisions/undo', 'owner', { token: returned.undo }))
     const back = await ok<{ state: string }>(call('GET', `/proposals/${p.id}`, 'author'))
     expect(back.state).toBe('submitted')
@@ -1053,20 +1056,6 @@ describe('the Inbox (docs/product.md, section 5)', () => {
     for (const value of [f.week.asked, f.week.found, f.week.nothing])
       expect(value === null || value === 0 || value >= 5).toBe(true)
     expect(JSON.stringify(f.week)).not.toMatch(/claude-code/)
-  })
-
-  it('gives a Not found card a draft dated to its month, and the same one again', async () => {
-    const first = await ok<ProposalRecord>(call('POST', `/gaps/${gapId}/scope-draft`, 'owner', {}))
-    expect(first.draft).toMatchObject({
-      areaId: 'finance',
-      validity: { start: '2026-10-01', end: '2026-11-01' },
-      scope: { metrics: ['metric:orders'], dimensionValues: [{ value: 'val:market/spain' }] },
-    })
-    const again = await ok<ProposalRecord>(call('POST', `/gaps/${gapId}/scope-draft`, 'owner', {}))
-    expect(again.id).toBe(first.id)
-    expect((await feed()).cards.find((c) => c.id === `gap:${gapId}`)).toMatchObject({
-      draft: first.id,
-    })
   })
 })
 

@@ -199,13 +199,12 @@ export interface LoginServer {
   /** Every person's open connections, for an administrator, the last used first. */
   everyConnection(tx: Queryable): Promise<PersonConnection[]>
   /**
-   * An administrator ends one connection, or every open connection of one person, with a reason
-   * the history log keeps. The count of connections it ended; null when the signed-in person is
-   * no longer an administrator.
+   * An administrator ends one connection, with a reason the history log keeps. The count of
+   * connections it ended; null when the signed-in person is no longer an administrator.
    */
   disconnectAsAdmin(
     tx: Queryable,
-    target: { id: string } | { personId: string },
+    target: { id: string },
     reason: string,
     log: SignInLog,
   ): Promise<number | null>
@@ -364,7 +363,7 @@ export function createLoginServer(options: {
     grantId: string,
     reason: RevokeReason,
     actor: string | null,
-    step: { reason: string; batchId: string | null } | null = null,
+    step: { reason: string } | null = null,
   ) {
     const [grant] = await tx.query<{ person: string; client: string; name: string }>(
       `update auth.oauth_grants g set revoked_at=$2, revoked_reason=$3
@@ -377,8 +376,8 @@ export function createLoginServer(options: {
     revocations.add(grantId)
     if (!grant) return false
     await tx.query(
-      `insert into audit_log(actor_id,actor_kind,action,subject_type,subject_id,details,reason,batch_id)
-       values($1,$2,$3,'ai_connection',$4,$5,$6,$7)`,
+      `insert into audit_log(actor_id,actor_kind,action,subject_type,subject_id,details,reason)
+       values($1,$2,$3,'ai_connection',$4,$5,$6)`,
       [
         actor,
         actor ? 'person' : 'system',
@@ -388,7 +387,6 @@ export function createLoginServer(options: {
         grantId,
         JSON.stringify({ reason, client: grant.name, person: grant.person }),
         step?.reason ?? null,
-        step?.batchId ?? null,
       ],
     )
     return true
@@ -858,24 +856,12 @@ export function createLoginServer(options: {
       if (!actor?.admin || !actor.id) return null
       const grants = await tx.query<{ id: string }>(
         `select id::text from auth.oauth_grants
-          where ${'id' in target ? 'id' : 'person_id'}=$1 and revoked_at is null and expires_at > $2
-          order by created_at, id for update`,
-        ['id' in target ? target.id : target.personId, now()],
+          where id=$1 and revoked_at is null and expires_at > $2 for update`,
+        [target.id, now()],
       )
-      // The connections of one person ended in one step share a batch, as role changes do.
-      const [batch] =
-        'personId' in target && grants.length
-          ? await tx.query<{ id: string }>('select uuidv7()::text as id')
-          : []
       let ended = 0
       for (const grant of grants)
-        if (
-          await revokeGrant(tx, grant.id, 'disconnected_by_admin', actor.id, {
-            reason,
-            batchId: batch?.id ?? null,
-          })
-        )
-          ended++
+        if (await revokeGrant(tx, grant.id, 'disconnected_by_admin', actor.id, { reason })) ended++
       if (ended) logSignIn(log, 'disconnected_by_admin')
       return ended
     },

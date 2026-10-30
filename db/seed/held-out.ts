@@ -3,13 +3,7 @@ import { readFile } from 'node:fs/promises'
 import { armor, Decrypter, Encrypter, identityToRecipient } from 'age-encryption'
 import { parse, YAMLParseError } from 'yaml'
 import * as z from 'zod/mini'
-import {
-  assistantCaseSchema,
-  goldenCaseSchema,
-  type AssistantGoldenCase,
-  type GoldenCase,
-  type GoldenSet,
-} from '../../src/domain/golden-set.ts'
+import { goldenCaseSchema, type GoldenCase, type GoldenSet } from '../../src/domain/golden-set.ts'
 
 /*
   The sealed held-out cases of the golden set (output test plan, "How it stays honest"; FR-525).
@@ -48,14 +42,13 @@ export class HeldOutError extends Error {
   override name = 'HeldOutError'
 }
 
-/** The decrypted file: agent cases and assistant cases, every one held out. */
+/** The decrypted file: agent cases, every one held out. */
 export const heldOutSetSchema = z
   .strictObject({
     cases: z.array(goldenCaseSchema),
-    assistant: z.array(assistantCaseSchema),
   })
   .check(
-    z.refine((s) => [...s.cases, ...s.assistant].every((c) => c.split === 'held_out'), {
+    z.refine((s) => s.cases.every((c) => c.split === 'held_out'), {
       message: 'Every sealed case is held out: give it split: held_out',
     }),
   )
@@ -171,15 +164,12 @@ export async function readHeldOut(identity: string, file: URL | string = sealedF
 
 /** The whole golden set: the visible cases and the held-out ones. An id is used once. */
 export function withHeldOut(visible: GoldenSet, held: HeldOutSet): GoldenSet {
-  const ids = [...visible.cases, ...visible.assistant, ...held.cases, ...held.assistant].map(
-    (c) => c.id,
-  )
+  const ids = [...visible.cases, ...held.cases].map((c) => c.id)
   if (new Set(ids).size !== ids.length)
     throw new HeldOutError('A held-out case has the id of another case')
   return {
     ...visible,
     cases: [...visible.cases, ...held.cases],
-    assistant: [...visible.assistant, ...held.assistant],
   }
 }
 
@@ -224,7 +214,7 @@ export type HeldOutResult = { id: string; passed: boolean | null }
  * Runs the held-out cases `pick` chooses through `run`, silenced, and counts the results by type.
  * Without a key it runs nothing and says why.
  */
-export async function runHeldOut<C extends GoldenCase | AssistantGoldenCase>(
+export async function runHeldOut<C extends GoldenCase>(
   pick: (held: HeldOutSet) => readonly C[],
   run: (cases: readonly C[]) => Promise<readonly HeldOutResult[]>,
   env: NodeJS.ProcessEnv = process.env,

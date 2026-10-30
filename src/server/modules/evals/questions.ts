@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/client'
-import { parse, stringify } from 'yaml'
+import { parse } from 'yaml'
 import { canonicalJson } from '../../../domain/canonical.ts'
 import { textFindings } from '../../../domain/draft.ts'
 import {
@@ -82,21 +82,7 @@ async function mustMaintain(tx: Queryable, area: string) {
     })
 }
 
-export async function listQuestions(
-  tx: Queryable,
-  filter: { area?: string | undefined; status?: GoldenQuestion['status'] | undefined },
-): Promise<StoredQuestion[]> {
-  const rows = await tx.query<Row>(
-    `select ${columns} from golden_questions
-      where ($1::text is null or area_id=$1) and ($2::text is null or status::text=$2)
-        and (split='development' or cl_is_admin_now() or cl_is_owner_now(area_id))
-      order by area_id,id`,
-    [filter.area ?? null, filter.status ?? null],
-  )
-  return rows.map(fromRow)
-}
-
-export async function getQuestion(tx: Queryable, id: string): Promise<StoredQuestion> {
+async function getQuestion(tx: Queryable, id: string): Promise<StoredQuestion> {
   const [row] = await tx.query<Row>(
     `select ${columns} from golden_questions
       where id=$1 and (split='development' or cl_is_admin_now() or cl_is_owner_now(area_id))`,
@@ -133,7 +119,7 @@ async function areaExists(tx: Queryable, area: string) {
 }
 
 /** Creates (revision absent) or replaces (revision is the one read) a question. */
-export async function saveQuestion(
+async function saveQuestion(
   tx: Queryable,
   question: GoldenQuestion,
   revision: number | null,
@@ -201,38 +187,6 @@ export async function saveQuestion(
     ],
   )
   return getQuestion(tx, question.id)
-}
-
-/** FR-514: an owner sets a question aside with a reason (or takes it back); runs skip and count it. */
-export async function setAside(
-  tx: Queryable,
-  id: string,
-  revision: number,
-  reason: string | null,
-): Promise<StoredQuestion> {
-  const question = await getQuestion(tx, id)
-  await mustMaintain(tx, question.area)
-  if (reason !== null) checkText({ ...question, source: reason })
-  const rows = await tx.query(
-    'update golden_questions set set_aside_reason=$3,updated_at=now() where id=$1 and revision=$2 returning id',
-    [id, revision, reason],
-  )
-  if (!rows.length)
-    throw new ORPCError('CONFLICT', {
-      message:
-        'Someone changed this test question after you opened it. Look at the latest version, then try again.',
-    })
-  await tx.query(
-    `insert into audit_log(actor_id,actor_kind,action,area_id,subject_type,subject_id,details)
-     values(cl_person(),'person',$1,$2,'golden_question',$3,$4)`,
-    [
-      reason === null ? 'golden_question.restored' : 'golden_question.set_aside',
-      question.area,
-      id,
-      JSON.stringify({ reason }),
-    ],
-  )
-  return getQuestion(tx, id)
 }
 
 export type ImportReport = {
@@ -340,9 +294,4 @@ export async function importQuestions(
   for (const step of plan) await saveQuestion(tx, step.question, step.revision)
   report.applied = true
   return report
-}
-
-export async function exportQuestions(tx: Queryable, area: string | undefined): Promise<string> {
-  const questions = await listQuestions(tx, { area })
-  return stringify({ questions: questions.map(bodyOf) }, { lineWidth: 0 })
 }

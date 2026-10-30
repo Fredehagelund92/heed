@@ -1,29 +1,22 @@
-import { ORPCError } from '@orpc/client'
 import type * as z from 'zod/mini'
 import type {
   blockedVersionSchema,
   changeWhySchema,
   editionComparisonSchema,
   editionCompareInputSchema,
-  editionFeedInputSchema,
-  editionFeedSchema,
-  editionSummarySchema,
   itemChangeSchema,
-  itemComparisonSchema,
 } from '../../../contract/editions.ts'
 import type { Edition } from '../../../contract/review.ts'
 import {
   changeSentence,
   editionChangeKinds,
-  highestRisk,
-  isSystemFilled,
   noChanges,
   type ChangeCounts,
   type EditionChangeKind,
 } from '../../../domain/editions.ts'
 import type { ItemKind, RiskLevel } from '../../../domain/item.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
-import { mentionDiff, versionDiff } from '../../../domain/review.ts'
+import { versionDiff } from '../../../domain/review.ts'
 import type { Queryable } from '../../db/database.ts'
 import { forReader } from '../library/index.ts'
 import { readVersions } from '../proposals/index.ts'
@@ -32,7 +25,6 @@ import { editionByLabel, editionFields, liveEdition } from './release.ts'
 type Why = z.infer<typeof changeWhySchema>
 type ItemChange = z.infer<typeof itemChangeSchema>
 type Comparison = z.infer<typeof editionComparisonSchema>
-type EditionSummary = z.infer<typeof editionSummarySchema>
 
 /** One item whose served version differs between two states, before who and why are read. */
 type ChangeRow = {
@@ -97,29 +89,6 @@ function rangeChanges(a: string, b: string, item?: string): string {
 }
 
 /**
- * What each of some editions (`seqs`, an SQL array of edition numbers) changed against the sealed
- * edition before it, with the edition's number as `seq`. Nothing is sealed in between, so an item
- * changed in edition N exactly when a row of it opens or closes at N: the row that closes is the
- * version before, the row that opens the version after. Both are plain index lookups (0042), so
- * the work follows the items an edition changes, not everything in service.
- */
-function editionChanges(seqs: string, item?: string): string {
-  const only = item ? ` and item_id=${item}` : ''
-  const pairs = `select coalesce(o.seq,c.seq) as seq,coalesce(o.item_id,c.item_id) as item_id,
-      c.version_id as a,o.version_id as b
-    from (select item_id,version_id,lower(editions) as seq from item_version_service
-           where lower(editions)=any(${seqs})${only}) o
-    full join (select item_id,version_id,upper(editions) as seq from item_version_service
-           where upper(editions)=any(${seqs})${only}) c on c.item_id=o.item_id and c.seq=o.seq
-    where o.version_id is distinct from c.version_id`
-  return classified(
-    pairs,
-    `(select e.reason from editions e where e.seq=p.seq) <> 'rollback'`,
-    'p.seq::float8 as seq,',
-  )
-}
-
-/**
  * Vocabulary terms whose served version, or the domain the source gives them (0054), differs
  * between `a` and `b`, counted the same way.
  */
@@ -136,19 +105,6 @@ function vocabularyChanges(a: string, b: string): string {
     left join source_domain_service da on da.term_key=t.term_key and da.editions @> (${a})::bigint
     left join source_domain_service db on db.term_key=t.term_key and db.editions @> (${b})::bigint
     where sa.version_id is distinct from sb.version_id or da.area_id is distinct from db.area_id`
-}
-
-/** How many vocabulary terms each of some editions changed, as `editionChanges` counts items. */
-function vocabularyPerEdition(seqs: string): string {
-  const changed = (table: string, column: string) =>
-    `select coalesce(o.seq,c.seq) as seq,coalesce(o.term_key,c.term_key) as term_key
-       from (select term_key,${column} as value,lower(editions) as seq from ${table} where lower(editions)=any(${seqs})) o
-       full join (select term_key,${column} as value,upper(editions) as seq from ${table} where upper(editions)=any(${seqs})) c
-         on c.term_key=o.term_key and c.seq=o.seq
-      where o.value is distinct from c.value`
-  return `select seq::float8 as seq,count(distinct term_key)::int as count
-    from (${changed('vocab_term_service', 'version_id')}
-          union all ${changed('source_domain_service', 'area_id')}) x group by 1`
 }
 
 const changeRank = (change: EditionChangeKind) => editionChangeKinds.indexOf(change)
@@ -316,7 +272,7 @@ type CompareInput = z.infer<typeof editionCompareInputSchema>
  * items, their counts and the withheld count to those items (the Workbench asks about the items
  * of one test question).
  */
-export async function compareEditions(
+async function compareEditions(
   tx: Queryable,
   input: CompareInput,
   { items }: { items?: readonly string[] } = {},
@@ -396,19 +352,6 @@ async function versionsOf(tx: Queryable, ids: readonly (string | null)[]): Promi
   return new Map(stored.map((row, index) => [row.id, shown[index]!]))
 }
 
-/** The field changes of one item, from the earlier state to the later one. */
-function fieldChanges(before: ItemVersion | null, after: ItemVersion | null) {
-  if (after) return versionDiff(before, after)
-  // An item that left: every field it had, going to nothing.
-  return before
-    ? versionDiff(null, before).map(({ field, after: value }) => ({
-        field,
-        before: value,
-        after: null,
-      }))
-    : []
-}
-
 /** The names of the fields that differ on each row, for the compare list. */
 async function changedFields(tx: Queryable, rows: readonly ChangeRow[]) {
   const versions = await versionsOf(
@@ -422,180 +365,6 @@ async function changedFields(tx: Queryable, rows: readonly ChangeRow[]) {
     const before = versions.get(row.fromId!) ?? null
     const after = versions.get(row.toId!) ?? null
     return before && after ? versionDiff(before, after).map((change) => change.field) : []
-  }
-}
-
-/**
- * G1 and G2 for one item: its field changes between two editions, its mentions added and removed,
- * and each edition in between that changed it, with who and why at each step.
- */
-export async function compareItem(
-  tx: Queryable,
-  input: { id: string; from?: string | undefined; to?: string | undefined },
-): Promise<z.infer<typeof itemComparisonSchema>> {
-  if (!(await tx.query('select 1 from items where id=$1', [input.id])).length)
-    throw new ORPCError('NOT_FOUND', { message: "We couldn't find this fact." })
-  const { from, to, a, b } = await editionPair(tx, input.from, input.to)
-  const [row] = await tx.query<ChangeRow>(rangeChanges('$1::bigint', '$2::bigint', '$3'), [
-    a,
-    b,
-    input.id,
-  ])
-  // Each edition in between where a row of the item opens or closes.
-  const boundaries = (
-    await tx.query<{ seq: number }>(
-      `select distinct x::float8 as seq from item_version_service s
-         cross join lateral (values (lower(s.editions)),(upper(s.editions))) v(x)
-        where s.item_id=$3 and x > least($1::bigint,$2::bigint) and x <= greatest($1::bigint,$2::bigint)`,
-      [a, b, input.id],
-    )
-  ).map((boundary) => boundary.seq)
-  const steps = boundaries.length
-    ? await tx.query<ChangeRow & { seq: number }>(
-        `${editionChanges('$1::bigint[]', '$2')} order by 1`,
-        [boundaries, input.id],
-      )
-    : []
-  const editions = steps.length
-    ? await tx.query<Edition>(`select ${editionFields} from editions e where e.seq=any($1)`, [
-        steps.map((step) => step.seq),
-      ])
-    : []
-  // Like the edition export, nothing of a version with an audience group is shown.
-  if (row?.withheld || steps.some((step) => step.withheld))
-    throw new ORPCError('NOT_FOUND', { message: "We couldn't find this fact." })
-  const why = await whyOf(tx, row ? [row, ...steps] : steps)
-  const versions = await versionsOf(tx, row ? [row.fromId, row.toId] : [])
-  const before = row?.fromId ? (versions.get(row.fromId) ?? null) : null
-  const after = row?.toId ? (versions.get(row.toId) ?? null) : null
-  return {
-    from: from?.label ?? null,
-    to: to.label,
-    backwards: a > b,
-    change: row ? asChange(row, why(row)) : null,
-    fields: fieldChanges(before, after).map((change) => ({
-      ...change,
-      systemFilled: isSystemFilled(change.field),
-    })),
-    mentions: mentionDiff(before?.mentions ?? [], after?.mentions ?? []),
-    steps: steps.map((step) => {
-      const { from: stepFrom, to: stepTo, ...change } = asChange(step, why(step))
-      return {
-        edition: editions.find((e) => e.seq === step.seq)!,
-        change: change.change,
-        from: stepFrom,
-        to: stepTo,
-        why: change.why,
-      }
-    }),
-  }
-}
-
-/** Editions made by decisions on their items, whose decisions say who and why. */
-const decidedBy: readonly string[] = ['proposal_accepted', 'item_retired', 'source_rechecked']
-
-/** How many of an edition's items the feed lists; the rest are counted in `more`. */
-const FEED_ITEMS = 10
-
-/**
- * G3: editions newest first, each with what it changed, in counts and in one sentence that says
- * who did it and why, so the feed needs no call per edition. Cursor paging by edition number.
- */
-export async function editionFeed(
-  tx: Queryable,
-  input: z.infer<typeof editionFeedInputSchema>,
-): Promise<z.infer<typeof editionFeedSchema>> {
-  const limit = input.limit ?? 20
-  const before = input.before ? await editionByLabel(tx, input.before) : null
-  const after = input.after ? await editionByLabel(tx, input.after) : null
-  const through = input.through ? await editionByLabel(tx, input.through) : null
-  const page = await tx.query<Edition>(
-    `select ${editionFields}
-     from editions e where e.sealed_at is not null and ($1::bigint is null or e.seq<$1)
-       and ($2::bigint is null or e.seq>$2) and ($4::bigint is null or e.seq<=$4)
-     order by e.seq desc limit $3`,
-    [before?.seq ?? null, after?.seq ?? null, limit + 1, through?.seq ?? null],
-  )
-  const next = page.length > limit ? page[limit - 1]!.label : null
-  const entries = page.slice(0, limit)
-  const seqs = entries.map((e) => e.seq)
-  const rows = await tx.query<ChangeRow & { seq: number }>(editionChanges('$1::bigint[]'), [seqs])
-  const vocabulary = await tx.query<{ seq: number; count: number }>(
-    vocabularyPerEdition('$1::bigint[]'),
-    [seqs],
-  )
-  const bySeq = new Map<number, ChangeRow[]>()
-  const withheld = new Map<number, number>()
-  for (const row of rows)
-    if (row.withheld) withheld.set(row.seq, (withheld.get(row.seq) ?? 0) + 1)
-    else bySeq.set(row.seq, [...(bySeq.get(row.seq) ?? []), row])
-  for (const list of bySeq.values()) list.sort(byChange)
-  const listed = [...bySeq.values()].flatMap((list) => list.slice(0, FEED_ITEMS))
-  const why = await whyOf(tx, listed)
-  const whyByRow = new Map(listed.map((row) => [row, why(row)]))
-  const summaries = entries.map((edition) => {
-    const changes = bySeq.get(edition.seq) ?? []
-    const items = changes.slice(0, FEED_ITEMS).map((row) => asChange(row, whyByRow.get(row)!))
-    return { edition, changes, items }
-  })
-  const decisions = (items: readonly ItemChange[]) =>
-    items
-      .flatMap((item) => item.why.decisions)
-      .sort((x, y) => (x.decidedAt < y.decidedAt ? -1 : x.decidedAt > y.decidedAt ? 1 : 0))
-  const named = await names(
-    tx,
-    summaries.flatMap(({ edition, items }) => [
-      ...(edition.actorId ? [edition.actorId] : []),
-      ...items.flatMap((item) => [
-        ...(item.why.proposerId ? [item.why.proposerId] : []),
-        ...item.why.decisions.map((d) => d.decidedBy),
-      ]),
-    ]),
-    rows.map((row) => row.areaId),
-  )
-  return {
-    next,
-    entries: summaries.map(({ edition, changes, items }): EditionSummary => {
-      // A decision made this edition when it accepted, retired or checked items; going back or
-      // changing an area brings no decision of its own, only the edition's actor and note.
-      const made = decidedBy.includes(edition.reason) ? decisions(items) : []
-      // Who made it: the edition's actor, else (an edition from before actors were recorded) the
-      // last decision that published it.
-      const actorId = edition.actorId ?? made.at(-1)?.decidedBy ?? null
-      // Why, in their own words: the edition's note, else the owner's or deputy's reason.
-      const deciding = made.filter((d) => d.capacity !== 'approver')
-      const why = edition.note ?? deciding.at(-1)?.reason ?? made.at(-1)?.reason ?? null
-      const proposers = [...new Set(items.map((item) => item.why.proposerId).filter(Boolean))]
-      const counts = countChanges(changes)
-      const areas = sortedAreas(changes)
-      return {
-        edition,
-        sentence: changeSentence({
-          reason: edition.reason,
-          restores: edition.restores,
-          actor: named.person(actorId),
-          proposer:
-            proposers.length === 1 && changes.length === items.length
-              ? named.person(proposers[0])
-              : null,
-          why,
-          counts,
-          only: changes.length === 1 ? changes[0]! : null,
-          areas: areas.map(named.area),
-          vocabulary: vocabulary.find((v) => v.seq === edition.seq)?.count ?? 0,
-          withheld: withheld.get(edition.seq) ?? 0,
-        }),
-        counts,
-        areas,
-        highestRisk: highestRisk(changes.map((change) => change.riskLevel)),
-        vocabulary: vocabulary.find((v) => v.seq === edition.seq)?.count ?? 0,
-        actorId,
-        why,
-        items,
-        more: changes.length - items.length,
-        withheld: withheld.get(edition.seq) ?? 0,
-      }
-    }),
   }
 }
 

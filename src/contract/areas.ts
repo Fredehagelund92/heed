@@ -89,14 +89,6 @@ export const createAreaSchema = z.strictObject({
   ),
 })
 
-export const updateAreaSchema = z.strictObject({
-  id: areaIdField,
-  /** The revision you read; a newer one is a conflict. */
-  revision: z.number().check(z.int(), z.minimum(1), z.maximum(1_000_000)),
-  ...areaFields,
-  reason,
-})
-
 /**
  * A domain's summary and description, written by one of its owners or an administrator
  * (FR-813). Recorded in the history log like any other change to the domain.
@@ -153,9 +145,6 @@ export const areaHoldingsSchema = z.object({
 })
 export type AreaHoldings = z.infer<typeof areaHoldingsSchema>
 
-/** The most of each kind a deletion's preview names; the counts above give every one. */
-export const AREA_DELETION_LIST_MAX = 200
-
 const named = { id: z.string(), title: z.string() }
 
 /** One accepted item that moves to the Bin. */
@@ -185,34 +174,6 @@ export const deletedRoleSchema = z.object({
   name: z.string(),
   role: z.enum(['owner', 'approver']),
 })
-
-/** What deleting a domain does to each kind of thing under it, named, at most the list limit. */
-const deletionLists = {
-  items: z.array(deletedItemSchema),
-  terms: z.array(deletedTermSchema),
-  openProposals: z.array(deletedProposalSchema),
-  drafts: z.array(deletedDraftSchema),
-  team: z.array(deletedRoleSchema),
-}
-
-/** What deleting a domain would do, for the person to read before they do it (FR-814). */
-export const areaRemovalSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  /** The revision read; deleting names it, so a change since is a conflict. */
-  revision: z.number(),
-  /** The built-in demo domain always exists (FR-811). */
-  demo: z.boolean(),
-  /**
-   * What happens to the domain's own row. `delete`: nothing names it, so it goes for good.
-   * `archive`: history names it, so it is kept as history, out of every list and picker, and
-   * can be restored at any time; people read both as deleted. `blocked`: the demo domain.
-   */
-  outcome: z.enum(['delete', 'archive', 'blocked']),
-  holdings: areaHoldingsSchema,
-  ...deletionLists,
-})
-export type AreaRemoval = z.infer<typeof areaRemovalSchema>
 
 export const removeAreaSchema = z.strictObject({
   id: areaIdField,
@@ -258,23 +219,3 @@ export const archivedAreaSchema = z.object({
   binnedItems: z.number(),
 })
 export type ArchivedArea = z.infer<typeof archivedAreaSchema>
-
-export const restoreAreaSchema = z.strictObject({
-  id: areaIdField,
-  /** Why, for the history log. */
-  reason: z.optional(reason),
-})
-
-/** What restoring a domain did, and the items of it that wait in the Bin. */
-export const areaRestoredSchema = z.object({
-  area: areaDetailSchema,
-  /** The edition that served its terms again; null when it had none to serve. */
-  edition: z.nullable(editionSchema),
-  /** The terms served again in that edition. */
-  terms: z.number(),
-  /** The people given their role back. */
-  team: z.number(),
-  /** Its items still in the Bin, newest first: restore them there. */
-  binnedItems: z.array(deletedItemSchema),
-})
-export type AreaRestored = z.infer<typeof areaRestoredSchema>

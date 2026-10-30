@@ -1,13 +1,11 @@
 import { parseArgs } from 'node:util'
 import pg from 'pg'
 import type { ContextItem } from '../../src/domain/item.ts'
-import { readDevPeople } from '../../src/server/modules/auth/dev-sign-in.ts'
 import { generateItems } from './fixtures/items.ts'
 import { isEmpty } from '../prepare.ts'
 import { bulkSeed, type LibraryExtras } from './bulk.ts'
 import { loadDemo } from './demo.ts'
 import { goldenExtras, goldenLibrary } from './golden-fixtures.ts'
-import { PracticeHalfSeededError, seedPractice } from './practice.ts'
 
 /*
   `npm run seed`: data to develop, test and show Heed on, in a local database (db/README.md).
@@ -19,15 +17,12 @@ import { PracticeHalfSeededError, seedPractice } from './practice.ts'
     npm run seed -- --items-only          the library alone, with no quality history or gaps,
                                           as tests on the service may want
     npm run seed -- --items-only --count 50000   a larger generated library, for performance
-    npm run seed -- --practice            the practice domain, through the service's API
 
   A library goes into an empty database, as a superuser: DATABASE_URL_SEED, a local
-  context_layer_dev or context_layer_test database. The practice domain goes into any migrated
-  local database, as the service's role (DATABASE_URL, people from CL_DEV_PEOPLE_FILE).
+  context_layer_dev or context_layer_test database.
 */
 
 const usage = `Usage: npm run seed [-- --library demo|golden] [--items-only [--count <n>]]
-       npm run seed -- --practice
 See db/README.md.`
 
 class UsageError extends Error {}
@@ -52,14 +47,6 @@ function librarySeedUrl(env: NodeJS.ProcessEnv): string {
   return url
 }
 
-/** The database the practice domain goes into: the service's, on this computer. */
-function practiceUrl(env: NodeJS.ProcessEnv): string {
-  const url = env.DATABASE_URL ?? 'postgres://context_layer_api@localhost:5432/context_layer_dev'
-  if (!loopback.includes(new URL(url).hostname))
-    throw new UsageError('The practice domain goes into a local database only (DATABASE_URL)')
-  return url
-}
-
 function library(
   name: string,
   count: number | undefined,
@@ -80,7 +67,6 @@ async function main(args: string[], env: NodeJS.ProcessEnv) {
         library: { type: 'string' },
         'items-only': { type: 'boolean', default: false },
         count: { type: 'string' },
-        practice: { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
       },
       strict: true,
@@ -93,22 +79,6 @@ async function main(args: string[], env: NodeJS.ProcessEnv) {
     return
   }
   if (env.NODE_ENV === 'production') throw new UsageError('Seed data is never for production')
-
-  if (values.practice) {
-    if (values['items-only'] || values.count !== undefined || values.library !== undefined)
-      throw new UsageError(usage)
-    const result = await seedPractice({
-      databaseUrl: practiceUrl(env),
-      people: await readDevPeople(env.CL_DEV_PEOPLE_FILE ?? 'db/seed/people.local.yml'),
-      ...(env.CL_FIXED_TODAY ? { today: env.CL_FIXED_TODAY } : {}),
-    })
-    console.log(
-      result.seeded
-        ? `Seeded the practice domain: proposals ${JSON.stringify(result.proposals)}, gaps ${JSON.stringify(result.gaps)}, ${result.editions} editions`
-        : 'The practice domain is already there; nothing changed',
-    )
-    return
-  }
 
   const count = values.count === undefined ? undefined : Number(values.count)
   if (
@@ -142,7 +112,7 @@ async function main(args: string[], env: NodeJS.ProcessEnv) {
 try {
   await main(process.argv.slice(2), process.env)
 } catch (error) {
-  if (!(error instanceof UsageError) && !(error instanceof PracticeHalfSeededError)) throw error
+  if (!(error instanceof UsageError)) throw error
   console.error(error.message)
   process.exitCode = 1
 }

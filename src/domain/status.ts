@@ -42,9 +42,9 @@ export function itemDisplayStatus(item: StatusInput, today: string): ItemDisplay
 }
 
 /**
- * Whether an item can be trusted today, as the library index says it and `library.freshness`
- * counts it: `ended` once it is retired or its last day has passed, `needs_check` while a source
- * flag is on or its review date has passed, else `current`.
+ * Whether an item can be trusted today, as the library index says it: `ended` once it is retired
+ * or its last day has passed, `needs_check` while a source flag is on or its review date has
+ * passed, else `current`.
  */
 export const itemTrusts = ['current', 'needs_check', 'ended'] as const
 export type ItemTrust = (typeof itemTrusts)[number]

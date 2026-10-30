@@ -2,23 +2,13 @@ import { generateKeyPairSync } from 'node:crypto'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import { SignJWT } from 'jose'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import * as z from 'zod'
 import { run } from '../../src/cli/commands.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createDevVerifier, devIssuer } from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
 import { deprecatedToolAliases, tools as mcpTools, toolNames } from '../../src/server/mcp/tools.ts'
-import { Evidence } from '../../src/server/modules/assistant/citations.ts'
-import {
-  assistantTools,
-  runTool,
-  type AssistantToolName,
-} from '../../src/server/modules/assistant/tools.ts'
-import { principalFor, type Session } from '../../src/server/modules/auth/index.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
-import { repositoryHelp } from '../../src/server/modules/help/index.ts'
-import { createModelPort } from '../../src/server/modules/models/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { accept, foundation, openEdition, people, servingEdition, version } from './fixtures.ts'
@@ -42,8 +32,7 @@ import {
 
   The sweep calls every read operation of the contract with every id it could take, as every
   person, then every MCP tool with tokens that claim the item's group, another group and none,
-  every assistant tool as every person, and the CLI's export and audit, and looks for the hidden
-  item's words and id in each answer. A positive control proves the words would be found.
+  and the CLI's export and audit, and looks for the hidden item's words and id in each answer. A positive control proves the words would be found.
 */
 
 const { client, url } = testDatabase()
@@ -261,15 +250,8 @@ afterAll(async () => {
 const reviewing = new Set([
   'proposals.list',
   'proposals.get',
-  'proposals.events',
-  'proposals.overlap',
-  'proposals.tests',
-  'proposals.preview',
-  'review.queue',
-  'review.get',
   'review.sheet',
-  'activity.list',
-  'inbox.list',
+  'review.sheets',
   'audit.search',
   'audit.export',
 ])
@@ -305,35 +287,23 @@ function pathsOf(op: Operation): string[] {
 
 /** Lists and searches asked about the hidden item by its id and its words. */
 const queries = () => [
-  ['items.list', `/api/v1/items?q=Zephyrledger`],
-  ['items.list', `/api/v1/items?mentions=item:${hidden.id}`],
-  ['items.list', `/api/v1/items?limit=200`],
+  ['search.all', `/api/v1/search?q=Zephyrledger`],
+  ['search.all', `/api/v1/search?q=Vaultsunrise`],
   ['proposals.list', `/api/v1/proposals?state=accepted`],
   ['proposals.list', `/api/v1/proposals?itemId=${hidden.id}`],
   ['proposals.list', `/api/v1/proposals?itemId=${linking.id}`],
-  ['activity.list', `/api/v1/activity?areaId=finance`],
-  ['editions.compare', `/api/v1/editions/compare?to=${liveLabel}`],
-  ['editions.compareItem', `/api/v1/editions/compare/items/${linking.id}?to=${liveLabel}`],
-  ['editions.compareItem', `/api/v1/editions/compare/items/${hidden.id}?to=${liveLabel}`],
-  ['vocabulary.search', `/api/v1/vocabulary/search?q=harbour`],
   ['audit.search', `/api/v1/audit?subjectId=${hidden.id}`],
   ['audit.export', `/api/v1/audit/export?format=jsonl`],
 ]
 
 /**
- * Reads that are POSTs: a preview, the review stamps, the Bin's previews, and the answer engine's
- * look-up, Try it and reach, asked about the hidden item's own scope.
+ * Reads that are POSTs: the review's sheets of many suggestions, and the answer engine's look-up,
+ * asked about the hidden item's own scope.
  */
 const posts = () =>
   [
-    ['proposals.preview', `/api/v1/proposals/${hiddenProposal}/preview`, {}],
-    ['proposals.preview', `/api/v1/proposals/${linkingProposal}/preview`, {}],
+    ['review.sheets', '/api/v1/review/sheets', { ids: [hiddenProposal, linkingProposal] }],
     ['ask.lookup', '/api/v1/ask/lookup', { question: 'Orders on holidays', metrics: ['Orders'] }],
-    ['tryIt.run', '/api/v1/try-it', { metrics: ['Orders'] }],
-    ['engine.reach', '/api/v1/engine/reach', { draft: linkingProposal }],
-    ['library.reviews', '/api/v1/library/reviews', { ids: [hidden.id, linking.id] }],
-    ['bin.preview', '/api/v1/bin/preview', { ids: [hidden.id] }],
-    ['bin.rescuePreview', '/api/v1/bin/rescue-preview', { ids: [hidden.id], areaId: 'finance' }],
   ] as const
 
 /** An answer without the review exception's operations' own proposal, and the export's digests. */
@@ -353,8 +323,6 @@ describe('the audience rule on every read path', () => {
         expect(leaks(response.body), reader).toContain('Vaultsunrise')
       } else expect(response.statusCode, reader).toBe(404)
     }
-    const activity = await send('owner', 'GET', '/api/v1/activity')
-    expect(leaks(activity.body)).toContain('Vaultsunrise')
     // What the owner checked lately names the item a reader may read, and never the hidden one.
     const checked = await send('reader', 'GET', `/api/v1/members/${people.owner}/activity`)
     expect(checked.statusCode, checked.body).toBe(200)
@@ -370,7 +338,7 @@ describe('the audience rule on every read path', () => {
       const found: string[] = []
       const failed: string[] = []
       const reads = contractOperations()
-        .filter((op) => op.method === 'GET' && op.name !== 'events.stream')
+        .filter((op) => op.method === 'GET')
         .flatMap((op) => pathsOf(op).map((path) => [op.name, path] as const))
       for (const reader of Object.keys(readers) as Reader[]) {
         const check = (name: string, path: string, status: number, body: string) => {
@@ -396,11 +364,13 @@ describe('the audience rule on every read path', () => {
 
   it('shows the mention of the hidden item as its words, in the library and in drafts', async () => {
     for (const reader of Object.keys(readers) as Reader[]) {
-      const item = await send(reader, 'GET', `/api/v1/items/${linking.id}`)
-      expect(item.statusCode).toBe(200)
-      expect(item.json()).toMatchObject({
-        summary: linking.summary,
-        summaryMarkup: 'Opening hours: see the harbour note for holidays.',
+      const page = await send(reader, 'GET', `/api/v1/items/${linking.id}/page`)
+      expect(page.statusCode).toBe(200)
+      expect(page.json()).toMatchObject({
+        item: {
+          summary: linking.summary,
+          summaryMarkup: 'Opening hours: see the harbour note for holidays.',
+        },
       })
       const proposal = await send(reader, 'GET', `/api/v1/proposals/${linkingProposal}`)
       expect(proposal.statusCode).toBe(200)
@@ -493,62 +463,6 @@ describe('the audience rule on every read path', () => {
     }
     expect(found).toEqual([])
   })
-
-  it(
-    'gives the assistant nothing of the hidden item, whoever asks',
-    { timeout: 120_000 },
-    async () => {
-      const found: string[] = []
-      const models = createModelPort({ mode: 'mock' })
-      const inputs: [AssistantToolName, Record<string, unknown>][] = [
-        ['get_facts', { question: 'Orders on holidays', metrics: ['Orders'] }],
-        ['find_facts', { query: 'Vaultsunrise harbour Zephyrledger' }],
-        ['read_item', { id: hidden.id }],
-        ['read_item', { id: linking.id }],
-        ['explain_item', { id: hidden.id, question: 'Orders on holidays', metrics: ['Orders'] }],
-        ['improve_question', { question: 'harbour closure on holidays' }],
-        ['check_draft', { draft_number: hiddenProposal }],
-        ['find_overlaps', { draft_number: hiddenProposal }],
-        ['estimate_impact', { question: 'Orders on holidays', draft_number: hiddenProposal }],
-        ['domain_overview', { domain: 'Finance' }],
-        ['what_changed', {}],
-      ]
-      for (const [reader, { name, reviews }] of Object.entries(readers)) {
-        const id = members[name]
-        const session: Session = {
-          csrfToken: 'x',
-          person: (await database.transaction(null, (tx) => principalFor(tx, id)))!,
-        }
-        for (const [tool, input] of inputs) {
-          expect(tool in assistantTools).toBe(true)
-          const parsed = z.parse(assistantTools[tool].inputSchema, input)
-          const output = await runTool(tool, parsed, `call-${tool}`, {
-            database,
-            clock,
-            models,
-            session: () => Promise.resolve(session),
-            evidence: new Evidence(),
-            produced: new Map(),
-            web: {
-              read: () => Promise.reject(new Error('offline')),
-              links: new Map(),
-              pages: new Map(),
-              searchesPerDay: 0,
-              provider: null,
-              calls: { reads: 0, searches: 0 },
-            },
-            help: repositoryHelp(),
-          })
-          // The tools that read a proposal by its id follow its row security, review exception
-          // included: what the person may read anyway.
-          if (reviews && 'draft_number' in input) continue
-          const words = leaks(JSON.stringify(output))
-          if (words.length) found.push(`${reader} ${tool}: ${words.join(', ')}`)
-        }
-      }
-      expect(found).toEqual([])
-    },
-  )
 
   it('writes nothing of the hidden item from the command line', async () => {
     const heed = async (args: string[], who: string) => {

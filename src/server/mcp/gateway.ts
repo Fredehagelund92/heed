@@ -30,7 +30,6 @@ import type { Metrics } from '../observability/metrics.ts'
 import { ROUND_SECONDS, type DraftRound, type DraftTool, type QuestionRound } from './draft-tool.ts'
 import { byteSize, createToolService, failure, withNote } from './service.ts'
 import type { ServingReads } from './reads.ts'
-import type { HelpLibrary } from '../modules/help/index.ts'
 import { resolverStatusOf } from '../../domain/answer-state.ts'
 import { deprecatedNote } from '../../domain/mcp-text.ts'
 import {
@@ -88,8 +87,6 @@ export interface McpDependencies {
    * item's page in Heed (FR-347). Without it the pages are paths on the web app.
    */
   web?: string | null
-  /** Heed's help pages for search_help (FR-348), read at start; left out, this checkout's pages. */
-  help?: HelpLibrary
 }
 
 /** The data tools the definition sources name, by their own label (CON-101). */
@@ -142,14 +139,7 @@ function canElicitForm(ctx: ServerContext): boolean {
 
 export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, metrics?: Metrics) {
   const now = deps.now ?? (() => new Date())
-  const execute = createToolService(
-    deps.source,
-    deps.store,
-    now,
-    deps.reads,
-    deps.web ?? null,
-    deps.help,
-  )
+  const execute = createToolService(deps.source, deps.store, now, deps.reads, deps.web ?? null)
   let droppedRecords = 0
   const queue = createAnonymousQueue(deps.store, (count) => {
     droppedRecords += count

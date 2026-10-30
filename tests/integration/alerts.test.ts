@@ -263,15 +263,12 @@ describe('the alert job', () => {
     expect(norway.title).toMatch(/: not found, 9 times$/)
     expect(await reached(norway.id)).toEqual(['owner'])
     expect(norway.reached).toEqual(['owner'])
-    // The owner's Inbox items name it by its title, and never by anyone's words.
-    const { items } = await ok<{ items: { kind: string; title: string | null }[] }>(
-      'owner',
-      'GET',
-      '/inbox',
+    // The relay put it in the owner's Inbox, by the raise and never by anyone's words.
+    const inbox = await client.query<{ subject: string }>(
+      "select subject_id as subject from inbox_items where person_id = $1 and kind = 'alert.raised'",
+      [people.owner],
     )
-    expect(items.filter((i) => i.kind === 'alert.raised').map((i) => i.title)).toContain(
-      norway.title,
-    )
+    expect(inbox.rows.map((row) => row.subject)).toContain(norway.id)
     // Model spend goes to the admins only; the source that did not sync to the admins too.
     expect(await reached(of('spend')[0]!.id)).toEqual(['admin'])
     expect(of('spend')[0]!.title).toBe('Model spend reached 80% of the monthly cap')

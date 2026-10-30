@@ -197,11 +197,13 @@ describe('an AI agent drafts context for the person it acts for', () => {
     expect(submitted.status).toBe(200)
     const owner = browser()
     await owner.signIn('owner')
-    const review = (await (await owner.api(`/proposals/${out.draft_id}/review`)).json()) as {
-      proposal: { channel: string; state: string; proposerId: string }
+    const review = (await (await owner.api(`/proposals/${out.draft_id}`)).json()) as {
+      channel: string
+      state: string
+      proposerId: string
       provenance: { by: string; fields: Record<string, string> }
     }
-    expect(review.proposal).toMatchObject({
+    expect(review).toMatchObject({
       channel: 'mcp',
       state: 'submitted',
       proposerId: people.author,
@@ -229,8 +231,10 @@ describe('an AI agent drafts context for the person it acts for', () => {
       revision: number
       draft: Record<string, unknown>
     }
-    const saved = await author.go(`${harness.issuer}/api/v1/proposals/${id}/draft`, {
-      method: 'PUT',
+    // The person finishes the draft in the editor and sends it (Publish, which for an author sends
+    // it to the domain's owners).
+    const sent = await author.go(`${harness.issuer}/api/v1/items/publish`, {
+      method: 'POST',
       headers: {
         origin: harness.web,
         'content-type': 'application/json',
@@ -238,12 +242,15 @@ describe('an AI agent drafts context for the person it acts for', () => {
         'idempotency-key': randomUUID(),
       },
       body: JSON.stringify({
-        revision: current.revision,
+        draftId: id,
         draft: { ...current.draft, title: 'Returns are counted on their own' },
       }),
     })
-    expect(saved.status).toBe(200)
-    const after = (await saved.json()) as { provenance: { fields: Record<string, string> } }
+    expect(sent.status).toBe(200)
+    expect(await sent.json()).toMatchObject({ published: false, proposalId: id })
+    const after = (await (await author.api(`/proposals/${id}`)).json()) as {
+      provenance: { fields: Record<string, string> }
+    }
     expect(after.provenance.fields.title).toBeUndefined()
     expect(after.provenance.fields.summary).toBe('prefilled')
   })
@@ -493,11 +500,11 @@ describe('an AI agent drafts context for the person it acts for', () => {
     expect(row).toEqual({ state: 'submitted', proposer_id: people.author, channel: 'mcp' })
     const owner = browser()
     await owner.signIn('owner')
-    const review = (await (await owner.api(`/proposals/${out.draft_id}/review`)).json()) as {
-      proposal: { state: string }
+    const review = (await (await owner.api(`/proposals/${out.draft_id}`)).json()) as {
+      state: string
       provenance: { by: string; fields: Record<string, string> }
     }
-    expect(review.proposal.state).toBe('submitted')
+    expect(review.state).toBe('submitted')
     expect(review.provenance).toMatchObject({ by: 'agent', fields: { summary: 'prefilled' } })
   })
 

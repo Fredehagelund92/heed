@@ -65,7 +65,7 @@ describe('the web API request limit on PostgreSQL', () => {
     })
   })
 
-  it('limits each person to the changed setting, on every route including the assistant', async () => {
+  it('limits each person to the changed setting, on every route including Ask', async () => {
     const change = await app.inject({
       method: 'PUT',
       url: '/api/v1/settings/limits.api_rate_per_minute',
@@ -90,17 +90,17 @@ describe('the web API request limit on PostgreSQL', () => {
       (await app.inject({ method: 'GET', url: '/api/v1/operations', headers: owner })).statusCode,
     )
     codes.push(
-      (await app.inject({ method: 'GET', url: '/api/v1/inbox', headers: owner })).statusCode,
+      (await app.inject({ method: 'GET', url: '/api/v1/inbox/feed', headers: owner })).statusCode,
     )
-    const chat = await app.inject({
+    const ask = await app.inject({
       method: 'POST',
-      url: '/api/v1/assistant/chat',
+      url: '/api/v1/ask/lookup',
       headers: owner,
-      payload: { messages: [{ role: 'user', content: 'Hello' }] },
+      payload: { question: 'How did orders change?' },
     })
     expect(codes).toEqual([200, 403, 200])
-    expect(chat.statusCode).toBe(429)
-    expect(Number(chat.headers['retry-after'])).toBeGreaterThan(0)
+    expect(ask.statusCode).toBe(429)
+    expect(Number(ask.headers['retry-after'])).toBeGreaterThan(0)
 
     // Someone else, and the address before sign-in, keep their own counts.
     const admin = await app.inject({ method: 'GET', url: '/api/v1/me', headers: headers.admin })

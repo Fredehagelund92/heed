@@ -191,27 +191,6 @@ describe('scope extraction', () => {
         ],
       })
     })
-    it('asks for dates when they are required, to coach a question, and says what it reads', () => {
-      expect(
-        extractScope('Orders Norway', terms, '2026-08-05', {}, { datesRequired: true }),
-      ).toEqual({
-        status: 'need_more_detail',
-        issues: [
-          {
-            field: 'dates',
-            input: 'Orders Norway',
-            options: [],
-            message: expect.stringMatching(
-              /^The question gives no dates\. The dates that can be read: a day/,
-            ) as string,
-          },
-        ],
-      })
-      // Dates in the words are read for the coach as for get_facts.
-      expect(
-        extractScope('Orders Norway this year', terms, '2026-08-05', {}, { datesRequired: true }),
-      ).toMatchObject({ status: 'resolved', scope: { window: { start: '2026-01-01' } } })
-    })
     it('says the day, its time zone and why, with a sentence to repeat', () => {
       expect(
         assumedDate({ date: '2026-10-14', time_zone: 'UTC', reason: 'no date given' }),

@@ -126,8 +126,8 @@ the same pull request and say why.
 ## Proposal attributes
 
 Two paths write a proposal: the web app's editor (New context and Suggest a change), and the MCP tool
-`suggest_context` with which a person's AI agent suggests for them (and the assistant's
-`create_draft`, through the same service function). They must not drift apart silently, so every
+`suggest_context` with which a person's AI agent suggests for them. They must not drift apart
+silently, so every
 attribute of a proposal is decided once, in `src/domain/proposal-attributes.ts`:
 
 - its limits and whether it is required, which the item version schema, the draft schema, the

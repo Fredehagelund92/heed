@@ -18,7 +18,7 @@ project: `npx vitest run --project server tests/server/domain`.
 - `vocabulary.ts`: governed stable keys and parents; accent-insensitive names and aliases; ambiguous
   names return options. Trigram suggestions never silently replace the caller's words.
 - `scope.ts`: the one reader of a question's names and dates, for `get_context`, `find_context`,
-  `report`, the deprecated ids they replaced, `improve_question` and Try it (`extractScope`, `readQuestion`). Structured scope
+  `report`, the deprecated ids they replaced and Try it (`extractScope`, `readQuestion`). Structured scope
   takes precedence per field. Names are read by `termsInText`: whole-word, longest-name matching
   over every name a term goes by (`namesOf`: key, name, other names and the source member its
   definition points at), the same names `resolveTerm` reads a structured field by. A phrase that
@@ -27,8 +27,7 @@ project: `npx vitest run --project server tests/server/domain`.
   not take, by `readDates` (`dates.ts`); the result says how (`dates`: the words and a reads-as
   phrase). Unreadable dates and explicitly unknown dimension values require more detail; the dates
   issue says which words and what Heed reads. A question that gives no dates at all is read at the
-  supplied `today`, and the result says so (`assumed`, worded by `assumedDate`), unless the caller
-  requires dates (`improve_question`). A word after a dimension name is not a candidate value when
+  supplied `today`, and the result says so (`assumed`, worded by `assumedDate`). A word after a dimension name is not a candidate value when
   it is a preposition or stop word or part of a date (so `market in August 2026` and `market last 7
 days` stay resolvable). A dimension named without a value becomes a filter with no values
   (`{ 'dim:market': [] }`), and a named dimension alone is scope. `spans` gives where each name and
@@ -44,8 +43,7 @@ days` stay resolvable). A dimension named without a value becomes a filter with 
   back to today ("the last 30 days", "this past week"). A named period is whole, "this" runs to
   today, "last" is the last complete one, and weeks start on Monday. Words that name a period it
   cannot read ("since the launch", "the first week of October", a numeric date such as 12/10/2026) or more than one period are never
-  replaced: it says which words and what it reads. The assistant's turn context names the same
-  periods.
+  replaced: it says which words and what it reads.
 - `scope-search.ts`: the page of terms behind the "where it applies" picker (FR-107): metrics and,
   per dimension, "any value", a count and a few values, recent and often-used first; a page at a
   time inside one dimension. The caller passes the vocabulary,

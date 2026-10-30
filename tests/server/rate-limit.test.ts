@@ -107,16 +107,16 @@ describe('the web API request limit', () => {
     })
   })
 
-  it('counts every route under /api: unknown ones, operations and the assistant', async () => {
+  it('counts every route under /api: unknown ones, operations and Ask', async () => {
     const { app, statuses } = limitedApp()
     expect(await statuses(1, '/api/v1/no-such-operation')).toEqual([404])
     expect(await statuses(1, '/api/v1/operations')).toEqual([401])
-    const chat = await app.inject({
+    const ask = await app.inject({
       method: 'POST',
-      url: '/api/v1/assistant/chat',
-      payload: { messages: [] },
+      url: '/api/v1/ask/lookup',
+      payload: { question: 'How did orders change?' },
     })
-    expect(chat.statusCode).toBe(429)
+    expect(ask.statusCode).toBe(429)
     expect(await statuses(1, '/api/v1/operations')).toEqual([429])
   })
 

@@ -166,7 +166,7 @@ export const testSetDigest = (planned: readonly { id: string; revision: number }
  * tokens in and 800 out for Gemini 2.5 Flash-Lite, which reasons first, and 1,000 in and 130 out
  * for a Claude judge.
  */
-export const typicalJudgeCall = { inputTokens: 1_000, outputTokens: 600, cacheReadTokens: 0 }
+const typicalJudgeCall = { inputTokens: 1_000, outputTokens: 600, cacheReadTokens: 0 }
 /**
  * A typical cell: two or three answer steps (a tool call, then the answer) and one judge call.
  * The answer steps send their instructions and tools through the prompt cache: round 6 measured

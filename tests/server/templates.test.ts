@@ -9,7 +9,7 @@ import { provenanceFlags } from '../../src/domain/provenance.ts'
 
 /*
   The templates in docs/templates: what a person copies and fills in, so each worked example must
-  pass as it stands. The item examples are about the practice domain only; the test questions of
+  pass as it stands. The item examples are about the demo data only; the test questions of
   the development split are golden set cases in the open format, kept equal to the cases they come
   from, and the held-out example is no golden case, as the held-out cases are sealed (FR-525).
 */
@@ -32,16 +32,18 @@ describe('the item template', () => {
     )
   })
 
-  it('is about the practice domain only, and labelled so', () => {
+  it('is about the demo data only, and labelled an example', () => {
     for (const { draft } of file.entries) {
-      expect(draft?.title).toMatch(/^Practice: /)
+      expect(draft?.title).toMatch(/^Example: /)
       const scope = draft!.scope!
       for (const key of [
         ...scope.metrics,
         ...scope.dimensions,
         ...scope.dimensionValues.flatMap((row) => [row.dimension, row.value]),
       ])
-        expect(key).toMatch(/^(metric|dim|val):practice_/)
+        expect(['metric:orders', 'metric:units_sold', 'dim:market']).toContain(
+          key.startsWith('val:market/') ? 'dim:market' : key,
+        )
     }
   })
 })

@@ -32,19 +32,17 @@ const modified = (...paths: string[]) => paths.map((path) => ({ status: 'M', pat
 
 describe('the held-out seal', () => {
   it('passes a change to src/ alone, and a change to the sealed cases alone', () => {
-    expect(
-      sealProblems(input({ changes: modified('src/server/modules/assistant/prompt.ts') })),
-    ).toEqual([])
+    expect(sealProblems(input({ changes: modified('src/server/mcp/service.ts') }))).toEqual([])
     expect(sealProblems(input({ changes: modified(sealedPath) }))).toEqual([])
   })
 
   it('fails a change to the sealed cases or their code together with src/', () => {
     for (const seal of [sealedPath, 'db/seed/held-out.ts', 'scripts/check-held-out-seal.ts']) {
       const [problem, ...rest] = sealProblems(
-        input({ changes: modified(seal, 'src/server/modules/assistant/tools.ts') }),
+        input({ changes: modified(seal, 'src/server/mcp/tools.ts') }),
       )
       expect(rest).toEqual([])
-      expect(problem).toMatch(/together with src\/ \(src\/server\/modules\/assistant\/tools\.ts\)/)
+      expect(problem).toMatch(/together with src\/ \(src\/server\/mcp\/tools\.ts\)/)
       expect(problem).toContain(seal)
     }
     // A move into src/ counts as a change under src/.
@@ -65,7 +63,7 @@ describe('the held-out seal', () => {
       sealProblems(
         input({
           sealedBefore: false,
-          changes: modified(sealedPath, 'src/server/run-assistant-evals.ts'),
+          changes: modified(sealedPath, 'src/server/run-evals.ts'),
         }),
       ),
     ).toEqual([])

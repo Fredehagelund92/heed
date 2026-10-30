@@ -314,13 +314,11 @@ describe('edition export', () => {
     itemId = created!.itemId!
     const review = await ok<{ proposal: { revision: number } }>(
       'GET',
-      `/proposals/${created!.proposalId}/review`,
+      `/review/${created!.proposalId}/sheet`,
       'owner',
     )
-    await ok('POST', `/proposals/${created!.proposalId}/decisions`, 'owner', {
+    await ok('POST', `/review/${created!.proposalId}/publish`, 'owner', {
       revision: review.proposal.revision,
-      outcome: 'accept',
-      reason: 'Matches the evidence',
     })
     const editions = await ok<{ label: string; live: boolean }[]>('GET', '/editions', 'owner')
     document = await ok<EditionExport>(

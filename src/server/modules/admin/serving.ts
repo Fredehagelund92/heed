@@ -17,10 +17,6 @@ import { plainReason, recordAudit } from './audit.ts'
 type ToolRow = { tool: string; enabled: boolean; updatedAt: string }
 const toolColumns = 'tool,enabled,updated_at::text as "updatedAt"'
 
-export function listTools(tx: Queryable): Promise<ToolRow[]> {
-  return tx.query<ToolRow>(`select ${toolColumns} from tool_config order by tool`)
-}
-
 export async function knownTools(tx: Queryable): Promise<string[]> {
   return (await tx.query<{ tool: string }>('select tool from tool_config order by tool')).map(
     (row) => row.tool,

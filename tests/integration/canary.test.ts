@@ -281,7 +281,11 @@ it(
     // Exports: what an administrator and the analytics role can read out.
     const admin = await signIn('admin@example.test')
     const exported: string[] = []
-    for (const path of ['/gaps?limit=200', '/areas/finance/dashboard', '/topics/counts']) {
+    for (const path of [
+      '/observability/agents?range=7',
+      '/observability/usage?range=7',
+      '/observability/feedback?range=7',
+    ]) {
       const response = await app.inject({
         method: 'GET',
         url: '/api/v1' + path,
@@ -290,7 +294,7 @@ it(
       expect(response.statusCode, response.body).toBe(200)
       exported.push(response.body)
     }
-    const gaps = JSON.parse(exported[0]!) as { id: string }[]
+    const gaps = (await client.query<{ id: string }>('select id::text from gaps')).rows
     expect(gaps.length).toBeGreaterThan(0)
     const metrics = await app.inject({
       method: 'GET',

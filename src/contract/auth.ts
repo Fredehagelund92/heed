@@ -51,15 +51,6 @@ export const GRANT_BATCH_MAX = 200
  */
 export const lastOwnerMessage = (area: string) =>
   `${area} must keep at least one owner. Make someone else an owner first, or in the same step, then remove this one.`
-/**
- * `grants.apply` (FR-804): many role changes in one step, all or none. Removals apply before
- * grants, so removing an area's owner and giving the seat to another replaces them at once.
- */
-export const applyGrantsSchema = z.strictObject({
-  changes: z.array(grantChangeSchema).check(z.minLength(1), z.maxLength(GRANT_BATCH_MAX)),
-  /** Why, kept with every history entry of the step. */
-  reason: z.optional(z.string().check(z.minLength(1), z.maxLength(500))),
-})
 export const grantsAppliedSchema = z.object({
   /** Shared by the history entries of this step. */
   batchId: z.string(),
@@ -82,17 +73,12 @@ export const grantsAppliedSchema = z.object({
     ]),
   ),
 })
-export const grantsSchema = z.object({
-  roles: z.array(z.extend(roleInputSchema, { since: z.string() })),
-  assignments: z.array(z.extend(assignmentInputSchema, { since: z.string() })),
-})
 export type Permissions = z.infer<typeof permissionsSchema>
 export type Principal = z.infer<typeof meSchema>
 export type SignInPerson = z.infer<typeof signInPersonSchema>
 export type RoleInput = z.infer<typeof roleInputSchema>
 export type AssignmentInput = z.infer<typeof assignmentInputSchema>
 export type GrantChange = z.infer<typeof grantChangeSchema>
-export type ApplyGrantsInput = z.infer<typeof applyGrantsSchema>
 export type GrantsApplied = z.infer<typeof grantsAppliedSchema>
 /**
  * How this workspace signs people in (CL_AUTH, FR-416): with the company's OpenID Connect

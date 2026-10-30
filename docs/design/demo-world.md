@@ -1,8 +1,8 @@
 # The demo world: an outdoor-gear retailer
 
 This page describes Heed's demo world: an invented outdoor-gear retailer, **Larchwood Outdoor**.
-The demo data, the Cube demo model, the Norway show, the golden set and the test questions all
-tell this one world. New demo text keeps to it (section 14).
+The demo data, the Cube demo model, the golden set and the test questions all tell this one
+world. New demo text keeps to it (section 14).
 
 The words follow the voice guide (`docs/design/voice.md`) and the glossary (`src/domain/words.ts`).
 
@@ -307,10 +307,6 @@ Where it lives:
 - `db/migrations/0001_baseline.sql`: the first version of `business.about`, with the reason
   "default: the starter text, an outdoor-gear retailer". A new install starts with no text
   (`db/migrations/0010_about_starts_empty.sql`); the demo seeds write this one.
-- `docs/old-help/tell-heed-about-your-business.md`: "a worked example, about an outdoor-gear
-  retailer", with the examples _First-time buyer: a customer whose first paid order falls in the period_
-  and "what first-time buyer, gross margin, marketplace commission or return mean here".
-- The golden set's industry cases (section 12.2).
 
 ## 9. The fact templates, by kind
 
@@ -502,31 +498,7 @@ use the same ids.
 
 ### 12.2 The cases that depend on what the business is
 
-Three cases of `type: industry` ask what the business is, with the forbidden phrases about About
-our business.
-
-**`industry-what-first-time-buyer-means`**
-
-- Says: "What does first-time buyer mean here?"
-- Rubrics: "Says a first-time buyer is a customer whose first paid order falls in the period,
-  whenever they signed up." "Cites no fact for the meaning and does not claim Heed holds a
-  definition of first-time buyer that no tool result gave."
-
-**`industry-marketplace-commission-event`**
-
-- Says: "If a marketplace's site was down all weekend, does that hit our marketplace sales or the
-  commission we pay?"
-- Rubrics: "Says marketplace commission is a share of each marketplace sale, so sales lost in the
-  outage lower the commission with them." "Says the outage does not touch sales in our own
-  stores, webshop or apps unless a tool result shows it." "States no effect on a number, a deal
-  or a market as fact unless a tool result of this conversation shows it."
-
-**`industry-market-or-selling-country`**
-
-- Says: "What is the difference between a market and a selling country for us?"
-- Rubrics: "Says a market is the country or region an order ships to, and a selling country is
-  the country of the store or webshop that took the order." "Says the two can differ." "Draws no
-  conclusion about tax, customs or the law in any market."
+These were cases of the in-app assistant. They left with it on 30 October 2026.
 
 ### 12.3 Wordings and fixtures
 
@@ -591,18 +563,8 @@ first-time buyers?" and "Is footwear gross sales in Canada for the last 2 days f
 
 ## 13. The web lookup example
 
-The assistant's web lookup example (an eval case and stories) is a real, stable and neutral
-consumer rule: the EU Consumer Rights Directive (2011/83/EU) on `eur-lex.europa.eu`, which gives
-customers 14 days to withdraw from an online purchase.
-
-- The unsure-date case says: "The EU gives customers 14 days to send back what they buy online,
-  so our returns go up. Can you look it up and draft a fact for it?"
-- The look-it-up case says: "Can you look up on the web how long EU customers have to send back
-  an online order, and draft a fact for it?"
-- The market value in the stories is Norway (`val:market/norway`).
-
-Copy the page's address and one sentence exactly from the live page. If the page moves or cannot
-be read in CI, use an invented page on `consumer.example` instead.
+This was the in-app assistant's example of a real page to look up. It left with the assistant on
+30 October 2026, so no demo text names a real law.
 
 ## 14. Writing new demo text
 
@@ -619,7 +581,6 @@ be read in CI, use an invented page on `consumer.example` instead.
    on 4 August", not "orders fell because of the stop".
 5. **Real countries, invented everything else.** The twelve markets are real countries, and no
    place below a country (state, region, province, city) appears. The people, the events and the
-   `.example` addresses are invented. No other real country, and no real law, company or brand,
-   apart from the one web lookup example (section 13).
+   `.example` addresses are invented. No other real country, and no real law, company or brand.
 6. **Keep the random draws.** A template's lists keep their length, and a hand-written fact
    replaces words by id, as `story-facts.ts` does.

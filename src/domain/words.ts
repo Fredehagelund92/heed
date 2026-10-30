@@ -429,17 +429,6 @@ export function usesWord(text: string, word: string): boolean {
   return wordPattern(word).test(text)
 }
 
-/**
- * A search query with the retired names read as the words that replaced them: "AI app" is
- * "agent". The command palette, the help search and the assistant's question reader keep the old
- * name findable, since people still type it; no screen writes it.
- */
-export function currentWords(query: string): string {
-  return query.replace(/(?<![\p{L}\p{N}_-])AI apps?(?![\p{L}\p{N}_-])/giu, (name) =>
-    /s$/i.test(name) ? 'agents' : 'agent',
-  )
-}
-
 /** A word that holds code's marks: a path, an address, a key, an id, a flag, a code name. */
 export const codeMarks = /[/\\_=<>{}[\]@#$|~^*`]|\p{Ll}\p{Lu}|\w[.:]\w|^-{1,2}\p{L}/u
 /** Sentence marks and quotes around a word, which are not part of it. */

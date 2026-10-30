@@ -1,6 +1,5 @@
 import * as z from 'zod/mini'
 import { calendarDateSchema } from '../domain/validity.ts'
-import { previewReplySchema } from './proposals.ts'
 
 /**
  * Connect your AI (FR-404): what any signed-in person needs to point their own AI client at the
@@ -56,20 +55,6 @@ export const tryItInputSchema = z.strictObject({
       .check(z.refine((window) => window.from <= window.to, 'Window ends before it starts')),
   ),
 })
-export type TryItInput = z.infer<typeof tryItInputSchema>
-
-/**
- * get_facts's reply on the live edition, exactly as an agent with the default limits would get
- * it, and how much of the size limit it uses. It has no delivery id: nothing was delivered.
- */
-export const tryItSchema = z.object({
-  result: previewReplySchema,
-  /** The reply's size as the gateway counts it, in bytes. */
-  bytes: z.number(),
-  /** The size limit an agent's reply must fit, in bytes. */
-  limit: z.number(),
-})
-export type TryIt = z.infer<typeof tryItSchema>
 
 /**
  * A question read as a scope, so Try it opens on what was asked (Home's "Try it"). The question

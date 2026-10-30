@@ -240,43 +240,6 @@ export async function listEditions(tx: Queryable, limit = 50, offset = 0): Promi
   )
 }
 
-type VersionChange = { id: string; from: number | null; to: number | null }
-
-/** Items and vocabulary terms that differ between two sealed editions. */
-export async function diffEditions(tx: Queryable, label: string, against?: string) {
-  const to = await editionByLabel(tx, label)
-  const from = against
-    ? await editionByLabel(tx, against)
-    : ((
-        await tx.query<Edition>(
-          `select ${editionFields} from editions e where e.sealed_at is not null and e.seq<$1
-           order by e.seq desc limit 1`,
-          [to.seq],
-        )
-      )[0] ?? null)
-  const params = [from?.seq ?? 0, to.seq]
-  const items = await tx.query<VersionChange>(
-    `with a as (select item_id,version_id from item_version_service where editions @> $1::bigint),
-          b as (select item_id,version_id from item_version_service where editions @> $2::bigint)
-     select coalesce(a.item_id,b.item_id) as id,va.version_no as from,vb.version_no as to
-       from a full join b on b.item_id=a.item_id
-       left join item_versions va on va.id=a.version_id left join item_versions vb on vb.id=b.version_id
-      where a.version_id is distinct from b.version_id
-        and cl_version_open(a.version_id) and cl_version_open(b.version_id) order by 1`,
-    params,
-  )
-  const vocabulary = await tx.query<VersionChange>(
-    `with a as (select term_key,version_id from vocab_term_service where editions @> $1::bigint),
-          b as (select term_key,version_id from vocab_term_service where editions @> $2::bigint)
-     select coalesce(a.term_key,b.term_key) as id,va.version_no as from,vb.version_no as to
-       from a full join b on b.term_key=a.term_key
-       left join vocab_term_versions va on va.id=a.version_id left join vocab_term_versions vb on vb.id=b.version_id
-      where a.version_id is distinct from b.version_id order by 1`,
-    params,
-  )
-  return { from: from?.label ?? null, to: to.label, items, vocabulary }
-}
-
 type Stop = {
   seq: number
   at: string

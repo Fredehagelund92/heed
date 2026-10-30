@@ -6,8 +6,8 @@ import { signInHarness } from './sign-in-harness.ts'
   An administrator's view of every person's agents (FR-403, FR-807), end to end on PostgreSQL:
   the list names the person and the app as it names itself, a disconnect needs a reason that the
   history log keeps, a disconnected app's access token is refused at its very next request and
-  its refresh token is refused, all of one person's apps end in one step, and nobody but an
-  administrator may read the list or end a connection.
+  its refresh token is refused, every app of a person an administrator removes ends at once, and
+  nobody but an administrator may read the list or end a connection.
 */
 
 const harness = await signInHarness()
@@ -131,50 +131,6 @@ describe('an administrator and the agents people connected', () => {
     ])
   })
 
-  it('disconnects every app of one person in one step, with one reason', async () => {
-    const first = await connect('stranger')
-    const second = await connect('stranger', 'read')
-    const kept = await connect('owner')
-    const boss = await signedIn('admin')
-    const ended = await boss.api(`/agent-connections/people/${people.stranger}/disconnect`, {
-      reason: 'Left the company',
-    })
-    expect(ended.status).toBe(200)
-    expect(await ended.json()).toEqual({ disconnected: 2 })
-    for (const app of [first, second]) {
-      expect(await mcpStatus(app.access_token)).toBe(401)
-      expect((await refresh(app)).status).toBe(400)
-    }
-    expect(await mcpStatus(kept.access_token)).toBe(200)
-    const listed = (await (await boss.api('/agent-connections')).json()) as Listed[]
-    expect(listed.some((connection) => connection.person.id === people.stranger)).toBe(false)
-
-    // Two history entries, one per connection, sharing the step's batch and its reason.
-    const audit = await admin.query<{ reason: string; batch: string }>(
-      `select reason, batch_id::text as batch from audit_log
-        where action='ai_client.disconnected' and details->>'person'=$1 order by seq`,
-      [people.stranger],
-    )
-    expect(audit.rows).toHaveLength(2)
-    expect(new Set(audit.rows.map((row) => row.batch)).size).toBe(1)
-    expect(audit.rows[0]!.batch).toMatch(/^[0-9a-f-]{36}$/)
-    expect(audit.rows.map((row) => row.reason)).toEqual(['Left the company', 'Left the company'])
-
-    // Nothing left to end: none, and no history entry.
-    const again = await boss.api(`/agent-connections/people/${people.stranger}/disconnect`, {
-      reason: 'Left the company',
-    })
-    expect(await again.json()).toEqual({ disconnected: 0 })
-    expect(
-      (
-        await admin.query(
-          "select 1 from audit_log where action='ai_client.disconnected' and details->>'person'=$1",
-          [people.stranger],
-        )
-      ).rowCount,
-    ).toBe(2)
-  })
-
   it('refuses anyone but an administrator, and leaves their apps working', async () => {
     const app = await connect('author')
     const boss = await signedIn('admin')
@@ -187,13 +143,6 @@ describe('an administrator and the agents people connected', () => {
       expect(
         (await person.api(`/agent-connections/${target!.id}/disconnect`, { reason: 'Mine now' }))
           .status,
-      ).toBe(403)
-      expect(
-        (
-          await person.api(`/agent-connections/people/${people.author}/disconnect`, {
-            reason: 'Mine now',
-          })
-        ).status,
       ).toBe(403)
     }
     // Signed out, the list is not there at all.

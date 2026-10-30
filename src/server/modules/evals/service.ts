@@ -3,24 +3,15 @@ import type * as z from 'zod/mini'
 import type { EvalRun, runDetailSchema } from '../../../contract/evals.ts'
 import type { Agreement } from '../../../domain/golden-question.ts'
 import type { Queryable } from '../../db/database.ts'
-import {
-  exportQuestions,
-  getQuestion,
-  importQuestions,
-  listQuestions,
-  saveQuestion,
-  setAside,
-} from './questions.ts'
+import { importQuestions } from './questions.ts'
 import {
   planArea,
-  queueAreaRun,
   resumeRun,
   runColumns,
   type EvalDeps,
   type RunRow,
   type Scorecard,
 } from './runs.ts'
-import { createRetrievalService } from './retrieval.ts'
 
 type RunDetail = z.infer<typeof runDetailSchema>
 
@@ -90,7 +81,7 @@ async function maintains(tx: Queryable, area: string | null) {
  * are. Returns the ids among `ids` the reader may not see: held-out, outside the areas they
  * maintain.
  */
-export async function hiddenQuestions(tx: Queryable, ids: readonly string[]): Promise<Set<string>> {
+async function hiddenQuestions(tx: Queryable, ids: readonly string[]): Promise<Set<string>> {
   if (!ids.length) return new Set()
   const rows = await tx.query<{ id: string }>(
     `select id from golden_questions where id=any($1) and split='held_out'
@@ -99,7 +90,7 @@ export async function hiddenQuestions(tx: Queryable, ids: readonly string[]): Pr
   )
   return new Set(rows.map((r) => r.id))
 }
-export const heldOutLabel = 'held-out'
+const heldOutLabel = 'held-out'
 type PublicScorecard = Omit<Scorecard, 'layers' | 'failedChecks' | 'agreement'> & {
   layers: NonNullable<Scorecard['layers']> | null
   failedChecks: NonNullable<Scorecard['failedChecks']> | null
@@ -156,27 +147,8 @@ export function createEvalsService(
   }
   return {
     questions: {
-      list: (filter: Parameters<typeof listQuestions>[1]) => listQuestions(tx, filter),
-      get: (id: string) => getQuestion(tx, id),
-      save(input: {
-        id: string
-        revision?: number | undefined
-        question: Parameters<typeof saveQuestion>[1]
-      }) {
-        if (input.question.id !== input.id)
-          throw new ORPCError('BAD_REQUEST', {
-            message:
-              "This test question doesn't match the one you opened. Reload the page, then try again.",
-          })
-        return saveQuestion(tx, input.question, input.revision ?? null)
-      },
-      setAside: (input: { id: string; revision: number; reason: string | null }) =>
-        setAside(tx, input.id, input.revision, input.reason),
       import: (input: { content: string; dryRun: boolean }) =>
         importQuestions(tx, input.content, input.dryRun),
-      async export(area: string | undefined) {
-        return { content: await exportQuestions(tx, area) }
-      },
     },
     runs: {
       async list(filter: {
@@ -265,22 +237,6 @@ export function createEvalsService(
           modelId: plan?.models.answer.id ?? deps.port.choose('eval_answer').id,
         }
       },
-      /**
-       * A full run of an area on the live edition, or a links run (FR-523), started by an owner
-       * or an administrator.
-       */
-      async start(area: string, kind: 'full' | 'links' = 'full') {
-        if (!(await maintains(tx, area)))
-          throw new ORPCError('FORBIDDEN', {
-            message: 'Only the owners of the domain and admins can start its test runs.',
-          })
-        const run = await queueAreaRun(tx, deps, area, kind, true)
-        if (!run)
-          throw new ORPCError('PRECONDITION_FAILED', {
-            message: "Nothing is shared with agents yet, so test runs can't start.",
-          })
-        return publicRun(await loadRun(run.id))
-      },
       /** FR-516: an administrator approves a run estimated above the budget. */
       async approve(id: string) {
         const run = await loadRun(id, true)
@@ -343,72 +299,6 @@ export function createEvalsService(
         await resumeRun(tx, id)
         return publicRun(await loadRun(id))
       },
-    },
-    /** FR-519: an owner or deputy of the question's area, or an administrator, reads a transcript. */
-    async transcript(cellId: string) {
-      const [row] = await tx.query<{
-        cellId: string
-        runId: string
-        questionId: string
-        revision: number
-        wording: number
-        arm: 'baseline' | 'candidate'
-        trial: number
-        passed: boolean | null
-        refused: boolean
-        scores: Record<string, unknown> | null
-        messages: unknown[]
-        toolCalls: unknown[]
-      }>(
-        `select c.id::text as "cellId",c.run_id::text as "runId",c.question_id as "questionId",
-                c.question_revision as revision,c.wording::int as wording,c.arm::text as arm,c.trial::int as trial,
-                c.passed,c.refused,c.scores,t.messages,t.tool_calls as "toolCalls"
-           from eval_cells c join eval_transcripts t on t.cell_id=coalesce(c.reused_from,c.id)
-          where c.id=$1 and (cl_is_admin_now() or cl_is_owner_now(
-                  (select q.area_id from golden_questions q where q.id=c.question_id)))`,
-        [cellId],
-      )
-      if (!row)
-        throw new ORPCError('NOT_FOUND', {
-          message: "We couldn't find this transcript, or you can't see it.",
-        })
-      const [body] = await tx.query<{ text: string }>(
-        `select body->'wordings'->$3::int->>'text' as text from golden_question_revisions
-          where question_id=$1 and revision=$2`,
-        [row.questionId, row.revision, row.wording],
-      )
-      const { revision: _r, ...rest } = row
-      return { ...rest, wording: body?.text ?? '', scores: row.scores ?? {} }
-    },
-    retrieval: createRetrievalService(tx),
-    async scorecard(area: string) {
-      if (!(await maintains(tx, area)))
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Only the owners of the domain and admins can see its test results.',
-        })
-      const [row] = await tx.query<
-        RunRow & { test_set_digest: string; tool_schema_digest: string }
-      >(
-        `select ${columns} from eval_runs where area_id=$1 and kind='scheduled' and state='finished'
-          order by finished_at desc limit 1`,
-        [area],
-      )
-      const [baseline] = await tx.query<{ run: string; at: string }>(
-        'select run_id::text as run,set_at::text as at from eval_baselines where area_id=$1 order by set_at desc limit 1',
-        [area],
-      )
-      const card = row?.summary.result?.scorecard ?? null
-      const hidden = await hiddenQuestions(tx, [
-        ...(card?.failing ?? []),
-        ...(card?.regressions ?? []),
-      ])
-      return {
-        area,
-        run: row ? publicRun(row) : null,
-        scorecard: redactCard(card, hidden),
-        baselineRun: baseline?.run ?? null,
-        baselineSetAt: baseline?.at ?? null,
-      }
     },
   }
 }

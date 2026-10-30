@@ -15,8 +15,8 @@ import { idleJobs } from './idle-jobs.ts'
 
 /*
   The API's HTTP behaviour that needs no database: sign-in, input validation, typed errors,
-  output validation and the generated files. tests/integration/api.test.ts runs the same
-  operations against PostgreSQL.
+  output validation and the generated files. The integration tests run the operations against
+  PostgreSQL.
 */
 
 const readJson = async (path: string): Promise<unknown> =>
@@ -145,12 +145,12 @@ describe('the API over HTTP', () => {
     const { instance } = app()
     const ok = await instance.inject({
       method: 'GET',
-      url: '/api/v1/items?limit=5&offset=2&kind=guide&mentions=metric:orders',
+      url: '/api/v1/proposals?limit=5&offset=2&state=draft&own=true',
     })
     expect(ok.statusCode).toBe(200)
     expect(ok.json()).toEqual({ rows: [], total: 0, limit: 5, offset: 2 })
-    for (const query of ['limit=0', 'limit=1001', 'offset=-1', 'kind=memo', 'mentions=group:x']) {
-      const response = await instance.inject({ method: 'GET', url: `/api/v1/items?${query}` })
+    for (const query of ['limit=0', 'limit=101', 'offset=-1', 'state=memo', 'own=maybe']) {
+      const response = await instance.inject({ method: 'GET', url: `/api/v1/proposals?${query}` })
       expect(response.statusCode, query).toBe(400)
       expect(response.json(), query).toMatchObject({
         code: 'BAD_REQUEST',
@@ -161,7 +161,7 @@ describe('the API over HTTP', () => {
 
   it('answers NOT_FOUND for an unknown item and an unknown operation', async () => {
     const { instance } = app()
-    const item = await instance.inject({ method: 'GET', url: '/api/v1/items/itm_missing0' })
+    const item = await instance.inject({ method: 'GET', url: '/api/v1/items/itm_missing0/page' })
     expect(item.statusCode).toBe(404)
     expect(item.json()).toMatchObject({
       code: 'NOT_FOUND',
@@ -174,21 +174,23 @@ describe('the API over HTTP', () => {
   })
 
   it('refuses to send a reply the contract does not allow, and logs it without details', async () => {
-    const { instance, lines } = app({ rows: [{ doc: { id: 'itm_broken01', title: '' } }] })
-    const response = await instance.inject({ method: 'GET', url: '/api/v1/items/itm_broken01' })
+    const { instance, lines } = app({
+      rows: [{ id: 'area_broken01', name: 'Broken', summary: 42 }],
+    })
+    const response = await instance.inject({ method: 'GET', url: '/api/v1/areas' })
     expect(response.statusCode).toBe(500)
     expect(response.json()).toMatchObject({ message: refusals.failed })
-    expect(response.body).not.toContain('itm_broken01')
+    expect(response.body).not.toContain('area_broken01')
     expect(lines.some((line) => line.includes('API operation failed'))).toBe(true)
     // The log names the field that broke the contract, never its value.
     const fault = lines.find((line) => line.includes('API answer broke the contract'))
     expect(fault).toBeDefined()
     expect((JSON.parse(fault!) as { faults: unknown[] }).faults).toContainEqual({
-      path: 'title',
-      code: 'too_small',
+      path: '*.summary',
+      code: 'invalid_type',
       count: 1,
     })
-    expect(fault).not.toContain('itm_broken01')
+    expect(fault).not.toContain('area_broken01')
   })
 
   it('names the contract it speaks on every answer, refusals too', async () => {
@@ -207,29 +209,21 @@ describe('the API over HTTP', () => {
     expect(document.openapi).toMatch(/^3\./)
     expect(Object.keys(document.paths).sort()).toEqual([
       '/access-keys',
-      '/activity',
       '/agent-connections',
-      '/agent-connections/people/{personId}/disconnect',
       '/agent-connections/{id}/disconnect',
       '/alerts/raised',
       '/alerts/rules',
       '/alerts/rules/{rule}',
       '/alerts/rules/{rule}/mute',
       '/archived-areas',
-      '/archived-areas/{id}/restore',
       '/areas',
-      '/areas/{areaId}/dashboard',
       '/areas/{areaId}/owners',
-      '/areas/{id}',
       '/areas/{id}/delete',
       '/areas/{id}/description',
-      '/areas/{id}/removal',
       '/ask/asked',
       '/ask/lookup',
       '/assignments/grant',
       '/assignments/revoke',
-      '/assistant/chat',
-      '/assistant/ratings',
       '/audit',
       '/audit/export',
       '/audit/verify',
@@ -238,13 +232,7 @@ describe('the API over HTTP', () => {
       '/auth/session',
       '/auth/sign-in',
       '/auth/sign-out',
-      '/bin',
-      '/bin/preview',
-      '/bin/rescue-preview',
-      '/bin/restore',
-      '/bin/{id}',
       '/catalogue',
-      '/catalogue/{kind}/{id}',
       '/clients',
       '/clients/{label}',
       '/comments',
@@ -261,79 +249,38 @@ describe('the API over HTTP', () => {
       '/context/changes',
       '/context/deleted',
       '/decisions/undo',
-      '/definitions/coverage',
       '/definitions/related',
       '/drafts/from-text',
       '/editions',
-      '/editions/compare',
-      '/editions/compare/items/{id}',
-      '/editions/feed',
-      '/editions/{label}/diff',
       '/editions/{label}/export',
       '/editions/{label}/rollback',
       '/editions/{label}/rollback-preview',
-      '/engine/reach',
-      '/evals/areas/{id}/estimate',
-      '/evals/areas/{id}/link-runs',
-      '/evals/areas/{id}/runs',
-      '/evals/areas/{id}/scorecard',
-      '/evals/cells/{id}/transcript',
-      '/evals/export',
       '/evals/import',
-      '/evals/questions',
-      '/evals/questions/{id}',
-      '/evals/questions/{id}/set-aside',
-      '/evals/retrieval',
-      '/evals/retrieval/editions/{label}',
-      '/evals/retrieval/trend',
       '/evals/runs',
       '/evals/runs/{id}',
       '/evals/runs/{id}/approve',
       '/evals/runs/{id}/cancel',
       '/evals/runs/{id}/resume',
-      '/events',
       '/figures',
       '/figures/read',
       '/figures/{id}',
-      '/gaps',
-      '/gaps/reports',
       '/gaps/{id}',
-      '/gaps/{id}/draft',
-      '/gaps/{id}/notes',
-      '/gaps/{id}/scope-draft',
-      '/gaps/{id}/status',
-      '/gaps/{id}/tests',
-      '/gaps/{id}/tests/{question}/unlink',
-      '/grants/apply',
       '/imports',
-      '/inbox',
-      '/inbox/archive',
       '/inbox/cards/decide',
       '/inbox/cards/read',
       '/inbox/feed',
-      '/inbox/read',
-      '/inbox/read-all',
       '/invites',
       '/invites/lookup',
       '/invites/{id}/resend',
       '/invites/{id}/revoke',
-      '/items',
       '/items/bulk',
-      '/items/bulk/plan',
       '/items/publish',
-      '/items/{id}',
-      '/items/{id}/history',
-      '/items/{id}/links',
       '/items/{id}/page',
       '/items/{id}/read',
-      '/items/{id}/recheck',
       '/items/{id}/related',
       '/items/{id}/restore-draft',
-      '/items/{id}/retire',
       '/items/{id}/retire-proposals',
       '/library',
-      '/library/freshness',
-      '/library/reviews',
       '/me',
       '/members',
       '/members/{personId}/activity',
@@ -349,51 +296,20 @@ describe('the API over HTTP', () => {
       '/operations',
       '/operations/jobs/{job}/run',
       '/people',
-      '/people/search',
-      '/people/{id}/roles',
       '/proposals',
       '/proposals/{id}',
-      '/proposals/{id}/checks',
-      '/proposals/{id}/claim',
-      '/proposals/{id}/comments',
-      '/proposals/{id}/decisions',
-      '/proposals/{id}/discard',
-      '/proposals/{id}/draft',
-      '/proposals/{id}/events',
-      '/proposals/{id}/hand-over',
-      '/proposals/{id}/overlap',
-      '/proposals/{id}/preview',
-      '/proposals/{id}/review',
-      '/proposals/{id}/review-edits',
       '/proposals/{id}/submit',
-      '/proposals/{id}/tests',
-      '/proposals/{id}/tests/{question}/detach',
       '/proposals/{id}/withdraw',
-      '/quality/apps',
-      '/quality/feedback',
-      '/quality/fix-next',
-      '/quality/history',
-      '/quality/questions/{question}/compare',
-      '/quality/questions/{question}/history',
-      '/quality/ratings',
-      '/quality/runs/{id}/compare',
-      '/quality/untested',
-      '/quality/upkeep',
       '/reactions/toggle',
       '/reports',
       '/reports/mine',
-      '/review/assignments',
-      '/review/decisions',
-      '/review/decisions/plan',
       '/review/publish-read',
-      '/review/queue',
       '/review/sheets',
       '/review/{id}/close',
       '/review/{id}/publish',
       '/review/{id}/read',
       '/review/{id}/return',
       '/review/{id}/sheet',
-      '/roles',
       '/roles/grant',
       '/roles/revoke',
       '/saved-questions',
@@ -406,11 +322,8 @@ describe('the API over HTTP', () => {
       '/serving/stops',
       '/settings',
       '/settings/{key}',
-      '/settings/{key}/history',
       '/setup',
       '/sources',
-      '/sources/flags',
-      '/sources/stale-links',
       '/sources/test',
       '/sources/types',
       '/sources/{id}',
@@ -425,20 +338,9 @@ describe('the API over HTTP', () => {
       '/terms/restore',
       '/terms/{id}',
       '/terms/{id}/history',
-      '/tools',
       '/tools/{tool}',
-      '/topics/counts',
-      '/topics/weekly',
-      '/traffic',
-      '/try-it',
       '/try-it/read',
       '/vocabulary',
-      '/vocabulary/batches',
-      '/vocabulary/batches/{batchId}/decisions',
-      '/vocabulary/candidates',
-      '/vocabulary/proposals',
-      '/vocabulary/search',
-      '/vocabulary/terms',
       '/workspace',
     ])
   })

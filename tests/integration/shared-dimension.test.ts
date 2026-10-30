@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
-import type { ReviewProposal } from '../../src/contract/review.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -121,14 +120,9 @@ async function accepted(extra: Draft): Promise<string> {
       revision: created.revision,
     }),
   )
-  const review = ok<{ proposal: ReviewProposal }>(
-    await call('GET', `/proposals/${submitted.id}/review`, 'owner'),
-  )
   ok(
-    await call('POST', `/proposals/${submitted.id}/decisions`, 'owner', {
-      revision: review.proposal.revision,
-      outcome: 'accept',
-      reason: 'Reviewed against the evidence',
+    await call('POST', `/review/${submitted.id}/publish`, 'owner', {
+      revision: submitted.revision,
     }),
   )
   return submitted.itemId!

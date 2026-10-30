@@ -573,7 +573,7 @@ describe('what a model reads (FR-346)', () => {
   const machine = ['tool_schema_digest', 'overlay', 'ttlMs', 'cacheScope']
   it('keeps what serves a cache or an audit in _meta, out of the text and the structured result', async () => {
     const s = setup()
-    // domain_overview and what_changed read owners, gaps and editions beside the edition.
+    // find_facts reads what a domain's source has beside the edition.
     const execute = createToolService(
       { bundle: () => Promise.resolve(s.data), policy: () => Promise.reject(new Error('unused')) },
       s.store,
@@ -593,9 +593,6 @@ describe('what a model reads (FR-346)', () => {
       ['search_facts', { query: 'Norway' }, machine],
       ['read_item', { id: 'itm_norway01' }, machine],
       ['get_related', { id: 'metric:orders' }, machine],
-      ['improve_question', { question }, ['tool_schema_digest', 'overlay']],
-      ['domain_overview', { domain: 'Finance' }, ['tool_schema_digest', 'overlay']],
-      ['what_changed', {}, ['tool_schema_digest', 'overlay']],
     ]
     for (const [name, input, inMeta] of calls) {
       const reply = await execute(name, input, principal, 100000, (r) => s.records.push(r))
@@ -1121,17 +1118,11 @@ describe('a question without dates', () => {
     expect(unscoped).not.toHaveProperty('assumed_date')
   })
 
-  it('reports a gap for today, and still coaches a question to name its dates', async () => {
+  it('reports a gap for today', async () => {
     const s = setup()
     const gap = await s.call('report_gap', { question: 'Orders Spain' })
     expect(gap.structuredContent).toMatchObject({ recorded: true, assumed_date: assumed })
     expect(s.gaps).toHaveLength(1)
-    const coached = await s.call('improve_question', { question: 'Orders Norway' })
-    expect(coached.structuredContent).toMatchObject({
-      status: 'need_more_detail',
-      options: [{ field: 'dates' }],
-    })
-    expect(coached.structuredContent).not.toHaveProperty('assumed_date')
   })
 })
 

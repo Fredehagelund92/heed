@@ -19,9 +19,6 @@ export {
   type Prices,
   type ProviderAdapter,
   type ProviderEntry,
-  type SearchModel,
-  type WebSearchEntry,
-  type WebSearchRoute,
 } from './types.ts'
 export { startCreditsCheck, type CreditsCheck } from './credits.ts'
 export { ModelConfigError, ModelVendorError } from './errors.ts'
@@ -37,16 +34,12 @@ export {
   type ModelSettings,
 } from './settings.ts'
 export { gradingTag, mentions, type GradingInput } from './mock.ts'
-export { streamResult } from './assistant-mock.ts'
 export { scriptedWordsModel } from './words-mock.ts'
 export {
   formatUsd,
   readSpendLimits,
-  recordModelSpend,
   spendCapReached,
   spendLimitReached,
-  webSearchesLeft,
-  webSearchesPerDay,
   type SpendEntry,
   type SpendFeature,
   type SpendLimitKind,

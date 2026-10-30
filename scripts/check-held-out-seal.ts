@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url'
   4. the visible golden set holds a held-out case;
   5. code outside the seal's own files opens the sealed file or reads its key: it names the file,
      the key's variables, the age library or a function that hands out the cases. A runner gets
-     counts from heldOutL1, heldOutArea or heldOutAssistant (db/seed/held-out-runs.ts), which run
-     the cases silenced and print nothing but counts.
+     counts from heldOutL1 or heldOutArea (db/seed/held-out-runs.ts), which run the cases silenced
+     and print nothing but counts.
 
   No cases are sealed at present: the sealed file and its cases were removed before the public
   repository was cut, and the key holder seals fresh ones with a new key. While the file is absent,
@@ -120,7 +120,7 @@ export function sealProblems(input: SealInput): string[] {
     const named = opening.filter((word) => code.some((line) => line.includes(word)))
     if (named.length)
       problems.push(
-        `${path} opens the sealed held-out cases or reads their key (${named.join(', ')}). Only the seal's own files may; a runner gets counts from heldOutL1, heldOutArea or heldOutAssistant.`,
+        `${path} opens the sealed held-out cases or reads their key (${named.join(', ')}). Only the seal's own files may; a runner gets counts from heldOutL1 or heldOutArea.`,
       )
   }
   return problems

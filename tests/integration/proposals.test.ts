@@ -12,11 +12,9 @@ import { databaseFromPool } from '../../src/server/db/database.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { createProposalsService } from '../../src/server/modules/proposals/index.ts'
-import type {
-  PreviewReply,
-  ProposalRecord,
-  ProposalListResult,
-} from '../../src/contract/proposals.ts'
+import { ORPCError } from '@orpc/client'
+import type { ItemPage } from '../../src/contract/context.ts'
+import type { ProposalRecord, ProposalListResult } from '../../src/contract/proposals.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { itemVersionDigests } from '../../src/domain/item-version.ts'
 import { formatDraft } from '../../src/domain/draft.ts'
@@ -26,11 +24,12 @@ import { foundation, people, version, accept, openEdition } from './fixtures.ts'
 
 const { client, url } = testDatabase()
 const database = apiDatabase(url)
+const clock = systemClock('2026-10-08')
 const app = buildApp({
   database,
   logger: createLogger({ level: 'silent' }),
   jobs: idleJobs(),
-  clock: systemClock('2026-10-08'),
+  clock,
   devPeople: Object.keys(people).map((name) => ({
     name,
     email: `${name}@example.test`,
@@ -132,15 +131,27 @@ async function create(extra: Draft = {}, who = 'author') {
 }
 const submit = (p: ProposalRecord, key?: string) =>
   write(`/proposals/${p.id}/submit`, { revision: p.revision }, 'author', key)
-const save = (p: ProposalRecord, d: Draft) =>
-  app.inject({
-    method: 'PUT',
-    url: `/api/v1/proposals/${p.id}/draft`,
-    headers: headers.author,
-    payload: { revision: p.revision, draft: d },
-  })
+/**
+ * Saves the author's draft through the proposals service, as the editor does when it finishes a
+ * draft: the API has no save of its own. Answers as the API would, with the error's status.
+ */
+async function save(p: ProposalRecord, d: Draft) {
+  try {
+    const saved = await database.transaction(people.author, (tx) =>
+      createProposalsService(tx, clock, people.author).save(p.id, p.revision, d),
+    )
+    return { statusCode: 200, body: '', json: <T = ProposalRecord>() => saved as T }
+  } catch (error) {
+    if (!(error instanceof ORPCError)) throw error
+    const answer: unknown = error.toJSON()
+    return { statusCode: error.status, body: error.message, json: <T = unknown>() => answer as T }
+  }
+}
+/** The live item as its page in Heed reads it. */
+const livePage = (id: string) =>
+  app.inject({ url: `/api/v1/items/${id}/page`, headers: headers.author })
 
-it('lists and reads retirement and vocabulary proposals with permission-filtered totals', async () => {
+it('lists and reads retirement proposals with permission-filtered totals', async () => {
   const proposed = await write(`/items/${acceptedItem}/retire-proposals`, {
     reason: 'The note no longer applies',
   })
@@ -149,39 +160,13 @@ it('lists and reads retirement and vocabulary proposals with permission-filtered
   const response = await app.inject({ url: `/api/v1/proposals/${id}`, headers: headers.author })
   expect(response.statusCode, response.body).toBe(200)
   expect(response.json()).toMatchObject({ action: 'retire', reason: 'The note no longer applies' })
-  const term = {
-    key: 'dim:proposal_list',
-    kind: 'dimension',
-    parentKey: null,
-    name: 'Proposal list dimension',
-    aliases: ['List dimension'],
-    areaId: null,
-    definitionRefs: [],
-  }
-  const vocabulary = await write('/vocabulary/proposals', term)
-  expect(vocabulary.statusCode, vocabulary.body).toBe(200)
-  const vocabularyId = vocabulary.json<{ id: string }>().id
-  const vocabularyRead = await app.inject({
-    url: `/api/v1/proposals/${vocabularyId}`,
-    headers: headers.author,
-  })
-  expect(vocabularyRead.statusCode, vocabularyRead.body).toBe(200)
-  expect(vocabularyRead.json()).toMatchObject({
-    subject: 'vocabulary',
-    action: 'create',
-    areaId: null,
-    title: term.name,
-    draft: {},
-    vocabulary: term,
-  })
-  expect(vocabularyRead.json<ProposalRecord>().vocabulary).not.toHaveProperty('base')
   const list = async (query: string, who = 'author') => {
     const result = await app.inject({ url: `/api/v1/proposals?${query}`, headers: headers[who] })
     expect(result.statusCode, result.body).toBe(200)
     return result.json<ProposalListResult>()
   }
   const all = await list('own=true&limit=100')
-  expect(all.rows.map((p) => p.id)).toEqual(expect.arrayContaining([id, vocabularyId]))
+  expect(all.rows.map((p) => p.id)).toContain(id)
   expect(all.total).toBe(all.rows.length)
   const page = await list('own=true&limit=1&offset=1')
   expect(page).toEqual({ rows: all.rows.slice(1, 2), total: all.total, limit: 1, offset: 1 })
@@ -194,31 +179,17 @@ it('lists and reads retirement and vocabulary proposals with permission-filtered
   expect(await list('own=true&state=rejected')).toMatchObject({ rows: [], total: 0 })
   const finance = await list('own=true&areaId=finance')
   expect(finance.rows.map((p) => p.id)).toContain(id)
-  expect(finance.rows.map((p) => p.id)).not.toContain(vocabularyId)
   expect(finance.total).toBe(finance.rows.length)
-  for (const proposalId of [id, vocabularyId]) {
-    expect(
-      (await app.inject({ url: `/api/v1/proposals/${proposalId}`, headers: headers.stranger }))
-        .statusCode,
-    ).toBe(404)
-    const timeline = await app.inject({
-      url: `/api/v1/proposals/${proposalId}/events`,
-      headers: headers.author,
-    })
-    expect(timeline.statusCode, timeline.body).toBe(200)
-    expect(
-      (await save({ ...response.json<ProposalRecord>(), id: proposalId }, draft())).statusCode,
-    ).toBe(404)
-  }
+  expect(
+    (await app.inject({ url: `/api/v1/proposals/${id}`, headers: headers.stranger })).statusCode,
+  ).toBe(404)
+  // A retirement has no draft to save.
+  expect((await save(response.json<ProposalRecord>(), draft())).statusCode).toBe(404)
   const stranger = await list('limit=100', 'stranger')
-  for (const proposalId of [id, vocabularyId])
-    expect(stranger.rows.map((p) => p.id)).not.toContain(proposalId)
+  expect(stranger.rows.map((p) => p.id)).not.toContain(id)
   expect(stranger.total).toBe(stranger.rows.length)
-  expect((await list('limit=100', 'admin')).rows.map((p) => p.id)).toEqual(
-    expect.arrayContaining([id, vocabularyId]),
-  )
+  expect((await list('limit=100', 'admin')).rows.map((p) => p.id)).toContain(id)
   expect((await list('limit=100', 'owner')).rows.map((p) => p.id)).toContain(id)
-  expect((await list('limit=100', 'owner')).rows.map((p) => p.id)).not.toContain(vocabularyId)
 })
 
 describe('proposal write path over authenticated HTTP', () => {
@@ -263,10 +234,7 @@ describe('proposal write path over authenticated HTTP', () => {
     expect(response.statusCode, response.body).toBe(200)
     const submitted = response.json<ProposalRecord>()
     expect(submitted.state).toBe('submitted')
-    expect(
-      (await app.inject({ url: `/api/v1/items/${submitted.itemId}`, headers: headers.author }))
-        .statusCode,
-    ).toBe(404)
+    expect((await livePage(submitted.itemId!)).statusCode).toBe(404)
     const stored = (
       await client.query<{ summary: string; body: string; content_digest: Buffer }>(
         'select * from item_versions where id=$1',
@@ -344,52 +312,12 @@ describe('proposal write path over authenticated HTTP', () => {
     const competing = await Promise.all([submit(q), submit(q)])
     expect(competing.map((r) => r.statusCode).sort()).toEqual([200, 409])
   })
-  it('enforces proposer/owner permissions, claim handover, comments and withdrawals', async () => {
-    let p = (await submit(await create())).json<ProposalRecord>()
-    for (const path of ['', '/events', '/overlap'])
-      expect(
-        (await app.inject({ url: `/api/v1/proposals/${p.id}${path}`, headers: headers.stranger }))
-          .statusCode,
-      ).toBe(404)
-    expect((await write(`/proposals/${p.id}/claim`, { revision: p.revision })).statusCode).toBe(403)
+  it('enforces proposer/owner permissions and withdrawals', async () => {
+    const p = (await submit(await create())).json<ProposalRecord>()
     expect(
-      (await write(`/proposals/${p.id}/claim`, { revision: p.revision }, 'admin')).statusCode,
-    ).toBe(403)
-    p = (
-      await write(`/proposals/${p.id}/claim`, { revision: p.revision }, 'owner')
-    ).json<ProposalRecord>()
-    expect(p).toMatchObject({ state: 'in_review', claimedBy: people.owner })
-    await client.query(
-      "insert into area_assignments(area_id,person_id,role) values('finance',$1,'owner')",
-      [people.approver],
-    )
-    const handed = await write(
-      `/proposals/${p.id}/hand-over`,
-      { revision: p.revision, personId: people.approver },
-      'owner',
-    )
-    expect(handed.statusCode, handed.body).toBe(200)
-    p = handed.json<ProposalRecord>()
-    const comment = await write(
-      `/proposals/${p.id}/comments`,
-      { revision: p.revision, text: 'Please check the dates' },
-      'approver',
-    )
-    expect(comment.statusCode, comment.body).toBe(200)
-    p = comment.json<ProposalRecord>()
-    const events = await app.inject({
-      url: `/api/v1/proposals/${p.id}/events`,
-      headers: headers.author,
-    })
-    expect(events.json<{ kind: string }[]>().map((e) => e.kind)).toContain('commented')
-    expect(
-      (
-        await write(`/proposals/${p.id}/comments`, {
-          revision: p.revision,
-          text: '@[Finance](area:finance)',
-        })
-      ).statusCode,
-    ).toBe(422)
+      (await app.inject({ url: `/api/v1/proposals/${p.id}`, headers: headers.stranger }))
+        .statusCode,
+    ).toBe(404)
     expect(
       (
         await write(
@@ -430,96 +358,7 @@ describe('proposal write path over authenticated HTTP', () => {
       ).rows[0]!.item_version_id,
     ).toBeNull()
   })
-  it('discards only a draft, for its author or an administrator, once, with an audit entry', async () => {
-    const p = await create({ title: 'Abandoned draft' })
-    const read = (path = '', who = 'author') =>
-      app.inject({ url: `/api/v1/proposals/${p.id}${path}`, headers: headers[who] })
-    const listed = async (query: string) =>
-      (
-        await app.inject({ url: `/api/v1/proposals?${query}`, headers: headers.author })
-      ).json<ProposalListResult>().rows
-    expect((await listed('own=true')).map((row) => row.id)).toContain(p.id)
-    const discard = (who = 'author', key?: string, revision = p.revision) =>
-      write(`/proposals/${p.id}/discard`, { revision }, who, key)
-    expect((await discard('stranger')).statusCode).toBe(404)
-    expect((await discard('owner')).statusCode).toBe(403)
-    expect((await discard('author', undefined, p.revision + 1)).statusCode).toBe(409)
-    const key = randomUUID()
-    const first = await discard('author', key)
-    expect(first.statusCode, first.body).toBe(200)
-    expect(first.json()).toEqual({ id: p.id, discardedAt: expect.any(String) as unknown })
-    expect((await discard('author', key)).json()).toEqual(first.json())
-    expect((await discard()).statusCode).toBe(404)
-    for (const path of ['', '/events', '/overlap', '/review'])
-      expect((await read(path)).statusCode).toBe(404)
-    expect((await save(p, draft())).statusCode).toBe(404)
-    expect((await submit(p)).statusCode).toBe(404)
-    expect((await listed('own=true')).map((row) => row.id)).not.toContain(p.id)
-    expect((await listed('state=draft')).map((row) => row.id)).not.toContain(p.id)
-    expect(
-      (
-        await client.query(
-          "select actor_id::text as actor from audit_log where action='proposal.discarded' and subject_id=$1",
-          [p.id],
-        )
-      ).rows,
-    ).toEqual([{ actor: people.author }])
-    expect(
-      (
-        await client.query(
-          "select topic from outbox_events where aggregate_id=$1 and topic='proposal.discarded'",
-          [p.id],
-        )
-      ).rows,
-    ).toHaveLength(1)
-    expect((await client.query('select * from audit_verify()')).rows).toEqual([])
-    await expect(
-      client.query("update proposals set draft='{}' where id=$1", [p.id]),
-    ).rejects.toThrow(/was discarded/)
-
-    const other = await create({ title: 'Left by its author' })
-    const byAdmin = await write(
-      `/proposals/${other.id}/discard`,
-      { revision: other.revision },
-      'admin',
-    )
-    expect(byAdmin.statusCode, byAdmin.body).toBe(200)
-    expect(
-      (
-        await client.query(
-          "select actor_id::text as actor from audit_log where action='proposal.discarded' and subject_id=$1",
-          [other.id],
-        )
-      ).rows,
-    ).toEqual([{ actor: people.admin }])
-
-    const revenue = { scope: { metrics: ['metric:revenue'], dimensions: [], dimensionValues: [] } }
-    const theirs = await create(revenue, 'stranger')
-    const mine = await create(revenue)
-    const overlap = async () =>
-      (
-        await app.inject({ url: `/api/v1/proposals/${mine.id}/overlap`, headers: headers.author })
-      ).json<{ otherProposalExists: boolean }>().otherProposalExists
-    expect(await overlap()).toBe(true)
-    const gone = await write(
-      `/proposals/${theirs.id}/discard`,
-      { revision: theirs.revision },
-      'stranger',
-    )
-    expect(gone.statusCode, gone.body).toBe(200)
-    expect(await overlap()).toBe(false)
-
-    const sent = (await submit(await create())).json<ProposalRecord>()
-    const refused = await write(`/proposals/${sent.id}/discard`, { revision: sent.revision })
-    expect(refused.statusCode).toBe(409)
-    expect(refused.json()).toMatchObject({
-      message: 'Only a draft can be discarded. To take back a proposal you sent, withdraw it.',
-    })
-    await expect(
-      client.query('update proposals set discarded_at=now() where id=$1', [sent.id]),
-    ).rejects.toThrow(/proposals_discarded_draft/)
-  })
-  it('names sensitive patterns and prevents storage, including comments', async () => {
+  it('names sensitive patterns and prevents storage', async () => {
     const response = await write('/proposals', {
       draft: draft({ summary: 'Contact someone@example.com' }),
     })
@@ -559,68 +398,6 @@ describe('proposal write path over authenticated HTTP', () => {
     } finally {
       await client.query("update definitions set area_hint=null where ref='demo:orders'")
     }
-  })
-  it('previews through the serving formatter with links, no writes, and no public visibility', async () => {
-    const p = await create({ summaryMarkup: 'Look at @[Orders](metric:orders)' })
-    const input = {
-      question: 'Orders in August',
-      metrics: ['metric:orders'],
-      window: { from: '2026-08-04', to: '2026-08-05' },
-    }
-    const before = (await client.query('select count(*) from deliveries')).rows
-    const preview = await write(`/proposals/${p.id}/preview`, input)
-    expect(preview.statusCode, preview.body).toBe(200)
-    expect(preview.json()).toMatchObject({
-      proposalId: p.id,
-      result: {
-        status: 'matched',
-        items: expect.arrayContaining([
-          expect.objectContaining({
-            summary: 'Look at Orders',
-            links: expect.arrayContaining([
-              expect.objectContaining({
-                rel: 'mentions',
-                target: expect.objectContaining({ id: 'metric:orders' }) as unknown,
-              }),
-            ]) as unknown,
-          }),
-        ]) as unknown,
-      },
-    })
-    // The reply is typed in the contract: the item as an agent reads it, and the check report.
-    const reply = preview.json<{ result: PreviewReply }>().result
-    expect(reply).toMatchObject({
-      edition: expect.any(String) as unknown,
-      check_report: { status: 'matched', cut: false, statements: [expect.any(String)] },
-    })
-    expect(reply.items?.find((item) => item.summary === 'Look at Orders')).toMatchObject({
-      kind: 'note',
-      claim_level: 'fact_only',
-      freshness: 'verified',
-      match: 'exact',
-      evidence: [{ url: expect.any(String) as unknown, read_on: expect.any(String) as unknown }],
-      owner: { role: expect.any(String) as unknown },
-    })
-    expect((await write(`/proposals/${p.id}/preview`, input, 'stranger')).statusCode).toBe(404)
-    expect((await client.query('select count(*) from deliveries')).rows).toEqual(before)
-  })
-  it('lists accepted overlaps and own proposals but only existence for another author', async () => {
-    const secret = await create({ title: 'Private stranger title' }, 'stranger')
-    const p = await create()
-    const response = await app.inject({
-      url: `/api/v1/proposals/${p.id}/overlap`,
-      headers: headers.author,
-    })
-    expect(response.statusCode, response.body).toBe(200)
-    expect(response.json()).toMatchObject({
-      accepted: expect.arrayContaining([
-        { id: acceptedItem, title: 'A note', kind: 'note' },
-      ]) as unknown,
-      otherProposals: [],
-      otherProposalExists: true,
-    })
-    expect(response.body).not.toContain(secret.id)
-    expect(response.body).not.toContain('Private stranger title')
   })
   it('rolls back version, children, checks, retry result and state when an outbox write fails', async () => {
     const p = await create({ summaryMarkup: '@[Orders](metric:orders)' })
@@ -707,8 +484,8 @@ it('creates concurrent changes with unique version numbers without modifying or 
     )
   ).rows
   expect(versions.map((v) => v.version_no)).toEqual([1, 2, 3])
-  const live = await app.inject({ url: `/api/v1/items/${acceptedItem}`, headers: headers.author })
-  expect(live.json()).toMatchObject({ title: 'A note', version: 1 })
+  const live = await livePage(acceptedItem)
+  expect(live.json<ItemPage>().item).toMatchObject({ title: 'A note', version: 1 })
   const self = await write('/proposals', {
     itemId: acceptedItem,
     draft: draft({ summaryMarkup: `@[Self](item:${acceptedItem})` }),
@@ -825,10 +602,10 @@ it('lists only readable proposals, paginates, and enforces sign-in and CSRF befo
   expect(
     (
       await app.inject({
-        method: 'PUT',
-        url: `/api/v1/proposals/${p.id}/draft`,
-        headers: { ...headers.author, 'x-heed-csrf': 'wrong' },
-        payload: { revision: p.revision, draft: draft() },
+        method: 'POST',
+        url: `/api/v1/proposals/${p.id}/submit`,
+        headers: { ...headers.author, 'x-heed-csrf': 'wrong', 'idempotency-key': randomUUID() },
+        payload: { revision: p.revision },
       })
     ).statusCode,
   ).toBe(403)
@@ -854,10 +631,12 @@ it('counts beyond the page limit and excludes discarded drafts from the total', 
   const second = await list(100)
   expect(second.total).toBe(first.total)
   expect(new Set([...first.rows, ...second.rows].map((p) => p.id)).size).toBe(first.total)
-  const discarded = await write(`/proposals/${first.rows[0]!.id}/discard`, {
-    revision: first.rows[0]!.revision,
-  })
-  expect(discarded.statusCode, discarded.body).toBe(200)
+  await database.transaction(people.author, (tx) =>
+    createProposalsService(tx, clock, people.author).discard(
+      first.rows[0]!.id,
+      first.rows[0]!.revision,
+    ),
+  )
   expect((await list()).total).toBe(first.total - 1)
 })
 it('keeps timestamp ordering when the local clock repeats at the end of daylight saving', async () => {
@@ -928,12 +707,7 @@ it('excludes proposals outside the validity and dimension overlap and expands me
     },
     'stranger',
   )
-  const response = await app.inject({
-    url: `/api/v1/proposals/${p.id}/overlap`,
-    headers: headers.author,
-  })
-  expect(response.statusCode, response.body).toBe(200)
-  // Other test proposals end before this one, or are open ended. Probe the pure SQL rule separately.
+  // The SQL rule the review's overlaps read (FR-109).
   const overlap = async (a: Draft, b: Draft) =>
     (
       await client.query<{ overlap: boolean }>('select cl_scopes_overlap($1,$2) as overlap', [
@@ -970,7 +744,7 @@ it('excludes proposals outside the validity and dimension overlap and expands me
     await client.query("update vocab_terms set parent_key=null where key='metric:orders'")
   }
 })
-it('honors the versioned mention limit at submit without letting mentions change matching', async () => {
+it('honors the versioned mention limit at submit', async () => {
   const p = await create({
     summaryMarkup: '@[Orders](metric:orders) and @[Finance](area:finance)',
   })
@@ -989,25 +763,9 @@ it('honors the versioned mention limit at submit without letting mentions change
     )
   }
   expect((await submit(p)).statusCode).toBe(200)
-  const other = await create({
-    scope: { metrics: ['metric:revenue'], dimensions: [], dimensionValues: [] },
-    summaryMarkup: '@[Orders](metric:orders)',
-  })
-  const preview = await write(`/proposals/${other.id}/preview`, {
-    question: 'Orders',
-    metrics: ['metric:orders'],
-    window: { from: '2026-08-04', to: '2026-08-05' },
-  })
-  expect(preview.statusCode, preview.body).toBe(200)
-  const items = preview.json<{ result: { items: { id: string }[] } }>().result.items
-  expect(items).toEqual(
-    expect.not.arrayContaining([
-      expect.objectContaining({ id: `itm_${other.id.replaceAll('-', '').slice(-16)}` }),
-    ]),
-  )
 })
 
-it('submits a scope about any market, warns that it is broad and offers it again as recent', async () => {
+it('submits a scope about any market, warns that it is broad, and overlaps every market', async () => {
   const anyMarket = {
     metrics: ['metric:orders'],
     dimensions: ['dim:market'],
@@ -1035,31 +793,9 @@ it('submits a scope about any market, warns that it is broad and offers it again
     },
     validity: { start: '2041-02-01', end: null },
   })
-  const overlap = await app.inject({
-    url: `/api/v1/proposals/${norway.id}/overlap`,
-    headers: headers.author,
-  })
-  expect(overlap.statusCode, overlap.body).toBe(200)
-  expect(
-    overlap.json<{ ownProposals: { id: string }[] }>().ownProposals.map((o) => o.id),
-  ).toContain(p.id)
-  // The picker puts the author's recent terms first, and names the chips (FR-107).
-  const search = await app.inject({
-    url: '/api/v1/vocabulary/search?q=market',
-    headers: headers.author,
-  })
-  expect(search.statusCode, search.body).toBe(200)
-  expect(search.json()).toMatchObject({
-    groups: [{ dimension: { key: 'dim:market', recent: true }, named: true }],
-  })
-  const strangers = await app.inject({
-    url: '/api/v1/vocabulary/search?q=market',
-    headers: headers.stranger,
-  })
-  expect(strangers.json()).toMatchObject({ groups: [{ dimension: { recent: false } }] })
-  const terms = await write('/vocabulary/terms', { keys: ['dim:market', 'metric:gone'] })
-  expect(terms.statusCode, terms.body).toBe(200)
-  expect(terms.json()).toEqual([
-    expect.objectContaining({ key: 'dim:market', kind: 'dimension', name: 'Market' }),
-  ])
+  const overlap = await client.query<{ overlap: boolean }>(
+    'select cl_scopes_overlap($1,$2) as overlap',
+    [JSON.stringify(norway.draft), JSON.stringify(p.draft)],
+  )
+  expect(overlap.rows[0]!.overlap).toBe(true)
 })

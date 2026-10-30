@@ -100,9 +100,9 @@ describe('the model port (plan section 3.1)', () => {
     })
     expect(same.judge.family).toBe(same.answer.family)
   })
-  it('gives the assistant its own model object and effort', () => {
+  it("gives Ask's words (the assistant role) its own model object and effort", () => {
     expect(createModelPort({ mode: 'mock' }).choose('assistant')).toMatchObject({
-      id: 'mock/scripted-assistant',
+      id: 'mock/scripted-answer',
       effort: 'high',
     })
     const port = createModelPort({ mode: 'live', env })

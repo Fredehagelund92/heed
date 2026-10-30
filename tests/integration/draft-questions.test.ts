@@ -215,7 +215,7 @@ describe('the open questions, asked in the agent of a person who can answer them
     expect(submitted.status).toBe(200)
     const owner = browser()
     await owner.signIn('owner')
-    const review = (await (await owner.api(`/proposals/${out.draft_id}/review`)).json()) as {
+    const review = (await (await owner.api(`/proposals/${out.draft_id}`)).json()) as {
       provenance: { fields: Record<string, string> }
     }
     expect(review.provenance.fields).toMatchObject({ kind: 'confirmed', evidence: 'confirmed' })

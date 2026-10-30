@@ -5,22 +5,11 @@
  * retrieval pass scores every edition without a model, and full runs follow changes outside the
  * gate.
  */
-export { judgeAnswer, UnreadableVerdict } from './answer.ts'
 export { evalJobs } from './jobs.ts'
 export { goldenL1, type GoldenCheck, type GoldenL1Result } from './golden.ts'
-export {
-  createRetrievalService,
-  deliver,
-  deliveredIds,
-  readableAreas,
-  runRetrievalPass,
-  workRetrieval,
-  type RetrievalService,
-} from './retrieval.ts'
-export { typicalJudgeCall } from './plan.ts'
+export { deliver, deliveredIds, runRetrievalPass, workRetrieval } from './retrieval.ts'
 export { queueTriggeredRuns } from './triggers.ts'
 export {
-  judgeFor,
   liveHead,
   modelsFor,
   queueAreaRun,
@@ -30,7 +19,7 @@ export {
   type RunSummary,
 } from './runs.ts'
 export { readEvalSettings } from './settings.ts'
-export { createEvalsService, heldOutLabel, hiddenQuestions, type EvalsService } from './service.ts'
+export { createEvalsService, type EvalsService } from './service.ts'
 export { CEILING_MARGIN, workEvaluations, type WorkSummary } from './worker.ts'
 export {
   estimateWithheld,

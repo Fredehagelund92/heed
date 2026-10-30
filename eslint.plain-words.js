@@ -1,5 +1,5 @@
 import { matchesGlob, relative } from 'node:path'
-import { bannedWords, wordsToChange } from './src/domain/words-v1.ts'
+import { wordsToChange } from './src/domain/words-v1.ts'
 import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
 
 /*
@@ -18,8 +18,8 @@ import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
   shares src/domain/say.ts with `next`, so tests/server/mcp/say.test.ts checks every `say` the
   tools give against the glossary instead, and the tool titles people read too.
 
-  A banned word may show where the glossary allows it (`allowedOn`): `surfaces` and `appSurfaces`
-  say which files make each place. For the earlier glossary the rule warns, and
+  A banned word may show where the glossary allows it (`allowedOn`): `appSurfaces` says which
+  files make each place of the web app. For the earlier glossary the rule warns, and
   scripts/check-plain-words.ts fails a change that adds to the count in plain-words.baseline.json.
   In the web app it is an error: its count starts at zero and stays there.
 */
@@ -31,13 +31,6 @@ export const plainWordsFiles = [
 ]
 /** Of the rest of the server, only the messages of the errors it answers with. */
 export const errorMessageFiles = ['src/server/**/*.ts']
-
-/**
- * The places a banned word of the earlier glossary may show (`allowedOn` in
- * src/domain/words-v1.ts), each with the files that make it. Their screens left with the earlier
- * front end; the help page that names one stays until the in-app assistant that reads it leaves.
- */
-export const surfaces = [{ place: 'the Editions page', files: ['docs/old-help/editions.md'] }]
 
 /** The files whose strings people read in the web app. */
 export const appWordsFiles = ['src/app/**/*.{ts,tsx}']
@@ -84,17 +77,6 @@ export function appPlacesOf(path) {
   return appSurfaces
     .filter(({ files }) => files.some((glob) => matchesGlob(path, glob)))
     .map(({ place }) => place)
-}
-
-/** The banned words a file may hold: those the glossary allows on the place the file makes. */
-export function allowedIn(path) {
-  const places = surfaces
-    .filter(({ files }) => files.some((glob) => matchesGlob(path, glob)))
-    .filter(({ except = [] }) => !except.some((glob) => matchesGlob(path, glob)))
-    .map(({ place }) => place)
-  return bannedWords
-    .filter((banned) => banned.allowedOn && places.some((p) => banned.allowedOn.includes(p)))
-    .map((banned) => banned.word)
 }
 
 /** Attributes and keys whose value is code, never words: classes, ids, addresses, kinds. */
@@ -292,7 +274,7 @@ const plainWords = {
             const places = appPlacesOf(path)
             return appWordsToChange(text, places).map((c) => ({ ...c, rule: 'appGlossary' }))
           }
-        : (text) => wordsToChange(text, allowedIn(path))
+        : (text) => wordsToChange(text, [])
     const check = (node, text, whole, isJsx) => {
       if (typeof text !== 'string' || !text.trim()) return
       if (!isJsx && (looksLikeCode(whole) || codeSample(whole))) return

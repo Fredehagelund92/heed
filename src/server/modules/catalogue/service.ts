@@ -4,17 +4,14 @@ import type {
   CatalogueDefinition,
   CatalogueSource,
   CatalogueTerm,
-  CatalogueTermDetail,
 } from '../../../contract/index.ts'
 import {
   catalogueStatus,
   definitionState,
-  modelFileAddress,
   scopeNames,
   shelfOf,
   speakingDefinition,
   termDomain,
-  type CatalogueTermKind,
 } from '../../../domain/catalogue.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -36,8 +33,6 @@ const withoutRemoved = <T extends { removed: boolean }>({ removed: _removed, ...
  */
 export interface CatalogueService {
   list(): Promise<Catalogue>
-  /** Null for an unknown term, or one whose definition the person may not see. */
-  get(kind: CatalogueTermKind, id: string): Promise<CatalogueTermDetail | null>
 }
 
 type VocabularyRow = {
@@ -53,7 +48,6 @@ type VocabularyRow = {
 }
 
 type DefinitionRow = Omit<CatalogueDefinition, 'state'> & {
-  modelFile: string | null
   visible: boolean
   missing: boolean
   changedSinceFirstRead: boolean
@@ -64,7 +58,6 @@ const iso = (column: string) =>
   `to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'en')
-const termKinds = { metric: 'metric', dimension: 'dim' } as const
 
 export function createCatalogueService(
   database: Queryable,
@@ -106,7 +99,7 @@ export function createCatalogueService(
        described as (
          select d.ref, d.connector_id as "sourceId", d.name, d.title,
                 d.description_copy as "descriptionCopy", d.value_type as "valueType",
-                d.renamed_to as "renamedTo", d.model_file as "modelFile",
+                d.renamed_to as "renamedTo",
                 (d.visible_groups is null or d.visible_groups && $1::text[]) as visible,
                 d.missing_since_snapshot is not null as missing,
                 ${iso('seen.fetched_at')} as "readAt",
@@ -181,10 +174,6 @@ export function createCatalogueService(
       ).length
     const items = data.items
 
-    const sourceOf = (sourceId: string | undefined) => {
-      const found = data.sources.find((source) => source.id === sourceId)
-      return found ? withoutRemoved(found) : null
-    }
     const toolOf = (sourceId: string) =>
       data.sources.find((source) => source.id === sourceId)?.tool ?? sourceId
 
@@ -236,7 +225,7 @@ export function createCatalogueService(
         .sort(byName)
         .flatMap((row) => term(row) ?? [])
 
-    return { today, definitions, mentionedBy, items, term, terms, sourceOf }
+    return { today, terms }
   }
 
   return {
@@ -251,49 +240,6 @@ export function createCatalogueService(
           metrics: metrics.length,
           withoutDomain: metrics.filter((metric) => metric.domain.areaId === null).length,
         },
-        today,
-      }
-    },
-
-    async get(kind, id) {
-      const data = await read()
-      const { today, definitions, mentionedBy, items, term, sourceOf } = build(data)
-      const key = `${termKinds[kind]}:${id}`
-      const row = data.vocabulary.find((candidate) => candidate.key === key)
-      const found = row && term(row)
-      if (!found) return null
-      const values =
-        kind === 'dimension'
-          ? data.vocabulary
-              .filter((value) => value.kind === 'dimension_value' && value.parentKey === key)
-              .sort(byName)
-              .map((value) => ({
-                key: value.key,
-                id: value.key.slice(value.key.indexOf('/') + 1),
-                name: value.name,
-                aliases: value.aliases,
-                items: shelfOf(items, scopeNames(value.key), today).items,
-                mentionedBy: mentionedBy.get(value.key) ?? 0,
-              }))
-          : []
-      // The model folder's address: the administrator setting for the server's Cube model, a
-      // source's own setting for one an administrator added. Null keeps the link off.
-      const stored = found.definition ? definitions.get(found.definition.ref) : undefined
-      const [setting] = stored
-        ? await database.query<{ url: string | null }>(
-            `select case when c.origin = 'workspace' then c.config->>'modelUrl'
-                when c.id = 'cube' then (select value #>> '{}' from settings_current
-                                          where key = 'sources.cube_model_url')
-              end as url
-             from connectors c where c.id = $1`,
-            [stored.sourceId],
-          )
-        : []
-      return {
-        ...found,
-        values,
-        source: sourceOf(found.definition?.sourceId),
-        modelFile: modelFileAddress(setting?.url ?? null, stored?.modelFile ?? null),
         today,
       }
     },

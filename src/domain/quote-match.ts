@@ -24,9 +24,3 @@ export function matchForm(text: string): string {
     .trim()
     .toLowerCase()
 }
-
-/** Whether every word of the quote is on the page, in its order and next to each other. */
-export function quoteOnPage(quote: string, page: string): boolean {
-  const wanted = matchForm(quote).replace(/^["']+|["']+$/g, '')
-  return wanted.length > 0 && matchForm(page).includes(wanted)
-}

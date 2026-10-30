@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import type { Catalogue } from '../../src/contract/index.ts'
+import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { ReviewProposal } from '../../src/contract/review.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import type { Database, Queryable } from '../../src/server/db/database.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
+import { openEdition } from './fixtures.ts'
 import { apiDatabase, testDatabase } from './support.ts'
 
 /*
@@ -21,11 +23,10 @@ import { apiDatabase, testDatabase } from './support.ts'
 /** Generous for a busy computer (one-minute load near 40); idle, each step takes a fraction. */
 const READ_BUDGET_MS = 5_000
 const DECIDE_BUDGET_MS = 10_000
-const BULK_BUDGET_MS = 30_000
 const METRICS = 600
 const OPEN = 21
 
-const { url } = testDatabase({ seeded: true })
+const { client, url } = testDatabase({ seeded: true })
 
 /** The statements of every transaction, in order, as the service ran them. */
 const transactions: string[][] = []
@@ -82,7 +83,48 @@ async function measured(method: 'GET' | 'POST', path: string, who: Who, payload?
   return { response, ms, statements }
 }
 
-let open: ReviewProposal[] = []
+let open: ProposalRecord[] = []
+
+/** 600 metrics in Sales, accepted by its owner and live in one new edition. */
+async function pilotMetrics() {
+  const keys = Array.from({ length: METRICS }, (_, n) => `metric:pilot_${n}`)
+  const names = keys.map((_, n) => `Pilot metric ${n}`)
+  const [owner, admin] = (
+    await client.query<{ id: string }>(
+      `select id::text from people where email = any($1) order by email = $2 desc`,
+      [['per_jon@example.test', 'per_ravi@example.test'], 'per_jon@example.test'],
+    )
+  ).rows as [{ id: string }, { id: string }]
+  await client.query(
+    "insert into vocab_terms (key,kind,parent_key) select key,'metric',null from unnest($1::text[]) key",
+    [keys],
+  )
+  const versions = await client.query<{ id: string }>(
+    `insert into vocab_term_versions (term_key,version_no,name,area_id,content_digest)
+     select key,1,name,'area_sales',sha256(convert_to(key,'UTF8')) from unnest($1::text[],$2::text[]) t(key,name)
+     returning id::text`,
+    [keys, names],
+  )
+  const ids = versions.rows.map((row) => row.id)
+  const proposals = await client.query<{ id: string; version: string }>(
+    `insert into proposals (subject,action,state,area_id,vocab_version_id,proposer_id,channel)
+     select 'vocabulary','create','submitted','area_sales',id,$2,'form' from unnest($1::uuid[]) id
+     returning id::text, vocab_version_id::text as version`,
+    [ids, admin.id],
+  )
+  await client.query(
+    `insert into decisions (proposal_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason)
+     select p,v,'area_sales',$3,'owner','accept','The pilot metrics' from unnest($1::uuid[],$2::uuid[]) t(p,v)`,
+    [proposals.rows.map((row) => row.id), proposals.rows.map((row) => row.version), owner.id],
+  )
+  const seq = await openEdition(client)
+  await client.query('select edition_serve_vocab_version($1,id) from unnest($2::uuid[]) id', [
+    seq,
+    ids,
+  ])
+  await client.query('select edition_seal($1)', [seq])
+  await client.query('select edition_publish($1)', [seq])
+}
 
 beforeAll(async () => {
   for (const who of ['maria', 'jon', 'ravi'] as const) {
@@ -98,25 +140,7 @@ beforeAll(async () => {
       'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
     }
   }
-  // The administrator proposes 600 metrics in Sales, and its owner accepts them.
-  const terms = Array.from({ length: METRICS }, (_, n) => ({
-    key: `metric:pilot_${n}`,
-    kind: 'metric',
-    parentKey: null,
-    name: `Pilot metric ${n}`,
-    aliases: [],
-    areaId: 'area_sales',
-    definitionRefs: [],
-  }))
-  const proposed = await call('POST', '/vocabulary/batches', 'ravi', { terms })
-  expect(proposed.statusCode, proposed.body).toBe(200)
-  const accepted = await call(
-    'POST',
-    `/vocabulary/batches/${proposed.json<{ batchId: string }>().batchId}/decisions`,
-    'jon',
-    { outcome: 'accept', reason: 'The pilot metrics', capacity: 'owner' },
-  )
-  expect(accepted.statusCode, accepted.body).toBe(200)
+  await pilotMetrics()
   // Maria sends low-risk notes for Jon to decide.
   for (let n = 0; n < OPEN; n++) {
     const created = await call('POST', '/proposals', 'maria', {
@@ -144,7 +168,10 @@ beforeAll(async () => {
     })
     expect(submitted.statusCode, submitted.body).toBe(200)
   }
-  open = (await call('GET', '/review/queue?limit=100', 'jon')).json<ReviewProposal[]>()
+  // Maria's notes, newest first: the ones Jon decides below.
+  open = (
+    await call('GET', '/proposals?state=submitted&own=true&areaId=area_sales&limit=100', 'maria')
+  ).json<{ rows: ProposalRecord[] }>().rows
   expect(open.length).toBeGreaterThanOrEqual(OPEN)
 }, 600_000)
 
@@ -165,11 +192,10 @@ it('reads a catalogue of over 600 terms in one statement, within budget', async 
 
 it('reads every list a decision refreshes within budget', async () => {
   for (const path of [
-    '/review/queue?limit=100',
+    '/inbox/feed',
     '/proposals?state=submitted&limit=100',
     `/proposals/${open[0]!.id}`,
-    `/proposals/${open[0]!.id}/events`,
-    `/proposals/${open[0]!.id}/review`,
+    `/review/${open[0]!.id}/sheet`,
     '/vocabulary',
     '/library',
     '/serving/stops',
@@ -183,40 +209,22 @@ it('accepts one proposal within budget, and never twice', async () => {
   const target = open.shift()!
   const { response, ms, statements } = await measured(
     'POST',
-    `/proposals/${target.id}/decisions`,
+    `/review/${target.id}/publish`,
     'jon',
-    { revision: target.revision, outcome: 'accept', reason: 'Checked against the source' },
+    { revision: target.revision },
   )
   expect(response.json<{ proposal: ReviewProposal }>().proposal.state).toBe('accepted')
   expect(ms).toBeLessThan(DECIDE_BUDGET_MS)
-  // 53 before the session, the format check's reference and the check results each took one.
-  expect(statements.length).toBeLessThanOrEqual(45)
+  // Publish reads the suggestion as its review shows it (clashes, relations, a take-back) before
+  // the decision: 62 statements when the web app's review replaced the old one (30 Oct 2026).
+  expect(statements.length).toBeLessThanOrEqual(62)
   // Whether it is a rescue (FR-814) is read with the live version, so it costs no statement.
   const rescue = statements.filter((text) => text.includes('rescue_proposal'))
   expect(rescue).toHaveLength(1)
   expect(rescue[0]).toContain('live_edition')
   // A screen that has not caught up offers its old revision, or decides it again: both refused.
   for (const revision of [target.revision, target.revision + 1]) {
-    const again = await call('POST', `/proposals/${target.id}/decisions`, 'jon', {
-      revision,
-      outcome: 'accept',
-      reason: 'Checked against the source',
-    })
+    const again = await call('POST', `/review/${target.id}/publish`, 'jon', { revision })
     expect(again.statusCode).toBe(409)
   }
-})
-
-it('accepts many proposals in one step, reading the live edition once', async () => {
-  const targets = open.splice(0, 20)
-  const { response, ms, statements } = await measured('POST', '/review/decisions', 'jon', {
-    proposals: targets.map(({ id, revision }) => ({ id, revision })),
-    outcome: 'accept',
-    reason: 'Checked against the source',
-  })
-  const result = response.json<{ proposals: ReviewProposal[]; skipped: unknown[] }>()
-  expect(result.skipped).toEqual([])
-  expect(result.proposals.every((proposal) => proposal.state === 'accepted')).toBe(true)
-  expect(ms).toBeLessThan(BULK_BUDGET_MS)
-  // The serving bundle the checks run against, once for the step and not once per proposal.
-  expect(statements.filter((text) => text.includes('serving_items(')).length).toBe(1)
 })

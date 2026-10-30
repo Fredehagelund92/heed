@@ -1,12 +1,9 @@
 import * as z from 'zod/mini'
-import { claimLevels, creationChannels, riskLevels } from '../domain/item.ts'
-import { mentionSchema } from '../domain/mentions.ts'
+import { creationChannels } from '../domain/item.ts'
 import { proposalStates } from '../domain/proposal-state.ts'
-import { provenanceSchema } from '../domain/provenance.ts'
 import { decisionCapacities, proposalActions } from '../domain/proposal.ts'
-import { calendarDateSchema } from '../domain/validity.ts'
 import { runStates, verdictSchema } from './evals.ts'
-import { findingSchema, proposalRecordSchema, proposalTestSchema } from './proposals.ts'
+import { findingSchema, proposalTestSchema } from './proposals.ts'
 
 const reason = z.string().check(z.minLength(1), z.maxLength(500))
 const itemIdSchema = z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))
@@ -212,74 +209,6 @@ export const vocabularyTermSchema = z.object({
   /** The source members it names: a metric one at most, a dimension one in each view (CON-208). */
   definitionRefs: z.array(z.string()),
 })
-const fieldChangesSchema = z.array(
-  z.object({ field: z.string(), before: z.unknown(), after: z.unknown() }),
-)
-export const reviewSchema = z.object({
-  proposal: reviewProposalSchema,
-  /** Field by field against the version in service; every field for a new item. */
-  diff: fieldChangesSchema,
-  /**
-   * A proposal resubmitted after a request for changes, while it waits for a decision: field by
-   * field from the version the newest request was made on to the version under review, empty
-   * when nothing changed. Null when changes were never asked for, or it is not under review.
-   */
-  sinceRequest: z.nullable(z.object({ decisionId: z.string(), diff: fieldChangesSchema })),
-  mentions: z.object({ added: z.array(mentionSchema), removed: z.array(mentionSchema) }),
-  /** Never blocks a decision (FR-209). */
-  warnings: z.array(z.object({ target: z.string(), label: z.string(), message: z.string() })),
-  findings: z.array(findingSchema),
-  gate: z.nullable(gateSchema),
-  decisions: z.array(decisionSchema),
-  vocabulary: z.nullable(
-    z.object({ before: z.nullable(vocabularyTermSchema), after: vocabularyTermSchema }),
-  ),
-  /**
-   * The terms proposed in the same step as this one (an administrator's batch): how many the
-   * person can see, and how many of them still wait for a decision. Null for any other proposal.
-   */
-  termBatch: z.nullable(z.object({ id: z.string(), open: z.number(), total: z.number() })),
-  /**
-   * A rescue (FR-814): an administrator restored an item of a deleted domain into this one, and
-   * the proposal carries its last content, fitted to this domain. The diff reads against the
-   * version that was live before the Bin. Null for any other proposal.
-   */
-  rescue: z.nullable(
-    z.object({
-      /** The deleted domain the item belonged to, by name. */
-      deletedDomain: z.string(),
-      restoredBy: z.string(),
-      restoredAt: z.string(),
-    }),
-  ),
-  /** FR-210: asked on every review screen; an owner may reject with this as the reason. */
-  sourceToolQuestion: z.string(),
-  /**
-   * Where each field came from when an AI agent or the assistant wrote the draft for the
-   * proposer, who submitted it (FR-121, FR-707); null for a proposal a person wrote.
-   */
-  provenance: z.nullable(provenanceSchema),
-})
-
-/**
- * A proposal in the review queue, with its checks at a glance (FR-208, FR-223): the required
- * levels whose newest result failed, and the ones that have not passed yet. Null for a term and
- * a retirement, which have no checks.
- */
-export const queueEntrySchema = z.object({
-  ...reviewProposalSchema.shape,
-  checks: z.nullable(
-    z.object({ failed: z.array(z.enum(checkLevels)), waiting: z.array(z.enum(checkLevels)) }),
-  ),
-})
-export type QueueEntry = z.infer<typeof queueEntrySchema>
-
-export const reviewIdSchema = z.strictObject({ id: z.string().check(z.uuid()) })
-export const queueSchema = z.strictObject({
-  areaId: z.optional(areaIdSchema),
-  limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(100))),
-  offset: z.optional(z.number().check(z.int(), z.minimum(0))),
-})
 export const decideSchema = z.strictObject({
   id: z.string().check(z.uuid()),
   revision: z.number().check(z.int(), z.minimum(1)),
@@ -291,35 +220,6 @@ export const decideSchema = z.strictObject({
    * subset (bold, italic, code, links, lists and quotes), beside its short reason.
    */
   comment: z.optional(z.string().check(z.minLength(1), z.maxLength(2000))),
-})
-/**
- * An owner changes what the review decides around the content (FR-105, FR-106,
- * FR-123, FR-324): the risk level, the review date, the claim level with its authority and
- * quote, the owner and the area. Name only what changes; the content stays the proposer's.
- */
-export const reviewEditSchema = z.strictObject({
-  id: z.string().check(z.uuid()),
-  revision: z.number().check(z.int(), z.minimum(1)),
-  riskLevel: z.optional(z.enum(riskLevels)),
-  /** Null only for an item that ends: an open-ended item needs a review date (FR-127). */
-  reviewDate: z.optional(z.nullable(calendarDateSchema)),
-  /** `effect_stated` needs the named authority and its quote (FR-324). */
-  claim: z.optional(
-    z.discriminatedUnion('level', [
-      z.strictObject({ level: z.literal(claimLevels[0]) }),
-      z.strictObject({
-        level: z.literal(claimLevels[1]),
-        authority: z.string().check(z.minLength(1), z.maxLength(200)),
-        quote: z.string().check(z.minLength(1), z.maxLength(500)),
-      }),
-    ]),
-  ),
-  /** An active owner of the area the proposal ends up in. */
-  ownerId: z.optional(z.string().check(z.uuid())),
-  /** Moves the proposal to another area; its owner takes it unless `ownerId` names one. */
-  areaId: z.optional(areaIdSchema),
-  /** Why, for the timeline and the history log. */
-  reason: z.optional(reason),
 })
 export const editionSchema = z.object({
   seq: z.number(),
@@ -334,25 +234,9 @@ export const editionSchema = z.object({
   live: z.boolean(),
 })
 export type Edition = z.infer<typeof editionSchema>
-export const decisionResultSchema = z.object({
-  proposal: reviewProposalSchema,
-  edition: z.nullable(editionSchema),
-})
 export const itemReasonSchema = z.strictObject({ id: itemIdSchema, reason })
 /** The most source members one term names: a dimension in every view of a large model fits. */
 export const TERM_REFS_MAX = 100
-export const vocabularyProposalSchema = z.strictObject({
-  key: z.string().check(z.regex(/^(group|metric|dim|val):[a-z0-9_/]+$/), z.maxLength(160)),
-  kind: z.enum(['metric', 'metric_group', 'dimension', 'dimension_value']),
-  parentKey: z.nullable(z.string().check(z.maxLength(160))),
-  name: z.string().check(z.minLength(1), z.maxLength(200)),
-  aliases: z.array(z.string().check(z.minLength(1), z.maxLength(200))).check(z.maxLength(20)),
-  areaId: z.nullable(areaIdSchema),
-  /** The source members it names: a metric one at most, a dimension one in each view (CON-208). */
-  definitionRefs: z
-    .array(z.string().check(z.minLength(1), z.maxLength(500)))
-    .check(z.maxLength(TERM_REFS_MAX)),
-})
 /**
  * The most terms one step proposes: a whole model's members and its lists of values fit, so a
  * large model is one batch, decided as one edition. The service checks and stores a batch in a
@@ -361,60 +245,8 @@ export const vocabularyProposalSchema = z.strictObject({
 export const TERM_BATCH_MAX = 5_000
 /** The largest body a batch of terms may send: room for `TERM_BATCH_MAX` terms of usual size. */
 export const TERM_BATCH_BODY_MAX = 4 * 1024 * 1024
-/**
- * Many terms in one step (an administrator's batch): one proposal each, all or none, each still
- * decided by an owner of its area or an administrator. A term may name a parent in the batch.
- */
-export const termBatchSchema = z.strictObject({
-  terms: z.array(vocabularyProposalSchema).check(z.minLength(1), z.maxLength(TERM_BATCH_MAX)),
-  /** Where the terms come from, kept with the batch: "Cube members". */
-  sourceName: z.optional(z.string().check(z.minLength(1), z.maxLength(200))),
-})
-export const termBatchResultSchema = z.object({
-  batchId: z.string(),
-  proposals: z.array(reviewProposalSchema),
-})
-/** Accepts or rejects every open term of a batch the person may decide, as one edition. */
-export const decideTermBatchSchema = z.strictObject({
-  batchId: z.string().check(z.uuid()),
-  outcome: z.enum(['accept', 'reject']),
-  reason,
-  capacity: z.optional(z.enum(['owner', 'administrator'])),
-})
-export const termBatchDecisionSchema = z.object({
-  proposals: z.array(reviewProposalSchema),
-  edition: z.nullable(editionSchema),
-})
 /** The most proposals one bulk step decides or assigns: a queue page. */
 export const BULK_MAX = 100
-/** One proposal of a bulk step, at the revision the person selected it. */
-const bulkTargetSchema = z.strictObject({
-  id: z.string().check(z.uuid()),
-  revision: z.number().check(z.int(), z.minimum(1)),
-})
-const bulkTargets = z.array(bulkTargetSchema).check(z.minLength(1), z.maxLength(BULK_MAX))
-const bulkOutcome = z.enum(['accept', 'request_changes', 'reject'])
-/** What a bulk decision would do to each selected proposal, before it is made (FR-223). */
-export const bulkPlanInputSchema = z.strictObject({
-  proposals: bulkTargets,
-  outcome: bulkOutcome,
-})
-/**
- * One decision for several proposals in the review queue, with one reason (FR-223). Each still
- * gets its own decision, checks and rules; the ones the person may not decide this way are
- * left out and named. Accepts publish as few editions as the rules allow: one for new and
- * changed items, one for terms, one for retirements, and one per re-check.
- */
-export const bulkDecideSchema = z.strictObject({
-  proposals: bulkTargets,
-  outcome: bulkOutcome,
-  reason,
-})
-/** Claims the selected proposals for a reviewer of their area, or hands them over to one. */
-export const bulkAssignSchema = z.strictObject({
-  proposals: bulkTargets,
-  personId: z.string().check(z.uuid()),
-})
 /** Why a bulk step leaves a proposal out. */
 export const bulkSkipCodes = [
   'not_found',
@@ -428,40 +260,8 @@ export const bulkSkipCodes = [
   'forbidden',
   'refused',
 ] as const
-export const bulkSkipSchema = z.object({
-  id: z.string(),
-  number: z.nullable(z.number()),
-  title: z.nullable(z.string()),
-  code: z.enum(bulkSkipCodes),
-  /** Why, in words for the person: "A required check failed: Matching." */
-  message: z.string(),
-})
-export type BulkSkip = z.infer<typeof bulkSkipSchema>
 /** What happens to a proposal the step decides: published, waiting for the approver, or decided. */
 export const bulkEffects = ['publish', 'wait', 'decide'] as const
-export const bulkPlanSchema = z.object({
-  decided: z.array(
-    z.object({
-      id: z.string(),
-      number: z.number(),
-      title: z.string(),
-      effect: z.enum(bulkEffects),
-    }),
-  ),
-  skipped: z.array(bulkSkipSchema),
-  /** How many editions an accept publishes. */
-  editions: z.number(),
-})
-export const bulkDecisionSchema = z.object({
-  proposals: z.array(reviewProposalSchema),
-  skipped: z.array(bulkSkipSchema),
-  editions: z.array(editionSchema),
-})
-export const bulkAssignmentSchema = z.object({
-  /** The proposals assigned, as the proposal write API returns them. */
-  proposals: z.array(proposalRecordSchema),
-  skipped: z.array(bulkSkipSchema),
-})
 
 /**
  * Members of a definition source that no term links yet, as the term to propose for them: a new
@@ -491,21 +291,6 @@ export const editionListSchema = z.strictObject({
   limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(100))),
   offset: z.optional(z.number().check(z.int(), z.minimum(0))),
 })
-export const editionDiffInputSchema = z.strictObject({
-  label: editionLabelSchema,
-  against: z.optional(editionLabelSchema),
-})
-const versionChange = z.object({
-  id: z.string(),
-  from: z.nullable(z.number()),
-  to: z.nullable(z.number()),
-})
-export const editionDiffSchema = z.object({
-  from: z.nullable(z.string()),
-  to: z.string(),
-  items: z.array(versionChange),
-  vocabulary: z.array(versionChange),
-})
 export const rollbackSchema = z.strictObject({ label: editionLabelSchema, note: reason })
 export const stopSchema = z.strictObject({
   scope: z.enum(['all', 'area', 'item']),
@@ -523,29 +308,3 @@ export const activeStopSchema = z.object({
   itemId: z.nullable(z.string()),
   reason: z.nullable(z.string()),
 })
-
-/** The items whose served review a page shows: at most one page of the library's facts. */
-export const servedReviewsInputSchema = z.strictObject({
-  ids: z.array(itemIdSchema).check(z.minLength(1), z.maxLength(100)),
-})
-/**
- * How the version of an item the live edition serves was reviewed (FR-326), for the review stamp
- * inside Heed (design contract 7.2, `ReviewStamp`): who accepted it, on which day, in which
- * capacity and domain, the edition that first served it, and the check levels it passed. Behind
- * sign-in the stamp names the person; what an agent receives names only the role. An item the
- * person may not read, or that the live edition does not serve, has no entry.
- */
-export const servedReviewSchema = z.object({
-  id: itemIdSchema,
-  version: z.number().check(z.int(), z.minimum(1)),
-  acceptedOn: calendarDateSchema,
-  acceptedAs: z.enum(['owner', 'deputy', 'administrator']),
-  /** The domain the decision was made in. */
-  areaId: z.string(),
-  /** Who accepted it; null when that person's record was erased. */
-  personId: z.nullable(z.string()),
-  edition: editionLabelSchema,
-  /** The check levels that passed for this version, in the order checks run. */
-  checks: z.array(z.enum(checkLevels)),
-})
-export type ItemReview = z.infer<typeof servedReviewSchema>

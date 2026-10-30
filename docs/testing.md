@@ -27,7 +27,7 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   every MCP tool. `small-counts.test.ts` checks that a topic asked about fewer than five times
   shows on no surface a reader can reach. The anonymity canary (`canary.test.ts`) also searches a
   real `pg_dump` and `/metrics`. Prompt injection with the mock model is in
-  `tests/server/evals/models.test.ts` and the assistant's tests; rate limits in the MCP conformance
+  `tests/server/evals/models.test.ts`; rate limits in the MCP conformance
   tests and, for the web API, `tests/server/rate-limit.test.ts` and
   `tests/integration/rate-limit.test.ts`. Scanning and the restore drill are in
   [Security, scanning and the restore drill](security.md).

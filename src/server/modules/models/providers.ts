@@ -39,8 +39,6 @@ export const modelProviders: readonly ProviderEntry[] = [
         prices: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
       },
     },
-    // Anthropic's web search tool: USD 10 per 1,000 searches plus the tokens of the results.
-    webSearch: { adapter: 'anthropic', searchModel: 'claude-haiku-4-5', perThousand: 10 },
   },
   {
     // Vercel AI Gateway, through its OpenAI-compatible API. Every request goes to Vercel, which
@@ -80,7 +78,7 @@ export const modelProviders: readonly ProviderEntry[] = [
         prices: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25 },
       },
       // Read 2026-10-12. The gateway prices a request above 100,000 input tokens at five times
-      // these; the assistant and the evaluations send far less, so the flat price holds.
+      // these; Ask's words and the evaluations send far less, so the flat price holds.
       'anthropic/claude-haiku-5.5': {
         vendor: 'anthropic',
         line: 'claude-haiku',
@@ -93,15 +91,6 @@ export const modelProviders: readonly ProviderEntry[] = [
         line: 'gemini-flash-lite',
         prices: { input: 0.1, output: 0.4, cacheRead: 0.01 },
       },
-    },
-    // Anthropic's web search through the gateway's Messages API at the same base URL, with the
-    // same key, served by Anthropic only (checked 2026-10-15: the results come back to Heed, one
-    // search billed at USD 0.01 plus about 21,000 input tokens of results, USD 0.012 in all).
-    webSearch: {
-      adapter: 'anthropic',
-      searchModel: 'anthropic/claude-haiku-5.5',
-      perThousand: 10,
-      onlyVendor: true,
     },
   },
 ]
