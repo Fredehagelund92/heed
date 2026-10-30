@@ -1,4 +1,4 @@
-import { relationWords } from '@domain/readiness'
+import { relationWords } from '@domain/clash-relations'
 import type { AnswerState } from './ask'
 import type { SavedResult } from './saved-questions'
 
@@ -139,11 +139,11 @@ export type Review = {
 /** How a suggestion that overlaps a live item relates to it, as the owner chose. */
 export type Relation = 'replaces' | 'disagree' | 'unrelated'
 
-/** What each answer does when the suggestion is published, as the service says it. */
-export const relationHints: Record<Relation, string> = {
-  replaces: relationWords.replaces.hint,
-  disagree: relationWords.disagrees.hint,
-  unrelated: relationWords.unrelated.hint,
+/** Each answer as the review offers it, and what it does when the suggestion is published, as the service says it. */
+export const relationText: Record<Relation, { label: string; hint: string }> = {
+  replaces: relationWords.replaces,
+  disagree: relationWords.disagrees,
+  unrelated: relationWords.unrelated,
 }
 
 /**
@@ -154,7 +154,7 @@ export function clashOutcome(r: Review, answers: Record<string, Relation>): stri
   const items = r.clash?.items ?? []
   const given = items.map((c) => answers[c.factId])
   if (!items.length || given.some((x) => !x)) return null
-  if (given.length === 1) return relationHints[given[0]!]
+  if (given.length === 1) return relationText[given[0]!].hint
   const n = (x: Relation) => given.filter((g) => g === x).length
   const archived = n('replaces')
   const stay = given.length - archived

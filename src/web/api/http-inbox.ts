@@ -9,7 +9,7 @@
 import type { Card, Feed } from '@contract/inbox'
 import type { ReviewSheet } from '@contract/review-path'
 import type { Area } from '@domain/item'
-import type { ClashRelation } from '@domain/readiness'
+import type { ClashRelation } from '@domain/clash-relations'
 import { alertCardWords, alertRule, lookTitle } from '@domain/alerts'
 import { hrefOf } from './http-alerts'
 import { answerText, savedWhy } from '@domain/saved-check'

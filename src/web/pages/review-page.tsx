@@ -68,7 +68,7 @@ import {
   publishedWords,
   readiness,
   readTime,
-  relationHints,
+  relationText,
   type Relation,
   type Review,
 } from '@/model/review'
@@ -598,8 +598,7 @@ function SyncedFrom({ r }: { r: Review }) {
 
 const relations = (['replaces', 'disagree', 'unrelated'] as const).map((id) => ({
   id,
-  label: { replaces: 'This replaces it', disagree: 'These disagree', unrelated: 'Unrelated' }[id],
-  hint: relationHints[id],
+  ...relationText[id],
 }))
 /** The owner's answer for each live item the suggestion overlaps, by its id, and how to give one. */
 const RelationContext = React.createContext<
@@ -650,7 +649,7 @@ function Clash({ r }: { r: Review }) {
                 onChange={(v) => answer(item.factId, v)}
               />
               <p className="text-xs text-muted-foreground">
-                {relation ? relationHints[relation] : 'Choose one of the three.'}
+                {relation ? relationText[relation].hint : 'Choose one of the three.'}
               </p>
             </fieldset>
           </div>

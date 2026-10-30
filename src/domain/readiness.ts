@@ -17,17 +17,9 @@ import type { ClaimRow } from './claim-check.ts'
 import { claimsToCheck } from './claim-check.ts'
 import { longDayWords } from './dates.ts'
 import type { DocDiff } from './doc-diff.ts'
+import { relationWords, type ClashRelation } from './clash-relations.ts'
 
-/** How a suggestion relates to a live item it clashes with (FR-225). */
-export const clashRelations = ['replaces', 'disagrees', 'unrelated'] as const
-export type ClashRelation = (typeof clashRelations)[number]
-
-/** Each answer as the review offers it, and what it does when the suggestion is published. */
-export const relationWords: Record<ClashRelation, { label: string; hint: string }> = {
-  replaces: { label: 'This replaces it', hint: 'The live item is archived when you publish.' },
-  disagrees: { label: 'These disagree', hint: 'Both stay; agents say context disagrees.' },
-  unrelated: { label: 'Unrelated', hint: 'Both stay; they apply to different things.' },
-}
+export { clashRelations, relationWords, type ClashRelation } from './clash-relations.ts'
 
 export type ReadinessInput = {
   diff: DocDiff
