@@ -5,16 +5,15 @@ import {
   docDiff,
   docMarkdown,
   inlineSegments,
-  LCS_CELLS,
   markdownBlocks,
-  sequenceDiff,
-  sourceDiff,
   valuesIn,
   wordTokens,
   type ChangeBlock,
   type DocSide,
   type Run,
 } from '../../../src/domain/doc-diff.ts'
+import { LCS_CELLS, sequenceDiff } from '../../../src/domain/sequence-diff.ts'
+import { sourceDiff } from '../../../src/domain/source-diff.ts'
 
 /*
   The review's difference of a suggestion (FR-224), read against the mockup's own review
@@ -355,7 +354,7 @@ describe('the Source view (J19)', () => {
     expect(changed[0]).toBe('340')
     // The added sentence is one run, not a box per word.
     expect(changed[1]).toBe(
-      ' From 1 October 2026 the 28 accounts the returns team uses to test refunds are left out as well.',
+      'From 1 October 2026 the 28 accounts the returns team uses to test refunds are left out as well.',
     )
     expect(rows.indexOf(removed)).toBeLessThan(rows.indexOf(added))
   })
@@ -363,6 +362,22 @@ describe('the Source view (J19)', () => {
   it("diffs a link's address by its parts", () => {
     const added = sourceDiff(before, after).find((r) => r.t === '+' && r.line.startsWith('Source'))!
     expect(added.words!.filter((w) => w.changed).map((w) => w.text)).toEqual(['-october'])
+  })
+
+  it('compares a paragraph split in two across its lines, so the sentence that moved stays plain', () => {
+    const rows = sourceDiff(
+      'Before you explain a jump in France orders, check the file dates. The provider sends weekend files together on Monday.',
+      'Before you explain a jump in France orders, check the file dates.\n\nThe provider sends files on Monday morning.',
+    )
+    const changed = rows.map((r) => r.words?.filter((w) => w.changed).map((w) => w.text))
+    expect(rows.map((r) => r.t)).toEqual(['-', '+', '+', '+'])
+    expect(changed).toEqual([['weekend', 'together'], [], [], ['morning']])
+  })
+
+  it('leaves a rewrite unmarked, and a block too long to compare', () => {
+    expect(sourceDiff('Orders fell in Spain.', 'Margins rose in Norway.')[0]!.words).toBeUndefined()
+    const long = (w: string) => Array.from({ length: 1200 }, (_, i) => `${w}${i}`).join(' ')
+    expect(sourceDiff(`${long('a')} end`, `${long('a')} stop`)[0]!.words).toBeUndefined()
   })
 })
 

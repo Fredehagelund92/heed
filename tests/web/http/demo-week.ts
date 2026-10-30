@@ -243,7 +243,8 @@ const edits: { card: string; item: string; before: Before; after: After }[] = ((
       card: 'sug-ines-long',
       item: 'itm_2a1wp53q',
       before: { summary: long.before },
-      after: { summary: long.after },
+      // The suggestion keeps the first sentence as the summary and moves the rest to the body.
+      after: { summary: long.after.split('\n\n')[0]!, body: long.after.split('\n\n')[1]! },
     },
     {
       card: 'sug-ines-dates',

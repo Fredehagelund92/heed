@@ -9,14 +9,9 @@ import type {
 } from '../../../contract/review-path.ts'
 import { answer, topicWords, type Answer, type AnswerBundle } from '../../../domain/answer.ts'
 import { CLAIMS_SHOWN, claimCheck } from '../../../domain/claim-check.ts'
-import {
-  docDiff,
-  docMarkdown,
-  plainText,
-  sourceDiff,
-  type DocSide,
-} from '../../../domain/doc-diff.ts'
+import { docDiff, docMarkdown, plainText, type DocSide } from '../../../domain/doc-diff.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
+import { sourceDiff } from '../../../domain/source-diff.ts'
 import {
   readiness,
   readinessWords,

@@ -43,11 +43,14 @@
   --input: #8f8f8f;
   --ring: #2c5dbd;
 
-  /* Review marks: a soft fill for the words and a stronger line for the underline or strike. */
+  /* Review marks: a soft fill for the words and a stronger line for the underline or strike. A
+     changed word inside an added or removed line of the Text diff takes the stronger -word fill. */
   --mark-add: oklch(0.94 0.06 150);
   --mark-add-line: oklch(0.55 0.15 150);
+  --mark-add-word: oklch(0.86 0.1 150);
   --mark-del: oklch(0.94 0.04 25);
   --mark-del-line: oklch(0.56 0.19 25);
+  --mark-del-word: oklch(0.87 0.08 25);
   --mark-fmt: oklch(0.95 0.04 300);
   --mark-fmt-line: oklch(0.5 0.2 295);
   --mark-link: oklch(0.95 0.07 85);
@@ -328,8 +331,10 @@
     --ring: #7aa2f0;
     --mark-add: oklch(0.34 0.07 150);
     --mark-add-line: oklch(0.72 0.15 150);
+    --mark-add-word: oklch(0.43 0.12 150);
     --mark-del: oklch(0.34 0.07 25);
     --mark-del-line: oklch(0.7 0.17 25);
+    --mark-del-word: oklch(0.42 0.15 25);
     --mark-fmt: oklch(0.33 0.07 300);
 
     /* Lifted from the mockup's oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
@@ -442,8 +447,10 @@
   --color-ring: var(--ring);
   --color-mark-add: var(--mark-add);
   --color-mark-add-line: var(--mark-add-line);
+  --color-mark-add-word: var(--mark-add-word);
   --color-mark-del: var(--mark-del);
   --color-mark-del-line: var(--mark-del-line);
+  --color-mark-del-word: var(--mark-del-word);
   --color-mark-fmt: var(--mark-fmt);
   --color-mark-fmt-line: var(--mark-fmt-line);
   --color-mark-link: var(--mark-link);

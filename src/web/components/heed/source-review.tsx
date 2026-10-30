@@ -3,10 +3,11 @@ import { ChevronsUpDownIcon } from '@/components/icons'
 import { MentionText } from '@/components/heed/mention-chip'
 import { cn } from '@/lib/utils'
 import {
+  changeWords,
   diffStats,
   hunks,
+  isBreak,
   lineDiff,
-  linesWords,
   wordDiff,
   type Row,
   type Word,
@@ -20,8 +21,9 @@ import type { FieldSide } from '@/model/review'
 // - FieldsDiff, the Fields table: every field but the text, each row changed or the same, with
 //   its value now and suggested. The unchanged rows fold into one line.
 // - TextDiff, the stored text line by line, in the app's own font: line numbers, removed lines
-//   before added ones, only the changed words marked when most of a line stays, and the unchanged
-//   stretches folded, three lines kept around each change.
+//   before added ones, only the changed words marked when most of a block stays (compared across
+//   its lines, so a split paragraph marks only what changed), a blank line in a change shown as
+//   the paragraph break it is, and the unchanged stretches folded, three lines around each change.
 //
 // Marks are never colour alone: a removed line has a minus and says "removed", removed words are
 // struck through, added words underlined. Every change is a stop for N and P (`data-review-change`),
@@ -45,7 +47,7 @@ function Words({ words, side }: { words: Word[]; side: 'before' | 'after' }) {
     ) : side === 'before' ? (
       <del
         key={i}
-        className="rounded-mark bg-mark-del-line/28 text-foreground decoration-[var(--mark-del-line)] decoration-2"
+        className="rounded-mark bg-mark-del-word text-foreground decoration-[var(--mark-del-line)] decoration-2"
       >
         <span className="sr-only">[removed: </span>
         <MentionText text={w.text} />
@@ -54,7 +56,7 @@ function Words({ words, side }: { words: Word[]; side: 'before' | 'after' }) {
     ) : (
       <ins
         key={i}
-        className="rounded-mark bg-mark-add-line/28 text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3"
+        className="rounded-mark bg-mark-add-word text-foreground underline decoration-[var(--mark-add-line)] decoration-2 underline-offset-3"
       >
         <span className="sr-only">[added: </span>
         <MentionText text={w.text} />
@@ -319,6 +321,8 @@ export function FieldsDiff({
 /** One line: its numbers, its sign in a glyph and in words, and its text. */
 function Line({ row }: { row: Row }) {
   const side = row.t === '-' ? 'before' : 'after'
+  // A blank line added or removed only starts or joins a paragraph: no sign, said in words.
+  const pause = isBreak(row)
   return (
     <div
       className={cn(
@@ -341,16 +345,20 @@ function Line({ row }: { row: Row }) {
       </span>
       <span
         className="py-0.5 text-center leading-6 text-muted-foreground select-none"
-        aria-label={row.t === '+' ? 'added' : row.t === '-' ? 'removed' : undefined}
+        aria-label={
+          pause ? undefined : row.t === '+' ? 'added' : row.t === '-' ? 'removed' : undefined
+        }
       >
-        {row.t === '+' ? '+' : row.t === '-' ? '−' : ''}
+        {pause ? '' : row.t === '+' ? '+' : row.t === '-' ? '−' : ''}
       </span>
       <span className="min-w-0 py-0.5 pr-3 text-sm leading-6 break-words whitespace-pre-wrap">
         <span className="sr-only">
           Line {row.t === '-' ? row.a : row.b}
           {': '}
         </span>
-        {row.words ? (
+        {pause ? (
+          <span className="sr-only">{row.t === '+' ? 'New paragraph' : 'Paragraphs joined'}</span>
+        ) : row.words ? (
           <Words words={row.words} side={side} />
         ) : row.line ? (
           <MentionText text={row.line} />
@@ -396,12 +404,12 @@ export function TextDiff({ before, after }: { before: string; after: string }) {
   const rows = React.useMemo(() => lineDiff(before, after), [before, after])
   const parts = React.useMemo(() => hunks(rows), [rows])
   const stats = diffStats(rows)
-  const changes = parts.filter((p) => p.t === 'change').length
+  const changes = stats.changes
   const line = !rows.length
     ? 'No text'
     : !changes
       ? 'No change'
-      : `${linesWords(stats)}, in ${changes} ${changes === 1 ? 'place' : 'places'}`
+      : `${changeWords(stats)} in ${changes} ${changes === 1 ? 'place' : 'places'}`
   return (
     <section aria-labelledby={`${id}-h`} className="flex flex-col gap-2">
       <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -426,6 +434,11 @@ export function TextDiff({ before, after }: { before: string; after: string }) {
                 tabIndex={-1}
                 className={stop}
               >
+                {part.rows.some((r) => r.long) && (
+                  <p className="border-b bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+                    Too long to mark the changed words: shown as whole lines.
+                  </p>
+                )}
                 {part.rows.map((row, k) => (
                   <Line key={k} row={row} />
                 ))}

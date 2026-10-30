@@ -2,7 +2,8 @@ import { expect, go, test } from './go.ts'
 
 // J19, the Source review: the source is the review. A Fields table says which fields change, with
 // their value now and suggested, and folds the rest; the Text diff shows the stored text line by
-// line with its numbers, removed lines before added ones, and only the changed words marked. N
+// line with its numbers, removed lines before added ones, and only the changed words marked, even
+// when a paragraph is split in two. N
 // and P step through the changes. Preview is a quiet toggle for the rich text, and no view hides
 // what must be decided: the clash gate and the claim check stay in both.
 
@@ -48,6 +49,33 @@ test('the source is the review: changed fields, then the text, with only the cha
   await expect(text.getByRole('group', { name: 'Change 1 of 1 in the text' })).toBeFocused()
   await page.keyboard.press('p')
   await expect(source.getByText('Change 1 of 2')).toBeVisible()
+})
+
+test('a paragraph split in two and reworded marks only the words that changed', async ({
+  page,
+}) => {
+  await go(page, '/inbox/sug-ines-long/review')
+  const text = page
+    .getByRole('region', { name: 'The source' })
+    .getByRole('region', { name: 'Text' })
+  await expect(text.getByText('3 sentences changed in 1 place')).toBeVisible()
+
+  // The first sentence moved to a line of its own: it stays plain on both sides.
+  await expect(text.locator('del, ins').filter({ hasText: 'check the file dates' })).toHaveCount(0)
+  await expect(text.locator('del').first()).toHaveText(/weekend files together/)
+  await expect(text.locator('ins').filter({ hasText: 'Then check refunds' })).toHaveCount(1)
+
+  // The blank line between the two paragraphs is a paragraph break, not an added line.
+  const signs = await text
+    .locator('[aria-label=added], [aria-label=removed]')
+    .evaluateAll((els: { getAttribute(n: string): string | null }[]) =>
+      els.map((e) => e.getAttribute('aria-label')),
+    )
+  expect(signs).toEqual(['removed', 'added', 'added'])
+  await expect(text.getByText('New paragraph')).toHaveCount(1)
+
+  await page.keyboard.press('n')
+  await expect(text.getByRole('group', { name: 'Change 1 of 1 in the text' })).toBeFocused()
 })
 
 test('Preview shows the rich text, and the clash gate stays in both views', async ({ page }) => {

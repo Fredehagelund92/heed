@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { diffStats, hunks, lineDiff, sharedWords, wordDiff } from '@/lib/line-diff'
+import { changeWords, diffStats, hunks, isBreak, lineDiff, wordDiff } from '@/lib/line-diff'
 import { reviewFor } from '@/api/mock/data/review'
 
 const changed = (words: { text: string; changed: boolean }[] | undefined) =>
@@ -32,7 +32,7 @@ describe("the review's Text diff", () => {
     expect(changed(added.words)![0]).toBe('340')
     // The added sentence is one run, not a box per word, and its link stays whole.
     expect(changed(added.words)![1]).toBe(
-      ' From 1 October 2026 the 28 [@ id="term:Test account" label="accounts"] the returns team uses to test refunds are left out as well.',
+      'From 1 October 2026 the 28 [@ id="term:Test account" label="accounts"] the returns team uses to test refunds are left out as well.',
     )
     expect(rows.indexOf(removed)).toBeLessThan(rows.indexOf(added))
   })
@@ -55,7 +55,6 @@ describe("the review's Text diff", () => {
   })
 
   it('marks words only when at least half of them are shared: a rewrite reads as whole lines', () => {
-    expect(sharedWords('one two three four', 'one two three five')).toBe(0.75)
     const edit = lineDiff('Orders fell in Spain this week.', 'Orders rose in Spain this week.')
     expect(edit.every((r) => r.words)).toBe(true)
     const rewrite = lineDiff(
@@ -69,7 +68,108 @@ describe("the review's Text diff", () => {
   it('reads a new text as all added, and an archived one as all removed', () => {
     expect(lineDiff('', 'a\nb').map((r) => r.t)).toEqual(['+', '+'])
     expect(lineDiff('a\nb', '').map((r) => r.t)).toEqual(['-', '-'])
-    expect(diffStats(lineDiff('', 'a\n\nb'))).toEqual({ added: 3, removed: 0, changes: 1 })
+    expect(diffStats(lineDiff('', 'a\n\nb'))).toEqual({ sentences: 2, changes: 1 })
+  })
+})
+
+describe('the words of a changed block', () => {
+  // The France guide's suggestion: its paragraph split after the first sentence, a few words
+  // changed, and a sentence on refunds added.
+  const r = reviewFor('sug-ines-long')!
+  const rows = lineDiff(r.source.before, r.source.after)
+  const side = (t: '-' | '+') => rows.filter((x) => x.t === t)
+
+  it('compares a split paragraph across its lines, marking only the words that changed', () => {
+    expect(rows.map((x) => x.t)).toEqual(['-', '+', '+', '+'])
+    expect(rows.every((x) => x.words)).toBe(true)
+    // The first sentence moved to its own line, and stays plain on both sides.
+    const [first, , rest] = side('+')
+    expect(changed(first!.words)).toEqual([])
+    expect(changed(side('-')[0]!.words)).toEqual([
+      'weekend files together',
+      'those late',
+      ', not',
+      'a full week',
+      'week',
+    ])
+    expect(changed(rest!.words)).toEqual([
+      "Saturday's file",
+      "Sunday and Sunday's on",
+      'arriving late rather than more',
+      'Then check refunds: a batch of refunds booked on one day reads as a drop.',
+      'whole weeks, Monday to Sunday,',
+      'weeks',
+    ])
+  })
+
+  it('reads the blank line between the two paragraphs as a paragraph break', () => {
+    expect(side('+').map(isBreak)).toEqual([false, true, false])
+    expect(isBreak(side('-')[0]!)).toBe(false)
+  })
+
+  it('says how many sentences changed: the two reworded, and the one added', () => {
+    expect(diffStats(rows)).toEqual({ sentences: 3, changes: 1 })
+    expect(changeWords(diffStats(rows))).toBe('3 sentences changed')
+  })
+
+  it('marks nothing when nothing changed', () => {
+    const t = 'One line.\n\nAnother line.'
+    expect(lineDiff(t, t).every((x) => x.t === ' ' && !x.words)).toBe(true)
+    expect(
+      wordDiff(t, t)
+        .flat()
+        .every((w) => !w.changed),
+    ).toBe(true)
+  })
+
+  it('reads a whole replacement as whole lines', () => {
+    const whole = lineDiff('Orders fell in Spain.', 'Margins rose in Norway last week.')
+    expect(whole.map((x) => x.t)).toEqual(['-', '+'])
+    expect(whole.some((x) => x.words)).toBe(false)
+    expect(diffStats(whole).sentences).toBe(1)
+  })
+
+  it('keeps words that moved to another line plain, wherever they went', () => {
+    const joined = lineDiff(
+      'Check the file dates.\n\nThen check refunds.',
+      'Check the file dates, then check refunds.',
+    )
+    expect(joined.filter((x) => x.t === '-').map((x) => changed(x.words))).toEqual([
+      ['.'],
+      [],
+      ['Then'],
+    ])
+    expect(changed(joined.find((x) => x.t === '+')!.words)).toEqual([', then'])
+  })
+
+  it('marks a change of punctuation alone, and counts its sentence', () => {
+    const rows = lineDiff('Check the dates, then refunds.', 'Check the dates; then refunds.')
+    expect(changed(rows[0]!.words)).toEqual([','])
+    expect(changed(rows[1]!.words)).toEqual([';'])
+    expect(changeWords(diffStats(rows))).toBe('1 sentence changed')
+  })
+
+  it('marks the one repeated word that was added, not the ones that stay', () => {
+    const [, after] = wordDiff('the week and the week', 'the week and the week and the week')
+    expect(changed(after)).toEqual(['and the week'])
+  })
+
+  it('reads letters beyond English as words, and keeps them whole', () => {
+    const [before, after] = wordDiff('Commandes en été à Zürich', 'Commandes en hiver à Zürich 🚚')
+    expect(changed(before)).toEqual(['été'])
+    expect(changed(after)).toEqual(['hiver', '🚚'])
+  })
+
+  it('shows a block too long to compare as whole lines, and says so', () => {
+    const long = (w: string) => Array.from({ length: 1200 }, (_, i) => `${w}${i}`).join(' ')
+    const rows = lineDiff(long('a'), long('b'))
+    expect(rows.some((x) => x.words)).toBe(false)
+    expect(rows.every((x) => x.long)).toBe(true)
+    expect(lineDiff('a b', 'a c').some((x) => x.long)).toBe(false)
+  })
+
+  it('says a change of spacing alone in words', () => {
+    expect(changeWords(diffStats(lineDiff('a\nb', 'a\n\nb')))).toBe('Spacing changed')
   })
 })
 

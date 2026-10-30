@@ -321,7 +321,7 @@ const fixtures: Fixture[] = [
       before:
         'Before you explain a jump in France orders, check the file dates. The provider sends weekend files together on Monday, and most jumps are those late files, not customers. Compare a full week with the same week last year.',
       after:
-        "Before you explain a jump in France orders, check the file dates. The provider sends Saturday's file on Sunday and Sunday's on Monday, and most jumps are files arriving late rather than more customers. Then check refunds: a batch of refunds booked on one day reads as a drop. Compare whole weeks, Monday to Sunday, with the same weeks last year.",
+        "Before you explain a jump in France orders, check the file dates.\n\nThe provider sends Saturday's file on Sunday and Sunday's on Monday, and most jumps are files arriving late rather than more customers. Then check refunds: a batch of refunds booked on one day reads as a drop. Compare whole weeks, Monday to Sunday, with the same weeks last year.",
     },
   },
   {
