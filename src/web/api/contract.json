@@ -1394,6 +1394,22 @@
           "summary": "The live vocabulary: metrics, dimensions and their values, by name"
         }
       }
+    },
+    "search": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/vocabulary/search",
+          "tags": [
+            "reference"
+          ],
+          "summary": "A page of metrics, dimensions and values for the scope picker: recent and often used first (FR-107)"
+        }
+      }
     }
   },
   "inbox": {

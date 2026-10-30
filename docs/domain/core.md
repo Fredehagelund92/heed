@@ -44,10 +44,10 @@ days` stay resolvable). A dimension named without a value becomes a filter with 
   today, "last" is the last complete one, and weeks start on Monday. Words that name a period it
   cannot read ("since the launch", "the first week of October", a numeric date such as 12/10/2026) or more than one period are never
   replaced: it says which words and what it reads.
-- `scope-search.ts`: the page of terms behind the "where it applies" picker (FR-107): metrics and,
-  per dimension, "any value", a count and a few values, recent and often-used first; a page at a
-  time inside one dimension. The caller passes the vocabulary,
-  the person's recent keys and the uses per key.
+- `scope-search.ts`: the page of terms behind the "Applies to" picker (FR-107): before anything
+  is typed, the person's recent terms; then metrics and, per dimension, "any value", a count and a
+  few values, recent and often-used first; a page at a time inside one dimension. The caller passes
+  the vocabulary, the person's recent keys and the uses per key.
 - `resolver.ts`: `resolve(bundle, request)` returns deterministic matching metadata, restrictions,
   source flags, exclusions, replacements, cut ids, edition/overlay, check report and system
   instructions. Bundles contain one row per item. A scope may name a dimension with any value

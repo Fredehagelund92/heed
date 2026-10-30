@@ -23,10 +23,11 @@ export default defineConfig({
   // The Inbox, its quick view, the review and the setup checklist (P6b); Context, Definitions, the
   // editor and Related (P7c); Ask (P10); Help and the docs (P13); People, invites and owners (P8);
   // Observability (P12); comments, reactions and mentions (P9b); domains and connecting an agent
-  // (P11a); a read's suggestions (P11b); figures in Ask (P11a, part 2); and an agent's consent
-  // page, which the mockup leaves out (golden plan 2.3); and how many calls a page load makes.
+  // (P11a); a read's suggestions (P11b); figures in Ask (P11a, part 2); the Applies to picker's
+  // dimension values (J31); and an agent's consent page, which the mockup leaves out (golden plan
+  // 2.3); and how many calls a page load makes.
   testMatch:
-    /\/(j(1|2|3|4|5|6|7|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|30)-[a-z0-9-]+|consent|calls)\.spec\.ts$/,
+    /\/(j(1|2|3|4|5|6|7|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|30|31)-[a-z0-9-]+|consent|calls)\.spec\.ts$/,
   outputDir: 'test-results/golden-http/output',
   globalSetup: './tests/e2e/http/global-setup.ts',
   // The demo week's fixtures live with the app (src/web), under its path aliases.

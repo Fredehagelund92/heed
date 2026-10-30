@@ -38,9 +38,14 @@ export const SuggestList = React.forwardRef<
     /** Words that match nothing and hold a space are a sentence, not a search: the list steps aside. */
     exit: () => void
     empty: { title: React.ReactNode; line: string }
+    /** A search on the server has not answered the words yet: the list waits for it. */
+    searching?: boolean
     className?: string
   }
->(function SuggestList({ label, query, groups, editor, onPick, exit, empty, className }, ref) {
+>(function SuggestList(
+  { label, query, groups, editor, onPick, exit, empty, searching = false, className },
+  ref,
+) {
   const flat = React.useMemo(() => groups.flatMap((g) => g.items), [groups])
   // The active row resets to the first whenever the words change.
   const [sel, setSel] = React.useState({ query, index: 0 })
@@ -64,7 +69,7 @@ export const SuggestList = React.forwardRef<
     },
   }))
 
-  const sentence = !flat.length && /\s/.test(query.trim())
+  const sentence = !searching && !flat.length && /\s/.test(query.trim())
   React.useEffect(() => {
     if (sentence) exit()
   }, [sentence, exit])

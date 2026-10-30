@@ -33,6 +33,19 @@ export const kindHint: Record<Kind, string> = {
   guide: 'What to check before you explain a change.',
 }
 
+/**
+ * One term an item applies to (FR-107, FR-126): a metric, a dimension with any value, or one value
+ * of a dimension, by the vocabulary's key (`metric:orders`, `dim:market`, `val:market/norway`).
+ * A value names its dimension, so two values with the same name never mix.
+ */
+export type ScopeTerm = {
+  key: string
+  kind: 'metric' | 'dimension' | 'value'
+  name: string
+  /** A value's dimension, by name. */
+  dimension?: string
+}
+
 export type Fact = {
   id: string
   title: string
@@ -40,7 +53,13 @@ export type Fact = {
   body?: string
   domain: DomainId
   kind: Kind
+  /** What it applies to, as people read it: the names of its metrics, dimensions and values. */
   where: string[]
+  /**
+   * What it applies to, by vocabulary key, when the binding read it: the editor's "Applies to".
+   * `where` is the same scope as names.
+   */
+  scope?: ScopeTerm[]
   /** When it applies, as stored (dates, not words). */
   valid: Validity
   /** Derived from `valid` by whenLabel: the When people read. Never typed by hand. */

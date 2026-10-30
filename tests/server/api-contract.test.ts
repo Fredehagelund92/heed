@@ -341,6 +341,7 @@ describe('the API over HTTP', () => {
       '/tools/{tool}',
       '/try-it/read',
       '/vocabulary',
+      '/vocabulary/search',
       '/workspace',
     ])
   })

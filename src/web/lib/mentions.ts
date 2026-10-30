@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useVocabulary, useWorkspace } from '@/api/queries'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { scopeSearchQuery, useVocabulary, useWorkspace } from '@/api/queries'
 import { servedToAgents, type Fact, type Kind } from '@/model/items'
 import type { Domain, Person } from '@/model/people'
 import { useDefinitions, type Definition } from '@/lib/definitions'
@@ -10,10 +11,12 @@ import { storageKey } from '@/lib/brand'
 // mentions without loading it. A mention is stored as `kind:key` with the words the author saw
 // ("context:itm_norway_stop", "Online sales to Norway stopped..."). In markdown it is the editor's
 // own token, [@ id="..." label="..."]. A mention is navigation only: agents read the label as
-// plain words and never follow it, and it never changes who can see what.
+// plain words and never follow it, and it never changes who can see what. A dimension's value is
+// named by its vocabulary key ("value:market/norway"), so values of two dimensions never mix;
+// older text names a market by its word ("market:Norway").
 
 export type MentionKind =
-  'domain' | 'metric' | 'dimension' | 'term' | 'context' | 'market' | 'person'
+  'domain' | 'metric' | 'dimension' | 'value' | 'term' | 'context' | 'market' | 'person'
 
 export type Mentionable = {
   /** `kind:key`, as stored. */
@@ -34,6 +37,7 @@ export type MentionRef = { id: string; label: string }
 export const GROUPS: { label: string; kinds: MentionKind[] }[] = [
   { label: 'Domains', kinds: ['domain'] },
   { label: 'Definitions', kinds: ['metric', 'dimension', 'term'] },
+  { label: 'Values', kinds: ['value'] },
   { label: 'Context items', kinds: ['context'] },
   { label: 'Markets', kinds: ['market'] },
   { label: 'People', kinds: ['person'] },
@@ -48,7 +52,14 @@ export const SCOPE_KINDS: MentionKind[] = [
   'context',
   'market',
 ]
-export const LINK_KINDS: MentionKind[] = ['domain', 'metric', 'dimension', 'term', 'context']
+export const LINK_KINDS: MentionKind[] = [
+  'domain',
+  'metric',
+  'dimension',
+  'value',
+  'term',
+  'context',
+]
 export const PEOPLE_KINDS: MentionKind[] = ['person']
 
 export const mentionId = (kind: MentionKind, key: string) => `${kind}:${key}`
@@ -124,10 +135,62 @@ export function useMentionables(): Mentionable[] {
   )
 }
 
-/** The current target of a mention, or undefined when it was deleted, archived or renamed away. */
+/** A value mention's dimension, by its key's id: `value:market/norway` is `market`. */
+export const valueDimension = (id: string) => parseMentionId(id).key.split('/')[0] ?? ''
+
+/**
+ * The current target of a mention, or undefined when it was deleted, archived or renamed away. A
+ * dimension can hold thousands of values, so the app never loads them all to check one: a value
+ * mention is its words.
+ */
 export function useMentionTarget(id: string): Mentionable | undefined {
   const all = useMentionables()
+  if (parseMentionId(id).kind === 'value') return { id, kind: 'value', label: '' }
   return all.find((m) => m.id === id)
+}
+
+/** How long typing rests before a search on the server runs. */
+const SEARCH_DELAY_MS = 150
+
+/** A value as it waits for typing to rest. */
+export function useDebounced<T>(value: T, delay = SEARCH_DELAY_MS): T {
+  const [debounced, setDebounced] = React.useState(value)
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay)
+    return () => window.clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
+/**
+ * The values of every dimension that the words find, searched on the server as "Applies to"
+ * searches them (FR-129, FR-107): a few per dimension, each named with its dimension. Nothing until
+ * something is typed.
+ */
+export function useValueMentions(query: string): { values: Mentionable[]; searching: boolean } {
+  const q = useDebounced(query.trim())
+  const search = useQuery({
+    ...scopeSearchQuery({ q }),
+    enabled: q !== '',
+    placeholderData: keepPreviousData,
+  })
+  const found = search.data
+  const values = React.useMemo(
+    () =>
+      q
+        ? (found?.groups ?? []).flatMap((g) =>
+            g.values.map((v) => ({
+              id: mentionId('value', v.key.slice(4)),
+              kind: 'value' as const,
+              label: v.name,
+              hint: v.alias ? `${g.dimension.name}, also ${v.alias}` : g.dimension.name,
+            })),
+          )
+        : [],
+    [found, q],
+  )
+  // Until the words rest and the search answers, what they find is not known yet.
+  return { values, searching: q !== query.trim() || search.isFetching }
 }
 
 /* ---------- recent first ---------- */
@@ -174,8 +237,16 @@ export function searchMentions(
   all: Mentionable[],
   kinds: MentionKind[],
   query: string,
+  /** Dimension values the server found for the words, in its order. */
+  values: Mentionable[] = [],
 ): MentionGroup[] {
   const q = query.trim().toLowerCase()
+  if (q && kinds.includes('value') && values.length) {
+    const groups = searchMentions(all, kinds, query)
+    // The values come after the definitions, as the groups are ordered when nothing is typed.
+    const at = groups.findIndex((g) => g.label === 'Definitions') + 1
+    return [...groups.slice(0, at), { label: 'Values', items: values }, ...groups.slice(at)]
+  }
   const allowed = all.filter((m) => kinds.includes(m.kind))
   const isRecent = (m: Mentionable) => recent.indexOf(m.id)
   if (!q) {

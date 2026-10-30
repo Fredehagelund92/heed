@@ -15,6 +15,7 @@ import { createProposalsService } from '../../src/server/modules/proposals/index
 import { ORPCError } from '@orpc/client'
 import type { ItemPage } from '../../src/contract/context.ts'
 import type { ProposalRecord, ProposalListResult } from '../../src/contract/proposals.ts'
+import type { ScopeSearchResult } from '../../src/contract/scope.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { itemVersionDigests } from '../../src/domain/item-version.ts'
 import { formatDraft } from '../../src/domain/draft.ts'
@@ -798,4 +799,50 @@ it('submits a scope about any market, warns that it is broad, and overlaps every
     [JSON.stringify(norway.draft), JSON.stringify(p.draft)],
   )
   expect(overlap.rows[0]!.overlap).toBe(true)
+})
+
+it('searches the scope picker on the server, the author’s recent terms first (FR-107)', async () => {
+  await create({
+    scope: { metrics: ['metric:orders'], dimensions: ['dim:market'], dimensionValues: [] },
+  })
+  const search = async (query: string, who = 'author') => {
+    const response = await app.inject({
+      url: `/api/v1/vocabulary/search?${query}`,
+      headers: headers[who],
+    })
+    expect(response.statusCode, response.body).toBe(200)
+    return response.json<ScopeSearchResult>()
+  }
+  // Before anything is typed: only the author's own recent terms.
+  const empty = await search('q=')
+  expect(empty).toMatchObject({ metrics: [], groups: [], nextCursor: null })
+  expect(empty.recent.map((hit) => hit.key)).toEqual(
+    expect.arrayContaining(['metric:orders', 'dim:market']),
+  )
+  expect((await search('q=', 'stranger')).recent.map((hit) => hit.key)).not.toContain('dim:market')
+  // Words that name a dimension offer it ("any value") and its values, recent first.
+  expect(await search('q=market')).toMatchObject({
+    recent: [],
+    groups: [
+      {
+        dimension: { key: 'dim:market', kind: 'dimension', recent: true },
+        named: true,
+        count: 1,
+        values: [{ key: 'val:market/norway', dimension: { key: 'dim:market' } }],
+      },
+    ],
+  })
+  expect(await search('q=market', 'stranger')).toMatchObject({
+    groups: [{ dimension: { key: 'dim:market', recent: false } }],
+  })
+  // Inside one dimension, a page of its values at a time.
+  expect(await search('dimension=dim:market&limit=1')).toMatchObject({
+    groups: [{ named: true, count: 1, values: [{ key: 'val:market/norway' }] }],
+    nextCursor: null,
+  })
+  const refused = await app.inject({
+    url: '/api/v1/vocabulary/search?dimension=market',
+    headers: headers.author,
+  })
+  expect(refused.statusCode).toBe(400)
 })

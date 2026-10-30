@@ -8,14 +8,16 @@ import {
   rememberMention,
   searchMentions,
   useMentionables,
+  useValueMentions,
   type Mentionable,
   type MentionKind,
 } from '@/lib/mentions'
 import { EMOJI, rememberEmoji, searchEmoji, type Emoji } from '@/lib/emoji'
 
 // The '@' picker and the ':' picker, both the one list in components/heed/suggest-list.tsx. '@'
-// lists Domains, Definitions, Context items, Markets and People with their type icons, recent first;
-// each place picks which kinds it offers (lib/mention-extension.ts). ':' and two letters list emoji,
+// lists Domains, Definitions, Values, Context items, Markets and People with their type icons,
+// recent first; each place picks which kinds it offers (lib/mention-extension.ts). A dimension
+// can hold thousands of values, so the values come from a search on the server as you type. ':' and two letters list emoji,
 // what was used lately and the five reactions first, and insert the character itself.
 
 export type PickerProps = SuggestionProps<Mentionable, { id: string; label: string }> & {
@@ -31,6 +33,7 @@ export const MentionPicker = React.forwardRef<PickerHandle, PickerProps>(functio
 ) {
   const me = useMe()
   const all = useMentionables()
+  const { values, searching } = useValueMentions(kinds.includes('value') ? query : '')
   // You never mention yourself.
   const groups = React.useMemo(
     () =>
@@ -38,8 +41,9 @@ export const MentionPicker = React.forwardRef<PickerHandle, PickerProps>(functio
         all.filter((m) => m.id !== `person:${me.name}`),
         kinds,
         query,
+        values,
       ),
-    [all, kinds, query, me.name],
+    [all, kinds, query, me.name, values],
   )
   const byId = React.useMemo(
     () => new Map(groups.flatMap((g) => g.items).map((m) => [m.id, m])),
@@ -50,6 +54,7 @@ export const MentionPicker = React.forwardRef<PickerHandle, PickerProps>(functio
       ref={ref}
       label="Mention"
       query={query}
+      searching={searching}
       editor={editor}
       exit={exit}
       groups={groups.map((g) => ({

@@ -15,14 +15,14 @@ import type {
 import type { ProposalRecord } from '@contract/proposals'
 import type { TermVersion } from '@contract/terms'
 import type { Draft } from '@domain/draft'
-import type { Vocabulary as ServiceVocabulary } from '@domain/item'
+import type { Scope, Vocabulary as ServiceVocabulary } from '@domain/item'
 import { defaultNotToConclude } from '@domain/proposal-rules'
 import { parseMentions, serializeMentions, type MentionPart } from '@domain/mentions'
 import { shiftDate } from '@domain/validity'
 import type { Link, LinkEnd, Rel } from '@/lib/links'
 import { mentionParts, mentionToken, parseMentionId } from '@/lib/mentions'
 import type { Version, VersionKind } from '@/model/history'
-import type { Fact, Kind, LogEntry } from '@/model/items'
+import type { Fact, Kind, LogEntry, ScopeTerm } from '@/model/items'
 import { dateLabel, whenLabel } from '@/model/validity'
 import type { ItemPage } from './client'
 import { ownersOf, statusOf, validityOf, type Names } from './http-map'
@@ -31,8 +31,14 @@ import { ownersOf, statusOf, validityOf, type Names } from './http-map'
 
 /** The live vocabulary both ways: a metric, a dimension or a value by its key and by its name. */
 export type Words = {
-  /** A scope's key for a name people read: `metric:orders`, `dim:market`, `val:market/norway`. */
-  keyOf: (name: string) => { kind: 'metric' | 'dim' | 'val'; key: string } | undefined
+  /**
+   * A scope's key for a name people read: `metric:orders`, `dim:market`, `val:market/norway`. With
+   * a dimension's name, only a value of that dimension.
+   */
+  keyOf: (
+    name: string,
+    dimension?: string,
+  ) => { kind: 'metric' | 'dim' | 'val'; key: string } | undefined
   /** The name people read for a key, or the key's own id when the vocabulary has no name. */
   nameOf: (key: string) => string
   /** A term written in Definitions by its id, as the app names it (by its word), if it is there. */
@@ -54,7 +60,12 @@ export function wordsOf(vocabulary: ServiceVocabulary, terms: readonly WrittenWo
     for (const v of d.values) names.set(`val:${d.id}/${v.id}`, v.name)
   }
   return {
-    keyOf(name) {
+    keyOf(name, within) {
+      if (within !== undefined) {
+        const d = vocabulary.dimensions.find((x) => same(x.name, within))
+        const value = d?.values.find((v) => same(v.name, name))
+        return d && value ? { kind: 'val', key: `val:${d.id}/${value.id}` } : undefined
+      }
       const metric = vocabulary.metrics.find((m) => same(m.name, name))
       if (metric) return { kind: 'metric', key: `metric:${metric.id}` }
       const dimension = vocabulary.dimensions.find((d) => same(d.name, name))
@@ -76,8 +87,9 @@ export function wordsOf(vocabulary: ServiceVocabulary, terms: readonly WrittenWo
 /**
  * A service's target as the app's mention id, by the kind and the key the app names it with (a
  * metric by its name, an item by its id): `item:itm_x` is `context:itm_x`, `metric:orders` is
- * `metric:Orders`, a term written in Definitions `term:<id>` is `term:<its word>`. Empty for a
- * target the app has no mention of, such as a term no longer there.
+ * `metric:Orders`, a value by its key, so values of two dimensions never mix
+ * (`val:market/norway` is `value:market/norway`), and a term written in Definitions `term:<id>` is
+ * `term:<its word>`. Empty for a target the app has no mention of, such as a term no longer there.
  */
 export function mentionIdOf(target: string, words: Words): string {
   const kind = target.slice(0, target.indexOf(':'))
@@ -85,8 +97,7 @@ export function mentionIdOf(target: string, words: Words): string {
   if (kind === 'item') return `context:${key}`
   if (kind === 'metric') return `metric:${words.nameOf(target)}`
   if (kind === 'dim') return `dimension:${words.nameOf(target)}`
-  if (kind === 'val')
-    return `${key.startsWith('market/') ? 'market' : 'dimension'}:${words.nameOf(target)}`
+  if (kind === 'val') return `value:${key}`
   if (kind === 'area') return `domain:${key}`
   if (kind === 'term') {
     const name = words.termName(key)
@@ -106,11 +117,16 @@ export function textFromService(markup: string, words: Words): string {
     .join('')
 }
 
-/** A mention as the service can keep it, or null: a person, or a word no longer there, is kept as its words. */
+/**
+ * A mention as the service can keep it, or null: a person, or a word no longer there, is kept as
+ * its words. A value is kept by its key; a market named by its word, as older text names it, is
+ * found among the markets only.
+ */
 function targetOf(id: string, words: Words): string | null {
   const { kind, key } = parseMentionId(id)
   if (kind === 'context') return /^itm_[a-z0-9]{8,16}$/.test(key) ? `item:${key}` : null
   if (kind === 'domain') return `area:${key}`
+  if (kind === 'value') return /^[a-z0-9_]+\/[a-z0-9_]+$/.test(key) ? `val:${key}` : null
   if (kind === 'term') {
     const id = words.termId(key)
     return id ? `term:${id}` : null
@@ -119,7 +135,7 @@ function targetOf(id: string, words: Words): string | null {
     const found = words.keyOf(key)
     if (!found) return null
     if (kind === 'metric' && found.kind !== 'metric') return null
-    if (kind === 'market' && found.kind !== 'val') return null
+    if (kind === 'market' && !found.key.startsWith('val:market/')) return null
     return found.key
   }
   return null
@@ -141,6 +157,57 @@ export function textToService(text: string, words: Words): { plain: string; mark
   return parts.some((p) => p.kind === 'mention')
     ? { plain, markup: serializeMentions(parts) }
     : { plain }
+}
+
+/* ---------- what an item applies to ---------- */
+
+const NO_SCOPE: Scope = { metrics: [], dimensions: [], dimensionValues: [] }
+
+/** A scope as "Applies to" holds it: each term by its key, with the name people read. */
+export function scopeTermsOf(scope: Scope, words: Words): ScopeTerm[] {
+  return [
+    ...scope.metrics.map((key) => ({ key, kind: 'metric' as const, name: words.nameOf(key) })),
+    ...scope.dimensions.map((key) => ({
+      key,
+      kind: 'dimension' as const,
+      name: words.nameOf(key),
+    })),
+    ...scope.dimensionValues.map(({ dimension, value }) => ({
+      key: value,
+      kind: 'value' as const,
+      name: words.nameOf(value),
+      dimension: words.nameOf(dimension),
+    })),
+  ]
+}
+
+/**
+ * A published item's scope by key. An item keeps its terms by their ids (`orders`, `market` and
+ * `norway`); a draft and "Applies to" name them by key (`metric:orders`, `val:market/norway`).
+ */
+export const keyedScope = (scope: Scope): Scope => ({
+  metrics: scope.metrics.map((id) => `metric:${id}`),
+  dimensions: scope.dimensions.map((id) => `dim:${id}`),
+  dimensionValues: scope.dimensionValues.map(({ dimension, value }) => ({
+    dimension: `dim:${dimension}`,
+    value: `val:${dimension}/${value}`,
+  })),
+})
+
+/**
+ * "Applies to" as the service keeps a scope: each term by its key, never by its name, so two
+ * values with the same name in two dimensions stay apart. A term the editor only knows by name
+ * (an item whose scope was not read) is found by it.
+ */
+export function scopeOfTerms(terms: readonly ScopeTerm[], words: Words): Scope {
+  const keys = terms.flatMap((t) => t.key || (words.keyOf(t.name, t.dimension)?.key ?? []))
+  return {
+    metrics: keys.filter((k) => k.startsWith('metric:') || k.startsWith('group:')),
+    dimensions: keys.filter((k) => k.startsWith('dim:')),
+    dimensionValues: keys
+      .filter((k) => k.startsWith('val:'))
+      .map((k) => ({ dimension: `dim:${k.slice(4, k.indexOf('/'))}`, value: k })),
+  }
 }
 
 /* ---------- related ---------- */
@@ -229,6 +296,7 @@ export function factOfPage(page: ServiceItemPage, names: Names, words: Words): F
     domain: item.areaId,
     kind,
     where: page.chips,
+    scope: scopeTermsOf(keyedScope(item.scope), words),
     valid,
     when: whenLabel(valid),
     status: statusOf({ status: item.status, trust: page.trust }),
@@ -248,12 +316,7 @@ export function factOfDraft(
   words: Words,
 ): Fact {
   const draft = proposal.draft
-  const scope = draft.scope ?? { metrics: [], dimensions: [], dimensionValues: [] }
-  const where = [
-    ...scope.metrics,
-    ...scope.dimensions,
-    ...scope.dimensionValues.map((v) => v.value),
-  ].map(words.nameOf)
+  const scope = scopeTermsOf(draft.scope ?? NO_SCOPE, words)
   const valid = draft.validity
     ? validityOf({ validity: draft.validity, reviewQuestion: 'still_correct' })
     : {}
@@ -266,7 +329,8 @@ export function factOfDraft(
     ...(body ? { body } : {}),
     domain: draft.areaId ?? proposal.areaId ?? '',
     kind: kindOf(draft.kind ?? 'note') ?? 'note',
-    where,
+    where: scope.map((t) => t.name),
+    scope,
     valid,
     when: whenLabel(valid),
     status: 'Draft',
@@ -421,16 +485,13 @@ export function draftOf(fact: Fact, words: Words, today: string, before?: Fact):
     draft.body = body.plain
     if (body.markup) draft.bodyMarkup = body.markup
   }
-  if (changed('where')) {
-    const keys = fact.where.flatMap((name) => words.keyOf(name) ?? [])
-    draft.scope = {
-      metrics: keys.filter((k) => k.kind === 'metric').map((k) => k.key),
-      dimensions: keys.filter((k) => k.kind === 'dim').map((k) => k.key),
-      dimensionValues: keys
-        .filter((k) => k.kind === 'val')
-        .map((k) => ({ dimension: `dim:${k.key.slice(4, k.key.indexOf('/'))}`, value: k.key })),
-    }
-  }
+  // By key when the editor read the scope; an item read only as names is written by them.
+  const keys = (f?: Fact) => JSON.stringify(f?.scope?.map((t) => t.key || t.name) ?? null)
+  if (fact.scope ? keys(fact) !== keys(before) : changed('where'))
+    draft.scope = scopeOfTerms(
+      fact.scope ?? fact.where.map((name) => ({ key: '', kind: 'value', name })),
+      words,
+    )
   if (changed('valid'))
     draft.validity = { start: fact.valid.from ?? today, end: endOf(fact.valid.until) }
   if (changed('source') || changed('quote'))

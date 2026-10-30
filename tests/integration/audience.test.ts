@@ -292,6 +292,7 @@ const queries = () => [
   ['proposals.list', `/api/v1/proposals?state=accepted`],
   ['proposals.list', `/api/v1/proposals?itemId=${hidden.id}`],
   ['proposals.list', `/api/v1/proposals?itemId=${linking.id}`],
+  ['vocabulary.search', `/api/v1/vocabulary/search?q=harbour`],
   ['audit.search', `/api/v1/audit?subjectId=${hidden.id}`],
   ['audit.export', `/api/v1/audit/export?format=jsonl`],
 ]

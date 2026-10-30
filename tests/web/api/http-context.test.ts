@@ -35,6 +35,12 @@ const vocabulary: Vocabulary = {
         { id: 'spain', name: 'Spain', aliases: [] },
       ],
     },
+    // A value with the same name in another dimension, as a market and a selling country can have.
+    {
+      id: 'selling_country',
+      name: 'Selling country',
+      values: [{ id: 'spain', name: 'Spain', aliases: [] }],
+    },
   ],
 }
 const words = wordsOf(vocabulary)
@@ -73,8 +79,24 @@ describe('mentions, both ways', () => {
     })
   })
 
-  it("reads the service's markup as the app's tokens", () => {
-    expect(textFromService(service, words)).toBe(app)
+  it("reads the service's markup as the app's tokens, a value by its key", () => {
+    expect(textFromService(service, words)).toBe(
+      app.replace('id="market:Norway"', 'id="value:market/norway"'),
+    )
+  })
+
+  it('writes a value by its key, so a value of another dimension with the same name stays apart', () => {
+    const text =
+      'In [@ id="value:selling_country/spain" label="Spain"], not [@ id="value:market/spain" label="Spain"].'
+    const written = textToService(text, words)
+    expect(written.markup).toBe(
+      'In @[Spain](val:selling_country/spain), not @[Spain](val:market/spain).',
+    )
+    expect(textFromService(written.markup!, words)).toBe(text)
+    // A market named by its word, as older text names it, is one of the markets.
+    expect(textToService('[@ id="market:Spain" label="Spain"]', words).markup).toBe(
+      '@[Spain](val:market/spain)',
+    )
   })
 
   it('keeps a mention the service cannot follow as its words, and leaves plain text as it is', () => {
@@ -189,7 +211,7 @@ describe('Related, from the service', () => {
       },
       {
         rel: 'mentions',
-        to: { id: 'market:Norway', kind: 'market', label: 'Norway', retired: false },
+        to: { id: 'value:market/norway', kind: 'value', label: 'Norway', retired: false },
         otherDomain: false,
       },
       {
@@ -291,7 +313,12 @@ const page = (patch: Partial<ItemPage['item']> = {}, extra: Partial<ItemPage> = 
     summaryMarkup: '@[Orders](metric:orders) in Norway fell to nothing.',
     body: 'Parcels on their way arrived.',
     references: [],
-    scope: { metrics: ['orders'], dimensions: [], dimensionValues: [] },
+    // A published item keeps its terms by their ids, not their keys.
+    scope: {
+      metrics: ['orders'],
+      dimensions: [],
+      dimensionValues: [{ dimension: 'market', value: 'norway' }],
+    },
     validity: { start: '2026-08-04', end: '2026-08-11' },
     reviewDate: null,
     reviewQuestion: 'still_correct',
@@ -333,6 +360,10 @@ describe("a context item's page", () => {
       domain: 'area_sales',
       kind: 'event',
       where: ['Orders', 'Norway'],
+      scope: [
+        { key: 'metric:orders', kind: 'metric', name: 'Orders' },
+        { key: 'val:market/norway', kind: 'value', name: 'Norway', dimension: 'Market' },
+      ],
       // The service's end is the first day it no longer applies.
       valid: { from: '2026-08-04', until: '2026-08-10' },
       when: '4 to 10 Aug 2026',
@@ -518,6 +549,10 @@ describe('a draft, as the Context list and its page read it', () => {
       status: 'Draft',
       by: 'Jon Abara',
       where: ['Orders', 'Spain'],
+      scope: [
+        { key: 'metric:orders', kind: 'metric', name: 'Orders' },
+        { key: 'val:market/spain', kind: 'value', name: 'Spain', dimension: 'Market' },
+      ],
       valid: { from: '2026-11-27', until: '2026-11-30' },
       source: '',
       dontConclude: '',
@@ -577,7 +612,17 @@ describe("the editor's item, as the draft the service publishes", () => {
         id: 'draft',
         summary: '[@ id="metric:Orders" label="Orders"] fell.',
         body: undefined,
-        where: ['Orders', 'Market', 'Spain', 'Sales'],
+        where: ['Orders', 'Market', 'Spain'],
+        scope: [
+          { key: 'metric:orders', kind: 'metric', name: 'Orders' },
+          { key: 'dim:market', kind: 'dimension', name: 'Market' },
+          {
+            key: 'val:selling_country/spain',
+            kind: 'value',
+            name: 'Spain',
+            dimension: 'Selling country',
+          },
+        ],
         valid: { from: '2026-10-14' },
       },
       words,
@@ -592,10 +637,53 @@ describe("the editor's item, as the draft the service publishes", () => {
       scope: {
         metrics: ['metric:orders'],
         dimensions: ['dim:market'],
-        dimensionValues: [{ dimension: 'dim:market', value: 'val:market/spain' }],
+        dimensionValues: [{ dimension: 'dim:selling_country', value: 'val:selling_country/spain' }],
       },
       validity: { start: '2026-10-14', end: null },
       notToConclude: "Don't read the drop as demand.",
+    })
+  })
+
+  it('leaves the scope out of an edit that keeps it, and writes it when a term changes', () => {
+    expect(draftOf({ ...before, title: 'New' }, words, '2026-10-23', before).scope).toBeUndefined()
+    expect(
+      draftOf(
+        { ...before, scope: before.scope!.slice(0, 1), where: ['Orders'] },
+        words,
+        '2026-10-23',
+        before,
+      ).scope,
+    ).toEqual({ metrics: ['metric:orders'], dimensions: [], dimensionValues: [] })
+  })
+
+  it('finds a term known only by its name, inside its own dimension', () => {
+    const { scope: _, ...unread } = before
+    expect(
+      draftOf(
+        {
+          ...unread,
+          where: ['Spain'],
+          scope: [{ key: '', kind: 'value', name: 'Spain', dimension: 'Selling country' }],
+        },
+        words,
+        '2026-10-23',
+        unread,
+      ).scope,
+    ).toEqual({
+      metrics: [],
+      dimensions: [],
+      dimensionValues: [{ dimension: 'dim:selling_country', value: 'val:selling_country/spain' }],
+    })
+    // An item read only as names, its scope untouched, writes it by them.
+    expect(
+      draftOf({ ...unread, where: ['Orders', 'Norway'] }, words, '2026-10-23', {
+        ...unread,
+        where: ['Orders'],
+      }).scope,
+    ).toEqual({
+      metrics: ['metric:orders'],
+      dimensions: [],
+      dimensionValues: [{ dimension: 'dim:market', value: 'val:market/norway' }],
     })
   })
 })

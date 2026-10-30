@@ -182,6 +182,7 @@ export const wiredMethods = [
   'deleteTerms',
   'moveTerms',
   'searchAll',
+  'searchScope',
   'getComments',
   'postComment',
   'reactToComment',
@@ -1433,6 +1434,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     searchAll: async ({ q }) =>
       q.trim() ? hitsOf(await read(() => client.search.all({ q }))) : emptyHits(),
+    searchScope: (input) => read(() => client.vocabulary.search(input)),
     getComments: async () => {
       const [{ threads }, people, who] = await Promise.all([
         read(() => client.comments.list({})),

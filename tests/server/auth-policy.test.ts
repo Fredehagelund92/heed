@@ -133,6 +133,7 @@ const readOperations = [
   'areas.list',
   'gaps.get',
   'vocabulary.get',
+  'vocabulary.search',
   'library.index',
   'search.all',
   'catalogue.list',

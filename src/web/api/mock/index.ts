@@ -55,6 +55,7 @@ import { SAVED_TREND } from './data/saved-questions'
 import { createSaved } from './saved'
 import { createScenario, type Address } from './scenario'
 import { searchWorld } from './search'
+import { createScopeSearch, withScope } from './scope'
 import { factsOf, reduce, start, type Action, type State } from './store'
 import { createWorkspace } from './workspace'
 
@@ -74,6 +75,7 @@ export function createMockApi() {
   const saved = createSaved()
   const alerts = createAlerts()
   const chats = createChats()
+  const scope = createScopeSearch()
   const settings = createSettings()
   const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
   /** What the connect flow set for each tool this visit. */
@@ -308,11 +310,12 @@ export function createMockApi() {
           people: workspace.people(),
         }),
       ),
+    searchScope: (input) => now(() => scope.search(input, factsOf(state))),
     contextPage: () => read('contextPage', '', () => factsOf(state)),
     itemPage: ({ id }) =>
       read('itemPage', id, () => {
         const item = factsOf(state).find((f) => f.id === id)
-        return item ? { item, history: historyOf(item, state.log) } : null
+        return item ? { item: withScope(item), history: historyOf(item, state.log) } : null
       }),
     getItemHistory: ({ id }) =>
       now(() => {
@@ -342,7 +345,7 @@ export function createMockApi() {
       }),
     markViewed: ({ id }) => now(() => dispatch({ type: 'viewedFact', id })),
     editItem: ({ id, patch }) => now(() => dispatch({ type: 'editFact', id, patch })),
-    draftFromText: () => now(() => norwayDraft),
+    draftFromText: () => now(() => withScope(norwayDraft)),
     saveItem: ({ fact, isNew, relations = {}, gap, setup }) =>
       scenario.send('saveItem', () => {
         const id = isNew ? `itm_new_${Date.now().toString(36)}` : fact.id
@@ -355,6 +358,7 @@ export function createMockApi() {
           ...(replaces ? { replaces } : {}),
           ...(disagreesWith ? { disagreesWith } : {}),
         }
+        scope.used(fact.scope)
         if (isNew) dispatch({ type: 'addFact', fact: { ...saved, id } })
         else dispatch({ type: 'editFact', id, patch: saved })
         dispatch({ type: 'published', id })
@@ -377,8 +381,9 @@ export function createMockApi() {
         })
         return { done, failed, ...revertTo(before, { facts: done, entry: entry.id }) }
       }),
-    sendSuggestion: ({ sent }) =>
+    sendSuggestion: ({ fact, sent }) =>
       scenario.send('sendSuggestion', () => {
+        scope.used(fact.scope)
         const id = `sent_${Date.now().toString(36)}`
         dispatch({ type: 'send', sent: { ...sent, id } })
         return { id }

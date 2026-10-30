@@ -72,6 +72,7 @@ export const policies = {
   'sources.read': 'admin',
   'sources.remove': 'admin',
   'vocabulary.get': 'read',
+  'vocabulary.search': 'read',
   'library.index': 'read',
   'search.all': 'read',
   'catalogue.list': 'read',

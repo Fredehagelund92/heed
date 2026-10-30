@@ -40,7 +40,7 @@ import { useQuery } from '@tanstack/react-query'
 import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
-import { WhereChip } from '@/components/heed/tag-chip'
+import { ScopeChips } from '@/components/heed/scope-field'
 
 // The context quick view: the note and one closed Details. Title once, the words, its domain, who
 // owns it and whether it is still right, where it comes from, the one action. One attention line only when a
@@ -230,9 +230,7 @@ export function FactPeek({ id }: { id: string }) {
                 'Applies to',
                 fact.where.length ? (
                   <span key="w" className="flex flex-wrap gap-1">
-                    {fact.where.map((w) => (
-                      <WhereChip key={w} w={w} />
-                    ))}
+                    <ScopeChips fact={fact} />
                   </span>
                 ) : (
                   'Read from the text'

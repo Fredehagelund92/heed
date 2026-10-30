@@ -12,6 +12,7 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import type { ConnectRequest } from '@contract/connections'
+import type { ScopeSearchResult } from '@contract/scope'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
@@ -75,6 +76,12 @@ export type Vocabulary = {
   /** The values of the Market dimension, each a real country. */
   markets: string[]
 }
+
+/** What the "Applies to" picker asks: words, and inside one dimension a page of its values. */
+export type ScopeSearchInput = { q: string; dimension?: string; cursor?: string; limit?: number }
+/** What it finds, as the service answers it. */
+export type ScopeSearch = ScopeSearchResult
+export type ScopeHit = ScopeSearchResult['metrics'][number]
 
 /** A few quiet lines on what someone did lately. */
 export type Activity = { what: string; when: string }
@@ -310,6 +317,13 @@ export interface HeedApi {
   getLibrary: () => Promise<Library>
   /** Search everywhere: what the words find, a few of each. Nothing for words that are only spaces. */
   searchAll: (input: { q: string }) => Promise<SearchHits>
+  /**
+   * The "Applies to" picker's search (FR-107), on the server: a dimension can hold thousands of
+   * values, so nothing loads them all. No words: the person's recent terms. Words: a few metrics
+   * and, per dimension, the dimension itself, how many values match and the first few. Inside one
+   * `dimension` (`dim:campaign`): a page of its values from `cursor`.
+   */
+  searchScope: (input: ScopeSearchInput) => Promise<ScopeSearch>
   /** The Context page's list: every item, drafts included. */
   contextPage: () => Promise<Fact[]>
   /** A context item's page; null for an unknown id. */
@@ -641,6 +655,7 @@ export const heedApiMethods = [
   'removePerson',
   'getLibrary',
   'searchAll',
+  'searchScope',
   'contextPage',
   'itemPage',
   'getItemHistory',
