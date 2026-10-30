@@ -198,7 +198,8 @@ src/
     api/            HeedApi (client.ts) and its method list, the query factories and what each write
                     makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
       mock/           the demo world: its fixtures (data/), its state, and its review flags (scenario.ts)
-    routes/         one file per address (TanStack Router, file based); *.lazy.tsx for the review and the editors
+    routes/         one file per address (TanStack Router, file based); *.lazy.tsx for every
+                    page but the Inbox and Ask
     components/     the shell, shadcn primitives (ui/), Heed's parts (heed/, obs/), the editor
       icons.ts        the only module that imports the icon library
     model/          the types screens read, their words and the rules that follow from them

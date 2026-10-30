@@ -17,7 +17,6 @@ import { DefinitionPeek } from '@/components/heed/definition-peek'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/sonner'
-import { AnswerPanel } from '@/components/obs/answer-panel'
 import { SharePanel } from '@/components/heed/share-answer'
 import { WherePanel } from '@/components/heed/where-panel'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -30,15 +29,105 @@ import { AskDock, TryIt } from '@/pages/ask'
 import { ReviewSheet } from '@/pages/review'
 import { SignInPage } from '@/pages/signin'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+import { Frame, FramePage } from '@/components/heed/frame'
+import { RowsSkeleton } from '@/components/heed/load-state'
 
 /**
  * A lazy page's fallback, in the page's own shape: nothing for 150ms, so a chunk already fetched never
  * flashes a skeleton. The review: its list, the document and the side panel. An editor: the
- * toolbar row and the sheet on its canvas.
+ * toolbar row and the sheet on its canvas. Any other page (Context, Definitions, Observability,
+ * Settings, Help): its header and a frame of rows. The documentation, outside the app's shell: its header, then its home or a page.
  */
-export function Loading({ shape }: { shape: 'review' | 'editor' }) {
+export function Loading({
+  shape,
+}: {
+  shape: 'review' | 'editor' | 'page' | 'docs-home' | 'docs-page'
+}) {
   const shown = useAfter(true)
   if (!shown) return null
+  if (shape === 'page')
+    return (
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label="Loading"
+        className="flex h-full min-h-0 flex-col"
+      >
+        {/* The header's own places: the sidebar's toggle, its rule, the title, on a phone search,
+            and the theme. */}
+        <div className="flex h-bar shrink-0 items-center gap-3 border-b px-4 md:px-6">
+          <Skeleton className="size-7" />
+          <div className="mr-2 h-4 w-px bg-border" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="ml-auto size-7 md:hidden" />
+          <Skeleton className="size-7 md:ml-auto" />
+        </div>
+        <FramePage>
+          <Frame>
+            <div className="flex flex-col gap-2 px-4 py-4 md:px-5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-64 max-w-full" />
+            </div>
+            <RowsSkeleton rows={8} />
+          </Frame>
+        </FramePage>
+      </div>
+    )
+  if (shape === 'docs-home' || shape === 'docs-page')
+    return (
+      <div role="status" aria-busy="true" aria-label="Loading" className="min-h-svh bg-background">
+        <div className="border-b">
+          <div className="mx-auto flex h-12 max-w-352 items-center gap-4 px-4 md:px-6">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="ml-auto h-7 w-40" />
+          </div>
+        </div>
+        {/* The site's column. A page: the pages on the left from lg, the article in its reading
+            width and the column for its headings. The home: its title, line and search. */}
+        <div
+          className={cn(
+            'mx-auto grid max-w-352 border-x',
+            shape === 'docs-page' && 'lg:grid-cols-(--cols-lead-62)',
+          )}
+          style={{ minHeight: 'calc(100svh - 3rem)' }}
+        >
+          {shape === 'docs-home' ? (
+            <div className="flex max-w-2xl flex-col gap-4 px-4 py-10 md:px-10 md:py-14 lg:px-14">
+              <Skeleton className="h-11 w-2/3" />
+              <Skeleton className="h-5 w-full" />
+              <Skeleton className="h-5 w-1/2" />
+              <Skeleton className="mt-4 h-11 w-md max-w-full" />
+            </div>
+          ) : (
+            <>
+              <div className="hidden flex-col gap-3 border-r px-6 py-8 lg:flex">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <Skeleton
+                    key={i}
+                    className="h-3.5"
+                    style={{ width: `${45 + ((i * 17) % 40)}%` }}
+                  />
+                ))}
+              </div>
+              <div className="grid min-w-0 lg:grid-cols-(--cols-docs-page)">
+                <div className="min-w-0 px-4 py-8 md:px-10 md:py-10 lg:px-14">
+                  <div className="mx-auto flex max-w-176 flex-col gap-4">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-8 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="mt-4 h-4 w-full" />
+                    <Skeleton className="h-4 w-11/12" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                </div>
+                <div className="hidden border-l lg:block" />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )
   if (shape === 'review')
     return (
       <div
@@ -110,6 +199,12 @@ export function Loading({ shape }: { shape: 'review' | 'editor' }) {
   )
 }
 
+// A topic's answer panel opens only from Observability, so it comes with that page's code
+// (pages/observability) rather than the first load; it shows nothing until its topic is read.
+const AnswerPanel = React.lazy(() =>
+  import('@/pages/observability').then((m) => ({ default: m.AnswerPanel })),
+)
+
 /** A screen behind its own error boundary, reset on every navigation, so one failure never blanks the app. */
 function SafeScreen() {
   const { path } = useRoute()
@@ -146,7 +241,11 @@ function DockContent() {
     case 'try':
       return <TryIt cardId={dock.id} />
     case 'topic':
-      return <AnswerPanel id={dock.id!} />
+      return (
+        <React.Suspense fallback={null}>
+          <AnswerPanel id={dock.id!} />
+        </React.Suspense>
+      )
     case 'share':
       return <SharePanel id={dock.id!} />
     case 'where':

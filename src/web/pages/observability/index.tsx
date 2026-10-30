@@ -16,6 +16,9 @@ import { AlertsPage } from '@/pages/observability/alerts'
 // question or who asked. Six pages in three groups (components/obs/obs-nav.tsx), for admins and,
 // for their own domains, owners. Usage and spend are for admins.
 
+// A topic's answer panel, the dock these pages open (App.tsx): it loads with them.
+export { AnswerPanel } from '@/components/obs/answer-panel'
+
 /** The breadcrumb: Observability, then the page, then what is open in it. */
 export function ObsCrumbs({
   section,

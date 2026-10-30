@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HelpPage } from '@/pages/help'
+import { Loading } from '@/App'
 import { helpSearch } from '@/lib/search'
 
 export const Route = createFileRoute('/_app/help')({
   validateSearch: helpSearch,
-  component: HelpPage,
+  pendingComponent: () => <Loading shape="page" />,
 })

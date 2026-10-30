@@ -1,31 +1,20 @@
 import MiniSearch from 'minisearch'
 import docs from 'virtual:help-docs'
-import {
-  CHANGELOG,
-  docGroups,
-  docPath,
-  llmsTxt as indexOf,
-  type DocChangelog,
-  type DocPage,
-} from '@domain/docs'
+import { docGroups, llmsTxt as indexOf, type DocChangelog, type DocPage } from '@domain/docs'
+import { DOCS_HOME } from '@/lib/doc-links'
 
 // The documentation's pages (docs/help), read at build time (scripts/docs-plugin.ts). The app's
-// Docs area, the static docs site, Help and the guide links all read them from here.
+// Docs area, the static docs site and Help read them from here; a link to a page from elsewhere
+// in the app reads lib/doc-links.ts.
 
 export type { DocPage } from '@domain/docs'
-
-/** Where the docs open: in the app at /docs, and on the static site at its own base. */
-export const DOCS_HOME = (import.meta.env.VITE_DOCS_BASE as string | undefined) ?? '/docs'
+export { CHANGELOG_SLUG, DOCS_HOME, docHref } from '@/lib/doc-links'
 
 export const DOC_GROUPS = docGroups
 export const DOC_PAGES: DocPage[] = docs.pages
 export const CHANGES: DocChangelog = docs.changelog
-export const CHANGELOG_SLUG = CHANGELOG
 
 export const docPage = (slug: string | undefined) => DOC_PAGES.find((p) => p.slug === slug)
-
-/** Where a page opens, at a heading when there is one. */
-export const docHref = (slug: string, hash = '') => docPath(DOCS_HOME, slug, hash)
 
 /** The plain-text index an agent can read at /docs/llms.txt: every page with its one line. */
 export const llmsTxt = () => indexOf(docs, DOCS_HOME)

@@ -64,7 +64,7 @@ const AppHelpRoute = AppHelpRouteImport.update({
   id: '/help',
   path: '/help',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/_app/help.lazy').then((d) => d.Route))
 const ConnectApproveRoute = ConnectApproveRouteImport.update({
   id: '/connect/approve',
   path: '/connect/approve',
@@ -74,17 +74,19 @@ const DocsIndexRoute = DocsIndexRouteImport.update({
   id: '/docs/',
   path: '/docs/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/docs/index.lazy').then((d) => d.Route))
 const DocsSlugRoute = DocsSlugRouteImport.update({
   id: '/docs/$slug',
   path: '/docs/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any).lazy(() => import('./routes/docs/$slug.lazy').then((d) => d.Route))
 const AppContextIndexRoute = AppContextIndexRouteImport.update({
   id: '/context/',
   path: '/context/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/context.index.lazy').then((d) => d.Route),
+)
 const AppContextNewRoute = AppContextNewRouteImport.update({
   id: '/context/new',
   path: '/context/new',
@@ -96,7 +98,9 @@ const AppDefinitionsIndexRoute = AppDefinitionsIndexRouteImport.update({
   id: '/definitions/',
   path: '/definitions/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/definitions.index.lazy').then((d) => d.Route),
+)
 const AppDefinitionsNewRoute = AppDefinitionsNewRouteImport.update({
   id: '/definitions/new',
   path: '/definitions/new',
@@ -113,22 +117,30 @@ const AppObservabilityIndexRoute = AppObservabilityIndexRouteImport.update({
   id: '/observability/',
   path: '/observability/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/observability.index.lazy').then((d) => d.Route),
+)
 const AppObservabilitySectionRoute = AppObservabilitySectionRouteImport.update({
   id: '/observability/$section',
   path: '/observability/$section',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/observability.$section.lazy').then((d) => d.Route),
+)
 const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   id: '/settings/',
   path: '/settings/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/settings.index.lazy').then((d) => d.Route),
+)
 const AppContextIdIndexRoute = AppContextIdIndexRouteImport.update({
   id: '/context/$id/',
   path: '/context/$id/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/context.$id.index.lazy').then((d) => d.Route),
+)
 const AppContextIdEditRoute = AppContextIdEditRouteImport.update({
   id: '/context/$id/edit',
   path: '/context/$id/edit',
@@ -147,7 +159,9 @@ const AppDefinitionsNameIndexRoute = AppDefinitionsNameIndexRouteImport.update({
   id: '/definitions/$name/',
   path: '/definitions/$name/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/definitions.$name.index.lazy').then((d) => d.Route),
+)
 const AppDefinitionsNameEditRoute = AppDefinitionsNameEditRouteImport.update({
   id: '/definitions/$name/edit',
   path: '/definitions/$name/edit',
@@ -166,19 +180,29 @@ const AppSettingsSectionIndexRoute = AppSettingsSectionIndexRouteImport.update({
   id: '/settings/$section/',
   path: '/settings/$section/',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/_app/settings.$section.index.lazy').then((d) => d.Route),
+)
 const AppSettingsSectionSubIndexRoute =
   AppSettingsSectionSubIndexRouteImport.update({
     id: '/settings/$section/$sub/',
     path: '/settings/$section/$sub/',
     getParentRoute: () => AppRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_app/settings.$section.$sub.index.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 const AppSettingsSectionSubStepRoute =
   AppSettingsSectionSubStepRouteImport.update({
     id: '/settings/$section/$sub/$step',
     path: '/settings/$section/$sub/$step',
     getParentRoute: () => AppRoute,
-  } as any)
+  } as any).lazy(() =>
+    import('./routes/_app/settings.$section.$sub.$step.lazy').then(
+      (d) => d.Route,
+    ),
+  )
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
