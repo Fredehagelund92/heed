@@ -100,6 +100,7 @@ test('the + beside a line comments on it, and Esc keeps what was written', async
   await expect(box).toHaveCount(0)
   // Esc closed the composer only; the review is still open.
   await expect(page).toHaveURL(/\/review/)
+  await expect(text.locator('[data-source-place]:focus')).toHaveCount(1)
   await page.keyboard.press('c')
   await expect(text.getByRole('textbox', { name: 'Comment on line 1' })).toContainText(
     'Half a thought',
@@ -109,20 +110,10 @@ test('the + beside a line comments on it, and Esc keeps what was written', async
 test('a thread shown apart from the source is resolved and reopened there too', async ({
   page,
 }) => {
-  await go(page, '/inbox?card=sug-ines')
-  await page.getByRole('button', { name: 'Review', exact: true }).click()
-  await expect(page).toHaveURL(/\/review/)
-  await page.keyboard.press('n')
-  await page.keyboard.press('c')
-  await page.keyboard.type('Which of the two pages is right?')
-  await page.keyboard.press('ControlOrMeta+Enter')
-  await expect(
-    page.getByRole('region', { name: "Source: Jon Abara's thread, open" }),
-  ).toContainText('Which of the two pages is right?')
-
-  await page.goBack()
-  const thread = page.getByRole('listitem').filter({ hasText: 'Which of the two pages is right?' })
-  await expect(thread).toContainText('On source')
+  await go(page, '/inbox?tab=all')
+  await page.getByRole('button', { name: /^Norway launch campaign started.*Mentioned by/ }).click()
+  const thread = page.getByRole('listitem').filter({ hasText: 'Is the scope the Nordics' })
+  await expect(thread).toContainText('Open')
   await thread.getByRole('button', { name: 'Resolve' }).click()
   await expect(thread).toContainText('Resolved by Jon Abara')
   await thread.getByRole('button', { name: 'Reopen' }).click()

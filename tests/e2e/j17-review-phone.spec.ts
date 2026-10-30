@@ -33,6 +33,7 @@ test('a tap on a line offers to comment on it', async ({ page }) => {
   await expect(offer).toBeVisible()
   expect((await offer.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await offer.tap()
+  await expect(text.getByRole('textbox', { name: 'Comment on line 1' })).toBeFocused()
   await page.keyboard.type('On the phone')
   await text.getByRole('button', { name: 'Comment', exact: true }).tap()
   await expect(

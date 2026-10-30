@@ -93,6 +93,14 @@ export const seedComments: Partial<Record<Subject, CommentItem[]>> = {
         '@[Jon Abara] which part of the budget is held: media, or agency fees too? Finance asks for the line before I publish.',
       ),
     },
+    // On the source, written against a version that has since been replaced.
+    {
+      id: 'c_jon_2',
+      author: 'Tomas Eriksen',
+      when: 'Today, 10:07',
+      anchor: { field: 'scope', before: null, after: 'an-earlier-version' },
+      content: text('Is the scope the Nordics, or only Norway?'),
+    },
   ],
   // A mention on someone else's context item: Jon owns no Marketing context, so it reaches him only as a mention.
   'context:itm_za26xpzv': [
