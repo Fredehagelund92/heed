@@ -267,7 +267,11 @@ export function AnswerCard({ answer, facts }: { answer: Answer; facts: Fact[] })
   const workspace = useWorkspace().name
   return (
     <figure className="m-0 flex flex-col gap-3 rounded-mark border bg-background p-4">
-      <StateLine state={answer.state} sentence tip={false} className="text-xs" />
+      {answer.state ? (
+        <StateLine state={answer.state} sentence tip={false} className="text-xs" />
+      ) : (
+        <p className="text-xs text-muted-foreground">Nothing was looked up</p>
+      )}
       <div className="flex flex-col gap-1.5">
         <p className="text-base leading-snug font-semibold text-balance">{answer.question}</p>
         <p className="text-sm leading-relaxed">{plainAnswer(answer.text)}</p>

@@ -689,7 +689,8 @@ Ask's Show me where it says that walks a sentence back to. Its state is one of t
 could not run; `missing` when nothing was given or the question could not be read; `conflict`
 when given items disagree; `partial` when an asked metric or value has no item that covers it in
 full (`uncovered` names them) or the dates were assumed; `stale` when a given item may be out of
-date; else `grounded`.
+date; else `grounded`. Ask shows an answer whose status is `need_more_detail` with no state at all:
+"Nothing was looked up" and the reason its `say` gives, never Not found.
 
 - `POST /ask/lookup` (Ask): a question (1 to 2,000 characters) and the names a person picked
   beside it (`metrics`, `dimension_filters`, `window`, as Try it), on the live edition. It answers

@@ -17,6 +17,7 @@ export const answeredOn = (iso: string = TODAY) => {
 /** The state line as it travels: "Checked (2 items)", "Partial (1 item). Only part of this is written down." */
 export function stateLineOf(answer: Pick<Answer, 'state'>, sources: number) {
   const items = sources ? ` (${sources} ${sources === 1 ? 'item' : 'items'})` : ''
+  if (!answer.state) return 'Nothing was looked up.'
   return answer.state === 'grounded'
     ? `${stateLabel.grounded}${items}`
     : `${stateLabel[answer.state]}${items}. ${stateSentence[answer.state]}`

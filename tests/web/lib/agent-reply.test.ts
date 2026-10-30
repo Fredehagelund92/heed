@@ -74,4 +74,11 @@ describe('what agents get', () => {
     for (const item of reply.context)
       expect(Object.keys(item).sort()).toEqual(['checked', 'id', 'source', 'title'])
   })
+  it('tells the agent a question that names nothing was not looked up, never no match', () => {
+    const answer = answerFor('give me context created in last 24 hours?', '', [])
+    const reply = agentReply(answer, [])
+    expect(reply.status).toBe('need_more_detail')
+    expect(reply.say).toMatch(/^Nothing was looked up yet\. /)
+    expect(reply.context).toEqual([])
+  })
 })

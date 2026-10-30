@@ -136,6 +136,18 @@ for (const { name, width, height } of widths) {
         expect(await violations(page)).toEqual([])
       })
 
+      test('an answer that looked nothing up, with the questions Ask can answer', async ({
+        page,
+      }) => {
+        await page.goto(withTheme('/ask?n=axe-unread', theme))
+        const box = page.getByRole('textbox', { name: 'Ask a question' })
+        await box.click()
+        await box.pressSequentially('give me context created in last 24 hours?')
+        await box.press('Enter')
+        await expect(page.getByRole('group', { name: 'Questions Ask can answer' })).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
+
       test('the Help menu, open', async ({ page }) => {
         await page.goto(withTheme('/inbox', theme))
         if (width < 768) await page.getByRole('button', { name: /menu/i }).first().click()

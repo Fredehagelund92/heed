@@ -1,5 +1,5 @@
 import { askQuestion } from '@/api/mock/data/ask'
-import type { AnswerState, AskedRow } from '@/model/ask'
+import { countedState, type AnswerState, type AskedRow } from '@/model/ask'
 import { week } from '@/api/mock/data/inbox'
 import { obsData } from '@/api/mock/data/observability'
 import { groupCount, HIDE_UNDER, observability, type Topic } from '@/api/mock/obs-engine'
@@ -45,9 +45,9 @@ export function askedThisWeek(pool?: Fact[]) {
         question,
         times: g.visible ?? g.shown,
         count: groupCount(g),
-        state: a.state,
+        state: countedState(a),
         sources: a.sources.length,
-        next: nextOf(t, a.state),
+        next: nextOf(t, countedState(a)),
       }
     })
     .sort((a, b) => b.times - a.times)

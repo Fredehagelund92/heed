@@ -2,8 +2,16 @@ import { findDefinition, meaningOf, synonymIn, type Definition } from '@/lib/def
 import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 import { facts, markets, metrics } from './world'
 import { definitionSeed } from '../definitions'
+import { unreadSaid } from '@domain/say'
 import { parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
-import { scopeText, stateLabel, type Answer, type Example, type QuestionPart } from '@/model/ask'
+import {
+  scopeText,
+  stateLabel,
+  unreadReason,
+  type Answer,
+  type Example,
+  type QuestionPart,
+} from '@/model/ask'
 
 /** The definitions the matcher reads synonyms from: the mock's, as they stand (mock/index.ts). */
 let definitionsNow: () => Definition[] = () => definitionSeed
@@ -262,9 +270,14 @@ const stems = metrics.flatMap((m) => {
     : []
 })
 
+/** The metrics as the engine names them when a question names none, in the engine's order. */
+const metricTerms = metrics
+  .map((m) => ({ key: `metric:${m.name.toLowerCase().replace(/\W+/g, '_')}`, name: m.name }))
+  .sort((a, b) => (a.key < b.key ? -1 : 1))
+
 /**
  * Reads a metric and markets from plain words, the way get_context does, with no model. Either may
- * be missing: a question that names neither matches nothing, and gets Not found.
+ * be missing: a question that names neither is not looked up, and gets no answer state.
  */
 export function readQuestion(q: string) {
   const lower = q.toLowerCase()
@@ -393,14 +406,14 @@ function answerCore(
   const scope = scopeText({ metric, markets: ms, dates }) || 'this question'
   const base = { id: 'custom', question, metric, markets: ms, dates, related }
 
+  // Nothing was looked up: no answer state, and the engine's own sentence about why.
   if (!matched) {
-    return {
-      ...base,
-      state: 'missing',
-      text: 'This question names no metric or market the context covers, so nothing written down applies. Agents say so rather than guess.',
-      sources: [],
-      said: 'Nothing written matches this question. No match does not prove that nothing applies.',
-    }
+    const said = unreadSaid(
+      { terms: metricTerms },
+      [{ field: 'scope', input: question, options: metricTerms.map((t) => t.key) }],
+      question,
+    ).say
+    return { ...base, state: null, text: unreadReason(said), sources: [], said }
   }
 
   if (all.length === 0) {

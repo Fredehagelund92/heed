@@ -31,7 +31,8 @@ export type FigureAsk = {
   metric: string
   markets: string[]
   dates?: string
-  state: string
+  /** The answer's state; null when nothing was looked up. */
+  state: string | null
   /** The answer's context items: a figure someone said doesn't fit one shows beside it. */
   sources?: string[]
 }

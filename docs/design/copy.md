@@ -70,6 +70,8 @@ The six states of an answer. One or two words, an icon and a tint, one short sen
 
 A draft answer says "Based on this draft". The long forms are the only place the older labels may still appear.
 
+A question that was not looked up (it names no metric and no market) has no state, so none of the six: Ask's line says **Nothing was looked up**, then the reason. Never Not found, which says nothing is written down.
+
 ### Kinds
 
 Event (lightning), Warning (triangle), Rule (ruler), Guide (route). Stored as `event`, `issue`, `note`, `guide`. Hints, each fourteen words or fewer:

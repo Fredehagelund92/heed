@@ -206,14 +206,35 @@ describe("Ask's answer from the engine", () => {
     expect(alone.conflict).toEqual([])
   })
 
+  it('says a question the engine could not read was not looked up, with its reason and no answer state', () => {
+    const unread = (say: string) =>
+      answerOf(
+        result({ state: 'missing', status: 'need_more_detail', scope: null, say }),
+        'give me context created in last 24 hours?',
+        names,
+      )
+    const a = unread(
+      'Nothing was looked up yet. The question needs a metric or a market, such as Active customers, Average order value or Churn rate.',
+    )
+    // Not found would tell the person that nobody wrote anything down, which nobody checked.
+    expect(a.state).toBeNull()
+    expect(a.sources).toEqual([])
+    expect(a.text).toBe(
+      'The question needs a metric or a market, such as Active customers, Average order value or Churn rate.',
+    )
+    expect(a.said).toMatch(/^Nothing was looked up yet\. /)
+    // Whatever the engine could not read, its reason is what the answer says.
+    expect(unread(`Nothing was looked up yet. There's no domain called "Salse".`).text).toBe(
+      `There's no domain called "Salse".`,
+    )
+  })
+
   it('says what nothing is written for, and gives Not checked no words', () => {
-    expect(answerOf(result({ state: 'missing', status: 'no_match' }), 'Orders?', names).text).toBe(
+    const missing = answerOf(result({ state: 'missing', status: 'no_match' }), 'Orders?', names)
+    expect(missing.state).toBe('missing')
+    expect(missing.text).toBe(
       "Nobody has written down anything about Orders in Norway, 1 to 31 Aug 2026. That doesn't mean there's no explanation, only that none is written down yet.",
     )
-    expect(
-      answerOf(result({ state: 'missing', status: 'need_more_detail', scope: null }), 'Hm?', names)
-        .text,
-    ).toMatch(/^This question names no metric or market/)
     const failed = answerOf(result({ state: 'failed', status: 'check_failed' }), 'Orders?', names)
     expect(failed.text).toBe('')
     expect(failed.note).toMatch(/^The check couldn't run just now/)

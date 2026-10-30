@@ -41,13 +41,37 @@ test('an owner chooses which one stays among the items that disagree', async ({ 
   })
 })
 
-test('a question that names nothing gets Not found, with its short sentence', async ({ page }) => {
+test('a question that names nothing says nothing was looked up, never Not found', async ({
+  page,
+}) => {
   await go(page, '/ask?n=j3b')
   const box = page.getByRole('textbox', { name: 'Ask a question' })
   await box.click()
-  await box.pressSequentially('What is our refund policy for gift cards?')
+  await box.pressSequentially('give me context created in last 24 hours?')
   await box.press('Enter')
-  await expect(page.getByRole('log').getByText('Not found', { exact: true })).toBeVisible()
+  const log = page.getByRole('log')
+  await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toBeVisible()
+  // The engine's own reason, and no state: Not found would say nobody wrote anything down.
+  await expect(log.getByText(/^The question needs a metric or a market, such as \w/)).toBeVisible()
+  await expect(log.getByText('Not found', { exact: true })).toHaveCount(0)
+  await expect(log.getByText('Nothing is written about this yet.')).toHaveCount(0)
+  await expect(log.getByText(/Questions about the context itself/)).toBeVisible()
+  // What Ask can answer today, from the workspace: picking one asks it in the same chat.
+  const kinds = log.getByRole('group', { name: 'Questions Ask can answer' })
+  const example = kinds.getByRole('button').first()
+  const question = (await example.textContent())!
+  await expect(kinds.getByRole('button')).toHaveCount(2)
+  await example.click()
+  await expect(log.getByText(question, { exact: true }).last()).toBeVisible()
+  await expect(log.getByRole('button', { name: /^Looked up \d+ context items?/ })).toBeVisible()
+})
+
+test('a question that was looked up and found nothing still gets Not found', async ({ page }) => {
+  await go(page, '/ask?n=j3n')
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('Why did conversion drop in Sweden last month?')
+  await box.press('Enter')
   await expect(
     page
       .getByRole('log')

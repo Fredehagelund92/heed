@@ -18,6 +18,7 @@ import { TypeGlyph } from '@/components/heed/definition'
 import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
+import { Suggestions } from '@/components/heed/suggestions'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
 import { sentencesOf } from '@/lib/where'
@@ -37,7 +38,7 @@ import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { figureQuery, myReportsQuery, useWrite } from '@/api/queries'
+import { figureQuery, myReportsQuery, useAskExamples, useWrite } from '@/api/queries'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
@@ -249,15 +250,17 @@ function LookupCard({
         : 'Stopped while writing'
     : running && stage === 'looking'
       ? 'Looking up context…'
-      : running
-        ? facts.length
-          ? `Reading ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}…`
-          : 'Found no context items'
-        : answer.state === 'failed'
-          ? 'The look-up failed'
-          : facts.length
-            ? `Looked up ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}${linkWords}`
-            : 'Looked up: no context items'
+      : answer.state === null
+        ? 'Nothing was looked up'
+        : running
+          ? facts.length
+            ? `Reading ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}…`
+            : 'Found no context items'
+          : answer.state === 'failed'
+            ? 'The look-up failed'
+            : facts.length
+              ? `Looked up ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}${linkWords}`
+              : 'Looked up: no context items'
   return (
     <Collapsible className="text-sm">
       <CollapsibleTrigger
@@ -758,6 +761,30 @@ function SomethingWrong({
   )
 }
 
+/**
+ * A question that looked nothing up: what Ask answers today, with two questions from the workspace
+ * to try, and what comes later. Nothing here says whether anything is written down.
+ */
+function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
+  const asked = answer.question.toLowerCase()
+  const examples = useAskExamples()
+    .map((e) => e.question)
+    .filter((q) => q.toLowerCase() !== asked)
+    .slice(0, 2)
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-muted-foreground">
+        Ask answers questions about a metric or a market, or type @ to scope the question.
+        {onAsk && examples.length > 0 && ' For example:'}
+      </p>
+      {onAsk && <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />}
+      <p className="text-xs text-muted-foreground">
+        Questions about the context itself, such as what is new or who owns it, come later.
+      </p>
+    </div>
+  )
+}
+
 /** The next step that fits the state: for the owner, or for everyone else. */
 function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const me = useMe()
@@ -765,13 +792,6 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
   const owns = me.owns.includes('sales') || me.admin
   const scope = scopeText({ metric: answer.metric, markets: answer.markets.slice(-1) })
   const tellReason = React.useId()
-  // A question that matched nothing has nothing to write for yet: say how to ask it.
-  if (answer.state === 'missing' && !scope)
-    return (
-      <p className="text-xs text-muted-foreground">
-        Name a metric or a market, or type @ to scope the question.
-      </p>
-    )
   if (answer.state === 'missing' || answer.state === 'partial') {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -935,11 +955,14 @@ export function AnswerBody({
   phase = 'done',
   onRetry,
   onSettled,
+  onAsk,
   docked,
 }: {
   answer: Answer
   draft?: Fact
   phase?: Phase
+  /** Ask another question in this chat: one of those an answer that looked nothing up offers. */
+  onAsk?: (question: string) => void
   /** Ask is itself in the right panel: what would open there opens in place. */
   docked?: boolean
   onRetry?: () => void
@@ -1020,7 +1043,7 @@ export function AnswerBody({
     state: answer.state,
     sources: answer.sources,
   }
-  const figure = useQuery({ ...figureQuery(asked), enabled: !draft })
+  const figure = useQuery({ ...figureQuery(asked), enabled: !draft && answer.state !== null })
   const figures = useFigures()
   const view = draft ? null : (figure.data ?? null)
   const note = noteFor(answer.note, view)
@@ -1036,11 +1059,11 @@ export function AnswerBody({
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <LookupCard answer={answer} facts={facts} stage={stage} stopped={stopped} />
         {phase === 'live' && !finished && <span className="sr-only">Writing the answer</span>}
-        {(writing || finished) && (
+        {(writing || finished) && (answer.state !== null || note || !!answer.scope?.length) && (
           <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
             <ScopeLine answer={answer} />
             {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
-            <StateHelp state={answer.state} draft={!!draft} />
+            {answer.state && <StateHelp state={answer.state} draft={!!draft} />}
             {note && <p className="-mt-1 text-sm text-muted-foreground">{note}</p>}
           </div>
         )}
@@ -1098,7 +1121,11 @@ export function AnswerBody({
             {answer.alias && <AliasChip alias={answer.alias} />}
             {facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
             {answer.related?.length ? <Related ids={answer.related} /> : null}
-            {!draft && <NextStep answer={answer} facts={facts} />}
+            {answer.state === null ? (
+              <AskableKinds answer={answer} onAsk={onAsk} />
+            ) : (
+              !draft && <NextStep answer={answer} facts={facts} />
+            )}
             {!draft && report && <ReportLine report={report} />}
             {!draft && wrong && !report && facts.length > 0 && (
               <SomethingWrong
@@ -1151,7 +1178,7 @@ export function AnswerBody({
                 </Button>
               )}
               {/* Keep checking this answer after every change: for the owners of its domain and admins. */}
-              {!draft && answer.state !== 'failed' && canSave && (
+              {!draft && answer.state && answer.state !== 'failed' && canSave && (
                 <SaveQuestion
                   quiet
                   question={answer.question}
@@ -1160,7 +1187,7 @@ export function AnswerBody({
                 />
               )}
               {/* The answer travels with its state and its sources. */}
-              {!draft && answer.state !== 'failed' && (
+              {!draft && answer.state && answer.state !== 'failed' && (
                 <ShareButton answer={answer} facts={facts} answerId={key} docked={docked} />
               )}
               {/* The rest on hover or focus. */}

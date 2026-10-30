@@ -1,3 +1,4 @@
+import { notLookedUp } from '@domain/say'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
 import type { DomainId } from './items'
@@ -22,8 +23,22 @@ export const stateLong = Object.fromEntries(ANSWER_LINES.map((l) => [l.state, l.
   string
 >
 
+/**
+ * The state an answer counts under where agents' calls are counted (Asked this week,
+ * Observability): a question that looked nothing up counts as Not found there, as the service
+ * counts it. Ask itself never shows Not found for it.
+ */
+export const countedState = (a: Pick<Answer, 'state'>): AnswerState => a.state ?? 'missing'
+
 /** An answer from a draft: the words nobody has checked yet never say "checked". */
 export const DRAFT_LABEL = 'Based on this draft'
+
+/**
+ * Why nothing was looked up, from what the engine tells the person: its sentence without "Nothing
+ * was looked up yet.", which the answer says on its own line.
+ */
+export const unreadReason = (say: string) =>
+  say.startsWith(notLookedUp) ? say.slice(notLookedUp.length).trim() : say
 
 /** What a question was read as, in words: "Orders in Norway, 1 to 31 Aug 2026". Empty when nothing matched. */
 export function scopeText(a: Pick<Answer, 'metric' | 'markets' | 'dates'>) {
@@ -37,7 +52,12 @@ export type Answer = {
   metric: string
   markets: string[]
   dates?: string
-  state: AnswerState
+  /**
+   * How sure the context is, or null when nothing was looked up: the question named nothing the
+   * context is about, so there is no answer state (the engine's `need_more_detail`). Not found is
+   * only for a question that was looked up and found nothing.
+   */
+  state: AnswerState | null
   note?: string
   /** Plain sentences; [n] points at sources[n - 1]. */
   text: string

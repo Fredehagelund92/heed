@@ -1915,14 +1915,19 @@ export function describeHeedApi(
     )
 
     it.skipIf(lacks('signIn', 'ask'))(
-      'answers a question that names nothing as Not found, with no sources',
+      'says a question that names nothing was not looked up, never Not found, and why',
       async () => {
         const answer = await (
           await signedIn()
-        ).ask({ question: 'What is our refund policy for gift cards?' })
-        expect(answer.state).toBe('missing')
+        ).ask({ question: 'give me context created in last 24 hours?' })
+        // No answer state: Not found would say nobody wrote anything down.
+        expect(answer.state).toBeNull()
         expect(answer.sources).toEqual([])
-        expect(answer.text).not.toBe('')
+        // The engine's own words, the same in the mock and on the service.
+        expect(answer.said).toMatch(
+          /^Nothing was looked up yet\. The question needs a metric or a market, such as \w/,
+        )
+        expect(answer.text).toMatch(/^The question needs a metric or a market, such as \w/)
       },
     )
 
