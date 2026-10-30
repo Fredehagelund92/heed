@@ -19,7 +19,7 @@ import type { Draft } from '../../src/domain/draft.ts'
 import { itemVersionDigests } from '../../src/domain/item-version.ts'
 import { formatDraft } from '../../src/domain/draft.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, ignoreTeardownDisconnects, testDatabase, transaction } from './support.ts'
 import { foundation, people, version, accept, openEdition } from './fixtures.ts'
 
 const { client, url } = testDatabase()
@@ -41,7 +41,9 @@ const headers: Record<string, Headers> = {}
 let acceptedItem: string
 beforeAll(async () => {
   await foundation(client)
-  const cubePool = new pg.Pool({ connectionString: url, options: '-c role=context_layer_api' })
+  const cubePool = ignoreTeardownDisconnects(
+    new pg.Pool({ connectionString: url, options: '-c role=context_layer_api' }),
+  )
   try {
     const cube = createCubeSource({
       modelDir: fileURLToPath(new URL('../fixtures/cube/', import.meta.url)),

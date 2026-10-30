@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
 import type { Edition, ReviewProposal } from '../../src/contract/review.ts'
@@ -15,7 +14,7 @@ import { createProposalsService } from '../../src/server/modules/proposals/index
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
-import { apiDatabase, testDatabase, transaction } from './support.ts'
+import { apiDatabase, servingPool, testDatabase, transaction } from './support.ts'
 
 /*
   S8 end to end over authenticated HTTP: a contributor proposes, an owner decides in the web app's
@@ -36,17 +35,7 @@ const app = buildApp({
     roles: [],
   })),
 })
-const servePool = new pg.Pool({
-  connectionString: url,
-  options: '-c role=context_layer_serve',
-  types: {
-    getTypeParser(oid, format): (value: string) => unknown {
-      return oid === pg.types.builtins.DATE
-        ? (value) => value
-        : (pg.types.getTypeParser(oid, format) as (value: string) => unknown)
-    },
-  },
-})
+const servePool = servingPool(url)
 const refuse = (): Promise<never> => Promise.reject(new Error('not recorded in this test'))
 const execute = createToolService(
   createEditionSource(servePool),
