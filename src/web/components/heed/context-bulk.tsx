@@ -131,13 +131,13 @@ export function ContextBulk({
     const result = await api.applyBulk(input)
     const ok = plan.act.filter((f) => result.done.includes(f.id))
     const failed = plan.act.filter((f) => result.failed.includes(f.id))
-    const refresh = () => void refreshAfter('applyBulk', input, result)
+    const refresh = () => refreshAfter('applyBulk', input, result)
     if (action === 'delete' || action === 'archive')
-      leaveAllThen(
+      void leaveAllThen(
         ok.map((f) => f.id),
         refresh,
       )
-    else refresh()
+    else void refresh()
     // What is done leaves the selection; what failed or was left alone stays, with its line.
     const stay = [...failed.map((f) => f.id), ...plan.skipped.map((s) => s.id)]
     if (stay.length) sel.select(stay)

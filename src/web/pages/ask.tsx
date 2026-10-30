@@ -53,6 +53,7 @@ import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { StateLine } from '@/components/heed/bits'
 import { Suggestions } from '@/components/heed/suggestions'
+import { arriveRef, leaveThen, useLeaving } from '@/lib/presence'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. Mock answers only:
@@ -416,7 +417,6 @@ export function AskChat({
 /* ---------- the chats ---------- */
 
 const DAYS: Day[] = ['Today', 'Yesterday', 'Earlier']
-const DELETE_MS = 200
 const HISTORY_KEY = '⌥H'
 
 /** Starts an empty chat: a new `n` gives the thread a fresh start. */
@@ -444,7 +444,7 @@ function ThreadRow({
 }) {
   const threadActions = useThreadActions()
   const [renaming, setRenaming] = React.useState(false)
-  const [leaving, setLeaving] = React.useState(false)
+  const leaving = useLeaving(thread.id)
   const row = React.useRef<HTMLLIElement>(null)
   const openButton = React.useRef<HTMLButtonElement>(null)
 
@@ -472,14 +472,10 @@ function ThreadRow({
       li?.nextElementSibling?.querySelector<HTMLElement>('[data-open]') ??
       li?.previousElementSibling?.querySelector<HTMLElement>('[data-open]') ??
       li?.closest('[data-chats]')?.querySelector<HTMLElement>('[data-new-chat]')
-    setLeaving(true)
-    window.setTimeout(
-      () => {
-        onDelete()
-        next?.focus()
-      },
-      reducedMotion() ? 0 : DELETE_MS,
-    )
+    void leaveThen(thread.id, () => {
+      onDelete()
+      next?.focus()
+    })
   }
 
   return (
@@ -487,7 +483,7 @@ function ThreadRow({
       ref={row}
       data-active={active || undefined}
       data-leaving={leaving || undefined}
-      className="group/row grid grid-rows-(--rows-open) transition-[grid-template-rows,opacity] duration-(--dur-3) ease-out data-leaving:grid-rows-(--rows-shut) data-leaving:opacity-0 starting:grid-rows-(--rows-shut) starting:opacity-0"
+      className="group/row row-presence"
     >
       <div className="relative min-h-0 overflow-hidden rounded-md bg-(--row) [--row:var(--background)] group-data-active/row:shadow-hairline group-data-active/row:[--row:var(--muted)] hover:[--row:var(--row-hover)]">
         {renaming ? (
@@ -843,7 +839,7 @@ function ThreadList({
                 >
                   {day}
                 </h2>
-                <ul className="flex flex-col gap-px">
+                <ul ref={arriveRef} className="flex flex-col gap-px">
                   {items.map((t) => (
                     <ThreadRow
                       key={t.id}

@@ -4,7 +4,6 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   CircleStopIcon,
-  CopyIcon,
   FileTextIcon,
   FlagIcon,
   PencilIcon,
@@ -25,6 +24,7 @@ import { sentencesOf } from '@/lib/where'
 import { LogoSymbol } from '@/components/heed/logo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -116,6 +116,7 @@ export function Question({
   onEdit?: (parts: QuestionPart[]) => void
 }) {
   const me = useMe()
+  const [copied, copy] = useCopied()
   // Scoped with '@', the answer's header says how; otherwise one quiet line, only when the reading differs from the words.
   const showReadAs = !answer.scope?.length && !!scopeText(answer) && readDifferently(answer)
   return (
@@ -139,11 +140,11 @@ export function Question({
         <IconButton
           label="Copy"
           onClick={() => {
-            navigator.clipboard?.writeText(answer.question).catch(() => undefined)
+            copy(answer.question)
             toast('Copied')
           }}
         >
-          <CopyIcon />
+          <CopiedIcon copied={copied} />
         </IconButton>
         {onEdit && (
           <IconButton
@@ -275,7 +276,7 @@ function LookupCard({
           />
         )}
       </CollapsibleTrigger>
-      <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-(--dur-3) data-ending-style:h-0 data-starting-style:h-0">
+      <CollapsibleContent>
         <div className="mt-1 flex flex-col gap-2 rounded-surface border border-input bg-background px-3 py-3 text-muted-foreground">
           <p className="text-xs font-medium text-foreground">What agents get</p>
           <p>
@@ -984,6 +985,7 @@ export function AnswerBody({
     [draft, answer.sources, answer.cited, all],
   )
   const [rated, setRated] = React.useState<'up' | 'down' | null>(null)
+  const [copied, copy] = useCopied()
   const [wrong, setWrong] = React.useState(!!answer.correction)
   const [sentNow, setSentNow] = React.useState(answer.report)
   // A report the person sent about this answer, here or before: what the owners did comes back.
@@ -1195,13 +1197,11 @@ export function AnswerBody({
                 <IconButton
                   label="Copy"
                   onClick={() => {
-                    navigator.clipboard
-                      ?.writeText(answer.text.replace(/\[\d+\]/g, ''))
-                      .catch(() => undefined)
+                    copy(answer.text.replace(/\[\d+\]/g, ''))
                     toast('Copied')
                   }}
                 >
-                  <CopyIcon />
+                  <CopiedIcon copied={copied} />
                 </IconButton>
                 {onRetry && (
                   <IconButton label="Ask again" onClick={onRetry}>

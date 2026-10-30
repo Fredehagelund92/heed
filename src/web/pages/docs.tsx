@@ -4,9 +4,7 @@ import {
   ArrowRightIcon,
   ArrowUpRightIcon,
   BookOpenIcon,
-  CheckIcon,
   ChevronDownIcon,
-  CopyIcon,
   FileTextIcon,
   PlugIcon,
   SearchIcon,
@@ -16,6 +14,7 @@ import {
 import { cn } from '@/lib/utils'
 import { StateLine } from '@/components/heed/state-line'
 import { Logo } from '@/components/heed/logo'
+import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { buttonVariants } from '@/components/ui/button'
 import {
   Command,
@@ -234,21 +233,17 @@ function DocsNav({ slug }: { slug?: string }) {
 }
 
 function Code({ label, text }: { label: string; text: string }) {
-  const [copied, setCopied] = React.useState(false)
+  const [copied, copy] = useCopied()
   return (
     <figure className="overflow-hidden rounded-frame border">
       <figcaption className="flex items-center justify-between border-b bg-band px-4 py-2 text-xs text-muted-foreground">
         {label}
         <button
           type="button"
-          onClick={() => {
-            navigator.clipboard?.writeText(text).catch(() => undefined)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
-          }}
+          onClick={() => copy(text)}
           className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 hover:bg-muted hover:text-foreground"
         >
-          {copied ? <CheckIcon className="size-3.5" /> : <CopyIcon className="size-3.5" />}
+          <CopiedIcon copied={copied} className="[&_svg]:size-3.5" />
           {copied ? 'Copied' : 'Copy'}
         </button>
       </figcaption>

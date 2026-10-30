@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ChevronRightIcon, PanelRightOpenIcon, XIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 // Every right-hand panel has one anatomy: a title bar (the bar's height, its title, its own actions
@@ -89,18 +90,13 @@ export function PanelGroup({
   children: React.ReactNode
   className?: string
 }) {
-  const [open, setOpen] = React.useState(defaultOpen)
-  const id = React.useId()
   return (
-    <section className={cn('border-b last:border-b-0', className)}>
+    <Collapsible
+      defaultOpen={defaultOpen}
+      render={<section className={cn('border-b last:border-b-0', className)} />}
+    >
       <h3>
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={id}
-          onClick={() => setOpen((o) => !o)}
-          className="group/pg flex min-h-11 w-full items-center gap-1.5 px-4 text-left text-sm font-medium outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        >
+        <CollapsibleTrigger className="group/pg flex min-h-11 w-full items-center gap-1.5 px-4 text-left text-sm font-medium outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
           <ChevronRightIcon
             aria-hidden
             className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/pg:rotate-90"
@@ -109,13 +105,15 @@ export function PanelGroup({
           {count !== undefined && (
             <span className="font-normal text-muted-foreground tabular-nums">{count}</span>
           )}
-        </button>
+        </CollapsibleTrigger>
       </h3>
-      <div id={id} hidden={!open} className="px-4 pb-4">
-        {description && <p className="mb-3 text-sm text-muted-foreground">{description}</p>}
-        {children}
-      </div>
-    </section>
+      <CollapsibleContent keepMounted>
+        <div className="px-4 pb-4">
+          {description && <p className="mb-3 text-sm text-muted-foreground">{description}</p>}
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 

@@ -460,14 +460,13 @@ function PersonSheet({
                       setRemoving(false)
                       onOpenChange(false)
                       // The row goes as it leaves the list; Undo brings it back in.
-                      const removed = new Promise<{ undo?: string }>((resolve) =>
-                        leaveThen(
-                          p.name,
-                          () =>
-                            void write('removePerson', { name: p.name }).then((r) =>
+                      const removed = new Promise<{ undo?: string }>(
+                        (resolve) =>
+                          void leaveThen(p.name, () =>
+                            write('removePerson', { name: p.name }).then((r) =>
                               resolve(r.removed ? { undo: r.undo } : {}),
                             ),
-                        ),
+                          ),
                       )
                       toast(p.invited ? 'Invite revoked' : 'Removed', {
                         description: p.name,

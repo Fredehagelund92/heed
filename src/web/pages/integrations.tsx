@@ -6,7 +6,6 @@ import {
   ChevronDownIcon,
   CircleAlertIcon,
   CircleCheckIcon,
-  CopyIcon,
   EllipsisIcon,
   EyeOffIcon,
   GitPullRequestArrowIcon,
@@ -30,6 +29,7 @@ import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useSelection } from '@/hooks/use-selection'
 import {
@@ -1971,6 +1971,7 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
   const { query } = useRoute()
   const at = Math.min(5, Math.max(1, Number(query.get('step')) || 1))
   const isDrive = c.keyFile !== undefined
+  const [copied, copy] = useCopied()
   const [values, setValues] = React.useState<ConnectValues>(() => ({
     config: Object.fromEntries(form.fields.map((f) => [f.key, f.value])),
     secrets: Object.fromEntries(form.secrets.map((s) => [s.key, ''])),
@@ -2126,11 +2127,11 @@ function ConnectSteps({ form, c }: { form: ConnectForm; c: Connector }) {
                       size="icon"
                       aria-label="Copy the address"
                       onClick={() => {
-                        navigator.clipboard?.writeText(account).catch(() => undefined)
+                        copy(account)
                         toast('Address copied')
                       }}
                     >
-                      <CopyIcon />
+                      <CopiedIcon copied={copied} />
                     </Button>
                   </div>
                   <FieldDescription>

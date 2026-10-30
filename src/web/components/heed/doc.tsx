@@ -1,5 +1,6 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ChevronRightIcon } from '@/components/icons'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 
 // The context item as a document, laid out the way editorcn's Simple Document Editor template lays out its
@@ -77,16 +78,9 @@ export function MoreProperties({
   label?: string
 }) {
   const [open, setOpen] = useState(false)
-  const id = useId()
   return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
-        className="group/more flex min-h-8 w-full min-w-0 items-center gap-1.5 rounded-md text-left text-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="group/more flex min-h-8 w-full min-w-0 items-center gap-1.5 rounded-md text-left text-sm outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50">
         {/* One tight line, one click target: the chevron, the label, then what is set, muted. */}
         <ChevronRightIcon
           aria-hidden
@@ -94,15 +88,11 @@ export function MoreProperties({
         />
         <span className="shrink-0 font-medium">{label}</span>
         {!open && <span className="ml-1 min-w-0 truncate text-muted-foreground">{summary}</span>}
-      </button>
-      <dl
-        id={id}
-        hidden={!open}
-        className="flex animate-in flex-col gap-0.5 duration-(--dur-3) fade-in-0"
-      >
+      </CollapsibleTrigger>
+      <CollapsibleContent keepMounted render={<dl />} className="flex flex-col gap-0.5">
         {children}
-      </dl>
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 

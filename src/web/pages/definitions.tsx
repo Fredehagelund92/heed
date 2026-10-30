@@ -74,6 +74,7 @@ import { plainText } from '@/lib/mentions'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { Loadable, TableSkeleton } from '@/components/heed/load-state'
 import { useFigures } from '@/lib/figures'
+import { useLeavingRows } from '@/lib/presence'
 
 // Definitions: the data glossary, laid out like the Heed app's catalogue. Views with counts (All,
 // Metrics, Dimensions, Terms), a line saying where the definitions come from, the same quiet bar
@@ -277,6 +278,8 @@ export function DefinitionsPage() {
               }
             : undefined
 
+  // Rows that leave (deleted in bulk) fade out first.
+  const leaving = useLeavingRows()
   const row = (d: Definition) => {
     const target = d.sameAs ? glossary.find(d.sameAs) : undefined
     const flag = flagOf(d)
@@ -294,7 +297,8 @@ export function DefinitionsPage() {
         aria-selected={isSel}
         data-state={isSel ? 'selected' : undefined}
         data-peeked={peeked === d.name || undefined}
-        className="group/row h-9 cursor-pointer border-b text-sm transition-colors hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
+        data-leaving={leaving.has(d.name) || undefined}
+        className="group/row h-9 cursor-pointer border-b text-sm row-fade hover:bg-muted/50 has-[[data-row-open]:focus-visible]:bg-muted data-peeked:bg-muted data-peeked:shadow-peeked data-[state=selected]:bg-muted @max-xl/main:h-auto"
         onMouseDown={sel.onMouseDown}
         onClick={(e) => sel.rowClick(d.name, e) || openDock('def', d.name)}
       >

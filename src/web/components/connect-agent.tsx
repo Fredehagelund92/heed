@@ -1,6 +1,5 @@
 import * as React from 'react'
 import {
-  CheckIcon,
   ChevronRightIcon,
   CircleCheckIcon,
   CircleDashedIcon,
@@ -15,6 +14,8 @@ import { toast } from 'sonner'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { FrameSection } from '@/components/heed/frame'
 import { Button, buttonVariants } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { CopiedIcon, useCopied } from '@/components/heed/copied-icon'
 import {
   Dialog,
   DialogContent,
@@ -137,7 +138,7 @@ function useLive() {
 
 function PromptCard({ onCopy }: { onCopy: () => void }) {
   const { parts, prompt } = useConnectWords()
-  const [copied, setCopied] = React.useState(false)
+  const [copied, copyNow] = useCopied()
   return (
     <figure className="border bg-background" aria-labelledby="connect-prompt-label">
       <figcaption className="flex min-h-11 items-center justify-between gap-3 border-b bg-band py-1.5 pr-1.5 pl-3">
@@ -147,13 +148,11 @@ function PromptCard({ onCopy }: { onCopy: () => void }) {
         <Button
           size="sm"
           onClick={() => {
-            void copy(prompt)
-            setCopied(true)
-            setTimeout(() => setCopied(false), 1500)
+            copyNow(prompt)
             onCopy()
           }}
         >
-          {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+          <CopiedIcon copied={copied} data-icon="inline-start" />
           {copied ? 'Copied' : 'Copy prompt'}
         </Button>
       </figcaption>
@@ -253,19 +252,17 @@ function LiveLine({
 /* ---------- The quick cells ---------- */
 
 function CopyButton({ label, text, onCopy }: { label: string; text: string; onCopy: () => void }) {
-  const [copied, setCopied] = React.useState(false)
+  const [copied, copyNow] = useCopied()
   return (
     <Button
       size="sm"
       variant="outline"
       onClick={() => {
-        void copy(text)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1500)
+        copyNow(text)
         onCopy()
       }}
     >
-      {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+      <CopiedIcon copied={copied} data-icon="inline-start" />
       {copied ? 'Copied' : label}
     </Button>
   )
@@ -408,7 +405,7 @@ function QuickCells({
 /* ---------- By hand ---------- */
 
 export function SetupLine({ line, onCopy }: { line: string; onCopy?: () => void }) {
-  const [copied, setCopied] = React.useState(false)
+  const [copied, copyNow] = useCopied()
   return (
     <InputGroup>
       <InputGroupInput
@@ -422,14 +419,12 @@ export function SetupLine({ line, onCopy }: { line: string; onCopy?: () => void 
           aria-label="Copy the line"
           size="icon-xs"
           onClick={() => {
-            void copy(line)
-            setCopied(true)
+            copyNow(line)
             toast('Copied', { description: 'Paste it where the step says.' })
-            setTimeout(() => setCopied(false), 1500)
             onCopy?.()
           }}
         >
-          {copied ? <CheckIcon /> : <CopyIcon />}
+          <CopiedIcon copied={copied} />
         </InputGroupButton>
       </InputGroupAddon>
     </InputGroup>
@@ -452,15 +447,15 @@ function ByHand({
     <ul aria-label="Each agent's steps" className="border-t">
       {guides.map((g) => {
         const open = g.id === shown
-        const id = `by-hand-${g.id}`
         return (
-          <li key={g.id} id={`guide-${g.id}`} className="scroll-mt-4 border-t first:border-t-0">
+          <Collapsible
+            key={g.id}
+            open={open}
+            onOpenChange={(o) => onShow(o ? g.id : undefined)}
+            render={<li id={`guide-${g.id}`} className="scroll-mt-4 border-t first:border-t-0" />}
+          >
             <h4>
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={id}
-                onClick={() => onShow(open ? undefined : g.id)}
+              <CollapsibleTrigger
                 className={cn(
                   'group/g flex min-h-12 w-full items-center gap-3 text-left text-sm font-medium outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                   pad,
@@ -478,31 +473,29 @@ function ByHand({
                   aria-hidden
                   className="mr-1.5 size-4 text-muted-foreground transition-transform group-aria-expanded/g:rotate-90"
                 />
-              </button>
+              </CollapsibleTrigger>
             </h4>
-            <ol
-              id={id}
-              hidden={!open}
-              className={cn('flex max-w-208 flex-col gap-3 pt-1 pb-4', pad)}
-            >
-              {g.steps.map((s, i) => (
-                <li key={i} className="grid grid-cols-(--cols-lead-6) gap-x-3 gap-y-2">
-                  <span
-                    aria-hidden
-                    className="grid size-6 place-items-center border text-xs font-medium tabular-nums"
-                  >
-                    {i + 1}
-                  </span>
-                  <span className="self-center text-sm text-pretty">{s.what}</span>
-                  {s.copy && (
-                    <div className="col-start-2 min-w-0">
-                      <SetupLine line={s.copy} onCopy={i === 0 ? () => start(g.id) : undefined} />
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ol>
-          </li>
+            <CollapsibleContent id={`by-hand-${g.id}`} keepMounted>
+              <ol className={cn('flex max-w-208 flex-col gap-3 pt-1 pb-4', pad)}>
+                {g.steps.map((s, i) => (
+                  <li key={i} className="grid grid-cols-(--cols-lead-6) gap-x-3 gap-y-2">
+                    <span
+                      aria-hidden
+                      className="grid size-6 place-items-center border text-xs font-medium tabular-nums"
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="self-center text-sm text-pretty">{s.what}</span>
+                    {s.copy && (
+                      <div className="col-start-2 min-w-0">
+                        <SetupLine line={s.copy} onCopy={i === 0 ? () => start(g.id) : undefined} />
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </CollapsibleContent>
+          </Collapsible>
         )
       })}
     </ul>

@@ -21,33 +21,39 @@ const subscribe = (l: () => void) => {
 const reduced = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Collapses the row `id`, then runs `commit`: the change is seen as the row going, not as a jump. */
-export function leaveThen(id: string, commit: () => void) {
-  if (reduced()) return commit()
-  leaving.add(id)
-  notify()
-  window.setTimeout(() => {
-    leaving.delete(id)
-    commit()
-    notify()
-  }, LEAVE_MS)
+/**
+ * Collapses the row `id`, then runs `commit`: the change is seen as the row going, not as a jump.
+ * When `commit` returns a promise (a save, then the refreshed list), the row stays collapsed until
+ * it settles, so it never shows again on its way out; if the save fails, it opens again.
+ */
+export function leaveThen(id: string, commit: () => unknown) {
+  return leaveAllThen([id], commit)
 }
 
 /** Several rows leave together, then one change is made. */
-export function leaveAllThen(ids: string[], commit: () => void) {
-  if (reduced() || !ids.length) return commit()
+export function leaveAllThen(ids: string[], commit: () => unknown): Promise<void> {
+  if (reduced() || !ids.length) return Promise.resolve(commit()).then(() => undefined)
   ids.forEach((id) => leaving.add(id))
   notify()
-  window.setTimeout(() => {
-    ids.forEach((id) => leaving.delete(id))
-    commit()
-    notify()
-  }, LEAVE_MS)
+  return new Promise((resolve, reject) =>
+    window.setTimeout(() => {
+      Promise.resolve()
+        .then(commit)
+        .finally(() => {
+          ids.forEach((id) => leaving.delete(id))
+          notify()
+        })
+        .then(() => resolve(), reject)
+    }, LEAVE_MS),
+  )
 }
+
+/** Whether the row `id` is on its way out. */
+export const isLeaving = (id: string) => leaving.has(id)
 
 /** Whether the row `id` is on its way out: put it on the row as data-leaving. */
 export function useLeaving(id: string) {
-  return React.useSyncExternalStore(subscribe, () => leaving.has(id))
+  return React.useSyncExternalStore(subscribe, () => isLeaving(id))
 }
 
 /** Every row on its way out, for a list that draws its rows in one loop. */
