@@ -1,13 +1,13 @@
 /** @typedef {{ id: string, pattern: string, message: string }} ClassRule */
 
 /*
-  The Tailwind class rules of the web app in src/app (design contract v2, sections 2 and 9, and
+  The Tailwind class rules of the web app in src/web (design contract v2, sections 2 and 9, and
   docs/design/motion.md). Each pattern matches a complete class name, variants and the `!`
   modifier included, and eslint.config.js feeds them to `better-tailwindcss/no-restricted-classes`. The mockup's scales are allowed as they are: Tailwind's spacing with its
   half steps, margins, Tailwind's text scale, weights 400 to 700, and viewport variants in pages.
   What stays out: raw palette colours, numeric layers, raw motion and the motion the mockup's
   guard rails ban, and arbitrary values outside a short allowlist.
-  A value that repeats becomes a token in src/app/styles/tokens.css. tests/lint/app-class-rules.test.ts
+  A value that repeats becomes a token in src/web/styles/tokens.css. tests/lint/web-class-rules.test.ts
   runs them against samples.
 */
 
@@ -23,12 +23,12 @@ const allowedArbitrary = String.raw`(?!transition-\[[a-z-]+(?:,[a-z-]+)*\]!?$)(?
 const ownRule = String.raw`(?!(?:duration|delay|ease|animate|z)-\[)`
 
 /** @type {ClassRule[]} */
-export const appClassRules = [
+export const webClassRules = [
   {
     id: 'arbitrary-value',
     pattern: String.raw`^(?:[^\s]*:)?!?-?${allowedArbitrary}${ownRule}[a-z][a-z0-9]*(?:-[a-z0-9]+)*-\[[^\]]+\]!?$`,
     message:
-      'Arbitrary value "$0". Use the scale, a token from src/app/styles/tokens.css by its name, or add one there.',
+      'Arbitrary value "$0". Use the scale, a token from src/web/styles/tokens.css by its name, or add one there.',
   },
   {
     id: 'arbitrary-property',
@@ -96,6 +96,6 @@ export const appClassRules = [
 ]
 
 /** The app's rules without the ones a path is allowed to break. */
-export function appClassRulesExcept(...ids) {
-  return appClassRules.filter((rule) => !ids.includes(rule.id))
+export function webClassRulesExcept(...ids) {
+  return webClassRules.filter((rule) => !ids.includes(rule.id))
 }

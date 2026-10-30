@@ -2,7 +2,7 @@
  * Settings on the http binding: what the service says, in the words the Settings screens use. The
  * agents people connected, Pause sharing and the tools agents call, and Settings, Advanced (the
  * tuning settings, read only; what was deleted; the history log; the jobs; the editions). Pure, so
- * it is unit tested (tests/app/api/http-settings.test.ts).
+ * it is unit tested (tests/web/api/http-settings.test.ts).
  */
 import type { AuditEntry, Setting } from '@contract/admin'
 import type { DeletedDraft, ItemChange } from '@contract/context'

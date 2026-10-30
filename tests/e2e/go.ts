@@ -133,7 +133,7 @@ let workspace: 'week' | 'empty' = 'week'
 
 /**
  * A fresh copy of a workspace on its own service, with Jon signed in, as the mock starts. The
- * harness reads the app's demo week under the app's aliases (tsconfig.app.json), so it is loaded
+ * harness reads the app's demo week under the app's aliases (tsconfig.web.json), so it is loaded
  * by name, in http mode only.
  */
 async function startService(page: Page, on: 'week' | 'empty') {
@@ -466,7 +466,7 @@ const figuresOn = (page: Page, on: boolean) =>
   asJon(page, 'PUT', '/figures/cube', { enabled: on, reason: 'Show figures in Ask, in a journey.' })
 
 /**
- * The questions of the mock's examples a journey asks on the service (src/app/api/mock/data/ask.ts),
+ * The questions of the mock's examples a journey asks on the service (src/web/api/mock/data/ask.ts),
  * as someone would type them. The service reads no dates in the mock's "after 9 May", and the
  * mock's answer to it is about 9 to 31 May, so that one asks for those days.
  */

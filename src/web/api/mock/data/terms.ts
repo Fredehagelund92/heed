@@ -1,7 +1,7 @@
 import type { Definition } from '@/lib/definitions'
 
 // The terms and synonyms Larchwood Outdoor's people wrote in Definitions, as the mock starts: the
-// mock binding's glossary (definitions.ts) and the http mode's demo week (tests/app/http) read them.
+// mock binding's glossary (definitions.ts) and the http mode's demo week (tests/web/http) read them.
 
 export const term = (
   name: string,

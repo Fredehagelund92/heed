@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { lastActiveOf, peopleOf } from '@/api/http-people'
 
-// The workspace's people as the service lists them, in the app's shape (src/app/api/http-people.ts).
+// The workspace's people as the service lists them, in the app's shape (src/web/api/http-people.ts).
 const now = new Date('2026-10-23T15:00:00Z')
 
 describe('when someone last signed in, in words', () => {

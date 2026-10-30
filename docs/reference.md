@@ -798,7 +798,7 @@ over its months) found nothing at least the minimum times.
 
 Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and change below is in
 `src/contract/index.ts`; the app's http binding words them for the screens
-(`src/app/api/http-settings.ts`).
+(`src/web/api/http-settings.ts`).
 
 - `GET /workspace`: the workspace's name, for everyone signed in, and nothing else of the
   settings. An administrator names it as any other setting, `PUT /settings/workspace.name` (one
@@ -936,7 +936,7 @@ Figures in Ask on the service (FR-716, CON-612, golden plan P11a). A definitions
 connector reads figures (Cube) has figures settings, off by default; the connector side is in
 [the connector contract](connectors.md#figures-in-ask) and
 [the Cube connector](connectors/cube.md#figures-in-ask). The app's http binding words them for
-Ask and the integration's page (`src/app/api/http-figures.ts`).
+Ask and the integration's page (`src/web/api/http-figures.ts`).
 
 - `GET /figures`: each integration that reads figures, with Show figures in Ask (`enabled`) and
   its data contact, for everyone signed in; for administrators also `connection`, the data

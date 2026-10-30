@@ -2,7 +2,7 @@ import type { TermDomainSource } from '@domain/catalogue'
 import type { CheckFlag, ItemKind, ItemStatus } from '@domain/item'
 import { whenLabel, type Validity } from './validity'
 
-// A context item as the app's screens read it, from the app's API (src/app/api). Pure types, the
+// A context item as the app's screens read it, from the app's API (src/web/api). Pure types, the
 // words for its kinds, and the rules that follow from its fields; the items themselves come from
 // a binding.
 

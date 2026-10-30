@@ -35,7 +35,7 @@ jobs:
     outputs:
       full: ${{ steps.scope.outputs.full }}
       check: ${{ steps.scope.outputs.check }}
-      app: ${{ steps.scope.outputs.app }}
+      code: ${{ steps.scope.outputs.code }}
       mockup: ${{ steps.scope.outputs.mockup }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -136,7 +136,7 @@ jobs:
   service:
     name: Service integration tests (PostgreSQL 18)
     needs: scope
-    if: needs.scope.outputs.app == 'true'
+    if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -180,7 +180,7 @@ jobs:
     # quality history and gaps), the service, and an http mode build of the app.
     name: 'Web app on the demo install (PostgreSQL 18, Playwright)'
     needs: scope
-    if: needs.scope.outputs.app == 'true'
+    if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -242,7 +242,7 @@ jobs:
     # http build behind nginx. Built only, not started: the seed job runs the same app and service.
     name: 'Docker images build'
     needs: scope
-    if: needs.scope.outputs.app == 'true'
+    if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -250,13 +250,13 @@ jobs:
       - name: Build the service and web images
         run: docker compose build
 
-  app:
-    # The web app on its mock binding (tests/e2e-app): the golden job specs J1 to J30, with the
+  web:
+    # The web app on its mock binding (tests/e2e): the golden job specs J1 to J30, with the
     # motion journey a second time under reduced motion, and axe on every place at 390 and 1440 in
     # light and dark. Split into parts that each take a share.
     name: 'Web app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 2)'
     needs: scope
-    if: needs.scope.outputs.app == 'true'
+    if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -285,19 +285,19 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-app-${{ matrix.shard }}
+          name: playwright-report-web-${{ matrix.shard }}
           path: |
-            playwright-report/e2e-app
-            test-results/e2e-app
+            playwright-report/e2e
+            test-results/e2e
           retention-days: 7
 
   golden-http:
-    # The golden job specs whose screens are wired (tests/e2e-app), in http mode: an http mode
+    # The golden job specs whose screens are wired (tests/e2e), in http mode: an http mode
     # build of the web app against the service and the mockup's demo week, on a PostgreSQL 18
     # container. Each journey copies the demo week from a template, so they run one at a time.
     name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright)'
     needs: scope
-    if: needs.scope.outputs.app == 'true'
+    if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     services:
@@ -397,7 +397,7 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, check, seal, service, seed, docker, app, golden-http, mockup, security]
+    needs: [scope, check, seal, service, seed, docker, web, golden-http, mockup, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -406,7 +406,7 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
           IS_PR: ${{ github.event_name == 'pull_request' }}
           CHECK: ${{ needs.scope.outputs.check }}
-          APP: ${{ needs.scope.outputs.app }}
+          CODE: ${{ needs.scope.outputs.code }}
           MOCKUP: ${{ needs.scope.outputs.mockup }}
         run: |
           expect() { # job, whether it should have run
@@ -420,11 +420,11 @@ jobs:
           expect security true
           expect seal "$IS_PR"
           expect check "$CHECK"
-          expect service "$APP"
-          expect seed "$APP"
-          expect docker "$APP"
-          expect app "$APP"
-          expect golden-http "$APP"
+          expect service "$CODE"
+          expect seed "$CODE"
+          expect docker "$CODE"
+          expect web "$CODE"
+          expect golden-http "$CODE"
           expect mockup "$MOCKUP"
           if [ "$failed" = true ]; then
             echo "::error::A job failed, was cancelled, or did not run when it should have."

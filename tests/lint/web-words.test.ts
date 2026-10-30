@@ -3,12 +3,12 @@ import { fileURLToPath } from 'node:url'
 import { Linter } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { describe, expect, it } from 'vitest'
-import plainWords, { appPlacesOf, appSurfaces } from '../../eslint.plain-words.js'
+import plainWords, { webPlacesOf, webSurfaces } from '../../eslint.plain-words.js'
 
 /**
  * heed/plain-words with glossary v2 (src/domain/words.ts, docs/design/copy.md) is the copy guard
  * rail of the new web app: the mockup's copy check (`src/lib/copy.test.ts` there), as a lint rule
- * on src/app. It reports each banned word in text people read, allows a word only on the place the
+ * on src/web. It reports each banned word in text people read, allows a word only on the place the
  * glossary names, and leaves code alone.
  */
 
@@ -16,7 +16,7 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const linter = new Linter({ cwd: root })
 
 /** What the rule says about `code`, written in `file` of the new app. */
-function said(code: string, file = 'src/app/pages/inbox.tsx') {
+function said(code: string, file = 'src/web/pages/inbox.tsx') {
   return linter
     .verify(
       code,
@@ -28,7 +28,7 @@ function said(code: string, file = 'src/app/pages/inbox.tsx') {
             parserOptions: { ecmaFeatures: { jsx: true } },
           },
           plugins: { heed: plainWords },
-          rules: { 'heed/plain-words': ['error', { glossary: 'app' }] },
+          rules: { 'heed/plain-words': ['error', { glossary: 'web' }] },
         },
       ],
       { filename: join(root, file) },
@@ -106,17 +106,17 @@ describe('heed/plain-words in the new app (glossary v2)', () => {
     expect(said(cube)).toEqual([
       write('Cube', 'your definitions source; the name only on its integration'),
     ])
-    expect(said(cube, 'src/app/pages/integrations.tsx')).toEqual([])
+    expect(said(cube, 'src/web/pages/integrations.tsx')).toEqual([])
     const edition = `export const b = 'Published to the live edition.'`
     expect(said(edition)).toEqual([write('edition', 'what agents get now')])
-    expect(said(edition, 'src/app/pages/settings.tsx')).toEqual([])
-    expect(said(edition, 'src/app/lib/agent-reply.ts')).toEqual([])
+    expect(said(edition, 'src/web/pages/settings.tsx')).toEqual([])
+    expect(said(edition, 'src/web/lib/agent-reply.ts')).toEqual([])
   })
 
   it("keeps an agent's tool out of the review's own sentences only", () => {
     const tool = `export const a = <p>An agent in Cursor suggested this.</p>`
     expect(said(tool)).toEqual([])
-    expect(said(tool, 'src/app/pages/review-page.tsx')).toEqual([
+    expect(said(tool, 'src/web/pages/review-page.tsx')).toEqual([
       write('Cursor', 'an agent; where a suggestion came from is source data'),
     ])
   })
@@ -135,10 +135,10 @@ describe('heed/plain-words in the new app (glossary v2)', () => {
   })
 
   it('maps each place to its files', () => {
-    expect(appPlacesOf('src/app/pages/settings.tsx')).toEqual(['Settings'])
-    expect(appPlacesOf('src/app/components/heed/review-parts.tsx')).toEqual(['the review'])
-    expect(appPlacesOf('src/app/pages/inbox.tsx')).toEqual([])
-    for (const { files } of appSurfaces)
-      for (const glob of files) expect(glob, 'a place of the new app').toMatch(/^src\/app\//)
+    expect(webPlacesOf('src/web/pages/settings.tsx')).toEqual(['Settings'])
+    expect(webPlacesOf('src/web/components/heed/review-parts.tsx')).toEqual(['the review'])
+    expect(webPlacesOf('src/web/pages/inbox.tsx')).toEqual([])
+    for (const { files } of webSurfaces)
+      for (const glob of files) expect(glob, 'a place of the new app').toMatch(/^src\/web\//)
   })
 })

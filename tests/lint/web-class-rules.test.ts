@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { appClassRules } from '../../eslint.class-rules.js'
+import { webClassRules } from '../../eslint.class-rules.js'
 
 /**
- * The class rules of the new web app (eslint.class-rules.js, `appClassRules`), against samples:
+ * The class rules of the new web app (eslint.class-rules.js, `webClassRules`), against samples:
  * every class in the first list must be flagged by its rule, and no rule may flag a class in the
  * second. The second list is the mockup's scales, which design contract v2 allows: half steps,
  * margins, Tailwind's text sizes, weights 400 to 700, and the tokens by name.
@@ -84,7 +84,7 @@ const mustNotFlag = `
   .filter(Boolean)
 
 const flaggedBy = (name: string) =>
-  appClassRules.filter((rule) => new RegExp(rule.pattern).test(name)).map((rule) => rule.id)
+  webClassRules.filter((rule) => new RegExp(rule.pattern).test(name)).map((rule) => rule.id)
 /** Outside the dock, where eslint.config.js leaves viewport variants to the page. */
 const outsideDock = (name: string) => flaggedBy(name).filter((id) => id !== 'viewport-variant')
 
@@ -105,10 +105,10 @@ describe('class rules of the new app (design contract v2)', () => {
 
   it('has samples for every rule', () => {
     const sampled = new Set(mustFlag.map(([, rule]) => rule))
-    expect(appClassRules.map((rule) => rule.id).filter((id) => !sampled.has(id))).toEqual([])
+    expect(webClassRules.map((rule) => rule.id).filter((id) => !sampled.has(id))).toEqual([])
   })
 
   it('names the fix in every message', () => {
-    for (const rule of appClassRules) expect(rule.message).toMatch(/\$0/)
+    for (const rule of webClassRules) expect(rule.message).toMatch(/\$0/)
   })
 })

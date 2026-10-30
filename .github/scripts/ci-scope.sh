@@ -6,7 +6,7 @@
 #   sensitive  db, the service, sign-in, MCP, security files, workflows, packages: everything runs
 #   mockup     apps/mockup: only the mockup job
 #   docs       prose nothing in the app reads: only the checks (type check, lint, unit tests, build)
-#   code       anything else: every app job
+#   code       anything else: every job that runs the code
 #
 # A path that matches no rule counts as code, and an empty list runs everything, so a mistake here
 # runs more, never less.
@@ -45,13 +45,13 @@ if [ "$sensitive" = true ] || [ "$seen" = false ]; then
   full=true
 fi
 
-app=false
+run_code=false
 if [ "$full" = true ] || [ "$code" = true ]; then
-  app=true
+  run_code=true
 fi
 
 check=false
-if [ "$app" = true ] || [ "$docs" = true ]; then
+if [ "$run_code" = true ] || [ "$docs" = true ]; then
   check=true
 fi
 
@@ -63,5 +63,5 @@ fi
 
 echo "full=$full"
 echo "check=$check"
-echo "app=$app"
+echo "code=$run_code"
 echo "mockup=$run_mockup"

@@ -1,6 +1,6 @@
 /*
   Hand written CSS may not hard-code colour, spacing, radius, type size or shadow: those values
-  come from the tokens through var(--token). The token file (src/app/styles/tokens.css) is the
+  come from the tokens through var(--token). The token file (src/web/styles/tokens.css) is the
   only file allowed to define raw values.
   Tailwind at-rules are allowed.
 */
@@ -85,7 +85,7 @@ export default {
   },
   overrides: [
     {
-      files: ['src/app/styles/tokens.css'],
+      files: ['src/web/styles/tokens.css'],
       rules: { 'scale-unlimited/declaration-strict-value': null },
     },
   ],

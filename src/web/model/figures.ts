@@ -1,6 +1,6 @@
 import type { ConnectorId } from './integrations'
 
-// A figure in Ask as the app reads it (src/app/api): read from an integration at a time,
+// A figure in Ask as the app reads it (src/web/api): read from an integration at a time,
 // unchanged, and never context: nobody here checked it.
 
 export type Figure = {

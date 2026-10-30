@@ -25,10 +25,10 @@ await build({ configFile, logLevel: 'warn' })
 await build({
   configFile,
   logLevel: 'warn',
-  build: { ssr: join(root, 'src/app/docs/render.tsx'), outDir: ssrOut, emptyOutDir: true },
+  build: { ssr: join(root, 'src/web/docs/render.tsx'), outDir: ssrOut, emptyOutDir: true },
 })
 
-/** What src/app/docs/render.tsx gives, once built. */
+/** What src/web/docs/render.tsx gives, once built. */
 type Render = {
   slugs: (string | undefined)[]
   headOf: (slug: string | undefined) => { title: string; line: string }

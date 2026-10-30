@@ -1,7 +1,7 @@
 import type { Permissions } from '@contract/auth'
 import type { DomainId, Fact } from './items'
 
-// The workspace's people and domains as the app reads them (src/app/api): two roles, an admin or
+// The workspace's people and domains as the app reads them (src/web/api): two roles, an admin or
 // a member, and ownership per domain, which lives on the domain. Pure types and the rules that
 // follow from them.
 

@@ -27,7 +27,7 @@ describe('files generated from the contract', () => {
     expect(await readJson('docs/api/openapi.json')).toEqual(
       JSON.parse(JSON.stringify(await openApiDocument())),
     )
-    expect(await readJson('src/app/api/contract.json')).toEqual(
+    expect(await readJson('src/web/api/contract.json')).toEqual(
       JSON.parse(JSON.stringify(minifyContractRouter(contract))),
     )
   })

@@ -1,5 +1,5 @@
 # The web app (Dockerfile, `web`): the production build, with /api/v1 forwarded to the service
-# at ${HEED_API_URL}, as the Vite preview server does (vite.app.config.ts).
+# at ${HEED_API_URL}, as the Vite preview server does (vite.config.ts).
 server {
     listen 80;
     root /usr/share/nginx/html;

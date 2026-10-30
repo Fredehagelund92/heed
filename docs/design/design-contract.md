@@ -51,7 +51,7 @@
 
 ## 2. Tokens
 
-All values live in one file, `src/app/styles/tokens.css`. A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/app-tokens.test.ts`) guards the file and recomputes every contrast pair.
+All values live in one file, `src/web/styles/tokens.css`. A component depends on a name, never on a value. Names follow shadcn. A test (`tests/lint/web-tokens.test.ts`) guards the file and recomputes every contrast pair.
 
 ### 2.1 Colour
 

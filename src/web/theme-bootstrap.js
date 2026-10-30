@@ -1,8 +1,8 @@
 // Applies the theme before first paint, so dark never flashes light: ?theme= in the address, else
-// the saved choice, else the system's. Inlined into <head> by vite.app.config.ts, which puts the
+// the saved choice, else the system's. Inlined into <head> by vite.config.ts, which puts the
 // storage key from lib/brand.ts in place of THEME_KEY. Keep this file dependency free and plain
 // JavaScript: it runs before any bundle loads. lib/theme.tsx keeps the choice under the same key,
-// and tests/app/theme-bootstrap.test.ts covers both.
+// and tests/web/theme-bootstrap.test.ts covers both.
 ;(function () {
   var theme = 'system'
   try {

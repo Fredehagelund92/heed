@@ -18,8 +18,8 @@ import {
 
 /*
   The app's http binding against the real service and PostgreSQL 18. The conformance suite is the
-  one the mock binding passes (tests/app/mock/conformance.test.ts), for the methods wired so far,
-  on the mockup's demo week (tests/app/http/demo-week.ts): Jon Abara's Inbox, as in the mock.
+  one the mock binding passes (tests/web/mock/conformance.test.ts), for the methods wired so far,
+  on the mockup's demo week (tests/web/http/demo-week.ts): Jon Abara's Inbox, as in the mock.
 */
 
 // Someone else the demo week signs in, the comments' second voice.

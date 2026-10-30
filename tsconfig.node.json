@@ -6,19 +6,19 @@
     "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
   },
   "include": [
-    "vite.app.config.ts",
+    "vite.config.ts",
     "vite.docs.config.ts",
     "vitest.config.ts",
     "eslint.class-rules.d.ts",
     "eslint.plain-words.d.ts",
-    "playwright.app.config.ts",
+    "playwright.config.ts",
     "playwright.golden-http.config.ts",
     "playwright.seed.config.ts",
-    "tests/e2e-app",
+    "tests/e2e",
     "tests/e2e-seed",
     "tests/lint/*.ts",
     "scripts"
   ],
-  // The http journeys' harness reads the app's demo week under its aliases: tsconfig.app.json.
-  "exclude": ["tests/e2e-app/http"]
+  // The http journeys' harness reads the app's demo week under its aliases: tsconfig.web.json.
+  "exclude": ["tests/e2e/http"]
 }

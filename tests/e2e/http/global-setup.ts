@@ -10,9 +10,9 @@ import {
 } from '../../../src/server/db/roles.ts'
 import { spainDraft } from '@/api/mock/data/drafts'
 import { facts } from '@/api/mock/data/world'
-import { driveCards } from '../../app/http/demo-drive.ts'
-import { checkCards, queue, seedDemoWeek, serverItemId } from '../../app/http/demo-week.ts'
-import { demoCube, inventedToken, seedDemoFigures } from '../../app/http/demo-figures.ts'
+import { driveCards } from '../../web/http/demo-drive.ts'
+import { checkCards, queue, seedDemoWeek, serverItemId } from '../../web/http/demo-week.ts'
+import { demoCube, inventedToken, seedDemoFigures } from '../../web/http/demo-figures.ts'
 import { emptyName, workName } from './harness.ts'
 
 /*

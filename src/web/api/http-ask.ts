@@ -1,6 +1,6 @@
 /**
  * Ask on the Heed service: the answer engine's answer (`ask.lookup`) and Asked this week
- * (`ask.asked`) as the app reads them (src/app/model/ask.ts), and the person's chats, which stay in
+ * (`ask.asked`) as the app reads them (src/web/model/ask.ts), and the person's chats, which stay in
  * their browser (FR-717). The engine decides the state, the sources and what agents are told; the
  * words here are written without a model, the way the mock's matcher writes them: each source's
  * first sentence with its number, then one sentence that fits the state.

@@ -7,9 +7,9 @@ import { createLogger } from '../../../src/server/observability/logger.ts'
 import { createEditionSource } from '../../../src/server/modules/editions/index.ts'
 import { createAnonymousStore } from '../../../src/server/mcp/store.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
-import { devPeople, TODAY } from '../../app/http/demo-week.ts'
-import { demoLoginServer } from '../../app/http/login.ts'
-import { demoSecrets } from '../../app/http/demo-figures.ts'
+import { devPeople, TODAY } from '../../web/http/demo-week.ts'
+import { demoLoginServer } from '../../web/http/login.ts'
+import { demoSecrets } from '../../web/http/demo-figures.ts'
 import {
   ConnectorRegistry,
   createWorkspaceSources,

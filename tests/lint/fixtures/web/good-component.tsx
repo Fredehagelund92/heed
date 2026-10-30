@@ -1,4 +1,4 @@
-// Built from the mockup's scales and the new tokens only: tests/lint/app-guard-rails.test.ts
+// Built from the mockup's scales and the new tokens only: tests/lint/web-guard-rails.test.ts
 // expects no message for it as a file of the new app.
 import type { CSSProperties } from 'react'
 

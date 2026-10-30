@@ -1,7 +1,7 @@
 import type { AlertCardRule } from '@domain/alerts'
 import type { DomainId, Fact } from './items'
 
-// The Inbox as the app reads it (src/app/api): cards that need someone, what they sent that waits
+// The Inbox as the app reads it (src/web/api): cards that need someone, what they sent that waits
 // on others, and the setup checklist of a new install. Pure types and words.
 
 /** A decision taken on a card: its outcome in a word or two, and when. */

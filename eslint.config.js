@@ -1,7 +1,7 @@
 import js from '@eslint/js'
 import betterTailwind from 'eslint-plugin-better-tailwindcss'
 import { boundaryConfigs, serverOnlyImports } from './eslint.boundaries.js'
-import { appClassRules, appClassRulesExcept } from './eslint.class-rules.js'
+import { webClassRules, webClassRulesExcept } from './eslint.class-rules.js'
 import motion from './eslint.motion.js'
 import { plainWordsConfigs } from './eslint.plain-words.js'
 import productName from './eslint.product-name.js'
@@ -11,26 +11,26 @@ import tseslint from 'typescript-eslint'
 
 /*
   Guard rails for UI code (see CONTRIBUTING.md). The Tailwind rules read the real theme from
-  src/app/styles/index.css, so a class that tokens.css does not define is reported as unknown.
+  src/web/styles/index.css, so a class that tokens.css does not define is reported as unknown.
 */
 
 const restrict = (rules) => rules.map(({ pattern, message }) => ({ pattern, message }))
 
 /*
-  The web app (src/app) follows design contract v2. Its pages may switch on the viewport; anything
+  The web app (src/web) follows design contract v2. Its pages may switch on the viewport; anything
   that can sit in the dock reads its container instead (contract 3.6). These are the dock's own
   parts.
 */
-const appFiles = ['src/app/**/*.{ts,tsx}']
-const appDockFiles = [
-  'src/app/components/heed/fact-peek.tsx',
-  'src/app/components/heed/definition-peek.tsx',
-  'src/app/components/heed/peek.tsx',
-  'src/app/components/heed/where-panel.tsx',
-  'src/app/components/heed/share-answer.tsx',
-  'src/app/components/heed/answer.tsx',
-  'src/app/components/obs/answer-panel.tsx',
-  'src/app/components/agent-preview.tsx',
+const webFiles = ['src/web/**/*.{ts,tsx}']
+const webDockFiles = [
+  'src/web/components/heed/fact-peek.tsx',
+  'src/web/components/heed/definition-peek.tsx',
+  'src/web/components/heed/peek.tsx',
+  'src/web/components/heed/where-panel.tsx',
+  'src/web/components/heed/share-answer.tsx',
+  'src/web/components/heed/answer.tsx',
+  'src/web/components/obs/answer-panel.tsx',
+  'src/web/components/agent-preview.tsx',
 ]
 
 const bannedImports = [
@@ -43,7 +43,7 @@ const bannedImports = [
   { group: ['@magicui/*', 'magicui-cli'], message: 'No decorative animated component sets.' },
   ...serverOnlyImports,
 ]
-const appBannedImports = [
+const webBannedImports = [
   ...bannedImports,
   {
     group: ['lucide-react', 'lucide-react/*'],
@@ -61,8 +61,8 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
-      'src/app/routeTree.gen.ts',
-      'src/app/lib/cn-tables.gen.ts',
+      'src/web/routeTree.gen.ts',
+      'src/web/lib/cn-tables.gen.ts',
       // Deliberately wrong code that tests/lint/guard-rails.test.ts lints on purpose.
       'tests/lint/fixtures/**',
       // The private overlay is never committed (.gitignore).
@@ -103,8 +103,8 @@ export default tseslint.config(
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    // vite.app.config.ts puts the storage key in place of THEME_KEY when it inlines the file.
-    files: ['src/app/theme-bootstrap.js'],
+    // vite.config.ts puts the storage key in place of THEME_KEY when it inlines the file.
+    files: ['src/web/theme-bootstrap.js'],
     languageOptions: { globals: { ...globals.browser, THEME_KEY: 'readonly' } },
   },
   {
@@ -112,7 +112,7 @@ export default tseslint.config(
       '*.{js,ts}',
       'scripts/**',
       'src/server/**',
-      'tests/e2e-app/**',
+      'tests/e2e/**',
       'tests/e2e-seed/**',
       'tests/lint/**',
       'tests/server/**',
@@ -121,17 +121,17 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node } },
   },
   {
-    files: appFiles,
+    files: webFiles,
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },
     rules: { ...reactHooks.configs.flat.recommended.rules },
   },
   {
-    files: appFiles,
+    files: webFiles,
     plugins: { 'better-tailwindcss': betterTailwind, motion },
     settings: {
       'better-tailwindcss': {
-        entryPoint: 'src/app/styles/index.css',
+        entryPoint: 'src/web/styles/index.css',
         cwd: import.meta.dirname,
       },
     },
@@ -148,14 +148,14 @@ export default tseslint.config(
       'better-tailwindcss/no-duplicate-classes': 'error',
       'better-tailwindcss/no-restricted-classes': [
         'error',
-        { restrict: restrict(appClassRulesExcept('viewport-variant')) },
+        { restrict: restrict(webClassRulesExcept('viewport-variant')) },
       ],
       'motion/animate-none': 'error',
       'no-restricted-imports': [
         'error',
         {
           patterns: [
-            ...appBannedImports,
+            ...webBannedImports,
             {
               group: ['@/api/mock', '@/api/mock/*', '**/api/mock', '**/api/mock/*'],
               message:
@@ -175,24 +175,24 @@ export default tseslint.config(
   },
   {
     // The api folder binds the mock binding behind HeedApi, so it may import it.
-    files: ['src/app/api/**/*.ts'],
-    rules: { 'no-restricted-imports': ['error', { patterns: appBannedImports }] },
+    files: ['src/web/api/**/*.ts'],
+    rules: { 'no-restricted-imports': ['error', { patterns: webBannedImports }] },
   },
   {
     // The boundaries test's front-end fixtures (tests/lint/boundaries.test.ts) meet the app's
-    // import bans, as src/app does.
-    files: ['tests/lint/fixtures/boundaries/src/app/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-imports': ['error', { patterns: appBannedImports }] },
+    // import bans, as src/web does.
+    files: ['tests/lint/fixtures/boundaries/src/web/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: webBannedImports }] },
   },
   {
     // The one place in the app that may import the icon library.
-    files: ['src/app/components/icons.ts'],
+    files: ['src/web/components/icons.ts'],
     rules: { 'no-restricted-imports': ['error', { patterns: bannedImports }] },
   },
   {
-    files: appDockFiles,
+    files: webDockFiles,
     rules: {
-      'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrict(appClassRules) }],
+      'better-tailwindcss/no-restricted-classes': ['error', { restrict: restrict(webClassRules) }],
     },
   },
   {
@@ -215,7 +215,7 @@ export default tseslint.config(
   {
     // The product's name comes from one setting (docs/rename-checklist.md).
     files: [
-      ...['app', 'domain', 'contract', 'server', 'cli', 'connectors'].map(
+      ...['web', 'domain', 'contract', 'server', 'cli', 'connectors'].map(
         (dir) => `src/${dir}/**/*.{ts,tsx}`,
       ),
       'tests/lint/fixtures/product-name*.{ts,tsx}',
@@ -225,7 +225,7 @@ export default tseslint.config(
     rules: { 'brand/no-product-name': 'error' },
   },
   // The words people read come from the glossary: src/domain/words.ts (v2, docs/design/copy.md) in
-  // src/app, src/domain/words-v1.ts (docs/design/voice.md) in the server's sentences and the
+  // src/web, src/domain/words-v1.ts (docs/design/voice.md) in the server's sentences and the
   // demo's fixtures.
   ...plainWordsConfigs,
   ...boundaryConfigs,

@@ -59,8 +59,8 @@ export default defineConfig({
     },
     {
       command:
-        `vite build -c vite.app.config.ts --outDir ../../dist/app-seed --emptyOutDir && ` +
-        `vite preview -c vite.app.config.ts --outDir ../../dist/app-seed --port ${webPort}`,
+        `vite build --outDir ../../dist/web-seed --emptyOutDir && ` +
+        `vite preview --outDir ../../dist/web-seed --port ${webPort}`,
       url: `http://localhost:${webPort}`,
       reuseExistingServer: !ci,
       timeout: 180_000,

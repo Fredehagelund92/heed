@@ -36,7 +36,7 @@ import { seedSavedQuestions } from './demo-saved.ts'
 
 /*
   The mockup's demo week on the real service, for the golden journeys in http mode: Larchwood
-  Outdoor's context items (src/app/api/mock/data/world.ts) as a library, and the suggestions that
+  Outdoor's context items (src/web/api/mock/data/world.ts) as a library, and the suggestions that
   wait for Jon Abara, owner of Sales (data/review.ts), sent through the service's own API by the
   people who send them in the mock. The texts are the mock's, so the review shows the same change;
   what the service computes from them (the difference, the claims, the Ready line) is its own. The

@@ -5,7 +5,7 @@ import boundaries from 'eslint-plugin-boundaries'
 
   - domain    pure and shared; imports nothing else from the repository
   - contract  the typed API; imports domain only
-  - app       the web app in src/app; imports domain and contract, never the service
+  - web       the web app in src/web; imports domain and contract, never the service
   - server    the service (Heed); imports domain, contract and the modules' index files
   - modules   src/server/modules/<name>; other code reaches a module only through its index.ts
   - cli       imports contract and domain only
@@ -35,7 +35,7 @@ const dependencies = {
   policies: [
     { from: { element: { type: 'contract' } }, allow: element('domain') },
     {
-      from: { element: { type: 'app' } },
+      from: { element: { type: 'web' } },
       allow: [element('domain'), element('contract'), element('connectors')],
     },
     { from: { element: { type: 'connectors' } }, allow: element('domain') },
@@ -56,14 +56,14 @@ const dependencies = {
     { from: { element: { type: 'cli' } }, allow: [element('domain'), element('contract')] },
     // Later policies win, so these refine the message for the common mistakes.
     {
-      from: { element: { type: 'app' } },
+      from: { element: { type: 'web' } },
       disallow: [element('server'), element('server-module')],
       message:
         'Module boundary: the front end never imports the service. It talks to it through the ' +
         'API. See "Module boundaries" in CONTRIBUTING.md.',
     },
     {
-      from: { element: { type: 'app' } },
+      from: { element: { type: 'web' } },
       disallow: connectorRuntime,
       message:
         "Module boundary: a connector's runtime runs in the service only. The front end reads its " +
@@ -173,7 +173,7 @@ export const boundaryConfigs = [
         { type: 'server', pattern: 'src/server' },
         { type: 'domain', pattern: 'src/domain' },
         { type: 'contract', pattern: 'src/contract' },
-        { type: 'app', pattern: 'src/app' },
+        { type: 'web', pattern: 'src/web' },
         { type: 'cli', pattern: 'src/cli' },
         { type: 'connectors', pattern: 'src/connectors' },
       ],

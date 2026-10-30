@@ -8,7 +8,7 @@ import { compareToBaseline, countWords, type WordCounts } from './plain-words-ba
   The ratchet on the earlier voice (docs/design/voice.md, "The guard rail"), run in CI after the lint:
   `npm run lint:words`. It counts, for each file, what heed/plain-words reports in the code, and
   compares the counts with
-  plain-words.baseline.json, word by word. The web app in src/app is counted too: it starts at zero
+  plain-words.baseline.json, word by word. The web app in src/web is counted too: it starts at zero
   and has no entry in the baseline, so any word there fails. It fails when a file has a word more often than the
   baseline allows, or a new file has any, so no change adds old words. A fall is only a note: the
   baseline is lowered with --update whenever it suits, and no change has to touch it to pass.
@@ -30,7 +30,7 @@ async function codeFindings(): Promise<Finding[]> {
     ruleFilter: ({ ruleId }) => ruleId === 'heed/plain-words',
     overrideConfig: { languageOptions: { parserOptions: { projectService: false } } },
   })
-  const results = await eslint.lintFiles(['src/server', 'src/app', 'db/seed/fixtures'])
+  const results = await eslint.lintFiles(['src/server', 'src/web', 'db/seed/fixtures'])
   return results.flatMap((result) =>
     result.messages
       .filter((message) => message.ruleId === 'heed/plain-words')

@@ -4,16 +4,16 @@ How the repository is laid out, how to run the front end, the commands, what CI 
 
 ## The two parts
 
-The repository holds two parts. The **web app** in `src/app` is the approved mockup
+The repository holds two parts. The **web app** in `src/web` is the approved mockup
 (`apps/mockup`, the acceptance specification) on the repository's router, icon module, class merge
 and lint. Its screens are listed with their addresses in [docs/product.md](product.md), section 5:
 the Inbox and the review, Ask, Context, Definitions, Observability, Settings, Help and the docs, the
 sign-in page and an agent's consent page. Its pages read their data through one typed interface,
-`HeedApi` (`src/app/api/client.ts`), with TanStack Query: the mock binding answers from the
+`HeedApi` (`src/web/api/client.ts`), with TanStack Query: the mock binding answers from the
 mockup's demo world, with its review flags (`?state=loading`, `?state=failed`, `?state=offline`,
 `?slow=1`, `?demo=` and the rest), and the http binding talks to the service. `npm run dev` runs it
 on the mock; `npm run dev:http` takes the http binding, which answers the wired methods
-(`wiredMethods` in `src/app/api/http.ts`).
+(`wiredMethods` in `src/web/api/http.ts`).
 
 The **back end** is the service in `src/server`: a Fastify app with configuration, logging and a
 health check, a PostgreSQL 18 database, scheduled jobs with an operations view, and the API the
@@ -73,11 +73,11 @@ To run the whole product instead, with its database and your own Cube model, see
 | Area        | What                                                                                                                                                                                   |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | App         | Vite 8 single page app, React 19, TypeScript strict mode                                                                                                                               |
-| Routes      | TanStack Router, file based (`src/app/routes`), with zod search params, one to one with the mockup's addresses ([docs/product.md](product.md), section 5); old addresses redirect      |
+| Routes      | TanStack Router, file based (`src/web/routes`), with zod search params, one to one with the mockup's addresses ([docs/product.md](product.md), section 5); old addresses redirect      |
 | Data        | TanStack Query on one API boundary, `HeedApi`, with two bindings: the mock over the mockup's demo world, and the Heed service through a client typed from the API contract             |
 | Shell       | Sidebar (Inbox, Ask, Context, Definitions; Help, Observability and Settings at its foot) that folds to a rail, a header with the breadcrumb and the theme menu, one right dock, search |
 | Components  | shadcn/ui on Base UI (style `base-nova`), Heed's own parts in `components/heed`, a Tiptap editor, sonner toasts                                                                        |
-| Styling     | Tailwind 4 with the tokens in one file, `src/app/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
+| Styling     | Tailwind 4 with the tokens in one file, `src/web/styles/tokens.css`. Nunito Sans is self-hosted. Lucide icons come from one module                                                     |
 | Guard rails | ESLint and Stylelint rules for the class rules, raw values, icons and plain words, with tests that prove they fail loudly                                                              |
 | Quality     | Vitest; Playwright with the golden job specs J1 to J30 on the mock build and in http mode, axe on every place, and a smoke journey on the demo install; GitHub Actions CI              |
 
@@ -89,7 +89,7 @@ key.
 The API lives under `/api/v1`; its OpenAPI document is served at `/api/v1/openapi.json` and
 committed as [docs/api/openapi.json](api/openapi.json). Every operation is defined once in
 `src/contract`. After changing it, run `npm run api:generate`, which rewrites that document and
-the web app's route table (`src/app/api/contract.json`); a test fails while either is stale.
+the web app's route table (`src/web/api/contract.json`); a test fails while either is stale.
 
 With the service set up as in [Run the service locally](operations.md#run-the-service-locally), the demo is loaded (`SEED_DEMO=on`); start both sides. The
 demo gives the weekly runs and the gaps their history ([db/README.md](../db/README.md), "Demo quality history"); on an
@@ -148,10 +148,10 @@ Context then shows the demo's items, read from PostgreSQL. The dev and preview s
 browser with either binding: the service records who writes and decides, never what a person
 reads.
 
-Both bindings pass one conformance suite (`tests/app/conformance/heed-api.ts`): the mock in
+Both bindings pass one conformance suite (`tests/web/conformance/heed-api.ts`): the mock in
 `npm test`, the http binding against PostgreSQL in `npm run test:integration`, for the methods it
-wires (`wiredMethods` in `src/app/api/http.ts`), on the mockup's demo week
-(`tests/app/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
+wires (`wiredMethods` in `src/web/api/http.ts`), on the mockup's demo week
+(`tests/web/http/demo-week.ts`): Larchwood Outdoor's context items, the terms and synonyms its
 people wrote in Definitions, and the suggestions waiting for Jon Abara, sent through the service's
 own API, with Lars Dahl's suggestion to archive that he took back in the comments. A method added
 to the interface later answers not available on the service until its pull request wires it.
@@ -161,7 +161,7 @@ The golden job specs run in both modes. `npm run test:e2e` runs every one on the
 setup checklist, People, Context, Definitions, the editor, Related, Observability, comments with their
 reactions and mentions, Settings' domains and agents, and figures in Ask so far) on an http mode
 build against the service, with its own login server for an agent that signs in, and a stand-in
-Cube over a seeded demo warehouse for figures (`tests/app/http/demo-figures.ts`), one at a time, each on its
+Cube over a seeded demo warehouse for figures (`tests/web/http/demo-figures.ts`), one at a time, each on its
 own copy of the demo week seeded once into a template database; a journey that starts as a new
 install (`?demo=setup`, or Observability's `?state=empty`) gets a copy of an empty workspace
 instead, and `?demo=week` brings it back to the demo week; Quality's `?quality=failed` makes the
@@ -171,7 +171,7 @@ superuser's connection in
 `GOLDEN_DATABASE_URL` (default: `TEST_DATABASE_URL`, then the local server); it serves the app
 on port 4175 and the service on 3110, or on `PW_GOLDEN_WEB_PORT` and `PW_GOLDEN_API_PORT` when
 another run uses those. The specs read the mock's card, item and topic ids, the queue and its counts
-through `tests/e2e-app/go.ts`, which gives the service's in http mode; a step that needs a later
+through `tests/e2e/go.ts`, which gives the service's in http mode; a step that needs a later
 pull request's server work is skipped in http mode only, naming that pull request, and so is a step
 of a review flag only the mock has (`?state=quiet`).
 `npm run test:e2e:seed` runs the web app on what `docker compose up` gives a new install: an
@@ -194,7 +194,7 @@ src/
       models/         the model port: the scripted mocks, the direct Anthropic adapter and the spend ledger
       admin/          settings, tool switch, client policies, history log, item import, edition export
       library, areas, vocabulary, auth (dev sessions and roles)
-  app/            the web app: the mockup's shell and pages on a typed API
+  web/            the web app: the mockup's shell and pages on a typed API
     api/            HeedApi (client.ts) and its method list, the query factories and what each write
                     makes stale (queries.ts), the http binding (http.ts) and the mock binding (mock/)
       mock/           the demo world: its fixtures (data/), its state, and its review flags (scenario.ts)
@@ -210,8 +210,8 @@ tests/
   server/         Vitest, the service without a database, and the pure domain
   integration/    Vitest, the service against PostgreSQL 18
   lint/           tests that lint deliberately wrong code and CSS, and break the module boundaries
-  app/            Vitest, the web app (src/app); its HeedApi suite (conformance/), its http run (integration/)
-  e2e-app/        Playwright: the golden job specs and axe, on the mock build and in http mode (http/)
+  web/            Vitest, the web app (src/web); its HeedApi suite (conformance/), its http run (integration/)
+  e2e/            Playwright: the golden job specs and axe, on the mock build and in http mode (http/)
   e2e-seed/       Playwright: the web app on the demo install, as docker compose up gives it
 docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
@@ -222,8 +222,8 @@ apps/mockup/      the clickable mockup, the acceptance specification: its own pa
 ### Why this layout
 
 Heed is one deployable and one npm package, not a workspace monorepo, with the web app
-under `src/app`. `src/domain` holds the item model, because it
-belongs to both sides. The service lives in `src/server`, next to `src/app`, with its own
+under `src/web`. `src/domain` holds the item model, because it
+belongs to both sides. The service lives in `src/server`, next to `src/web`, with its own
 `tsconfig.server.json`; its features become modules in `src/server/modules/<name>`. The root
 `package.json` serves both; add the server dependencies to it. Lint keeps the parts apart: see
 "Module boundaries" in `CONTRIBUTING.md`.
@@ -235,7 +235,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/app`, wit
 | `npm run dev`                             | The web app at http://localhost:5173, on its mock binding.                                                                                                                                                                            |
 | `npm run dev:http`                        | The web app in http mode: it reads the Heed service through `/api/v1` instead of the mock.                                                                                                                                            |
 | `npm run dev:server`                      | The service at http://127.0.0.1:3000, restarted on change. Loads `.env.local` if it exists.                                                                                                                                           |
-| `npm run api:generate`                    | Rewrites `docs/api/openapi.json` and `src/app/api/contract.json` from `src/contract`                                                                                                                                                  |
+| `npm run api:generate`                    | Rewrites `docs/api/openapi.json` and `src/web/api/contract.json` from `src/contract`                                                                                                                                                  |
 | `npm run heed -- <command>`               | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
 | `npm run db:migrate`                      | Gets the database ready: roles and database when missing, migrations, grants, and the demo with `SEED_DEMO=on` (see [Run the service locally](operations.md#run-the-service-locally))                                                 |
 | `npm run seed`                            | Loads the demo into an empty local database by hand; `-- --items-only` and `--library golden` are the variants the tests use (see [db/README.md](../db/README.md))                                                                    |
@@ -243,15 +243,15 @@ belongs to both sides. The service lives in `src/server`, next to `src/app`, wit
 | `npm run eval:ask-words`                  | Runs the cases of Ask's words on the scripted mock model; `--real` uses `models.assistant` and needs a key and `--max-cost-usd`                                                                                                       |
 | `npm run db:restore-drill`                | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
 | `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
-| `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/app` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
-| `npm run size`                            | Checks the first load of `dist/app` against its budget (after a build)                                                                                                                                                                |
+| `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/web` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
+| `npm run size`                            | Checks the first load of `dist/web` against its budget (after a build)                                                                                                                                                                |
 | `npm run typecheck`                       | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
 | `npm run lint`                            | ESLint, then Stylelint                                                                                                                                                                                                                |
 | `npm run lint:words`                      | Checks the words people read against `plain-words.baseline.json`: no file may gain old words, a fall is only a note (`-- --list` prints them, `-- --update` lowers the counts); see [the voice guide](design/voice.md#the-guard-rail) |
 | `npm run format` / `npm run format:check` | Prettier                                                                                                                                                                                                                              |
 | `npm test`                                | Vitest: the app's units, the service's tests and the guard rail tests                                                                                                                                                                 |
 | `npm run test:integration`                | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
-| `npm run test:e2e`                        | Playwright: the golden job specs (`tests/e2e-app`) against a production build on the mock binding, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                              |
+| `npm run test:e2e`                        | Playwright: the golden job specs (`tests/e2e`) against a production build on the mock binding, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                                  |
 | `npm run test:e2e:golden-http`            | Playwright: the golden job specs whose screens are wired, on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                                                    |
 | `npm run test:e2e:seed`                   | Playwright: the web app on the demo install (needs a database `npm run db:migrate` prepared with `SEED_DEMO=on`, `E2E_DATABASE_URL`)                                                                                                  |
 | `npm run check`                           | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
@@ -306,17 +306,17 @@ CI time is spent per pull request, so fewer, well formed pull requests merge fas
 ## How to add a component
 
 1. Look before you build. Run `npx shadcn search @shadcn` for the part you need, and check
-   `src/app/components/ui` and `src/app/components/heed` ([components](design/components.md))
+   `src/web/components/ui` and `src/web/components/heed` ([components](design/components.md))
    for a part that already does it.
-2. Add it with the CLI: `npx shadcn add <name>`. The CLI writes into `src/app/components/ui`.
+2. Add it with the CLI: `npx shadcn add <name>`. The CLI writes into `src/web/components/ui`.
 3. Run `npm run lint -- --fix`. Every violation the class rules report is a real mismatch:
    replace it with a step or a token, or add a token to `tokens.css` and say why. The component is
    yours after that; the rules apply to it like any other code.
-4. Icons: add the icon to `src/app/components/icons.ts` and import it from there. If the CLI
+4. Icons: add the icon to `src/web/components/icons.ts` and import it from there. If the CLI
    wrote `from "lucide-react"`, change it.
 5. Run `npm run check`, and `npm run test:e2e` for the golden job specs and axe.
 
-A part you write for this product (not from shadcn) lives in `src/app/components/heed`, composes
+A part you write for this product (not from shadcn) lives in `src/web/components/heed`, composes
 shadcn parts, owns its layout only, and takes colour, radius and motion from tokens. Shared
 variants own control height, type and radius; feature code never overrides them.
 
@@ -327,7 +327,7 @@ These are enforced by lint and tests, not by good intentions. `CONTRIBUTING.md` 
 - Tailwind's spacing and text scales, and weights 400 to 700, as the mockup uses them.
 - No arbitrary Tailwind values outside a short list of named tokens, no raw palette colours, no
   numeric layers, no raw motion, no inline `style` for spacing or colour.
-- Colour, radius, shadow, motion and the layout metrics come from `src/app/styles/tokens.css`,
+- Colour, radius, shadow, motion and the layout metrics come from `src/web/styles/tokens.css`,
   which holds the design contract's tokens ([design contract v2](design/design-contract.md),
   section 2). Every name in it is semantic.
 - A part that can sit in the dock reads its container, never the viewport.

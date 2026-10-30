@@ -4,7 +4,7 @@ import type { Domains } from '@/model/people'
 
 // Questions' filters and saved views. A view belongs to the workspace, as LangSmith's do: saved
 // once, everyone with access sees it as a tab. Five come with it; more are saved from the filters
-// and kept by the workspace (src/app/api).
+// and kept by the workspace (src/web/api).
 
 export type Gap = 'draft' | 'suggestion' | 'none'
 export type Filters = {

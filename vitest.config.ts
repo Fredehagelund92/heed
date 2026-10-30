@@ -8,13 +8,13 @@ export default defineConfig({
   test: {
     projects: [
       {
-        // The web app's own units (src/app), moved with its code from the mockup.
+        // The web app's own units (src/web), moved with its code from the mockup.
         extends: true,
         test: {
-          name: 'app',
+          name: 'web',
           environment: 'node',
-          include: ['tests/app/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, 'tests/app/integration/**'],
+          include: ['tests/web/**/*.test.ts'],
+          exclude: [...configDefaults.exclude, 'tests/web/integration/**'],
         },
       },
       {
@@ -43,7 +43,7 @@ export default defineConfig({
           hookTimeout: 30_000,
           testTimeout: 30_000,
           environment: 'node',
-          include: ['tests/integration/**/*.test.ts', 'tests/app/integration/**/*.test.ts'],
+          include: ['tests/integration/**/*.test.ts', 'tests/web/integration/**/*.test.ts'],
           env: {
             TEST_DATABASE_URL:
               process.env.TEST_DATABASE_URL ?? 'postgres://localhost:5432/postgres',

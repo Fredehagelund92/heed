@@ -1,6 +1,6 @@
 # The documentation
 
-These Markdown files are the documentation of the web app (`src/app`). The same files make the app's Docs area, at `/docs`, and the static docs site that `npm run docs:build` writes to `dist/docs`, with its search and its index for agents, `llms.txt`. A page changes in the same pull request as the screen, word or tool it describes.
+These Markdown files are the documentation of the web app (`src/web`). The same files make the app's Docs area, at `/docs`, and the static docs site that `npm run docs:build` writes to `dist/docs`, with its search and its index for agents, `llms.txt`. A page changes in the same pull request as the screen, word or tool it describes.
 
 ## The pages
 
@@ -65,14 +65,14 @@ The Docs area and the docs site draw the list from its source in the app. What s
 
 | Include              | What it shows                              | Its source                    |
 | -------------------- | ------------------------------------------ | ----------------------------- |
-| `setup-steps`        | The setup checklist's five steps           | `src/app/lib/setup.ts`        |
-| `prompt`             | The prompt that connects an agent          | `src/app/lib/agents.ts`       |
-| `checks`             | What to check when nothing signs in        | `src/app/lib/agents.ts`       |
-| `kinds`              | The four kinds of context, with their hint | `src/app/model/items.ts`      |
-| `word: Context item` | One of the ten words, with its sentence    | `src/app/lib/help-content.ts` |
-| `answer-lines`       | The six answer lines                       | `src/app/lib/help-content.ts` |
-| `words`              | The ten words                              | `src/app/lib/help-content.ts` |
-| `tools`              | The six agent tools                        | `src/app/lib/agents.ts`       |
+| `setup-steps`        | The setup checklist's five steps           | `src/web/lib/setup.ts`        |
+| `prompt`             | The prompt that connects an agent          | `src/web/lib/agents.ts`       |
+| `checks`             | What to check when nothing signs in        | `src/web/lib/agents.ts`       |
+| `kinds`              | The four kinds of context, with their hint | `src/web/model/items.ts`      |
+| `word: Context item` | One of the ten words, with its sentence    | `src/web/lib/help-content.ts` |
+| `answer-lines`       | The six answer lines                       | `src/web/lib/help-content.ts` |
+| `words`              | The ten words                              | `src/web/lib/help-content.ts` |
+| `tools`              | The six agent tools                        | `src/web/lib/agents.ts`       |
 
 Help in the app (`/help`) shows the same answer lines and words, from the same lists.
 
@@ -86,20 +86,20 @@ The words follow [Copy](../design/copy.md), the same rules as the screens:
 
 1. Lead with the answer. One idea per sentence, in plain words, for readers whose first language is not English: no idioms, no contractions in labels.
 2. One word per thing, the screen's word, from the glossary (`src/domain/words.ts`): "context item", "owner", "suggestion", "domain", "agent".
-3. Bold is only for the words of a screen, exactly as the screen writes them: **Copy prompt**. The docs check fails when a bold phrase has no row in `tests/e2e-app/docs-controls.ts`, and that row's browser check fails when the control is not drawn on its screen.
+3. Bold is only for the words of a screen, exactly as the screen writes them: **Copy prompt**. The docs check fails when a bold phrase has no row in `tests/e2e/docs-controls.ts`, and that row's browser check fails when the control is not drawn on its screen.
 4. Never name the product in a sentence: write "it", "agents" or "your workspace". Commands and addresses keep their names.
 5. Never promise what is not built, and never write "soon".
 6. Plain hyphens, never an em dash, and British spelling.
 
 ## The docs check
 
-`tests/app/docs.test.ts` runs with the unit tests and fails when:
+`tests/web/docs.test.ts` runs with the unit tests and fails when:
 
 - a page cannot be read: front matter missing a field or with a value outside the lists above, a `#` heading, no lead, a note without its title, a code block without its title, a picture or HTML
 - a page or What's new is missing, or a page is not one of the mockup's eleven
 - a link points at a page, a heading or a screen that does not exist
 - an include's Markdown is not the app's list as it is now (`npm run docs:sync` mends it)
-- a bold phrase has no row in `tests/e2e-app/docs-controls.ts` (the page, the screen and how it is drawn); `docs-controls.spec.ts` then opens each screen and fails when the control is not there
+- a bold phrase has no row in `tests/e2e/docs-controls.ts` (the page, the screen and how it is drawn); `docs-controls.spec.ts` then opens each screen and fails when the control is not there
 - a page uses a word the glossary retires, names the product, has an em dash or says "soon"
 - `llms.txt` misses a page, or the search does not find a page by its words
 

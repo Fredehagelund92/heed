@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { storageKey } from '@/lib/brand'
 
-// The theme before the first paint (src/app/theme-bootstrap.js). vite.app.config.ts inlines it with
+// The theme before the first paint (src/web/theme-bootstrap.js). vite.config.ts inlines it with
 // the storage key of lib/brand.ts in place of THEME_KEY, the key lib/theme.tsx saves under; here
 // THEME_KEY is that key as a global.
 

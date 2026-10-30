@@ -1,7 +1,7 @@
 /**
  * Settings › Integrations on the http binding: the service's sources (`sources.list`), a source's
  * activity (`sources.activity`) and its settings (`sources.get`), in the words the integrations'
- * pages use. Pure, so it is unit tested (tests/app/api/http-integrations.test.ts).
+ * pages use. Pure, so it is unit tested (tests/web/api/http-integrations.test.ts).
  */
 import type { ConnectorManifest } from '@domain/connector-manifest'
 import type {

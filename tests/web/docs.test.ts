@@ -19,12 +19,12 @@ import { format, resolveConfig } from 'prettier'
 import { parse } from 'yaml'
 import { includeMarkdown } from '@/lib/docs-includes'
 import { CHANGES, DOC_PAGES, llmsTxt, searchDocs } from '@/lib/docs'
-import { docControls } from '../e2e-app/docs-controls.ts'
+import { docControls } from '../e2e/docs-controls.ts'
 
 /*
   The docs check (docs/help/README.md): mechanical, no model. Wrong docs are worse than none, so
   every page must read, keep to the mockup's eleven pages and What's new, name the app's controls in
-  the app's own words (each bold one has a row in tests/e2e-app/docs-controls.ts, drawn by its spec), link only to pages, headings and screens that exist, and hold the app's own
+  the app's own words (each bold one has a row in tests/e2e/docs-controls.ts, drawn by its spec), link only to pages, headings and screens that exist, and hold the app's own
   lists as they are now. `npm run docs:sync` writes the lists into the pages when they changed.
 */
 
@@ -75,7 +75,7 @@ function boldPhrases(blocks: readonly DocBlock[]): string[] {
 
 /** The app's addresses as patterns, from its router: `/settings/$section` matches `/settings/agents`. */
 const screens = [
-  ...readFileSync('src/app/routeTree.gen.ts', 'utf8')
+  ...readFileSync('src/web/routeTree.gen.ts', 'utf8')
     .split('export interface FileRoutesByTo {')[1]!
     .split('}')[0]!
     .matchAll(/'(\/[^']*)'/g),

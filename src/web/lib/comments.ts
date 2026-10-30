@@ -8,7 +8,7 @@ import type {
 import { useComments as useAllComments, useWrite } from '@/api/queries'
 import { mentionNotesOf, type MentionNote, type Subject } from '@/model/comments'
 
-// Comments and reactions as the screens use them, from the shared comments read (src/app/api).
+// Comments and reactions as the screens use them, from the shared comments read (src/web/api).
 // Agents never read any of it, mentions included.
 
 export type { MentionNote }

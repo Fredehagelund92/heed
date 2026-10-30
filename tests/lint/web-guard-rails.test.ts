@@ -5,14 +5,14 @@ import stylelint from 'stylelint'
 import { describe, expect, it } from 'vitest'
 
 /**
- * The guard rails of the new web app (src/app), run through the repository's own eslint.config.js
- * on sample components placed at src/app paths: the class rules, the Tailwind classes the new
+ * The guard rails of the new web app (src/web), run through the repository's own eslint.config.js
+ * on sample components placed at src/web paths: the class rules, the Tailwind classes the new
  * tokens define, the motion rules, the import rules, the product name and the words. The mockup's
  * copy and motion checks become these lint rules (design contract v2, section 9).
  */
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
-// src/app holds no TypeScript project yet, so the rules that read types are left out here; every
+// src/web holds no TypeScript project yet, so the rules that read types are left out here; every
 // guard rail of the new app reads the syntax alone.
 const eslint = new ESLint({
   cwd: root,
@@ -28,11 +28,11 @@ async function lintAs(path: string, source: string) {
   return result?.messages ?? []
 }
 const fixture = (name: string) =>
-  readFileSync(new URL(`fixtures/app/${name}`, import.meta.url), 'utf8')
+  readFileSync(new URL(`fixtures/web/${name}`, import.meta.url), 'utf8')
 
 describe('ESLint guard rails of the new app', () => {
   it('reports a component that breaks them, with a message that says what to do', async () => {
-    const messages = await lintAs('src/app/pages/bad.tsx', fixture('bad-component.tsx'))
+    const messages = await lintAs('src/web/pages/bad.tsx', fixture('bad-component.tsx'))
     const text = messages.map((message) => message.message)
     const expected = [
       // class rules (contract 2)
@@ -62,7 +62,7 @@ describe('ESLint guard rails of the new app', () => {
   })
 
   it('accepts a component built from the mockup scales and the new tokens', async () => {
-    const messages = await lintAs('src/app/pages/good.tsx', fixture('good-component.tsx'))
+    const messages = await lintAs('src/web/pages/good.tsx', fixture('good-component.tsx'))
     expect(messages.map((message) => `${message.ruleId}: ${message.message}`)).toEqual([])
   })
 
@@ -70,19 +70,19 @@ describe('ESLint guard rails of the new app', () => {
     const source = 'export const A = () => <div className="flex md:hidden @md:flex" />'
     const viewport = (messages: Awaited<ReturnType<typeof lintAs>>) =>
       messages.filter((message) => message.message.startsWith('Viewport variant'))
-    expect(viewport(await lintAs('src/app/pages/context.tsx', source))).toEqual([])
-    expect(viewport(await lintAs('src/app/components/heed/fact-peek.tsx', source))).toHaveLength(1)
+    expect(viewport(await lintAs('src/web/pages/context.tsx', source))).toEqual([])
+    expect(viewport(await lintAs('src/web/components/heed/fact-peek.tsx', source))).toHaveLength(1)
   })
 
   it('lets the icon module, and only it, import the icon library', async () => {
     const source = "export { CheckIcon } from 'lucide-react'"
-    expect(await lintAs('src/app/components/icons.ts', source)).toEqual([])
-    expect(await lintAs('src/app/components/other.ts', source)).toHaveLength(1)
+    expect(await lintAs('src/web/components/icons.ts', source)).toEqual([])
+    expect(await lintAs('src/web/components/other.ts', source)).toHaveLength(1)
   })
 })
 
 describe('Stylelint on the new token file', () => {
-  it('lets src/app/styles/tokens.css define raw values, and no other stylesheet of the app', async () => {
+  it('lets src/web/styles/tokens.css define raw values, and no other stylesheet of the app', async () => {
     const lint = async (codeFilename: string) => {
       const result = await stylelint.lint({
         code: ':root {\n  --brand: #123456;\n  color: #123456;\n}\n',
@@ -93,7 +93,7 @@ describe('Stylelint on the new token file', () => {
         (warning) => warning.rule === 'scale-unlimited/declaration-strict-value',
       )
     }
-    expect(await lint('src/app/styles/tokens.css')).toEqual([])
-    expect(await lint('src/app/styles/example.css')).toHaveLength(1)
+    expect(await lint('src/web/styles/tokens.css')).toEqual([])
+    expect(await lint('src/web/styles/example.css')).toHaveLength(1)
   })
 })

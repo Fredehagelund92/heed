@@ -1,7 +1,7 @@
 import { useChats, useWrite } from '@/api/queries'
 import type { Thread } from '@/model/ask'
 
-// The chats under Ask as the screens use them, from the shared chats read (src/app/api). Only the
+// The chats under Ask as the screens use them, from the shared chats read (src/web/api). Only the
 // person's own chats in Ask: what agents ask is kept as scopes and counts, never as conversations.
 
 export type { Day, Thread } from '@/model/ask'

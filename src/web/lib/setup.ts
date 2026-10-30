@@ -1,7 +1,7 @@
 import type { SetupStep } from '@/model/inbox'
 
 // The setup checklist of a new install: write first, connect later. The words are the app's; which
-// steps are done is the workspace's (src/app/api).
+// steps are done is the workspace's (src/web/api).
 
 /** Write first, connect later: value in about ten actions, connectors when they help. */
 export const setupSteps: SetupStep[] = [

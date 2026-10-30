@@ -2,7 +2,7 @@ import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
 import type { DomainId } from './items'
 
-// An answer in Ask as the app reads it (src/app/api): its state, its words with numbered sources,
+// An answer in Ask as the app reads it (src/web/api): its state, its words with numbered sources,
 // and what it was read as. Pure types and the words each state is said with.
 
 export type AnswerState = 'grounded' | 'partial' | 'missing' | 'conflict' | 'stale' | 'failed'

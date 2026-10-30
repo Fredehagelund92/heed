@@ -1,7 +1,7 @@
 import type { AnswerState, Answer } from './ask'
 import type { Topic } from './observability'
 
-// The answer panel's Steps as the app reads them (src/app/api): a replay. Answering is fixed rules
+// The answer panel's Steps as the app reads them (src/web/api): a replay. Answering is fixed rules
 // with no model, so a topic can be run again, step by step, on what agents get now or on what they
 // got before a publish, without anything having been recorded.
 

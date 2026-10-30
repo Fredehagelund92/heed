@@ -1,7 +1,7 @@
 import type { CommentItem, CommentReaction } from '@/components/templates/comment-box/types'
 import { peopleIn, plainOf } from '@/components/templates/comment-box/utils'
 
-// Comments and reactions as the app reads them (src/app/api), keyed by what they hang on: a
+// Comments and reactions as the app reads them (src/web/api), keyed by what they hang on: a
 // suggestion in the review ("review:<id>") or a context item ("context:<id>"). They are kept
 // apart from the context on purpose: nothing an agent reads is built from them.
 

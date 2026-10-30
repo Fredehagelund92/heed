@@ -1,7 +1,7 @@
 import { stateLabel, type Answer } from './ask'
 import type { DomainId } from './items'
 
-// Saved questions as the app reads them (src/app/api): a question an owner keeps, with the answer
+// Saved questions as the app reads them (src/web/api): a question an owner keeps, with the answer
 // it should get. After every change that can move an answer (a publish, an archive, a restore, a
 // sync, or a check date passing) each one is checked again, for free and the same way every time:
 // it checks what agents get, not how an agent words it. The result is Same, Changed (the answer

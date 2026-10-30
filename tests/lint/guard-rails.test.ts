@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * The guard rails are only worth having if they fail loudly. These tests lint deliberately wrong
- * code and CSS, and expect clear messages; tests/lint/app-guard-rails.test.ts does the same for the
+ * code and CSS, and expect clear messages; tests/lint/web-guard-rails.test.ts does the same for the
  * web app's components. If you loosen a rule in eslint.config.js or stylelint.config.js, a test
  * here fails first.
  */
@@ -29,7 +29,7 @@ describe('ESLint guard rail for model calls', () => {
 })
 
 describe('Stylelint guard rails (hand written CSS)', () => {
-  const lint = async (code: string, codeFilename = 'src/app/styles/example.css') => {
+  const lint = async (code: string, codeFilename = 'src/web/styles/example.css') => {
     const result = await stylelint.lint({
       code,
       codeFilename: `${root}${codeFilename}`,

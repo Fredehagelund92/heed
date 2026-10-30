@@ -16,7 +16,7 @@
  * (P11b, http-integrations.ts), an agent's consent page (connections.request and decide), and a
  * suggestion to archive taken back in the comments, with the owner's Close (P9c). Every method of
  * the interface is wired; one added later answers `not-available` until its pull request wires it.
- * The conformance suite (tests/app/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
+ * The conformance suite (tests/web/conformance/heed-api.ts) runs the wired ones. Changes carry the session's token in `X-Heed-CSRF`, as the service requires, and
  * a retry key, kept until the service answers; the session cookie is HttpOnly, so the token is
  * read from `auth.session`.
  */

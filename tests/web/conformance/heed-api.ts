@@ -1,7 +1,7 @@
 /**
  * The `HeedApi` conformance suite: the same cases run against the mock binding
- * (tests/app/mock/conformance.test.ts) and against the http binding talking to the real service and
- * PostgreSQL (tests/app/integration/http-api.test.ts). A case names the methods it needs, so it runs
+ * (tests/web/mock/conformance.test.ts) and against the http binding talking to the real service and
+ * PostgreSQL (tests/web/integration/http-api.test.ts). A case names the methods it needs, so it runs
  * against a binding once that binding answers them; the http binding grows its list as the pull
  * requests that wire each screen land.
  */

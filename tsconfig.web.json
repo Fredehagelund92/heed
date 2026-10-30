@@ -4,22 +4,22 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals"],
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.app.tsbuildinfo",
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo",
     "paths": {
-      "@/*": ["./src/app/*"],
+      "@/*": ["./src/web/*"],
       "@domain/*": ["./src/domain/*"],
       "@contract/*": ["./src/contract/*"]
     }
   },
   "include": [
-    "src/app",
+    "src/web",
     "src/domain",
     "src/contract",
     "src/connectors",
-    "tests/app",
-    "tests/e2e-app/http",
+    "tests/web",
+    "tests/e2e/http",
     "tests/lint/fixtures",
     "eslint.plain-words.d.ts"
   ],
-  "exclude": ["tests/app/e2e"]
+  "exclude": ["tests/web/e2e"]
 }

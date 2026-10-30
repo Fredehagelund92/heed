@@ -11,7 +11,7 @@ import { expect, go, mode, signOut, test } from './go.ts'
   them.
 */
 
-/** The demo's agent sign-in waiting at the consent page (src/app/api/mock/data/agents.ts). */
+/** The demo's agent sign-in waiting at the consent page (src/web/api/mock/data/agents.ts). */
 const MOCK_REQUEST = 'demo-agent-sign-in-waiting-for-your-answer0'
 const AGENT = 'Claude Code'
 

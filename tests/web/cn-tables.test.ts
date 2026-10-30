@@ -6,21 +6,21 @@ import { createCn } from 'cn/config'
 import { describe, expect, it } from 'vitest'
 import { cn } from '@/lib/utils'
 import config from '@/lib/cn-config'
-import { appCnTablesOptions } from '../../scripts/generate-cn-tables.ts'
+import { webCnTablesOptions } from '../../scripts/generate-cn-tables.ts'
 
 // The repository root: vitest runs from it.
 const root = process.cwd()
 
 describe("the app's compiled class merge tables", () => {
-  it('are up to date (run `npm run cn:generate` after changing src/app/lib/cn-config.ts)', async () => {
+  it('are up to date (run `npm run cn:generate` after changing src/web/lib/cn-config.ts)', async () => {
     const out = await mkdtemp(join(tmpdir(), 'cn-tables-app-'))
     try {
       const { source } = await build({
-        ...appCnTablesOptions,
+        ...webCnTablesOptions,
         cwd: root,
         out: join(out, 'cn-tables.gen.ts'),
       })
-      expect(await readFile(join(root, 'src/app/lib/cn-tables.gen.ts'), 'utf8')).toBe(source)
+      expect(await readFile(join(root, 'src/web/lib/cn-tables.gen.ts'), 'utf8')).toBe(source)
     } finally {
       await rm(out, { recursive: true, force: true })
     }
@@ -28,7 +28,7 @@ describe("the app's compiled class merge tables", () => {
 
   it('merge every class the app writes as the config compiled at runtime does', async () => {
     const tokens = new Set<string>()
-    for await (const file of glob('src/app/**/*.{ts,tsx}', { cwd: root }))
+    for await (const file of glob('src/web/**/*.{ts,tsx}', { cwd: root }))
       extractTokens(await readFile(join(root, file), 'utf8'), tokens)
     const runtime = createCn(config)
     const sorted = [...tokens].sort()

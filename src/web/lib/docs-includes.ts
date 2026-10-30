@@ -6,7 +6,7 @@ import { kindHint, kindLabel, type Kind } from '@/model/items'
 
 // The app's own lists as a docs page shows them where it names them (an include, docs/help/README.md).
 // The Docs area draws each list from its source; the page's file holds the same list as Markdown,
-// for GitHub and for agents, and the docs check (tests/app/docs.test.ts) keeps the two the same.
+// for GitHub and for agents, and the docs check (tests/web/docs.test.ts) keeps the two the same.
 
 /** A word's sentence, from the ten words Help shows. */
 export const wordOf = (word: string) => WORDS.find(([w]) => w === word)?.[1]

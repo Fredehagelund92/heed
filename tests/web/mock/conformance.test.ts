@@ -4,7 +4,7 @@ import { createMockApi } from '@/api/mock'
 import { describeHeedApi } from '../conformance/heed-api'
 
 // The mock binding answers every method. The same suite runs against the http binding in
-// tests/app/integration/http-api.test.ts.
+// tests/web/integration/http-api.test.ts.
 let api: HeedApi
 beforeEach(() => {
   api = createMockApi().api

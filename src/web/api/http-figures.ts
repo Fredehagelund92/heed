@@ -1,6 +1,6 @@
 /**
  * Figures in Ask on the Heed service (FR-716): what `figures.read` answers, as an answer shows it
- * (src/app/model/figures.ts), and the days an answer names, back as the days the service reads.
+ * (src/web/model/figures.ts), and the days an answer names, back as the days the service reads.
  * The service decides which integration answers, reads the figure and keeps it nowhere; the words
  * here say it as the mock's fixtures do: what was counted, the number and how it moved, from where
  * and how fresh.

@@ -1,5 +1,5 @@
 import type { LogEntry } from '@/model/items'
-// A context item's or a definition's versions as the app reads them (src/app/api): a number,
+// A context item's or a definition's versions as the app reads them (src/web/api): a number,
 // who, when and what changed. Pure types and the words a version list says them with.
 
 export type VersionKind =

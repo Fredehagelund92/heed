@@ -1,7 +1,7 @@
 import type { AnswerState } from './ask'
 import type { SavedResult } from './saved-questions'
 
-// A suggestion's review as the app reads it (src/app/api): the change split into blocks by kind,
+// A suggestion's review as the app reads it (src/web/api): the change split into blocks by kind,
 // what agents say before and after, and what to watch for. Pure types and the rules that follow
 // from a review's fields; in Heed the blocks come from diffing the parsed document (words,
 // formatting, links and order told apart deterministically, no model).

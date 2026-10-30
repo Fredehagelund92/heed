@@ -1,7 +1,7 @@
 import { alertRule, thresholdWords, type AlertAudience, type AlertRuleId } from '@domain/alerts'
 import type { DomainId } from './items'
 
-// Alerts as the app reads them (src/app/api): rules, each one sentence, that raise a card in the
+// Alerts as the app reads them (src/web/api): rules, each one sentence, that raise a card in the
 // Inbox. Nothing emails and nothing rings: a raised alert is a card with the same Review and Undo as
 // any other. Owners see and mute the rules that reach them, for their own domains; admins turn rules
 // off and change the thresholds.

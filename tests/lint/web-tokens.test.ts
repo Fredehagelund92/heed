@@ -1,18 +1,18 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { appClassRules } from '../../eslint.class-rules.js'
+import { webClassRules } from '../../eslint.class-rules.js'
 import { contrast, toRgb } from './contrast.ts'
 
 /**
  * The token test of the new web app (design contract v2, sections 2 and 9). It reads
- * src/app/styles/tokens.css, checks that every token exists in light and dark, and recomputes
+ * src/web/styles/tokens.css, checks that every token exists in light and dark, and recomputes
  * every contrast pair from the values in the file: text 4.5:1; controls, field borders, the
  * review marks and the icons that carry meaning 3:1. Both themes.
  */
 
 const css = readFileSync(
-  fileURLToPath(new URL('../../src/app/styles/tokens.css', import.meta.url)),
+  fileURLToPath(new URL('../../src/web/styles/tokens.css', import.meta.url)),
   'utf8',
 ).replace(/\/\*[\s\S]*?\*\//g, '')
 
@@ -90,7 +90,7 @@ const colours = [
   ...marks.flatMap((mark) => [`mark-${mark}`, `mark-${mark}-line`]),
 ]
 
-describe('src/app/styles/tokens.css holds every token of the design contract', () => {
+describe('src/web/styles/tokens.css holds every token of the design contract', () => {
   it.each(colours)('--%s is set for light and for dark', (name) => {
     expect(light[`--${name}`], 'light').toBeDefined()
     expect(block('.dark')[`--${name}`], 'dark').toBeDefined()
@@ -199,7 +199,7 @@ describe('the layers (contract 2.5)', () => {
   })
 
   it('is the list the numeric-layer lint message offers', () => {
-    const message = appClassRules.find((rule) => rule.id === 'numeric-z')?.message ?? ''
+    const message = webClassRules.find((rule) => rule.id === 'numeric-z')?.message ?? ''
     for (const [name] of layers) expect(message, name).toContain(name)
   })
 })

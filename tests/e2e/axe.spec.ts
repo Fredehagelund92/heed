@@ -8,7 +8,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 const places = [
   '/signin',
-  // An agent's consent page, with the demo's waiting sign-in (src/app/api/mock/data/agents.ts).
+  // An agent's consent page, with the demo's waiting sign-in (src/web/api/mock/data/agents.ts).
   '/connect/approve?request=demo-agent-sign-in-waiting-for-your-answer0',
   '/inbox',
   '/inbox?card=sug-ines',

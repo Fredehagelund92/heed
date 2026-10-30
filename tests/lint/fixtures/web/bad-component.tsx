@@ -1,4 +1,4 @@
-// Deliberately wrong: tests/lint/app-guard-rails.test.ts lints this as a file of the new app.
+// Deliberately wrong: tests/lint/web-guard-rails.test.ts lints this as a file of the new app.
 import { CheckIcon } from 'lucide-react'
 import * as Dialog from '@radix-ui/react-dialog'
 
