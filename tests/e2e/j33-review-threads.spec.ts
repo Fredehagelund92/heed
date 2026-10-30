@@ -105,3 +105,26 @@ test('the + beside a line comments on it, and Esc keeps what was written', async
     'Half a thought',
   )
 })
+
+test('a thread shown apart from the source is resolved and reopened there too', async ({
+  page,
+}) => {
+  await go(page, '/inbox?card=sug-ines')
+  await page.getByRole('button', { name: 'Review', exact: true }).click()
+  await expect(page).toHaveURL(/\/review/)
+  await page.keyboard.press('n')
+  await page.keyboard.press('c')
+  await page.keyboard.type('Which of the two pages is right?')
+  await page.keyboard.press('ControlOrMeta+Enter')
+  await expect(
+    page.getByRole('region', { name: "Source: Jon Abara's thread, open" }),
+  ).toContainText('Which of the two pages is right?')
+
+  await page.goBack()
+  const thread = page.getByRole('listitem').filter({ hasText: 'Which of the two pages is right?' })
+  await expect(thread).toContainText('On source')
+  await thread.getByRole('button', { name: 'Resolve' }).click()
+  await expect(thread).toContainText('Resolved by Jon Abara')
+  await thread.getByRole('button', { name: 'Reopen' }).click()
+  await expect(thread).toContainText('Open, reopened by Jon Abara')
+})

@@ -344,7 +344,7 @@ export function CommentThread({
   const first = comment.author.split(' ')[0]
   return (
     <li className={cn('flex flex-col gap-3 border-t py-4 first:border-t-0', className)}>
-      {context && <p className="text-xs text-muted-foreground">{context}</p>}
+      {context}
       <Entry
         comment={comment}
         actions={actions}
