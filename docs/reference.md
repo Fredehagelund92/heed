@@ -823,7 +823,9 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the
   Agents and access page; the tools agents call are switched with `POST /tools/{tool}`, and the
   page reads both from `GET /connect` and `GET /serving/stops`, which everyone signed in may read.
-- Settings, Advanced reads the tuning settings (`GET /settings`, read only on the screen), what
+- Settings, Advanced reads every tuning setting (`GET /settings`, read only on the screen), in
+  groups, each with Default (the first version, which the install wrote) or Changed and who changed
+  it last: the person, or an update or a script when no person wrote the version. It also reads what
   was deleted (`GET /context/deleted`, `GET /terms/deleted`), the history log's latest entries
   (`GET /audit`), the jobs (`GET /operations`) and the editions (`GET /editions`). Check the chain
   is `GET /audit/verify`; the exports are `GET /audit/export` and the live edition's

@@ -1,7 +1,7 @@
 /**
  * Settings on the http binding: what the service says, in the words the Settings screens use. The
- * agents people connected, Pause sharing and the tools agents call, and Settings, Advanced (the
- * tuning settings, read only; what was deleted; the history log; the jobs; the editions). Pure, so
+ * agents people connected, Pause sharing and the tools agents call, and Settings, Advanced (every
+ * tuning setting, read only, and who changed it; what was deleted; the history log; the jobs; the editions). Pure, so
  * it is unit tested (tests/web/api/http-settings.test.ts).
  */
 import type { AuditEntry, Setting } from '@contract/admin'
@@ -12,6 +12,7 @@ import type { DeletedTerm } from '@contract/terms'
 import { AGENT_TOOLS } from '@/lib/agents'
 import { ACCESS_KEY, type Connected } from '@/lib/connect'
 import { logLine } from '@/model/history'
+import { settingGroups } from '@/model/settings'
 import type { Advanced, Settings } from './client'
 import { whenWords } from './http-inbox'
 
@@ -124,90 +125,30 @@ export function switchesOf(
 
 /* ---------- Advanced ---------- */
 
-const n = (value: unknown) => (typeof value === 'number' ? value : 0)
-const field = (value: unknown, key: string) =>
-  value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined
-const days = (value: unknown) => `${n(value)} ${n(value) === 1 ? 'day' : 'days'}`
-/** Model spend is kept in millionths of a dollar. */
-const dollars = (micros: unknown) => {
-  const amount = n(micros) / 1_000_000
-  return `$${amount.toLocaleString('en-US', { maximumFractionDigits: amount < 10 ? 2 : 0 })}`
-}
-
 /**
- * The tuning settings people ask about, in the order Advanced lists them: each with its value in
- * words and what it does. Every other setting is counted, not listed.
+ * Every tuning setting, read only, in Advanced's groups: its value in words, and who changed it
+ * last, when and why. The first version is the one the app was installed with; a later version no
+ * person wrote came from an update of the app or a script. `person` names a person by their id.
  */
-const LIMITS: { key: string; what: string; value: (v: unknown) => string }[] = [
-  {
-    key: 'review.default_days',
-    what: "Days until a context item's check is due",
-    value: (v) => String(n(v)),
-  },
-  {
-    key: 'review.open_issue_days',
-    what: 'Days until a warning with no end is asked whether it still goes on',
-    value: (v) => String(n(v)),
-  },
-  {
-    key: 'gaps.no_item_threshold',
-    what: 'Questions with nothing written down before a Not found card',
-    value: (v) => `${n(field(v, 'calls'))} in ${days(field(v, 'days'))}`,
-  },
-  { key: 'privacy.min_count', what: 'Counts under this are hidden', value: (v) => String(n(v)) },
-  {
-    key: 'limits.agent_drafts',
-    what: "Suggestions one person's agents can send",
-    value: (v) => `${n(field(v, 'per_day'))} a day, ${n(field(v, 'open'))} waiting at once`,
-  },
-  {
-    key: 'limits.mcp_requests_per_minute',
-    what: 'Requests agents can make',
-    value: (v) => `${n(field(v, 'person'))} a minute for one person`,
-  },
-  {
-    key: 'limits.llm_monthly_cap_micros',
-    what: 'All model use in a month; at the cap Ask and web reads stop and say why',
-    value: dollars,
-  },
-  {
-    key: 'limits.llm_daily_micros_per_person',
-    what: 'Model use by one person in a day',
-    value: dollars,
-  },
-  {
-    key: 'limits.llm_feature_monthly_micros',
-    what: 'Answer tests in a month',
-    value: (v) =>
-      field(v, 'eval') === undefined ? 'No cap of their own' : dollars(field(v, 'eval')),
-  },
-  {
-    key: 'limits.undo_seconds',
-    what: 'How long Undo works after a decision',
-    value: (v) => `${n(v)} seconds`,
-  },
-  {
-    key: 'retention.delivery_days',
-    what: 'How long what agents were given is kept, as scopes and counts',
-    value: days,
-  },
-  {
-    key: 'retention.request_log_days',
-    what: "How long the log of agents' requests is kept",
-    value: days,
-  },
-]
-
-/** The tuning settings, read only, and how many settings there are. */
-export function limitsOf(settings: readonly Setting[]): Pick<Advanced, 'limits' | 'settings'> {
-  const byKey = new Map(settings.map((s) => [s.key, s]))
-  return {
-    limits: LIMITS.flatMap((l) => {
-      const setting = byKey.get(l.key)
-      return setting ? [{ key: l.key, what: l.what, value: l.value(setting.value) }] : []
-    }),
-    settings: settings.filter((s) => s.editable).length,
-  }
+export function settingsOf(
+  settings: readonly Setting[],
+  person: (id: string) => string,
+  now: Date,
+): Advanced['settings'] {
+  return settingGroups(
+    settings.map((s) => ({
+      key: s.key,
+      value: s.value,
+      changed:
+        s.changedBy || s.version > 1
+          ? {
+              who: s.changedBy ? person(s.changedBy) : null,
+              when: whenWords(s.changedAt, now),
+              why: s.reason,
+            }
+          : null,
+    })),
+  )
 }
 
 const list = (names: readonly string[]) =>

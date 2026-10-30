@@ -103,7 +103,7 @@ import {
   editionsOf,
   historyOf,
   jobsOf,
-  limitsOf,
+  settingsOf,
   switchesOf,
 } from './http-settings'
 import {
@@ -1902,7 +1902,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         ])
       const domainName = (id: string) => areas.find((a) => a.id === id)?.name ?? id
       return {
-        ...limitsOf(settings),
+        settings: settingsOf(settings, (id) => people.name(id), now),
         deleted: deletedOf(drafts, terms, (id) => (id ? people.name(id) : 'Someone'), now),
         history: historyOf(history.entries, changes, now, {
           domain: domainName,

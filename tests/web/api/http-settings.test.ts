@@ -10,7 +10,7 @@ import {
   historyLine,
   historyOf,
   jobsOf,
-  limitsOf,
+  settingsOf,
   switchesOf,
   usedWords,
 } from '@/api/http-settings'
@@ -161,49 +161,68 @@ const setting = (key: string, value: unknown, editable = true): Setting => ({
 })
 
 describe('Settings, Advanced', () => {
-  it('lists the tuning settings people ask about in words, and counts every setting', () => {
-    const page = limitsOf([
-      setting('privacy.min_count', 5),
-      setting('gaps.no_item_threshold', { calls: 5, days: 7 }),
-      setting('limits.llm_monthly_cap_micros', 500_000_000),
-      setting('limits.llm_daily_micros_per_person', 2_000_000),
-      setting('limits.llm_feature_monthly_micros', { eval: 20_000_000 }),
-      setting('limits.agent_drafts', { per_day: 10, open: 20 }),
-      setting('retention.delivery_days', 1),
-      setting('models.judge', 'different_family'),
-      setting('business.about', ''),
-      setting('serving.legacy', 1, false),
+  it('lists every setting in its group, in words, and who changed it last and why', () => {
+    const groups = settingsOf(
+      [
+        setting('privacy.min_count', 5),
+        setting('gaps.no_item_threshold', { calls: 5, days: 7 }),
+        {
+          ...setting('limits.llm_monthly_cap_micros', 50_000_000),
+          version: 2,
+          changedAt: at(22, 14, 5),
+          changedBy: 'p1',
+          reason: 'Keep the pilot cheap',
+        },
+        {
+          ...setting('limits.llm_feature_monthly_micros', { eval: 20_000_000 }),
+          version: 3,
+          reason: 'The demo week',
+        },
+        setting('limits.agent_drafts', { per_day: 10, open: 20 }),
+        setting('retention.delivery_days', 1),
+        setting('models.judge', 'different_family'),
+        setting('models.assistant', { provider: 'anthropic', model: 'claude-sonnet-5-5' }),
+        setting('business.about', ''),
+        setting('serving.legacy', 1, false),
+      ],
+      (id) => (id === 'p1' ? 'Jon Abara' : 'Someone'),
+      now,
+    )
+    expect(groups.map((g) => g.group)).toEqual([
+      'Workspace',
+      'Review',
+      'Privacy and retention',
+      'Agents and requests',
+      'Model spend',
+      'Models',
+      'Other',
     ])
-    expect(page.settings).toBe(9)
-    expect(page.limits).toEqual([
-      {
-        key: 'gaps.no_item_threshold',
-        value: '5 in 7 days',
-        what: 'Questions with nothing written down before a Not found card',
-      },
-      { key: 'privacy.min_count', value: '5', what: 'Counts under this are hidden' },
-      {
-        key: 'limits.agent_drafts',
-        value: '10 a day, 20 waiting at once',
-        what: "Suggestions one person's agents can send",
-      },
-      {
-        key: 'limits.llm_monthly_cap_micros',
-        value: '$500',
-        what: 'All model use in a month; at the cap Ask and web reads stop and say why',
-      },
-      {
-        key: 'limits.llm_daily_micros_per_person',
-        value: '$2',
-        what: 'Model use by one person in a day',
-      },
-      { key: 'limits.llm_feature_monthly_micros', value: '$20', what: 'Answer tests in a month' },
-      {
-        key: 'retention.delivery_days',
-        value: '1 day',
-        what: 'How long what agents were given is kept, as scopes and counts',
-      },
-    ])
+    const rows = Object.fromEntries(groups.flatMap((g) => g.rows).map((r) => [r.key, r]))
+    expect(rows['gaps.no_item_threshold']).toEqual({
+      key: 'gaps.no_item_threshold',
+      value: '5 in 7 days',
+      what: 'Questions with nothing written down before a Not found card',
+      changed: null,
+    })
+    expect(rows['limits.llm_monthly_cap_micros']).toMatchObject({
+      value: '$50',
+      changed: { who: 'Jon Abara', when: 'Yesterday, 14:05', why: 'Keep the pilot cheap' },
+    })
+    // A later version no person wrote came from an update of the app or a script.
+    expect(rows['limits.llm_feature_monthly_micros']).toMatchObject({
+      value: 'Answer tests $20',
+      changed: { who: null, when: '1 Oct', why: 'The demo week' },
+    })
+    expect(rows['limits.agent_drafts']?.value).toBe('10 a day, 20 waiting at once')
+    expect(rows['retention.delivery_days']?.value).toBe('1 day')
+    expect(rows['models.judge']?.value).toBe('Another line than the answering model')
+    expect(rows['models.assistant']?.value).toBe('claude-sonnet-5-5 (anthropic)')
+    expect(rows['business.about']?.value).toBe('No text yet')
+    // A setting the list does not name still shows, as the service stores it.
+    expect(groups.at(-1)).toEqual({
+      group: 'Other',
+      rows: [{ key: 'serving.legacy', value: '1', what: '', changed: null }],
+    })
   })
 
   it('lists what was deleted, newest first, by whom and when, a term with its synonyms', () => {

@@ -25,7 +25,6 @@ import { useDefinitions } from "@/lib/definitions"
 import { DomainDot } from "@/components/heed/tag-chip"
 import { IntegrationsRoute } from "@/pages/integrations"
 import { Frame, FramePage, FrameRows, FrameSection, FrameTable, type FrameColumn } from "@/components/heed/frame"
-import { SLUG } from "@/lib/brand"
 import { DEFINITIONS_TOOL } from "@/data/integrations"
 import { ShowMoreButton } from "@/components/heed/show-more"
 import { useShowMore } from "@/hooks/use-show-more"
@@ -364,7 +363,7 @@ function Advanced() {
   return (
     <Frame>
       <FrameSection title="Advanced" description="For the day someone needs them. Nothing here is needed day to day." />
-      <FrameSection title="Limits" level={3} description={`28 tuning settings, read-only here. Change them with ${SLUG} settings set, or the API.`} collapsible>
+      <FrameSection title="Limits" level={3} description="Read only here. An administrator changes a setting through the API, PUT /api/v1/settings/{key}, with a reason the History log keeps." collapsible>
         <FrameTable
           label="Limits"
           columns={[

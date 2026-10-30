@@ -40,6 +40,7 @@ import type { ObsData, Range } from '@/model/observability'
 import type { Replay, When } from '@/model/replay'
 import type { Domain, Person } from '@/model/people'
 import type { Review } from '@/model/review'
+import type { SettingGroup } from '@/model/settings'
 import type { SavedQuestion } from '@/model/saved-questions'
 
 /* ---------- session and workspace ---------- */
@@ -195,10 +196,8 @@ export type Relation = 'replaces' | 'disagree' | 'unrelated'
 
 /** Settings, Advanced: what an admin reads there, for the day someone needs it. */
 export type Advanced = {
-  /** The tuning settings, read only: each by its key, its value in words and what it does. */
-  limits: { key: string; value: string; what: string }[]
-  /** How many tuning settings there are in all; the list names the ones people ask about. */
-  settings: number
+  /** Every tuning setting, read only, in groups: its value in words and who changed it last. */
+  settings: SettingGroup[]
   /** Drafts and terms deleted for good, newest first, each with who, when and its domain. */
   deleted: { key: string; title: string; hint: string; domain: DomainId | null }[]
   /** The history log's latest entries, newest first. `href` opens what an entry names. */

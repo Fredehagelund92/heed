@@ -6,6 +6,7 @@
  * requests that wire each screen land.
  */
 import { describe, expect, it } from 'vitest'
+import { settingKeys } from '@contract/admin'
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
 import { labelDay, whenLabel } from '@/model/validity'
@@ -1229,17 +1230,21 @@ export function describeHeedApi(
     )
 
     it.skipIf(lacks('signIn', 'advancedPage'))(
-      'reads Settings, Advanced: the limits in words, what was deleted, the log, jobs and editions',
+      'reads Settings, Advanced: every setting in words, what was deleted, the log, jobs and editions',
       async () => {
         const page = await (await signedIn()).advancedPage()
-        expect(page.limits.length).toBeGreaterThan(2)
-        expect(page.settings).toBeGreaterThanOrEqual(page.limits.length)
-        for (const l of page.limits) {
-          expect(l.key).toMatch(/^[a-z_]+(\.[a-z_]+)+$/)
-          expect(l.value, l.key).not.toBe('')
-          expect(l.what, l.key).not.toBe('')
+        const rows = page.settings.flatMap((g) => g.rows)
+        expect(rows.map((r) => r.key).sort()).toEqual([...settingKeys].sort())
+        expect(page.settings.some((g) => g.group === 'Other')).toBe(false)
+        for (const r of rows) {
+          expect(r.value, r.key).not.toBe('')
+          expect(r.what, r.key).not.toBe('')
+          if (r.changed) expect(r.changed.who, r.key).not.toBe('')
         }
-        expect(page.limits.find((l) => l.key === 'privacy.min_count')?.value).toBe('5')
+        expect(rows.find((r) => r.key === 'privacy.min_count')).toMatchObject({
+          value: '5',
+          changed: null,
+        })
         for (const d of page.deleted) expect(d.hint).toMatch(/^Deleted by .+, .+: .+\.$/)
         expect(new Set(page.deleted.map((d) => d.key)).size).toBe(page.deleted.length)
         expect(page.history.length).toBeGreaterThan(0)
