@@ -1,3 +1,4 @@
+import { relationWords } from '@domain/clash-relations'
 import type { AnswerState } from './ask'
 import type { SavedResult } from './saved-questions'
 
@@ -102,8 +103,14 @@ export type Review = {
     sentence: string
     rows: { claim: string; source: string; same: 'same' | 'different' | 'check' }[]
   }
-  /** Overlaps a live context item that says something else. */
-  clash?: { factId: string; title: string; mine: string; theirs: string }
+  /**
+   * Overlaps live context: the suggestion's words once, and each live item it overlaps, which the
+   * owner answers on its own. Publish sends each answer for its own item.
+   */
+  clash?: {
+    mine: string
+    items: { factId: string; title: string; theirs: string; relation?: Relation }[]
+  }
   retire?: {
     factId: string
     reason: string
@@ -127,6 +134,49 @@ export type Review = {
    * says it (FR-526): it holds over the check worked out here (lib/saved-check.ts).
    */
   saved?: { id: string; result: SavedResult; why: string; before: string; now: string }[]
+}
+
+/** How a suggestion that overlaps a live item relates to it, as the owner chose. */
+export type Relation = 'replaces' | 'disagree' | 'unrelated'
+
+/** Each answer as the review offers it, and what it does when the suggestion is published, as the service says it. */
+export const relationText: Record<Relation, { label: string; hint: string }> = {
+  replaces: relationWords.replaces,
+  disagree: relationWords.disagrees,
+  unrelated: relationWords.unrelated,
+}
+
+/**
+ * What publishing does to the live items it overlaps, once each has an answer, in a sentence;
+ * null while one still has none.
+ */
+export function clashOutcome(r: Review, answers: Record<string, Relation>): string | null {
+  const items = r.clash?.items ?? []
+  const given = items.map((c) => answers[c.factId])
+  if (!items.length || given.some((x) => !x)) return null
+  if (given.length === 1) return relationText[given[0]!].hint
+  const n = (x: Relation) => given.filter((g) => g === x).length
+  const archived = n('replaces')
+  const stay = given.length - archived
+  const parts = [
+    archived && `${archived} ${archived === 1 ? 'live item is' : 'live items are'} archived`,
+    stay && `${stay} ${stay === 1 ? 'stays' : 'stay'}`,
+  ].filter(Boolean)
+  const disagree = n('disagree')
+  return `When you publish, ${parts.join(' and ')}.${disagree ? ' Where you said they disagree, agents say context disagrees.' : ''}`
+}
+
+/** What publishing did, for its toast: the live items it archived by name, and where both stay. */
+export function publishedWords(r: Review, answers: Record<string, Relation>): string {
+  const items = r.clash?.items ?? []
+  const archived = items.filter((c) => answers[c.factId] === 'replaces').map((c) => c.title)
+  const disagree = items.filter((c) => answers[c.factId] === 'disagree').length
+  if (items.length === 1 && disagree) return 'Both stay live; agents say context disagrees.'
+  const words = [
+    archived.length ? `Archived: ${archived.join('; ')}.` : '',
+    disagree ? 'Where you said they disagree, both stay live and agents say so.' : '',
+  ].filter(Boolean)
+  return words.length ? words.join(' ') : 'Agents get it from the next question.'
 }
 
 /** Needs care before publishing: an unverified claim, or a clash with live context. */
@@ -170,8 +220,8 @@ export type Readiness = { ok: boolean; title: string; text: string; bulk: boolea
 
 /**
  * The Ready line: what can honestly be said before publishing. Claims are checked only against a
- * copied sentence; a new number or date with no source says so, and only then. `relation` is the
- * answer to a clash, once given.
+ * copied sentence; a new number or date with no source says so, and only then. `relation` is what
+ * the answers to a clash do, once every live item it overlaps has one (clashOutcome).
  */
 export function readiness(r: Review, relation?: { hint: string } | null): Readiness {
   // The service's line, unless the owner has just answered a clash here: Publish then sends it.
@@ -196,7 +246,10 @@ export function readiness(r: Review, relation?: { hint: string } | null): Readin
       : no({
           ok: false,
           title: 'Not ready: choose how they relate',
-          text: 'Publish waits until you say how this relates to the live item.',
+          text:
+            r.clash.items.length === 1
+              ? 'Publish waits until you say how this relates to the live item.'
+              : `Publish waits until you say how this relates to each of the ${r.clash.items.length} live items.`,
         })
   if (r.retire?.withdrawn)
     return no({

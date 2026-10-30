@@ -201,8 +201,15 @@ function engineAnswerOf(
         : 'This question names no metric or market the context covers, so nothing written down applies. Agents say so rather than guess.',
     }
   const said = a.items.map((i, n) => `${sentenceOf(i.summary)} [${n + 1}]`).join(' ')
-  if (a.state === 'conflict')
-    return { ...base, text: `${said} Both are kept until an owner chooses.` }
+  if (a.state === 'conflict') {
+    // The items that name each other as conflicting, not every item the answer gives.
+    const ids = new Set(a.items.map((i) => i.id))
+    const named = new Set(a.items.flatMap((i) => i.conflictsWith.filter((id) => ids.has(id))))
+    const conflict = a.items
+      .filter((i) => named.has(i.id) || i.conflictsWith.some((id) => ids.has(id)))
+      .map((i) => i.id)
+    return { ...base, text: `${said} Both are kept until an owner chooses.`, conflict }
+  }
   if (a.state === 'partial') {
     const uncovered = new Set(a.uncovered.values)
     const marketKeys = scope?.filters['dim:market'] ?? []

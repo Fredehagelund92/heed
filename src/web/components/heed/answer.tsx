@@ -812,10 +812,12 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       </div>
     )
   }
-  if (answer.state === 'conflict' && owns) {
+  // Opens one of the items that disagree, never another item the answer also gives.
+  const disagreeing = facts.find((f) => answer.conflict?.includes(f.id))
+  if (answer.state === 'conflict' && owns && disagreeing) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${facts[0]!.id}`)}>
+        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${disagreeing.id}`)}>
           Choose which one stays
         </Button>
         <span className="text-xs text-muted-foreground">

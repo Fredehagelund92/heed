@@ -351,6 +351,7 @@ export function createReviewPath(
     const { diff, claims, ready } = readinessOf(r, relations, withdrawn)
     const words = readinessWords(ready, {
       diff,
+      clashes: r.clashes.length,
       ...(withdrawn?.by.name ? { withdrawnBy: withdrawn.by.name } : {}),
     })
     const beforeMarkdown = r.before

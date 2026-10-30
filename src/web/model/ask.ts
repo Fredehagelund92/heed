@@ -56,6 +56,8 @@ export type Answer = {
   correction?: { note: string; correct: string; link: string }
   /** You reported a part of this answer: when, and what the owner did, shown only in this chat. */
   report?: { on: string; outcome?: string }
+  /** A Conflict's items that disagree with each other, by id: the ones an owner chooses between. */
+  conflict?: string[]
   /** Items that apply to the scope but not to this question (a disagreement about something else), listed, not used. */
   related?: string[]
   /** The question as typed, with its mentions, when it had any. */

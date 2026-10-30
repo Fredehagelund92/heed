@@ -426,12 +426,30 @@ export const reviews: Review[] = [
       },
     ],
     unchanged: [],
+    // Every live item agents get for Orders in Norway, as the service's clash check finds them:
+    // each is answered on its own.
     clash: {
-      factId: 'itm_gift_store_credit',
-      title: 'Norway orders count store credit',
       mine: 'From 1 November 2026, orders in Norway {+leave out+} store credit and gift cards.',
-      theirs:
-        'Orders in Norway {*include*} orders paid with store credit and gift cards, in euros at the daily rate.',
+      items: [
+        {
+          factId: 'itm_norway_stop',
+          title: 'Online sales to Norway stopped on 4 August 2026',
+          theirs:
+            'A new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing.',
+        },
+        {
+          factId: 'itm_gift_card_only',
+          title: 'Norway orders are card and cash payments only',
+          theirs:
+            'Orders in Norway count only card and cash payments. Store credit and gift cards are left out.',
+        },
+        {
+          factId: 'itm_gift_store_credit',
+          title: 'Norway orders count store credit',
+          theirs:
+            'Orders in Norway {*include*} orders paid with store credit and gift cards, in euros at the daily rate.',
+        },
+      ],
     },
     tryIt: {
       question: 'Do Norway orders include gift-card money?',

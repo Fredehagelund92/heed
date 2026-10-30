@@ -1485,6 +1485,33 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getReviews', 'getLibrary', 'publishReview', 'undo'))(
+      'publishes each answer to a clash for its own live item: only the one it replaces is archived',
+      async () => {
+        const live = await signedIn()
+        const r = (await live.getReviews()).find((x) => (x.clash?.items.length ?? 0) > 1)
+        expect(r, 'a suggestion that overlaps more than one live item').toBeDefined()
+        const items = r!.clash!.items
+        const replaced = items.at(-1)!
+        const status = async (id: string) =>
+          (await live.getLibrary()).items.find((f) => f.id === id)?.status
+        // An answer for one of them is not an answer for the others: Publish waits.
+        await expect(
+          live.publishReview({ id: r!.id, relations: { [replaced.factId]: 'replaces' } }),
+        ).rejects.toMatchObject({ kind: 'invalid' })
+        expect(await status(replaced.factId)).toBe('Live')
+        const relations = Object.fromEntries(
+          items.map((c) => [c.factId, c === replaced ? 'replaces' : 'unrelated'] as const),
+        )
+        const { undo } = await live.publishReview({ id: r!.id, relations })
+        expect(await status(replaced.factId)).toBe('Archived')
+        for (const c of items.filter((x) => x !== replaced))
+          expect(await status(c.factId), c.title).toBe('Live')
+        await live.undo({ token: undo })
+        expect(await status(replaced.factId)).toBe('Live')
+      },
+    )
+
     it.skipIf(lacks('signIn', 'inboxPage', 'returnReview', 'undo'))(
       'returns a suggestion with a note, and Undo puts it back to wait',
       async () => {

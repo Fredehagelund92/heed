@@ -60,7 +60,18 @@ import { DRAFT_LABEL } from '@/model/ask'
 import { useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
 import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
-import { careLine, marks, needsCare, readiness, readTime, type Review } from '@/model/review'
+import {
+  careLine,
+  clashOutcome,
+  marks,
+  needsCare,
+  publishedWords,
+  readiness,
+  readTime,
+  relationText,
+  type Relation,
+  type Review,
+} from '@/model/review'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { navigate } from '@/lib/router'
 import { useDomains, useFacts } from '@/lib/workspace'
@@ -585,57 +596,65 @@ function SyncedFrom({ r }: { r: Review }) {
   )
 }
 
-const relations = [
-  {
-    id: 'replaces',
-    label: 'This replaces it',
-    hint: 'The live item is archived when you publish.',
-  },
-  { id: 'disagree', label: 'These disagree', hint: 'Both stay; agents say context disagrees.' },
-  { id: 'unrelated', label: 'Unrelated', hint: 'Both stay; they apply to different things.' },
-] as const
-type Relation = (typeof relations)[number]['id']
-const RelationContext = React.createContext<[Relation | null, (r: Relation) => void]>([
-  null,
-  () => undefined,
-])
+const relations = (['replaces', 'disagree', 'unrelated'] as const).map((id) => ({
+  id,
+  ...relationText[id],
+}))
+/** The owner's answer for each live item the suggestion overlaps, by its id, and how to give one. */
+const RelationContext = React.createContext<
+  [Record<string, Relation>, (factId: string, r: Relation) => void]
+>([{}, () => undefined])
 
-/** A clash with live context: both side by side with the differing words marked, then how they relate. */
+/**
+ * A clash with live context: the suggestion once, then each live item it overlaps beside its own
+ * choice, so one answer never stands for another item.
+ */
 function Clash({ r }: { r: Review }) {
-  const [relation, setRelation] = React.useContext(RelationContext)
+  const [answers, answer] = React.useContext(RelationContext)
   const c = r.clash!
+  const many = c.items.length > 1
   return (
     <section className="flex flex-col gap-4 py-2">
       <header className="flex items-center gap-2">
         <TriangleAlertIcon aria-hidden className="size-4 text-caution-icon" />
         <span className="text-sm font-medium">
-          It overlaps live context that says something else
+          {many
+            ? `It overlaps ${c.items.length} live context items. Say how it relates to each.`
+            : 'It overlaps live context that says something else'}
         </span>
       </header>
-      <div className="grid gap-3 @3xl:grid-cols-2">
-        <div className="flex flex-col gap-2 rounded-frame border p-4">
-          <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
-          <Marked segs={marks(c.mine)} className="text-reading leading-7" />
-        </div>
-        <div className="flex flex-col gap-2 rounded-frame border p-4">
-          <p className="text-xs font-medium text-muted-foreground">Live: {c.title}</p>
-          <Marked segs={marks(c.theirs)} className="text-reading leading-7" />
-        </div>
+      <div className="flex flex-col gap-2 rounded-frame border p-4">
+        <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
+        <Marked segs={marks(c.mine)} className="text-reading leading-7" />
       </div>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">
-          How do they relate? Publish waits for your answer.
-        </legend>
-        <ChoiceGroup
-          label="How do they relate?"
-          options={relations.map((x) => ({ value: x.id, label: x.label }))}
-          value={relation ?? undefined}
-          onChange={(v) => setRelation(v)}
-        />
-        <p className="text-xs text-muted-foreground">
-          {relation ? relations.find((x) => x.id === relation)!.hint : 'Choose one of the three.'}
-        </p>
-      </fieldset>
+      {c.items.map((item, i) => {
+        const relation = answers[item.factId]
+        return (
+          <div key={item.factId} className="flex flex-col gap-4 rounded-frame border p-4">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {many ? `Live, ${i + 1} of ${c.items.length}: ` : 'Live: '}
+                {item.title}
+              </p>
+              <Marked segs={marks(item.theirs)} className="text-reading leading-7" />
+            </div>
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-sm font-medium">
+                How do they relate?{many ? '' : ' Publish waits for your answer.'}
+              </legend>
+              <ChoiceGroup
+                label={`How this relates to ${item.title}`}
+                options={relations.map((x) => ({ value: x.id, label: x.label }))}
+                value={relation}
+                onChange={(v) => answer(item.factId, v)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {relation ? relationText[relation].hint : 'Choose one of the three.'}
+              </p>
+            </fieldset>
+          </div>
+        )
+      })}
     </section>
   )
 }
@@ -773,7 +792,9 @@ function Decision({
   const reviews = useReviews()
   const me = useMe()
   const write = useWrite()
-  const [relation] = React.useContext(RelationContext)
+  const [answers] = React.useContext(RelationContext)
+  // What the answers do, once every live item it overlaps has one.
+  const settled = clashOutcome(r, answers)
   const first = r.from.split(' ')[0]
   const done = state.done[r.id]
   // The last thing tried, so Retry does it again.
@@ -787,17 +808,14 @@ function Decision({
   const commitPublish = async () => {
     const { undo } = await write('publishReview', {
       id: r.id,
-      relation,
+      ...(r.clash ? { relations: answers } : {}),
       saveQuestion: savesQuestion(r.id),
     })
     onDone({
       undo,
       outcome: 'Published',
       message: 'Published',
-      description:
-        r.clash && relation === 'disagree'
-          ? 'Both stay live; agents say context disagrees.'
-          : 'Agents get it from the next question.',
+      description: publishedWords(r, answers),
       now: r.tryIt.after.text,
     })
   }
@@ -885,7 +903,7 @@ function Decision({
       )}
     </div>
   ) : null
-  const blocked = !!r.clash && !relation
+  const blocked = !!r.clash && !settled
   // What Command and Enter does here, if anything: the hint only shows when the key acts.
   const keyAction =
     done || finished || returning || blockedBySend
@@ -913,7 +931,7 @@ function Decision({
 
   // A draft that would make a saved question worse says so instead of a plain Ready; it never stops Publish.
   const drift = checkDraft(r, useSavedQuestions(), itemOfReview(r, state.cards))
-  const base = readiness(r, relation ? relations.find((x) => x.id === relation) : null)
+  const base = readiness(r, settled ? { hint: settled } : null)
   const ready =
     drift?.look && !r.retire?.withdrawn
       ? r.retire
@@ -1176,7 +1194,7 @@ function Decision({
         </p>
         <p className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Overlaps:</span>{' '}
-          {r.clash ? r.clash.title : 'none'}.
+          {r.clash ? r.clash.items.map((c) => c.title).join('; ') : 'none'}.
         </p>
       </section>
       <section className="flex min-h-25 flex-col justify-center gap-3 p-4">
@@ -1325,7 +1343,21 @@ export function ReviewPage({ id }: { id: string }) {
         document.getElementById('decision')?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
       )
   }
-  const relation = React.useState<Relation | null>(null)
+  // The owner's answers to a clash, over the ones the service already has.
+  const [chosen, setChosen] = React.useState<Record<string, Relation>>({})
+  const answers = React.useMemo(
+    () => ({
+      ...Object.fromEntries(
+        (r?.clash?.items ?? []).flatMap((c) => (c.relation ? [[c.factId, c.relation]] : [])),
+      ),
+      ...chosen,
+    }),
+    [r?.clash, chosen],
+  )
+  const answer = React.useCallback(
+    (factId: string, v: Relation) => setChosen((a) => ({ ...a, [factId]: v })),
+    [],
+  )
   const at = reviews.findIndex((x) => x.id === id)
   // The next suggestion crossfades in (150ms) where the browser can; with reduced motion it cuts.
   const go = React.useCallback(
@@ -1503,7 +1535,7 @@ export function ReviewPage({ id }: { id: string }) {
   )
 
   return (
-    <RelationContext.Provider value={relation}>
+    <RelationContext.Provider value={[answers, answer]}>
       {/* Under a finger every control is at least 40px; the phone bar's actions are 44px. */}
       <div key={r.id} className={cn('flex h-full min-h-0 flex-col bg-background', TOUCH)}>
         <SiteHeader

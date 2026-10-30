@@ -178,6 +178,34 @@ describe("Ask's answer from the engine", () => {
     expect(partial.note).toBe("There's context for Norway and nothing for Spain.")
   })
 
+  it('names the items that disagree, not every item a conflict gives', () => {
+    // The customs stop applies too, first, but disagrees with nothing: an owner chooses between
+    // the other two.
+    const a = answerOf(
+      result({
+        state: 'conflict',
+        items: [
+          item('itm_stop', 'Online sales stopped.'),
+          item('itm_card', 'Card and cash only.', { conflictsWith: ['itm_credit'] }),
+          item('itm_credit', 'Counts store credit.'),
+        ],
+      }),
+      'Orders in Norway?',
+      names,
+    )
+    expect(a.conflict).toEqual(['itm_card', 'itm_credit'])
+    // A link to an item the answer does not give names nobody here.
+    const alone = answerOf(
+      result({
+        state: 'conflict',
+        items: [item('itm_card', 'Card and cash only.', { conflictsWith: ['itm_elsewhere'] })],
+      }),
+      'Orders in Norway?',
+      names,
+    )
+    expect(alone.conflict).toEqual([])
+  })
+
   it('says what nothing is written for, and gives Not checked no words', () => {
     expect(answerOf(result({ state: 'missing', status: 'no_match' }), 'Orders?', names).text).toBe(
       "Nobody has written down anything about Orders in Norway, 1 to 31 Aug 2026. That doesn't mean there's no explanation, only that none is written down yet.",

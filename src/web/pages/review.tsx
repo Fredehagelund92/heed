@@ -137,6 +137,10 @@ export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
 
 /* ---------- the quick view ---------- */
 
+/** The live items a suggestion overlaps, in a few words: the first by its title, then how many more. */
+const overlapsWords = (items: { title: string }[]) =>
+  `${items[0]?.title ?? ''}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`
+
 /**
  * What the Inbox pane and the dock show: the change, the note and Review. One title (the pane's),
  * one author line, the values that moved, the note and the first change. No counts row and no
@@ -150,13 +154,13 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
       {sender && <Sender r={r} />}
       {/* What needs care shows before Review, never only inside it. */}
       {care && (
-        <p className="flex items-center gap-2 text-sm font-medium">
-          <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
+        <p className="flex items-start gap-2 text-sm font-medium">
+          <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
           {/* One span keeps the colon against the words: the row's gap would put a space before it. */}
           <span>
             {care}
             <span className="font-normal text-muted-foreground">
-              {r.claims ? ' before publishing' : r.clash ? `: ${r.clash.title}` : ''}
+              {r.claims ? ' before publishing' : r.clash ? `: ${overlapsWords(r.clash.items)}` : ''}
             </span>
           </span>
         </p>
