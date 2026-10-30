@@ -19,7 +19,7 @@ function sameText(title: string) {
 }
 
 /** A review before its fields are added: the Fields table's two sides come from the demo world below. */
-type Fixture = Omit<Review, 'fields'>
+type Fixture = Omit<Review, 'fields' | 'versions'>
 
 const fixtures: Fixture[] = [
   // A Not found card's draft: reviewed, edited and published like any suggestion, never a blank page.
@@ -736,6 +736,11 @@ export const reviews: Review[] = fixtures.map((r) => ({
   ...r,
   // A change that leaves every field as it is: the live item on both sides.
   fields: sides[r.id]?.(r) ?? { before: live(r.title), after: live(r.title) },
+  // The demo's versions, by name: what agents get now, and what the suggestion would make it.
+  versions: {
+    before: r.mode === 'new' ? null : `${r.id}@now`,
+    after: r.mode === 'retire' ? null : `${r.id}@suggested`,
+  },
 }))
 
 export const reviewFor = (id: string | undefined) => reviews.find((r) => r.id === id)

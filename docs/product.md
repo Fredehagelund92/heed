@@ -74,7 +74,7 @@ The Inbox is a list in the middle and a detail pane on the right. The dock takes
 | The quick view in the Inbox pane | `/inbox?card=<id>`        |
 | The quick view in the dock       | `/inbox?dock=review.<id>` |
 
-The quick view never publishes. The review is a full-screen page inside the app, with the sidebar folded to its rail. Section 6 of the [design contract](design/design-contract.md) has its anatomy.
+The quick view never publishes. The review is a full-screen page inside the app, with the sidebar folded to its rail. Section 6 of the [design contract](design/design-contract.md) has its anatomy. In the review, a comment can hang on a line of the text or a field; anyone who reads the suggestion resolves or reopens the thread, and open threads never hold Publish.
 
 ### Ask
 
@@ -322,6 +322,7 @@ The job specs, one line each:
 | J28 | Ask ideas: Share with state and sources, Show me where it says that, Asked this week.                                                            |
 | J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion. |
 | J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                    |
+| J33 | Threads on the source: C or + comments on a line or a field; reply, react, resolve, reopen; the rail counts them live.                           |
 
 The first plan for the web app named J1 to J29. J30 (topics) was added after that, so the full set is J1 to J30.
 

@@ -6,7 +6,12 @@ import type {
   ReactionEmoji,
 } from '@/components/templates/comment-box/types'
 import { useComments as useAllComments, useWrite } from '@/api/queries'
-import { mentionNotesOf, type MentionNote, type Subject } from '@/model/comments'
+import {
+  mentionNotesOf,
+  type CommentAnchor,
+  type MentionNote,
+  type Subject,
+} from '@/model/comments'
 
 // Comments and reactions as the screens use them, from the shared comments read (src/web/api).
 // Agents never read any of it, mentions included.
@@ -42,7 +47,7 @@ export function useCommentActions() {
     post: async (
       subject: Subject,
       content: JSONContent,
-      opts: { parentId?: string; returned?: boolean } = {},
+      opts: { parentId?: string; returned?: boolean; anchor?: CommentAnchor } = {},
     ) => (await write('postComment', { subject, content, ...opts })).id,
     react: (subject: Subject, id: string, emoji: ReactionEmoji) =>
       write('reactToComment', { subject, id, emoji }),
@@ -54,6 +59,9 @@ export function useCommentActions() {
     /** Takes back what the thread hangs on with this comment of theirs, or takes the mark back. */
     withdraw: (subject: Subject, id: string, withdrew: boolean) =>
       write('withdrawWithComment', { subject, id, withdrew }),
+    /** Resolves a thread on a line or a field, or opens it again. */
+    resolve: (subject: Subject, id: string, resolved: boolean) =>
+      write('resolveComment', { subject, id, resolved }),
     /** The person opened the thread: a new reply's marker goes. */
     seen: (subject: Subject) => write('markThreadSeen', { subject }),
     /** The person has read the comments that mention them here: their Inbox marker goes. */

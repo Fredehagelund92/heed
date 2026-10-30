@@ -800,6 +800,11 @@ export function createRouter({
           context.comments.withdraw(input),
         ),
       ),
+      resolve: authorized.comments.resolve.handler(({ context, input }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'comments.resolve', input, () =>
+          context.comments.resolve(input),
+        ),
+      ),
       markMentionsRead: authorized.comments.markMentionsRead.handler(({ context, input }) =>
         context.comments.markMentionsRead(input),
       ),

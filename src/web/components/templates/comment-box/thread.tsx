@@ -330,15 +330,21 @@ function Entry({
 export function CommentThread({
   comment,
   actions,
+  context,
+  className,
 }: {
   comment: CommentItem
   actions: ThreadActions
+  /** A line above the thread: where it hangs, when that is not here. */
+  context?: React.ReactNode
+  className?: string
 }) {
   const [replying, setReplying] = React.useState(false)
   const replies = comment.replies ?? []
   const first = comment.author.split(' ')[0]
   return (
-    <li className="flex flex-col gap-3 border-t py-4 first:border-t-0">
+    <li className={cn('flex flex-col gap-3 border-t py-4 first:border-t-0', className)}>
+      {context && <p className="text-xs text-muted-foreground">{context}</p>}
       <Entry
         comment={comment}
         actions={actions}

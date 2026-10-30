@@ -239,6 +239,7 @@ describe('the API over HTTP', () => {
       '/comments/mentions/read',
       '/comments/threads/read',
       '/comments/{id}',
+      '/comments/{id}/resolve',
       '/comments/{id}/withdraw',
       '/connect',
       '/connect/pending',

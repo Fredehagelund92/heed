@@ -166,6 +166,7 @@ const readOperations = [
   'comments.edit',
   'comments.remove',
   'comments.withdraw',
+  'comments.resolve',
   'comments.markMentionsRead',
   'reactions.toggle',
   'threads.markRead',

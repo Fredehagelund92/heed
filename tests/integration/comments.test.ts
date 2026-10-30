@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { Comment, Thread } from '../../src/contract/comments.ts'
 import type { Feed } from '../../src/contract/inbox.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
+import type { ReviewSheet } from '../../src/contract/review-path.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -375,6 +376,148 @@ describe('a thread on a suggestion', () => {
   })
 })
 
+describe('a thread on a line or a field of a suggestion', () => {
+  /** A change to the live item, waiting, and the two versions its review compares. */
+  async function change(title: string) {
+    const p = await submitted(
+      {
+        title,
+        summary: 'Orders in Norway leave out the 312 test accounts, and staff orders.',
+        body: 'Counted from 1 October.\n\nThe returns team checks it each month.',
+      },
+      'author',
+      item,
+    )
+    const sheet = await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
+    return { p, subject: `review:${p.id}`, versions: sheet.versions }
+  }
+  const resolve = (who: Who, id: string, resolved: boolean) =>
+    call('POST', `/comments/${id}/resolve`, who, { resolved })
+  const postAt = (who: Who, subject: string, text: string, anchor: object) =>
+    call('POST', '/comments', who, { subject, body: words(text), anchor })
+
+  it('names the two versions its review compares, and keeps the line or field it hangs on', async () => {
+    const { p, subject, versions } = await change('Norway orders leave out staff orders')
+    expect(versions.after).toBe(p.itemVersionId)
+    expect(versions.before).toMatch(/^[0-9a-f-]{36}$/)
+    const line = await ok<Comment>(
+      postAt('author', subject, 'Is the date right?', { ...versions, side: 'after', line: 3 }),
+    )
+    const field = await ok<Comment>(
+      postAt('owner', subject, 'Keep the old title?', { ...versions, field: 'title' }),
+    )
+    expect(line).toMatchObject({
+      anchor: { ...versions, side: 'after', line: 3 },
+      resolved: null,
+      reopened: null,
+    })
+    await ok(post('owner', subject, words('Yes, 1 October'), line.id))
+    await ok(post('author', subject, words('On the whole thing')))
+    const read = await thread(subject, 'author')
+    expect(read.comments.map((c) => c.anchor)).toEqual([
+      { ...versions, side: 'after', line: 3 },
+      { ...versions, field: 'title' },
+      null,
+    ])
+    expect(read.comments[0]!.replies.map((r) => 'anchor' in r)).toEqual([false])
+    expect(read.comments.find((c) => c.id === field.id)!.author.name).toBe('owner')
+  })
+
+  it('takes an anchor only on a new thread of a suggestion, naming its own versions', async () => {
+    const { subject, versions } = await change('Norway orders leave out refunds')
+    const another = await submitted({ title: 'Gift cards count as orders' })
+    const other = (await ok<ReviewSheet>(call('GET', `/review/${another.id}/sheet`, 'owner')))
+      .versions
+    const top = await ok<Comment>(post('owner', subject, words('Which month?')))
+    const at = { ...versions, side: 'after', line: 1 }
+    const refused = [
+      call('POST', '/comments', 'owner', {
+        subject,
+        body: words('A reply'),
+        parentId: top.id,
+        anchor: at,
+      }),
+      postAt('owner', `context:${item}`, 'On the item', at),
+      postAt('owner', subject, 'Another item', { ...other, side: 'after', line: 1 }),
+      postAt('owner', subject, 'No side', {
+        before: versions.before,
+        after: null,
+        line: 1,
+        side: 'after',
+      }),
+    ]
+    for (const response of await Promise.all(refused)) expect(response.statusCode).toBe(422)
+    // The text is commented on by the line, and a line is counted from 1.
+    for (const anchor of [
+      { ...versions, field: 'text' },
+      { ...versions, side: 'after', line: 0 },
+    ])
+      expect((await postAt('owner', subject, 'Odd', anchor)).statusCode).toBe(400)
+    expect(
+      (await postAt('owner', subject, 'Nowhere', { before: null, after: null, field: 'title' }))
+        .statusCode,
+    ).toBe(422)
+    expect((await postAt('stranger', subject, 'Me too', at)).statusCode).toBe(404)
+  })
+
+  it('is resolved and opened again by anyone who reads the suggestion, saying who and when', async () => {
+    const { subject, versions } = await change('Norway orders leave out loyalty orders')
+    const c = await ok<Comment>(
+      postAt('author', subject, 'Check the month', { ...versions, side: 'before', line: 1 }),
+    )
+    const resolved = await ok<Comment>(resolve('owner', c.id, true))
+    expect(resolved.resolved).toMatchObject({ by: { personId: people.owner, name: 'owner' } })
+    expect(Date.parse(resolved.resolved!.at)).toBeGreaterThan(0)
+    expect(resolved.reopened).toBeNull()
+    // Asking again changes nothing, not even the time.
+    expect((await ok<Comment>(resolve('admin', c.id, true))).resolved).toEqual(resolved.resolved)
+    const reopened = await ok<Comment>(resolve('author', c.id, false))
+    expect(reopened.resolved).toBeNull()
+    expect(reopened.reopened).toMatchObject({ by: { personId: people.author, name: 'author' } })
+    expect((await thread(subject, 'owner')).comments[0]).toMatchObject({
+      resolved: null,
+      reopened: { by: { name: 'author' } },
+    })
+    expect((await resolve('stranger', c.id, true)).statusCode).toBe(404)
+    const whole = await ok<Comment>(post('owner', subject, words('Fine by me')))
+    expect((await resolve('owner', whole.id, true)).statusCode).toBe(409)
+    const reply = await ok<Comment>(post('owner', subject, words('Done'), c.id))
+    expect((await resolve('owner', reply.id, true)).statusCode).toBe(409)
+    // Its first comment deleted, answered: the thread stays and still resolves.
+    await ok(call('DELETE', `/comments/${c.id}`, 'author'))
+    const kept = await ok<Comment>(resolve('owner', c.id, true))
+    expect(kept).toMatchObject({ deleted: true, resolved: { by: { name: 'owner' } } })
+    const history = await client.query<{ action: string }>(
+      `select action from audit_log where subject_type='comment' and subject_id=$1 order by seq`,
+      [c.id],
+    )
+    expect(history.rows.map((r) => r.action)).toEqual([
+      'comment.created',
+      'comment.resolved',
+      'comment.reopened',
+      'comment.deleted',
+      'comment.resolved',
+    ])
+  })
+
+  it('never holds Publish, open or resolved', async () => {
+    // A new item, so the item the other threads read stays as it is.
+    const p = await submitted({ title: 'Marketplace orders count as orders' })
+    const subject = `review:${p.id}`
+    const { versions } = await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
+    expect(versions.before).toBeNull()
+    const decides = (sheet: ReviewSheet) => [sheet.readiness, sheet.canPublish, sheet.whyNot]
+    const before = decides(await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner')))
+    const open = await ok<Comment>(
+      postAt('owner', subject, 'Still open', { ...versions, field: 'title' }),
+    )
+    const sheet = () => ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
+    expect(decides(await sheet())).toEqual(before)
+    await ok(resolve('owner', open.id, true))
+    expect(decides(await sheet())).toEqual(before)
+  })
+})
+
 describe('mentions', () => {
   it("put a Mentioned you card in the person's Inbox until they read them", async () => {
     const subject = `context:${item}`
@@ -492,5 +635,64 @@ describe('row security on its own', () => {
         client.query("update comments set item_id='itm_target0001' where id=$1", [own!.id]),
       ),
     ).rejects.toMatchObject({ code: '42501' })
+  })
+
+  it('lets anyone who reads a suggestion change a thread on a line only by resolving it', async () => {
+    const asApi = async <T>(person: string, work: () => Promise<T>) => {
+      await client.query(`set role ${identifier(localRoles.api)}`)
+      try {
+        return await transaction(client, async () => {
+          await client.query("select set_config('cl.person_id',$1,true)", [person])
+          return work()
+        })
+      } finally {
+        await client.query(`set role ${identifier(localRoles.owner)}`)
+      }
+    }
+    const p = await submitted({ title: 'Orders in Norway leave out vouchers' })
+    const sheet = await ok<ReviewSheet>(call('GET', `/review/${p.id}/sheet`, 'owner'))
+    const c = await ok<Comment>(
+      call('POST', '/comments', 'author', {
+        subject: `review:${p.id}`,
+        body: words('On this line'),
+        anchor: { ...sheet.versions, side: 'after', line: 1 },
+      }),
+    )
+    // Not their words, and not where it hangs: those keep to its author, and never change.
+    await expect(
+      asApi(people.owner, () =>
+        client.query('update comments set body=$2 where id=$1', [
+          c.id,
+          JSON.stringify(words('Sneaky')),
+        ]),
+      ),
+    ).rejects.toMatchObject({ code: '23514' })
+    for (const who of [people.owner, people.author])
+      for (const set of ['anchor_line=2', `resolved_by='${people.admin}'`])
+        await expect(
+          asApi(who, () => client.query(`update comments set ${set} where id=$1`, [c.id])),
+        ).rejects.toMatchObject({ code: '42501' })
+    // Who and when are the database's, whatever is written.
+    const [row] = await asApi(
+      people.owner,
+      async () =>
+        (
+          await client.query<{ by: string; at: Date }>(
+            `update comments set resolved_at='2001-01-01' where id=$1
+             returning resolved_by::text as by, resolved_at as at`,
+            [c.id],
+          )
+        ).rows,
+    )
+    expect(row!.by).toBe(people.owner)
+    expect(row!.at.getFullYear()).toBeGreaterThan(2001)
+    // Someone who may not read the suggestion changes nothing.
+    expect(
+      await asApi(
+        people.stranger,
+        async () =>
+          (await client.query('update comments set resolved_at=null where id=$1', [c.id])).rowCount,
+      ),
+    ).toBe(0)
   })
 })

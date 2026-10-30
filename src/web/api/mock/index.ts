@@ -414,8 +414,10 @@ export function createMockApi() {
 
     // Comments
     getComments: () => now(() => comments.read(withdrawableBy(me()))),
-    postComment: ({ subject, content, parentId, returned }) =>
-      now(() => ({ id: comments.post(subject, me(), content, { parentId, returned }) })),
+    postComment: ({ subject, content, parentId, returned, anchor }) =>
+      now(() => ({ id: comments.post(subject, me(), content, { parentId, returned, anchor }) })),
+    resolveComment: ({ subject, id, resolved }) =>
+      now(() => comments.resolve(subject, id, me(), resolved)),
     reactToComment: ({ subject, id, emoji }) => now(() => comments.react(subject, id, emoji, me())),
     reactToSubject: ({ subject, emoji }) =>
       now(() => comments.reactToSubject(subject, emoji, me())),

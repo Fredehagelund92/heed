@@ -235,7 +235,11 @@ export function bodyFromService(body: Record<string, unknown>, people: People): 
 const reactionsOf = (list: Thread['reactions'], people: People): CommentReaction[] =>
   list.map((r) => ({ emoji: r.emoji, by: r.by.map((p) => p.name ?? people.name(p.personId)) }))
 
-function commentOf(c: Omit<ThreadComment, 'replies'>, people: People, now: Date): CommentReply {
+function commentOf(
+  c: Omit<ThreadComment, 'replies' | 'anchor' | 'resolved' | 'reopened'>,
+  people: People,
+  now: Date,
+): CommentReply {
   return {
     id: c.id,
     author: c.author.name ?? people.name(c.author.personId),
@@ -268,9 +272,14 @@ export function commentsOf(
   }
   for (const t of threads) {
     const subject = t.subject as Subject
+    const resolution = (r: ThreadComment['resolved']) =>
+      r && { by: r.by.name ?? people.name(r.by.personId), when: commentWhen(r.at, now) }
     out.threads[subject] = t.comments.map((c): CommentItem => ({
       ...commentOf(c, people, now),
       ...(c.replies.length ? { replies: c.replies.map((r) => commentOf(r, people, now)) } : {}),
+      ...(c.anchor ? { anchor: c.anchor } : {}),
+      ...(c.resolved ? { resolved: resolution(c.resolved)! } : {}),
+      ...(c.reopened ? { reopened: resolution(c.reopened)! } : {}),
     }))
     if (t.reactions.length) out.reactions[subject] = reactionsOf(t.reactions, people)
     if (t.newReply)

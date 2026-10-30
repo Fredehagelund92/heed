@@ -247,6 +247,11 @@ export const reviewSheetSchema = z.object({
   ),
   diff: docDiffSchema,
   /**
+   * The two versions the review compares: the one agents get now (null for a new item) and the
+   * suggested one (null for an archive). A comment on a line or a field names them.
+   */
+  versions: z.object({ before: z.nullable(z.string()), after: z.nullable(z.string()) }),
+  /**
    * Every field of the two versions, typed, for the Fields table: before is null for a new item,
    * after is null for an archive. Unlike `diff`, it also carries the domain and the owner.
    */

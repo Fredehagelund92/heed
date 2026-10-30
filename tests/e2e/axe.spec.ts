@@ -171,6 +171,37 @@ for (const { name, width, height } of widths) {
           expect(await violations(page)).toEqual([])
         })
 
+      test('a review with an open and a resolved thread on its source, and a comment being written', async ({
+        page,
+      }) => {
+        await page.goto(withTheme('/inbox/sug-ines/review', theme))
+        const source = page.getByRole('region', { name: 'The source' })
+        await source.locator('[data-source-place="after:1"]').focus()
+        await page.keyboard.press('c')
+        await expect(source.getByRole('textbox', { name: 'Comment on line 1' })).toBeFocused()
+        await page.keyboard.type('Since when are there 340?')
+        await page.keyboard.press('ControlOrMeta+Enter')
+        await source.locator('[data-source-place="before:1"]').focus()
+        await page.keyboard.press('c')
+        await expect(
+          source.getByRole('textbox', { name: 'Comment on removed line 1' }),
+        ).toBeFocused()
+        await page.keyboard.type('Was 312 ever right?')
+        await page.keyboard.press('ControlOrMeta+Enter')
+        await source
+          .getByRole('region', { name: /^Removed line 1: / })
+          .getByRole('button', { name: 'Resolve' })
+          .click()
+        await source.locator('[data-source-place="field:sources"]').focus()
+        await page.keyboard.press('c')
+        await expect(source.getByRole('textbox', { name: 'Comment on source' })).toBeFocused()
+        await page.keyboard.type('Which page?')
+        await expect(source.getByRole('textbox', { name: 'Comment on source' })).toBeVisible()
+        // The pointer rests where Resolve was, which the fold moves under another button.
+        await page.mouse.move(0, 0)
+        expect(await violations(page)).toEqual([])
+      })
+
       test('the Help menu, open', async ({ page }) => {
         await page.goto(withTheme('/inbox', theme))
         if (width < 768) await page.getByRole('button', { name: /menu/i }).first().click()

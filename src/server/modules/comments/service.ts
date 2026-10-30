@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/client'
-import type { Comment, Thread } from '../../../contract/comments.ts'
+import type { Comment, CommentAnchorInput, Thread } from '../../../contract/comments.ts'
 import {
   cleanComment,
   commentFromText,
@@ -9,6 +9,7 @@ import {
   reactionEmoji,
   subjectName,
   unseenReply,
+  type AnchorField,
   type CommentNode,
   type CommentSubject,
   type ReactionEmoji,
@@ -26,6 +27,10 @@ import { proposalEvent } from '../proposals/index.ts'
   The person who suggested archiving a context item may mark a comment of theirs on it as taking
   the suggestion back, while it waits (db/migrations/0028_withdrawn_in_comments.sql). It stays with
   its owners, whose review quotes the comment, until they close it or archive anyway.
+
+  On a suggestion, a thread may hang on a line of its text or on a field, read against the two
+  versions the review compared; anyone who may read it resolves or reopens it, and the database
+  keeps who and when (db/migrations/0031_anchored_comments.sql).
 
   Agents never read any of this: the MCP read path has no grant on these tables, and nothing an
   edition holds is built from them.
@@ -47,6 +52,17 @@ type Row = {
   editedAt: string | null
   deletedAt: string | null
   withdrewAt: string | null
+  anchorBefore: string | null
+  anchorAfter: string | null
+  anchorField: string | null
+  anchorSide: 'before' | 'after' | null
+  anchorLine: number | null
+  resolvedAt: string | null
+  resolvedById: string | null
+  resolvedByName: string | null
+  reopenedAt: string | null
+  reopenedById: string | null
+  reopenedByName: string | null
 }
 
 type ReactionRow = {
@@ -61,7 +77,25 @@ type ReactionRow = {
 const columns = `c.id::text, c.item_id as item, c.proposal_id::text as proposal, c.parent_id::text as parent,
   c.author_id::text as "authorId", (select display_name from people where id=c.author_id) as "authorName",
   c.kind, c.body, ${iso('c.created_at')} as at, ${iso('c.edited_at')} as "editedAt",
-  ${iso('c.deleted_at')} as "deletedAt", ${iso('c.withdrew_at')} as "withdrewAt"`
+  ${iso('c.deleted_at')} as "deletedAt", ${iso('c.withdrew_at')} as "withdrewAt",
+  c.anchor_before::text as "anchorBefore", c.anchor_after::text as "anchorAfter",
+  c.anchor_field as "anchorField", c.anchor_side as "anchorSide", c.anchor_line as "anchorLine",
+  ${iso('c.resolved_at')} as "resolvedAt", c.resolved_by::text as "resolvedById",
+  (select display_name from people where id=c.resolved_by) as "resolvedByName",
+  ${iso('c.reopened_at')} as "reopenedAt", c.reopened_by::text as "reopenedById",
+  (select display_name from people where id=c.reopened_by) as "reopenedByName"`
+
+/** The line or field a thread hangs on, as the contract says it. */
+function anchorOf(row: Row): CommentAnchorInput | null {
+  const versions = { before: row.anchorBefore, after: row.anchorAfter }
+  if (row.anchorField) return { ...versions, field: row.anchorField as AnchorField }
+  if (row.anchorLine !== null && row.anchorSide)
+    return { ...versions, side: row.anchorSide, line: row.anchorLine }
+  return null
+}
+
+const byWhom = (id: string | null, name: string | null, at: string | null) =>
+  id && at ? { by: { personId: id, name }, at } : null
 
 const subjectOfRow = (row: { item: string | null; proposal: string | null }): CommentSubject =>
   row.item ? { kind: 'item', id: row.item } : { kind: 'proposal', id: row.proposal! }
@@ -258,7 +292,13 @@ export function createCommentsService(tx: Queryable) {
         if (row.parent) replies.set(row.parent, [...(replies.get(row.parent) ?? []), row])
       const comments = list
         .filter((row) => !row.parent)
-        .map((row) => ({ ...shape(row), replies: (replies.get(row.id) ?? []).map(shape) }))
+        .map((row) => ({
+          ...shape(row),
+          replies: (replies.get(row.id) ?? []).map(shape),
+          anchor: anchorOf(row),
+          resolved: byWhom(row.resolvedById, row.resolvedByName, row.resolvedAt),
+          reopened: byWhom(row.reopenedById, row.reopenedByName, row.reopenedAt),
+        }))
       const read = reads.find((r) => sameSubject(subjectOfRow(r), subject))
       const reply = unseenReply(
         list.map((row) => ({ ...row, deleted: row.deletedAt !== null })),
@@ -280,24 +320,45 @@ export function createCommentsService(tx: Queryable) {
     const row = await loadComment(id)
     const [thread] = await threads(subjectOfRow(row))
     const top = thread!.comments.find((c) => c.id === (row.parent ?? row.id))!
-    return row.parent ? { ...top.replies.find((r) => r.id === id)!, replies: [] } : top
+    return row.parent
+      ? {
+          ...top.replies.find((r) => r.id === id)!,
+          replies: [],
+          anchor: null,
+          resolved: null,
+          reopened: null,
+        }
+      : top
   }
 
   async function insert(
     subject: CommentSubject,
     doc: CommentNode,
-    extra: { parentId?: string | undefined; kind?: 'returned'; decisionId?: string } = {},
+    extra: {
+      parentId?: string | undefined
+      kind?: 'returned'
+      decisionId?: string
+      anchor?: CommentAnchorInput | undefined
+    } = {},
   ): Promise<string> {
+    const anchor = extra.anchor
     const [row] = await tx
       .query<{ id: string }>(
-        `insert into comments (item_id,proposal_id,parent_id,author_id,kind,decision_id,body)
-         values ($1,$2::uuid,$3::uuid,cl_person(),$4,$5::uuid,$6) returning id::text`,
+        `insert into comments (item_id,proposal_id,parent_id,author_id,kind,decision_id,body,
+                               anchor_before,anchor_after,anchor_field,anchor_side,anchor_line)
+         values ($1,$2::uuid,$3::uuid,cl_person(),$4,$5::uuid,$6,$7::uuid,$8::uuid,$9,$10,$11)
+         returning id::text`,
         [
           ...subjectParams(subject),
           extra.parentId ?? null,
           extra.kind ?? 'comment',
           extra.decisionId ?? null,
           JSON.stringify(doc),
+          anchor?.before ?? null,
+          anchor?.after ?? null,
+          anchor && 'field' in anchor ? anchor.field : null,
+          anchor && 'side' in anchor ? anchor.side : null,
+          anchor && 'line' in anchor ? anchor.line : null,
         ],
       )
       .catch(refusal)
@@ -310,7 +371,12 @@ export function createCommentsService(tx: Queryable) {
       return { threads: await threads(only) }
     },
 
-    async create(input: { subject: string; body: unknown; parentId?: string | undefined }) {
+    async create(input: {
+      subject: string
+      body: unknown
+      parentId?: string | undefined
+      anchor?: CommentAnchorInput | undefined
+    }) {
       const subject = await openSubject(input.subject)
       const { doc, mentions } = await checked(input.body)
       if (input.parentId) {
@@ -318,7 +384,10 @@ export function createCommentsService(tx: Queryable) {
         if (!parent || !sameSubject(subjectOfRow(parent), subject))
           throw invalid('That comment is not in this thread any more.')
       }
-      const id = await insert(subject, doc, { parentId: input.parentId })
+      if (input.anchor && (input.parentId || subject.kind !== 'proposal'))
+        throw invalid('A comment on a line or a field starts a thread on a suggestion.')
+      if (input.anchor) await anchoredOn(subject.id, input.anchor)
+      const id = await insert(subject, doc, { parentId: input.parentId, anchor: input.anchor })
       await keepMentions(id, await me(), mentions)
       await seen(subject)
       await audit('comment.created', { id, ...rowSubject(subject) })
@@ -402,6 +471,28 @@ export function createCommentsService(tx: Queryable) {
         { commentId: row.id },
         input.withdrew ? 'proposal.withdrawn' : 'proposal.withdrawal_taken_back',
       )
+      return shaped(row.id)
+    },
+
+    /**
+     * Resolves a thread on a line or a field of a suggestion, or opens it again: anyone who may
+     * read the suggestion may, and the thread says who did and when. Asking for the state it is in
+     * changes nothing.
+     */
+    async resolve(input: { id: string; resolved: boolean }) {
+      const row = await loadComment(input.id)
+      if (row.parent || !anchorOf(row))
+        throw new ORPCError('CONFLICT', {
+          message: 'Only a thread on a line or a field of a suggestion is resolved.',
+        })
+      if (input.resolved === (row.resolvedAt !== null)) return shaped(row.id)
+      await tx
+        .query(`update comments set resolved_at=case when $2 then now() end where id=$1`, [
+          row.id,
+          input.resolved,
+        ])
+        .catch(refusal)
+      await audit(input.resolved ? 'comment.resolved' : 'comment.reopened', row)
       return shaped(row.id)
     },
 
@@ -539,6 +630,22 @@ export function createCommentsService(tx: Queryable) {
       await removeRow(row)
       await audit('comment.deleted', row)
     },
+  }
+
+  /**
+   * An anchor names versions of the item the suggestion changes: otherwise the thread would hang
+   * on a line nobody can open.
+   */
+  async function anchoredOn(proposal: string, anchor: CommentAnchorInput) {
+    const versions = [anchor.before, anchor.after].filter((v) => v !== null)
+    const [row] = await tx.query<{ ok: boolean }>(
+      `select count(*) = cardinality($2::uuid[]) as ok from item_versions v
+         join proposals p on p.item_id=v.item_id where p.id=$1 and v.id=any($2::uuid[])`,
+      [proposal, versions],
+    )
+    const side = 'side' in anchor ? anchor[anchor.side] : true
+    if (!versions.length || !row?.ok || !side)
+      throw invalid('That line or field is not in this suggestion any more. Open it again.')
   }
 
   async function removeRow(row: Row): Promise<'gone' | 'kept'> {

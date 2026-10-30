@@ -1705,6 +1705,89 @@ export function describeHeedApi(
       },
     )
 
+    /* ---------- threads on a line or a field of a suggestion ---------- */
+
+    /** A thread by its first comment. */
+    const threadOf = async (subject: Subject, id: string) =>
+      ((await api().getComments()).threads[subject] ?? []).find((c) => c.id === id)
+
+    /** A change waiting for the person, and its thread, with words of this run. */
+    async function changeFor() {
+      await api().signIn({ name: person, fresh: false })
+      const inbox = await api().inboxPage()
+      const r = (await api().getReviews()).find(
+        (x) =>
+          x.mode === 'edit' &&
+          inbox.cards.some((c) => c.id === x.id && c.for === person && !inbox.done[c.id]),
+      )
+      expect(r, `a change waiting for ${person}`).toBeDefined()
+      return {
+        r: r!,
+        subject: `review:${r!.id}` as Subject,
+        mark: Math.random().toString(36).slice(2),
+      }
+    }
+
+    it.skipIf(lacks(...comments, 'inboxPage', 'getReviews', 'resolveComment'))(
+      'hangs a thread on a line or a field of a suggestion, and resolves and reopens it, saying who',
+      async () => {
+        const { r, subject, mark } = await changeFor()
+        expect(r.versions.after).not.toBeNull()
+        const onLine = { ...r.versions, side: 'after' as const, line: 1 }
+        const { id } = await api().postComment({
+          subject,
+          content: said(`On this line ${mark}`),
+          anchor: onLine,
+        })
+        const field = await api().postComment({
+          subject,
+          content: said(`On the title ${mark}`),
+          anchor: { ...r.versions, field: 'title' },
+        })
+        await api().postComment({ subject, content: said(`Agreed ${mark}`), parentId: id })
+        const thread = await threadOf(subject, id)
+        expect(thread).toMatchObject({ author: person, anchor: onLine })
+        expect(thread!.resolved).toBeUndefined()
+        expect((await threadOf(subject, field.id))?.anchor).toEqual({
+          ...r.versions,
+          field: 'title',
+        })
+        await api().resolveComment({ subject, id, resolved: true })
+        expect((await threadOf(subject, id))?.resolved?.by).toBe(person)
+        // Asking for the state it is in changes nothing.
+        await api().resolveComment({ subject, id, resolved: true })
+        await api().resolveComment({ subject, id, resolved: false })
+        const reopened = await threadOf(subject, id)
+        expect(reopened?.resolved).toBeUndefined()
+        expect(reopened?.reopened?.by).toBe(person)
+        expect(reopened?.replies?.map((x) => 'anchor' in x)).toEqual([false])
+      },
+    )
+
+    it.skipIf(lacks(...comments, 'inboxPage', 'getReviews', 'resolveComment'))(
+      'takes an anchor only on a new thread of a suggestion, and resolves only such a thread',
+      async () => {
+        const { r, subject, mark } = await changeFor()
+        const anchor = { ...r.versions, field: 'kind' as const }
+        const plain = await api().postComment({ subject, content: said(`Whole thing ${mark}`) })
+        await expect(
+          api().postComment({
+            subject,
+            content: said(`Reply ${mark}`),
+            parentId: plain.id,
+            anchor,
+          }),
+        ).rejects.toMatchObject({ kind: 'invalid' })
+        const { subject: item } = await threadAs(person)
+        await expect(
+          api().postComment({ subject: item, content: said(`On an item ${mark}`), anchor }),
+        ).rejects.toMatchObject({ kind: 'invalid' })
+        await expect(
+          api().resolveComment({ subject, id: plain.id, resolved: true }),
+        ).rejects.toMatchObject({ kind: 'conflict' })
+      },
+    )
+
     /* ---------- a suggestion to archive taken back in the comments ---------- */
 
     /** The person's suggestion to archive that its sender took back, still waiting. */

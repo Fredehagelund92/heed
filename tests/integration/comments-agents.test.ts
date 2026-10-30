@@ -22,7 +22,8 @@ import { apiDatabase, servingPool, testDatabase, transaction } from './support.t
   Agents never read comments (FR-817; docs/product.md, section 9, rule 5). People comment on a
   live context item, and on a suggestion that changes it, with words that contradict it; a reply,
   a mention and reactions too, and what the screens add: an edit that writes the words again, and
-  a return whose note is the suggestion's first comment. Then an owner publishes, which seals a new edition while those
+  a return whose note is the suggestion's first comment, and threads on a line and a field of the
+  suggestion's source, one resolved. Then an owner publishes, which seals a new edition while those
   comments stand. Every tool an agent may call answers about the item, and no reply holds a word
   of any comment, and neither does what people read of the same answers (Ask, and Try it on a
   suggestion). Three more locks: the serving and analytics roles may read none of the comment
@@ -198,6 +199,26 @@ beforeAll(async () => {
       body: words(contradiction),
     }),
   )
+  // Threads on a line of the suggestion's text and on a field, one resolved by another owner.
+  const { versions } = await ok<{ versions: { before: string | null; after: string | null } }>(
+    call('GET', `/review/${change.id}/sheet`, 'owner'),
+  )
+  const onLine = await ok<Comment>(
+    call('POST', '/comments', 'owner', {
+      subject: `review:${change.id}`,
+      body: words(contradiction),
+      anchor: { ...versions, side: 'after', line: 1 },
+    }),
+  )
+  await ok(
+    call('POST', '/comments', 'admin', {
+      subject: `review:${change.id}`,
+      body: words(`${canary} Check the owner`, 'owner'),
+      anchor: { ...versions, field: 'owner' },
+    }),
+  )
+  await ok(call('POST', `/comments/${onLine.id}/resolve`, 'admin', { resolved: true }))
+
   // An edit writes the words again; a return's note is the first comment of its suggestion.
   await ok(
     call('PUT', `/comments/${top.id}`, 'stranger', {

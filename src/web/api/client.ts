@@ -18,7 +18,7 @@ import type { FactAction } from '@/lib/bulk'
 import type { Definition, DefinitionType, SynonymCheck } from '@/lib/definitions'
 import type { Link } from '@/lib/links'
 import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@/model/ask'
-import type { Comments, MentionNote, Subject } from '@/model/comments'
+import type { CommentAnchor, Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
@@ -374,7 +374,14 @@ export interface HeedApi {
     parentId?: string
     /** The note a suggestion was returned with. */
     returned?: boolean
+    /** On a suggestion, the line or field of its source a new thread hangs on. */
+    anchor?: CommentAnchor
   }) => Promise<{ id: string }>
+  /**
+   * Resolves a thread on a line or a field of a suggestion, or opens it again: anyone who may read
+   * the suggestion may. It never holds Publish.
+   */
+  resolveComment: (input: { subject: Subject; id: string; resolved: boolean }) => Promise<void>
   reactToComment: (input: { subject: Subject; id: string; emoji: ReactionEmoji }) => Promise<void>
   reactToSubject: (input: { subject: Subject; emoji: ReactionEmoji }) => Promise<void>
   editComment: (input: { subject: Subject; id: string; content: JSONContent }) => Promise<void>
@@ -686,6 +693,7 @@ export const heedApiMethods = [
   'editComment',
   'removeComment',
   'withdrawWithComment',
+  'resolveComment',
   'markThreadSeen',
   'markMentionSeen',
   'getDefinitions',

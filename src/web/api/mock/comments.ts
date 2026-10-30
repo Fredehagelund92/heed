@@ -11,13 +11,15 @@ import {
   toggleReaction,
 } from '@/components/templates/comment-box/utils'
 import { ApiError } from '../errors'
-import { mentionNotesOf, type Comments, type Subject } from '@/model/comments'
+import { mentionNotesOf, type CommentAnchor, type Comments, type Subject } from '@/model/comments'
 import { newReplies, seedComments, seedReactions } from './data/comments'
 
 // The mock's comments and reactions, kept in memory until the page reloads. Anyone signed in can
 // comment and react; people edit and delete only their own words. Nothing here sends anything: a
 // reply only brings a card back to "Needs you" in the owner's Inbox, and an @ of a person puts a
-// quiet marker in theirs, in the app only. Agents never read any of it, mentions included.
+// quiet marker in theirs, in the app only. On a suggestion, a thread may hang on a line or a field
+// of its source, and anyone resolves it or opens it again. Agents never read any of it, mentions
+// included.
 
 type State = {
   comments: Partial<Record<Subject, CommentItem[]>>
@@ -108,14 +110,20 @@ export function createComments() {
       subject: Subject,
       author: string,
       content: JSONContent,
-      opts: { parentId?: string; returned?: boolean } = {},
+      opts: { parentId?: string; returned?: boolean; anchor?: CommentAnchor } = {},
     ): string {
+      if (opts.anchor && (opts.parentId || opts.returned || !subject.startsWith('review:')))
+        throw new ApiError(
+          'invalid',
+          'A comment on a line or a field starts a thread on a suggestion.',
+        )
       const comment: CommentItem = {
         id: createId(),
         author,
         when: 'Just now',
         content,
         returned: opts.returned,
+        ...(opts.anchor ? { anchor: opts.anchor } : {}),
       }
       if (opts.parentId) {
         const parent = (state.comments[subject] ?? []).find((c) => c.id === opts.parentId)
@@ -171,6 +179,27 @@ export function createComments() {
           const mark = (x: CommentItem) =>
             x.id === id ? { ...x, withdrew } : withdrew ? { ...x, withdrew: false } : x
           return { ...mark(c), replies: c.replies?.map(mark) }
+        }),
+      )
+    },
+    /**
+     * Resolves a thread on a line or a field, or opens it again: anyone may, and the thread says
+     * who and when. Asking for the state it is in changes nothing.
+     */
+    resolve(subject: Subject, id: string, who: string, resolved: boolean) {
+      const thread = (state.comments[subject] ?? []).find((c) => c.id === id)
+      if (!thread?.anchor)
+        throw new ApiError(
+          'conflict',
+          'Only a thread on a line or a field of a suggestion is resolved.',
+        )
+      if (resolved === !!thread.resolved) return
+      const by = { by: who, when: 'Just now' }
+      at(subject, (list) =>
+        list.map((c) => {
+          if (c.id !== id) return c
+          const { resolved: _, ...open } = c
+          return resolved ? { ...c, resolved: by } : { ...open, reopened: by }
         }),
       )
     },

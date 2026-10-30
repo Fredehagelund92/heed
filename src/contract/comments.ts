@@ -6,10 +6,19 @@
  * with one of the five reactions; people edit and delete only their own words. A mention of a
  * person puts a "Mentioned you" card in their Inbox until they read it. The person who suggested
  * archiving a context item may mark a comment of theirs on it as taking the suggestion back, while it
- * waits: its owners then close it or archive anyway. Agents never read any of it.
+ * waits: its owners then close it or archive anyway. On a suggestion, a thread may hang on a line
+ * of its text or on a field of its Fields table, read against the two versions the review compared,
+ * and anyone who may read it resolves or reopens it; resolved or open, it never holds Publish.
+ * Agents never read any of it.
  */
 import * as z from 'zod/mini'
-import { cleanComment, reactionEmoji, subjectPattern } from '../domain/comments.ts'
+import {
+  anchorFields,
+  anchorMaxLine,
+  cleanComment,
+  reactionEmoji,
+  subjectPattern,
+} from '../domain/comments.ts'
 
 /** What a thread hangs on, as the app names it. */
 export const subjectSchema = z.string().check(z.regex(subjectPattern))
@@ -28,6 +37,31 @@ export const commentInputBodySchema = commentBodySchema.check(
 export const reactionEmojiSchema = z.enum(reactionEmoji)
 
 const person = z.object({ personId: z.string(), name: z.nullable(z.string()) })
+
+const anchorVersions = {
+  /** The version agents got when it was written; null for a new item. */
+  before: z.nullable(z.string().check(z.uuid())),
+  /** The suggested version it was read on; null for a suggestion to archive. */
+  after: z.nullable(z.string().check(z.uuid())),
+}
+
+/**
+ * Where on a suggestion's source a thread hangs: a field of the Fields table by its name, or a
+ * line of the text on the side it was read on (`before`, the text agents get now; `after`, the
+ * suggested one), with the two versions the review compared.
+ */
+export const commentAnchorSchema = z.union([
+  z.strictObject({ ...anchorVersions, field: z.enum(anchorFields) }),
+  z.strictObject({
+    ...anchorVersions,
+    side: z.enum(['before', 'after']),
+    line: z.number().check(z.int(), z.minimum(1), z.maximum(anchorMaxLine)),
+  }),
+])
+export type CommentAnchorInput = z.infer<typeof commentAnchorSchema>
+
+/** Who resolved a thread, or opened it again, and when: the last time each. */
+const resolutionSchema = z.nullable(z.object({ by: person, at: z.string() }))
 
 /** One reaction and who gave it, in order. */
 export const reactionSchema = z.object({ emoji: reactionEmojiSchema, by: z.array(person) })
@@ -48,7 +82,16 @@ const commentFields = {
   reactions: z.array(reactionSchema),
 }
 export const replySchema = z.object(commentFields)
-export const commentSchema = z.object({ ...commentFields, replies: z.array(replySchema) })
+export const commentSchema = z.object({
+  ...commentFields,
+  replies: z.array(replySchema),
+  /** The line or field of a suggestion's source it hangs on; null for the whole thing. */
+  anchor: z.nullable(commentAnchorSchema),
+  /** A thread on a line or a field: resolved, by whom and when; null while it is open. */
+  resolved: resolutionSchema,
+  /** The last time it was opened again after being resolved. */
+  reopened: resolutionSchema,
+})
 export type Comment = z.infer<typeof commentSchema>
 
 /** One thread: its comments oldest first, the reactions on its subject, and what is new to the reader. */
@@ -83,6 +126,14 @@ export const createCommentSchema = z.strictObject({
   body: commentInputBodySchema,
   /** The comment it answers, on the same subject. */
   parentId: z.optional(z.string().check(z.uuid())),
+  /** On a suggestion, the line or field of its source a new thread hangs on. */
+  anchor: z.optional(commentAnchorSchema),
+})
+
+/** Resolves a thread on a line or a field of a suggestion, or opens it again. */
+export const resolveCommentSchema = z.strictObject({
+  id: z.string().check(z.uuid()),
+  resolved: z.boolean(),
 })
 
 export const editCommentSchema = z.strictObject({

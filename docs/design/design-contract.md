@@ -317,6 +317,7 @@ The quick view shows the summary, what moved, the most important change, how man
 
 - the **queue** of waiting suggestions, grouped by sender, with a dot for where you are, a tick when done and a warning when it needs care;
 - the **change** in the middle: one sentence on what changes, then what must be decided or known (a withdrawal, the item to archive, a synced document, the claim check, the clash gate), which no view ever hides, then the **source**, which is the review: a **Fields** table (title, kind, domain, owner, applies to, when, check date, source, don't conclude), each row changed or the same with its value now and suggested and the unchanged rows folded into one line, and a **Text** diff of the stored text in the app's own font, with line numbers, removed lines before added ones, the changed words marked across a changed block (a paragraph split, joined or reworded keeps its unchanged words plain) only when at least half of the block's shorter side stays, and unchanged stretches folded with three lines kept around each change. N and P step through the changes. A quiet "Preview" toggle shows the rich text instead, each change in its own block under a quiet kind label (Wording, Formatting, Link, Order, Added, Removed, Dates). Publishing takes the whole change;
+- **threads on the source**: a comment hangs on a line of the Text diff or a row of the Fields table. A "+" beside a line on hover, C on the line or field in focus (the arrows move between them), and on a touch screen a Comment button under the one tapped start one. The thread hangs under its line, its left rule in the accent while open and grey once resolved, its state in words beside an icon ("Resolved by Jon Abara, today, 10:40"); a resolved thread folds to that line. Anyone who may read the suggestion resolves or reopens it. Replies, mentions and reactions are the comment box's own. The thread names the two versions it was read against, so it stays on its line after a reload; one written on an earlier version of the suggestion is shown under the change with the other comments, saying so. The rail sums them up ("2 open, 1 resolved") as they change, lists the open ones to go to, and says that open threads never hold Publish, which they don't;
 - **marks that are never colour alone**: added words are underlined, removed words struck through, formatting has a dotted underline and names itself, a link shows its old and new address, a moved step says where it came from;
 - **Try it**: what agents say before and after, as Draft or Published, then "Agents now say" once published;
 - the **Ready line**, which never says more than was checked: a new number or date without a source says "not checked against a source", and only then;
@@ -377,12 +378,12 @@ Toasts use sonner, at the bottom right, above the decision, never over the chang
 
 Every button's tooltip shows its key. Single-key shortcuts belong to the page only while nobody is typing (never in a field, an editor, an open list, a menu or a dialog).
 
-| Scope    | Keys                                                                                                                                   |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Anywhere | Cmd K search; Cmd B sidebar; `?` the keys; Esc close or go back                                                                        |
-| Lists    | J and K move; Enter opens; X selects; Shift and Down selects a run; `/` searches the list                                              |
-| Review   | J and K next or previous suggestion; N and P next or previous change; Cmd Enter publishes when ready; Esc closes the note and keeps it |
-| Ask      | `/` starts a question; Option H shows or hides history                                                                                 |
+| Scope    | Keys                                                                                                                                                                   |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anywhere | Cmd K search; Cmd B sidebar; `?` the keys; Esc close or go back                                                                                                        |
+| Lists    | J and K move; Enter opens; X selects; Shift and Down selects a run; `/` searches the list                                                                              |
+| Review   | J and K next or previous suggestion; N and P next or previous change; arrows and C comment on a line; Cmd Enter publishes when ready; Esc closes the note and keeps it |
+| Ask      | `/` starts a question; Option H shows or hides history                                                                                                                 |
 
 The Draft 1 command registry stays as a rule for the app: one registry feeds the palette, the keys sheet and the tooltips, and a test fails when two commands claim one key in one scope. The `g` chords of Draft 1 are withdrawn (the mockup has none).
 
