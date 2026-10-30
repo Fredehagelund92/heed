@@ -32,6 +32,7 @@ import {
 } from './modules/models/index.ts'
 import { createRelay, outboxRelayJob } from './modules/notifications/index.ts'
 import { createLoginServer, loadKeyRing } from './modules/oauth/index.ts'
+import { weeklyRollupJob } from './modules/observability/index.ts'
 import { createPageReader } from './modules/web/index.ts'
 import { createLogger } from './observability/logger.ts'
 
@@ -189,6 +190,7 @@ async function main(): Promise<void> {
       outboxRelayJob,
       gapDetectionJob,
       alertsJob({ clock }),
+      weeklyRollupJob({ clock }),
       connectorSyncJob(sources, { clock }),
       savedCheckJob({ clock }),
       ...evalJobs({ port: models, clock }),

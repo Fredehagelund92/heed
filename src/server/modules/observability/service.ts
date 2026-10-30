@@ -18,9 +18,12 @@ import {
   shownParts,
   sumCounts,
   topicView,
+  weeklyView,
   zeroCounts,
+  type ShownCounts,
   type StateCounts,
   type TopicCounts,
+  type WeekCounts,
 } from '../../../domain/observability.ts'
 import { shiftDate } from '../../../domain/validity.ts'
 import type { Clock } from '../../clock.ts'
@@ -86,6 +89,22 @@ async function vocabularyNames(tx: Queryable): Promise<Map<string, string>> {
        from vocab_term_versions order by term_key, version_no desc`,
   )
   return new Map(rows.map((r) => [r.key, r.name]))
+}
+
+/**
+ * Agent calls per completed week from the weekly counts kept without limit (`obs_weekly`), as a
+ * reader may see them: by answer state and by domain, each count hidden from one to just under
+ * the minimum and never given away by subtraction (FR-614).
+ */
+export type WeeklyCounts = {
+  minimumCount: number
+  weeks: {
+    /** The Monday a week (UTC) starts on. */
+    week: string
+    total: number | null
+    counts: ShownCounts
+    domains: { areaId: string | null; total: number | null }[]
+  }[]
 }
 
 /** "market/norway" without its dimension, as a last resort for a value with no name. */
@@ -706,6 +725,78 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
             personTodayMicros: person?.micros ?? 0,
           },
         },
+      }
+    },
+
+    /**
+     * The weeks of a long range (FR-620), for views over more than the delivery records keep: the
+     * weeks from the one `from` falls in up to the one `to` falls in, without it, read from the
+     * weekly counts the `observability.rollup` job keeps each night. A week counted 0 is in the
+     * list. The domains read, `areaId` and `agent` (administrators only) are as in `agents`; for a
+     * view of one kind of agent, no count may differ from the same over every agent by a hidden
+     * one. Internal: no route reads it yet.
+     */
+    async weekly(input: {
+      from: string
+      to: string
+      areaId?: string
+      agent?: AppFamily
+    }): Promise<WeeklyCounts> {
+      const { admin, areas } = await reader(tx, input.areaId)
+      const agent = admin ? input.agent : undefined
+      const least = await minimum(tx)
+      const weeks = await tx.query<{ week: string }>(
+        `select g::date::text as week
+           from generate_series(date_trunc('week', $1::timestamp),
+                                date_trunc('week', $2::timestamp) - interval '1 week',
+                                interval '1 week') g`,
+        [input.from, input.to],
+      )
+      /** Calls per week, domain and answer state, for the view or over every agent. */
+      const read = (kind?: AppFamily) =>
+        tx.query<{ week: string; area: string | null; state: string; calls: number }>(
+          `select o.week::text, o.area_id as area, o.answer_state as state, sum(o.calls)::int as calls
+             from obs_weekly o
+            where o.week >= date_trunc('week', $1::timestamp) and o.week < date_trunc('week', $2::timestamp)
+              and ($3::text is null or o.app_family = $3)
+              and (case when $4::text[] is null then $5 else o.area_id = any($4) end)
+            group by 1, 2, 3 order by 1, 2 nulls last, 3`,
+          [input.from, input.to, kind ?? null, areas, admin],
+        )
+      const byDomain = new Map<string, WeekCounts>()
+      const at = (week: string, domain: string | null) => {
+        const key = `${week}|${domain ?? ''}`
+        const row = byDomain.get(key) ?? {
+          week,
+          domain,
+          counts: zeroCounts(),
+          ...(agent ? { whole: zeroCounts() } : {}),
+        }
+        byDomain.set(key, row)
+        return row
+      }
+      const add = (c: StateCounts, state: string, calls: number) => {
+        if (state in c) c[state as keyof StateCounts] += calls
+      }
+      for (const r of await read(agent)) add(at(r.week, r.area).counts, r.state, r.calls)
+      if (agent) for (const r of await read()) add(at(r.week, r.area).whole!, r.state, r.calls)
+      // One order for every week: by domain, the calls with no domain last.
+      const rows = [...byDomain.values()].sort(
+        (a, b) =>
+          (a.domain === null ? 1 : 0) - (b.domain === null ? 1 : 0) ||
+          (a.domain ?? '').localeCompare(b.domain ?? ''),
+      )
+      const shown = weeklyView(
+        weeks.map((w) => w.week),
+        rows,
+        least,
+      )
+      return {
+        minimumCount: least,
+        weeks: shown.map((w) => ({
+          ...w,
+          domains: w.domains.map(({ domain, ...d }) => ({ ...d, areaId: domain })),
+        })),
       }
     },
 

@@ -671,3 +671,84 @@ export function shownParts(
     total: shown.has('all') ? total : null,
   }
 }
+
+/* ---------- weeks ---------- */
+
+/**
+ * One domain's agent calls in a completed week, by answer state, from the weekly counts kept
+ * without limit. For a view of one kind of agent, `whole` is the same over every agent.
+ */
+export type WeekCounts = {
+  week: string
+  domain: string | null
+  counts: StateCounts
+  whole?: StateCounts
+}
+
+export type ShownWeek = {
+  week: string
+  total: Shown
+  counts: ShownCounts
+  domains: { domain: string | null; total: Shown }[]
+}
+
+/**
+ * What a reader may see of the weeks of a long range (FR-614): each week's calls, by answer state
+ * and by domain. No count spans two weeks, so each week is disclosed on its own. A week's total is
+ * always counted when it reaches the minimum, as Overview's everything asked is, and finer counts
+ * are hidden to keep it; what found nothing is hidden last. A week with no rows counts 0. One
+ * domain's answer states are its own view (narrowed to it), as on Overview.
+ */
+export function weeklyView(
+  weeks: readonly string[],
+  rows: readonly WeekCounts[],
+  minimum: number,
+): ShownWeek[] {
+  return weeks.map((week) => {
+    const mine = rows.filter((r) => r.week === week)
+    const key = (d: string | null) => `d:${d ?? ''}`
+    const sum = (s?: ShownState) =>
+      mine.reduce((n, r) => n + (s ? r.counts[s] : sumCounts(r.counts)), 0)
+    const sumWhole = (s?: ShownState) =>
+      mine.length && mine.every((r) => r.whole)
+        ? mine.reduce((n, r) => n + (s ? r.whole![s] : sumCounts(r.whole!)), 0)
+        : undefined
+    const shown = disclose(
+      [
+        {
+          id: 'w',
+          value: sum(),
+          whole: sumWhole(),
+          anchor: true,
+          parts: [shownStates.map((s) => `w:${s}`), mine.map((r) => key(r.domain))],
+        },
+        ...shownStates.map((s): Quantity => ({
+          id: `w:${s}`,
+          value: sum(s),
+          whole: sumWhole(s),
+          protect: s === 'missing',
+          parts: [],
+        })),
+        ...mine.map((r): Quantity => ({
+          id: key(r.domain),
+          value: sumCounts(r.counts),
+          whole: r.whole && sumCounts(r.whole),
+          parts: [],
+        })),
+      ],
+      minimum,
+    )
+    const value = (id: string, v: number): Shown => (shown.has(id) ? v : null)
+    const counts = {} as ShownCounts
+    for (const s of shownStates) counts[s] = value(`w:${s}`, sum(s))
+    return {
+      week,
+      total: value('w', sum()),
+      counts,
+      domains: mine.map((r) => ({
+        domain: r.domain,
+        total: value(key(r.domain), sumCounts(r.counts)),
+      })),
+    }
+  })
+}

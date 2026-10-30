@@ -94,6 +94,7 @@ Where two requirements disagree, the changed one, the new one and the mockup win
 | FR-121, FR-332 | Changed | `suggest_context` is on, with the scope granted at consent. After the person says yes, it sends the suggestion to the owner's review (it no longer only saves a draft); it never publishes. `get_related` is on, with its own switch ("Let agents follow links"), one step at a time. |
 | FR-602, FR-603 | Changed | From agents, still no question text. Words a person sends on purpose (a suggestion, a named report, a saved question, a comment) are kept with their name. Ask chats stay in the person's browser. |
 | FR-601 | Changed | A delivery record also keeps the answer state its reply gave and the kind of agent that called, so Observability can count them. |
+| FR-612 | Changed | Weekly counts per domain, answer state and kind of agent are kept without limit, beyond the delivery period, for long-range trends. They hold no words and no person. |
 | FR-604, FR-606 | Changed | Case 1 of FR-606 counts across a month edge. The month stays in the topic's key. |
 | FR-615, FR-517 | Changed | The Observability pages and the domain page's health line replace the domain dashboard and the weekly scorecard to a chat tool. Alerts are Inbox cards. |
 | FR-701 to FR-703, FR-707 to FR-710, FR-713 | Changed | Ask (a page and a dock), using the answer engine for the state line and sources and the model only for words. History, Share, Where and Asked this week. |
@@ -576,7 +577,7 @@ The rule for this area: the system records who writes and decides, and never who
 | FR-609 | A gap must have the status `open`, `proposal_made`, `wont_fix` or `resolved`. A `wont_fix` gap must never reopen by itself. | First build | Kept |
 | FR-610 | An owner must be able to link a gap to the test questions of its domain that capture it. When an owner sets a gap to `resolved`, the system must record the live edition. The gap is verified by test when every linked active question has passed in a finished weekly or full answer test run of the domain, on that edition or a later one, and the system must record it when such a run finishes and tell the domain's owners. Impact runs and the delivery check alone do not count. Verified by test sits beside `resolved` and is not a status (FR-609). When the gap leaves `resolved`, the system must clear the edition and the verification. A gap resolved before its edition was recorded stays unverified until it is resolved again. A verification stays when a test fails later; the failure shows beside it. Links and verification name no person (FR-608); the history log records who linked a test. (Withdrawn 30 Oct 2026: removed with the earlier web app's screens, P14c.) | First build | Withdrawn |
 | FR-611 | A note from `report_gap`, `give_feedback` or a person's report (FR-606 case 5) must have at most 500 characters and pass the text check of FR-117. Only owners of the domain and administrators may read it. Tool descriptions must tell clients not to put the question or personal data in a note. | First build | Kept |
-| FR-612 | A scheduled job must keep delivery records in full for 180 days and then keep counts only. It must delete notes after 180 days. The periods must be settings. [OQ-6] | First build | Kept |
+| FR-612 | A scheduled job must keep delivery records in full for 180 days and then keep counts only. It must delete notes after 180 days. The periods must be settings. [OQ-6] (Amended 30 Oct 2026: the counts kept are, for each completed week, the agent calls of each domain in each of the five answer states (FR-349) by kind of agent (FR-410), with no topic, no words and no person, and they are kept without limit, as a deliberate exception to the delivery period, so Observability can show trends longer than the delivery records last. Small counts are hidden when they are read (FR-614).) | First build | Changed |
 | FR-613 | The system must not link a delivery, gap or feedback record to a user, a session, a device or a network address. | First build | Kept |
 | FR-614 | Dashboards and exports must hide topic detail when a count is below a set number (default five). [OQ-6] | First build | Kept |
 | FR-615 | The dashboard of a domain must show delivery counts, the share of calls without items, items past their review date, open gaps, test results and review times. | First build | Changed |
@@ -1174,7 +1175,7 @@ Each question has plain options. The first option is the recommended one. "Neede
 
 **OQ-6. How long do we keep records, and when do we hide small counts?** (Needed before Phase 1.)
 
-- Delivery records in full: 180 days, then counts only. *Recommended.*
+- Delivery records in full: 180 days, then counts only. *Recommended.* The weekly counts per domain, answer state and kind of agent are kept without limit (FR-612). *Decided 30 Oct 2026.*
 - Hide topic detail when a count is below five. *Recommended.*
 - History log: keep without limit. It holds no question text. *Recommended.*
 - Keep a redacted excerpt of questions for owners? No. *Recommended.*

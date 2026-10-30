@@ -7,9 +7,11 @@ import {
   shownParts,
   shownStates,
   topicView,
+  weeklyView,
   type Quantity,
   type StateCounts,
   type TopicCounts,
+  type WeekCounts,
 } from '../../../src/domain/observability.ts'
 
 /*
@@ -433,5 +435,176 @@ describe('shownParts', () => {
       parts: [58, null, null],
       total: 102,
     })
+  })
+})
+
+describe('weeklyView', () => {
+  const at = (week: string, domain: string | null, c: number[], whole?: number[]): WeekCounts => ({
+    week,
+    domain,
+    counts: counts(c),
+    ...(whole ? { whole: counts(whole) } : {}),
+  })
+
+  /**
+   * What a reader can work out from each week, independently of `disclose`: its total over its
+   * answer states and over its domains, one unknown at a time. Nothing under the minimum comes out
+   * of it, and no count shown is under it.
+   */
+  function expectWeeksSafe(rows: readonly WeekCounts[], view: ReturnType<typeof weeklyView>) {
+    for (const w of view) {
+      const mine = rows.filter((r) => r.week === w.week)
+      const value = new Map<string, number>()
+      const known = new Map<string, number>()
+      const set = (id: string, shown: number | null, actual: number) => {
+        value.set(id, actual)
+        if (shown !== null) known.set(id, shown)
+      }
+      const total = (c: StateCounts) => shownStates.reduce((n, s) => n + c[s], 0)
+      set(
+        'w',
+        w.total,
+        mine.reduce((n, r) => n + total(r.counts), 0),
+      )
+      for (const s of shownStates)
+        set(
+          `w:${s}`,
+          w.counts[s],
+          mine.reduce((n, r) => n + r.counts[s], 0),
+        )
+      for (const [i, d] of w.domains.entries()) set(`d:${i}`, d.total, total(mine[i]!.counts))
+      const sums: [string, string[]][] = [
+        ['w', shownStates.map((s) => `w:${s}`)],
+        ['w', w.domains.map((_, i) => `d:${i}`)],
+      ]
+      for (let changed = true; changed;) {
+        changed = false
+        for (const [whole, parts] of sums) {
+          const unknown = parts.filter((p) => !known.has(p))
+          if (!unknown.length && !known.has(whole)) {
+            known.set(
+              whole,
+              parts.reduce((n, p) => n + known.get(p)!, 0),
+            )
+            changed = true
+          } else if (unknown.length === 1 && known.has(whole)) {
+            known.set(unknown[0]!, value.get(unknown[0]!)!)
+            changed = true
+          }
+        }
+      }
+      for (const [id, n] of known) expect(fine(n), `${w.week} ${id} works out to ${n}`).toBe(true)
+    }
+  }
+
+  it('counts every week asked for, an empty one as 0, and keeps the total before a small state', () => {
+    const rows = [
+      at('2026-10-05', 'sales', [20, 2, 0, 0, 0]),
+      at('2026-10-05', 'marketing', [0, 0, 0, 0, 7]),
+      at('2026-10-05', null, [0, 0, 0, 5, 0]),
+    ]
+    const view = weeklyView(['2026-09-28', '2026-10-05'], rows, min)
+    expect(view[0]).toEqual({
+      week: '2026-09-28',
+      total: 0,
+      counts: { grounded: 0, partial: 0, conflict: 0, stale: 0, missing: 0 },
+      domains: [],
+    })
+    // 34 asked: 2 covered part of it, so a second state goes with it, never what found nothing.
+    expect(view[1]).toMatchObject({ total: 34, counts: { partial: null, missing: 7 } })
+    expect(view[1]!.domains.map((d) => d.total)).toEqual([22, 7, 5])
+    expectWeeksSafe(rows, view)
+  })
+
+  it('hides a week asked fewer times than the minimum, and every count in it', () => {
+    const view = weeklyView(['w'], [at('w', 'sales', [3, 0, 0, 0, 0])], min)
+    expect(view[0]).toEqual({
+      week: 'w',
+      total: null,
+      counts: { grounded: null, partial: 0, conflict: 0, stale: 0, missing: 0 },
+      domains: [{ domain: 'sales', total: null }],
+    })
+  })
+
+  it('narrows to one kind of agent without giving the others away', () => {
+    const view = weeklyView(['w'], [at('w', 'sales', [6, 0, 0, 0, 0], [8, 0, 0, 0, 0])], min)
+    expect(view[0]).toMatchObject({ total: null, counts: { grounded: null } })
+    expect(view[0]!.domains[0]!.total).toBeNull()
+  })
+
+  it('holds for any counts', () => {
+    const arbitraryRow = fc.record({
+      week: fc.constantFrom('a', 'b'),
+      domain: fc.constantFrom('x', 'y', 'z', null),
+      counts: fc.array(fc.oneof(fc.integer({ min: 0, max: 4 }), fc.integer({ min: 0, max: 30 })), {
+        minLength: 5,
+        maxLength: 5,
+      }),
+    })
+    fc.assert(
+      fc.property(fc.array(arbitraryRow, { maxLength: 10 }), (raw) => {
+        // One row a week and domain, as the service adds them up.
+        const seen = new Set<string>()
+        const rows = raw
+          .filter((r) => !seen.has(`${r.week}|${r.domain}`) && seen.add(`${r.week}|${r.domain}`))
+          .map((r) => at(r.week, r.domain, r.counts))
+        const view = weeklyView(['a', 'b'], rows, min)
+        for (const w of view)
+          for (const n of [w.total, ...Object.values(w.counts), ...w.domains.map((d) => d.total)])
+            if (n !== null) expect(fine(n)).toBe(true)
+        expectWeeksSafe(rows, view)
+      }),
+      { numRuns: 300 },
+    )
+  })
+
+  it('never shows a count of one kind of agent that differs from every agent by a hidden one', () => {
+    const arbitraryRow = fc.record({
+      domain: fc.constantFrom('x', 'y', null),
+      counts: fc.array(fc.integer({ min: 0, max: 30 }), { minLength: 5, maxLength: 5 }),
+      others: fc.array(fc.integer({ min: 0, max: 6 }), { minLength: 5, maxLength: 5 }),
+    })
+    fc.assert(
+      fc.property(fc.array(arbitraryRow, { maxLength: 3 }), (raw) => {
+        const seen = new Set<string | null>()
+        const rows = raw
+          .filter((r) => !seen.has(r.domain) && seen.add(r.domain))
+          .map((r) =>
+            at(
+              'w',
+              r.domain,
+              r.counts,
+              r.counts.map((n, i) => n + r.others[i]!),
+            ),
+          )
+        const [w] = weeklyView(['w'], rows, min)
+        const total = (c: StateCounts) => shownStates.reduce((n, s) => n + c[s], 0)
+        const others = (f: (r: WeekCounts) => number, g: (r: WeekCounts) => number) =>
+          rows.reduce((n, r) => n + f(r) - g(r), 0)
+        if (w!.total !== null)
+          expect(
+            fine(
+              others(
+                (r) => total(r.whole!),
+                (r) => total(r.counts),
+              ),
+            ),
+          ).toBe(true)
+        for (const s of shownStates)
+          if (w!.counts[s] !== null)
+            expect(
+              fine(
+                others(
+                  (r) => r.whole![s],
+                  (r) => r.counts[s],
+                ),
+              ),
+            ).toBe(true)
+        for (const [i, d] of w!.domains.entries())
+          if (d.total !== null)
+            expect(fine(total(rows[i]!.whole!) - total(rows[i]!.counts))).toBe(true)
+      }),
+      { numRuns: 300 },
+    )
   })
 })
