@@ -2,7 +2,6 @@ import * as React from 'react'
 import { useSavedViews, useWrite } from '@/api/queries'
 import { useObservability, useObsPageQuery } from '@/lib/obs'
 import {
-  ArrowUpDownIcon,
   BookmarkIcon,
   BotIcon,
   CalendarIcon,
@@ -33,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
-import { barButton, SearchField } from '@/components/heed/list'
+import { barButton, SearchField, SortMenu } from '@/components/heed/list'
 import { Legend, Swatch } from '@/components/obs/charts'
 import { RangeSwitch } from '@/components/obs/controls'
 import {
@@ -44,6 +43,7 @@ import {
   RANGES,
   SHOWN,
   STATE_WORDS,
+  TOPIC_SORTS,
   type Grouping,
   type Shown,
   type Sort,
@@ -65,6 +65,7 @@ import {
   type Gap,
 } from '@/lib/obs-views'
 import { setQuery, useRoute } from '@/lib/router'
+import { clicked, sortingFrom, sortingTo, type Sorting } from '@/lib/sort'
 import { useDomainList, useDomains } from '@/lib/workspace'
 import { ObsPage } from '@/pages/observability'
 
@@ -72,11 +73,6 @@ import { ObsPage } from '@/pages/observability'
 // the words, never who asked. Saved views along the top belong to the workspace; the filters read
 // back as a sentence; a row opens the answer panel, a replay of what an agent gets for it.
 
-const SORTS: Record<Sort, string> = {
-  asked: 'Asked most',
-  nothing: 'Not found most',
-  name: 'A to Z',
-}
 const toggle = <T,>(list: T[] | undefined, v: T) => {
   const l = list ?? []
   return l.includes(v) ? l.filter((x) => x !== v) : [...l, v]
@@ -111,7 +107,8 @@ function Questions() {
   if (view.owned && (!filters.domain || !view.owned.includes(filters.domain)))
     filters.domain = view.domain
   const viewId = query.get('view') ?? 'all'
-  const sort = (query.get('sort') as Sort) || 'asked'
+  const sorting = sortingFrom(TOPIC_SORTS, query, 'asked')
+  const sortBy = (s: Sorting<Sort>) => setQuery(sortingTo(TOPIC_SORTS, s, 'asked'))
   // Grouping only joins rows for reading; the key under it stays the exact scope with its month.
   const group: Grouping =
     query.get('group') === 'none' ? 'none' : query.get('group') === 'domain' ? 'domain' : 'metric'
@@ -129,7 +126,7 @@ function Questions() {
   const rows = inView
   usePublishOrder(
     'obs-topics',
-    obs.rowOrder(rows, group, sort).map((t) => t.id),
+    obs.rowOrder(rows, group, sorting).map((t) => t.id),
   )
   const peeked = dock?.kind === 'topic' ? dock.id : undefined
   const onKeyDown = useRowKeys({
@@ -223,24 +220,7 @@ function Questions() {
       {/* The bar: Filter, Sort, Group, search. */}
       <div className="flex flex-wrap items-center gap-1 border-t px-4 py-1.5 md:px-5">
         <FilterMenu filters={filters} set={set} owned={view.owned} />
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={barButton} />}>
-            <ArrowUpDownIcon />
-            Sort <span className="text-foreground">{SORTS[sort]}</span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuRadioGroup
-              value={sort}
-              onValueChange={(v) => setQuery({ sort: v === 'asked' ? undefined : (v as string) })}
-            >
-              {(Object.keys(SORTS) as Sort[]).map((k) => (
-                <DropdownMenuRadioItem key={k} value={k}>
-                  {SORTS[k]}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SortMenu keys={TOPIC_SORTS} sorting={sorting} onSort={sortBy} className="w-52" />
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -340,7 +320,8 @@ function Questions() {
       <TopicTable
         rows={rows}
         grouping={group}
-        sort={sort}
+        sorting={sorting}
+        onSort={(k) => sortBy(clicked(TOPIC_SORTS, sorting, k))}
         view={view}
         peeked={peeked}
         unread={unread}

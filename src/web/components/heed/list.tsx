@@ -1,5 +1,8 @@
 import * as React from 'react'
 import {
+  ArrowDownIcon,
+  ArrowUpDownIcon,
+  ArrowUpIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronUpIcon,
@@ -13,12 +16,18 @@ import {
 import { toast } from 'sonner'
 import { useListOrder, words } from '@/lib/list'
 import { navigate } from '@/lib/router'
+import { flips, startOf, wayOf, type Dir, type SortKey, type Sorting } from '@/lib/sort'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
@@ -417,6 +426,141 @@ export const thClass =
 /** A header cell. */
 export function Th({ children, className }: { children?: React.ReactNode; className?: string }) {
   return <th className={cn(thClass, className)}>{children}</th>
+}
+
+const DirArrow = ({ dir, className }: { dir: Dir; className?: string }) => {
+  const Arrow = dir === 'asc' ? ArrowUpIcon : ArrowDownIcon
+  return <Arrow aria-hidden className={cn('size-3', className)} />
+}
+
+/**
+ * A header that sorts. The sorted column says its direction with an arrow and `aria-sort`; a second
+ * click flips it. Another column shows the way it would start on hover and focus.
+ */
+export function SortTh<K extends string>({
+  keys,
+  sorting,
+  by,
+  onSort,
+  className,
+  tip,
+}: {
+  keys: Record<K, SortKey>
+  sorting: Sorting<K>
+  by: K
+  onSort: (key: K) => void
+  className?: string
+  tip?: string
+}) {
+  const on = sorting.key === by
+  const dir = on ? sorting.dir : keys[by].first
+  return (
+    <th
+      className={cn(thClass, className)}
+      aria-sort={on ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
+    >
+      <button
+        type="button"
+        title={tip}
+        onClick={() => onSort(by)}
+        className={cn(
+          'group/sort -mx-1.5 inline-flex h-6 items-center gap-1 rounded-md px-1.5 outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+          on && 'text-foreground',
+        )}
+      >
+        {keys[by].label}
+        <DirArrow
+          dir={dir}
+          className={
+            on
+              ? 'opacity-90'
+              : 'opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60'
+          }
+        />
+      </button>
+    </th>
+  )
+}
+
+/**
+ * The bar's Sort menu: the keys, each with its direction in words, then the two ways of the chosen
+ * key when it has two. The button names the key and shows the direction as an arrow.
+ */
+export function SortMenu<K extends string>({
+  keys,
+  sorting,
+  onSort,
+  shown,
+  narrow,
+  className,
+}: {
+  keys: Record<K, SortKey>
+  sorting: Sorting<K>
+  onSort: (s: Sorting<K>) => void
+  /** The keys on offer now, in order; all of them when left out. */
+  shown?: K[]
+  /** The class that hides the words on a narrow list. */
+  narrow?: string
+  className?: string
+}) {
+  const key = keys[sorting.key]
+  const other: Dir = key.first === 'asc' ? 'desc' : 'asc'
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={barButton} />}>
+        <ArrowUpDownIcon />
+        <span className={narrow}>Sort</span>
+        <span className={cn('text-foreground', narrow)}>{key.label}</span>
+        {flips(key) && (
+          <>
+            <DirArrow dir={sorting.dir} className={cn('text-foreground', narrow)} />
+            <span className="sr-only">{wayOf(keys, sorting)}</span>
+          </>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className={className}>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={sorting.key}
+            onValueChange={(v) => onSort(startOf(keys, v as K))}
+          >
+            {(shown ?? (Object.keys(keys) as K[])).map((k) => (
+              <DropdownMenuRadioItem key={k} value={k}>
+                <span className="flex w-full justify-between gap-3">
+                  {keys[k].label}
+                  <span className="text-xs text-muted-foreground">
+                    {wayOf(keys, k === sorting.key ? sorting : startOf(keys, k))}
+                  </span>
+                </span>
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        {flips(key) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Direction</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={sorting.dir}
+                onValueChange={(v) => onSort({ key: sorting.key, dir: v as Dir })}
+              >
+                {[key.first, other].map((d) => (
+                  <DropdownMenuRadioItem key={d} value={d}>
+                    <span className="flex w-full items-center justify-between gap-3">
+                      {key.ways[d]}
+                      <DirArrow dir={d} className="text-muted-foreground" />
+                    </span>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 const dot: Record<Status, string> = {

@@ -224,17 +224,6 @@ export function groupCount(g: Pick<TopicGroup, 'visible' | 'shown'>) {
   return g.shown > 0 ? `${g.shown.toLocaleString('en-GB')}+` : 'Fewer than 5'
 }
 
-export type Sort = 'asked' | 'nothing' | 'name'
-
-export const sortGroups = (gs: TopicGroup[], sort: Sort) =>
-  [...gs].sort((a, b) =>
-    sort === 'name'
-      ? a.name.localeCompare(b.name)
-      : sort === 'nothing'
-        ? b.counts.missing - a.counts.missing || (b.visible ?? b.shown) - (a.visible ?? a.shown)
-        : (b.visible ?? b.shown) - (a.visible ?? a.shown),
-  )
-
 export function statusOf(
   t: Topic & { counts: Counts },
 ): { label: string; tone: 'gap' | 'warn'; href?: string } | undefined {
@@ -463,16 +452,6 @@ export function observability(data: ObsData) {
       .sort((a, b) => (b.visible ?? b.shown) - (a.visible ?? a.shown))
   }
 
-  /** The exact rows in the order they show, for stepping through the answer panel. */
-  function rowOrder(rows: TopicRow[], grouping: Grouping, sort: Sort) {
-    if (grouping === 'none')
-      return sortGroups(
-        rollUp(rows).flatMap((g) => g.rows.map((r) => rollUp([r])[0]!)),
-        sort,
-      ).flatMap((g) => g.rows)
-    return sortGroups(rollUp(rows), sort).flatMap((g) => g.rows)
-  }
-
   /** Every month the topics are about, newest first. */
   const topicMonths = () => [...new Set(TOPICS.map((t) => t.month))].sort().reverse()
 
@@ -518,7 +497,6 @@ export function observability(data: ObsData) {
     agentsOf,
     publishesIn,
     rollUp,
-    rowOrder,
     topicMonths,
     notFoundGroups,
     couldNotRead,

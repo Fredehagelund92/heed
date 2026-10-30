@@ -5,7 +5,7 @@ import { ArrowUpRightIcon, ChevronRightIcon, CircleHelpIcon } from '@/components
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { GroupRow, Th, thClass } from '@/components/heed/list'
+import { GroupRow, SortTh, Th } from '@/components/heed/list'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { MixBar, Sparkline, Swatch } from '@/components/obs/charts'
 import {
@@ -21,8 +21,10 @@ import {
   type TopicGroup,
   type View,
   sortGroups,
+  TOPIC_SORTS,
   type Sort,
 } from '@/model/observability'
+import type { Sorting } from '@/lib/sort'
 import type { DomainId } from '@/model/items'
 import { openDock } from '@/lib/dock'
 
@@ -35,7 +37,8 @@ import { openDock } from '@/lib/dock'
 export function TopicTable({
   rows,
   grouping,
-  sort,
+  sorting,
+  onSort,
   view,
   peeked,
   unread,
@@ -44,7 +47,9 @@ export function TopicTable({
 }: {
   rows: Topic[]
   grouping: Grouping
-  sort: Sort
+  sorting: Sorting<Sort>
+  /** A sorting header's click. */
+  onSort: (key: Sort) => void
   view: View
   peeked?: string
   /** Calls that could not be read in this range, to say under the topics. */
@@ -62,7 +67,7 @@ export function TopicTable({
   const [folded, setFolded] = React.useState<string[]>([])
   const toggle = (list: string[], k: string) =>
     list.includes(k) ? list.filter((x) => x !== k) : [...list, k]
-  const groups = sortGroups(grouping === 'none' ? rows.map(obs.single) : obs.rollUp(rows), sort)
+  const groups = sortGroups(grouping === 'none' ? rows.map(obs.single) : obs.rollUp(rows), sorting)
   // Domain only: a section per domain, with the topics that have none last.
   const sections =
     grouping === 'domain'
@@ -113,9 +118,21 @@ export function TopicTable({
     <table className="w-full border-collapse">
       <thead>
         <tr>
-          <Th className="w-full px-4 md:pl-5">Topic</Th>
+          <SortTh
+            keys={TOPIC_SORTS}
+            sorting={sorting}
+            by="name"
+            onSort={onSort}
+            className="w-full px-4 md:pl-5"
+          />
           <Th className="hidden w-36 px-2 @3xl/main:table-cell">Domain</Th>
-          <th className={cn(thClass, 'w-24 px-2 text-right')}>Asked</th>
+          <SortTh
+            keys={TOPIC_SORTS}
+            sorting={sorting}
+            by="asked"
+            onSort={onSort}
+            className="w-24 px-2 text-right"
+          />
           {sparks && <Th className="hidden w-24 px-2 @4xl/main:table-cell">{view.range} days</Th>}
           <Th className="hidden w-60 min-w-60 px-2 @2xl/main:table-cell">How it was answered</Th>
           <Th className="hidden w-44 pr-4 pl-2 md:pr-5 @3xl/main:table-cell">Status</Th>

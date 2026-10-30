@@ -1,6 +1,5 @@
 import * as React from 'react'
 import {
-  ArrowUpDownIcon,
   BookAIcon,
   ChevronDownIcon,
   ListFilterIcon,
@@ -32,6 +31,8 @@ import {
   ListBar,
   RowMenu,
   SearchField,
+  SortMenu,
+  SortTh,
   Th,
   thClass,
 } from '@/components/heed/list'
@@ -62,6 +63,7 @@ import {
   useGlossary,
 } from '@/lib/definitions'
 import { closeDock, openDock, useDock } from '@/lib/dock'
+import { clicked, flipped, startOf, type SortKey, type Sorting } from '@/lib/sort'
 import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useDomainList, useDomains, useFacts } from '@/lib/workspace'
@@ -89,12 +91,16 @@ const GROUPS: Record<Group, string> = {
   none: 'No grouping',
 }
 const SORTS = {
-  coverage: { label: 'Coverage', way: 'No context first' },
-  name: { label: 'Name', way: 'A to Z' },
-  context: { label: 'Context', way: 'Most first' },
-  updated: { label: 'Last changed', way: 'Newest first' },
-  best: { label: 'Best match', way: 'Closest first' },
-} as const
+  coverage: { label: 'Coverage', first: 'desc', ways: { desc: 'No context first' } },
+  name: { label: 'Name', first: 'asc', ways: { asc: 'A to Z', desc: 'Z to A' } },
+  context: { label: 'Context', first: 'desc', ways: { desc: 'Most first', asc: 'Fewest first' } },
+  updated: {
+    label: 'Last changed',
+    first: 'desc',
+    ways: { desc: 'Newest first', asc: 'Oldest first' },
+  },
+  best: { label: 'Best match', first: 'desc', ways: { desc: 'Closest first' } },
+} satisfies Record<string, SortKey>
 type Sort = keyof typeof SORTS
 const CUES: Record<Cue, string> = {
   conflict: 'Conflict',
@@ -136,10 +142,12 @@ export function DefinitionsPage() {
   const [synonymRows, setSynonymRows] = React.useState(false)
   const [group, setGroup] = React.useState<Group>('domain')
   const [folded, setFolded] = React.useState<string[]>([])
-  const [chosenSort, setSort] = React.useState<Sort | null>(null)
+  const [chosenSort, setSort] = React.useState<Sorting<Sort> | null>(null)
 
   // Led by coverage: what agents would hear Not found for comes first.
-  const sort: Sort = chosenSort ?? (text.trim() ? 'best' : 'coverage')
+  const sorting = chosenSort ?? startOf(SORTS, text.trim() ? 'best' : 'coverage')
+  const sort = sorting.key
+  const way = flipped(SORTS, sorting) ? -1 : 1
   const tool = connectorById('cube')!.name
   const about = (d: Definition) => glossary.contextAbout(d, facts).length
   // A row's conflict includes the words folded into it, so folding never hides one.
@@ -175,18 +183,19 @@ export function DefinitionsPage() {
     words(text).filter((w) =>
       `${d.name} ${d.sourceNames.join(' ')} ${otherNames(d).join(' ')}`.toLowerCase().includes(w),
     ).length
+  const onSort = (k: Sort) => setSort(clicked(SORTS, sorting, k))
   const shown = rows
     .filter((d) => pass(d))
     .sort((a, b) =>
       sort === 'coverage'
         ? Number(cueOf(b) === 'none') - Number(cueOf(a) === 'none') || a.name.localeCompare(b.name)
         : sort === 'context'
-          ? about(b) - about(a)
+          ? way * (about(b) - about(a))
           : sort === 'updated'
-            ? Date.parse(b.updated) - Date.parse(a.updated)
+            ? way * (Date.parse(b.updated) - Date.parse(a.updated))
             : sort === 'best'
               ? nameHits(b) - nameHits(a) || a.name.localeCompare(b.name)
-              : a.name.localeCompare(b.name),
+              : way * a.name.localeCompare(b.name),
     )
   const keyOf = (d: Definition) =>
     group === 'type'
@@ -543,29 +552,14 @@ export function DefinitionsPage() {
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="sm" className={barButton} />}
-              >
-                <ArrowUpDownIcon />
-                <span className="@max-5xl/main:sr-only">Sort</span>
-                <span className="text-foreground @max-5xl/main:sr-only">{SORTS[sort].label}</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56">
-                <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSort(v as Sort)}>
-                  {(Object.keys(SORTS) as Sort[])
-                    .filter((k) => k !== 'best' || text.trim())
-                    .map((k) => (
-                      <DropdownMenuRadioItem key={k} value={k}>
-                        <span className="flex w-full justify-between gap-3">
-                          {SORTS[k].label}
-                          <span className="text-xs text-muted-foreground">{SORTS[k].way}</span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <SortMenu
+              keys={SORTS}
+              sorting={sorting}
+              onSort={setSort}
+              shown={(Object.keys(SORTS) as Sort[]).filter((k) => k !== 'best' || text.trim())}
+              narrow="@max-5xl/main:sr-only"
+              className="w-56"
+            />
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={<Button variant="ghost" size="sm" className={barButton} />}
@@ -690,7 +684,13 @@ export function DefinitionsPage() {
                       onCheckedChange={sel.toggleAll}
                     />
                   </th>
-                  <Th className="w-full pr-2 pl-4 md:pl-6 @xl/main:pl-1.5">Name</Th>
+                  <SortTh
+                    keys={SORTS}
+                    sorting={sorting}
+                    by="name"
+                    onSort={onSort}
+                    className="w-full pr-2 pl-4 md:pl-6 @xl/main:pl-1.5"
+                  />
                   <Th
                     className={cn(
                       'hidden w-32 px-2',
@@ -699,7 +699,13 @@ export function DefinitionsPage() {
                   >
                     Domain
                   </Th>
-                  <Th className="hidden w-20 px-2 text-right @xl/main:table-cell">Context</Th>
+                  <SortTh
+                    keys={SORTS}
+                    sorting={sorting}
+                    by="context"
+                    onSort={onSort}
+                    className="hidden w-20 px-2 text-right @xl/main:table-cell"
+                  />
                   <Th className="w-8 px-1">
                     <span className="sr-only">Needs a look</span>
                   </Th>
