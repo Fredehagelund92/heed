@@ -23,13 +23,13 @@ describe('module boundaries', () => {
     'keeps %s out of the browser',
     async (dependency) => {
       const [result] = await eslint.lintText(`import '${dependency}'`, {
-        filePath: `${fixtures}/app/leaks-server.tsx`,
+        filePath: `${fixtures}/web/leaks-server.tsx`,
       })
       expect(result?.messages.map((m) => m.message).join('\n')).toContain('belongs to the service')
     },
   )
   it('keeps the service out of the front end', async () => {
-    const messages = await messagesFor('app/leaks-server.tsx')
+    const messages = await messagesFor('web/leaks-server.tsx')
     expect(messages).toContainEqual(expect.stringMatching(/^2: .*'pg'.*belongs to the service/))
     expect(messages).toContainEqual(
       expect.stringMatching(/^3: Module boundary: the front end never imports the service/),
@@ -38,7 +38,7 @@ describe('module boundaries', () => {
   })
 
   it('keeps the Cube compiler out of the front end', async () => {
-    expect(await messagesFor('app/leaks-cube.tsx')).toContainEqual(
+    expect(await messagesFor('web/leaks-cube.tsx')).toContainEqual(
       expect.stringMatching(/belongs to the service/),
     )
   })
@@ -62,7 +62,7 @@ describe('module boundaries', () => {
   })
 
   it("lets the front end read a connector's manifest but not run its runtime", async () => {
-    expect(await messagesFor('app/reads-connector.tsx')).toEqual([
+    expect(await messagesFor('web/reads-connector.tsx')).toEqual([
       '3: Module boundary: a connector\'s runtime runs in the service only. The front end reads its manifest. See "Module boundaries" in CONTRIBUTING.md.',
     ])
     expect(await messagesFor('connectors/sample/manifest.ts')).toEqual([])

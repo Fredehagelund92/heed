@@ -13,9 +13,8 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
   The library index (GET /library) reads v_item_index (0057), which builds the index's fields
   itself instead of picking them out of each item's whole document in v_item_api. The two must
   never drift apart: on the bulk seed, every entry's item fields are exactly the index's fields of
-  the item's document, as the application role reads them. tests/integration/api.test.ts shows
-  that an item for a group stays out of both. What the list's columns read from them (when it was
-  last checked, its trust today, its scope by name) is computed beside them.
+  the item's document, as the application role reads them. What the list's columns read from
+  them (when it was last checked, its trust today, its scope by name) is computed beside them.
 */
 
 const today = '2026-10-07'

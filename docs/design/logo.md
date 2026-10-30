@@ -23,7 +23,7 @@ The redraw keeps its design and cleans the construction:
 | Proportion | 0.9 to 1 (width to height), as supplied; the outline moves at most 1.5 percent of the width                   |
 | Slits      | About 1.6 units (4.4 percent of the width): they close below about 24 pixels, where the oval carries the mark |
 
-The source is `LogoSymbol` in `src/app/components/heed/logo.tsx`.
+The source is `LogoSymbol` in `src/web/components/heed/logo.tsx`.
 
 ## The wordmark and the lockup
 
@@ -59,7 +59,7 @@ it; on its own, `Logo` is one image named "Heed".
 
 | File                                                         | Use                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `components/app-shell/logo.tsx`                              | `LogoSymbol`, `LogoWordmark` and `Logo` (the lockup) in the app, and the two paths               |
+| `components/heed/logo.tsx`                                   | `LogoSymbol` and `Logo` (the lockup) in the app, and the two paths                               |
 | `public/heed-symbol.svg`                                     | The symbol on its own, in currentColor, for docs and slides                                      |
 | `public/heed-lockup.svg`                                     | The lockup, outlined, in currentColor                                                            |
 | `public/heed-mark.svg`                                       | The same as `heed-symbol.svg`, kept so links to the old file still work                          |
@@ -75,7 +75,7 @@ GitHub shows a README image as an `<img>`, where `currentColor` is black on any 
 uses the fixed-colour files in a `<picture>` with a `prefers-color-scheme: dark` source; they are
 the public files with only the fill changed.
 
-The public files are in `src/app/public`. The ICO and the touch icon are rendered from the same
+The public files are in `src/web/public`. The ICO and the touch icon are rendered from the same
 path as the component. No test checks yet that a public file matches the component.
 
 ## The favicon and the touch icon

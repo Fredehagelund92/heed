@@ -1,0 +1,370 @@
+/*
+  The stylesheet of the web app: Tailwind, the shadcn theme layer, the font and the tokens.
+  ESLint reads it to know which classes exist (better-tailwindcss in eslint.config.js), so a class
+  the tokens do not define is reported as unknown. Below the tokens: the base layer, and the
+  motion utilities docs/design/motion.md describes.
+*/
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/nunito-sans';
+@import './tokens.css';
+
+/* Every class the app writes, wherever it is built from: the app, and the docs site, whose root is
+   src/web/docs (vite.docs.config.ts). */
+@source '..';
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  /*
+   * One scrollbar for the whole app: thin and always visible, so a list that runs past its edge
+   * says so; quiet, but its thumb keeps 3:1 against the page, and darkens under the pointer.
+   */
+  * {
+    @apply border-border outline-ring/50;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  html {
+    @apply font-sans;
+  }
+
+  :where(*):hover {
+    scrollbar-color: var(--scrollbar-thumb-hover) transparent;
+  }
+
+  /* Browsers without scrollbar-width (Safari before 18.2) draw the same thin thumb. */
+  @supports not (scrollbar-width: thin) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      background-clip: padding-box;
+      border: 2px solid transparent;
+      border-radius: var(--radius);
+    }
+  }
+}
+
+/* The sidebar folding because a dock opened, or unfolding as it closes, is instant: the page reflows
+   once. A person's own fold keeps its motion. */
+[data-fold='auto'] [data-slot^='sidebar'] {
+  transition-duration: 0ms !important;
+}
+
+/* While the sidebar's rail is dragged, its width follows the pointer without easing. */
+[data-resizing] {
+  cursor: col-resize;
+}
+
+[data-resizing] [data-slot='sidebar-gap'],
+[data-resizing] [data-slot='sidebar-container'] {
+  transition: none !important;
+}
+
+/* Switching the theme eases the colours across; reduced motion switches at once. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-switching,
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition:
+      background-color var(--dur-3) var(--ease-out),
+      border-color var(--dur-3) var(--ease-out),
+      color var(--dur-3) var(--ease-out),
+      fill var(--dur-3) var(--ease-out) !important;
+  }
+}
+
+/* The Ask composer's placeholder, as the document editor draws its own: one line, cut with an
+   ellipsis when the box is narrow, so it never makes the box scroll. */
+.ask-composer .ProseMirror p.is-editor-empty:first-of-type {
+  position: relative;
+}
+
+.ask-composer .ProseMirror p.is-editor-empty:first-of-type::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset-inline: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  user-select: none;
+  color: var(--muted-foreground);
+}
+
+/* The short wait after a decision, drawn as a bar that empties; none with reduced motion. */
+
+@keyframes countdown {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* On a touch screen every control in Ask can be hit with a finger: its tap area grows to 44px
+   around it, the control itself stays the size it is drawn. Controls that already make their own
+   tap area (with an after: class) are left alone. */
+@media (pointer: coarse) {
+  [data-touch-targets] :where(button, a[href], [role='button']):not(.absolute, .fixed, .sticky) {
+    position: relative;
+  }
+
+  [data-touch-targets] :where(button, a[href], [role='button']):not([class*='after:'])::after {
+    content: '';
+    position: absolute;
+    inset-block: var(--touch-inset);
+    inset-inline: var(--touch-inset);
+  }
+
+  /* 28px header buttons 18px apart: a 46px pitch, so no two 44px tap areas overlap. */
+  [data-touch-targets] [data-header-actions] {
+    column-gap: var(--touch-gap);
+  }
+}
+
+/* Moving between suggestions in the review crossfades the change in 150ms; with reduced motion the
+   review doesn't start a transition at all. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-2);
+}
+
+/* The read hint under a change fills as it counts towards read; none with reduced motion. */
+@keyframes readfill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Content arriving after a wait the person saw: the page-shaped skeleton leaves in one short step,
+   the content fades in (React's <ViewTransition>, classes vt-leave and vt-arrive). With reduced
+   motion the skeleton goes at once and the content still fades, in 90ms. */
+::view-transition-old(.vt-leave):only-child {
+  animation: vt-out var(--dur-1) var(--ease-out) both;
+}
+
+::view-transition-new(.vt-arrive):only-child {
+  animation: vt-in var(--dur-fade) var(--ease-out) both;
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Popover, menu, select and tooltip: a small step from the trigger, from 97% and 4px towards it.
+   In 150ms, out 90ms. Opened from the keyboard, or a second tooltip right after a first: at once
+   (Base UI marks those data-instant). */
+@utility pop-motion {
+  transition-property: opacity, scale, translate;
+  transition-duration: var(--dur-2);
+  transition-timing-function: var(--ease-out);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  &[data-side='bottom']:is([data-starting-style], [data-ending-style]) {
+    translate: 0 calc(-1 * var(--dist-1));
+  }
+
+  &[data-side='top']:is([data-starting-style], [data-ending-style]) {
+    translate: 0 var(--dist-1);
+  }
+
+  &:is([data-side='left'], [data-side='inline-start']):is(
+      [data-starting-style],
+      [data-ending-style]
+    ) {
+    translate: var(--dist-1) 0;
+  }
+
+  &:is([data-side='right'], [data-side='inline-end']):is(
+      [data-starting-style],
+      [data-ending-style]
+    ) {
+    translate: calc(-1 * var(--dist-1)) 0;
+  }
+
+  &[data-ending-style] {
+    transition-duration: var(--dur-1);
+  }
+
+  &[data-instant] {
+    transition-duration: 0ms;
+  }
+}
+
+/* A dialog: the same small scale and fade, from the centre; its backdrop only fades. */
+@utility dialog-motion {
+  transition-property: opacity, scale;
+  transition-duration: var(--dur-2);
+  transition-timing-function: var(--ease-out);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  &[data-ending-style] {
+    transition-duration: var(--dur-1);
+  }
+}
+@utility backdrop-motion {
+  transition-property: opacity;
+  transition-duration: var(--dur-2);
+  transition-timing-function: var(--ease-out);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  &[data-ending-style] {
+    transition-duration: var(--dur-1);
+  }
+}
+
+/* A row that leaves collapses and fades in 150ms; one added later opens in 220ms. Its one child
+   holds the content. A table row, which cannot collapse, only fades. */
+@utility row-presence {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition-property: grid-template-rows, opacity, background-color;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-out);
+
+  & > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  &[data-leaving] {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition-duration: var(--dur-2);
+  }
+
+  [data-arrive] & {
+    @starting-style {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+  }
+}
+@utility row-fade {
+  transition-property: opacity, background-color;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-out);
+
+  &[data-leaving] {
+    opacity: 0;
+    transition-duration: var(--dur-2);
+  }
+
+  [data-arrive] & {
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+/* The dock arriving: from 16px to the right, fading, on the panel curve; a new peek in an open dock
+   only fades, in 90ms. Movement goes with reduced motion. */
+@utility dock-enter {
+  transition-property: opacity, translate;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-panel);
+
+  :root[data-ready] & {
+    @starting-style {
+      opacity: 0;
+      translate: var(--dist-3) 0;
+    }
+  }
+}
+@utility dock-swap {
+  transition-property: opacity;
+  transition-duration: var(--dur-1);
+  transition-timing-function: var(--ease-out);
+
+  :root[data-ready] & {
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+/* Chart bars arriving after a wait: each grows from the baseline in 320ms, 30ms after the one before
+   (at most six steps). Once only, and none with reduced motion. */
+@utility bar-grow {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: bar-grow var(--dur-4) var(--ease-out) both;
+}
+@keyframes bar-grow {
+  from {
+    scale: 1 0;
+  }
+}
+
+/* A value that changed: a tint there at once, fading over 600ms. With reduced motion it is not drawn. */
+@utility value-changed {
+  animation: value-changed var(--dur-highlight) var(--ease-out) both;
+}
+@keyframes value-changed {
+  from {
+    background-color: var(--changed);
+  }
+}
+
+/* Small utilities Tailwind does not have: a scroller that keeps its scrollbar's room, one that
+   draws none, small capitals, and the soft edges of a list cut off at the bottom or scrolled
+   under a header. */
+@utility scrollbar-stable {
+  scrollbar-gutter: stable;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+}
+
+@utility all-small-caps {
+  font-variant-caps: all-small-caps;
+}
+
+@utility fade-out-bottom {
+  mask-image: linear-gradient(to bottom, black 75%, transparent);
+}
+
+@utility fade-in-top {
+  mask-image: linear-gradient(to bottom, transparent, black 0.75rem);
+}

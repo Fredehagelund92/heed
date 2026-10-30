@@ -3,8 +3,8 @@ import type { GapStatus, GapType } from '../../../src/domain/gaps.ts'
 /*
   Gaps and topic counts for the fixture world (requirements FR-604 to FR-616): what agents asked
   about and found nothing for, by topic and week, in the eight weeks up to the fixture day
-  (2026-10-07; weeks start on Monday). The mock serves them, and the conformance suite writes the
-  same rows into PostgreSQL (tests/integration/gaps-api.test.ts), so the two answer alike.
+  (2026-10-07; weeks start on Monday). The demo seed writes them into PostgreSQL (db/seed/gaps.ts),
+  and tests/integration/seed-demo.test.ts reads them back.
 
   The numbers are chosen to exercise the privacy rule (FR-614, minimum five): weeks a topic is
   asked about fewer than five times, no-item counts from one to four, a gap Maria cannot see at

@@ -9,7 +9,7 @@
   their own words (item, area, retire, edition, scope, proposal), and `internal` maps each of them
   to the name on screen.
 
-  The web app in src/app follows this glossary, checked by the lint rule heed/plain-words
+  The web app in src/web follows this glossary, checked by the lint rule heed/plain-words
   (eslint.plain-words.js) with no baseline. The server's sentences and the help pages the in-app
   assistant reads keep the earlier glossary (src/domain/words-v1.ts, docs/design/voice.md) until
   each moves to this one.
@@ -271,7 +271,7 @@ export const roles = { admin: 'Admin', member: 'Member' } as const
 /** How Settings and Observability lead back: to the app, never to the workspace's name. */
 export const backToApp = 'Back to app'
 
-/** A place a banned word may show, or the only place it is banned: `appSurfaces` lists its files. */
+/** A place a banned word may show, or the only place it is banned: `webSurfaces` lists its files. */
 export type Place = 'Integrations' | 'Settings' | 'the agent reply' | 'the review'
 
 /** A word not to write where people read, with what to write instead. */

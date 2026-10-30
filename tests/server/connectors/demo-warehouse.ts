@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { shiftDate } from '../../../src/domain/validity.ts'
-import { figureSeries } from '../../../src/app/api/mock/data/figure-series.ts'
+import { figureSeries } from '../../../src/web/api/mock/data/figure-series.ts'
 
 /*
   The demo warehouse for figures in Ask: Larchwood Outdoor's invented payments and marketing costs

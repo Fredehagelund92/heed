@@ -1,6 +1,6 @@
 # Components: the inventory
 
-Part of the [design contract](design-contract.md). It lists every part a screen is built from, and the file of the approved mockup it comes from. Paths are relative to the mockup's `mockup/src` folder. In the app (`src/app`) the same paths hold, except the demo world: the mockup's `data/` is the app's mock binding (`api/mock`), with its types and pure rules in `model/`, and the app reads it through its API (`api/`).
+Part of the [design contract](design-contract.md). It lists every part a screen is built from, and the file of the approved mockup it comes from. Paths are relative to the mockup's `mockup/src` folder. In the app (`src/web`) the same paths hold, except the demo world: the mockup's `data/` is the app's mock binding (`api/mock`), with its types and pure rules in `model/`, and the app reads it through its API (`api/`).
 
 Rules:
 
@@ -200,4 +200,4 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ## 4. Fixtures and rules in code
 
-The mockup keeps its demo world in `data/` (Larchwood Outdoor: 22 context items, 18 Inbox cards, 12 reviews, 12 saved questions, 10 topics, 8 alert rules, 22 metrics, 5 dimensions, 13 terms and 14 people). In the app it is the mock binding (`src/app/api/mock`) of one typed interface, `HeedApi` (`src/app/api/client.ts`); no page reads it directly. Where the API contract has a counterpart, its shapes are typed and tested against it (`tests/app/mock/contract.test.ts`). Pure rules live in `lib/` with their unit tests (agent reply, bulk, selection, connect timers, replay, saved check, line diff, links, motion and copy).
+The mockup keeps its demo world in `data/` (Larchwood Outdoor: 22 context items, 18 Inbox cards, 12 reviews, 12 saved questions, 10 topics, 8 alert rules, 22 metrics, 5 dimensions, 13 terms and 14 people). In the app it is the mock binding (`src/web/api/mock`) of one typed interface, `HeedApi` (`src/web/api/client.ts`); no page reads it directly. Where the API contract has a counterpart, its shapes are typed and tested against it (`tests/web/mock/contract.test.ts`). Pure rules live in `lib/` with their unit tests (agent reply, bulk, selection, connect timers, replay, saved check, line diff, links, motion and copy).

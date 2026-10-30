@@ -113,7 +113,7 @@ function acceptedBy(item: ContextItem) {
 /**
  * What a seed adds to the library beyond its items: the golden set's fixtures
  * (db/seed/golden-fixtures.ts) declare conflicts, other names, a renamed Cube member and what an
- * earlier version said; the app's demo week (tests/app/http/demo-week.ts) declares conflicts and
+ * earlier version said; the app's demo week (tests/web/http/demo-week.ts) declares conflicts and
  * replacements. The demo library has none of these.
  */
 export type LibraryExtras = {

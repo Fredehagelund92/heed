@@ -10,7 +10,7 @@ RUN npm ci
 # The web app in http mode: it reads the service through /api/v1 on its own address.
 FROM deps AS web-build
 COPY . .
-RUN VITE_API_MODE=http npx vite build -c vite.app.config.ts
+RUN VITE_API_MODE=http npx vite build
 
 # Only the packages the service runs with.
 FROM node:26-bookworm-slim AS service-deps
@@ -37,7 +37,7 @@ CMD ["sh", "-c", "node db/prepare.ts && exec node src/server/main.ts"]
 
 FROM nginx:1.29-alpine AS web
 COPY docker/web.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=web-build /app/dist/app /usr/share/nginx/html
+COPY --from=web-build /app/dist/web /usr/share/nginx/html
 # Where /api/v1 goes; nginx fills it into the template when it starts.
 ENV HEED_API_URL=http://heed:3000
 EXPOSE 80

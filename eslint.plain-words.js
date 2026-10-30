@@ -1,9 +1,9 @@
 import { matchesGlob, relative } from 'node:path'
 import { wordsToChange } from './src/domain/words-v1.ts'
-import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
+import { wordsToChange as webWordsToChange } from './src/domain/words.ts'
 
 /*
-  The words people read take their names from a glossary. The web app in src/app follows glossary
+  The words people read take their names from a glossary. The web app in src/web follows glossary
   v2 (src/domain/words.ts, docs/design/copy.md); the server's sentences and the demo's fixtures
   follow the earlier one (src/domain/words-v1.ts, docs/design/voice.md). This reports a string,
   template text or JSX text that a person reads and that holds a banned word and says what to
@@ -18,7 +18,7 @@ import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
   shares src/domain/say.ts with `next`, so tests/server/mcp/say.test.ts checks every `say` the
   tools give against the glossary instead, and the tool titles people read too.
 
-  A banned word may show where the glossary allows it (`allowedOn`): `appSurfaces` says which
+  A banned word may show where the glossary allows it (`allowedOn`): `webSurfaces` says which
   files make each place of the web app. For the earlier glossary the rule warns, and
   scripts/check-plain-words.ts fails a change that adds to the count in plain-words.baseline.json.
   In the web app it is an error: its count starts at zero and stays there.
@@ -33,48 +33,47 @@ export const plainWordsFiles = [
 export const errorMessageFiles = ['src/server/**/*.ts']
 
 /** The files whose strings people read in the web app. */
-export const appWordsFiles = ['src/app/**/*.{ts,tsx}']
+export const webWordsFiles = ['src/web/**/*.{ts,tsx}']
 /**
- * Code in the app that is not its own copy: the shadcn and editor parts as they ship, the
- * generated route tree and tests, as the mockup's copy check leaves them out.
+ * Code in the app that is not its own copy: the shadcn and editor parts as they ship and the
+ * generated route tree, which the mockup's copy check leaves out too.
  */
-export const appNotProductFiles = [
-  'src/app/components/ui/**',
-  'src/app/components/editor/**',
-  'src/app/components/static-renderer/**',
-  'src/app/**/*.gen.ts',
-  'src/app/**/*.test.{ts,tsx}',
+export const webNotProductFiles = [
+  'src/web/components/ui/**',
+  'src/web/components/editor/**',
+  'src/web/components/static-renderer/**',
+  'src/web/**/*.gen.ts',
 ]
 
 /**
  * The places of the app a word of glossary v2 is allowed on, or banned on only (`allowedOn`
  * and `onlyOn` in src/domain/words.ts), each with the files that make it. The paths are the
- * mockup's, under src/app; the pull request that brings a file in keeps its path here in step.
+ * mockup's, under src/web; the pull request that brings a file in keeps its path here in step.
  */
-export const appSurfaces = [
+export const webSurfaces = [
   {
     // The connected tool is named on its own integration only.
     place: 'Integrations',
     files: [
-      'src/app/pages/integrations.tsx',
-      'src/app/model/integrations.ts',
-      'src/app/api/mock/data/integrations.ts',
-      'src/app/api/mock/data/world.ts',
+      'src/web/pages/integrations.tsx',
+      'src/web/model/integrations.ts',
+      'src/web/api/mock/data/integrations.ts',
+      'src/web/api/mock/data/world.ts',
     ],
   },
   // An edition is Advanced vocabulary: Settings and the agent's reply, never success copy.
-  { place: 'Settings', files: ['src/app/pages/settings.tsx'] },
-  { place: 'the agent reply', files: ['src/app/lib/agent-reply.ts'] },
+  { place: 'Settings', files: ['src/web/pages/settings.tsx'] },
+  { place: 'the agent reply', files: ['src/web/lib/agent-reply.ts'] },
   {
     // The review's own sentences, which never name the tool an agent ran in.
     place: 'the review',
-    files: ['src/app/pages/review-page.tsx', 'src/app/components/heed/review-parts.tsx'],
+    files: ['src/web/pages/review-page.tsx', 'src/web/components/heed/review-parts.tsx'],
   },
 ]
 
 /** The places of the app that a file makes. */
-export function appPlacesOf(path) {
-  return appSurfaces
+export function webPlacesOf(path) {
+  return webSurfaces
     .filter(({ files }) => files.some((glob) => matchesGlob(path, glob)))
     .map(({ place }) => place)
 }
@@ -250,14 +249,14 @@ const plainWords = {
         type: 'object',
         properties: {
           errorsOnly: { type: 'boolean' },
-          // `app`: glossary v2, for the new web app. Left out: the earlier glossary.
-          glossary: { enum: ['app'] },
+          // `web`: glossary v2, for the web app. Left out: the earlier glossary.
+          glossary: { enum: ['web'] },
         },
         additionalProperties: false,
       },
     ],
     messages: {
-      appGlossary: 'Instead of "{{found}}", write: {{write}}. See docs/design/copy.md.',
+      webGlossary: 'Instead of "{{found}}", write: {{write}}. See docs/design/copy.md.',
       glossary: 'Instead of "{{found}}", write: {{write}}. See docs/design/voice.md.',
       contraction:
         'Instead of "{{found}}", write "{{write}}", as people say it. Keep "not" in full only where it carries the sentence (fullNegatives in src/domain/words-v1.ts).',
@@ -269,10 +268,10 @@ const plainWords = {
     const errorsOnly = context.options[0]?.errorsOnly ?? false
     const path = relative(context.cwd, context.filename)
     const toChange =
-      context.options[0]?.glossary === 'app'
+      context.options[0]?.glossary === 'web'
         ? (text) => {
-            const places = appPlacesOf(path)
-            return appWordsToChange(text, places).map((c) => ({ ...c, rule: 'appGlossary' }))
+            const places = webPlacesOf(path)
+            return webWordsToChange(text, places).map((c) => ({ ...c, rule: 'webGlossary' }))
           }
         : (text) => wordsToChange(text, [])
     const check = (node, text, whole, isJsx) => {
@@ -324,9 +323,9 @@ export const plainWordsConfigs = [
     rules: { 'heed/plain-words': ['warn', { errorsOnly: true }] },
   },
   {
-    files: appWordsFiles,
-    ignores: appNotProductFiles,
+    files: webWordsFiles,
+    ignores: webNotProductFiles,
     plugins: { heed: plugin },
-    rules: { 'heed/plain-words': ['error', { glossary: 'app' }] },
+    rules: { 'heed/plain-words': ['error', { glossary: 'web' }] },
   },
 ]

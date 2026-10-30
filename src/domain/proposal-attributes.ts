@@ -47,7 +47,7 @@ export type QuestionId = (typeof questionIds)[number]
 
 /**
  * The fields of the form a person writes a proposal with, by the attribute names the web app's
- * editor fills (`draftOf`, src/app/api/http-context.ts).
+ * editor fills (`draftOf`, src/web/api/http-context.ts).
  */
 export const formFields = [
   'kind',

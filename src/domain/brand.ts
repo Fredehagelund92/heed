@@ -1,7 +1,7 @@
 /**
  * The product's name, decided in one place (docs/rename-checklist.md). People and agents see it
  * only where it earns its place: a sentence that names the product, never a label such as Back
- * or Add context. The web app (src/app/lib/brand.ts) and the service (src/server/brand.ts) read
+ * or Add context. The web app (src/web/lib/brand.ts) and the service (src/server/brand.ts) read
  * one setting, `CL_PRODUCT_NAME`, once at start, so the assistant's instructions stay
  * byte-stable; this module holds the default and the rules, and does no I/O.
  *

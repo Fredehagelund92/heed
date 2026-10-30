@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client", "vitest/globals"],
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo",
+    "paths": {
+      "@/*": ["./src/web/*"],
+      "@domain/*": ["./src/domain/*"],
+      "@contract/*": ["./src/contract/*"]
+    }
+  },
+  "include": [
+    "src/web",
+    "src/domain",
+    "src/contract",
+    "src/connectors",
+    "tests/web",
+    "tests/e2e/http",
+    "tests/lint/fixtures",
+    "eslint.plain-words.d.ts"
+  ]
+}

@@ -11,7 +11,7 @@
   - "Publish the N you've read" takes only plain changes (FR-226): never a draft, a claim, a
     clash, a retirement, an unchecked value or a new link.
 
-  Pure: no clock, no input or output. The words are the new app's (glossary v2).
+  Pure: no clock, no input or output. The words are the web app's (glossary v2).
 */
 import type { ClaimRow } from './claim-check.ts'
 import { claimsToCheck } from './claim-check.ts'

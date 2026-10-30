@@ -23,7 +23,7 @@ scopes, when it connected, last refreshed and ends. **Disconnect** there ends on
 every connection of one person in one step (`agentConnections.disconnect`,
 `agentConnections.disconnectPerson`), through the same revocation as the person's own: the refresh
 tokens end and the MCP server refuses the access tokens at their next request. A reason is required
-and kept in the history log; the person does not see it. In the new app it is Settings, Agents and
+and kept in the history log; the person does not see it. In the web app it is Settings, Agents and
 access, where **Revoke** ends every connection of that agent for that person.
 
 While Connect an agent waits for the person's own agent, its live line asks the service every 3

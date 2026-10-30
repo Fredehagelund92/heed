@@ -73,7 +73,7 @@ sign-in; the old `CL_DEV_PERSON` setting no longer signs requests in. A browser 
 `CL_SESSION_IDLE_HOURS` unused (12) and `CL_SESSION_MAX_DAYS` after sign-in (7).
 `CL_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
 `CL_PRODUCT_NAME` (default `Heed`) is the name the app and the help pages say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is
-the address the new web app's Contact support and Report a problem write to, read when the app and
+the address the web app's Contact support and Report a problem write to, read when the app and
 the docs site are built: Report a problem opens a mail to it in the person's own mail app, with
 what they wrote and the page's address, and sends nothing through the service. Unset, an address
 that goes nowhere stands in (`support@heed.example`).

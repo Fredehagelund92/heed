@@ -27,7 +27,7 @@ request and explain why; do not work around it.
 
 ## Which rules apply
 
-The approved Heed v1 mockup is the acceptance specification for the web app (`src/app`). Its rules
+The approved Heed v1 mockup is the acceptance specification for the web app (`src/web`). Its rules
 are in [the design contract v2](docs/design/design-contract.md), with [motion](docs/design/motion.md),
 [copy](docs/design/copy.md), [accessibility](docs/design/accessibility.md) and
 [components](docs/design/components.md), and the product in [docs/product.md](docs/product.md).
@@ -37,7 +37,7 @@ Its behaviour is checked against the mockup's job specs (J1 to J30).
 
 **Tokens own appearance. Components own structure. Features only compose.**
 
-- `src/app/styles/tokens.css` is the only file that defines colour, radius, shadow, motion and the
+- `src/web/styles/tokens.css` is the only file that defines colour, radius, shadow, motion and the
   layout metrics (design contract v2, section 2). A component depends on a name, never on a
   value.
 - Shared parts (`components/ui`, the shadcn primitives, and `components/heed`) own control size,
@@ -75,7 +75,7 @@ component. In hand-written CSS, colour, spacing, radius, type size and shadow mu
 
 ## Before you create a component
 
-1. `npx shadcn search @shadcn` and look in `src/app/components/ui` and `src/app/components/heed`
+1. `npx shadcn search @shadcn` and look in `src/web/components/ui` and `src/web/components/heed`
    ([components](docs/design/components.md) lists them). Name the components you reuse in the
    pull request description.
 2. Compose before you invent. A new part needs a reason that composition cannot meet.
@@ -85,14 +85,14 @@ component. In hand-written CSS, colour, spacing, radius, type size and shadow mu
 
 ## Tests
 
-- New behaviour gets a unit test: `tests/app` for the app, `tests/server` for the service.
-- A change to a screen keeps the golden job specs green (`tests/e2e-app`, J1 to J30), on the mock
+- New behaviour gets a unit test: `tests/web` for the app, `tests/server` for the service.
+- A change to a screen keeps the golden job specs green (`tests/e2e`, J1 to J30), on the mock
   build and, for screens on the service, in http mode. A new screen or state gets its journey, and
   axe runs on every place at 390 and 1440 wide, in light and dark.
 
 ## Data
 
-The app talks to `src/app/api`: one interface, `HeedApi` (`client.ts`), with a mock binding over
+The app talks to `src/web/api`: one interface, `HeedApi` (`client.ts`), with a mock binding over
 the demo world (`api/mock`) and an http binding to the Heed service (`http.ts`). Add a method to
 `HeedApi` and `heedApiMethods`, implement it in both bindings, and read it through a query option
 in `api/queries.ts`. Do not call `fetch` from a component.
@@ -101,7 +101,7 @@ A change goes through `useApiWrite` or `useWrite` in `api/queries.ts`: it refres
 made stale (the `invalidations` map), and the http binding keeps the retry key when an answer is
 lost, so a retry is applied once. Both bindings refuse with an `ApiError` (`api/errors.ts`). A
 behaviour the mock and the service share belongs in the conformance suite
-(`tests/app/conformance/heed-api.ts`), which runs against both.
+(`tests/web/conformance/heed-api.ts`), which runs against both.
 
 ## Module boundaries
 
@@ -112,7 +112,7 @@ keeps the parts apart, and `tests/lint/boundaries.test.ts` proves each rule stil
 | --------------------------- | ---------------------------------------------------------------------------------------- |
 | `src/domain`                | `zod/mini` and other domain files. No clock, no network, no I/O                          |
 | `src/contract`              | `src/domain`                                                                             |
-| `src/app`                   | `src/domain`, `src/contract`, a connector's manifest. Never the service or its packages  |
+| `src/web`                   | `src/domain`, `src/contract`, a connector's manifest. Never the service or its packages  |
 | `src/server`                | `src/domain`, `src/contract`, `src/connectors`, a module's `index.ts`                    |
 | `src/server/modules/<name>` | the above, plus the rest of `src/server`                                                 |
 | `src/cli`                   | `src/contract`, `src/domain`                                                             |
@@ -148,7 +148,7 @@ decision: FR-121 says what an agent may never set.
 
 ## Language
 
-Use everyday names in the UI. The web app in `src/app` takes them from glossary v2 in
+Use everyday names in the UI. The web app in `src/web` takes them from glossary v2 in
 `src/domain/words.ts` and writes as `docs/design/copy.md` says: "context item", "suggestion",
 "owner", "People". The service's own sentences still follow the earlier glossary in
 `src/domain/words-v1.ts` and `docs/design/voice.md` until they move. Do not show ids or database
