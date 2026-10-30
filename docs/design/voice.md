@@ -2,7 +2,7 @@
 
 > **Superseded for the web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the service's own sentences, the plain-words lint and its ratchet still point to it. Where the two differ, Copy wins.
 
-This page says how to write every word people read: screens, toasts, errors, the help pages, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/old-help/README.md`) point here.
+This page says how to write every word people read: screens, toasts, errors, the help pages, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
 

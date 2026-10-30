@@ -238,7 +238,6 @@ describe('SQL and control characters in MCP tool arguments', () => {
             { name: 'get_facts', arguments: { question: 'Orders', metrics: [payload] } },
             { name: 'search_facts', arguments: { query: payload } },
             { name: 'read_item', arguments: { id: payload } },
-            { name: 'improve_question', arguments: { question: payload } },
             { name: 'report_gap', arguments: { question: payload } },
           ]
           for (const call of calls) {

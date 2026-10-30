@@ -423,7 +423,7 @@ export const contractions: readonly Contraction[] = [
  */
 export const fullNegatives: readonly string[] = [
   'cannot be undone',
-  // The heading every concept page of the help has (docs/old-help/README.md).
+  // The heading every concept page of the help has (docs/help/README.md).
   'what it is not',
 ]
 

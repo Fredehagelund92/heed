@@ -35,7 +35,7 @@ export function productNameFrom(value: string | undefined): string {
   return value === undefined || productNameProblem(value) ? DEFAULT_PRODUCT_NAME : value.trim()
 }
 
-/** The token a help page (docs/old-help) writes where it names the product. */
+/** The token a help page (docs/help) writes where it names the product. */
 export const PRODUCT_TOKEN = '{{product}}'
 
 /** A help page's text with the product's name in place of each token. */
