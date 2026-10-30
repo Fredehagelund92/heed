@@ -64,7 +64,7 @@ export function Legend({ states = SHOWN, className }: { states?: Shown[]; classN
 }
 
 /** A round upper bound for an axis, with four steps. */
-function niceMax(n: number) {
+export function niceMax(n: number) {
   if (n <= 8) return 8
   const step = Math.pow(10, Math.floor(Math.log10(n / 4)))
   const unit = [1, 2, 2.5, 5, 10].map((m) => m * step).find((u) => u * 4 >= n)!
@@ -494,20 +494,26 @@ export function MixBar({
   )
 }
 
-/** A line over time, for a trend or a speed: one or two series, the last point marked. */
+/**
+ * A line over time, for a trend or a speed: one or two series, the last point marked. A value that
+ * is null (a hidden count, or a week not counted) breaks the line rather than drawing a zero; its
+ * table cell reads `missing`.
+ */
 export function LineChart({
   series,
   labels,
   max,
   height = 180,
   format = (v: number) => String(v),
+  missing = 'Fewer than 5',
   caption,
 }: {
-  series: { name: string; values: number[]; color: string; fill?: boolean }[]
+  series: { name: string; values: (number | null)[]; color: string; fill?: boolean }[]
   labels: string[]
   max: number
   height?: number
   format?: (v: number) => string
+  missing?: string
   caption: string
 }) {
   const [box, W] = useWidth(520)
@@ -544,31 +550,52 @@ export function LineChart({
           </g>
         ))}
         {series.map((s) => {
-          const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(' ')
+          // Runs of shown values, each its own line; a lone value is a dot.
+          const runs: { i: number; v: number }[][] = []
+          s.values.forEach((v, i) => {
+            if (v === null) return
+            const run = runs.at(-1)
+            if (run && run.at(-1)!.i === i - 1) run.push({ i, v })
+            else runs.push([{ i, v }])
+          })
+          const lastShown = runs.at(-1)?.at(-1)
           return (
             <g key={s.name}>
-              {s.fill && (
-                <polygon
-                  points={`${x(0)},${y(0)} ${pts} ${x(s.values.length - 1)},${y(0)}`}
-                  fill={s.color}
-                  opacity={0.12}
+              {runs.map((run) => {
+                const pts = run.map((p) => `${x(p.i)},${y(p.v)}`).join(' ')
+                return (
+                  <g key={run[0]!.i}>
+                    {s.fill && run.length > 1 && (
+                      <polygon
+                        points={`${x(run[0]!.i)},${y(0)} ${pts} ${x(run.at(-1)!.i)},${y(0)}`}
+                        fill={s.color}
+                        opacity={0.12}
+                      />
+                    )}
+                    {run.length > 1 ? (
+                      <polyline
+                        points={pts}
+                        fill="none"
+                        stroke={s.color}
+                        strokeWidth="1.75"
+                        strokeLinejoin="round"
+                      />
+                    ) : (
+                      <circle cx={x(run[0]!.i)} cy={y(run[0]!.v)} r="1.75" fill={s.color} />
+                    )}
+                  </g>
+                )
+              })}
+              {lastShown && (
+                <circle
+                  cx={x(lastShown.i)}
+                  cy={y(lastShown.v)}
+                  r="3"
+                  fill="var(--background)"
+                  stroke={s.color}
+                  strokeWidth="1.5"
                 />
               )}
-              <polyline
-                points={pts}
-                fill="none"
-                stroke={s.color}
-                strokeWidth="1.75"
-                strokeLinejoin="round"
-              />
-              <circle
-                cx={x(s.values.length - 1)}
-                cy={y(s.values.at(-1)!)}
-                r="3"
-                fill="var(--background)"
-                stroke={s.color}
-                strokeWidth="1.5"
-              />
             </g>
           )
         })}
@@ -603,7 +630,7 @@ export function LineChart({
             <tr key={l}>
               <th scope="row">{l}</th>
               {series.map((s) => (
-                <td key={s.name}>{format(s.values[i]!)}</td>
+                <td key={s.name}>{s.values[i] === null ? missing : format(s.values[i]!)}</td>
               ))}
             </tr>
           ))}

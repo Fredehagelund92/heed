@@ -106,6 +106,7 @@ export const observabilitySearch = lenient(
     answer: text,
     gap: text,
     month: text,
+    period: oneOf(['month', 'quarter']),
   }),
 )
 

@@ -126,7 +126,7 @@ export function AppSidebar({
       {place === 'settings' ? (
         <SettingsNav section={route.parts[1] ?? 'general'} close={close} />
       ) : place === 'observability' && seesObservability(me) ? (
-        <ObservabilityNav section={route.parts[1] ?? 'overview'} close={close} />
+        <ObservabilityNav section={route.parts[1] ?? 'summary'} close={close} />
       ) : (
         <>
           <SidebarHeader className="h-bar justify-center border-b px-2">

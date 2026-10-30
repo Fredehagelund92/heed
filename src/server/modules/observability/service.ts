@@ -3,6 +3,8 @@ import type {
   ObsAgents,
   ObsAgentsInput,
   ObsFeedback,
+  ObsSummary,
+  ObsSummaryInput,
   ObsTopic,
   ObsUsage,
   ObsView,
@@ -22,6 +24,17 @@ import {
   type StateCounts,
   type TopicCounts,
 } from '../../../domain/observability.ts'
+import {
+  coarseOf,
+  coarseTotal,
+  mondayOf,
+  piecesOf,
+  summaryPeriod,
+  summaryView,
+  trendWeeks,
+  weekSpan,
+  type Piece,
+} from '../../../domain/obs-summary.ts'
 import { shiftDate } from '../../../domain/validity.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -429,6 +442,227 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         couldNotRead,
         publishes,
         agents,
+      }
+    },
+
+    /**
+     * Summary (FR-620): the last whole calendar month or quarter, for a reader to pass on. What was
+     * asked and how it was answered, against the period before; what was asked and checked each
+     * of the trend's 13 weeks; what is still open; and what changed, with who approved it. Every
+     * count goes through one disclosure pass (src/domain/obs-summary.ts). A whole week is read from
+     * the weekly counts (`obs_weekly`) when they keep it, every other day from the delivery records.
+     */
+    async summary(input: ObsSummaryInput): Promise<ObsSummary> {
+      const { admin, areas } = await reader(tx, input.areaId)
+      const least = await minimum(tx)
+      const today = clock.today()
+      const last = shiftDate(today, -1)
+      const { now, before } = summaryPeriod(input.period, today)
+      const weeks = trendWeeks(now)
+      const base = {
+        period: input.period,
+        minimumCount: least,
+        last,
+        now,
+        before,
+        since: null,
+        complete: true,
+        numbers: { asked: null, checked: null, warned: null, missing: null },
+        previous: null,
+        notCompared: null,
+        weeks: weeks.map((start) => ({ start, counted: false, checked: null })),
+        open: { total: 0, spots: [] },
+        changes: { total: 0, before: 0, latest: [] },
+        hidden: 0,
+      }
+      const pieces = piecesOf([now, before, ...weeks.map(weekSpan)])
+      const from = pieces[0]!.start
+      const area = `(case when $1::text[] is null then $2 else t.area_id = any($1) end)`
+
+      // What the weekly counts keep (every domain's weeks are counted together, so the weeks
+      // between the first and the latest are all there), and since when every delivery record is
+      // kept: retention drops whole partitions, the oldest first.
+      const [kept] = await tx.query<{ from: string | null; to: string | null; records: string }>(
+        `select (select min(week)::text from obs_weekly) as from,
+                (select max(week)::text from obs_weekly) as to,
+                least((now() at time zone 'UTC')::date
+                        - (select (value #>> '{}')::int from settings_current where key = 'retention.delivery_days'),
+                      (select min((regexp_match(pg_get_expr(c.relpartbound, c.oid), 'FROM \\(''([^'']+)''\\)'))[1]::timestamptz
+                                  at time zone 'UTC')::date
+                         from pg_inherits i join pg_class c on c.oid = i.inhrelid
+                        where i.inhparent = 'public.deliveries'::regclass))::text as records`,
+      )
+      const rolled = (p: Piece) =>
+        p.whole && !!kept?.from && !!kept.to && p.week >= kept.from && p.week <= kept.to
+      const counted = (p: Piece) => rolled(p) || (!!kept?.records && p.start >= kept.records)
+
+      const weekly = await tx.query<{ week: string; state: string; calls: number }>(
+        `select o.week::text, o.answer_state as state, sum(o.calls)::int as calls
+           from obs_weekly o
+          where o.week >= $3::date and o.week < $4::date
+            and (case when $1::text[] is null then $2 else o.area_id = any($1) end)
+          group by 1, 2`,
+        [areas, admin, from, now.end],
+      )
+      const daily = await tx.query<{ day: string; state: string; calls: number }>(
+        `select (d.delivered_hour at time zone 'UTC')::date::text as day, d.answer_state as state,
+                count(*)::int as calls
+           from deliveries d join topics t on t.id = d.topic_id
+          where d.caller = 'agent' and d.answer_state in ('grounded','partial','conflict','stale','missing')
+            and d.delivered_hour >= $3::date and d.delivered_hour < $4::date and ${area}
+          group by 1, 2`,
+        [areas, admin, from, now.end],
+      )
+      const [first] = await tx.query<{ week: string | null; day: string | null }>(
+        `select (select min(o.week)::text from obs_weekly o
+                  where (case when $1::text[] is null then $2 else o.area_id = any($1) end)) as week,
+                (select min(d.delivered_hour at time zone 'UTC')::date::text
+                   from deliveries d join topics t on t.id = d.topic_id
+                  where d.caller = 'agent' and ${area}) as day`,
+        [areas, admin],
+      )
+      // The first day agents asked: from the records while they still hold the first week the
+      // weekly counts keep, else that week's Monday.
+      const week = first?.week ?? null
+      const since = first?.day && (!week || first.day < shiftDate(week, 7)) ? first.day : week
+      if (!since) return { ...base, state: 'empty' }
+
+      const counts = pieces.map((p) => {
+        const c = zeroCounts()
+        const rows = rolled(p)
+          ? weekly.filter((r) => r.week === p.week)
+          : daily.filter((r) => r.day >= p.start && r.day < p.end)
+        for (const r of rows) if (r.state in c) c[r.state as keyof StateCounts] += r.calls
+        return { ...p, counts: coarseOf(c) }
+      })
+      const inside = (p: Piece, s: { start: string; end: string }) =>
+        p.start >= s.start && p.end <= s.end
+      const whole = (s: { start: string; end: string }) =>
+        pieces.filter((p) => inside(p, s)).every(counted)
+      const askedNow = counts
+        .filter((p) => inside(p, now))
+        .reduce((n, p) => n + coarseTotal(p.counts), 0)
+      const complete = whole(now)
+      // Fewer than the minimum in the period: no count at all (FR-614).
+      if (askedNow < least) return { ...base, since, complete, state: 'quiet' }
+
+      const notCompared = before.start < since ? 'started' : !whole(before) ? 'not_kept' : null
+      // A week of the trend is drawn from the week agents first asked, while it is counted.
+      const drawn = weeks.filter(
+        (w) => w >= mondayOf(since) && pieces.filter((p) => p.week === w).every(counted),
+      )
+
+      // What is still open: the topics whose questions found nothing and wait for an owner, one
+      // per subject, the most asked about in the period first, then the oldest.
+      const names = await vocabularyNames(tx)
+      const open = await tx.query<{
+        id: string
+        area: string | null
+        metrics: string[]
+        values: string[]
+        dimensions: string[]
+        firstSeen: string
+        missing: number
+        state: 'draft' | 'suggestion' | 'none'
+        proposal: string | null
+      }>(
+        `select g.id::text, t.area_id as area, t.metric_keys as metrics, t.value_keys as values,
+                t.dimension_keys as dimensions, g.first_seen::text as "firstSeen",
+                (select count(*)::int from deliveries d join topics x on x.id = d.topic_id
+                  where x.area_id is not distinct from t.area_id and x.metric_keys = t.metric_keys
+                    and x.value_keys = t.value_keys and x.dimension_keys = t.dimension_keys
+                    and d.caller = 'agent' and d.answer_state = 'missing'
+                    and d.delivered_hour >= $3::date and d.delivered_hour < $4::date) as missing,
+                coalesce(p.state, 'none') as state, p.proposal
+           from gaps g join topics t on t.id = g.topic_id
+           left join lateral (
+             select case when pr.source_gap_id = g.id then 'draft' else 'suggestion' end as state,
+                    pr.id::text as proposal
+               from gap_proposals gp join proposals pr on pr.id = gp.proposal_id
+              where gp.gap_id = g.id and pr.discarded_at is null
+                and pr.state in ('draft', 'submitted', 'in_review', 'changes_requested')
+              order by pr.source_gap_id = g.id desc, pr.created_at desc limit 1) p on true
+          where g.type = 'missing' and g.status in ('open', 'proposal_made') and ${area}
+          order by g.status_since desc, g.created_at desc`,
+        [areas, admin, now.start, now.end],
+      )
+      const subjects = new Map<string, (typeof open)[number]>()
+      for (const g of open) {
+        const key = subjectOf(g)
+        if (!subjects.has(key)) subjects.set(key, g)
+      }
+      const spots = [...subjects.values()]
+        .sort(
+          (a, b) =>
+            b.missing - a.missing ||
+            a.firstSeen.localeCompare(b.firstSeen) ||
+            (a.id < b.id ? -1 : 1),
+        )
+        .slice(0, 3)
+
+      const view = summaryView(
+        {
+          pieces: counts,
+          now,
+          before: notCompared ? null : before,
+          weeks: drawn,
+          open: spots.map((g) => g.missing),
+        },
+        least,
+      )
+
+      // What changed: the changes published after review, with who approved them.
+      const published = (start: string, end: string) => `
+        from editions e
+        join lateral (
+          select s.version_id from item_version_service s
+           where lower(s.editions) = e.seq order by s.item_id limit 1) s on true
+        join item_versions v on v.id = s.version_id
+        left join people p on p.id = e.actor_id
+       where e.reason = 'proposal_accepted' and e.created_at >= ${start}::date and e.created_at < ${end}::date
+         and (case when $1::text[] is null then true else v.area_id = any($1) end)`
+      const latest = await tx.query<ObsSummary['changes']['latest'][number]>(
+        `select e.created_at::text as at, v.item_id as "itemId", v.title, v.area_id as "areaId",
+                p.display_name as by
+           ${published('$2', '$3')}
+          order by e.created_at desc, e.seq desc limit 5`,
+        [areas, now.start, now.end],
+      )
+      const [changed] = await tx.query<{ now: number; before: number }>(
+        `select (select count(*)::int ${published('$2', '$3')}) as now,
+                (select count(*)::int ${published('$4', '$2')}) as before`,
+        [areas, now.start, now.end, before.start],
+      )
+
+      const byWeek = new Map(view.weeks.map((w) => [w.start, w]))
+      return {
+        ...base,
+        state: 'normal',
+        since,
+        complete,
+        numbers: view.now,
+        previous: view.before,
+        notCompared,
+        weeks: weeks.map((start) => {
+          const w = byWeek.get(start)
+          return w
+            ? { start, counted: true, checked: w.checked }
+            : { start, counted: false, checked: null }
+        }),
+        open: {
+          total: subjects.size,
+          spots: spots.map((g, i) => ({
+            id: g.id,
+            title: topicName(g.metrics, g.values, names),
+            areaId: g.area,
+            firstSeen: g.firstSeen,
+            missing: view.open[i] ?? null,
+            state: g.state,
+            proposalId: g.proposal,
+          })),
+        },
+        changes: { total: changed?.now ?? 0, before: changed?.before ?? 0, latest },
+        hidden: view.hidden,
       }
     },
 

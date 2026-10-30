@@ -17,7 +17,7 @@ import { OBS_SECTIONS } from '@/lib/obs'
 import { useMe } from '@/lib/workspace'
 
 // Inside Observability the app sidebar gives way to its own menu, as it does in Settings: the way
-// back to the app on top, then six pages in three small groups. Usage is for admins.
+// back to the app on top, then seven pages in four small groups. Usage is for admins.
 
 export function ObservabilityNav({ section, close }: { section: string; close: () => void }) {
   const me = useMe()

@@ -1049,6 +1049,9 @@ export function createRouter({
       feedback: authorized.obs.feedback.handler(({ context, input }) =>
         context.observability.feedback(input),
       ),
+      summary: authorized.obs.summary.handler(({ context, input }) =>
+        context.observability.summary(input),
+      ),
       usage: authorized.obs.usage.handler(({ context, input }) =>
         context.observability.usage(input),
       ),

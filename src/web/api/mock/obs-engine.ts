@@ -334,6 +334,13 @@ export function observability(data: ObsData) {
     return scaleDays(days, share)
   }
 
+  /** Every day counted, oldest first, with a domain's share of each, for Summary's calendar periods. */
+  function calendarDays(v: Pick<View, 'domain' | 'scale'>): Day[] {
+    const share = stateShare(v.domain)
+    for (const k of SHOWN) share[k] *= v.scale ?? 1
+    return !v.domain && (v.scale ?? 1) === 1 ? DAYS : scaleDays(DAYS, share)
+  }
+
   /** The same days, a bar each for 7 and 30 days, a week each for 90. */
   function barsOf(v: View): { label: string; at: number; counts: Counts }[] {
     const days = daysOf(v)
@@ -496,6 +503,7 @@ export function observability(data: ObsData) {
     sparkOf,
     agentsOf,
     publishesIn,
+    calendarDays,
     rollUp,
     topicMonths,
     notFoundGroups,

@@ -55,6 +55,8 @@ import {
   obsAgentsSchema,
   obsFeedbackInputSchema,
   obsFeedbackSchema,
+  obsSummaryInputSchema,
+  obsSummarySchema,
   obsUsageInputSchema,
   obsUsageSchema,
   obsViewRemoveInputSchema,
@@ -1814,6 +1816,16 @@ export const contract = {
       })
       .input(obsFeedbackInputSchema)
       .output(obsFeedbackSchema),
+    summary: maintainRead
+      .route({
+        method: 'GET',
+        path: '/observability/summary',
+        tags: ['quality'],
+        summary:
+          "Summary's read: the last whole calendar month or quarter, what agents asked and how it was answered against the period before, a weekly trend, what is still open and what changed; counts only, one disclosure pass, small counts hidden (FR-614, FR-620)",
+      })
+      .input(obsSummaryInputSchema)
+      .output(obsSummarySchema),
     usage: admin
       .route({
         method: 'GET',

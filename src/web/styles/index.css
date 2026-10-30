@@ -368,3 +368,36 @@
 @utility fade-in-top {
   mask-image: linear-gradient(to bottom, transparent, black 0.75rem);
 }
+
+/* Printing a sheet (Observability's Summary): the page alone, on one A4 sheet. The menus, the
+   header and the controls stay on screen; every box around the sheet grows to its content instead
+   of scrolling; and the hairlines, drawn as backgrounds, print too. Paper is always light
+   (tokens.css). */
+@media print {
+  @page {
+    size: a4 portrait;
+    margin: var(--print-margin);
+  }
+
+  html:has([data-print='sheet']) {
+    & [data-slot='sidebar'],
+    & [data-slot='sidebar-gap'],
+    & [data-slot='sidebar-rail'],
+    & [data-slot='resizable-handle'],
+    & [data-slot='resizable-panel']:not(:has([data-print='sheet'])),
+    & header {
+      display: none;
+    }
+
+    & *:has([data-print='sheet']) {
+      height: auto;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    & [data-print='sheet'] {
+      zoom: 0.7;
+      print-color-adjust: exact;
+    }
+  }
+}

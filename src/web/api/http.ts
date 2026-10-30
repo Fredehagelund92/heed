@@ -111,6 +111,7 @@ import {
   familyOf,
   obsAgentsOf,
   obsFeedbackOf,
+  obsSummaryOf,
   obsUsageOf,
   replayOf,
   savedViewOf,
@@ -250,6 +251,7 @@ export const wiredMethods = [
   'reportAnswer',
   'getMyReports',
   'observabilityPage',
+  'observabilitySummary',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -2051,6 +2053,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       }
       return emptyObs(range)
     },
+    observabilitySummary: async ({ period, domain }) =>
+      obsSummaryOf(
+        await read(() => client.obs.summary({ period, ...(domain ? { areaId: domain } : {}) })),
+      ),
     replayTopic: async ({ topic, when }) => {
       const named = listedTopics.get(topic)
       if (!named || !isUuid(topic)) return null

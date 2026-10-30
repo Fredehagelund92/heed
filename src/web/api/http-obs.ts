@@ -4,7 +4,14 @@
  * nothing here adds a count up into one the service did not give.
  */
 import type { Replay as ServiceReplay } from '@contract/answer'
-import type { ObsAgents, ObsFeedback, ObsTopic, ObsUsage, ObsView } from '@contract/observability'
+import type {
+  ObsAgents,
+  ObsFeedback,
+  ObsSummary,
+  ObsTopic,
+  ObsUsage,
+  ObsView,
+} from '@contract/observability'
 import { appFamilies, appFamilyNames, type AppFamily } from '@domain/app-family'
 import type { Answer } from '@/model/ask'
 import { stateLabel } from '@/model/ask'
@@ -19,6 +26,7 @@ import {
   type Report,
   type Topic,
 } from '@/model/observability'
+import type { SummaryData } from '@/model/obs-summary'
 import { NEXT, type Replay, type ReplayStep } from '@/model/replay'
 
 const none = { grounded: null, partial: null, conflict: null, stale: null, missing: null }
@@ -59,6 +67,55 @@ function gapOf(gap: ObsTopic['gap']): Topic['gap'] {
   if (gap.state === 'suggestion' && gap.proposalId)
     return { label: 'A suggestion waits', href: `/inbox/${gap.proposalId}/review` }
   return { label: 'No draft yet', href: `/inbox?card=gap:${gap.id}` }
+}
+
+/** Summary's page from the service's read: days as UTC timestamps, where an open spot waits. */
+export function obsSummaryOf(s: ObsSummary): SummaryData {
+  const period = (p: ObsSummary['now']) => ({ start: atOf(p.start), end: atOf(p.end) })
+  return {
+    state: s.state,
+    period: s.period,
+    last: atOf(s.last),
+    now: period(s.now),
+    before: period(s.before),
+    since: s.since ? atOf(s.since) : null,
+    complete: s.complete,
+    numbers: s.numbers,
+    previous: s.previous,
+    notCompared: s.notCompared,
+    weeks: s.weeks.map((w) => ({
+      at: atOf(w.start),
+      counted: w.counted,
+      checked: w.checked,
+    })),
+    open: {
+      total: s.open.total,
+      spots: s.open.spots.map((o) => {
+        const gap = gapOf({ id: o.id, state: o.state, proposalId: o.proposalId })!
+        return {
+          id: o.id,
+          title: o.title,
+          ...(o.areaId ? { domain: o.areaId } : {}),
+          since: atOf(o.firstSeen),
+          missing: o.missing,
+          label: gap.label,
+          href: gap.href,
+        }
+      }),
+    },
+    changes: {
+      total: s.changes.total,
+      before: s.changes.before,
+      latest: s.changes.latest.map((c) => ({
+        at: Date.parse(c.at),
+        title: c.title,
+        ...(c.areaId ? { domain: c.areaId } : {}),
+        by: c.by ?? 'Someone',
+        href: `/context/${c.itemId}`,
+      })),
+    },
+    hidden: s.hidden,
+  }
 }
 
 export function topicOf(t: ObsTopic): Topic {
