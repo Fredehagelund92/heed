@@ -55,8 +55,8 @@ export type SummaryData = {
   }
   /** Changes approved in review and published in the period, the latest five. */
   changes: {
-    total: number
-    before: number
+    total: Count
+    before: Count
     latest: { at: number; title: string; domain?: DomainId; by: string; href?: string }[]
   }
   /** How many numbers on the page are hidden. */
@@ -100,6 +100,8 @@ export const dayName = (at: number) => {
 }
 
 const n = (v: number) => v.toLocaleString('en-GB')
+/** A count of changes as the page says it: hidden means under 5. */
+export const changesWords = (v: Count) => (v === null ? 'Fewer than 5' : n(v))
 /** A count as a sentence says it: "Fewer than 5" for one under 5. */
 export const countWords = (v: number) => (v > 0 && v < HIDE_UNDER ? 'Fewer than 5' : n(v))
 
@@ -244,7 +246,7 @@ export function summarySentences(data: SummaryData): string[] {
   out.push(
     changes === 0
       ? `No change was approved and published in ${name}.`
-      : `${changes === 1 ? 'One change was' : `${n(changes)} changes were`} approved by an owner and published.`,
+      : `${changes === null ? 'Fewer than 5' : n(changes)} changes were approved by an owner and published.`,
   )
   return out
 }
@@ -285,7 +287,9 @@ export function caughtLines(data: SummaryData): CaughtLine[] {
 /** Why there is no comparison with the period before, in a line. */
 export function notComparedWords(data: SummaryData): string | null {
   if (data.notCompared === 'started' && data.since !== null)
-    return `No comparison with ${periodName(data.before)}: agents first asked on ${dayName(data.since)}.`
+    return `No comparison with ${periodName(data.before)}: agents first asked on ${dayName(data.since)}${
+      data.since > data.now.start ? `, after ${periodName(data.now)} began` : ''
+    }.`
   if (data.notCompared === 'not_kept')
     return `No comparison with ${periodName(data.before)}: its records are no longer all kept.`
   return null

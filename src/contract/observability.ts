@@ -269,10 +269,10 @@ export const obsSummarySchema = z.object({
       }),
     ),
   }),
-  /** Changes published after review in the period, the latest five, and how many in the one before. */
+  /** Changes published after review in the period, the latest five, and how many in the one before: hidden under the minimum. */
   changes: z.object({
-    total: z.number(),
-    before: z.number(),
+    total: shown,
+    before: shown,
     latest: z.array(
       z.object({
         at: z.string(),

@@ -108,6 +108,10 @@ export type SummaryCounts = {
   weeks: readonly string[]
   /** What found nothing in the period about each open spot shown, in the order shown. */
   open: readonly number[]
+  /** The first day agents asked: every piece that ends on or before it is known to be zero. */
+  since: string | null
+  /** Changes published after review in the period, and in the one before. */
+  changes: { now: number; before: number }
 }
 
 export type SummaryView = {
@@ -115,6 +119,7 @@ export type SummaryView = {
   before: Record<'asked' | 'checked' | 'missing', Shown> | null
   weeks: { start: string; checked: Shown }[]
   open: Shown[]
+  changes: { now: Shown; before: Shown }
   /** How many numbers the page would show are hidden: under the minimum, or keeping one safe. */
   hidden: number
 }
@@ -129,7 +134,11 @@ export type SummaryView = {
 export function summaryView(input: SummaryCounts, minimum: number): SummaryView {
   const quantities: Quantity[] = []
   const add = (q: Quantity) => quantities.push(q)
-  const pieces = input.pieces.map((p, i) => ({ ...p, id: `g:${i}` }))
+  // The page says when agents first asked, so a piece that ends on or before that day is known to
+  // be zero: it adds nothing to a sum, and is left out of the pass.
+  const pieces = input.pieces
+    .filter((p) => !(input.since !== null && p.end <= input.since && coarseTotal(p.counts) === 0))
+    .map((p, i) => ({ ...p, id: `g:${i}` }))
   for (const p of pieces) {
     for (const k of coarseStates)
       add({ id: `${p.id}:${k}`, value: p.counts[k], unpublished: true, parts: [] })
@@ -202,6 +211,10 @@ export function summaryView(input: SummaryCounts, minimum: number): SummaryView 
     missing.keep = [...(missing.keep ?? []), missing.parts.length - 1]
   }
 
+  // What changed stands alone: no other number on the page is a sum with it.
+  add({ id: 'c:n', value: input.changes.now, parts: [] })
+  add({ id: 'c:b', value: input.changes.before, parts: [] })
+
   const shown = disclose(quantities, minimum)
   const byId = new Map(quantities.map((q) => [q.id, q]))
   const value = (id: string): Shown => (shown.has(id) ? byId.get(id)!.value : null)
@@ -218,6 +231,7 @@ export function summaryView(input: SummaryCounts, minimum: number): SummaryView 
       : null,
     weeks: weeks.map((w) => ({ start: w.monday, checked: value(`${w.id}:checked`) })),
     open: input.open.map((_, i) => value(`o:${i}`)),
+    changes: { now: value('c:n'), before: value('c:b') },
     hidden: published.filter((q) => !shown.has(q.id)).length,
   }
 }

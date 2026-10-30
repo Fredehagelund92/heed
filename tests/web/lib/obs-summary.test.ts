@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   caughtLines,
+  changesWords,
   notComparedWords,
   periodName,
   shareWords,
@@ -29,7 +30,7 @@ function data(over: Partial<SummaryData> = {}): SummaryData {
     notCompared: null,
     weeks: [],
     open: { total: 3, spots: [] },
-    changes: { total: 1, before: 1, latest: [] },
+    changes: { total: 12, before: 9, latest: [] },
     hidden: 0,
     ...over,
   }
@@ -104,7 +105,7 @@ describe('summarySentences', () => {
       'Agents asked 532 questions in September 2026, about the same as in August 2026 (483).',
       '335 (63%) had an answer fully based on checked context.',
       '115 found nothing written down; 3 topics like that are still open.',
-      'One change was approved by an owner and published.',
+      '12 changes were approved by an owner and published.',
     ])
   })
 
@@ -125,6 +126,20 @@ describe('summarySentences', () => {
     expect(
       summarySentences(data({ numbers: { asked: 532, checked: 3, warned: 0, missing: 0 } }))[1],
     ).toBe('Fewer than 5 (1%) had an answer fully based on checked context.')
+  })
+})
+
+describe('changes under the minimum', () => {
+  it('never says an exact small count: 2 changes and 4 before read Fewer than 5', () => {
+    const small = data({ changes: { total: null, before: null, latest: [] } })
+    expect(changesWords(small.changes.total)).toBe('Fewer than 5')
+    expect(changesWords(small.changes.before)).toBe('Fewer than 5')
+    expect(changesWords(0)).toBe('0')
+    expect(summarySentences(small).at(-1)).toBe(
+      'Fewer than 5 changes were approved by an owner and published.',
+    )
+    // Only the questions' counts move; nothing reads up or down for changes.
+    expect(Object.keys(summaryNumbers(small))).not.toContain('changesMove')
   })
 })
 
@@ -158,6 +173,12 @@ describe('notComparedWords', () => {
         }),
       ),
     ).toBe('No comparison with April to June 2026: agents first asked on 17 Apr 2026.')
+    // Agents first asked after the period began: one note, saying so.
+    expect(
+      notComparedWords(data({ notCompared: 'started', previous: null, since: day(2026, 9, 2) })),
+    ).toBe(
+      'No comparison with August 2026: agents first asked on 2 Sep 2026, after September 2026 began.',
+    )
     expect(notComparedWords(data({ notCompared: 'not_kept', previous: null }))).toBe(
       'No comparison with August 2026: its records are no longer all kept.',
     )

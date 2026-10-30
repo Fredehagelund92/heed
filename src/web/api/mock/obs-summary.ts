@@ -43,7 +43,7 @@ export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Rea
     notCompared: null,
     weeks: weeks.map((w) => ({ at: atOf(w), counted: false, checked: null })),
     open: { total: 0, spots: [] },
-    changes: { total: 0, before: 0, latest: [] },
+    changes: { total: null, before: null, latest: [] },
     hidden: 0,
   }
   if (fixture.state === 'empty') return { ...base, state: 'empty' }
@@ -88,6 +88,11 @@ export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Rea
     .sort((a, b) => b.missing - a.missing)
     .slice(0, 3)
 
+  const publishes = (s: { start: string; end: string }) =>
+    fixture.publishes.filter(
+      (p) => p.at >= atOf(s.start) && p.at < atOf(s.end) && (!domain || p.domain === domain),
+    )
+
   const view = summaryView(
     {
       pieces,
@@ -95,14 +100,12 @@ export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Rea
       before: notCompared ? null : before,
       weeks: drawn,
       open: spots.map((s) => s.missing),
+      since: first,
+      changes: { now: publishes(now).length, before: publishes(before).length },
     },
     HIDE_UNDER,
   )
   const byWeek = new Map(view.weeks.map((w) => [w.start, w]))
-  const publishes = (s: { start: string; end: string }) =>
-    fixture.publishes.filter(
-      (p) => p.at >= atOf(s.start) && p.at < atOf(s.end) && (!domain || p.domain === domain),
-    )
   return {
     ...base,
     since,
@@ -128,8 +131,8 @@ export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Rea
       })),
     },
     changes: {
-      total: publishes(now).length,
-      before: publishes(before).length,
+      total: view.changes.now,
+      before: view.changes.before,
       latest: publishes(now)
         .slice(0, 5)
         .map((p) => ({ at: p.at, title: p.title, domain: p.domain, by: p.by })),

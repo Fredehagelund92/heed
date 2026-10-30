@@ -472,7 +472,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         notCompared: null,
         weeks: weeks.map((start) => ({ start, counted: false, checked: null })),
         open: { total: 0, spots: [] },
-        changes: { total: 0, before: 0, latest: [] },
+        changes: { total: null, before: null, latest: [] },
         hidden: 0,
       }
       const pieces = piecesOf([now, before, ...weeks.map(weekSpan)])
@@ -600,19 +600,8 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         )
         .slice(0, 3)
 
-      const view = summaryView(
-        {
-          pieces: counts,
-          now,
-          before: notCompared ? null : before,
-          weeks: drawn,
-          open: spots.map((g) => g.missing),
-        },
-        least,
-      )
-
       // What changed: the changes published after review, with who approved them.
-      const published = (start: string, end: string) => `
+      const published = (start: string, end: string, isAdmin: string) => `
         from editions e
         join lateral (
           select s.version_id from item_version_service s
@@ -620,18 +609,33 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         join item_versions v on v.id = s.version_id
         left join people p on p.id = e.actor_id
        where e.reason = 'proposal_accepted' and e.created_at >= ${start}::date and e.created_at < ${end}::date
-         and (case when $1::text[] is null then true else v.area_id = any($1) end)`
+         and (case when $1::text[] is null then ${isAdmin} else v.area_id = any($1) end)`
       const latest = await tx.query<ObsSummary['changes']['latest'][number]>(
         `select e.created_at::text as at, v.item_id as "itemId", v.title, v.area_id as "areaId",
                 p.display_name as by
-           ${published('$2', '$3')}
+           ${published('$2', '$3', '$4')}
           order by e.created_at desc, e.seq desc limit 5`,
-        [areas, now.start, now.end],
+        [areas, now.start, now.end, admin],
       )
       const [changed] = await tx.query<{ now: number; before: number }>(
-        `select (select count(*)::int ${published('$2', '$3')}) as now,
-                (select count(*)::int ${published('$4', '$2')}) as before`,
-        [areas, now.start, now.end, before.start],
+        `select (select count(*)::int ${published('$2', '$3', '$5')}) as now,
+                (select count(*)::int ${published('$4', '$2', '$5')}) as before`,
+        [areas, now.start, now.end, before.start, admin],
+      )
+
+      // An open spot's count comes from the delivery records alone, so it is not given when some
+      // of the period is only in the weekly counts.
+      const view = summaryView(
+        {
+          pieces: counts,
+          now,
+          before: notCompared ? null : before,
+          weeks: drawn,
+          open: complete ? spots.map((g) => g.missing) : [],
+          since,
+          changes: { now: changed?.now ?? 0, before: changed?.before ?? 0 },
+        },
+        least,
       )
 
       const byWeek = new Map(view.weeks.map((w) => [w.start, w]))
@@ -661,7 +665,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
             proposalId: g.proposal,
           })),
         },
-        changes: { total: changed?.now ?? 0, before: changed?.before ?? 0, latest },
+        changes: { total: view.changes.now, before: view.changes.before, latest },
         hidden: view.hidden,
       }
     },

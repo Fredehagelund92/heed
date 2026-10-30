@@ -222,7 +222,8 @@ describe('Summary', () => {
       }),
     ])
     expect((await summary('owner')).open.spots[0]!.missing).toBe(93)
-    expect(s.changes.total).toBe(1)
+    // One change is under the minimum, so its count is not given; none before is a 0, which is.
+    expect(s.changes.total).toBeNull()
     expect(s.changes.before).toBe(0)
     expect(s.changes.latest).toEqual([
       expect.objectContaining({ title: 'A note', areaId: 'finance' }),

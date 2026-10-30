@@ -29,6 +29,7 @@ function countsOf(
   today: string,
   day: (d: string) => Coarse,
   open: number[] = [],
+  since: string | null = null,
 ): SummaryCounts {
   const { now, before } = summaryPeriod(kind, today)
   const weeks = trendWeeks(now)
@@ -38,7 +39,7 @@ function countsOf(
       for (const k of coarseStates) counts[k] += day(d)[k]
     return { ...p, counts }
   })
-  return { pieces, now, before, weeks, open }
+  return { pieces, now, before, weeks, open, since, changes: { now: 0, before: 0 } }
 }
 
 const fine = (n: number) => n === 0 || n >= min
@@ -59,6 +60,11 @@ function expectNothingWorkedOut(input: SummaryCounts, view: SummaryView) {
     value.set(`p${i}`, total(p.counts))
     for (const k of coarseStates) value.set(`p${i}:${k}`, p.counts[k])
     sums.push([`p${i}`, coarseStates.map((k) => `p${i}:${k}`)])
+    // The page says when agents first asked: what ends on or before that day is known to be zero.
+    if (input.since !== null && p.end <= input.since && total(p.counts) === 0) {
+      known.set(`p${i}`, 0)
+      for (const k of coarseStates) known.set(`p${i}:${k}`, 0)
+    }
   })
   function span(id: string, s: Span, shown: Partial<Record<string, number | null>>) {
     const mine = input.pieces.map((p, i) => ({ p, i })).filter(({ p }) => inside(p, s))
@@ -226,6 +232,43 @@ describe('summaryView', () => {
     expectNothingWorkedOut(input, view)
   })
 
+  it('knows what lies before the first day agents asked is zero, and hides what that gives away', () => {
+    // September 2026 starts on a Tuesday, and agents first asked on 2 September: the page says so,
+    // so 31 August and 1 September are zero for a reader. Every full week of the trend is shown;
+    // the last three days, in no week of the trend, hold 3 checked answers, which September's own
+    // count would give away as what the weeks leave over.
+    const day = (d: string) =>
+      d < '2026-09-02'
+        ? { checked: 0, warned: 0, missing: 0 }
+        : d >= '2026-09-28' && d < '2026-10-01'
+          ? { checked: 1, warned: 0, missing: 0 }
+          : { checked: 6, warned: 0, missing: 0 }
+    const input = countsOf('month', '2026-10-23', day, [], '2026-09-02')
+    const view = summaryView(input, min)
+    expect(view.now.checked).toBeNull()
+    expect(view.now.asked).toBe(26 * 6 + 3)
+    expectNothingWorkedOut(input, view)
+    // Without the first day, the same numbers leave a reader nothing to add: the checker, which
+    // knows the first day, would find the count under 5 in what is shown.
+    const unaware = summaryView({ ...input, since: null }, min)
+    expect(unaware.now.checked).not.toBeNull()
+    expect(() => expectNothingWorkedOut(input, unaware)).toThrow()
+  })
+
+  it('hides a change count under the minimum and keeps one that is not', () => {
+    const input = countsOf('month', '2026-10-23', () => ({ checked: 6, warned: 0, missing: 0 }))
+    expect(summaryView({ ...input, changes: { now: 2, before: 4 } }, min).changes).toEqual({
+      now: null,
+      before: null,
+    })
+    expect(summaryView({ ...input, changes: { now: 0, before: 12 } }, min).changes).toEqual({
+      now: 0,
+      before: 12,
+    })
+    const view = summaryView({ ...input, changes: { now: 2, before: 4 } }, min)
+    expect(view.hidden).toBe(2)
+  })
+
   it('hides a small count in the period, and what would give it away', () => {
     const input = countsOf('month', '2026-10-23', (d) =>
       d === '2026-09-15'
@@ -248,14 +291,18 @@ describe('summaryView', () => {
         fc.integer({ min: 0, max: 700 }),
         fc.array(fc.integer({ min: 0, max: 3 }), { minLength: 21, maxLength: 21 }),
         fc.array(fc.integer({ min: 0, max: 40 }), { maxLength: 3 }),
-        (kind, offset, pattern, open) => {
+        fc.integer({ min: -20, max: 150 }),
+        (kind, offset, pattern, open, first) => {
           const today = shiftDate('2026-01-01', offset)
           // A day's calls repeat every week, with a little more on some days of the period.
+          // Agents first asked on `since`: nothing before it.
+          const since = shiftDate(summaryPeriod(kind, today).before.start, first)
           const day = (d: string) => {
+            if (d < since) return { checked: 0, warned: 0, missing: 0 }
             const i = new Date(`${d}T00:00:00Z`).getUTCDay() * 3
             return { checked: pattern[i]!, warned: pattern[i + 1]!, missing: pattern[i + 2]! }
           }
-          const input = countsOf(kind, today, day)
+          const input = countsOf(kind, today, day, [], since)
           const missing = input.pieces
             .filter((p) => inside(p, input.now))
             .reduce((n, p) => n + p.counts.missing, 0)

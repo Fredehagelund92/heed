@@ -21,6 +21,7 @@ import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { dateLabel } from '@/model/observability'
 import {
   caughtLines,
+  changesWords,
   countWords,
   DEFINITIONS,
   dayName,
@@ -142,9 +143,6 @@ function Summary({
   const where = view.domain ? (domains[view.domain]?.name ?? 'One domain') : 'All domains'
   const notes = [
     notComparedWords(data),
-    data.since !== null && data.since > data.now.start
-      ? `Agents first asked on ${dayName(data.since)}, after ${name} began.`
-      : null,
     data.complete ? null : `Some of ${name} is no longer kept, so its counts may be low.`,
   ].filter((n): n is string => !!n)
   return (
@@ -207,8 +205,8 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
   const sentences = summarySentences(data)
   const caught = caughtLines(data)
   const weekValues = data.weeks.map((w) => (w.counted ? w.checked : null))
-  const extra = (shown: number, total: number) =>
-    total > shown ? `And ${(total - shown).toLocaleString('en-GB')} more.` : null
+  const extra = (shown: number, total: number | null) =>
+    total !== null && total > shown ? `And ${(total - shown).toLocaleString('en-GB')} more.` : null
   return (
     <>
       <div className="grid grid-cols-2 gap-px border-t bg-border @3xl/main:grid-cols-4 print:grid-cols-4">
@@ -258,8 +256,8 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
         <Kpi
           icon={<FilePenLineIcon />}
           label="Changes approved"
-          value={data.changes.total.toLocaleString('en-GB')}
-          sub={`${data.changes.before.toLocaleString('en-GB')} in ${before}`}
+          value={changesWords(data.changes.total)}
+          sub={`${changesWords(data.changes.before)} in ${before}`}
           definition={DEFINITIONS.changes}
         />
       </div>
@@ -433,8 +431,8 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
         <p className="flex items-start gap-2 border-t px-4 py-3 text-xs text-muted-foreground md:px-5">
           <LockIcon className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
-            Counts only: never the words of a question or who asked. A count under 5 reads Fewer
-            than 5.{' '}
+            Counts only: never the words of a question or who asked. A count under 5 is never shown,
+            nor one that would give one away.{' '}
             {data.hidden === 0
               ? 'No number is hidden on this page.'
               : `${data.hidden.toLocaleString('en-GB')} ${data.hidden === 1 ? 'number is' : 'numbers are'} hidden: under 5, or it would give one under 5 away.`}{' '}

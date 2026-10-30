@@ -85494,10 +85494,24 @@
                       "type": "object",
                       "properties": {
                         "total": {
-                          "type": "number"
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "before": {
-                          "type": "number"
+                          "anyOf": [
+                            {
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         },
                         "latest": {
                           "type": "array",
