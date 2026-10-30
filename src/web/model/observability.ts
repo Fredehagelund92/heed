@@ -1,6 +1,7 @@
 import { COMPARE_FROM, countChange, shareChange, type Change } from '@domain/observability'
 import { stateLabel, type AnswerState } from './ask'
 import type { DomainId } from './items'
+import { flipped, type SortKey, type Sorting } from '@/lib/sort'
 
 // What Observability shows: what agents asked and how it was answered, as scopes and counts only.
 // The words of a question and who asked are never kept, so there are no threads to open: a topic
@@ -260,19 +261,29 @@ export function groupCount(g: Pick<TopicGroup, 'visible' | 'shown'>) {
   return g.shown > 0 ? `${g.shown.toLocaleString('en-GB')}+` : 'Fewer than 5'
 }
 
-export type Sort = 'asked' | 'nothing' | 'name'
+/** The ways the topics sort, each with its direction in words. */
+export const TOPIC_SORTS = {
+  asked: { label: 'Asked', first: 'desc', ways: { desc: 'Most first', asc: 'Fewest first' } },
+  nothing: { label: 'Not found', first: 'desc', ways: { desc: 'Most first', asc: 'Fewest first' } },
+  name: { label: 'Topic', first: 'asc', ways: { asc: 'A to Z', desc: 'Z to A' } },
+} satisfies Record<string, SortKey>
+export type Sort = keyof typeof TOPIC_SORTS
 
 /** How many, for ordering: the total, or what its shown parts add up to. */
 const size = (g: Pick<TopicGroup, 'visible' | 'shown'>) => g.visible ?? g.shown
 
-export const sortGroups = (gs: TopicGroup[], sort: Sort) =>
-  [...gs].sort((a, b) =>
-    sort === 'name'
-      ? a.name.localeCompare(b.name)
-      : sort === 'nothing'
-        ? (b.counts.missing ?? 0) - (a.counts.missing ?? 0) || size(b) - size(a)
-        : size(b) - size(a),
+export const sortGroups = (gs: TopicGroup[], s: Sorting<Sort>) => {
+  const way = flipped(TOPIC_SORTS, s) ? -1 : 1
+  return [...gs].sort(
+    (a, b) =>
+      way *
+      (s.key === 'name'
+        ? a.name.localeCompare(b.name)
+        : s.key === 'nothing'
+          ? (b.counts.missing ?? 0) - (a.counts.missing ?? 0) || size(b) - size(a)
+          : size(b) - size(a)),
   )
+}
 
 /** What a topic's status says, in the order that matters: a gap's way forward, then a disagreement, then age. */
 export function statusOf(
@@ -380,7 +391,7 @@ export function observability(data: ObsData) {
   }
 
   /** The exact rows in the order they show, for stepping through the answer panel. */
-  function rowOrder(rows: Topic[], grouping: Grouping, sort: Sort) {
+  function rowOrder(rows: Topic[], grouping: Grouping, sort: Sorting<Sort>) {
     if (grouping === 'none') return sortGroups(rows.map(single), sort).flatMap((g) => g.rows)
     return sortGroups(rollUp(rows), sort).flatMap((g) => g.rows)
   }

@@ -1,8 +1,5 @@
 import * as React from 'react'
 import {
-  ArrowDownIcon,
-  ArrowUpDownIcon,
-  ArrowUpIcon,
   EyeIcon,
   ListChecksIcon,
   ListFilterIcon,
@@ -26,6 +23,8 @@ import {
   ListBar,
   RowMenu,
   SearchField,
+  SortMenu,
+  SortTh,
   StatusDot,
   Th,
   thClass,
@@ -62,6 +61,7 @@ import {
 } from '@/model/items'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { matches, usePublishOrder, useRowKeys, words } from '@/lib/list'
+import { clicked, flipped, startOf, type SortKey, type Sorting } from '@/lib/sort'
 import { inForce, parseWhen, timeShort, trustOf } from '@/lib/timeframe'
 import { FreshDot, KindIcon, StatusIcon, TimeGlyph } from '@/components/heed/columns'
 import { href, navigate } from '@/lib/router'
@@ -91,12 +91,22 @@ const toggle = <T,>(list: T[], v: T) =>
 
 /** The sorts, each with its direction in words, as the Heed app says them. */
 const SORTS = {
-  checked: { label: 'Last checked', way: 'Newest first' },
-  title: { label: 'Title', way: 'A to Z' },
-  domain: { label: 'Domain', way: 'A to Z' },
-  best: { label: 'Best match', way: 'Closest first' },
-} as const
+  checked: {
+    label: 'Last checked',
+    first: 'desc',
+    ways: { desc: 'Newest first', asc: 'Oldest first' },
+  },
+  title: { label: 'Title', first: 'asc', ways: { asc: 'A to Z', desc: 'Z to A' } },
+  domain: { label: 'Domain', first: 'asc', ways: { asc: 'A to Z', desc: 'Z to A' } },
+  best: { label: 'Best match', first: 'desc', ways: { desc: 'Closest first' } },
+} satisfies Record<string, SortKey>
 type Sort = keyof typeof SORTS
+/** The column headers that sort, named as the header says them. */
+const HEADS = {
+  ...SORTS,
+  title: { ...SORTS.title, label: 'Context' },
+  checked: { ...SORTS.checked, label: 'Checked' },
+} satisfies Record<Sort, SortKey>
 type Group = 'none' | 'domain' | 'metric'
 const GROUPS: Record<Group, string> = { none: 'No grouping', domain: 'Domain', metric: 'Metric' }
 
@@ -127,13 +137,15 @@ export function ContextPage() {
     query.get('due') ? ['Needs checking'] : [],
   )
   const [kind, setKind] = React.useState<Kind[]>([])
-  const [chosenSort, setSort] = React.useState<Sort | null>(null)
+  const [chosenSort, setSort] = React.useState<Sorting<Sort> | null>(null)
   const [group, setGroup] = React.useState<Group>('none')
   const [folded, setFolded] = React.useState<string[]>([])
   const [showArchived, setShowArchived] = React.useState(false)
 
   // While a search runs and no sort was chosen, the closest matches come first.
-  const sort: Sort = chosenSort ?? (text.trim() ? 'best' : 'checked')
+  const sorting = chosenSort ?? startOf(SORTS, text.trim() ? 'best' : 'checked')
+  const sort = sorting.key
+  const way = flipped(SORTS, sorting) ? -1 : 1
   const archived = facts.filter((f) => f.status === 'Archived').length
   const haystack = (f: Fact) =>
     `${f.title} ${plainText(f.summary)} ${f.where.join(' ')} ${domains[f.domain]?.name} ${f.checkedBy}`
@@ -149,12 +161,13 @@ export function ContextPage() {
     .filter((f) => pass(f))
     .sort((a, b) =>
       sort === 'title'
-        ? a.title.localeCompare(b.title)
+        ? way * a.title.localeCompare(b.title)
         : sort === 'domain'
-          ? domains[a.domain]!.name.localeCompare(domains[b.domain]!.name)
+          ? way * domains[a.domain]!.name.localeCompare(domains[b.domain]!.name)
           : sort === 'best'
             ? titleHits(b) - titleHits(a) || checked(b) - checked(a)
-            : checked(b) - checked(a),
+            : // A draft was never checked: it stays last either way.
+              Number(!a.checkedOn) - Number(!b.checkedOn) || way * (checked(b) - checked(a)),
     )
   const groups: { key: string; rows: Fact[] }[] =
     group === 'domain'
@@ -323,38 +336,16 @@ export function ContextPage() {
     )
   }
 
-  /** A header that sorts: the arrow shows on the column the list is sorted by, as the board draws it. */
-  const sortTh = (key: 'title' | 'checked', label: string, className: string, tip?: string) => {
-    const on = sort === key
-    const Arrow = key === 'title' ? ArrowUpIcon : ArrowDownIcon
-    return (
-      <th
-        className={cn(thClass, className)}
-        aria-sort={on ? (key === 'title' ? 'ascending' : 'descending') : undefined}
-      >
-        <button
-          type="button"
-          title={tip}
-          onClick={() => setSort(key)}
-          className={cn(
-            'group/sort -mx-1.5 inline-flex h-6 items-center gap-1 rounded-md px-1.5 outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
-            on && 'text-foreground',
-          )}
-        >
-          {label}
-          <Arrow
-            aria-hidden
-            className={cn(
-              'size-3',
-              on
-                ? 'opacity-90'
-                : 'opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60',
-            )}
-          />
-        </button>
-      </th>
-    )
-  }
+  const sortTh = (key: 'title' | 'checked', className: string, tip?: string) => (
+    <SortTh
+      keys={HEADS}
+      sorting={sorting}
+      by={key}
+      onSort={(k) => setSort(clicked(SORTS, sorting, k))}
+      className={className}
+      tip={tip}
+    />
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -462,31 +453,14 @@ export function ContextPage() {
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="sm" className={barButton} />}
-                  >
-                    <ArrowUpDownIcon />
-                    <span className="@max-3xl/main:sr-only">Sort</span>
-                    <span className="text-foreground @max-3xl/main:sr-only">
-                      {SORTS[sort].label}
-                    </span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-60">
-                    <DropdownMenuRadioGroup value={sort} onValueChange={(v) => setSort(v as Sort)}>
-                      {(Object.keys(SORTS) as Sort[])
-                        .filter((k) => k !== 'best' || text.trim())
-                        .map((k) => (
-                          <DropdownMenuRadioItem key={k} value={k}>
-                            <span className="flex w-full justify-between gap-3">
-                              {SORTS[k].label}
-                              <span className="text-xs text-muted-foreground">{SORTS[k].way}</span>
-                            </span>
-                          </DropdownMenuRadioItem>
-                        ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <SortMenu
+                  keys={SORTS}
+                  sorting={sorting}
+                  onSort={setSort}
+                  shown={(Object.keys(SORTS) as Sort[]).filter((k) => k !== 'best' || text.trim())}
+                  narrow="@max-3xl/main:sr-only"
+                  className="w-60"
+                />
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -601,7 +575,7 @@ export function ContextPage() {
                       <Th className="w-8 min-w-8 px-1.5 @max-xl/main:w-9 @max-xl/main:min-w-9 @max-xl/main:pr-0 @max-xl/main:pl-4">
                         <span className="sr-only">Kind</span>
                       </Th>
-                      {sortTh('title', 'Context', 'w-full px-1.5 @max-xl/main:px-3')}
+                      {sortTh('title', 'w-full px-1.5 @max-xl/main:px-3')}
                       <Th className="hidden w-50.5 min-w-50.5 px-1.5 @min-[60rem]/main:table-cell">
                         Scope
                       </Th>
@@ -609,7 +583,6 @@ export function ContextPage() {
                       <Th className="hidden w-39 min-w-39 px-1.5 @xl/main:table-cell">When</Th>
                       {sortTh(
                         'checked',
-                        'Checked',
                         'w-19 min-w-19 px-1.5 text-center @max-xl/main:hidden',
                         'Checked: fresh up to 30 days, ageing up to 90, then overdue',
                       )}

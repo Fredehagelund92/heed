@@ -32,6 +32,7 @@ const places = [
   '/ask?example=missing',
   '/observability/overview',
   '/observability/questions',
+  '/observability/questions?sort=name&dir=desc',
   '/observability/quality',
   '/observability/feedback',
   '/observability/usage',
@@ -126,6 +127,14 @@ for (const { name, width, height } of widths) {
           expect(await violations(page)).toEqual([])
         })
       }
+
+      test('the Sort menu, open, sorted the other way', async ({ page }) => {
+        await page.goto(withTheme('/context', theme))
+        await page.getByRole('button', { name: /^Sort/ }).click()
+        await page.getByRole('menuitemradio', { name: 'Oldest first' }).click()
+        await expect(page.getByRole('menu')).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
 
       test('the Help menu, open', async ({ page }) => {
         await page.goto(withTheme('/inbox', theme))

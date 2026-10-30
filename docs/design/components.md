@@ -147,6 +147,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | Part               | File                                          | Job                                                                              |
 | ------------------ | --------------------------------------------- | -------------------------------------------------------------------------------- |
 | List parts         | `components/heed/list.tsx`                    | The filter bar, the thin header row, rows of one line at one density, the cursor |
+| Sorting            | `lib/sort.ts`                                 | A key and a direction; `SortMenu` and `SortTh` in the list parts flip it         |
 | Columns            | `components/heed/columns.tsx`                 | Design B: kind icon, scope, status icon, when, freshness dot                     |
 | Context list       | `pages/context.tsx`                           | The Context list                                                                 |
 | Selection          | `hooks/use-selection.ts`, `lib/selection.ts`  | One picking model for every list                                                 |

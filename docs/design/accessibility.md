@@ -47,6 +47,7 @@ Every mark has an icon, a shape or a word as well.
 - Icon-only controls have a name. The accessible name contains the visible label.
 - Titles cut with an ellipsis show in full on hover or focus (one shared component).
 - One `h1`, no skipped heading levels. Landmarks for the header, navigation, main and side panels. A search landmark for the list search.
+- A header that sorts is a button inside the header cell; the sorted column carries `aria-sort` (ascending or descending), and Enter or Space flips it as a click does. The Sort button's name says the direction in words ("Sort Title Z to A").
 - A real label on every field. Errors are tied by `aria-describedby` and `aria-invalid`. More than two errors add a summary with links. Optional fields say "optional" in words.
 - `lang` is set on the document. Dates and numbers go through `Intl`.
 
