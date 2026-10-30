@@ -11,8 +11,10 @@
 @import './tokens.css';
 
 /* Every class the app writes, wherever it is built from: the app, and the docs site, whose root is
-   src/web/docs (vite.docs.config.ts). */
+   src/web/docs (vite.docs.config.ts). Not the class merge's generated tables (lib/cn-tables.gen.ts):
+   they name every utility there is, and each name read there would ship a rule nothing uses. */
 @source '..';
+@source not '../lib/cn-tables.gen.ts';
 
 @custom-variant dark (&:is(.dark *));
 

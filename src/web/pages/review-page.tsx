@@ -16,7 +16,8 @@ import {
 import { toast } from 'sonner'
 import { cn, midSentence } from '@/lib/utils'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
-import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from '@/components/heed/review-parts'
+import { ChangeBlock, KindLabel, Marked } from '@/components/heed/review-parts'
+import { ClaimCheck, Rewrite } from '@/components/heed/review-page-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { ResizableAside } from '@/components/resizable-aside'
 import { Panel } from '@/components/heed/panel'
@@ -63,18 +64,14 @@ import { DRAFT_LABEL } from '@/model/ask'
 import { useInbox, useReviews, useSavedQuestions, useWrite } from '@/api/queries'
 import { checkDraft, itemOfReview, savesQuestion } from '@/lib/saved-check'
 import { SavedLine } from '@/components/obs/saved-line'
+import { careLine, marks, readiness, type Relation, type Review } from '@/model/review'
 import {
-  careLine,
   clashOutcome,
-  marks,
   needsCare,
   publishedWords,
-  readiness,
   readTime,
   relationText,
-  type Relation,
-  type Review,
-} from '@/model/review'
+} from '@/model/review-page'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { navigate } from '@/lib/router'
 import { useDomains, useFacts } from '@/lib/workspace'

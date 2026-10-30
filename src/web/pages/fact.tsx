@@ -60,7 +60,7 @@ import { VersionHistory } from '@/components/heed/version-history'
 import { TODAY } from '@/model/history'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
 import { Loadable, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
-import { ScopeChips } from '@/components/heed/scope-field'
+import { ScopeChips } from '@/components/heed/scope-chips'
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() =>

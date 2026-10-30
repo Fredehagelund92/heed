@@ -40,7 +40,7 @@ import { useQuery } from '@tanstack/react-query'
 import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
-import { ScopeChips } from '@/components/heed/scope-field'
+import { ScopeChips } from '@/components/heed/scope-chips'
 
 // The context quick view: the note and one closed Details. Title once, the words, its domain, who
 // owns it and whether it is still right, where it comes from, the one action. One attention line only when a
