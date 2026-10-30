@@ -7,10 +7,10 @@
 --
 -- - `obs_weekly` keeps, for each completed week (Monday to Sunday, in UTC), how many agent calls
 --   each domain had in each of the five answer states (grounded, partial, conflict, stale,
---   missing). Counts only: never the words of a question,
---   never a topic or any scope finer than the domain, never who asked (FR-602, FR-613). A call
---   about a topic with no domain counts with no domain. A call that failed its check, or that
---   could not be read, is not in it, as in Observability's views.
+--   missing). Counts only: never the words of a question, never a topic or any scope finer than
+--   the domain, never who asked (FR-602, FR-613). A call about a topic with no domain counts with
+--   no domain. A call that failed its check, or that could not be read, is not in it, as in
+--   Observability's views.
 -- - It is kept without limit, the deliberate exception to the delivery period: FR-612 keeps counts
 --   once the records go. Small counts are kept as they are and hidden when they are read (FR-614).
 -- - `cl_obs_weekly_rollup(week)` counts one week again from the deliveries and replaces what was
@@ -50,7 +50,9 @@ begin
     into v_oldest
     from pg_inherits i join pg_class c on c.oid = i.inhrelid
    where i.inhparent = 'public.deliveries'::regclass;
-  return coalesce(v_start >= now() - make_interval(days => v_kept) or (v_oldest is not null and v_start >= v_oldest), false);
+  return coalesce(
+    v_start >= now() - make_interval(days => v_kept) or (v_oldest is not null and v_start >= v_oldest),
+    false);
 end $$;
 
 -- One week counted again from the deliveries: the rows it now keeps, or null when the week's
