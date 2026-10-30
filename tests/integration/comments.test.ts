@@ -455,9 +455,9 @@ describe('a thread on a line or a field of a suggestion', () => {
       expect((await postAt('owner', subject, 'Odd', anchor)).statusCode).toBe(400)
     const lines = { ...versions, side: 'after', line: 5 }
     await ok(postAt('owner', subject, 'The last line', lines))
-    expect(
-      (await postAt('owner', subject, 'Past the end', { ...lines, line: 6 })).statusCode,
-    ).toBe(422)
+    expect((await postAt('owner', subject, 'Past the end', { ...lines, line: 6 })).statusCode).toBe(
+      422,
+    )
     expect(
       (await postAt('owner', subject, 'Nowhere', { before: null, after: null, field: 'title' }))
         .statusCode,
