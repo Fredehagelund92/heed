@@ -301,11 +301,12 @@ export function recogniseRecords(
   })
 
   if (
-    /\bagents?\b.*\b(?:nothing|not found|no answers?|missing|unanswered|not (?:find|found|get|answered)|did not find|didn t find|could not find|couldn t find|found no)\b/.test(
+    !(scoped && !noun) &&
+    (/\bagents?\b.*\b(?:nothing|not found|no answers?|missing|unanswered|not (?:find|found|get|answered)|did not find|didn t find|could not find|couldn t find|found no)\b/.test(
       t,
     ) ||
-    /\b(?:nothing|not found|no answers?)\b.*\bagents?\b/.test(t) ||
-    /\bunanswered\b|\bwent unanswered\b|\bwhat (?:is|are) (?:missing|not covered)\b/.test(t)
+      /\b(?:nothing|not found|no answers?)\b.*\bagents?\b/.test(t) ||
+      /\bunanswered\b|\bwent unanswered\b|\bwhat (?:is|are) (?:missing|not covered)\b/.test(t))
   )
     return ask('asked_nothing', {
       period: readRecordsPeriod('this week', reading.now),

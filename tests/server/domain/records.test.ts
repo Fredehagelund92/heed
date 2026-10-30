@@ -146,6 +146,7 @@ describe('reading a records question', () => {
     'Why did orders in Norway drop in August?',
     'What should I know about Orders in Norway?',
     'What changed in returns in the United Kingdom this week?',
+    'What is missing from our revenue figures in the United Kingdom?',
     'Do Norway orders include gift-card money?',
     'How did orders in Spain change in October 2026?',
     'What was net revenue in Germany last week?',
