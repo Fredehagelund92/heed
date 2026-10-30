@@ -50,7 +50,7 @@ import { useSend, type Sender } from '@/lib/send'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { flushSync } from 'react-dom'
 import { TOUCH } from '@/lib/touch'
-import { diffStats, lineDiff, linesWords } from '@/lib/line-diff'
+import { changeWords, diffStats, lineDiff } from '@/lib/line-diff'
 import { FieldsDiff, TextDiff } from '@/components/heed/source-review'
 import { fieldRows } from '@/model/review-fields'
 import { useSideChoice } from '@/lib/side-panel'
@@ -1366,7 +1366,7 @@ function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUnd
   )
 }
 
-/** What the source changes, counted as the source counts it: fields, then lines of text. */
+/** What the source changes, counted as the source counts it: fields, then sentences of text. */
 function SourceStats({ r }: { r: Review }) {
   const { before, after } = r.fields
   const fields = before && after ? fieldRows(before, after).filter((x) => x.changed).length : null
@@ -1377,7 +1377,7 @@ function SourceStats({ r }: { r: Review }) {
       : fields
         ? `${fields} ${fields === 1 ? 'field' : 'fields'} changed`
         : 'No field changed',
-    text.changes ? `${linesWords(text)} in the text` : 'No change to the text',
+    text.changes ? `${changeWords(text)} in the text` : 'No change to the text',
   ].filter(Boolean)
   return <p className="text-xs text-muted-foreground">{parts.join('. ')}.</p>
 }

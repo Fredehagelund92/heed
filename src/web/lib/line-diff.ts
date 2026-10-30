@@ -1,9 +1,13 @@
 // The Text diff of the review: the stored text line by line, removed before added (as reviewers
-// read a change: what went, then what came), each line with its number on its own side. Inside a
-// changed line only the words that differ are marked ("312 to 340" marks the number, not the
-// sentence), but only when at least half of the words are shared: a line that was rewritten reads
-// as a whole line out and a whole line in. A mention (`[@ id="..." label="..."]`) is one word, so
-// it is never split. Unchanged stretches fold, keeping three lines around each change.
+// read a change: what went, then what came), each line with its number on its own side. A run of
+// removed lines and the added lines after it are one block, its words compared across the lines,
+// so a paragraph split in two, joined or reworded marks only the words that changed, and a word
+// that moved to another line stays plain. Words are marked only when at least half of the block's
+// shorter side stays: a rewrite reads as whole lines out and whole lines in. A block too long to
+// compare reads as whole lines too, and says so. A mention (`[@ id="..." label="..."]`) is one
+// word, so it is never split. Unchanged stretches fold, keeping three lines around each change.
+
+import { blockWords, sourceDiff, wordsFit } from '@domain/source-diff'
 
 export type Word = { text: string; changed: boolean }
 export type Row = {
@@ -14,16 +18,8 @@ export type Row = {
   a?: number
   /** The line's number in the text after; unchanged and added lines have one. */
   b?: number
-}
-
-/** Longest common subsequence table, for lines or words: `at(i, j)` reads it, zero past either end. */
-function lcs<T>(a: T[], b: T[]) {
-  const dp = Array.from({ length: a.length + 1 }, () => new Array<number>(b.length + 1).fill(0))
-  const at = (i: number, j: number) => dp[i]?.[j] ?? 0
-  for (let i = a.length - 1; i >= 0; i--)
-    for (let j = b.length - 1; j >= 0; j--)
-      dp[i]![j] = a[i] === b[j] ? at(i + 1, j + 1) + 1 : Math.max(at(i + 1, j), at(i, j + 1))
-  return at
+  /** Its block is too long to compare word by word. */
+  long?: boolean
 }
 
 /**
@@ -32,87 +28,29 @@ function lcs<T>(a: T[], b: T[]) {
  */
 const tokens = (s: string) => s.match(/\[@ [^\]]*\]|[\p{L}\p{N}]+|\s+|[^\p{L}\p{N}\s]/gu) ?? []
 
-/** One run per changed stretch: a space between two changed words is changed too, and runs join. */
-function runs(words: Word[]): Word[] {
-  const marked = words.map((w, i) => ({
-    ...w,
-    changed: w.changed || (!w.text.trim() && !!words[i - 1]?.changed && !!words[i + 1]?.changed),
-  }))
-  return marked.reduce<Word[]>((out, w) => {
-    const last = out[out.length - 1]
-    if (last && last.changed === w.changed) last.text += w.text
-    else out.push({ ...w })
-    return out
-  }, [])
-}
-
 /** Which words of each side the other side doesn't have, as runs of unchanged and changed text. */
 export function wordDiff(before: string, after: string): [Word[], Word[]] {
-  const a = tokens(before)
-  const b = tokens(after)
-  const dp = lcs(a, b)
-  const left: Word[] = []
-  const right: Word[] = []
-  let i = 0
-  let j = 0
-  while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i] === b[j]) {
-      left.push({ text: a[i++]!, changed: false })
-      right.push({ text: b[j++]!, changed: false })
-    } else if (i < a.length && (j === b.length || dp(i + 1, j) >= dp(i, j + 1)))
-      left.push({ text: a[i++]!, changed: true })
-    else right.push({ text: b[j++]!, changed: true })
-  }
-  return [runs(left), runs(right)]
+  const words = blockWords([before], [after], tokens, 0)
+  return words
+    ? [words.before[0]!, words.after[0]!]
+    : [[{ text: before, changed: true }], [{ text: after, changed: true }]]
 }
-
-/**
- * The share of words two lines have in common, from 0 to 1: the shared words over the words of
- * the longer line. Spaces and marks don't count.
- */
-export function sharedWords(before: string, after: string): number {
-  const words = (s: string) => tokens(s).filter((t) => /[\p{L}\p{N}]/u.test(t))
-  const a = words(before)
-  const b = words(after)
-  const longer = Math.max(a.length, b.length)
-  return longer ? lcs(a, b)(0, 0) / longer : 1
-}
-
-/** Words are marked inside a changed line only when at least this share of them is shared. */
-export const WORD_MARKS_FROM = 0.5
 
 export function lineDiff(before: string, after: string): Row[] {
-  const a = before ? before.split('\n') : []
-  const b = after ? after.split('\n') : []
-  const dp = lcs(a, b)
-  const rows: Row[] = []
-  let i = 0
-  let j = 0
-  while (i < a.length || j < b.length) {
-    if (i < a.length && j < b.length && a[i] === b[j]) {
-      rows.push({ t: ' ', line: a[i]!, a: ++i, b: ++j })
-    } else if (i < a.length && (j === b.length || dp(i + 1, j) >= dp(i, j + 1)))
-      rows.push({ t: '-', line: a[i]!, a: ++i })
-    else rows.push({ t: '+', line: b[j]!, b: ++j })
+  const rows: Row[] = sourceDiff(before, after, tokens)
+  let a = 0
+  let b = 0
+  for (const row of rows) {
+    if (row.t !== '+') row.a = ++a
+    if (row.t !== '-') row.b = ++b
   }
-  // A run of removed lines followed by a run of added ones: pair them up and mark the words of a
-  // pair that is mostly the same.
-  const row = (n: number) => rows[n]!
-  for (let k = 0; k < rows.length; k++) {
-    if (row(k).t !== '-') continue
-    let del = k
-    while (del < rows.length && row(del).t === '-') del++
-    let add = del
-    while (add < rows.length && row(add).t === '+') add++
-    for (let p = 0; p < Math.min(del - k, add - del); p++) {
-      const was = row(k + p).line
-      const now = row(del + p).line
-      if (sharedWords(was, now) < WORD_MARKS_FROM) continue
-      const [l, r] = wordDiff(was, now)
-      row(k + p).words = l
-      row(del + p).words = r
-    }
-    k = add - 1
+  // A block with both sides and no marked words is a rewrite, or too long to compare.
+  for (const part of hunks(rows)) {
+    if (part.t !== 'change' || part.rows.some((r) => r.words)) continue
+    const side = (t: Row['t']) => part.rows.filter((r) => r.t === t).map((r) => r.line)
+    const [removed, added] = [side('-'), side('+')]
+    if (removed.length && added.length && !wordsFit(removed, added, tokens))
+      part.rows.forEach((r) => (r.long = true))
   }
   return rows
 }
@@ -152,20 +90,79 @@ export function hunks(rows: Row[], context = 3): Part[] {
   return parts
 }
 
-/** "2 lines added and 1 removed", "1 line removed": what a diff does to the lines, in words. */
-export function linesWords({ added, removed }: { added: number; removed: number }) {
-  const lines = (n: number) => `${n} ${n === 1 ? 'line' : 'lines'}`
-  if (added && removed) return `${lines(added)} added and ${removed} removed`
-  if (added) return `${lines(added)} added`
-  if (removed) return `${lines(removed)} removed`
-  return 'No line changed'
+/** A line with no words: in a change, it only starts or joins a paragraph. */
+export const isBreak = (row: Row) => row.t !== ' ' && !row.line.trim()
+
+/** Each sentence of a line, as where it starts and ends; a line without an end mark is one. */
+function sentences(line: string): [number, number][] {
+  const out: [number, number][] = []
+  let start = 0
+  for (const m of line.matchAll(/[.!?]+(?=\s|$)/g)) {
+    const end = m.index + m[0].length
+    if (line.slice(start, end).trim()) out.push([start, end])
+    start = end
+  }
+  if (line.slice(start).trim()) out.push([start, line.length])
+  return out
 }
 
-/** How much a diff changes: lines added and removed, and in how many places. */
-export function diffStats(rows: Row[]) {
-  return {
-    added: rows.filter((r) => r.t === '+').length,
-    removed: rows.filter((r) => r.t === '-').length,
-    changes: hunks(rows).filter((p) => p.t === 'change').length,
+/**
+ * The sentences on one side of a change: those changed whole (added or removed) and those with
+ * only some of their words or marks changed.
+ */
+function sentencesOf(rows: Row[]) {
+  let whole = 0
+  let some = 0
+  for (const row of rows) {
+    // Which characters of the line are marked; a line without marks is changed whole.
+    const marked: boolean[] = row.words
+      ? row.words.flatMap((w) => [...w.text].map(() => w.changed))
+      : [...row.line].map(() => true)
+    const chars = [...row.line]
+    for (const [start, end] of sentences(row.line)) {
+      const at = (i: number) => /[\p{L}\p{N}]/u.test(chars[i]!)
+      let words = 0
+      let changed = 0
+      let any = false
+      for (let i = start; i < end; i++) {
+        if (at(i)) words++
+        if (at(i) && marked[i]) changed++
+        if (marked[i] && chars[i]!.trim()) any = true
+      }
+      if (words && changed === words) whole++
+      else if (any) some++
+    }
   }
+  return { whole, some }
+}
+
+/**
+ * How many sentences a change touches: each one added or removed whole, and each one reworded
+ * counted once, though it shows on both sides. A rewrite counts the longer side's sentences.
+ */
+function sentencesChanged(rows: Row[]): number {
+  const before = rows.filter((r) => r.t === '-')
+  const after = rows.filter((r) => r.t === '+')
+  if (before.length && after.length && !rows.some((r) => r.words)) {
+    const count = (side: Row[]) => side.reduce((n, r) => n + sentences(r.line).length, 0)
+    return Math.max(count(before), count(after))
+  }
+  const was = sentencesOf(before)
+  const now = sentencesOf(after)
+  return was.whole + now.whole + Math.max(was.some, now.some)
+}
+
+/** How much a diff changes: the sentences it touches, and in how many places. */
+export function diffStats(rows: Row[]) {
+  const changes = hunks(rows).filter((p) => p.t === 'change')
+  return {
+    sentences: changes.reduce((n, p) => n + sentencesChanged(p.rows), 0),
+    changes: changes.length,
+  }
+}
+
+/** "2 sentences changed", or "Spacing changed" when no word or mark did: a diff in words. */
+export function changeWords({ sentences }: { sentences: number }) {
+  if (!sentences) return 'Spacing changed'
+  return `${sentences} ${sentences === 1 ? 'sentence' : 'sentences'} changed`
 }

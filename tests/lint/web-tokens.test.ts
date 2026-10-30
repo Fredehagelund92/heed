@@ -61,6 +61,8 @@ function paint(name: string, mode: Theme, h = 0): ReturnType<typeof toRgb> {
 /** The colours of shadcn's theme that the app keeps, and the ones it adds. */
 const surfaces = ['background', 'card', 'popover', 'muted', 'accent', 'secondary', 'sidebar']
 const marks = ['add', 'del', 'fmt', 'link', 'move'] as const
+/** The marks with a stronger fill for a changed word inside a changed line of the Text diff. */
+const words = ['add', 'del'] as const
 const colours = [
   ...surfaces,
   ...[
@@ -88,6 +90,7 @@ const colours = [
     'sidebar-ring',
   ],
   ...marks.flatMap((mark) => [`mark-${mark}`, `mark-${mark}-line`]),
+  ...words.map((mark) => `mark-${mark}-word`),
 ]
 
 describe('src/web/styles/tokens.css holds every token of the design contract', () => {
@@ -239,6 +242,12 @@ describe('contrast pairs meet their minimum in both themes', () => {
       bg: `mark-${mark}`,
       min: 4.5,
     })),
+    ...words.map((mark): Pair => ({
+      what: 'changed words in a changed line',
+      fg: 'foreground',
+      bg: `mark-${mark}-word`,
+      min: 4.5,
+    })),
     // Controls, field borders, marks and meaningful icons, 3:1
     ...['background', 'card', 'popover'].map((bg): Pair => ({
       what: 'field border',
@@ -257,6 +266,12 @@ describe('contrast pairs meet their minimum in both themes', () => {
       { what: 'mark line on the page', fg: `mark-${mark}-line`, bg: 'background', min: 3 },
       { what: 'mark line on its fill', fg: `mark-${mark}-line`, bg: `mark-${mark}`, min: 3 },
     ]),
+    ...words.map((mark): Pair => ({
+      what: 'mark line on a changed word',
+      fg: `mark-${mark}-line`,
+      bg: `mark-${mark}-word`,
+      min: 3,
+    })),
     ...['ok', 'warn', 'idle'].flatMap((fg) =>
       ['background', 'card', 'muted', 'accent'].map((bg): Pair => ({
         what: 'freshness and trust',
