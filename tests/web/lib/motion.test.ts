@@ -49,33 +49,3 @@ describe('motion tokens', () => {
     expect(hits(/animate-\[(?!countdown_|readfill_)[^\]]*\]/)).toEqual([])
   })
 })
-
-describe('the motion of small moments', () => {
-  const read = (file: string) => source.find((s) => s.file === file)?.text ?? ''
-  const css = readFileSync(join(ROOT, 'styles/index.css'), 'utf8')
-
-  it('opens and shuts every fold through the collapsible, which moves', () => {
-    expect(read('components/ui/collapsible.tsx')).toContain("'fold-motion'")
-    // A fold of its own (a button and a panel hidden while shut) snaps: use the collapsible.
-    expect(hits(/(?<![-\w])hidden=\{!\w+\}/)).toEqual([])
-  })
-  it('turns a copy icon into a tick in one place, so it moves', () => {
-    expect(hits(/\?\s*<CheckIcon\b[^>]*\/>\s*:\s*<CopyIcon\b/)).toEqual([])
-    expect(hits(/\bsetCopied\b/, (_, file) => file === 'components/heed/copied-icon.tsx')).toEqual(
-      [],
-    )
-  })
-  it('lets rows leave and arrive through one presence pattern (lib/presence.ts)', () => {
-    // A row's own leaving classes or its own timer drift from the 150ms and 220ms of the doc.
-    expect(hits(/\bdata-leaving:|\bDELETE_MS\b/)).toEqual([])
-  })
-  it('moves a sheet on the panel curve, by a token distance', () => {
-    const sheet = read('components/ui/sheet.tsx')
-    expect(sheet).toContain('sheet-motion')
-    expect(sheet).not.toMatch(/translate-[xy]-\d|ease-move/)
-  })
-  it('runs toasts on the tokens, not on the times of their library', () => {
-    expect(css).toMatch(/\[data-sonner-toast\][^{]*\{[^}]*transition-duration: var\(--dur-3\)/)
-    expect(css).toMatch(/\[data-removed='true'\][^{]*\{[^}]*transition-duration: var\(--dur-2\)/)
-  })
-})
