@@ -7,8 +7,9 @@ import { Loadable } from "@/components/heed/load-state"
 import { ObsSkeleton } from "@/components/obs/obs-skeleton"
 import { LineChart } from "@/components/obs/charts"
 import { Kpi, RangeSwitch } from "@/components/obs/controls"
+import { kpiChange } from "@/lib/obs-change"
 import { AGENT_TOOLS } from "@/data/agents"
-import { AGENT_CALLS, SPEND, TOOL_CALLS, money, speedOf } from "@/data/observability"
+import { AGENT_CALLS, countChange, SPEND, TOOL_CALLS, money, speedOf } from "@/data/observability"
 import { OBS_PURPOSE, useObsView } from "@/lib/obs"
 import { ObsPage } from "@/pages/observability"
 
@@ -73,8 +74,8 @@ function Usage() {
           icon={<WrenchIcon />}
           label="Tool calls"
           value={calls.toLocaleString("en")}
-          change={view.range === 7 && view.state === "normal" ? "+8%" : undefined}
-          tone="up"
+          // 312 against 289 the 7 days before: more calls is neither good nor bad, and this is a move chance would make.
+          change={view.range === 7 && view.state === "normal" ? kpiChange(countChange(calls, 289), () => "+8%") : undefined}
           sub={`by ${agents.length} kinds of agent`}
         />
         <Kpi icon={<TimerIcon />} label="Median reply" value={median} unit="ms" sub={`95 of 100 under ${p95} ms`} />
@@ -82,8 +83,6 @@ function Usage() {
           icon={<CircleAlertIcon />}
           label="Could not be read"
           value={unread}
-          change={view.range === 7 && view.state === "normal" ? "-1" : undefined}
-          tone="up"
           sub={`${calls ? ((unread / calls) * 100).toFixed(1) : "0"}% of calls`}
         />
         <Kpi icon={<CoinsIcon />} label="Model spend" value={money(SPEND.total)} sub={`of ${money(SPEND.cap).replace(".00", "")} this month`} />

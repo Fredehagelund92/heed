@@ -282,10 +282,14 @@ describe('Overview and Questions (obs.agents)', () => {
     expect(view.bars.map((b) => [b.start, b.days])).toEqual(
       Array.from({ length: 7 }, (_, i) => [`2026-10-${16 + i}`, 1]),
     )
-    // 72 asked, 7 found nothing; the week before, 30. Today is not counted until it is over.
+    // 72 asked, 7 found nothing; the week before, 30, every one checked. Today is not counted
+    // until it is over.
     expect(view.numbers.asked).toBe(72)
     expect(view.numbers.counts.missing).toBe(7)
-    expect(view.numbers.before).toEqual({ asked: 30, missing: 0 })
+    expect(view.numbers.before).toEqual({ asked: 30, missing: 0, grounded: 30 })
+    // 61 were checked, but with 72 asked and 7 not found that leaves the 4 answered with a
+    // warning: what was checked hides, so the hidden 4 cannot be worked out.
+    expect(view.numbers.counts.grounded).toBeNull()
     // Two calls covered part of it: hidden, and the day's bar shows no part of them.
     expect(view.numbers.counts.partial).toBeNull()
     expect(view.bars.find((b) => b.start === '2026-10-20')!.counts).toMatchObject({
@@ -339,6 +343,9 @@ describe('Overview and Questions (obs.agents)', () => {
   it('narrows the numbers to a domain, and an owner to the domains they own', async () => {
     const finance = await ok<ObsAgents>('admin', '/observability/agents?range=7&areaId=finance')
     expect(finance.numbers.asked).toBe(64)
+    // Finance's 64: 59 checked; the 1 not found hides, so what checked leaves over is 5 (the 4
+    // with a warning and the 1), which may show, and Overview's checked share is 59 of 64.
+    expect(finance.numbers.counts).toMatchObject({ grounded: 59, missing: null })
     expectPrivate(finance)
     const owner = await ok<ObsAgents>('owner', '/observability/agents?range=7')
     expect(new Set(owner.topics.map((t) => t.areaId))).toEqual(new Set(['finance']))

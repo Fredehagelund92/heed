@@ -396,7 +396,7 @@ export type TopicView = {
  * on one can be subtracted from another: each topic and its answer states, each subject over its
  * months, each domain, and with a chart, what it counts (everything, or one domain) by answer
  * state and each bar. Everything asked is always counted (Overview leads with it), and what found
- * nothing is kept before anything finer, so the share that found something can be read; the
+ * nothing and what was checked are kept before anything finer, so their shares can be read; the
  * counts under them are hidden as far as needed to keep a hidden one from being worked out. A
  * topic keeps its total before its answer states, a domain its total before its topics, and an
  * answer state its total before a bar's; a subject's total is hidden before its months ("13+"). A
@@ -519,10 +519,15 @@ export function topicView(rows: readonly TopicCounts[], minimum: number, chart?:
       id: `h:${s}`,
       value: sum(inScope, s),
       whole: sumWhole(inScope, s) ?? barWhole(s),
-      // What found nothing is Overview's own number: finer counts are hidden to keep it, and it
-      // goes only when everything asked less what found nothing would be a hidden count. The other
-      // states are only what the bars add up to, never shown as a number of their own.
-      ...(s === 'missing' ? { keep: [0, 1], protect: true } : { unpublished: true }),
+      // What found nothing and what was checked are Overview's own numbers: finer counts are
+      // hidden to keep them. What found nothing goes only when everything asked less what found
+      // nothing would be a hidden count; what was checked goes before it. The other states are
+      // only what the bars add up to, never shown as a number of their own.
+      ...(s === 'missing'
+        ? { keep: [0, 1], protect: true }
+        : s === 'grounded'
+          ? { keep: [0, 1] }
+          : { unpublished: true }),
       parts: [bars.map((_, i) => `b:${i}:${s}`), bySubject],
     })
     bars.forEach((b, i) =>
@@ -612,9 +617,12 @@ export const answersOf = (s: {
 }) => (s.total === null && s.atLeast === 0 ? [] : shownStates.filter((k) => s.counts[k] !== 0))
 
 /**
- * What was asked in the range before (Overview's comparison): everything, and what found nothing,
- * kept only when what found something is not a hidden count. For a view of one kind of agent,
- * `whole` is the same over every agent.
+ * What was asked in the range before (Overview's comparison): everything; what found nothing,
+ * kept only when what found something is not a hidden count; and what was checked, kept only with
+ * everything asked and when nothing it lets a reader work out is a hidden count: what was not
+ * checked, and with what found nothing, what was answered with a warning. For a view of one kind
+ * of agent, `whole` is the same over every agent, and what the other kinds asked may not be a
+ * hidden count either.
  */
 export function beforeView(counts: StateCounts, minimum: number, whole?: StateCounts) {
   const fine = (n: number) => n === 0 || n >= minimum
@@ -627,7 +635,63 @@ export function beforeView(counts: StateCounts, minimum: number, whole?: StateCo
     fine(found) &&
     (whole === undefined ||
       (fine(whole.missing - counts.missing) && fine(all! - whole.missing - found)))
-  return { asked: askedShown ? asked : null, missing: missingShown ? counts.missing : null }
+  // What a reader can work out once what was checked shows too, here and over every agent.
+  const workedOut = (c: StateCounts) => [
+    c.grounded,
+    sumCounts(c) - c.grounded,
+    ...(missingShown ? [c.partial + c.conflict + c.stale] : []),
+  ]
+  const others = whole && workedOut(whole).map((n, i) => n - workedOut(counts)[i]!)
+  const groundedShown =
+    askedShown && workedOut(counts).every(fine) && (others === undefined || others.every(fine))
+  return {
+    asked: askedShown ? asked : null,
+    missing: missingShown ? counts.missing : null,
+    grounded: groundedShown ? counts.grounded : null,
+  }
+}
+
+/* ---------- two periods compared ---------- */
+
+/**
+ * Under this many questions in either period, a share or a per cent change says nothing: too few
+ * to compare.
+ */
+export const COMPARE_FROM = 30
+
+/**
+ * How a number moved from the period before: up or down only when the move is bigger than chance
+ * would make it (about 95%, which is the least margin: calls from one agent are not independent),
+ * else the same. `by` is the move, in calls or in whole points.
+ */
+export type Change = { direction: 'up' | 'down' | 'same'; by: number }
+
+const Z = 1.96
+const directionOf = (by: number, margin: number): Change['direction'] =>
+  Math.abs(by) <= margin ? 'same' : by > 0 ? 'up' : 'down'
+
+/** Two counts over the same length of time, each read as a Poisson count. */
+export function countChange(now: number, before: number): Change {
+  const by = now - before
+  return { direction: directionOf(by, Z * Math.sqrt(now + before)), by }
+}
+
+/**
+ * Two shares in whole points (a part of everything asked, now and before), against the margin of
+ * two proportions; null under COMPARE_FROM asked in either period.
+ */
+export function shareChange(
+  part: number,
+  asked: number,
+  partBefore: number,
+  askedBefore: number,
+): Change | null {
+  if (asked < COMPARE_FROM || askedBefore < COMPARE_FROM) return null
+  const p = (part + partBefore) / (asked + askedBefore)
+  const margin = Z * Math.sqrt(p * (1 - p) * (1 / asked + 1 / askedBefore))
+  const diff = part / asked - partBefore / askedBefore
+  const by = Math.round(diff * 100)
+  return { direction: by === 0 ? 'same' : directionOf(diff, margin), by }
 }
 
 /**

@@ -15,10 +15,12 @@ import {
   type SourceSnapshot,
 } from '../../src/server/modules/connectors/index.ts'
 import { databaseFromPool } from '../../src/server/db/database.ts'
-import { testDatabase } from './support.ts'
+import { ignoreTeardownDisconnects, testDatabase } from './support.ts'
 
 const { client, url } = testDatabase()
-const pool = new pg.Pool({ connectionString: url, options: '-c role=context_layer_api', max: 4 })
+const pool = ignoreTeardownDisconnects(
+  new pg.Pool({ connectionString: url, options: '-c role=context_layer_api', max: 4 }),
+)
 const database = databaseFromPool(pool)
 afterAll(async () => {
   await pool.end()

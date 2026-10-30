@@ -1,3 +1,4 @@
+import { COMPARE_FROM, countChange, shareChange, type Change } from '@domain/observability'
 import { stateLabel, type AnswerState } from './ask'
 import type { DomainId } from './items'
 
@@ -31,11 +32,6 @@ export const noCounts = (): Counts => ({
 })
 /** What the shown counts add up to. */
 export const shownSum = (c: Counts) => SHOWN.reduce((n, k) => n + (c[k] ?? 0), 0)
-/** Found checked context: every answer that rests on something written down, when it is known. */
-export const found = (c: Counts): Count =>
-  SHOWN.every((k) => k === 'missing' || c[k] !== null)
-    ? SHOWN.reduce((n, k) => (k === 'missing' ? n : n + c[k]!), 0)
-    : null
 
 /** Under this, a count is shown as "Fewer than 5". */
 export const HIDE_UNDER = 5
@@ -209,7 +205,11 @@ export type ObsData = {
   /** The last day counted, as a UTC timestamp. */
   last: number
   /** What was asked in the range, by answer state, and in the range before it. */
-  numbers: { asked: Count; counts: Counts; before: { asked: Count; missing: Count } }
+  numbers: {
+    asked: Count
+    counts: Counts
+    before: { asked: Count; missing: Count; grounded: Count }
+  }
   /** The chart: a bar a day for 7 and 30 days, a week a bar for 90. */
   bars: Bar[]
   /** Every topic of the range in the domains the reader sees, whatever domain the numbers are for. */
@@ -291,6 +291,18 @@ export function statusOf(
 /** A share in whole per cent, or null when either count is hidden. */
 export const share = (part: Count, whole: Count) =>
   part === null || whole === null || whole === 0 ? null : Math.round((part / whole) * 100)
+
+/**
+ * How what was asked moved: in per cent when the range before had enough to compare with, else in
+ * calls; the same within the margin.
+ */
+export function askedChange(now: number, before: number): Change & { percent: number | null } {
+  const change = countChange(now, before)
+  return {
+    ...change,
+    percent: before >= COMPARE_FROM ? Math.round(((now - before) / before) * 100) : null,
+  }
+}
 
 /** Observability's reading of a page's data: names, roll-ups and the numbers Overview leads with. */
 export function observability(data: ObsData) {
@@ -394,27 +406,33 @@ export function observability(data: ObsData) {
       .sort((a, b) => size(b) - size(a))
   }
 
-  /** The headline numbers of the view, and how they compare with the range before. */
+  /**
+   * The headline numbers of the view, and how they compare with the range before: what was asked,
+   * in calls; what was checked (only Checked, never an answer with a warning) and what found
+   * nothing, by their shares. A change is null when a count is hidden or too small to compare.
+   */
   function numbers() {
     const { asked, counts, before } = data.numbers
     const nothing = counts.missing
-    const foundNow = asked !== null && nothing !== null ? asked - nothing : null
-    const foundBefore =
-      before.asked !== null && before.missing !== null ? before.asked - before.missing : null
-    const shareNow = share(foundNow, asked)
-    const shareBefore = share(foundBefore, before.asked)
+    const checked = counts.grounded
+    const both = (now: Count, was: Count) => now !== null && was !== null
     return {
       asked,
       askedBefore: before.asked,
-      askedChange:
-        asked !== null && before.asked
-          ? Math.round(((asked - before.asked) / before.asked) * 100)
+      askedChange: both(asked, before.asked) ? askedChange(asked!, before.asked!) : null,
+      checked,
+      checkedShare: share(checked, asked),
+      checkedChange:
+        both(checked, before.grounded) && both(asked, before.asked)
+          ? shareChange(checked!, asked!, before.grounded!, before.asked!)
           : null,
-      found: foundNow,
-      foundShare: shareNow,
-      foundChange: shareNow !== null && shareBefore !== null ? shareNow - shareBefore : null,
       nothing,
-      nothingChange: nothing !== null && before.missing !== null ? nothing - before.missing : null,
+      // By its share, as Checked: more questions bring more that found nothing, and that alone is
+      // no worse.
+      nothingChange:
+        both(nothing, before.missing) && both(asked, before.asked) && nothing! >= HIDE_UNDER
+          ? shareChange(nothing!, asked!, before.missing!, before.asked!)
+          : null,
       nothingShare: share(nothing, asked),
       counts,
     }

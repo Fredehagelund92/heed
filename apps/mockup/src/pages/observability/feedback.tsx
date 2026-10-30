@@ -8,7 +8,8 @@ import { ObsSkeleton } from "@/components/obs/obs-skeleton"
 import { DomainDot } from "@/components/heed/tag-chip"
 import { Bars } from "@/components/obs/charts"
 import { Kpi, RangeSwitch } from "@/components/obs/controls"
-import { FEEDBACK_WEEK, GOOD_BY_WEEK, REPORT_WORDS, REPORTS, shownCount, type ReportState } from "@/data/observability"
+import { kpiChange, moreOrFewer } from "@/lib/obs-change"
+import { countChange, FEEDBACK_WEEK, GOOD_BY_WEEK, REPORT_WORDS, REPORTS, shownCount, type ReportState } from "@/data/observability"
 import { domains } from "@/data/world"
 import { OBS_PURPOSE, useObsView } from "@/lib/obs"
 import { ObsPage } from "@/pages/observability"
@@ -66,8 +67,7 @@ function Feedback() {
           icon={<ThumbsUpIcon />}
           label="Good answer"
           value={shownCount(good)}
-          change={view.range === 7 ? `+${FEEDBACK_WEEK.goodChange}` : undefined}
-          tone="up"
+          change={view.range === 7 ? kpiChange(countChange(good, good - FEEDBACK_WEEK.goodChange), moreOrFewer, "up") : undefined}
           sub={`${view.label}, in Ask`}
         />
         <Kpi

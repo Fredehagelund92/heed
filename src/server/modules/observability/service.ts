@@ -225,7 +225,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         numbers: {
           asked: null,
           counts: { grounded: null, partial: null, conflict: null, stale: null, missing: null },
-          before: { asked: null, missing: null },
+          before: { asked: null, missing: null, grounded: null },
         },
         bars: [],
         topics: [],

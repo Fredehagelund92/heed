@@ -74,9 +74,17 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   await go(page, '/observability')
   const cells = page.locator('a', { hasText: 'Asked' }).first()
   await expect(cells).toContainText('142')
-  await expect(cells).toContainText('+10%')
-  await expect(page.getByRole('link', { name: /Found checked context/ })).toContainText('82%')
-  await expect(page.getByRole('link', { name: /^Not found/ })).toContainText('2 fewer')
+  // 142 against 129 the 7 days before is a move chance would make: no arrow, no colour, no per cent.
+  await expect(cells).toContainText('About the same')
+  await expect(cells).not.toContainText('%')
+  // The checked share counts Checked answers only: 94 of 142, not the 117 that found something.
+  const checked = page.getByRole('link', { name: /^Checked answers/ })
+  await expect(checked).toContainText('66%')
+  await expect(checked).toContainText('94 of 142 asked')
+  await expect(checked).toHaveAttribute('href', /answer=grounded/)
+  const nothing = page.getByRole('link', { name: /^Not found/ })
+  await expect(nothing).toContainText('About the same')
+  await expect(nothing.locator('[data-slot=kpi-change] svg')).toHaveCount(0)
   // One source for saved questions: 9 same of 12.
   await expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(
     /9\s*same\s*of 12/,
@@ -100,8 +108,19 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
       .getByRole('rowheader', { name: /published/ })
       .first(),
   ).toBeVisible()
+  // Labels over the chart never run into each other: one that has no room is left out.
+  const labels = await page
+    .locator('figure svg text', { hasText: /published/i })
+    .evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.right]))
+  for (const [i, [, right]] of labels.entries())
+    if (labels[i + 1]) expect(right!).toBeLessThan(labels[i + 1]![0]!)
   await page.getByRole('radio', { name: '90 days' }).click()
   await expect(page.getByRole('heading', { name: 'Questions per week' })).toBeVisible()
+  // 90 days against the 90 before: more checked, by more than chance would make, is good news.
+  const up = page.getByRole('link', { name: /^Checked answers/ }).locator('[data-slot=kpi-change]')
+  await expect(up).toContainText(/\+\d+ pts/)
+  await expect(up.locator('svg')).toHaveCount(1)
+  await expect(up).toHaveClass(/--ok/)
 
   // A number is a way into its rows.
   await page.getByRole('link', { name: /^Not found/ }).click()

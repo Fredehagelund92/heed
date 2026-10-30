@@ -1,5 +1,5 @@
 import * as React from "react"
-import { BotIcon, ChevronDownIcon, LayersIcon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, BotIcon, ChevronDownIcon, LayersIcon } from "lucide-react"
 import { cn } from "cn"
 import { Changed } from "@/components/heed/changed"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import {
 import { AGENTS, RANGES, type Range } from "@/data/observability"
 import { domainIds, domains, type DomainId } from "@/data/world"
 import type { ObsView } from "@/lib/obs"
+import type { KpiChange } from "@/lib/obs-change"
 import { setQuery } from "@/lib/router"
 
 // The controls every Observability page shares, kept in the address so a link (or Back) lands the
@@ -113,6 +114,7 @@ export function ObsControls({ view, compact }: { view: ObsView; compact?: boolea
   )
 }
 
+
 /** One number in a row of cells: a label with its icon, the number, and a line on what it compares with. A link goes to its rows. */
 export function Kpi({
   icon,
@@ -120,7 +122,6 @@ export function Kpi({
   value,
   unit,
   change,
-  tone,
   sub,
   href,
 }: {
@@ -128,11 +129,11 @@ export function Kpi({
   label: string
   value: React.ReactNode
   unit?: string
-  change?: string
-  tone?: "up" | "down" | "warn"
+  change?: KpiChange
   sub?: string
   href?: string
 }) {
+  const Arrow = change?.direction === "up" ? ArrowUpIcon : ArrowDownIcon
   const body = (
     <>
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
@@ -145,10 +146,23 @@ export function Kpi({
         </Changed>
         {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
       </span>
-      <span className="mt-0.5 text-xs text-muted-foreground">
-        {change && <span className={cn("mr-1 font-semibold", tone === "up" && "text-[var(--ok)]", tone === "warn" && "text-[var(--warn)]")}>{change}</span>}
-        {sub}
-      </span>
+      {/* The change on a line of its own, so it never runs into what the number counts. */}
+      {change && (
+        <span
+          data-slot="kpi-change"
+          className={cn(
+            "mt-0.5 flex items-center gap-0.5 text-xs font-semibold text-muted-foreground",
+            !change.direction && "font-medium",
+            change.direction && change.tone === "good" && "text-[var(--ok)]",
+            change.direction && change.tone === "bad" && "text-destructive",
+            change.direction && !change.tone && "text-foreground",
+          )}
+        >
+          {change.direction && <Arrow className="size-3" aria-hidden />}
+          {change.words}
+        </span>
+      )}
+      {sub && <span className="mt-0.5 text-xs text-muted-foreground">{sub}</span>}
     </>
   )
   const cls = "flex min-w-0 flex-col bg-background px-4 py-3 md:px-5 md:py-4"

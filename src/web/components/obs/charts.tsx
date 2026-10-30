@@ -89,6 +89,38 @@ function useWidth(fallback: number) {
   return [ref, w] as const
 }
 
+/** About how wide a chart label of 10 px is, per character. */
+const LABEL_CHAR = 5.6
+
+/**
+ * One dashed line per bar with a publish, and its label above the plot ("Published", "2
+ * published") only where it has room: a label that would run into the one before it is left out,
+ * and the line, the tooltip and the table for a screen reader still say it. A label that would run
+ * past the right edge ends at its line instead.
+ */
+export function publishLines(
+  marks: readonly { index: number }[],
+  xOf: (index: number) => number,
+  left: number,
+  right: number,
+): { index: number; x: number; label?: string; end?: boolean }[] {
+  const counts = new Map<number, number>()
+  for (const m of marks) counts.set(m.index, (counts.get(m.index) ?? 0) + 1)
+  let free = left
+  return [...counts.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([index, n]) => {
+      const x = xOf(index)
+      const label = n > 1 ? `${n} published` : 'Published'
+      const width = label.length * LABEL_CHAR
+      const end = x + 4 + width > right
+      const from = end ? x - 4 - width : x + 4
+      if (from < free) return { index, x }
+      free = from + width + 6
+      return { index, x, label, end }
+    })
+}
+
 /**
  * Questions per day (or per week), stacked by how they were answered, with a dashed line at each
  * publish so you can see whether the hatch of "nothing written down" shrank after it.
@@ -129,6 +161,7 @@ export function StackedBars({
   const room = slot >= 44 ? 1 : slot >= 22 ? 2 : 5
   const every = Math.max(room, bars.length > 20 ? 5 : 1)
   const tip = hover !== null ? bars[hover] : null
+  const lines = publishLines(marks, (i) => pad.l + slot * i, pad.l, W - pad.r)
   return (
     <figure ref={box} className="relative m-0">
       <svg
@@ -202,25 +235,29 @@ export function StackedBars({
             </g>
           )
         })}
-        {marks.map((m) => {
-          const x = pad.l + slot * m.index
-          return (
-            <g key={m.index}>
-              <line
-                x1={x}
-                x2={x}
-                y1={pad.t - 6}
-                y2={pad.t + plotH}
-                stroke="var(--foreground)"
-                strokeDasharray="2 2"
-                strokeWidth="1"
-              />
-              <text x={x + 4} y={pad.t - 8} className="fill-foreground text-3xs">
-                Published
+        {lines.map((m) => (
+          <g key={m.index}>
+            <line
+              x1={m.x}
+              x2={m.x}
+              y1={pad.t - 6}
+              y2={pad.t + plotH}
+              stroke="var(--foreground)"
+              strokeDasharray="2 2"
+              strokeWidth="1"
+            />
+            {m.label && (
+              <text
+                x={m.end ? m.x - 4 : m.x + 4}
+                y={pad.t - 8}
+                textAnchor={m.end ? 'end' : 'start'}
+                className="fill-foreground text-3xs"
+              >
+                {m.label}
               </text>
-            </g>
-          )
-        })}
+            )}
+          </g>
+        ))}
       </svg>
       {tip && (
         <div className="pointer-events-none absolute top-2 right-2 z-raised min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
@@ -237,11 +274,13 @@ export function StackedBars({
               </li>
             ))}
           </ul>
-          {marks.find((m) => m.index === hover) && (
-            <p className="mt-1.5 border-t pt-1.5">
-              Published: {marks.find((m) => m.index === hover)!.title}
-            </p>
-          )}
+          {marks
+            .filter((m) => m.index === hover)
+            .map((m, i) => (
+              <p key={i} className={cn(i === 0 ? 'mt-1.5 border-t pt-1.5' : 'mt-0.5')}>
+                Published: {m.title}
+              </p>
+            ))}
         </div>
       )}
       <table className="sr-only">

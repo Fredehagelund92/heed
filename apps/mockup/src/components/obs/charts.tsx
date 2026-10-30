@@ -2,6 +2,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { SHOWN, STATE_WORDS, total, type Counts, type Shown } from "@/data/observability"
 import { ArrivedAfterWait } from "@/lib/loading"
+import { publishLines } from "@/lib/obs-change"
 
 // Observability's charts, small SVG on the app's own tokens. One rule for colour: blue is the one
 // colour for checked context, amber for what to look at, greys for the rest, and a hatch for
@@ -159,17 +160,16 @@ export function StackedBars({
             </g>
           )
         })}
-        {marks.map((m) => {
-          const x = pad.l + slot * m.index
-          return (
-            <g key={m.index}>
-              <line x1={x} x2={x} y1={pad.t - 6} y2={pad.t + plotH} stroke="var(--foreground)" strokeDasharray="2 2" strokeWidth="1" />
-              <text x={x + 4} y={pad.t - 8} className="fill-foreground text-[10px]">
-                Published
+        {publishLines(marks, (i) => pad.l + slot * i, pad.l, W - pad.r).map((m) => (
+          <g key={m.index}>
+            <line x1={m.x} x2={m.x} y1={pad.t - 6} y2={pad.t + plotH} stroke="var(--foreground)" strokeDasharray="2 2" strokeWidth="1" />
+            {m.label && (
+              <text x={m.end ? m.x - 4 : m.x + 4} y={pad.t - 8} textAnchor={m.end ? "end" : "start"} className="fill-foreground text-[10px]">
+                {m.label}
               </text>
-            </g>
-          )
-        })}
+            )}
+          </g>
+        ))}
       </svg>
       {tip && (
         <div className="pointer-events-none absolute top-2 right-2 z-10 min-w-48 rounded-lg border bg-popover px-3 py-2 text-xs shadow-md">
@@ -185,7 +185,13 @@ export function StackedBars({
               </li>
             ))}
           </ul>
-          {marks.find((m) => m.index === hover) && <p className="mt-1.5 border-t pt-1.5">Published: {marks.find((m) => m.index === hover)!.title}</p>}
+          {marks
+            .filter((m) => m.index === hover)
+            .map((m, i) => (
+              <p key={i} className={cn(i === 0 ? "mt-1.5 border-t pt-1.5" : "mt-0.5")}>
+                Published: {m.title}
+              </p>
+            ))}
         </div>
       )}
       <table className="sr-only">

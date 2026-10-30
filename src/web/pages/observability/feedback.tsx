@@ -18,7 +18,8 @@ import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { Bars } from '@/components/obs/charts'
-import { Kpi, RangeSwitch } from '@/components/obs/controls'
+import { countChange } from '@domain/observability'
+import { Kpi, kpiChange, moreOrFewer, RangeSwitch } from '@/components/obs/controls'
 import { REPORT_WORDS, shownCount, type ReportState } from '@/model/observability'
 import { OBS_PURPOSE, useObsView } from '@/lib/obs'
 import { ObsPage } from '@/pages/observability'
@@ -95,11 +96,10 @@ function Feedback() {
           label="Good answer"
           value={shownCount(good)}
           change={
-            good !== null && goodBefore !== null && good !== goodBefore
-              ? `${good > goodBefore ? '+' : ''}${good - goodBefore}`
+            good !== null && goodBefore !== null
+              ? kpiChange(countChange(good, goodBefore), moreOrFewer, 'up')
               : undefined
           }
-          tone="up"
           sub={`${view.label}, in Ask`}
         />
         <Kpi

@@ -726,7 +726,7 @@ function WeekLine() {
   return (
     <>
       <span className="max-sm:hidden">
-        This week agents asked {week.asked} times. {week.found} found checked context; {week.nothing} found nothing written down, most about {week.mostAbout}.
+        This week agents asked {week.asked} times. {week.found} found something written down; {week.nothing} found nothing written down, most about {week.mostAbout}.
       </span>
       <span className="sm:hidden">
         Agents asked {week.asked} times this week; {week.nothing} found nothing written down.
