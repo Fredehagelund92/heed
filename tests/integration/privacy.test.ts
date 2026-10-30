@@ -64,6 +64,9 @@ const columns = {
   // Observability's weekly counts, kept without limit (FR-612): a week, a domain, an answer state
   // from fixed lists, and a count. Never a topic, a question or who asked.
   obs_weekly: ['week', 'area_id', 'answer_state', 'calls'],
+  // Which records questions Ask was asked (FR-718): a week, an id from a fixed list, and a count.
+  // Never the words, never who asked, never what the question named.
+  records_asked_weekly: ['week', 'intent', 'asks'],
   // A person's report (FR-606 case 5) keeps digests of its retry key and request, never who sent it.
   gap_report_keys: ['retry_digest', 'request_digest', 'gap_id', 'expires_hour'],
   // FR-410: the agent is kept as its family from a fixed list, never its own name or version.

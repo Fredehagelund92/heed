@@ -58,6 +58,7 @@ import {
   askedThisWeek,
   createBundleCache,
   lookupQuestion,
+  minimumCount,
   planWords,
   replayTopic,
   wordsInputOf,
@@ -1036,6 +1037,16 @@ export function createRouter({
                   wordsInputOf(input.question, answer),
                 )
             : undefined,
+          // A question about the context's own records, from what the person may see (FR-718).
+          {
+            index: () => context.library.getIndex(),
+            areas: () => context.areas.list(),
+            people: () => listMembers(context.tx),
+            asked: async () => ({
+              asked: await askedThisWeek(context.tx, clock, answerBundles),
+              minimum: await minimumCount(context.tx),
+            }),
+          },
         )
       }),
       asked: authorized.ask.asked.handler(({ context }) =>

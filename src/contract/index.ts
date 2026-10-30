@@ -1776,7 +1776,7 @@ export const contract = {
         path: '/ask/lookup',
         tags: ['assistant'],
         summary:
-          'A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; the question is never stored (FR-602)',
+          "A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; or a question about the context's own records, answered from what the person may see, with no answer state; the question is never stored (FR-602)",
       })
       .input(lookupInputSchema)
       .output(eventIterator(lookupEventSchema)),

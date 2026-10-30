@@ -47,7 +47,7 @@ test('a question that names nothing says nothing was looked up, never Not found'
   await go(page, '/ask?n=j3b')
   const box = page.getByRole('textbox', { name: 'Ask a question' })
   await box.click()
-  await box.pressSequentially('give me context created in last 24 hours?')
+  await box.pressSequentially('tell me a joke')
   await box.press('Enter')
   const log = page.getByRole('log')
   await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toBeVisible()
@@ -55,7 +55,7 @@ test('a question that names nothing says nothing was looked up, never Not found'
   await expect(log.getByText(/^The question needs a metric or a market, such as \w/)).toBeVisible()
   await expect(log.getByText('Not found', { exact: true })).toHaveCount(0)
   await expect(log.getByText('Nothing is written about this yet.')).toHaveCount(0)
-  await expect(log.getByText(/Questions about the context itself/)).toBeVisible()
+  await expect(log.getByText(/Ask also answers questions about the records/)).toBeVisible()
   // What Ask can answer today, from the workspace: picking one asks it in the same chat.
   const kinds = log.getByRole('group', { name: 'Questions Ask can answer' })
   const example = kinds.getByRole('button').first()

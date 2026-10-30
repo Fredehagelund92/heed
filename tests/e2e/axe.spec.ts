@@ -147,11 +147,29 @@ for (const { name, width, height } of widths) {
         await page.goto(withTheme('/ask?n=axe-unread', theme))
         const box = page.getByRole('textbox', { name: 'Ask a question' })
         await box.click()
-        await box.pressSequentially('give me context created in last 24 hours?')
+        await box.pressSequentially('tell me a joke')
         await box.press('Enter')
         await expect(page.getByRole('group', { name: 'Questions Ask can answer' })).toBeVisible()
         expect(await violations(page)).toEqual([])
       })
+
+      // Records answers (FR-718): a list with links, a table of counts, and a refused question.
+      for (const question of [
+        'what is due for a check in Sales?',
+        'how many context items does Sales have?',
+        'what did Tomas Eriksen write this week?',
+      ])
+        test(`a records answer: ${question}`, async ({ page }) => {
+          await page.goto(withTheme(`/ask?n=axe-records-${question.length}`, theme))
+          const box = page.getByRole('textbox', { name: 'Ask a question' })
+          await box.click()
+          await box.pressSequentially(question)
+          await box.press('Enter')
+          await expect(
+            page.getByRole('group', { name: /^(Ask next|Questions Ask can answer)$/ }),
+          ).toBeVisible()
+          expect(await violations(page)).toEqual([])
+        })
 
       test('the Help menu, open', async ({ page }) => {
         await page.goto(withTheme('/inbox', theme))

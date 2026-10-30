@@ -163,6 +163,7 @@ export {
   Subscript,
   SunIcon,
   Superscript,
+  TableIcon,
   TagIcon,
   TextAlignCenter,
   TextAlignEnd,

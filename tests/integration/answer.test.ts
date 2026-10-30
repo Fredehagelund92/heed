@@ -319,15 +319,23 @@ describe('Ask: a look-up', () => {
 
   it('answers the topics lab in under 50 ms at the 95th percentile on the demo library', async () => {
     const durations: number[] = []
+    // A question about the records is answered from them and not looked up (FR-718): Ask reads
+    // "What changed this week?" so, while an agent's get_context still gets no scope for it.
+    const records: unknown[] = []
     for (const ask of [
       ...phrasings.map((p) => ({ question: p.question })),
       ...labCases.map((c) => c.ask),
     ]) {
       const sent = events((await call('POST', '/ask/lookup', 'maria', ask)).body)
-      const result = (sent.at(-1) as Extract<LookupEvent, { type: 'answer' }>).answer
-      durations.push(result.ms)
+      const last = sent.at(-1)!
+      if (last.type === 'records') {
+        records.push(ask)
+        continue
+      }
+      durations.push((last as Extract<LookupEvent, { type: 'answer' }>).answer.ms)
     }
-    expect(durations).toHaveLength(phrasings.length + labCases.length)
+    expect(records).toEqual([{ question: 'What changed this week?' }])
+    expect(durations).toHaveLength(phrasings.length + labCases.length - records.length)
     const sorted = durations.sort((a, b) => a - b)
     const p95 = sorted[Math.ceil(sorted.length * 0.95) - 1]!
     process.stdout.write(`answer engine on the demo library: p95 ${p95} ms\n`)

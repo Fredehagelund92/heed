@@ -27,6 +27,7 @@ import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { draftBundle } from '../proposals/index.ts'
+import { recordsAnswerOf, type RecordsReads } from './records.ts'
 
 /** An edition to answer on: its sequence, its label and the overlay of stops and flags now. */
 type Head = { seq: string; label: string; overlay: string }
@@ -98,7 +99,8 @@ const result = (a: Answer, target: Target): AnswerResult => {
  * no model, each step as it is done and then the answer; then, given `words`, what a real model
  * wrote from the answer's items. The question is read in memory and never
  * stored or logged (FR-602); the bundle is read before the first step, so the steps need no
- * database.
+ * database. Given `records`, a question about the context's own records is answered from them
+ * instead, in one event (FR-718), and nothing is looked up.
  */
 export async function lookupQuestion(
   tx: Queryable,
@@ -107,11 +109,18 @@ export async function lookupQuestion(
   input: LookupInput,
   /** The words a real model writes from the answer, or null (no model, or none that passed). */
   words?: (answer: AnswerResult) => Promise<string | null>,
+  records?: RecordsReads,
 ): Promise<AsyncGenerator<LookupEvent>> {
   const [bundle, tools] = await Promise.all([liveBundle(tx, cache), enabledTools(tx)])
   const today = clock.today()
+  const found = records ? await recordsAnswerOf(tx, clock, bundle, input, records) : null
   const steps = lookUp(bundle, input, { today, now: clockMs })
   function* events(): Generator<LookupEvent> {
+    // A records answer is the look-up's one event: nothing is looked up in the context.
+    if (found) {
+      yield { type: 'records', records: found }
+      return
+    }
     for (;;) {
       const next = steps.next()
       if (next.done) {
@@ -185,7 +194,7 @@ function linksOf(
 }
 
 /** The minimum count under which no count is shown (FR-614, `privacy.min_count`). */
-async function minimumCount(tx: Queryable): Promise<number> {
+export async function minimumCount(tx: Queryable): Promise<number> {
   const [row] = await tx.query<{ minimum: number }>(
     `select (value #>> '{}')::int as minimum from settings_current where key='privacy.min_count'`,
   )

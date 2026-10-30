@@ -1917,9 +1917,7 @@ export function describeHeedApi(
     it.skipIf(lacks('signIn', 'ask'))(
       'says a question that names nothing was not looked up, never Not found, and why',
       async () => {
-        const answer = await (
-          await signedIn()
-        ).ask({ question: 'give me context created in last 24 hours?' })
+        const answer = await (await signedIn()).ask({ question: 'tell me a joke' })
         // No answer state: Not found would say nobody wrote anything down.
         expect(answer.state).toBeNull()
         expect(answer.sources).toEqual([])
@@ -1928,6 +1926,99 @@ export function describeHeedApi(
           /^Nothing was looked up yet\. The question needs a metric or a market, such as \w/,
         )
         expect(answer.text).toMatch(/^The question needs a metric or a market, such as \w/)
+      },
+    )
+
+    /** A records answer (FR-718): one of the seven questions about the context's own records. */
+    const records = async (question: string) => {
+      const answer = await (await signedIn()).ask({ question })
+      // Never an answer state and never a source: agents never read it.
+      expect(answer.state, question).toBeNull()
+      expect(answer.sources).toEqual([])
+      const found = answer.records
+      if (!found || found.refused) throw new Error(`"${question}" got no records answer`)
+      expect(found.rows.length).toBeLessThanOrEqual(5)
+      expect(found.rows.length).toBe(Math.min(found.total, 5))
+      return found
+    }
+    /** The Context list as the person sees it, published and archived: what Records counts. */
+    const listed = async () =>
+      (await (await signedIn()).getLibrary()).items.filter((f) => f.status !== 'Draft')
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      'answers what was created in the last 24 hours from the records, with the period in UTC',
+      async () => {
+        const found = await records('give me context created in last 24 hours?')
+        expect(found.intent).toBe('created')
+        expect(found.sentence).toMatch(
+          /^(Nothing was created in the last 24 hours\.|[\d,]+ context items? (was|were) created in the last 24 hours\.)$/,
+        )
+        expect(found.period?.label).toMatch(
+          /^\d+ \w{3}( \d{4})? \d\d:\d\d to \d+ \w{3} \d\d:\d\d, UTC$/,
+        )
+        expect(Date.parse(found.period!.end) - Date.parse(found.period!.start)).toBe(86_400_000)
+        // Nothing created is an answer too: it says when the latest was.
+        if (!found.total) expect(found.detail).toMatch(/^The latest context item was created on /)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask', 'getLibrary', 'getWorkspace'))(
+      'counts what is due for a check and what is archived exactly as Context lists them',
+      async () => {
+        const items = await listed()
+        const due = await records('what is due for a check?')
+        expect(due.total).toBe(items.filter((f) => f.status === 'Needs checking').length)
+        const archived = await records('what is archived?')
+        expect(archived.total).toBe(items.filter((f) => f.status === 'Archived').length)
+        // A domain by its name: the service names its domains by ids of its own.
+        const id = (await (await signedIn()).getWorkspace()).domains.find(
+          (d) => d.name === 'Sales',
+        )!.id
+        const sales = await records('how many context items does Sales have?')
+        expect(sales.total).toBe(items.filter((f) => f.domain === id).length)
+        expect(sales.sentence).toMatch(/^Sales has [\d,]+ context items?/)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask', 'getWorkspace'))(
+      "names a domain's owners as Context names them, and a metric's by its domain",
+      async () => {
+        const { domains } = await (await signedIn()).getWorkspace()
+        const sales = domains.find((d) => d.name === 'Sales')!
+        const names = (owners: string[]) =>
+          owners.length > 1 ? `${owners.slice(0, -1).join(', ')} and ${owners.at(-1)}` : owners[0]
+        expect((await records('who owns Sales?')).sentence).toBe(
+          `${names(sales.owners)} ${sales.owners.length > 1 ? 'own' : 'owns'} Sales.`,
+        )
+        const orders = await records('who owns Orders?')
+        expect(orders.detail).toBe(
+          'Orders is a definition in Sales. A domain has owners, not a single metric.',
+        )
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      'shows what agents asked that found nothing only as counts of 5 or more',
+      async () => {
+        const found = await records('what did agents ask that found nothing?')
+        for (const row of found.rows) expect(row.cells[0]).toMatch(/^([5-9]|\d{2,})\+?$/)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      "refuses a question about one person's work, and leaves a question about the business to the context",
+      async () => {
+        const a = await signedIn()
+        const person = await a.ask({ question: 'what did Tomas Eriksen write this week?' })
+        expect(person.state).toBeNull()
+        expect(person.records).toMatchObject({
+          refused: true,
+          sentence: "Ask does not answer questions about one person's work.",
+        })
+        const business = await a.ask({
+          question: 'What changed in returns in the United Kingdom this week?',
+        })
+        expect(business.records).toBeUndefined()
       },
     )
 

@@ -34,7 +34,7 @@ import { thresholdOfWords } from '@domain/alerts'
 import { canonicalJson } from '@domain/canonical'
 import type { CardAction } from '@domain/inbox'
 import { plainOf } from '@/components/templates/comment-box/utils'
-import { reportedOn, reportOutcomeWords } from '@/model/ask'
+import { recordsAnswer, reportedOn, reportOutcomeWords } from '@/model/ask'
 import type { FactAction } from '@/lib/bulk'
 import { parseMentionId } from '@/lib/mentions'
 import type { Definition } from '@/lib/definitions'
@@ -832,9 +832,13 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     let answer: Extract<LookupEvent, { type: 'answer' }>['answer'] | undefined
     // The words a real model wrote from the answer's items, when the service has one.
     let written: string | undefined
+    // A question about the context's own records: its one event, and nothing looked up.
+    let records: Extract<LookupEvent, { type: 'records' }>['records'] | undefined
     for await (const event of events)
       if (event.type === 'answer') answer = event.answer
       else if (event.type === 'words') written = event.text
+      else if (event.type === 'records') records = event.records
+    if (records) return { records }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
     return { answer, written }
   }
@@ -877,6 +881,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
     try {
       const looked = await lookUp({ question: words, ...fields })
+      if (looked.records) return { ...recordsAnswer(words, looked.records), ...extra }
       const answer = answerOf(looked.answer, words, names, extra, looked.written)
       said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
       return answer
