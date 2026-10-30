@@ -133,9 +133,12 @@ export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Rea
     changes: {
       total: view.changes.now,
       before: view.changes.before,
-      latest: publishes(now)
-        .slice(0, 5)
-        .map((p) => ({ at: p.at, title: p.title, domain: p.domain, by: p.by })),
+      latest:
+        view.changes.now === null
+          ? []
+          : publishes(now)
+              .slice(0, 5)
+              .map((p) => ({ at: p.at, title: p.title, domain: p.domain, by: p.by })),
     },
     hidden: view.hidden,
   }

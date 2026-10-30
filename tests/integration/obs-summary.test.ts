@@ -225,9 +225,8 @@ describe('Summary', () => {
     // One change is under the minimum, so its count is not given; none before is a 0, which is.
     expect(s.changes.total).toBeNull()
     expect(s.changes.before).toBe(0)
-    expect(s.changes.latest).toEqual([
-      expect.objectContaining({ title: 'A note', areaId: 'finance' }),
-    ])
+    // Listing it would give away the hidden total of 1.
+    expect(s.changes.latest).toEqual([])
   })
 
   it('compares a quarter only from when agents first asked', async () => {

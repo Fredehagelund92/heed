@@ -665,7 +665,12 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
             proposalId: g.proposal,
           })),
         },
-        changes: { total: view.changes.now, before: view.changes.before, latest },
+        // A listed change would give away a hidden total, so the list goes with the count.
+        changes: {
+          total: view.changes.now,
+          before: view.changes.before,
+          latest: view.changes.now === null ? [] : latest,
+        },
         hidden: view.hidden,
       }
     },

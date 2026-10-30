@@ -397,6 +397,10 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
                     </li>
                   ))}
                 </ul>
+              ) : data.changes.total === null ? (
+                <p className="text-sm text-muted-foreground">
+                  The changes are not listed: their count is hidden.
+                </p>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   No change was approved and published in {name}.
