@@ -9,6 +9,7 @@
 import * as z from 'zod/mini'
 import { answerStates, leftOutReasons } from '../domain/answer.ts'
 import { itemKinds } from '../domain/item.ts'
+import { recordsAnswerSchema } from '../domain/records-answer.ts'
 import { tryItInputSchema } from './connect.ts'
 
 /** The resolver's status, as get_context gives it. */
@@ -195,12 +196,18 @@ export type LookupInput = z.infer<typeof lookupInputSchema>
  * with a real model, the words the model wrote from the answer's items (each sentence that uses
  * an item ending with its number, [1] for the first). The words never change the state, the items
  * or what agents are told; without them, Ask writes its own from the items.
+ *
+ * A question about the context's own records ("what was created in the last 24 hours", "who owns
+ * Sales") is not looked up: its one event is the records answer (src/domain/records.ts), counted
+ * from what the person may see, with no answer state. Agents never read it.
  */
 export const lookupEventSchema = z.union([
   z.object({ type: z.literal('step'), step: answerStepSchema }),
   z.object({ type: z.literal('answer'), answer: answerSchema }),
   z.object({ type: z.literal('words'), text: z.string() }),
+  z.object({ type: z.literal('records'), records: recordsAnswerSchema }),
 ])
+export type RecordsAnswer = z.infer<typeof recordsAnswerSchema>
 export type LookupEvent = z.infer<typeof lookupEventSchema>
 
 /**

@@ -712,6 +712,17 @@ date; else `grounded`. Ask shows an answer whose status is `need_more_detail` wi
   (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
   with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
   `models.assistant`, which sends the cases' made-up questions and items to its provider.
+- A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
+  no `metrics`, `dimension_filters` or `window`, is not looked up: `POST /ask/lookup` answers with
+  one `records` event. It has the intent (`created`, `changed`, `due`, `archived`, `owner`,
+  `count` or `asked_nothing`), what it was understood as, the period (ISO instants, and its words
+  in UTC), what was read, the sentence, at most five `rows` (a context item, a domain, a topic or
+  a kind's counts) with `columns`, the exact `total`, and where the full list lives (`more`). A
+  question about one person's work gets `refused: true` with its sentence and what to ask
+  instead. Everything is counted in the request's own transaction from the items `GET /library`
+  lists for the person, their editions' times, the domains and their owners and, for
+  `asked_nothing`, Asked this week. `records_asked_weekly` counts which intent was asked each week
+  (or `refused`), and nothing else.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
   to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
   first, each with the state the engine gives its newest shown month now (the month of today for a

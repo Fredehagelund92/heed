@@ -13,7 +13,9 @@ grant insert on people, areas, area_assignments, global_role_grants, vocab_terms
 grant update on people, areas, area_assignments, global_role_grants, proposals, definitions, connectors, golden_questions, gaps, gap_weekly_counts, topic_week_counts,
   eval_runs, eval_cells, outbox_events, inbox_items, notification_prefs, webhook_endpoints, webhook_deliveries, idempotency_keys, tool_config, client_policies,
   llm_spend_daily, llm_spend_monthly, job_heartbeats to :api;
-grant delete on saved_views, notification_prefs, inbox_items to :api;     -- user-driven deletes; time-based retention runs through cl_retention_run()
+grant delete on saved_views, notification_prefs, inbox_items to :api;
+-- Which records questions Ask was asked, by id and week only (FR-718).
+grant insert, update on records_asked_weekly to :api;     -- user-driven deletes; time-based retention runs through cl_retention_run()
 grant usage on all sequences in schema public to :api;
 grant execute on function edition_open(edition_reason, uuid, text, bigint), edition_seal(bigint), edition_publish(bigint, uuid), edition_restore(bigint, uuid, text),
   edition_serve_item_version(bigint, uuid), edition_close_item(bigint, text), edition_serve_vocab_version(bigint, uuid),

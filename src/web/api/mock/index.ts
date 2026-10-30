@@ -48,7 +48,8 @@ import {
   type Kept,
 } from './integrations'
 import { figureFor, figureTryFor } from './data/figures'
-import { reportedOn, type AskInput } from '@/model/ask'
+import { recordsAnswer, reportedOn, type AskInput } from '@/model/ask'
+import { recordsFor } from './records'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
@@ -203,6 +204,18 @@ export function createMockApi() {
         alias: read.alias,
       }
     }
+    // A question about the context's own records is answered from them, as on the service.
+    const records = recordsFor(question, {
+      pool,
+      domains: workspace.domains(),
+      definitions: definitions.list(),
+      asked: () => askedThisWeek(pool).rows,
+      manages: (domain) => {
+        const p = workspace.person(me())
+        return !!p && (p.admin || (!!domain && p.owns.includes(domain)))
+      },
+    })
+    if (records) return recordsAnswer(question, records)
     return {
       ...askQuestion(question, pool),
       parts: parts?.some((p) => typeof p !== 'string') ? parts : undefined,

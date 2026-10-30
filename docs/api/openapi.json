@@ -81327,7 +81327,7 @@
     "/ask/lookup": {
       "post": {
         "operationId": "ask.lookup",
-        "summary": "A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; the question is never stored (FR-602)",
+        "summary": "A question looked up on the live edition as get_context answers it, with no model: each step as it is done, then the answer with its state; or a question about the context's own records, answered from what the person may see, with no answer state; the question is never stored (FR-602)",
         "tags": [
           "assistant"
         ],
@@ -83041,6 +83041,439 @@
                               "required": [
                                 "type",
                                 "text"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": {
+                                  "const": "records"
+                                },
+                                "records": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "refused": {
+                                          "const": false
+                                        },
+                                        "intent": {
+                                          "enum": [
+                                            "created",
+                                            "changed",
+                                            "due",
+                                            "archived",
+                                            "owner",
+                                            "count",
+                                            "asked_nothing"
+                                          ],
+                                          "type": "string"
+                                        },
+                                        "understood": {
+                                          "type": "string"
+                                        },
+                                        "period": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "start": {
+                                                  "type": "string"
+                                                },
+                                                "end": {
+                                                  "type": "string"
+                                                },
+                                                "words": {
+                                                  "type": "string"
+                                                },
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "assumed": {
+                                                  "type": "boolean"
+                                                }
+                                              },
+                                              "required": [
+                                                "start",
+                                                "end",
+                                                "words",
+                                                "label",
+                                                "assumed"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "domain": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "name": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "name"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "read": {
+                                          "type": "string"
+                                        },
+                                        "sentence": {
+                                          "type": "string"
+                                        },
+                                        "detail": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "detailItem": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "id": {
+                                                  "type": "string"
+                                                },
+                                                "title": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "id",
+                                                "title"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "columns": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "rows": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "const": "item"
+                                                  },
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "kind": {
+                                                    "enum": [
+                                                      "event",
+                                                      "issue",
+                                                      "note",
+                                                      "guide"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "title": {
+                                                    "type": "string"
+                                                  },
+                                                  "areaId": {
+                                                    "type": "string"
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "id",
+                                                  "kind",
+                                                  "title",
+                                                  "areaId",
+                                                  "cells"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "const": "area"
+                                                  },
+                                                  "id": {
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string"
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "id",
+                                                  "name",
+                                                  "cells"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "const": "topic"
+                                                  },
+                                                  "title": {
+                                                    "type": "string"
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  },
+                                                  "gap": {
+                                                    "anyOf": [
+                                                      {
+                                                        "type": "object",
+                                                        "properties": {
+                                                          "card": {
+                                                            "type": "string"
+                                                          },
+                                                          "draft": {
+                                                            "anyOf": [
+                                                              {
+                                                                "type": "string"
+                                                              },
+                                                              {
+                                                                "type": "null"
+                                                              }
+                                                            ]
+                                                          }
+                                                        },
+                                                        "required": [
+                                                          "card",
+                                                          "draft"
+                                                        ]
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "title",
+                                                  "cells",
+                                                  "gap"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
+                                                    "const": "kind"
+                                                  },
+                                                  "kind": {
+                                                    "anyOf": [
+                                                      {
+                                                        "enum": [
+                                                          "event",
+                                                          "issue",
+                                                          "note",
+                                                          "guide"
+                                                        ],
+                                                        "type": "string"
+                                                      },
+                                                      {
+                                                        "type": "null"
+                                                      }
+                                                    ]
+                                                  },
+                                                  "label": {
+                                                    "type": "string"
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "kind",
+                                                  "label",
+                                                  "cells"
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "total": {
+                                          "type": "number"
+                                        },
+                                        "shown": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "more": {
+                                          "anyOf": [
+                                            {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "to": {
+                                                  "enum": [
+                                                    "context",
+                                                    "definitions",
+                                                    "domain"
+                                                  ],
+                                                  "type": "string"
+                                                },
+                                                "domain": {
+                                                  "anyOf": [
+                                                    {
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                },
+                                                "status": {
+                                                  "anyOf": [
+                                                    {
+                                                      "enum": [
+                                                        "due",
+                                                        "archived"
+                                                      ],
+                                                      "type": "string"
+                                                    },
+                                                    {
+                                                      "type": "null"
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "to",
+                                                "domain",
+                                                "status"
+                                              ]
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "note": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        },
+                                        "offers": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "refused",
+                                        "intent",
+                                        "understood",
+                                        "period",
+                                        "domain",
+                                        "read",
+                                        "sentence",
+                                        "detail",
+                                        "detailItem",
+                                        "columns",
+                                        "rows",
+                                        "total",
+                                        "shown",
+                                        "more",
+                                        "note",
+                                        "offers"
+                                      ]
+                                    },
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "refused": {
+                                          "const": true
+                                        },
+                                        "reason": {
+                                          "const": "person"
+                                        },
+                                        "sentence": {
+                                          "type": "string"
+                                        },
+                                        "detail": {
+                                          "type": "string"
+                                        },
+                                        "offers": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "refused",
+                                        "reason",
+                                        "sentence",
+                                        "detail",
+                                        "offers"
+                                      ]
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "type",
+                                "records"
                               ]
                             }
                           ]

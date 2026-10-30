@@ -19,6 +19,7 @@ import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
 import { Suggestions } from '@/components/heed/suggestions'
+import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
 import { sentencesOf } from '@/lib/where'
@@ -779,7 +780,8 @@ function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) =
       </p>
       {onAsk && <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />}
       <p className="text-xs text-muted-foreground">
-        Questions about the context itself, such as what is new or who owns it, come later.
+        Ask also answers questions about the records, such as what is new, what is due for a check
+        or who owns a domain.
       </p>
     </div>
   )
@@ -949,15 +951,7 @@ const LOOK = 450
 const READ = 1100
 const writingTime = (words: number) => Math.min(2200, Math.max(600, words * 50))
 
-export function AnswerBody({
-  answer,
-  draft,
-  phase = 'done',
-  onRetry,
-  onSettled,
-  onAsk,
-  docked,
-}: {
+type AnswerBodyProps = {
   answer: Answer
   draft?: Fact
   phase?: Phase
@@ -968,7 +962,46 @@ export function AnswerBody({
   onRetry?: () => void
   /** Told when a live answer has finished writing. */
   onSettled?: () => void
-}) {
+}
+
+/** A records answer's own body, loaded with the first one: most chats never need it. */
+const RecordsAnswerBody = React.lazy(() =>
+  import('@/components/heed/records-answer').then((m) => ({ default: m.RecordsAnswerBody })),
+)
+
+/**
+ * An answer in the chat: from the context, with its state and sources; or, for a question about
+ * the context's own records, the records answer (FR-718), which has no state and no sources.
+ */
+export function AnswerBody(props: AnswerBodyProps) {
+  const { records } = props.answer
+  if (!records) return <ContextAnswerBody {...props} />
+  return (
+    <div className="flex gap-3">
+      <AssistantAvatar />
+      <React.Suspense
+        fallback={<ReadingLine running>Counting from the workspace&apos;s records…</ReadingLine>}
+      >
+        <RecordsAnswerBody
+          parts={recordsParts}
+          records={records}
+          onAsk={props.onAsk}
+          onSettled={props.onSettled}
+        />
+      </React.Suspense>
+    </div>
+  )
+}
+
+function ContextAnswerBody({
+  answer,
+  draft,
+  phase = 'done',
+  onRetry,
+  onSettled,
+  onAsk,
+  docked,
+}: AnswerBodyProps) {
   const all = useFacts()
   const facts = React.useMemo(
     () =>

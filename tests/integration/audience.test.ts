@@ -299,12 +299,22 @@ const queries = () => [
 
 /**
  * Reads that are POSTs: the review's sheets of many suggestions, and the answer engine's look-up,
- * asked about the hidden item's own scope.
+ * asked about the hidden item's own scope and about the records.
  */
 const posts = () =>
   [
     ['review.sheets', '/api/v1/review/sheets', { ids: [hiddenProposal, linkingProposal] }],
     ['ask.lookup', '/api/v1/ask/lookup', { question: 'Orders on holidays', metrics: ['Orders'] }],
+    // Questions about the context's own records (FR-718): counted from what each person may see.
+    ...[
+      'what was created this week?',
+      'what changed this week?',
+      'what is due for a check?',
+      'what is archived?',
+      'who owns Finance?',
+      'how many context items are there?',
+      'what did agents ask that found nothing?',
+    ].map((question) => ['ask.lookup', '/api/v1/ask/lookup', { question }] as const),
   ] as const
 
 /** An answer without the review exception's operations' own proposal, and the export's digests. */

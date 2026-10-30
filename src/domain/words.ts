@@ -116,6 +116,13 @@ export const concepts = {
     internal: ['retire', 'retired'],
     phrases: ['Archive', 'Archived'],
   },
+  records: {
+    name: 'Records',
+    definition:
+      'What the workspace keeps about its context: when each item was created, changed, checked or archived, and who owns each domain. Ask counts from them, and agents never read that answer.',
+    internal: ['library index'],
+    phrases: ['Records', "Counted from the workspace's records."],
+  },
   inbox: {
     name: 'Inbox',
     definition: 'What needs you, ordered by need.',

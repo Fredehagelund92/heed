@@ -18,7 +18,9 @@ export {
   createBundleCache,
   liveBundle as liveServingBundle,
   lookupQuestion,
+  minimumCount,
   reachOfDraft,
   replayTopic,
   type BundleCache,
 } from './service.ts'
+export type { RecordsReads } from './records.ts'

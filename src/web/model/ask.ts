@@ -1,4 +1,5 @@
 import { notLookedUp } from '@domain/say'
+import type { RecordsAnswer } from '@domain/records-answer'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
 import type { DomainId } from './items'
@@ -86,7 +87,25 @@ export type Answer = {
   scope?: MentionRef[]
   /** What the agent followed from the answer's items with get_related, one step. */
   links?: AnswerLinks
+  /**
+   * A question about the context's own records, answered from them (FR-718): no answer state, no
+   * sources, and agents never read it. Or a question about one person's work, refused.
+   */
+  records?: RecordsAnswer
 }
+
+/** A records answer in Ask: nothing was looked up in the context, so it has no answer state. */
+export const recordsAnswer = (question: string, records: RecordsAnswer): Answer => ({
+  id: 'custom',
+  question,
+  metric: '',
+  markets: [],
+  state: null,
+  text: records.sentence,
+  sources: [],
+  said: '',
+  records,
+})
 
 /** A link on one of the answer's items: the item it is on, and where it points. */
 export type AnswerLink = {

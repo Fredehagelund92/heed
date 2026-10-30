@@ -81,7 +81,9 @@ export const askSearch = lenient(
   z.object({ example: text, chat: text, n: text, setup: text, q: text }),
 )
 
-export const contextSearch = lenient(z.object({ domain: text, due: text }))
+export const contextSearch = lenient(
+  z.object({ domain: text, due: text, status: oneOf(['archived']) }),
+)
 
 /** A new context item starts from a draft, a gap or a metric and market; setup leads back to the Inbox. */
 export const contextEditorSearch = lenient(

@@ -72,6 +72,8 @@ A draft answer says "Based on this draft". The long forms are the only place the
 
 A question that was not looked up (it names no metric and no market) has no state, so none of the six: Ask's line says **Nothing was looked up**, then the reason. Never Not found, which says nothing is written down.
 
+An answer from the records (what was created, what is due, who owns a domain) has no state either. Its chip says **Records**, in the neutral tint with a table icon, and the line under it says "Counted from the workspace's records." The answer is one sentence from a template ("Nothing was created in the last 24 hours."), and it ends "Agents did not read this answer. It says nothing about what they get." A question about one person's work gets "Ask does not answer questions about one person's work."
+
 ### Kinds
 
 Event (lightning), Warning (triangle), Rule (ruler), Guide (route). Stored as `event`, `issue`, `note`, `guide`. Hints, each fourteen words or fewer:

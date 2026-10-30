@@ -87,6 +87,8 @@ The quick view never publishes. The review is a full-screen page inside the app,
 
 The empty Ask shows Asked this week. Until agents have asked anything, it offers up to four first questions instead, made from what the workspace has written: the scopes of its published context items, then its metrics. A workspace with nothing written yet gets no first questions, only the empty page's words. Under a finished answer, Ask next offers what agents asked most this week, each with the state it would get.
 
+Ask also answers questions about the context's own records, such as "give me context created in the last 24 hours" or "who owns Sales?" (FR-718). The list is closed, and no model reads or writes them: what was created, what changed, what is due for a check, what is archived, who owns a domain (or a metric's domain) and which have no owner, how many context items or definitions there are, and what agents asked this week that found nothing. Each is counted from what the Context list shows the person asking, never a draft and never what one person did. A records answer has no answer line: a **Records** chip, the sentence "Counted from the workspace's records.", one plain sentence, and at most five rows that open in the right panel, or a small table of counts, with Context keeping the full list. Nothing found is an answer too: "Nothing was created in the last 24 hours.", with the period in UTC and when the latest one was. It ends "Agents did not read this answer. It says nothing about what they get." A question about one person's work ("what did Maria write this week?") is refused, with what Ask can say instead.
+
 ### Context
 
 | Screen                        | Address                        |
@@ -171,7 +173,9 @@ Every answer to a question that was looked up, for an agent and for a person, st
 
 In the code the states are `grounded`, `partial`, `missing`, `conflict`, `stale` and `failed`. A draft answer says "Based on this draft" and is never called Checked. The labels, sentences and long forms live in one list that Ask, Try it, Help, the docs, the charts and the copy test all read.
 
-A question that names nothing the context is about, no metric and no market, is not looked up, so it gets no answer line. Agents get `need_more_detail` and its reason. Ask says "Nothing was looked up", gives the reason in plain words, names the kinds of question it answers today with two questions from the workspace to try, and says that questions about the context itself come later. Not found is only for a question that was looked up and found nothing: it says nobody wrote anything down, which a question that was never looked up cannot show.
+A question that names nothing the context is about, no metric and no market, is not looked up, so it gets no answer line. Agents get `need_more_detail` and its reason. Ask says "Nothing was looked up", gives the reason in plain words, names the kinds of question it answers today with two questions from the workspace to try, and says it also answers questions about the records. Not found is only for a question that was looked up and found nothing: it says nobody wrote anything down, which a question that was never looked up cannot show.
+
+An answer from the records (section 5, Ask) is not an answer about context, so it has no answer line either: it starts with the Records chip and says where it was counted from.
 
 ## 7. The kinds
 
@@ -210,7 +214,7 @@ One rule everywhere: **from agents, Heed keeps only what a question was about an
 5. **Agents never read comments, reports or saved questions.** An agent's answer is built from published context only.
 6. **Report a problem** sends the page address and the reporter's name, never an agent's words.
 7. **Figures are read when asked and kept nowhere.** No person's identity is passed to the data source.
-8. **No tracking.** Heed sends nothing to anyone about how it is used.
+8. **No tracking.** Heed sends nothing to anyone about how it is used. To learn which questions about the records people use, Ask counts which of its seven was asked each week, by its fixed name only: never the words, never who asked.
 9. **No promise of anonymity.** Copy says what is kept, not that nobody can see.
 
 ## 10. What agents get
@@ -325,33 +329,34 @@ The first plan for the web app named J1 to J29. J30 (topics) was added after tha
 
 One name for each thing, in every screen, help page, agent reply and demo text. The full rules are in [Copy](design/copy.md). The code keeps its own words (item, area, retire, edition, scope); [`src/domain/words.ts`](../src/domain/words.ts) maps one to the other.
 
-| On screen             | Means                                                                                                                                         | Code and specification       |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| **Context**           | The area of the app and the whole body of what agents read.                                                                                   | the library                  |
-| **Context item**      | One entry: an event, a warning, a rule or a guide, with a source and a check date.                                                            | item, fact                   |
-| **Definition**        | A metric, a dimension or a term, and what it means here. Metrics and dimensions are read-only copies from the definitions source.             | catalogue entry              |
-| **Term**              | A word with its own meaning, written here (Peak season).                                                                                      | person-written definition    |
-| **Synonym**           | Another name for a metric or a dimension (GMV for Gross sales). Agents read it as that definition. One word has one meaning in the workspace. | alias                        |
-| **Domain**            | An area of the business, such as Sales. Every context item belongs to one. A domain is a document with owners and house rules.                | area                         |
-| **Owner**             | A person who publishes and checks a domain's context. Ownership belongs to the domain, not to a role.                                         | steward                      |
-| **Admin**, **Member** | The two roles (section 11).                                                                                                                   | administrator                |
-| **Suggestion**        | A change sent to an owner, from the editor or by an agent. Nothing changes until the owner publishes it.                                      | proposal                     |
-| **Publish**           | An owner makes context available to agents.                                                                                                   | accept                       |
-| **Archive**           | Take a published item out of what agents get, keeping its history.                                                                            | retire                       |
-| **Inbox**             | What needs the person, ordered by need.                                                                                                       | notifications, queue         |
-| **Card**              | One row in the Inbox: Not found, Reported, Saved questions, Alert, Mentioned you, Due for a check, or a Suggestion.                           | inbox item                   |
-| **Not found**         | A question agents asked several times and found nothing written for. Its card brings a draft. Also an answer state.                           | gap                          |
-| **Reported**          | Someone said a context item is wrong or unclear.                                                                                              | flag                         |
-| **Due for a check**   | A context item whose check date has passed.                                                                                                   | review due                   |
-| **Saved question**    | A question an owner or admin keeps, and Heed checks again after every change. Result: Same, Changed or Needs a look.                          | saved view, test question    |
-| **Try it**            | What agents would say for a question, on a draft or on live context, without asking an AI.                                                    |                              |
-| **Ask**               | The page where a person asks and sees the same answer line an agent gets.                                                                     | assistant                    |
-| **Topic**             | The exact scope agents asked about: domain, metric, market and the month. Grouped for reading only.                                           | topic                        |
-| **Edition**           | A sealed snapshot of what agents get. Shown only in Settings, Advanced, and in the agent reply. Never in success copy.                        | edition                      |
-| **Don't conclude**    | A line on an item that stops an agent from reading a cause into it.                                                                           | caveat, what not to conclude |
-| **Integration**       | A connected tool: where definitions live, where documents live, where figures come from.                                                      | source, connector            |
-| **Agent**             | Software outside Heed that reads context over MCP. Never a person.                                                                            | AI app, client               |
-| **What agents get**   | The text an agent receives for an item or a question.                                                                                         | served, delivered            |
+| On screen             | Means                                                                                                                                              | Code and specification       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| **Context**           | The area of the app and the whole body of what agents read.                                                                                        | the library                  |
+| **Context item**      | One entry: an event, a warning, a rule or a guide, with a source and a check date.                                                                 | item, fact                   |
+| **Definition**        | A metric, a dimension or a term, and what it means here. Metrics and dimensions are read-only copies from the definitions source.                  | catalogue entry              |
+| **Term**              | A word with its own meaning, written here (Peak season).                                                                                           | person-written definition    |
+| **Synonym**           | Another name for a metric or a dimension (GMV for Gross sales). Agents read it as that definition. One word has one meaning in the workspace.      | alias                        |
+| **Domain**            | An area of the business, such as Sales. Every context item belongs to one. A domain is a document with owners and house rules.                     | area                         |
+| **Owner**             | A person who publishes and checks a domain's context. Ownership belongs to the domain, not to a role.                                              | steward                      |
+| **Admin**, **Member** | The two roles (section 11).                                                                                                                        | administrator                |
+| **Suggestion**        | A change sent to an owner, from the editor or by an agent. Nothing changes until the owner publishes it.                                           | proposal                     |
+| **Publish**           | An owner makes context available to agents.                                                                                                        | accept                       |
+| **Archive**           | Take a published item out of what agents get, keeping its history.                                                                                 | retire                       |
+| **Inbox**             | What needs the person, ordered by need.                                                                                                            | notifications, queue         |
+| **Card**              | One row in the Inbox: Not found, Reported, Saved questions, Alert, Mentioned you, Due for a check, or a Suggestion.                                | inbox item                   |
+| **Not found**         | A question agents asked several times and found nothing written for. Its card brings a draft. Also an answer state.                                | gap                          |
+| **Reported**          | Someone said a context item is wrong or unclear.                                                                                                   | flag                         |
+| **Due for a check**   | A context item whose check date has passed.                                                                                                        | review due                   |
+| **Saved question**    | A question an owner or admin keeps, and Heed checks again after every change. Result: Same, Changed or Needs a look.                               | saved view, test question    |
+| **Try it**            | What agents would say for a question, on a draft or on live context, without asking an AI.                                                         |                              |
+| **Ask**               | The page where a person asks and sees the same answer line an agent gets.                                                                          | assistant                    |
+| **Records**           | What the workspace keeps about its context: when items were created, changed, checked or archived, and who owns each domain. Ask counts from them. | library index                |
+| **Topic**             | The exact scope agents asked about: domain, metric, market and the month. Grouped for reading only.                                                | topic                        |
+| **Edition**           | A sealed snapshot of what agents get. Shown only in Settings, Advanced, and in the agent reply. Never in success copy.                             | edition                      |
+| **Don't conclude**    | A line on an item that stops an agent from reading a cause into it.                                                                                | caveat, what not to conclude |
+| **Integration**       | A connected tool: where definitions live, where documents live, where figures come from.                                                           | source, connector            |
+| **Agent**             | Software outside Heed that reads context over MCP. Never a person.                                                                                 | AI app, client               |
+| **What agents get**   | The text an agent receives for an item or a question.                                                                                              | served, delivered            |
 
 Words that no screen uses: fact (for an item), gap, flag, approver, auditor, steward, caveat, AI app, Users (write People), anonymous, "Based on checked context" and the other old answer labels (kept only as the long form).
 

@@ -128,13 +128,14 @@ export function ContextPage() {
   const metricNames = React.useMemo(() => new Set(metrics.map((m) => m.name)), [metrics])
   const dock = useDock()
   const [text, setText] = React.useState('')
-  // A domain page links here filtered to its domain (and to what is due for a check).
+  // A domain page links here filtered to its domain (and to what is due for a check); a records
+  // answer in Ask to what is due or archived.
   const { query } = useRoute()
   const [domain, setDomain] = React.useState<DomainId[]>(() =>
     query.get('domain') ? [query.get('domain') as DomainId] : [],
   )
   const [status, setStatus] = React.useState<Status[]>(() =>
-    query.get('due') ? ['Needs checking'] : [],
+    query.get('due') ? ['Needs checking'] : query.get('status') === 'archived' ? ['Archived'] : [],
   )
   const [kind, setKind] = React.useState<Kind[]>([])
   const [chosenSort, setSort] = React.useState<Sorting<Sort> | null>(null)
