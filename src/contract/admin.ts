@@ -144,7 +144,6 @@ export type Setting = z.infer<typeof settingSchema>
 /** What everyone in the workspace reads of it (FR-818): its name, empty until an admin names it. */
 export const workspaceSchema = z.object({ name: z.string() })
 export type WorkspaceInfo = z.infer<typeof workspaceSchema>
-export const settingKeyInputSchema = z.strictObject({ key: settingKey })
 export const setSettingSchema = z.strictObject({
   key: settingKey,
   /** The version you read; a newer one is a conflict. */
@@ -185,56 +184,6 @@ export const saveClientSchema = z.strictObject({
   enabled: z.boolean(),
   reason,
 })
-
-export const trafficInputSchema = z.strictObject({
-  /** The last this many days, counted in whole hours back from the current hour. */
-  days: z._default(int(1, 90), 7),
-})
-const trafficCountsSchema = z.object({
-  calls: z.number(),
-  ok: z.number(),
-  errors: z.number(),
-  /** Tool calls whose arguments the tool could not read: a model's mistake, not Heed's error. */
-  invalidInput: z.number(),
-  rateLimited: z.number(),
-  /** Refused: a wrong host or origin, a missing scope, a client switched off or a tool it may not call. */
-  forbidden: z.number(),
-  /** Refused for want of a valid token. */
-  unauthorized: z.number(),
-  /** Over the calls that recorded a duration; null when none did. */
-  medianMs: z.nullable(z.number()),
-  p95Ms: z.nullable(z.number()),
-  /** The bytes answered, summed. */
-  bytes: z.number(),
-})
-/**
- * MCP traffic by client and tool, from the request log (FR-410). The log holds no person, so
- * neither does this: a client is its label, which every person's app of that kind shares. The
- * kind of agent is counted apart, by the week, small counts hidden (the quality read `apps`).
- */
-export const trafficSummarySchema = z.object({
-  /** The first hour counted, inclusive, and the hour after the last; ISO 8601 in UTC. */
-  from: z.string(),
-  to: z.string(),
-  /** `retention.request_log_days`: older hours are no longer in the log. */
-  retentionDays: z.number(),
-  total: z.object({ ...trafficCountsSchema.shape, lastHour: z.nullable(z.string()) }),
-  /** One row per client and tool that was called, most calls first. */
-  rows: z.array(
-    z.object({
-      /** `unknown` for a call refused before a token named its client. */
-      client: z.string(),
-      /** The client's display name from its policy; null for a label without one. */
-      clientName: z.nullable(z.string()),
-      /** `protocol` for a call that is not a tool call, such as starting a session or listing tools. */
-      tool: z.string(),
-      ...trafficCountsSchema.shape,
-      /** The latest hour with a call. */
-      lastHour: z.string(),
-    }),
-  ),
-})
-export type TrafficSummary = z.infer<typeof trafficSummarySchema>
 
 const auditFilters = {
   action: z.optional(z.string().check(z.regex(/^[a-z_]+(\.[a-z_]+)?$/), z.maxLength(80))),

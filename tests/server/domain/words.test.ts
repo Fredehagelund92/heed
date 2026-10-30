@@ -5,7 +5,6 @@ import {
   bannedOn,
   bannedWords,
   concepts,
-  currentWords,
   draftAnswer,
   internalToPlain,
   kinds,
@@ -242,15 +241,5 @@ describe('wordsToChange', () => {
 
   it('leaves code inside a sentence alone', () => {
     expect(found('Open /library/facts, set fact_id or call getFact().')).toEqual([])
-  })
-})
-
-describe('currentWords', () => {
-  it('reads the retired name, AI app, as agent, so a search for it still finds the page', () => {
-    expect(currentWords('connect my AI app')).toBe('connect my agent')
-    expect(currentWords('Which ai apps can connect?')).toBe('Which agents can connect?')
-    expect(currentWords('the OpenAI Apps SDK and AI applications')).toBe(
-      'the OpenAI Apps SDK and AI applications',
-    )
   })
 })

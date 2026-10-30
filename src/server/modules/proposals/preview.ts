@@ -1,6 +1,5 @@
 import { ORPCError } from '@orpc/client'
-import type * as z from 'zod/mini'
-import type { PreviewReply, ProposalRecord, previewSchema } from '../../../contract/proposals.ts'
+import type { ProposalRecord } from '../../../contract/proposals.ts'
 import { previewVersion } from '../../../domain/draft.ts'
 import { previewItemId } from '../../../domain/served-review.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
@@ -58,20 +57,6 @@ export async function draftBundle(
     bundle: candidateBundle(bundle, { id, versionNo, proposerId: p.proposerId, version: v }),
     item: id,
   }
-}
-
-export async function previewProposal(
-  tx: Queryable,
-  clock: Clock,
-  p: ProposalRecord,
-  input: z.infer<typeof previewSchema>,
-) {
-  const { bundle } = await draftBundle(tx, p)
-  const { id: _id, ...scope } = input
-  const result = await previewDelivery(bundle, clock, scope)
-  // get_facts's reply; the contract's output schema checks it before it leaves the service.
-  const reply = result.structuredContent as PreviewReply
-  return { proposalId: p.id, revision: p.revision, result: reply }
 }
 
 /**

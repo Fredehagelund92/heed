@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createToolService, searchHint } from '../../src/server/mcp/service.ts'
 import type { AnonymousRecord } from '../../src/server/mcp/records.ts'
-import { editionDomains } from '../../src/server/mcp/outcomes.ts'
 import { loadLiveBundle, type ServingBundle } from '../../src/server/modules/editions/index.ts'
 import { regression } from '../../db/seed/fixtures/items.ts'
 import { apiDatabase, testDatabase } from './support.ts'
@@ -165,39 +164,5 @@ describe('search_facts on the demo library', () => {
 
   it('records nothing: the words live only in the call', () => {
     expect(records).toEqual([])
-  })
-})
-
-describe('the domain list the assistant reads', () => {
-  it('lists each domain with a line on it, and the metric and dimension names', async () => {
-    const overview = editionDomains(bundle, '2026-10-12')
-    expect(overview.domains.map((d) => d.name)).toEqual([
-      'Customer value',
-      'Marketing',
-      'Paid media',
-      'Sales',
-      'Sandbox',
-    ])
-    const commercial = overview.domains.find((d) => d.id === 'area_sales')!
-    expect(commercial.summary).toMatch(/^Orders, revenue and the basket/)
-    expect(commercial.holds).toMatch(/^\d+ items, mostly about /)
-    const commercialSearch = await search({ query: 'Sales' })
-    expect(commercial.items).toBe(commercialSearch.domains![0]!.items)
-    // Every domain is served: nothing says whether one is live.
-    expect(JSON.stringify(overview.domains)).not.toMatch(/live|not started|starting/)
-    // Each metric names its domain, so its domain's metrics are never mistaken for everyone's.
-    expect(overview.metrics).toContainEqual({
-      key: 'metric:net_revenue',
-      name: 'Net revenue',
-      domain: 'Sales',
-      group: 'Revenue',
-    })
-    const market = overview.dimensions.find((d) => d.key === 'dim:market')!
-    expect('values' in market && market.values).toContain('Spain')
-    const campaign = overview.dimensions.find((d) => d.key === 'dim:campaign')!
-    expect(campaign).toMatchObject({ value_count: 2400 })
-    expect(campaign).not.toHaveProperty('values')
-    // Small enough to read whole in one tool result.
-    expect(JSON.stringify(overview).length).toBeLessThan(12_000)
   })
 })

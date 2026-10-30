@@ -1,16 +1,13 @@
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ESLint } from 'eslint'
-import { allowedIn } from '../eslint.plain-words.js'
-import { helpPageLines } from '../src/domain/help-pages.ts'
-import { wordsToChange } from '../src/domain/words-v1.ts'
 import { compareToBaseline, countWords, type WordCounts } from './plain-words-baseline.ts'
 
 /*
   The ratchet on the earlier voice (docs/design/voice.md, "The guard rail"), run in CI after the lint:
-  `npm run lint:words`. It counts, for each file, what heed/plain-words reports in the code and
-  what the same glossary finds in each help page, and compares the counts with
+  `npm run lint:words`. It counts, for each file, what heed/plain-words reports in the code, and
+  compares the counts with
   plain-words.baseline.json, word by word. The web app in src/app is counted too: it starts at zero
   and has no entry in the baseline, so any word there fails. It fails when a file has a word more often than the
   baseline allows, or a new file has any, so no change adds old words. A fall is only a note: the
@@ -23,7 +20,6 @@ import { compareToBaseline, countWords, type WordCounts } from './plain-words-ba
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const baselineFile = join(root, 'plain-words.baseline.json')
-const helpFolder = 'docs/old-help'
 
 type Finding = { path: string; where: string; message: string; found: string }
 
@@ -47,30 +43,13 @@ async function codeFindings(): Promise<Finding[]> {
   )
 }
 
-/** What the glossary finds in the help pages, which the docs check reads the same way. */
-function helpFindings(): Finding[] {
-  return readdirSync(join(root, helpFolder))
-    .filter((file) => file.endsWith('.md') && file !== 'README.md')
-    .flatMap((file) => {
-      const path = `${helpFolder}/${file}`
-      return helpPageLines(readFileSync(join(root, path), 'utf8')).flatMap(({ line, text }) =>
-        wordsToChange(text, allowedIn(path)).map((change) => ({
-          path,
-          where: `${line}`,
-          message: `Instead of "${change.found}", write: ${change.write}.`,
-          found: change.found,
-        })),
-      )
-    })
-}
-
 const print = (findings: readonly Finding[]) => {
   for (const { path, where, message } of findings)
     console.log(`  ${path}${where ? `:${where}` : ''}  ${message}`)
 }
 
 const args = process.argv.slice(2)
-const findings = [...(await codeFindings()), ...helpFindings()]
+const findings = await codeFindings()
 const counts = countWords(findings)
 const total = findings.length
 

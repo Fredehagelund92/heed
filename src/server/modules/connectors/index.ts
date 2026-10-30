@@ -18,7 +18,6 @@ export {
   SecretStoreError,
   type SecretStore,
 } from './secrets.ts'
-export { createSourcesService, type SourcesService } from './sources.ts'
 export { ConnectorRegistry, configuredSource, connectorType, connectorTypes } from './registry.ts'
 export {
   createFigureSources,

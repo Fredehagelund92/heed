@@ -1,10 +1,9 @@
-import { existsSync, globSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Linter } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { describe, expect, it } from 'vitest'
-import plainWords, { allowedIn, surfaces } from '../../eslint.plain-words.js'
+import plainWords from '../../eslint.plain-words.js'
 
 /**
  * heed/plain-words (eslint.plain-words.js) keeps the earlier voice out of the server's sentences
@@ -193,21 +192,5 @@ describe('heed/plain-words leaves code alone', () => {
     expect(
       said(`throw new ORPCError('NOT_FOUND', { data: { why: 'no item' } })`, file, true),
     ).toEqual([])
-  })
-})
-
-describe('where a banned word may show', () => {
-  it('allows "edition" on the Editions page help page, and nowhere else', () => {
-    expect(allowedIn('docs/old-help/editions.md')).toContain('edition')
-    expect(allowedIn('docs/old-help/tour.md')).toEqual([])
-    expect(allowedIn('db/seed/fixtures/items.ts')).toEqual([])
-  })
-
-  it('gives every file a place names a match', () => {
-    for (const surface of surfaces)
-      for (const glob of [...surface.files, ...(surface.except ?? [])])
-        expect(globSync(glob, { cwd: root }).length > 0 || existsSync(join(root, glob)), glob).toBe(
-          true,
-        )
   })
 })

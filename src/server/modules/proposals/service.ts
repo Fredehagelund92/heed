@@ -1,6 +1,5 @@
 import { ORPCError } from '@orpc/client'
 import type * as z from 'zod/mini'
-import type { BulkSkip } from '../../../contract/review.ts'
 import type {
   createProposalSchema,
   overlapSchema,
@@ -8,7 +7,6 @@ import type {
   ProposalRecord,
   ProposalListResult,
 } from '../../../contract/proposals.ts'
-import { bulkSkipWords } from '../../../domain/bulk-review.ts'
 import { type Draft, formatOutcome, textFindings } from '../../../domain/draft.ts'
 import type { ItemKind } from '../../../domain/item.ts'
 import { parseMentions } from '../../../domain/mentions.ts'
@@ -20,8 +18,6 @@ import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { forReader } from '../library/index.ts'
 import { checkDraft } from './checks.ts'
-import { eventData } from './events.ts'
-import { attachedTests } from './tests.ts'
 import { insertVersion } from './versions.ts'
 
 const fields = `id::text,number::float8,subject,action,state,area_id as "areaId",item_id as "itemId",
@@ -51,7 +47,6 @@ async function forReaders(tx: Queryable, rows: readonly ProposalRecord[]) {
   )
   return rows.map((row, index) => ({ ...row, draft: drafts[index]! }))
 }
-const open = ['draft', 'submitted', 'in_review', 'changes_requested']
 /** An accepted item of `serving_items` as a draft's scope and validity, for cl_scopes_overlap. */
 const servedScope = `jsonb_build_object('validity',jsonb_build_object('start',valid_from,'end',valid_until),'scope',jsonb_build_object('metrics',metrics,'dimensions',to_jsonb(dimension_keys),'dimensionValues',coalesce((select jsonb_agg(jsonb_build_object('dimension','dim:'||split_part(substr(value,5),'/',1),'value',value)) from unnest(value_keys) value),'[]')))`
 type Overlapping = z.infer<typeof overlapSchema>['otherProposals'][number]
@@ -102,7 +97,7 @@ export function changeReason(text: string | null | undefined, action: ProposalRe
  * another domain, and this proposal opened there. Null for any other proposal. A restored record
  * is history that everyone who reads the item reads (0067).
  */
-export async function rescueOf(tx: Queryable, proposalId: string) {
+async function rescueOf(tx: Queryable, proposalId: string) {
   const [row] = await tx.query<{
     versionId: string
     deletedDomain: string
@@ -191,24 +186,6 @@ function proposalsService(
   function proposerOnly(p: ProposalRecord) {
     if (p.proposerId !== personId) throw new ORPCError('FORBIDDEN')
   }
-  async function owner(area: string, actor: string | null = personId) {
-    const rows = await tx.query(
-      `select 1 from area_assignments a join people p on p.id=a.person_id
-      where a.area_id=$1 and a.person_id=$2 and a.role='owner' and a.valid_at @> now()
-      and p.deactivated_at is null and p.erased_at is null`,
-      [area, actor],
-    )
-    if (!rows.length)
-      throw new ORPCError('FORBIDDEN', { message: 'Only an owner of this domain can do this.' })
-  }
-  /** Whether the person reviews the proposal: its area's reviewer, or an administrator for a term. */
-  async function reviews(p: Pick<ProposalRecord, 'areaId' | 'subject'>) {
-    const [row] = await tx.query<{ ok: boolean }>(
-      `select (cl_is_reviewer_now($1) or ($2 = 'vocabulary' and cl_is_admin_now())) as ok`,
-      [p.areaId, p.subject],
-    )
-    return row?.ok ?? false
-  }
   async function event(p: ProposalRecord, kind: string, data: Record<string, unknown> = {}) {
     await tx.query(
       'insert into proposal_events(proposal_id,actor_id,kind,data) values($1,cl_person(),$2,$3)',
@@ -243,35 +220,6 @@ function proposalsService(
         author ? 'service' : 'person',
       ],
     )
-  }
-  async function audit(p: ProposalRecord, action: string, details: Record<string, unknown>) {
-    await tx.query(
-      `insert into audit_log(actor_id,actor_kind,action,area_id,subject_type,subject_id,details)
-      values(cl_person(),'person',$1,$2,'proposal',$3,$4)`,
-      [action, p.areaId, p.id, JSON.stringify(details)],
-    )
-  }
-  /**
-   * FR-524: the draft's author attaches and detaches tests while it is a draft; the area's
-   * owners and administrators until a decision. Row security holds the same rule.
-   */
-  async function attachable(id: string) {
-    const p = await getItem(id)
-    if (!open.includes(p.state))
-      throw new ORPCError('CONFLICT', {
-        message: 'Test questions can be attached only until the proposal is decided.',
-      })
-    if (p.state === 'draft' && p.proposerId === personId) return p
-    const [maintains] = await tx.query<{ ok: boolean }>(
-      'select cl_is_admin_now() or cl_is_owner_now($1) as ok',
-      [p.areaId],
-    )
-    if (!maintains?.ok)
-      throw new ORPCError('FORBIDDEN', {
-        message:
-          "The writer attaches test questions while it's a draft. After that, the owners of the domain and admins do, until it's decided.",
-      })
-    return p
   }
   /**
    * The definitions behind the scope's terms in the live vocabulary. A dimension in several views
@@ -441,15 +389,9 @@ function proposalsService(
     const checks = await checkDraft(tx, draft, personId, channelOf(input), itemId ?? null)
     return { draft, itemId: itemId ?? null, checks }
   }
-  /** A rescue's draft and level 1 findings, without storing anything: the Restore dialog's preview. */
-  async function prepareRescue(itemId: string, input: Draft) {
-    const draft = await defaults(input)
-    return { draft, checks: await checkDraft(tx, draft, personId, 'form', itemId) }
-  }
   return {
     get,
     getItem,
-    prepareRescue,
     /** One proposal as the API returns it to the reader. */
     async read(id: string) {
       const [p] = await forReaders(tx, [await get(id)])
@@ -538,23 +480,6 @@ function proposalsService(
           : {},
       )
       return p!
-    },
-    /**
-     * The proposal a rescue opens (FR-814): an administrator restores an item of a deleted domain
-     * into another domain, and this proposal carries its last content, fitted to that domain
-     * (bin-rescue.ts), to change the retired item. It is created as a draft of the administrator's;
-     * the Bin service records the rescue and then submits it, so the domain's owners review it.
-     */
-    async rescue(itemId: string, input: Draft) {
-      const { draft, checks } = await prepareRescue(itemId, input)
-      rejectSensitive(draft)
-      const [p] = await tx.query<ProposalRecord>(
-        `insert into proposals(action,area_id,item_id,proposer_id,channel,draft,draft_saved_at,draft_findings)
-        values('change',$1,$2,cl_person(),'form',$3,now(),$4) returning ${fields}`,
-        [draft.areaId, itemId, JSON.stringify(draft), JSON.stringify(checks.findings)],
-      )
-      await event(p!, 'created', { rescue: true })
-      return { proposal: p!, checks }
     },
     /** `reason` left out keeps the stored one; null or empty clears it. */
     async save(id: string, revision: number, input: Draft, reasonInput?: string | null) {
@@ -655,92 +580,6 @@ function proposalsService(
       await event(submitted, 'checked', { level: 'format', findings: checks.findings })
       return submitted
     },
-    async claim(id: string, revision: number, recipient?: string) {
-      const p = await current(id, revision)
-      await owner(p.areaId)
-      if (!['submitted', 'in_review'].includes(p.state)) throw new ORPCError('CONFLICT')
-      if (p.claimedBy && p.claimedBy !== personId)
-        throw new ORPCError('CONFLICT', {
-          message: 'Another owner is already reviewing this proposal.',
-        })
-      if (recipient) {
-        if (p.state !== 'in_review' || p.claimedBy !== personId) throw new ORPCError('CONFLICT')
-        await owner(p.areaId, recipient)
-      }
-      await tx.query(
-        "update proposals set state='in_review',claimed_by=$2,claimed_at=now() where id=$1",
-        [id, recipient ?? personId],
-      )
-      const claimed = await get(id)
-      await event(claimed, recipient ? 'handed_over' : 'claimed', {
-        personId: recipient ?? personId,
-      })
-      return claimed
-    },
-    /**
-     * Claims several proposals for a reviewer of their area, or hands them over to one (FR-211,
-     * FR-223): each as Claim and Hand over do it alone, in a savepoint, so one that cannot be
-     * assigned is left out and named while the rest go through. Only a new item or a change is
-     * claimed; a retirement, a re-check and a term are decided as they come.
-     */
-    async assignMany(targets: readonly { id: string; revision: number }[], recipient: string) {
-      const seen = new Set<string>()
-      const assigned: ProposalRecord[] = []
-      const skipped: BulkSkip[] = []
-      for (const target of targets) {
-        if (seen.has(target.id)) continue
-        seen.add(target.id)
-        const p = await get(target.id).catch(() => null)
-        const skip = (code: BulkSkip['code'], message: string) =>
-          skipped.push({
-            id: target.id,
-            number: p?.number ?? null,
-            title: p?.title ?? null,
-            code,
-            message,
-          })
-        if (!p) {
-          skip('not_found', bulkSkipWords.notFound)
-          continue
-        }
-        if (p.subject !== 'item' || !['create', 'change'].includes(p.action)) {
-          skip('not_allowed', bulkSkipWords.notClaimed)
-          continue
-        }
-        if (p.revision !== target.revision) {
-          skip('changed', bulkSkipWords.changed)
-          continue
-        }
-        if (!['submitted', 'in_review'].includes(p.state)) {
-          skip('not_waiting', bulkSkipWords.notWaiting)
-          continue
-        }
-        if (p.claimedBy === recipient) {
-          skip('claimed', bulkSkipWords.alreadyTheirs)
-          continue
-        }
-        if (p.claimedBy && p.claimedBy !== personId) {
-          skip('claimed', bulkSkipWords.claimed)
-          continue
-        }
-        await tx.query('savepoint bulk_assignment')
-        try {
-          let current = p.claimedBy ? p : await this.claim(p.id, p.revision)
-          if (recipient !== personId)
-            current = await this.claim(current.id, current.revision, recipient)
-          await tx.query('release savepoint bulk_assignment')
-          assigned.push(current)
-        } catch (error) {
-          await tx.query('rollback to savepoint bulk_assignment')
-          if (!(error instanceof ORPCError)) throw error
-          skip(
-            error.code === 'FORBIDDEN' ? 'forbidden' : 'refused',
-            error.code === 'FORBIDDEN' ? bulkSkipWords.assigner : error.message,
-          )
-        }
-      }
-      return { proposals: assigned, skipped }
-    },
     async withdraw(id: string, revision: number, reason: string) {
       // A proposed term is withdrawn the same way: it never had an item draft to edit.
       const term = await get(id, true).catch(() => null)
@@ -793,108 +632,6 @@ function proposalsService(
       return { id, discardedAt: discarded!.discardedAt }
     },
     /**
-     * A comment in a proposal's discussion, from its proposer or a reviewer: an owner or
-     * approver of its area, or an administrator for a term (which an administrator decides).
-     * Any open proposal takes one, whatever it changes: an item, a retirement, a re-check or a
-     * term. The text is the small Markdown subset, without mentions.
-     */
-    async comment(id: string, revision: number, text: string, replyTo?: string) {
-      const p = await get(id, true)
-      if (p.revision !== revision) conflict(p)
-      if (p.proposerId !== personId && !(await reviews(p)))
-        throw new ORPCError('FORBIDDEN', {
-          message: 'Only the writer and the owners of its domain can comment on a proposal.',
-        })
-      if (!open.includes(p.state)) throw new ORPCError('CONFLICT')
-      rejectSensitive(text)
-      rejectMentions(text)
-      if (
-        replyTo &&
-        !(
-          await tx.query(
-            "select 1 from proposal_events where id=$1 and proposal_id=$2 and kind='commented'",
-            [replyTo, id],
-          )
-        ).length
-      )
-        throw new ORPCError('NOT_FOUND')
-      await tx.query('update proposals set revision=revision+1 where id=$1', [id])
-      const updated = await get(id)
-      await event(updated, 'commented', { text, ...(replyTo ? { replyTo } : {}) })
-      return updated
-    },
-    async events(id: string) {
-      await get(id)
-      const rows = await tx.query<{
-        id: string
-        at: string
-        actorId: string | null
-        kind: string
-        data: Record<string, unknown>
-      }>(
-        `select id::text,at::text,actor_id::text as "actorId",kind,data from proposal_events where proposal_id=$1 order by at,id`,
-        [id],
-      )
-      return rows.map((row) => ({ ...row, data: eventData(row.data) }))
-    },
-    /** FR-524: the test questions attached to the proposal's check. */
-    async tests(id: string) {
-      await getItem(id)
-      return attachedTests(tx, id)
-    },
-    /**
-     * FR-524: attaches a test question of the proposal's area to its check, reported with the
-     * change and never blocking it. A held-out question is never attached (FR-503), and is not
-     * found for anyone but its area's maintainers. Attaching it again changes nothing.
-     */
-    async attachTest(id: string, question: string) {
-      const p = await attachable(id)
-      const [found] = await tx.query<{
-        area: string
-        heldOut: boolean
-        active: boolean
-        readable: boolean
-      }>(
-        `select area_id as area, split = 'held_out' as "heldOut", status = 'active' as active,
-                split = 'development' or cl_is_admin_now() or cl_is_owner_now(area_id) as readable
-           from golden_questions where id = $1`,
-        [question],
-      )
-      if (!found?.readable)
-        throw new ORPCError('NOT_FOUND', {
-          message: "We couldn't find this test question, or you can't see it.",
-        })
-      if (found.heldOut)
-        throw new ORPCError('UNPROCESSABLE_CONTENT', {
-          message: "A hidden test question can't be attached to a proposal.",
-        })
-      if (found.area !== p.areaId)
-        throw new ORPCError('UNPROCESSABLE_CONTENT', {
-          message: 'This test question belongs to another domain than the proposal.',
-        })
-      if (!found.active)
-        throw new ORPCError('UNPROCESSABLE_CONTENT', {
-          message: 'Only an active test question can be attached.',
-        })
-      const attached = await tx.query(
-        `insert into proposal_tests (proposal_id, question_id) values ($1, $2)
-         on conflict (proposal_id, question_id) do nothing returning question_id`,
-        [id, question],
-      )
-      if (attached.length) await audit(p, 'proposal.test_attached', { question })
-      return attachedTests(tx, id)
-    },
-    /** Detaches a test question; detaching one that is not attached changes nothing. */
-    async detachTest(id: string, question: string) {
-      const p = await attachable(id)
-      const detached = await tx.query(
-        'delete from proposal_tests where proposal_id = $1 and question_id = $2 returning question_id',
-        [id, question],
-      )
-      if (detached.length) await audit(p, 'proposal.test_detached', { question })
-      return attachedTests(tx, id)
-    },
-    /**
      * Before an agent's draft is saved (FR-121): the accepted items whose scope and dates overlap
      * it (FR-109) or whose title or summary reads like it (a trigram score from 0 to 1), and the
      * person's own open proposals that overlap it. Nothing about other people's proposals.
@@ -926,37 +663,6 @@ function proposalsService(
         [JSON.stringify(draft)],
       )
       return { accepted, ownProposals: own }
-    },
-    /**
-     * Duplicates and conflicts (FR-109, FR-209): accepted items and open proposals whose scope
-     * and dates overlap. Other people's proposals are listed only where row security lets the
-     * person read them, as a reviewer of their area or an administrator; anyone else learns only
-     * that one exists.
-     */
-    async overlap(id: string) {
-      const p = await getItem(id)
-      const accepted = await acceptedOverlaps(tx, p.draft, p.itemId)
-      const proposals = await tx.query<Overlapping & { own: boolean }>(
-        `select p.id::text,p.number::float8 as number,coalesce(v.title,p.draft->>'title','Untitled proposal') as title,
-           coalesce(v.kind::text,p.draft->>'kind','note') as kind,p.state::text as state,p.proposer_id=cl_person() as own
-         from proposals p left join item_versions v on v.id=p.item_version_id
-         where p.id<>$1 and p.subject='item' and p.action in ('create','change') and p.discarded_at is null
-           and p.state in ('draft','submitted','in_review','changes_requested') and cl_scopes_overlap($2::jsonb,p.draft)
-         order by p.number`,
-        [id, JSON.stringify(p.draft)],
-      )
-      const [other] = await tx.query<{ exists: boolean }>(
-        'select cl_other_proposal_overlap($1) as exists',
-        [id],
-      )
-      const listed = ({ own: _own, ...row }: Overlapping & { own: boolean }) => row
-      return {
-        accepted,
-        ownProposals: proposals.filter((row) => row.own).map(listed),
-        // A draft stays with its writer until it is sent.
-        otherProposals: proposals.filter((row) => !row.own && row.state !== 'draft').map(listed),
-        otherProposalExists: other!.exists,
-      }
     },
   }
 }

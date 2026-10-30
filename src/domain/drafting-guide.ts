@@ -22,14 +22,3 @@ export const draftingGuide = `How to write a draft: ${draftingRules.join(' ')}`
 
 /** The summary's length as the format check counts it: in characters (code points). */
 export const summaryLength = (summary: string) => [...summary].length
-
-/**
- * Why a summary cannot be saved as it is, in words an AI can act on, or null when it fits. The
- * draft is refused rather than cut, so the writer shortens it and nothing is lost.
- */
-export function summaryProblem(summary: string | undefined): string | null {
-  if (summary === undefined) return null
-  const length = summaryLength(summary)
-  if (length <= limits.summary) return null
-  return `The summary has ${length} characters; it may have at most ${limits.summary}. Shorten it to what happened, where and when, and move the detail, caveats and what it does not mean into the body.`
-}

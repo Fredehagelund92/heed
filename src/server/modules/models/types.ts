@@ -1,5 +1,4 @@
 import type { JSONValue, LanguageModelV4, SharedV4ProviderOptions } from '@ai-sdk/provider'
-import type { ToolSet } from 'ai'
 
 /**
  * The model port's vocabulary: roles, prices, the provider registry's entries and the adapter
@@ -54,23 +53,6 @@ export type ProviderEntry = {
   creditsPath?: string
   /** The only models this provider may serve, best first: a `different_family` judge is the first of another line. */
   models: Record<string, ListedModel>
-  /**
-   * The vendor's own web search, where this provider serves it (the assistant's search_web):
-   * absent, the provider cannot search. The search words go to the provider and the vendor.
-   */
-  webSearch?: WebSearchEntry
-}
-
-/** A provider's web search: the protocol that carries it, the model that runs it and its price. */
-export type WebSearchEntry = {
-  /** The adapter that speaks the search protocol at the provider's base URL. */
-  adapter: string
-  /** A model the provider lists, which runs the search: the cheapest that can. */
-  searchModel: string
-  /** US dollars per 1,000 searches, as the provider bills them, on top of the tokens. */
-  perThousand: number
-  /** Ask a gateway to serve the search from the model's vendor only (`gateway.only`). */
-  onlyVendor?: boolean
 }
 
 export type Connection = { apiKey: string; baseUrl: string }
@@ -91,15 +73,7 @@ export interface ProviderAdapter {
     entry: ProviderEntry,
     connection: Connection,
   ): (name: string, listed: ListedModel, effort: Effort) => AdaptedModel
-  /** A model with the vendor's own web search tool, where the protocol has one. */
-  webSearch?(
-    entry: ProviderEntry,
-    connection: Connection,
-  ): (name: string, listed: ListedModel, settings: { maxUses: number }) => SearchModel
 }
-
-/** A model that searches the web with its vendor's tool: the tool, by name, as the model takes it. */
-export type SearchModel = { model: LanguageModelV4; tools: ToolSet; toolName: string }
 
 export type ModelChoice = AdaptedModel & {
   /** `provider/model`, recorded on every run and in the cell cache key (FR-510). */
@@ -117,13 +91,3 @@ export type ModelChoice = AdaptedModel & {
   /** Who receives what is sent to this model, in plain words, for the notice before a real run. */
   recipients: string
 }
-
-/**
- * The way to search the web for the assistant: a model of the provider the assistant uses, with
- * its vendor's search tool, priced per token like any model and per search on top.
- */
-export type WebSearchRoute = ModelChoice &
-  Pick<SearchModel, 'tools' | 'toolName'> & {
-    /** What one search costs on top of the tokens, in micros. */
-    searchMicros: number
-  }

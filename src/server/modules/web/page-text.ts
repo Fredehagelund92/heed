@@ -1,5 +1,3 @@
-import { matchForm } from '../../../domain/quote-match.ts'
-
 /*
   A web page's words as plain text: the bytes decoded in the page's own character set, the
   markup, scripts and styles dropped, entities decoded, one paragraph per block. Official pages
@@ -215,83 +213,4 @@ export function pageText(body: string, kind: 'html' | 'text'): PageText {
     titleEnd < 0 ? '' : line(decodeEntities(markupText(body.slice(titleOpen + 1, titleEnd))))
   const paragraphs = decodeEntities(markupText(body)).split('\n').map(line).filter(Boolean)
   return { title: title || null, paragraphs }
-}
-
-/** The longest passage handed on whole; a longer paragraph is cut at its sentences. */
-const MAX_PASSAGE = 1500
-
-function pieces(paragraph: string): string[] {
-  if (paragraph.length <= MAX_PASSAGE) return [paragraph]
-  const out: string[] = []
-  let current = ''
-  for (const sentence of paragraph.split(/(?<=[.!?;:])\s+/)) {
-    if (current && current.length + sentence.length + 1 > MAX_PASSAGE) {
-      out.push(current)
-      current = ''
-    }
-    current = current ? `${current} ${sentence}` : sentence
-    while (current.length > MAX_PASSAGE) {
-      out.push(current.slice(0, MAX_PASSAGE))
-      current = current.slice(MAX_PASSAGE)
-    }
-  }
-  if (current) out.push(current)
-  return out
-}
-
-/** Words without their accents, as a person types them when they look for a word. */
-const plain = (text: string) => matchForm(text).normalize('NFD').replace(/\p{M}/gu, '')
-
-/**
- * The passages to hand on within `budget` characters: every paragraph when the page is short;
- * otherwise the ones that hold most of the words looked for (a law's number, a name), in the
- * page's order, after the opening paragraphs; without words, the page from its start.
- */
-export function passages(
-  paragraphs: readonly string[],
-  lookFor: string | undefined,
-  budget: number,
-): { passages: string[]; truncated: boolean } {
-  const all = paragraphs.flatMap(pieces)
-  const total = all.reduce((sum, text) => sum + text.length, 0)
-  if (total <= budget) return { passages: all, truncated: false }
-  const terms = [
-    ...new Set(
-      plain(lookFor ?? '')
-        .split(/[^\p{L}\p{N}.,/-]+/u)
-        .map((term) => term.replace(/^[.,/-]+|[.,/-]+$/g, ''))
-        .filter((term) => term.length >= 3 || /\d/.test(term)),
-    ),
-  ]
-  const scores = all.map((text) => {
-    const words = plain(text)
-    return terms.filter((term) => words.includes(term)).length
-  })
-  const order = all.map((_, index) => index)
-  const found = order
-    .filter((index) => scores[index]! > 0)
-    .sort((a, b) => scores[b]! - scores[a]! || a - b)
-  const ranked = found.length
-    ? [
-        // The opening says what the page is; a found passage's neighbours say what it means.
-        ...order.slice(0, 2),
-        ...found,
-        ...found.flatMap((index) => [index - 1, index + 1]).filter((index) => index >= 0),
-        ...order,
-      ]
-    : order
-  const chosen = new Set<number>()
-  let used = 0
-  for (const index of ranked) {
-    if (chosen.has(index) || index >= all.length) continue
-    const size = all[index]!.length
-    if (used + size > budget) continue
-    chosen.add(index)
-    used += size
-    if (used >= budget) break
-  }
-  return {
-    passages: [...chosen].sort((a, b) => a - b).map((index) => all[index]!),
-    truncated: true,
-  }
 }

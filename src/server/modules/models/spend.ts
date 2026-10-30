@@ -23,10 +23,6 @@ export type SpendEntry = {
   calls: number
   /** The usage is an estimate (the call did not finish), not what the provider reported. */
   estimated?: boolean
-  /** Web searches the provider ran and billed per search (search_web). */
-  webSearches?: number
-  /** Web pages Heed read itself, for nothing (read_source): counted, never priced. */
-  webReads?: number
 }
 
 const labels: Record<SpendFeature, string> = { eval: 'Evaluation', assistant: 'Assistant' }
@@ -124,61 +120,22 @@ export async function recordModelSpend(
   person: string | null,
 ) {
   const estimatedCalls = spend.estimated ? spend.calls : 0
-  const searches = spend.webSearches ?? 0
-  const reads = spend.webReads ?? 0
   await tx.query(
-    `insert into llm_spend_monthly(month,feature,provider,calls,cost_micros,estimated_calls,web_searches,web_reads)
-     values(date_trunc('month', now() at time zone 'UTC')::date,$1,$5,$2,$3,$4,$6,$7)
+    `insert into llm_spend_monthly(month,feature,provider,calls,cost_micros,estimated_calls)
+     values(date_trunc('month', now() at time zone 'UTC')::date,$1,$5,$2,$3,$4)
      on conflict (month,feature,provider) do update set calls=llm_spend_monthly.calls+excluded.calls,
        cost_micros=llm_spend_monthly.cost_micros+excluded.cost_micros,
-       estimated_calls=llm_spend_monthly.estimated_calls+excluded.estimated_calls,
-       web_searches=llm_spend_monthly.web_searches+excluded.web_searches,
-       web_reads=llm_spend_monthly.web_reads+excluded.web_reads`,
-    [feature, spend.calls, spend.costMicros, estimatedCalls, spend.provider, searches, reads],
+       estimated_calls=llm_spend_monthly.estimated_calls+excluded.estimated_calls`,
+    [feature, spend.calls, spend.costMicros, estimatedCalls, spend.provider],
   )
   if (person)
     await tx.query(
-      `insert into llm_spend_daily(day,person_id,feature,tokens_in,tokens_out,cost_micros,estimated_calls,web_searches,web_reads)
-       values((now() at time zone 'UTC')::date,$1,$2,$3,$4,$5,$6,$7,$8)
+      `insert into llm_spend_daily(day,person_id,feature,tokens_in,tokens_out,cost_micros,estimated_calls)
+       values((now() at time zone 'UTC')::date,$1,$2,$3,$4,$5,$6)
        on conflict (day,person_id,feature) do update set tokens_in=llm_spend_daily.tokens_in+excluded.tokens_in,
          tokens_out=llm_spend_daily.tokens_out+excluded.tokens_out,
          cost_micros=llm_spend_daily.cost_micros+excluded.cost_micros,
-         estimated_calls=llm_spend_daily.estimated_calls+excluded.estimated_calls,
-         web_searches=llm_spend_daily.web_searches+excluded.web_searches,
-         web_reads=llm_spend_daily.web_reads+excluded.web_reads`,
-      [
-        person,
-        feature,
-        spend.inputTokens,
-        spend.outputTokens,
-        spend.costMicros,
-        estimatedCalls,
-        searches,
-        reads,
-      ],
+         estimated_calls=llm_spend_daily.estimated_calls+excluded.estimated_calls`,
+      [person, feature, spend.inputTokens, spend.outputTokens, spend.costMicros, estimatedCalls],
     )
-}
-
-/**
- * The web searches one person may still run today: the day's limit (`limits.web_searches_per_day`,
- * 0 when web search is off) less what the ledger counted for them today.
- */
-export async function webSearchesLeft(tx: Queryable, person: string): Promise<number> {
-  const [row] = await tx.query<{ limit: string | null; used: string }>(
-    `select (select value #>> '{}' from settings_current where key='limits.web_searches_per_day') as limit,
-            (select coalesce(sum(web_searches),0)::text from llm_spend_daily
-              where person_id=$1 and day=(now() at time zone 'UTC')::date) as used`,
-    [person],
-  )
-  const limit = Number(row?.limit ?? 0)
-  return Math.max(0, (Number.isFinite(limit) ? Math.floor(limit) : 0) - Number(row?.used ?? 0))
-}
-
-/** How many searches a day the setting allows: 0 when web search is off. */
-export async function webSearchesPerDay(tx: Queryable): Promise<number> {
-  const [row] = await tx.query<{ value: unknown }>(
-    "select value from settings_current where key='limits.web_searches_per_day'",
-  )
-  const limit = Number(row?.value ?? 0)
-  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0
 }

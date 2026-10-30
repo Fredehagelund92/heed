@@ -35,7 +35,6 @@ import {
   ownerRole,
 } from '../../domain/served-review.ts'
 import type { EditionSource, ServingBundle, ServingItem } from '../modules/editions/index.ts'
-import { helpAnswer, repositoryHelp, type HelpLibrary } from '../modules/help/index.ts'
 import type { Principal } from './auth.ts'
 import { canRead, linkIndex, outgoing, related, termShown, type Link } from '../../domain/links.ts'
 import type { AnonymousRecord, AnonymousStore } from './records.ts'
@@ -43,12 +42,9 @@ import {
   askedDomains,
   definitionOf,
   domainAbout,
-  domainOverview,
   findContext,
   reviewedOutput,
   unknownDomain,
-  whatChanged,
-  type ChangesArgs,
   type FindArgs,
 } from './outcomes.ts'
 import type { ServingReads } from './reads.ts'
@@ -62,8 +58,6 @@ import {
   failedSaid,
   findSaid,
   gapSaid,
-  improveSaid,
-  overviewSaid,
   readSaid,
   refusedSaid,
   relatedSaid,
@@ -75,16 +69,12 @@ import {
   type Said,
 } from '../../domain/say.ts'
 import {
-  changesInput,
   contextInput,
   feedbackInput,
   findContextInput,
   findInput,
   gapInput,
   getContextInput,
-  helpInput,
-  improveInput,
-  overviewInput,
   readInput,
   relatedInput,
   reportInput,
@@ -247,24 +237,17 @@ export function scopeOf(
   input: Pick<ContextInput, 'question' | 'metrics' | 'dimension_filters' | 'window'>,
   bundle: ServingBundle,
   today: string,
-  options: { datesRequired?: boolean } = {},
 ) {
   const filters: Record<string, string[]> = Object.create(null) as Record<string, string[]>
   for (const filter of input.dimension_filters ?? [])
     filters[filter.dimension] = [...(filters[filter.dimension] ?? []), ...filter.values]
-  return extractScope(
-    input.question,
-    bundle.terms,
-    today,
-    {
-      ...(input.metrics === undefined ? {} : { metrics: input.metrics }),
-      ...(input.dimension_filters === undefined ? {} : { filters }),
-      ...(input.window === undefined
-        ? {}
-        : { window: { start: input.window.from, end: shiftDate(input.window.to, 1) } }),
-    },
-    options,
-  )
+  return extractScope(input.question, bundle.terms, today, {
+    ...(input.metrics === undefined ? {} : { metrics: input.metrics }),
+    ...(input.dimension_filters === undefined ? {} : { filters }),
+    ...(input.window === undefined
+      ? {}
+      : { window: { start: input.window.from, end: shiftDate(input.window.to, 1) } }),
+  })
 }
 const domainName = (bundle: ServingBundle, areaId: string) =>
   bundle.areas.find((area) => area.id === areaId)?.name ?? areaId
@@ -418,8 +401,8 @@ const pageKey = (bundle: ServingBundle, filter: unknown) =>
 
 type Definition = { term: string }
 /**
- * The sentences of an outcome tool's reply (FR-344): a name nobody knows, what find_facts found
- * and how, a domain in a line, or what changed. A refusal and what_changed bring their own.
+ * The sentences of an outcome tool's reply (FR-344): a name nobody knows, or what find_facts found
+ * and how. A refusal brings its own.
  */
 function outcomeSaid(
   name: OutcomeName,
@@ -427,19 +410,10 @@ function outcomeSaid(
   args: unknown,
   bundle: ServingBundle,
 ): Said {
-  if (body.status === 'need_more_detail' || name === 'what_changed')
+  if (body.status === 'need_more_detail')
     return typeof body.say === 'string'
       ? { say: body.say, ...(typeof body.next === 'string' ? { next: body.next } : {}) }
       : refusedSaid('The question needs a clearer metric, market or domain.', String(body.message))
-  if (name === 'domain_overview')
-    return overviewSaid({
-      domain: body.domain as { name: string; summary?: string } | undefined,
-      coverage: body.coverage as { items: number; withheld?: number } | undefined,
-      domains: (body.domains as unknown[] | undefined)?.length ?? 0,
-      metrics: (body.vocabulary as { count: { metrics: number } } | undefined)?.count.metrics,
-      readAs: (body.domain_read_as as { wrote: string; domain: string } | undefined) ?? null,
-      waiting: body.waiting_in_source !== undefined,
-    })
   const find = args as FindArgs
   const check = body.check_report as { withheld: number }
   const v1 = name === 'find_context'
@@ -460,8 +434,8 @@ function outcomeSaid(
     v1 ? contextVoice : factVoice,
   )
 }
-/** The tools that read an outcome of the served edition: find_context, and the reads it replaced. */
-type OutcomeName = 'find_facts' | 'find_context' | 'domain_overview' | 'what_changed'
+/** The tools that read an outcome of the served edition: find_context, and find_facts it replaced. */
+type OutcomeName = 'find_facts' | 'find_context'
 
 /** find_context's arguments as findContext reads them: a kind by the name it is stored as. */
 const findArgsOf = ({ kind, ...args }: ReturnType<typeof findContextInput.parse>): FindArgs => ({
@@ -481,12 +455,10 @@ export function createToolService(
   source: EditionSource,
   store: AnonymousStore,
   now: () => Date = () => new Date(),
-  /** Owners, gaps and editions for domain_overview and what_changed; without them they fail. */
+  /** What a domain's source has beyond the vocabulary, for find_context; without it, nothing. */
   reads?: ServingReads,
   /** The web app's address, for each delivered item's page (FR-347); without it, a path on it. */
   web: string | null = null,
-  /** Heed's help pages for search_help (FR-348); left out, the pages of this checkout. */
-  help?: HelpLibrary,
 ) {
   const urlOf = (id: string) => itemUrl(web, id)
   /**
@@ -515,27 +487,12 @@ export function createToolService(
     onEdition: (seq: string) => void,
     today: string,
   ): Promise<ToolResult> {
-    const find = name === 'find_facts' || name === 'find_context'
-    const args =
-      name === 'find_context'
-        ? findArgsOf(findContextInput.parse(input))
-        : name === 'find_facts'
-          ? findInput.parse(input)
-          : name === 'domain_overview'
-            ? overviewInput.parse(input)
-            : changesInput.parse(input)
-    const edition = find ? (args as FindArgs).edition : undefined
-    // Naming an edition, to read or to compare, needs edition scope, as for get_facts.
-    const named =
-      name === 'what_changed'
-        ? ((args as ChangesArgs).edition ?? (args as ChangesArgs).since)
-        : edition
-    if (named && !principal.canSelectEdition)
-      return failure(
-        name === 'what_changed'
-          ? 'Comparing named editions requires edition scope. Leave out edition and since for what the live edition changed.'
-          : 'Selecting an edition requires edition scope.',
-      )
+    const args: FindArgs =
+      name === 'find_context' ? findArgsOf(findContextInput.parse(input)) : findInput.parse(input)
+    const edition = args.edition
+    // Naming an edition needs edition scope, as for get_facts.
+    if (edition && !principal.canSelectEdition)
+      return failure('Selecting an edition requires edition scope.')
     const bundle = await source.bundle(edition)
     onEdition(bundle.seq)
     const common = {
@@ -543,30 +500,21 @@ export function createToolService(
       overlay: bundle.overlay,
       tool_schema_digest: toolSchemaDigest,
     }
-    if (!find && !reads) return failure('This tool is not available here.')
-    const found = find
-      ? findContext(
-          bundle,
-          args as FindArgs,
-          today,
-          // What a domain's source has beyond the vocabulary, read only for a domain named.
-          reads && namesDomain(bundle, args as FindArgs) ? await reads.waiting() : null,
-          name === 'find_context' ? contextVoice : factVoice,
-        )
-      : null
+    const found = findContext(
+      bundle,
+      args,
+      today,
+      // What a domain's source has beyond the vocabulary, read only for a domain named.
+      reads && namesDomain(bundle, args) ? await reads.waiting() : null,
+      name === 'find_context' ? contextVoice : factVoice,
+    )
     const body: Record<string, unknown> =
-      found && name === 'find_context'
-        ? contextFound(found, bundle, today)
-        : found
-          ? cite(found)
-          : name === 'domain_overview'
-            ? await domainOverview(bundle, args, today, reads!)
-            : await whatChanged(bundle, args as ChangesArgs, today, reads!)
+      name === 'find_context' ? contextFound(found, bundle, today) : cite(found)
     // FR-342: a concise find_facts or find_context leaves out the source details its definitions
     // already say in words.
-    const concise = find && (args as FindArgs).response_format === 'concise'
+    const concise = args.response_format === 'concise'
     // find_context names the words of the query that a person defined (FR-138).
-    const terms = name === 'find_context' ? termsOf(bundle, (args as FindArgs).query) : []
+    const terms = name === 'find_context' ? termsOf(bundle, args.query) : []
     const saidNow = (shown: Record<string, unknown>) =>
       withTermsNext(outcomeSaid(name, shown, args, bundle), terms)
     const out: Record<string, unknown> = {
@@ -768,16 +716,8 @@ export function createToolService(
         return resultFor({ recorded: true, check_report: report('matched') })
       }
       if (name === 'report') return await reportFor(input, principal, onEdition, today)
-      if (
-        name === 'find_facts' ||
-        name === 'find_context' ||
-        name === 'domain_overview' ||
-        name === 'what_changed'
-      )
+      if (name === 'find_facts' || name === 'find_context')
         return await outcome(name, input, principal, maxBytes, onEdition, today)
-      // Heed's own help reads no edition: the same pages whatever is live.
-      if (name === 'search_help')
-        return resultFor(helpAnswer(help ?? repositoryHelp(), helpInput.parse(input).query, web))
       const args =
         name === 'get_facts'
           ? contextInput.parse(input)
@@ -789,9 +729,7 @@ export function createToolService(
                 ? relatedInput.parse(input)
                 : name === 'search_facts'
                   ? searchInput.parse(input)
-                  : name === 'improve_question'
-                    ? improveInput.parse(input)
-                    : gapInput.parse(input)
+                  : gapInput.parse(input)
       const edition = 'edition' in args ? args.edition : undefined
       if (edition && !principal.canSelectEdition)
         return failure('Selecting an edition requires edition scope.')
@@ -803,21 +741,13 @@ export function createToolService(
         tool_schema_digest: toolSchemaDigest,
       }
       const limit = Math.min(maxBytes, 'max_bytes' in args ? args.max_bytes : 100000)
-      if (
-        name === 'get_facts' ||
-        name === 'get_context' ||
-        name === 'improve_question' ||
-        name === 'report_gap'
-      ) {
+      if (name === 'get_facts' || name === 'get_context' || name === 'report_gap') {
         const scoped = args as ContextInput | GetContextInput
         // get_context speaks the agent contract (docs/product.md, section 10); get_facts, its
         // deprecated id, keeps its reply for one release.
         const v1 = name === 'get_context'
-        // improve_question coaches a question, so it says the dates are missing (FR-307); the
-        // others read a question without dates at today, and say so.
-        const scope = scopeOf(scoped, bundle, today, {
-          datesRequired: name === 'improve_question',
-        })
+        // A question without dates is read at today, and the reply says so.
+        const scope = scopeOf(scoped, bundle, today)
         const assumed =
           scope.status === 'resolved' && scope.assumed ? assumedDate(scope.assumed) : null
         // How Heed read the dates in the question's words, said with the scope (FR-304).
@@ -867,39 +797,6 @@ export function createToolService(
             ...(assumed ? { assumed_date: assumed.note } : {}),
             ...(read ? { dates_read: read } : {}),
             check_report: check,
-          })
-        }
-        if (name === 'improve_question') {
-          return resultFor({
-            ...saidFields(
-              resolution.scope
-                ? improveSaid(
-                    scopeWords(bundle, resolution.scope, {
-                      show: true,
-                      readsAs: read?.reads_as ?? null,
-                    }),
-                  )
-                : unreadSaid(bundle, resolution.issues, scoped.question),
-            ),
-            ...common,
-            status: resolution.status,
-            options: resolution.issues,
-            scope_used: resolution.scope,
-            ...(read ? { dates_read: read } : {}),
-            check_report: check,
-            suggestions: [
-              'Name the metric definition and the date range.',
-              'Specify the market and compare it with an unaffected market and earlier dates.',
-            ],
-            events: resolution.items
-              .filter((m) => bundle.items.find((i) => i.id === m.id)?.kind === 'event')
-              .slice(0, 20)
-              .map((m) => ({ id: m.id })),
-            guides: resolution.items
-              .filter((m) => bundle.items.find((i) => i.id === m.id)?.kind === 'guide')
-              .slice(0, 20)
-              .map((m) => ({ id: m.id })),
-            instructions: linkInstructions,
           })
         }
         const index = linkIndex(bundle)

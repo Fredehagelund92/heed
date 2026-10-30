@@ -1,42 +1,12 @@
 import * as z from 'zod/mini'
-import {
-  goldenQuestionSchema,
-  passRules,
-  questionIdSchema,
-  questionSplits,
-  questionStatuses,
-} from '../domain/golden-question.ts'
+import { passRules, questionSplits } from '../domain/golden-question.ts'
 
 /** Test questions, evaluation runs, transcripts and scorecards (requirements section 5.5). */
 
 const areaId = z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))
 const uuid = z.string().check(z.regex(/^[0-9a-f-]{36}$/))
-const editionLabel = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}\.\d+$/))
 /** A question's verdict in a run; null when it has none on that side. */
 export const verdictSchema = z.nullable(z.enum(['pass', 'fail', 'no_answer']))
-
-export const storedQuestionSchema = z.object({
-  ...goldenQuestionSchema.def.shape,
-  revision: z.number(),
-  setAsideReason: z.nullable(z.string()),
-  updatedAt: z.string(),
-})
-export const questionListSchema = z.object({
-  area: z.optional(areaId),
-  status: z.optional(z.enum(questionStatuses)),
-})
-export const questionIdInputSchema = z.object({ id: questionIdSchema })
-/** Create with no revision; replace with the revision you read (optimistic concurrency). */
-export const saveQuestionSchema = z.object({
-  id: questionIdSchema,
-  revision: z.optional(z.number().check(z.int(), z.minimum(1))),
-  question: goldenQuestionSchema,
-})
-export const setAsideSchema = z.object({
-  id: questionIdSchema,
-  revision: z.number().check(z.int(), z.minimum(1)),
-  reason: z.nullable(z.string().check(z.minLength(3), z.maxLength(500))),
-})
 export const importSchema = z.object({
   content: z.string().check(z.minLength(1), z.maxLength(1_000_000)),
   dryRun: z._default(z.boolean(), true),
@@ -48,7 +18,6 @@ export const importReportSchema = z.object({
   unchanged: z.array(z.string()),
   errors: z.array(z.object({ index: z.number(), id: z.nullable(z.string()), message: z.string() })),
 })
-export const exportSchema = z.object({ content: z.string() })
 
 export const runStates = [
   'estimated',
@@ -271,52 +240,13 @@ export const runListSchema = z.object({
   limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(100))),
 })
 export const runIdSchema = z.object({ id: uuid })
-export const areaInputSchema = z.object({ id: areaId })
-/** `links` estimates a links run: every question on both sides (FR-523). */
-export const estimateInputSchema = z.object({
-  id: areaId,
-  kind: z.optional(z.enum(['full', 'links'])),
-})
-export const estimateSchema = z.object({
-  area: z.string(),
-  kind: z.enum(['full', 'links']),
-  edition: z.nullable(z.string()),
-  questions: z.number(),
-  setAside: z.number(),
-  cells: z.number(),
-  cached: z.number(),
-  costMicros: z.number(),
-  budgetMicros: z.number(),
-  needsApproval: z.boolean(),
-  modelId: z.string(),
-})
-export const transcriptSchema = z.object({
-  cellId: z.string(),
-  runId: z.string(),
-  questionId: z.string(),
-  wording: z.string(),
-  arm: z.enum(['baseline', 'candidate']),
-  trial: z.number(),
-  passed: z.nullable(z.boolean()),
-  refused: z.boolean(),
-  scores: z.record(z.string(), z.unknown()),
-  messages: z.array(z.unknown()),
-  toolCalls: z.array(z.unknown()),
-})
-export const areaScorecardSchema = z.object({
-  area: z.string(),
-  run: z.nullable(runSchema),
-  scorecard: z.nullable(scorecardSchema),
-  baselineRun: z.nullable(z.string()),
-  baselineSetAt: z.nullable(z.string()),
-})
 
 /**
  * The retrieval pass (no model): every sealed edition, and the live edition each day, over the
  * whole active test set. A question passes when every wording is served, delivers its expected
  * items, leaves out the forbidden ones and gives the expected status. Ids and booleans only.
  */
-export const retrievalChecksSchema = z.object({
+const retrievalChecksSchema = z.object({
   served: z.boolean(),
   delivered: z.boolean(),
   not_delivered: z.boolean(),
@@ -340,45 +270,3 @@ export const retrievalResultSchema = z.object({
     }),
   ),
 })
-/** One pass, counted over the areas asked for (or every area the reader may see). */
-export const retrievalPointSchema = z.object({
-  id: z.string(),
-  edition: z.string(),
-  asOf: z.string(),
-  /** `edition` when an edition was sealed; `daily` for the live edition on a new day. */
-  trigger: z.enum(['edition', 'daily']),
-  createdAt: z.string(),
-  testSetDigest: z.string(),
-  questions: z.number(),
-  passed: z.number(),
-  failed: z.number(),
-  setAside: z.number(),
-  /** How many questions each check failed. */
-  failedChecks: z.object({
-    served: z.number(),
-    delivered: z.number(),
-    not_delivered: z.number(),
-    status: z.number(),
-  }),
-})
-export const retrievalRunSchema = z.object({
-  ...retrievalPointSchema.def.shape,
-  results: z.array(retrievalResultSchema),
-})
-export const retrievalEditionSchema = z.object({
-  /** The edition asked for (the live one for the latest pass); null when nothing is live. */
-  edition: z.nullable(z.string()),
-  /** Null until the edition has had its pass. */
-  run: z.nullable(retrievalRunSchema),
-})
-export const retrievalAreaSchema = z.object({ area: z.optional(areaId) })
-export const retrievalEditionInputSchema = z.object({
-  label: editionLabel,
-  area: z.optional(areaId),
-})
-export const retrievalTrendInputSchema = z.object({
-  area: z.optional(areaId),
-  limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(366))),
-})
-export type RetrievalRun = z.infer<typeof retrievalRunSchema>
-export type RetrievalPoint = z.infer<typeof retrievalPointSchema>

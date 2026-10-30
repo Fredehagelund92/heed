@@ -8,7 +8,7 @@ import {
   riskWords,
   type ExternalSource,
 } from '../../../src/domain/provenance.ts'
-import { matchForm, quoteOnPage } from '../../../src/domain/quote-match.ts'
+import { matchForm } from '../../../src/domain/quote-match.ts'
 
 /*
   Evidence from a web page Heed read (read_source): the automatic quote match, which only ever
@@ -18,30 +18,8 @@ import { matchForm, quoteOnPage } from '../../../src/domain/quote-match.ts'
 */
 
 const nbsp = String.fromCharCode(0xa0)
-const softHyphen = String.fromCharCode(0xad)
-const returnsRules = `Art. 1º${nbsp}Ficam os comerciantes obrigados a aceitar a devolução de compras feitas pela internet no prazo de 14 dias, sem indicação do motivo.`
 
 describe('the automatic quote match', () => {
-  it('finds a sentence copied from the page whatever its spaces, quotes, dashes and capitals', () => {
-    expect(quoteOnPage('Art. 1º Ficam os comerciantes obrigados a aceitar', returnsRules)).toBe(
-      true,
-    )
-    expect(quoteOnPage('“ficam  OS COMERCIANTES\nobrigados”', returnsRules)).toBe(true)
-    expect(quoteOnPage(`a devo${softHyphen}lução`, returnsRules)).toBe(true)
-    expect(quoteOnPage('a – oferta', 'a - oferta')).toBe(true)
-    // Composed and decomposed accents are the same letters.
-    expect(quoteOnPage('devolução'.normalize('NFD'), returnsRules)).toBe(true)
-  })
-
-  it('does not find a translation, a paraphrase or words out of order', () => {
-    expect(quoteOnPage('Customers have 14 days to send back online orders', returnsRules)).toBe(
-      false,
-    )
-    expect(quoteOnPage('Ficam obrigados os comerciantes', returnsRules)).toBe(false)
-    expect(quoteOnPage('', returnsRules)).toBe(false)
-    expect(quoteOnPage('""', returnsRules)).toBe(false)
-  })
-
   it('compares in one plain form', () => {
     expect(matchForm(`  A${nbsp}B\t“C” ‘d’  `)).toBe(`a b "c" 'd'`)
   })

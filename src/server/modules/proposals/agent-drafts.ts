@@ -2,7 +2,6 @@ import { ORPCError } from '@orpc/client'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
 import type { Draft } from '../../../domain/draft.ts'
 import {
-  markedFields,
   provenanceOf,
   type ExternalSource,
   type FieldMark,
@@ -43,7 +42,7 @@ export type AgentDraftRequest = {
 }
 
 /** The drafts an agent may save for one person (`limits.agent_drafts`, FR-809). */
-export async function agentDraftLimits(tx: Queryable) {
+async function agentDraftLimits(tx: Queryable) {
   const [setting] = await tx.query<{ perDay: number; open: number }>(
     `select (value->>'per_day')::int as "perDay",(value->>'open')::int as open
        from settings_current where key='limits.agent_drafts'`,
@@ -118,22 +117,4 @@ export async function saveAgentDraft(
         create,
       )
     : create()
-}
-
-/**
- * The assistant's source words as marks (FR-707): the person's own words carry none, a value the
- * assistant suggested or took from an item is checked, a default is a default, and a gap's topic
- * is derived.
- */
-export function marksOfSources(sources: Record<string, string>): AgentDraftRequest['marks'] {
-  const marks: AgentDraftRequest['marks'] = {}
-  for (const [path, source] of Object.entries(sources)) {
-    const head = path.split('.')[0]!.replace(/Markup$/, '')
-    if (!(markedFields as readonly string[]).includes(head)) continue
-    const field = head as MarkedField
-    if (source === 'your_text') continue
-    marks[field] =
-      source === 'default' ? 'default' : source.startsWith('gap:') ? 'derived' : 'prefilled'
-  }
-  return marks
 }

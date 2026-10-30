@@ -49,12 +49,13 @@ const agentCase = {
   split: 'held_out' as const,
   wordings: visible.cases[0]!.wordings.map((w) => ({ ...w, text: `${w.text} ${canary}` })),
 }
-const assistantCase = {
-  ...visible.assistant[0]!,
-  id: 'test-held-assistant',
+// A second held-out case, of another type than the first.
+const otherCase = {
+  ...visible.cases.find((c) => c.type !== visible.cases[0]!.type)!,
+  id: 'gs-test-held-other',
   split: 'held_out' as const,
 }
-const heldText = stringify({ cases: [agentCase], assistant: [assistantCase] })
+const heldText = stringify({ cases: [agentCase, otherCase] })
 const key = () => generateIdentity()
 const keyFile = async (identity?: string) =>
   file(`# a throwaway key\n# public key: none\n${identity ?? (await key())}\n`)
@@ -93,19 +94,16 @@ describe('the sealed file', () => {
     expect(sealed).not.toContain(canary)
     expect(await unseal(sealed, identity)).toBe(heldText)
     const held = await readHeldOut(identity, file(sealed))
-    expect(held.cases.map((c) => c.id)).toEqual(['gs-test-held-agent'])
+    expect(held.cases.map((c) => c.id)).toEqual(['gs-test-held-agent', 'gs-test-held-other'])
     const refused = await unseal(sealed, await key()).catch((e: Error) => e.message)
     expect(refused).toMatch(/does not open the sealed file/)
   })
 
   it('seals only held-out cases in the format, and names a problem by its place, not its value', async () => {
     const identity = await key()
-    const development = stringify({
-      cases: [{ ...agentCase, split: 'development' }],
-      assistant: [],
-    })
+    const development = stringify({ cases: [{ ...agentCase, split: 'development' }] })
     await expect(seal(development, identity)).rejects.toThrow(/Every sealed case is held out/)
-    const broken = stringify({ cases: [{ ...agentCase, area: `${canary} area` }], assistant: [] })
+    const broken = stringify({ cases: [{ ...agentCase, area: `${canary} area` }] })
     const problems = heldOutProblems(broken)
     expect(problems).toEqual([expect.stringMatching(/^cases\.0\.area: /)])
     expect(problems.join()).not.toContain(canary)
@@ -115,11 +113,10 @@ describe('the sealed file', () => {
   })
 
   it('adds the held-out cases to the visible set, never under a visible id', () => {
-    const whole = withHeldOut(visible, { cases: [agentCase], assistant: [assistantCase] })
-    expect(whole.cases).toHaveLength(visible.cases.length + 1)
-    expect(whole.assistant).toHaveLength(visible.assistant.length + 1)
+    const whole = withHeldOut(visible, { cases: [agentCase, otherCase] })
+    expect(whole.cases).toHaveLength(visible.cases.length + 2)
     expect(() =>
-      withHeldOut(visible, { cases: [{ ...agentCase, id: visible.cases[1]!.id }], assistant: [] }),
+      withHeldOut(visible, { cases: [{ ...agentCase, id: visible.cases[1]!.id }] }),
     ).toThrow(/has the id of another case/)
   })
 })
@@ -163,12 +160,8 @@ describe('a held-out run', () => {
 
   it('counts results by type: passed, failed, and skipped when the runner gave none', async () => {
     const { env, path } = await sealedWith()
-    const both = (held: {
-      cases: { id: string; type: string }[]
-      assistant: { id: string; type: string }[]
-    }) => [...held.cases, ...held.assistant] as never[]
     const result = await runHeldOut(
-      both,
+      (held) => held.cases,
       () => Promise.resolve([{ id: 'gs-test-held-agent', passed: false }]),
       env,
       path,
@@ -181,14 +174,14 @@ describe('a held-out run', () => {
         skipped: 1,
         byType: {
           [agentCase.type]: { passed: 0, failed: 1, skipped: 0 },
-          [assistantCase.type]: { passed: 0, failed: 0, skipped: 1 },
+          [otherCase.type]: { passed: 0, failed: 0, skipped: 1 },
         },
       },
     })
     expect(formatHeldOut('cases', result)).toBe(
       `Held-out cases: 0 passed, 1 failed, 1 skipped of 2 (${[
         `${agentCase.type} 0 passed, 1 failed`,
-        `${assistantCase.type} 0 passed, 0 failed, 1 skipped`,
+        `${otherCase.type} 0 passed, 0 failed, 1 skipped`,
       ]
         .sort()
         .join('; ')}).`,
@@ -427,7 +420,7 @@ registerHooks({
       const env = { ...cleanEnv(), HEED_HELDOUT_KEY_FILE: current }
       const counted = cli(['count', '--file', sealed], env)
       expect(counted.stdout.trim()).toBe(countLine(heldText))
-      expect(counted.stdout).toMatch(/^1 agent cases \(baseline 1\) and 1 assistant cases/)
+      expect(counted.stdout).toMatch(/^2 agent cases \(.*\) are sealed\.$/m)
       expect(cli(['count', '--file', sealed], cleanEnv()).stderr).toMatch(/Give the current key/)
       const absent = cli(['count', '--file', join(dir, 'none.age')], env)
       expect(absent.status).toBe(0)
@@ -460,21 +453,7 @@ describe('the whole golden set, with the sealed held-out cases', () => {
   it('passes every check of the golden set, reported by name only', async (context) => {
     const unavailable = heldOutUnavailable()
     if (unavailable) context.skip(unavailable)
-    const result = await checkHeldOut(visible, {
-      ...goldenSetChecks,
-      // Messages about the assistant itself (meta), the questions that compare runs with and
-      // without About our business (industry) and the pilot's conversations (pilot) stay
-      // visible on purpose, for anyone to tune.
-      'holds about a third of the assistant cases out, apart from the meta, industry and pilot ones':
-        (whole) => {
-          const tuned = whole.assistant.filter(
-            (c) => c.type !== 'meta' && c.type !== 'industry' && c.type !== 'pilot',
-          )
-          expect(tuned.filter((c) => c.split === 'held_out').length * 3).toBeGreaterThanOrEqual(
-            tuned.length - 1,
-          )
-        },
-    })
+    const result = await checkHeldOut(visible, goldenSetChecks)
     expect(result).toEqual({ ran: true, failed: [] })
   })
 })

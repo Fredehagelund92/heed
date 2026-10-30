@@ -107,8 +107,11 @@ describe('settings and limits', () => {
     const saved = await ok<Setting>('PUT', path, 'admin', change)
     expect(saved).toMatchObject({ version: 2, value: 60, changedBy: people.admin })
     expect((await call('PUT', path, 'admin', change)).statusCode).toBe(409)
-    const history = await ok<Setting[]>('GET', `${path}/history`, 'admin')
-    expect(history.map((s) => [s.version, s.value])).toEqual([
+    // A change keeps every version (FR-806).
+    const history = await client.query<{ version: number; value: unknown }>(
+      "select version, value from settings_versions where key='review.default_days' order by version desc",
+    )
+    expect(history.rows.map((s) => [s.version, s.value])).toEqual([
       [2, 60],
       [1, 90],
     ])
@@ -284,7 +287,11 @@ describe('tool switch and client policies', () => {
     expect(await auditRows()).toBe(before + 1)
     await ok('POST', '/tools/report', 'admin', { enabled: true, reason: 'Queue cleared' })
     expect((await serving.policy('claude-code')).tools).toContain('report')
-    const tools = await ok<{ tool: string; enabled: boolean }[]>('GET', '/tools', 'admin')
+    const tools = (
+      await client.query<{ tool: string; enabled: boolean }>(
+        'select tool, enabled from tool_config order by tool',
+      )
+    ).rows
     // The six tools of the agent contract, every one on: suggest_context and get_related too
     // (FR-121, FR-332 as changed for Heed v1).
     expect(tools.map((t) => t.tool)).toEqual([

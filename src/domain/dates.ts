@@ -2,8 +2,7 @@ import { isCalendarDate, shiftDate, type DateWindow } from './validity.ts'
 
 /*
   The date reader: the period the words of a question name, read the same way for get_facts,
-  find_facts, report_gap, improve_question and Try it, and counted as the assistant's turn
-  context counts it (`periods`). It reads a day, a range of days, a month, a quarter, a year, the
+  find_facts, report_gap and Ask. It reads a day, a range of days, a month, a quarter, a year, the
   periods people name from today ("this year", "last quarter", "year to date") and the days back
   to today ("the last 30 days", "this past week"). A named period is the whole period ("in 2026"
   is 1 Jan to 31 Dec 2026), a "this" period runs to today, a "last" one is the last complete one,

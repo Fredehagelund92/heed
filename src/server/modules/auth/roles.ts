@@ -10,16 +10,6 @@ import type { OwnersSet, SetOwnersInput } from '../../../contract/members.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason } from '../admin/index.ts'
 
-export async function listGrants(tx: Queryable) {
-  const roles = await tx.query<RoleInput & { since: string }>(
-    `select person_id::text as "personId", role, lower(valid_at)::text as since from global_role_grants where valid_at @> now() order by person_id,role`,
-  )
-  const assignments = await tx.query<AssignmentInput & { since: string }>(
-    `select person_id::text as "personId", area_id as "areaId", role, lower(valid_at)::text as since from area_assignments where valid_at @> now() order by area_id,person_id,role`,
-  )
-  return { roles, assignments }
-}
-
 /** One grant, whichever table holds it: a person, a role and, for an area role, the area. */
 const grantKey = (change: RoleInput | AssignmentInput) =>
   `${change.personId}|${change.role}|${'areaId' in change ? change.areaId : ''}`
@@ -313,15 +303,6 @@ export async function changeGrant(
   const op = grant ? 'grant' : 'revoke'
   const { changes } = await changeGrants(tx, [{ ...input, op }], { batch: false })
   return { changed: changes[0]!.changed }
-}
-
-/** `grants.apply`: many changes in one step, sharing a batch id and an optional reason. */
-export async function applyGrants(
-  tx: Queryable,
-  input: { changes: readonly GrantChange[]; reason?: string | null },
-): Promise<GrantsApplied> {
-  const result = await changeGrants(tx, input.changes, { batch: true, reason: input.reason })
-  return { batchId: result.batchId!, changes: result.changes }
 }
 
 /**

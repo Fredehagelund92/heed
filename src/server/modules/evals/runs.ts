@@ -17,7 +17,6 @@ import {
   loadServingBundle,
   type ServingBundle,
 } from '../editions/index.ts'
-import { verifyGapsByRun } from '../gaps/index.ts'
 import {
   differentFamily,
   type JudgeSetting,
@@ -220,7 +219,7 @@ export function modelsFor(port: ModelPort, settings: EvalSettings): Models {
   return { answer, judge: judgeFor(port, answer, settings.models.judge) }
 }
 
-export function judgeFor(port: ModelPort, answer: ModelChoice, setting: JudgeSetting): ModelChoice {
+function judgeFor(port: ModelPort, answer: ModelChoice, setting: JudgeSetting): ModelChoice {
   return setting === differentFamily
     ? port.otherLine('judge', answer)
     : port.choose('judge', setting)
@@ -558,8 +557,6 @@ export async function finishRun(
      where id=$1 returning ${runColumns}`,
     [run.id, JSON.stringify(result)],
   )
-  // FR-610: a finished weekly or full run of an area verifies the resolved gaps whose tests it passed.
-  await verifyGapsByRun(tx, row!)
   return row!
 }
 

@@ -1,6 +1,5 @@
 import { ORPCError } from '@orpc/client'
 import type {
-  DefinitionCoverage,
   DeletedTerm,
   Term,
   TermChangeResult,
@@ -715,49 +714,6 @@ export function createTermsService(tx: Queryable) {
     )
   }
 
-  async function coverage(): Promise<DefinitionCoverage> {
-    const metrics = await tx.query<{
-      ref: string
-      name: string
-      areaId: string | null
-      items: number
-    }>(
-      `with live as materialized (${liveVocabulary}),
-       served as materialized (
-         select s.item_id, s.metrics from serving_items((select seq from live_edition)) s
-          where cl_audience_allows(s.audience_groups))
-       select l.key as ref, l.name, l.area_id as "areaId",
-              (select count(*)::int from served i where l.key = any (i.metrics)) as items
-         from live l
-        where l.kind = 'metric'
-          -- As the catalogue: a metric whose definition the source limits to groups is left out.
-          and not exists (
-            select 1 from vocab_term_service s join vocab_term_refs r on r.version_id = s.version_id
-              join definitions d on d.ref = r.definition_ref
-             where s.term_key = l.key and s.editions @> (select seq from live_edition)
-               and d.visible_groups is not null)`,
-    )
-    const items = await termCoverage()
-    const terms = await rows('t.deleted_at is null and t.meaning is not null')
-    const all: DefinitionCoverage['rows'] = [
-      ...metrics.map((m) => ({ ...m, type: 'metric' as const })),
-      ...terms.map((t) => ({
-        ref: `term:${t.id}`,
-        name: t.name,
-        type: 'term' as const,
-        areaId: t.areaId,
-        items: items.get(t.id) ?? 0,
-      })),
-    ].sort(
-      (a, b) => Number(b.items === 0) - Number(a.items === 0) || a.name.localeCompare(b.name, 'en'),
-    )
-    return {
-      measurable: all.length,
-      uncovered: all.filter((r) => r.items === 0).length,
-      rows: all,
-    }
-  }
-
   return {
     list,
     create,
@@ -768,6 +724,5 @@ export function createTermsService(tx: Queryable) {
     undoChange,
     deleted,
     history,
-    coverage,
   }
 }

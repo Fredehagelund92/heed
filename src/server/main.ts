@@ -30,7 +30,7 @@ import {
   ModelConfigError,
   readModelSettings,
 } from './modules/models/index.ts'
-import { createHub, createRelay, outboxRelayJob } from './modules/notifications/index.ts'
+import { createRelay, outboxRelayJob } from './modules/notifications/index.ts'
 import { createLoginServer, loadKeyRing } from './modules/oauth/index.ts'
 import { createPageReader } from './modules/web/index.ts'
 import { createLogger } from './observability/logger.ts'
@@ -194,8 +194,7 @@ async function main(): Promise<void> {
       ...evalJobs({ port: models, clock }),
     ],
   })
-  const hub = createHub(database)
-  const relay = createRelay({ connectionString: config.databaseUrl, database, hub, logger })
+  const relay = createRelay({ connectionString: config.databaseUrl, database, logger })
   const app = buildApp({
     database,
     jobs,
@@ -208,7 +207,6 @@ async function main(): Promise<void> {
     signIn,
     origins: config.webOrigins,
     nodeEnv: config.nodeEnv,
-    notifications: hub,
     metricsToken: config.metricsToken,
     // The end-to-end tests serve their web pages on this machine; elsewhere, the public web only.
     ...(config.webReadLoopback ? { readPage: createPageReader({ loopback: true }) } : {}),

@@ -3,11 +3,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildApp } from '../../src/server/app.ts'
 import { identifier, localRoles } from '../../src/server/db/roles.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
-import { gapDetectionJob } from '../../src/server/modules/gaps/index.ts'
+import { createGapsService, gapDetectionJob } from '../../src/server/modules/gaps/index.ts'
 import type { DevPerson } from '../../src/server/modules/auth/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
-import { accept, foundation, people, publish, servingEdition, version } from './fixtures.ts'
+import { foundation, people, servingEdition } from './fixtures.ts'
 import { apiDatabase, servingPool, testDatabase, transaction } from './support.ts'
 
 const { client, url } = testDatabase()
@@ -127,6 +127,21 @@ const weekly = async (gapId: string) =>
     )
   ).rows
 const detect = () => gapDetectionJob.run({ database } as Parameters<typeof gapDetectionJob.run>[0])
+/** A gap's status changed as a person, as the Inbox's gap cards change it. */
+const changeStatus = (
+  name: keyof typeof people,
+  id: string,
+  status: 'open' | 'resolved' | 'wont_fix',
+  reason?: string,
+) => database.transaction(people[name], (tx) => createGapsService(tx).setStatus(id, status, reason))
+/** Links test questions to a gap, as the gap's tests were linked before the old Gaps page left. */
+const linkTests = async (id: string, ...questions: string[]) => {
+  for (const question of questions)
+    await client.query('insert into gap_tests (gap_id, question_id) values ($1, $2)', [
+      id,
+      question,
+    ])
+}
 async function setStatus(id: string, status: string) {
   await client.query(
     "update gaps set status=$2, status_since=date_trunc('hour', now(), 'UTC') where id=$1",
@@ -514,8 +529,6 @@ describe('gaps over the API', () => {
       })
     }
     expect((await api('stranger', 'GET', `/gaps/${id}`)).statusCode).toBe(404)
-    const list = await api('stranger', 'GET', '/gaps?limit=200')
-    expect(list.json<{ id: string }[]>().map((g) => g.id)).not.toContain(id)
   })
 
   async function shownGap() {
@@ -548,10 +561,9 @@ describe('gaps over the API', () => {
       noItemCalls: null,
       weeks: [{ reports: 5, noItemCalls: 0 }],
     })
-    expect(
-      (await api('stranger', 'POST', `/gaps/${id}/status`, { status: 'wont_fix' })).statusCode,
-    ).toBe(403)
-    expect((await api('stranger', 'POST', `/gaps/${id}/notes`, { note: 'x' })).statusCode).toBe(403)
+    await expect(changeStatus('stranger', id, 'wont_fix')).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 
   it('hides a topic asked about once a week for five weeks from readers, not from an owner', async () => {
@@ -571,8 +583,6 @@ describe('gaps over the API', () => {
       ])
     }
     expect((await api('stranger', 'GET', `/gaps/${id}`)).statusCode).toBe(404)
-    const list = await api('stranger', 'GET', '/gaps?limit=200')
-    expect(list.json<{ id: string }[]>().map((g) => g.id)).not.toContain(id)
     for (const name of ['owner', 'admin']) {
       const detail = await weeksOf(name, id)
       expect(detail.reports).toBe(5)
@@ -602,36 +612,21 @@ describe('gaps over the API', () => {
     expect(owner.reports).toBe(16)
   })
 
-  it('lets an owner change the status and add a checked note, with history', async () => {
+  it('lets an owner change the status with a checked reason, with history', async () => {
     const { id } = await smallGap()
-    const refused = await api('owner', 'POST', `/gaps/${id}/notes`, {
-      note: 'Ask person@example.test',
-    })
-    expect(refused.statusCode).toBe(422)
-    const noted = await api('owner', 'POST', `/gaps/${id}/notes`, {
-      note: 'Checked with the team.',
-    })
-    expect(noted.statusCode, noted.body).toBe(200)
-    expect(
-      noted
-        .json<{ notes: { source: string }[] }>()
-        .notes.map((n) => n.source)
-        .sort(),
-    ).toEqual(['owner', 'report_gap'])
-    const closed = await api('owner', 'POST', `/gaps/${id}/status`, {
-      status: 'wont_fix',
-      reason: 'Covered by the source tool.',
-    })
-    expect(closed.json()).toMatchObject({ status: 'wont_fix' })
+    await expect(
+      changeStatus('owner', id, 'wont_fix', 'Ask person@example.test'),
+    ).rejects.toMatchObject({ code: 'UNPROCESSABLE_CONTENT' })
+    const closed = await changeStatus('owner', id, 'wont_fix', 'Covered by the source tool.')
+    expect(closed).toMatchObject({ status: 'wont_fix' })
     const audit = await client.query(
-      "select action, details from audit_log where subject_type='gap' order by seq desc limit 2",
+      "select action, details from audit_log where subject_type='gap' order by seq desc limit 1",
     )
     expect(audit.rows).toEqual([
       {
         action: 'gap.status_changed',
         details: { from: 'open', to: 'wont_fix', reason: 'Covered by the source tool.' },
       },
-      { action: 'gap.note_added', details: {} },
     ])
   })
 
@@ -642,64 +637,13 @@ describe('gaps over the API', () => {
       "select cl_gap_touch($1,'missing',2::smallint,now() + interval '2 hours',null,1)",
       [t],
     )
-    const response = await api('owner', 'POST', `/gaps/${id}/status`, { status: 'open' })
-    expect(response.statusCode, response.body).toBe(409)
-  })
-
-  it('starts a draft from a gap in one action, filled with its scope (FR-616)', async () => {
-    const { id } = await shownGap()
-    const response = await api('stranger', 'POST', `/gaps/${id}/draft`, {})
-    expect(response.statusCode, response.body).toBe(200)
-    const proposal = response.json<{
-      id: string
-      state: string
-      draft: object
-      proposerId: string
-    }>()
-    expect(proposal).toMatchObject({
-      state: 'draft',
-      proposerId: people.stranger,
-      draft: {
-        areaId: 'finance',
-        scope: {
-          metrics: ['metric:orders'],
-          dimensions: [],
-          dimensionValues: [{ dimension: 'dim:market', value: 'val:market/norway' }],
-        },
-      },
-    })
-    // The gap's month is when people asked, not when the fact applies: no dates.
-    expect(proposal.draft).not.toHaveProperty('validity')
-    const linked = await client.query(
-      'select g.status, p.source_gap_id::text as source, exists (select 1 from gap_proposals x where x.gap_id=g.id and x.proposal_id=p.id) as linked from gaps g, proposals p where g.id=$1 and p.id=$2',
-      [id, proposal.id],
-    )
-    expect(linked.rows).toEqual([{ status: 'proposal_made', source: id, linked: true }])
-    expect((await api('owner', 'GET', `/gaps/${id}`)).json()).toMatchObject({
-      proposals: [proposal.id],
-    })
-  })
-
-  it('asks for an area when a topic has none', async () => {
-    const t = await topic({ area: null })
-    const id = (
-      await client.query<{ id: string }>(
-        "select cl_gap_touch($1,'missing',2::smallint,now()) as id",
-        [t],
-      )
-    ).rows[0]!.id
-    expect((await api('admin', 'POST', `/gaps/${id}/draft`, {})).statusCode).toBe(400)
-    expect(
-      (await api('admin', 'POST', `/gaps/${id}/draft`, { areaId: 'finance' })).statusCode,
-    ).toBe(200)
+    await expect(changeStatus('owner', id, 'open')).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 })
 
-describe('gap tests over the API (FR-610, FR-524)', () => {
+describe('gap tests (FR-610, FR-524)', () => {
   let label: string
-  let failing: string
   let newest: string
-  let marketingRun: string
 
   /** A finished answer run of an area, with each question's verdict, as the runner stores it. */
   async function answerRun(
@@ -726,8 +670,8 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
     )
     return result.rows[0]!.id
   }
-  async function shownGap(area = 'finance') {
-    const t = await topic({ area })
+  async function shownGap() {
+    const t = await topic()
     await deliveries(t, 5)
     return (
       await client.query<{ id: string }>(
@@ -744,14 +688,6 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
         [id],
       )
     ).rows
-  const linksOf = async (id: string) =>
-    (
-      await client.query<{ question: string }>(
-        'select question_id as question from gap_tests where gap_id=$1 order by question_id',
-        [id],
-      )
-    ).rows.map((row) => row.question)
-
   beforeAll(async () => {
     label = (
       await client.query<{ label: string }>(
@@ -760,130 +696,15 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
     ).rows[0]!.label
     await client.query(`insert into golden_questions (id,area_id,wordings,scope,expected,source,split,status) values
       ('gt-dev','finance','["a","b"]','{}','{}','test','development','active'),
-      ('gt-second','finance','["a","b"]','{}','{}','test','development','active'),
-      ('gt-held','finance','["a","b"]','{}','{}','test','held_out','active'),
-      ('gt-retired','finance','["a","b"]','{}','{}','test','development','retired'),
-      ('gt-marketing','marketing','["a","b"]','{}','{}','test','development','active'),
-      ('gt-marketing-held','marketing','["a","b"]','{}','{}','test','held_out','active')`)
-    failing = await answerRun('finance', { 'gt-dev': 'fail' }, '2026-10-05T06:00:00Z')
+      ('gt-held','finance','["a","b"]','{}','{}','test','held_out','active')`)
     newest = await answerRun('finance', { 'gt-dev': 'pass' }, '2026-10-06T06:00:00Z', 'full')
-    // A newer run that set the question aside does not count as its result.
-    await answerRun('finance', {}, '2026-10-07T06:00:00Z')
-    marketingRun = await answerRun('marketing', {}, '2026-10-05T06:00:00Z')
-  })
-
-  it('links a test of the area once, with its evidence and newest result, and unlinks it', async () => {
-    const id = await shownGap()
-    const linked = await api('owner', 'POST', `/gaps/${id}/tests`, {
-      question: 'gt-dev',
-      evidenceRun: failing,
-    })
-    expect(linked.statusCode, linked.body).toBe(200)
-    expect(linked.json()).toMatchObject({
-      tests: [
-        {
-          question: 'gt-dev',
-          split: 'development',
-          active: true,
-          linkedHour: thisHour(),
-          evidenceRun: failing,
-          passed: null,
-          latest: {
-            run: newest,
-            kind: 'full',
-            edition: label,
-            finishedAt: '2026-10-06T06:00:00Z',
-            verdict: 'pass',
-          },
-        },
-      ],
-      history: [
-        {
-          action: 'gap.test_linked',
-          hour: thisHour(),
-          details: { question: 'gt-dev', evidenceRun: failing },
-        },
-      ],
-    })
-    // Linking it again changes nothing, and the history log says who linked it.
-    const again = await api('admin', 'POST', `/gaps/${id}/tests`, { question: 'gt-dev' })
-    expect(again.statusCode, again.body).toBe(200)
-    expect(await gapAudit(id)).toEqual([
-      {
-        action: 'gap.test_linked',
-        actor: people.owner,
-        details: { question: 'gt-dev', evidenceRun: failing },
-      },
-    ])
-    // A held-out test of the area may be linked: only the gap's managers read its links.
-    expect(
-      (await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-held' })).statusCode,
-    ).toBe(200)
-    expect(await linksOf(id)).toEqual(['gt-dev', 'gt-held'])
-
-    const unlinked = await api('owner', 'POST', `/gaps/${id}/tests/gt-dev/unlink`)
-    expect(unlinked.statusCode, unlinked.body).toBe(200)
-    expect(unlinked.json<{ tests: { question: string }[] }>().tests.map((t) => t.question)).toEqual(
-      ['gt-held'],
-    )
-    expect((await api('owner', 'POST', `/gaps/${id}/tests/gt-dev/unlink`)).statusCode).toBe(200)
-    expect((await gapAudit(id)).map((row) => row.action)).toEqual([
-      'gap.test_linked',
-      'gap.test_linked',
-      'gap.test_unlinked',
-    ])
-  })
-
-  it('refuses a contributor, an owner of another area, and a test or run of another area', async () => {
-    const id = await shownGap()
-    expect(
-      (await api('stranger', 'POST', `/gaps/${id}/tests`, { question: 'gt-dev' })).statusCode,
-    ).toBe(403)
-    expect((await api('author', 'POST', `/gaps/${id}/tests/gt-dev/unlink`)).statusCode).toBe(403)
-    const marketing = await shownGap('marketing')
-    expect(
-      (await api('owner', 'POST', `/gaps/${marketing}/tests`, { question: 'gt-marketing' }))
-        .statusCode,
-    ).toBe(403)
-    const other = await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-marketing' })
-    expect(other.statusCode, other.body).toBe(422)
-    // A held-out question of another area is not found for anyone but its maintainers (FR-503).
-    expect(
-      (await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-marketing-held' }))
-        .statusCode,
-    ).toBe(404)
-    expect(
-      (await api('admin', 'POST', `/gaps/${id}/tests`, { question: 'gt-marketing-held' }))
-        .statusCode,
-    ).toBe(422)
-    expect(
-      (await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-nothing' })).statusCode,
-    ).toBe(404)
-    expect(
-      (
-        await api('owner', 'POST', `/gaps/${id}/tests`, {
-          question: 'gt-dev',
-          evidenceRun: marketingRun,
-        })
-      ).statusCode,
-    ).toBe(422)
-    expect(
-      (
-        await api('owner', 'POST', `/gaps/${id}/tests`, {
-          question: 'gt-dev',
-          evidenceRun: randomUUID(),
-        })
-      ).statusCode,
-    ).toBe(422)
-    expect(await linksOf(id)).toEqual([])
-    expect(await linksOf(marketing)).toEqual([])
   })
 
   it('records the live edition on resolving, and clears it and the verification on leaving resolved', async () => {
     const id = await shownGap()
-    await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-dev' })
-    const resolved = await api('owner', 'POST', `/gaps/${id}/status`, { status: 'resolved' })
-    expect(resolved.json()).toMatchObject({
+    await linkTests(id, 'gt-dev')
+    const resolved = await changeStatus('owner', id, 'resolved')
+    expect(resolved).toMatchObject({
       status: 'resolved',
       resolvedEdition: label,
       verifiedAt: null,
@@ -916,9 +737,8 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
       ],
     })
 
-    const reopened = await api('owner', 'POST', `/gaps/${id}/status`, { status: 'open' })
-    expect(reopened.statusCode, reopened.body).toBe(200)
-    expect(reopened.json()).toMatchObject({
+    const reopened = await changeStatus('owner', id, 'open')
+    expect(reopened).toMatchObject({
       status: 'open',
       resolvedEdition: null,
       verifiedAt: null,
@@ -934,23 +754,19 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
       ).rows,
     ).toEqual([{ resolved_edition_seq: null, verified_at: null, verified_edition_seq: null }])
     expect((await gapAudit(id)).map((row) => [row.action, row.details])).toEqual([
-      ['gap.test_linked', { question: 'gt-dev' }],
       ['gap.status_changed', { from: 'open', to: 'resolved', edition: label }],
       ['gap.status_changed', { from: 'resolved', to: 'open' }],
       ['gap.verification_cleared', {}],
     ])
-    expect(
-      reopened.json<{ history: { action: string }[] }>().history.map((entry) => entry.action),
-    ).toEqual([
-      'gap.test_linked',
+    expect(reopened.history!.map((entry) => entry.action)).toEqual([
       'gap.status_changed',
       'gap.status_changed',
       'gap.verification_cleared',
     ])
 
     // Won't fix keeps no edition, so nothing can verify it; resolving again starts afresh.
-    const closed = await api('owner', 'POST', `/gaps/${id}/status`, { status: 'wont_fix' })
-    expect(closed.json()).toMatchObject({
+    const closed = await changeStatus('owner', id, 'wont_fix')
+    expect(closed).toMatchObject({
       status: 'wont_fix',
       resolvedEdition: null,
       verifiedAt: null,
@@ -965,8 +781,8 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
 
   it('shows every reader whether a gap is verified by test, and only its managers which tests', async () => {
     const id = await shownGap()
-    await api('owner', 'POST', `/gaps/${id}/tests`, { question: 'gt-held' })
-    await api('owner', 'POST', `/gaps/${id}/status`, { status: 'resolved' })
+    await linkTests(id, 'gt-held')
+    await changeStatus('owner', id, 'resolved')
     await client.query(
       "update gaps set verified_at=date_trunc('hour', now(), 'UTC'), verified_edition_seq=$2 where id=$1",
       [id, edition],
@@ -990,127 +806,6 @@ describe('gap tests over the API (FR-610, FR-524)', () => {
     })
     expect((await api('admin', 'GET', `/gaps/${id}`)).json()).toMatchObject({
       tests: [{ question: 'gt-held', split: 'held_out' }],
-    })
-  })
-
-  it("attaches a gap's active development tests to a draft started from it, whoever starts it", async () => {
-    const id = await shownGap()
-    for (const question of ['gt-dev', 'gt-second', 'gt-held', 'gt-retired'])
-      await api('owner', 'POST', `/gaps/${id}/tests`, { question })
-    const response = await api('stranger', 'POST', `/gaps/${id}/draft`, {})
-    expect(response.statusCode, response.body).toBe(200)
-    const proposal = response.json<{ id: string }>().id
-    expect(
-      (
-        await client.query(
-          'select question_id from proposal_tests where proposal_id=$1 order by question_id',
-          [proposal],
-        )
-      ).rows.map((row: { question_id: string }) => row.question_id),
-    ).toEqual(['gt-dev', 'gt-second'])
-    expect((await gapAudit(id)).at(-1)).toEqual({
-      action: 'gap.draft_started',
-      actor: people.stranger,
-      details: { proposal, tests: ['gt-dev', 'gt-second'] },
-    })
-    // The function attaches only to the caller's own draft started from the gap.
-    const other = await client.query<{ id: string }>(
-      "insert into proposals (action,area_id,proposer_id,channel,source_gap_id) values ('create','finance',$1,'form',$2) returning id::text",
-      [people.author, id],
-    )
-    await transaction(client, async () => {
-      await client.query(`set local role ${identifier(localRoles.api)}`)
-      await client.query("select set_config('cl.person_id', $1, true)", [people.stranger])
-      expect(
-        (await client.query('select * from cl_gap_draft_tests($1)', [other.rows[0]!.id])).rows,
-      ).toEqual([])
-    })
-  })
-})
-
-describe('dashboards (FR-614, FR-615)', () => {
-  it('hides every call count below the minimum and shows the rest', async () => {
-    await client.query("insert into areas (id,name) values ('dash','Dashboard')")
-    await client.query(
-      "insert into area_assignments (area_id,person_id,role) values ('dash',$1,'owner')",
-      [people.owner],
-    )
-    const busy = await topic({ area: 'dash', metric: 'metric:orders' })
-    await deliveries(busy, 6, { status: 'matched', items: 1 })
-    await deliveries(busy, 2, { status: 'no_match' })
-    const quiet = await topic({ area: 'dash', metric: 'metric:quiet' })
-    await deliveries(quiet, 3, { status: 'no_match' })
-    const lastWeek = new Date(Date.now() - 7 * 86400_000).toISOString().slice(0, 13) + ':00:00Z'
-    await deliveries(busy, 2, { hour: lastWeek })
-    await client.query("select cl_gap_touch($1,'missing',2::smallint,now())", [busy])
-
-    // The dashboard is the area's owners' and the administrators' (Quality design G13), and
-    // hides small counts from them too.
-    expect((await api('stranger', 'GET', '/areas/dash/dashboard?weeks=3')).statusCode).toBe(403)
-    const response = await api('owner', 'GET', '/areas/dash/dashboard?weeks=3')
-    expect(response.statusCode, response.body).toBe(200)
-    const dashboard = response.json<{
-      minimumCount: number
-      weeks: { calls: number | null; noItemCalls: number | null; noItemShare: number | null }[]
-      openGaps: number
-      openGapsByType: object[]
-      itemsPastReview: number
-      reviewTimes: object
-    }>()
-    expect(dashboard.minimumCount).toBe(5)
-    expect(dashboard.weeks).toHaveLength(3)
-    expect(dashboard.weeks.at(-1)).toEqual({
-      calls: 11,
-      noItemCalls: 5,
-      noItemShare: 5 / 11,
-      week: expect.any(String) as string,
-    })
-    expect(dashboard.weeks.at(-2)).toEqual({
-      calls: null,
-      noItemCalls: null,
-      noItemShare: null,
-      week: expect.any(String) as string,
-    })
-    expect(dashboard.weeks[0]).toEqual({
-      calls: 0,
-      noItemCalls: 0,
-      noItemShare: null,
-      week: expect.any(String) as string,
-    })
-    expect(dashboard).toMatchObject({
-      openGaps: 1,
-      openGapsByType: [{ type: 'missing', gaps: 1 }],
-      itemsPastReview: 0,
-      reviewTimes: { decided: 0, medianHours: null },
-    })
-
-    const counts = await api('stranger', 'GET', '/topics/counts?areaId=dash&weeks=1')
-    expect(counts.json()).toEqual({
-      minimumCount: 5,
-      rows: [
-        {
-          topic: expect.objectContaining({ metrics: ['metric:orders'] }) as object,
-          week: expect.any(String) as string,
-          calls: 8,
-          noItemCalls: null,
-          noItemShare: null,
-        },
-      ],
-      hiddenTopicWeeks: 1,
-    })
-    expect((await api('admin', 'GET', '/areas/nowhere/dashboard')).statusCode).toBe(404)
-  })
-
-  it('reports review times and items past their review date for the area', async () => {
-    await transaction(client, async () => {
-      const past = await version(client, { reviewDate: '2026-09-01' })
-      await accept(client, past.id)
-      await publish(client, past.id)
-    })
-    const response = await api('owner', 'GET', '/areas/finance/dashboard')
-    expect(response.json()).toMatchObject({
-      itemsPastReview: 1,
-      reviewTimes: { decided: 2, medianHours: expect.any(Number) as number },
     })
   })
 })
@@ -1155,25 +850,13 @@ describe('export surfaces (FR-614)', () => {
         )
       ).rows.map((r) => ({ week: r.week, noItemCalls: r.no_item_calls })),
     )
-    const counts = (await api('stranger', 'GET', '/topics/counts?areaId=cross&weeks=2')).json<{
-      rows: { week: string; noItemCalls: number | null }[]
-    }>().rows
-    const dashboard = (await api('admin', 'GET', '/areas/cross/dashboard?weeks=2')).json<{
-      weeks: { week: string; calls: number | null; noItemCalls: number | null }[]
-    }>().weeks
     const gapWeeks = (await api('stranger', 'GET', `/gaps/${gap}`)).json<{
       weeks: { week: string; noItemCalls: number | null }[]
     }>().weeks
 
-    const shownWeeks = <T extends { calls: number | null }>(rows: T[]) =>
-      rows.filter((r) => r.calls !== null)
     expect(exported).toHaveLength(1)
     expect(exported[0]!.noItemCalls).toBeNull()
-    expect(noItem(counts)).toEqual(noItem(exported))
     expect(noItem(gapWeeks)).toEqual(noItem(exported))
-    expect(noItem(shownWeeks(dashboard))).toEqual(noItem(exported))
-    expect(dashboard.filter((r) => r.calls === null)).toHaveLength(1)
-    expect(dashboard.every((r) => r.noItemCalls === null)).toBe(true)
   })
 
   it('gives analytics topic detail only at the minimum count, and gaps only as totals', async () => {

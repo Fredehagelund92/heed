@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bulkSeed } from '../../db/seed/bulk.ts'
-import type { Catalogue, CatalogueTermDetail } from '../../src/contract/index.ts'
+import type { Catalogue } from '../../src/contract/index.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import {
@@ -55,9 +55,6 @@ const term = async (key: string) => (await catalogue()).terms.find((t) => t.key 
 describe('the catalogue on PostgreSQL', () => {
   it('needs a signed-in person, as the library does', async () => {
     expect((await get('/catalogue', {})).status).toBe(401)
-    expect((await get('/catalogue/metric/orders', {})).status).toBe(401)
-    expect((await get('/catalogue/metric/no_such_metric')).status).toBe(404)
-    expect((await get('/catalogue/group/orders')).status).toBe(400)
   })
 
   it('keeps every flag and copy when the demo model is read again', async () => {
@@ -110,56 +107,6 @@ describe('the catalogue on PostgreSQL', () => {
     })
   }, 60_000)
 
-  it('builds a link to the model file only when the read names a file and the setting is on', async () => {
-    const setting = async (value: string | null) =>
-      client.query(
-        `insert into settings_versions (key, version, value, reason)
-         select key, max(version) + 1, coalesce(to_jsonb($1::text), 'null'), 'catalogue test'
-           from settings_versions where key = 'sources.cube_model_url' group by key`,
-        [value],
-      )
-    const orders = async () =>
-      (await get<CatalogueTermDetail>('/catalogue/metric/orders')).body.modelFile
-    // The bulk seed turns the setting on for the demo model, which is in this repository.
-    expect(await orders()).toEqual({
-      path: 'orders.yml',
-      url: 'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/orders.yml',
-    })
-    // Market is in three views; the file of the one that speaks for it, the first, is linked.
-    const market = (await get<CatalogueTermDetail>('/catalogue/dimension/market')).body
-    expect(market.definitions.map((definition) => definition.name)).toEqual([
-      'marketing.market',
-      'orders.market',
-      'segments.market',
-    ])
-    expect(market.modelFile).toEqual({
-      path: 'marketing.yml',
-      url: 'https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube/marketing.yml',
-    })
-    // Each path segment is encoded; a trailing slash on the folder adds no second one.
-    await client.query(
-      "update definitions set model_file = 'money in/payments #1.yml' where ref = 'cube:orders.orders'",
-    )
-    await setting('https://git.example.test/analytics/cube/-/blob/main/model/')
-    expect(await orders()).toEqual({
-      path: 'money in/payments #1.yml',
-      url: 'https://git.example.test/analytics/cube/-/blob/main/model/money%20in/payments%20%231.yml',
-    })
-    // Off (the default after the migration): the path, and no address.
-    await setting(null)
-    expect(await orders()).toEqual({ path: 'money in/payments #1.yml', url: null })
-    // A read that names no file gives no link, whatever the setting.
-    await setting('https://git.example.test/analytics/cube/-/blob/main/model')
-    await client.query("update definitions set model_file = null where ref = 'cube:orders.orders'")
-    expect(await orders()).toBeNull()
-    // The list carries no address: only one term's page links to its file.
-    expect(JSON.stringify(await catalogue())).not.toContain('git.example.test')
-    await client.query(
-      "update definitions set model_file = 'orders.yml' where ref = 'cube:orders.orders'",
-    )
-    await setting('https://github.com/Fredehagelund92/heed/blob/main/db/seed/cube')
-  })
-
   it('counts open gaps whose topic names a metric, or a value of a dimension', async () => {
     const before = (await term('metric:orders'))!.shelf.gaps
     await client.query(
@@ -181,16 +128,15 @@ describe('the catalogue on PostgreSQL', () => {
       `update definitions set missing_since_snapshot = last_seen_snapshot,
          renamed_to = 'cube:basket.units_per_order' where ref = 'cube:basket.gross_margin'`,
     )
-    const hold = (await get<CatalogueTermDetail>('/catalogue/metric/gross_margin')).body
-    expect(hold).toMatchObject({
+    expect(await term('metric:gross_margin')).toMatchObject({
       status: 'gone',
       definition: {
         state: 'missing',
         renamedTo: 'cube:basket.units_per_order',
         descriptionCopy:
           'Net revenue minus what the goods cost us, as a share of net revenue, for orders shipped.',
+        sourceId: 'cube',
       },
-      source: { id: 'cube', failing: false },
     })
   })
 
@@ -212,7 +158,6 @@ describe('the catalogue on PostgreSQL', () => {
     const listed = await catalogue()
     expect(listed.terms.some((t) => t.key === 'metric:returns')).toBe(false)
     expect(listed.coverage.metrics).toBe(21)
-    expect((await get('/catalogue/metric/returns')).status).toBe(404)
     await client.query(
       "update definitions set visible_groups = null where ref = 'cube:orders.returns'",
     )
@@ -247,9 +192,8 @@ describe('the catalogue on PostgreSQL', () => {
        where id = 'cube'`,
     )
     expect((await catalogue()).sources).toEqual([])
-    expect((await get<CatalogueTermDetail>('/catalogue/metric/returns')).body).toMatchObject({
-      definition: { ref: 'cube:orders.returns' },
-      source: { id: 'cube', name: 'Cube local model', tool: 'Cube' },
+    expect(await term('metric:returns')).toMatchObject({
+      definition: { ref: 'cube:orders.returns', sourceId: 'cube', tool: 'Cube' },
     })
   })
 })

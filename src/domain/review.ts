@@ -1,7 +1,5 @@
 import { canonicalJson } from './canonical.ts'
-import type { FormatFinding } from './draft.ts'
 import type { ItemVersion } from './item-version.ts'
-import type { Mention } from './mentions.ts'
 import {
   compareIds,
   metricsOf,
@@ -12,7 +10,7 @@ import {
 import type { ResolvedScope } from './scope.ts'
 import { noGroups } from './item.ts'
 import { shiftDate } from './validity.ts'
-import { normalizeName, refView, termSchema, type Term } from './vocabulary.ts'
+import { type Term } from './vocabulary.ts'
 
 /** One governed field that differs between the version in service and the proposed version. */
 export type FieldChange = { field: string; before: unknown; after: unknown }
@@ -64,60 +62,6 @@ export function versionDiff(before: ItemVersion | null, after: ItemVersion): Fie
     const old = before ? normalized(before, field) : null
     const now = normalized(after, field)
     return canonicalJson(old) === canonicalJson(now) ? [] : [{ field, before: old, after: now }]
-  })
-}
-
-/** Mentions added and removed, compared by field, target and the author's words (FR-209). */
-export function mentionDiff(
-  before: readonly Mention[],
-  after: readonly Mention[],
-): { added: Mention[]; removed: Mention[] } {
-  const key = (m: Mention) => `${m.field}\u0000${m.target}\u0000${m.label}`
-  const count = (list: readonly Mention[]) => {
-    const counts = new Map<string, number>()
-    for (const m of list) counts.set(key(m), (counts.get(key(m)) ?? 0) + 1)
-    return counts
-  }
-  const take = (from: readonly Mention[], other: Map<string, number>) =>
-    from.filter((m) => {
-      const left = other.get(key(m)) ?? 0
-      if (left > 0) {
-        other.set(key(m), left - 1)
-        return false
-      }
-      return true
-    })
-  return { added: take(after, count(before)), removed: take(before, count(after)) }
-}
-
-/** What a mentioned target's audience is, as far as the review can tell. Null is everyone. */
-export type MentionAudience = { target: string; groups: readonly string[] | null }
-export type AudienceWarning = { target: string; label: string; message: string }
-
-/**
- * Warns, never blocks, when a mention names something fewer people may see than the item's own
- * audience (FR-209). While groups are parked every audience is everyone, so this stays quiet.
- */
-export function narrowerAudienceWarnings(
-  itemGroups: readonly string[] | null,
-  mentions: readonly Mention[],
-  targets: readonly MentionAudience[],
-): AudienceWarning[] {
-  const audiences = new Map(targets.map((t) => [t.target, t.groups]))
-  const seen = new Set<string>()
-  return mentions.flatMap((mention) => {
-    const groups = audiences.get(mention.target) ?? null
-    if (groups === null || seen.has(mention.target)) return []
-    const narrower = itemGroups === null || itemGroups.some((group) => !groups.includes(group))
-    if (!narrower) return []
-    seen.add(mention.target)
-    return [
-      {
-        target: mention.target,
-        label: mention.label,
-        message: `"${mention.label}" can be seen by fewer people than this item. Its words stay visible to everyone who reads the item.`,
-      },
-    ]
   })
 }
 
@@ -273,107 +217,6 @@ export function vocabularyChangeOf<T extends object>(
     ...rest,
     definitionRefs: definitionRefs ?? (definitionRef ? [definitionRef] : []),
   } as Omit<T, 'definitionRef'> & VocabularyChange
-}
-export type VocabularyContext = {
-  live: readonly Term[]
-  existing: { kind: Term['kind']; parentKey: string | null } | null
-  definitions: ReadonlyMap<
-    string,
-    { kind: 'metric' | 'dimension' | 'group'; missing: boolean; areaHint: string | null }
-  >
-  /** The active areas' names, by id. */
-  areas: ReadonlyMap<string, string>
-}
-
-/**
- * Level 1 for a vocabulary change. A Cube domain that differs from a metric's area is a warning
- * for the author and an error at the owner's decision (`atDecision`). A dimension's domain is
- * only a suggestion: a dimension such as market is shared by every view, so any area, or none,
- * may hold it (only metrics enter domain coverage, docs/connectors/cube.md).
- */
-export function vocabularyFindings(
-  change: VocabularyChange,
-  context: VocabularyContext,
-  atDecision = false,
-): FormatFinding[] {
-  const findings: FormatFinding[] = []
-  const add = (
-    code: string,
-    field: string,
-    message: string,
-    severity: FormatFinding['severity'] = 'error',
-  ) => findings.push({ code, field, message, severity })
-  if (!termSchema.safeParse(change).success)
-    add('format', 'key', 'Check the key, the kind, the parent and the names.')
-  if (
-    context.existing &&
-    (context.existing.kind !== change.kind || context.existing.parentKey !== change.parentKey)
-  )
-    add(
-      'term_identity',
-      'key',
-      'A name keeps its kind and parent. To change them, propose a new name.',
-    )
-  if (change.parentKey && !context.live.some((t) => t.key === change.parentKey))
-    add('unknown_parent', 'parentKey', `We don't know the name ${change.parentKey}.`)
-  if ([change.name, ...change.aliases].some((name) => [...name].length > 200))
-    add('format', 'name', 'Keep each name to 200 characters.')
-  const names = [change.name, ...change.aliases].map(normalizeName)
-  if (new Set(names).size !== names.length)
-    add('duplicate_name', 'aliases', 'Give each name and other name only once.')
-  const clash = context.live.find(
-    (t) =>
-      t.key !== change.key &&
-      t.kind === change.kind &&
-      t.parentKey === change.parentKey &&
-      [t.name, ...t.aliases].some((name) => names.includes(normalizeName(name))),
-  )
-  if (clash) add('name_taken', 'name', `${clash.key} already uses this name.`)
-  if (change.areaId !== null && !context.areas.has(change.areaId))
-    add('unknown_area', 'areaId', `We couldn't find the domain ${change.areaId}.`)
-  const refs = change.definitionRefs
-  if (new Set(refs).size !== refs.length)
-    add('duplicate_definition', 'definitionRefs', 'Name each definition only once.')
-  // A dimension shared by several views links each view's member of its name; anything else
-  // names one definition at most (CON-201, CON-208).
-  if (change.kind !== 'dimension' && refs.length > 1)
-    add('definition_count', 'definitionRefs', 'Only a dimension can name more than one definition.')
-  const views = refs.map(refView)
-  if (change.kind === 'dimension' && new Set(views).size !== views.length)
-    add('definition_view', 'definitionRefs', 'A dimension names one definition in each view.')
-  for (const ref of refs) {
-    const definition = context.definitions.get(ref)
-    if (!definition)
-      add('unknown_definition', 'definitionRefs', `We don't know the definition ${ref}.`)
-    else if (definition.missing)
-      add('source_missing', 'definitionRefs', `The definition ${ref} is missing from its source.`)
-    else if (
-      definition.kind === 'metric' &&
-      definition.areaHint !== null &&
-      definition.areaHint !== change.areaId
-    )
-      add(
-        'domain_mismatch',
-        'areaId',
-        `Cube puts ${change.name} in ${context.areas.get(definition.areaHint) ?? definition.areaHint}`,
-        atDecision ? 'error' : 'warning',
-      )
-  }
-  const current = context.live.find((t) => t.key === change.key)
-  if (
-    current &&
-    current.name === change.name &&
-    canonicalJson(current.aliases) === canonicalJson(change.aliases) &&
-    current.areaId === change.areaId &&
-    sameRefs(current.definitionRefs, change.definitionRefs)
-  )
-    add('no_change', 'key', "This proposal doesn't change the name.")
-  return findings
-}
-
-/** Whether two terms name the same definitions, in any order. */
-export function sameRefs(a: readonly string[], b: readonly string[]): boolean {
-  return a.length === b.length && a.every((ref) => b.includes(ref))
 }
 
 /** The review due time: `days` working days (Monday to Friday, UTC) after `from` (FR-212). */

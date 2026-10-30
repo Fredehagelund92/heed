@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { AreaDetail, AuditEntry, TrafficSummary } from '../../src/contract/index.ts'
+import type { AreaDetail, AuditEntry } from '../../src/contract/index.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
@@ -10,9 +10,8 @@ import { foundation, people, servingEdition } from './fixtures.ts'
 import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
-  The back end of Settings over authenticated HTTP and PostgreSQL: an administrator creates and
-  edits areas (FR-801), and reads MCP traffic by client and tool from the request log (FR-410),
-  which names no person.
+  The back end of Settings over authenticated HTTP and PostgreSQL: an administrator creates areas
+  (FR-801), and a domain's owner says what it is (FR-813).
 */
 
 const { client, url } = testDatabase()
@@ -191,67 +190,8 @@ describe('areas from settings', () => {
         name: 'Payments ' + who,
       })
       expect(response.statusCode, who).toBe(403)
-      expect((await call('GET', '/areas/payments', who)).statusCode).toBe(403)
-      expect(
-        (await call('PUT', '/areas/payments', who, { ...payments, revision: 1 })).statusCode,
-      ).toBe(403)
     }
     expect(await audit('area.created')).toEqual(before)
-  })
-
-  it('edits an area with the revision read, recording only what changed', async () => {
-    const edit = {
-      ...payments,
-      revision: 1,
-      name: 'Payments and gift cards',
-      reviewDays: 5,
-      ownerTeam: null,
-      reason: 'Gift cards joined the area',
-    }
-    const { id: _id, ...body } = edit
-    const saved = await ok<AreaDetail>('PUT', '/areas/payments', 'admin', body)
-    expect(saved).toMatchObject({
-      id: 'payments',
-      name: 'Payments and gift cards',
-      reviewDays: 5,
-      chatChannel: '#payments-data',
-      ownerTeam: null,
-      revision: 2,
-    })
-    expect(await audit('area.changed')).toEqual([
-      {
-        actor_id: people.admin,
-        area_id: 'payments',
-        details: {
-          from: { name: 'Payments', reviewDays: 3, ownerTeam: 'Payments analytics' },
-          to: { name: 'Payments and gift cards', reviewDays: 5, ownerTeam: null },
-          reason: 'Gift cards joined the area',
-        },
-      },
-    ])
-
-    // An edit from the revision before is a conflict, and changes nothing.
-    const stale = await call('PUT', '/areas/payments', 'admin', { ...body, name: 'Gift cards' })
-    expect(stale.statusCode).toBe(409)
-    expect(stale.json()).toMatchObject({
-      message:
-        'Someone changed this domain after you opened it. Look at the latest version, then try again.',
-    })
-    // Nothing to change keeps the revision and writes no history.
-    const same = await ok<AreaDetail>('PUT', '/areas/payments', 'admin', { ...body, revision: 2 })
-    expect(same.revision).toBe(2)
-    expect(await audit('area.changed')).toHaveLength(1)
-
-    const taken = await call('PUT', '/areas/payments', 'admin', {
-      ...body,
-      revision: 2,
-      name: 'Marketing',
-    })
-    expect(taken.statusCode).toBe(409)
-    const missing = await call('PUT', '/areas/nowhere', 'admin', { ...body, revision: 1 })
-    expect(missing.statusCode).toBe(404)
-    expect((await call('GET', '/areas/nowhere', 'admin')).statusCode).toBe(404)
-    expect((await ok<AreaDetail>('GET', '/areas/payments', 'admin')).revision).toBe(2)
   })
 
   it('shows who looks after the area, and the new area starts like any other', async () => {
@@ -261,15 +201,22 @@ describe('areas from settings', () => {
       [people.author, 'approver'],
     ] as const)
       await ok('POST', '/assignments/grant', 'admin', { personId, role, areaId: 'payments' })
-    const area = await ok<AreaDetail>('GET', '/areas/payments', 'admin')
-    expect(area).toMatchObject({ ownerIds: [people.owner] })
-    expect(area.approverIds).toEqual([people.author, people.approver].sort())
+    const team = await client.query<{ person_id: string; role: string }>(
+      `select person_id::text, role::text from area_assignments
+        where area_id='payments' and upper_inf(valid_at) order by role, person_id`,
+    )
+    expect(team.rows.filter((r) => r.role === 'owner').map((r) => r.person_id)).toEqual([
+      people.owner,
+    ])
+    expect(team.rows.filter((r) => r.role === 'approver').map((r) => r.person_id)).toEqual(
+      [people.author, people.approver].sort(),
+    )
 
-    // A proposal in the new area is due after its own review time (5 working days).
+    // A proposal in the new area is due after its own review time (3 working days).
     const { rows } = await client.query<{ review_days: number }>(
       "select review_days from areas where id='payments'",
     )
-    expect(rows[0]!.review_days).toBe(5)
+    expect(rows[0]!.review_days).toBe(3)
   })
 
   it('takes the role lock before the log lock, so creating an area with a team cannot deadlock a role change', async () => {
@@ -359,134 +306,5 @@ describe('areas from settings', () => {
     expect(entries.entries.map((e) => e.action)).toEqual(
       expect.arrayContaining(['area.created', 'area.changed']),
     )
-  })
-})
-
-describe('MCP traffic', () => {
-  it('answers zeros before any call, to administrators only', async () => {
-    const empty = await ok<TrafficSummary>('GET', '/traffic', 'admin')
-    expect(empty.rows).toEqual([])
-    expect(empty.total).toEqual({
-      calls: 0,
-      ok: 0,
-      errors: 0,
-      invalidInput: 0,
-      rateLimited: 0,
-      forbidden: 0,
-      unauthorized: 0,
-      medianMs: null,
-      p95Ms: null,
-      bytes: 0,
-      lastHour: null,
-    })
-    expect(empty.retentionDays).toBe(90)
-    expect(new Date(empty.to).getTime() - new Date(empty.from).getTime()).toBe(7 * 86_400_000)
-    for (const who of ['owner', 'author', 'stranger'] as const)
-      expect((await call('GET', '/traffic', who)).statusCode).toBe(403)
-    for (const days of [0, 91, 'x'])
-      expect((await call('GET', `/traffic?days=${days}`, 'admin')).statusCode).toBe(400)
-  })
-
-  it('counts calls by client and tool within the window, with no person', async () => {
-    await transaction(client, async () => {
-      // The log is partitioned by month; a test early in a month reaches back into the last one.
-      await client.query(`do $$ declare m date; begin
-        for i in 1 .. 2 loop
-          m := (date_trunc('month', now() at time zone 'UTC') - make_interval(months => i))::date;
-          execute format('create table if not exists %I partition of mcp_requests for values from (%L) to (%L)',
-            'mcp_requests_' || to_char(m, 'YYYY_MM'), m::timestamp at time zone 'UTC',
-            (m + interval '1 month')::timestamp at time zone 'UTC');
-        end loop; end $$`)
-      await client.query(
-        `insert into mcp_requests (hour, client_label, tool, status, duration_ms, edition_seq, response_bytes)
-         select date_trunc('hour', now(), 'UTC') - make_interval(hours => r.ago), r.client, r.tool, r.status, r.ms, 1, r.bytes
-           from (values
-             (0, 'signed-in', 'get_facts', 'ok', 10, 100),
-             (1, 'signed-in', 'get_facts', 'ok', 20, 100),
-             (2, 'signed-in', 'get_facts', 'ok', 30, 100),
-             (30, 'signed-in', 'get_facts', 'ok', 40, 100),
-             (3, 'signed-in', 'get_facts', 'rate_limited', 1, 0),
-             (2, 'unknown', 'protocol', 'unauthorized', 2, 0),
-             (5, 'unknown', 'protocol', 'unauthorized', 4, 0),
-             (4, 'signed-in', 'report_gap', 'forbidden', 3, 0),
-             (6, 'signed-in', 'report_gap', 'error', 5, 0),
-             (7, 'signed-in', 'report_gap', 'invalid_input', 2, 0),
-             (240, 'signed-in', 'get_facts', 'ok', 9, 9999)
-           ) as r(ago, client, tool, status, ms, bytes)`,
-      )
-    })
-    const week = await ok<TrafficSummary>('GET', '/traffic', 'admin')
-    const hour = (ago: number) => {
-      const now = new Date()
-      now.setUTCMinutes(0, 0, 0)
-      return new Date(now.getTime() - ago * 3_600_000).toISOString().replace('.000Z', 'Z')
-    }
-    expect(week.rows).toEqual([
-      {
-        client: 'signed-in',
-        clientName: 'Agents people sign in with',
-        tool: 'get_facts',
-        calls: 5,
-        ok: 4,
-        errors: 0,
-        invalidInput: 0,
-        rateLimited: 1,
-        forbidden: 0,
-        unauthorized: 0,
-        medianMs: 20,
-        p95Ms: 38,
-        bytes: 400,
-        lastHour: hour(0),
-      },
-      {
-        client: 'signed-in',
-        clientName: 'Agents people sign in with',
-        tool: 'report_gap',
-        calls: 3,
-        ok: 0,
-        errors: 1,
-        // A model's malformed call, counted apart from Heed's error.
-        invalidInput: 1,
-        rateLimited: 0,
-        forbidden: 1,
-        unauthorized: 0,
-        medianMs: 3,
-        p95Ms: 5,
-        bytes: 0,
-        lastHour: hour(4),
-      },
-      {
-        client: 'unknown',
-        clientName: null,
-        tool: 'protocol',
-        calls: 2,
-        ok: 0,
-        errors: 0,
-        invalidInput: 0,
-        rateLimited: 0,
-        forbidden: 0,
-        unauthorized: 2,
-        medianMs: 3,
-        p95Ms: 4,
-        bytes: 0,
-        lastHour: hour(2),
-      },
-    ])
-    expect(week.total).toMatchObject({
-      calls: 10,
-      ok: 4,
-      invalidInput: 1,
-      bytes: 400,
-      lastHour: hour(0),
-    })
-
-    // Ten days back is outside the week and inside a month.
-    const month = await ok<TrafficSummary>('GET', '/traffic?days=30', 'admin')
-    expect(month.total).toMatchObject({ calls: 11, ok: 5, bytes: 10_399 })
-    expect(month.rows[0]).toMatchObject({ tool: 'get_facts', calls: 6, lastHour: hour(0) })
-
-    const body = JSON.stringify(month)
-    for (const id of Object.values(people)) expect(body).not.toContain(id)
-    expect(body).not.toContain('@example.test')
   })
 })

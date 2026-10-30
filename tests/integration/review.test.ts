@@ -2,23 +2,25 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
-import type { Edition, Gate, ReviewProposal, TermCandidate } from '../../src/contract/review.ts'
+import type { Edition, ReviewProposal } from '../../src/contract/review.ts'
+import type { ItemPage } from '../../src/contract/context.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
-import { readsIn } from '../../src/server/mcp/reads.ts'
 import { createToolService } from '../../src/server/mcp/service.ts'
 import { createEditionSource } from '../../src/server/modules/editions/index.ts'
 import { workEvaluations } from '../../src/server/modules/evals/index.ts'
 import { createModelPort } from '../../src/server/modules/models/index.ts'
+import { createProposalsService } from '../../src/server/modules/proposals/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
 import { idleJobs } from '../server/idle-jobs.ts'
 import { foundation, people } from './fixtures.ts'
 import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
-  S8 end to end over authenticated HTTP: a contributor proposes, an owner decides, an edition is
-  published and the serving pool (context_layer_serve) answers differently; rollback restores it.
+  S8 end to end over authenticated HTTP: a contributor proposes, an owner decides in the web app's
+  review (publish or return), an edition is published and the serving pool (context_layer_serve)
+  answers differently; rollback restores it.
 */
 
 const { client, url } = testDatabase()
@@ -130,26 +132,29 @@ beforeAll(async () => {
   }
   // A high-risk change needs the full test set of its area to pass (FR-513): one question that
   // no item in these tests touches.
-  const question = await call('PUT', '/evals/questions/finance-revenue-spain', 'owner', {
-    id: 'finance-revenue-spain',
-    question: {
-      id: 'finance-revenue-spain',
-      area: 'finance',
-      wordings: [
-        { text: 'How did revenue develop in Spain in July 2026?', kind: 'natural' },
-        { text: 'Revenue in Spain from 2026-07-01 to 2026-07-31', kind: 'precise' },
-      ],
-      scope: {
-        metrics: ['metric:revenue'],
-        dimension_filters: [{ dimension: 'dim:market', values: ['val:market/spain'] }],
-        window: { from: '2026-07-01', to: '2026-07-31' },
-      },
-      expected: { status: 'no_match' },
-      source: 'Review tests',
+  await testQuestion(
+    'finance-revenue-spain',
+    [
+      { text: 'How did revenue develop in Spain in July 2026?', kind: 'natural' },
+      { text: 'Revenue in Spain from 2026-07-01 to 2026-07-31', kind: 'precise' },
+    ],
+    {
+      metrics: ['metric:revenue'],
+      dimension_filters: [{ dimension: 'dim:market', values: ['val:market/spain'] }],
+      window: { from: '2026-07-01', to: '2026-07-31' },
     },
-  })
-  expect(question.statusCode, question.body).toBe(200)
+    { status: 'no_match' },
+  )
 })
+
+/** A finance test question, as an owner keeps one, stored as the evaluation runner reads it. */
+async function testQuestion(id: string, wordings: object[], scope: object, expected: object) {
+  await client.query(
+    `insert into golden_questions (id,area_id,wordings,scope,expected,source,split,status)
+     values ($1,'finance',$2,$3,$4,'Review tests','development','active')`,
+    [id, JSON.stringify(wordings), JSON.stringify(scope), JSON.stringify(expected)],
+  )
+}
 afterAll(async () => {
   await app.close()
   await servePool.end()
@@ -183,38 +188,84 @@ async function submitted(extra: Draft = {}, who: Who = 'author', itemId?: string
   expect(response.statusCode, response.body).toBe(200)
   return response.json<ProposalRecord>()
 }
-type Review = {
-  proposal: ReviewProposal
-  diff: { field: string; before: unknown; after: unknown }[]
-  mentions: { added: { target: string }[]; removed: { target: string }[] }
-  warnings: { target: string }[]
-  findings: { code: string; severity: string }[]
-  gate: Gate | null
-  decisions: { id: string; outcome: string; capacity: string; reason: string }[]
-  sinceRequest: { decisionId: string; diff: { field: string }[] } | null
-  termBatch: { id: string; open: number; total: number } | null
-  vocabulary: { before: { name: string } | null; after: { name: string } } | null
-  sourceToolQuestion: string
-}
-async function review(id: string, who: Who = 'owner') {
-  const response = await call('GET', `/proposals/${id}/review`, who)
+/** The review of a suggestion, as the web app reads it; 404 for anyone who may not read it. */
+async function sheet(id: string, who: Who = 'owner') {
+  const response = await call('GET', `/review/${id}/sheet`, who)
   expect(response.statusCode, response.body).toBe(200)
-  return response.json<Review>()
+  return response.json<{ proposal: ReviewProposal }>()
 }
+/** The newest outcome of each required check level of a version, as the gate reads them. */
+async function levels(versionId: string) {
+  return (
+    await client.query<{ level: string; outcome: string; details: Record<string, unknown> }>(
+      `select distinct on (c.level) c.level::text, c.outcome::text, c.details
+         from check_results c where c.item_version_id = $1 order by c.level, c.ran_at desc, c.id desc`,
+      [versionId],
+    )
+  ).rows.sort(
+    (a, b) =>
+      ['format', 'matching', 'delivery'].indexOf(a.level) -
+      ['format', 'matching', 'delivery'].indexOf(b.level),
+  )
+}
+/** The decisions on a proposal, oldest first. */
+async function decisions(id: string) {
+  return (
+    await client.query<{ id: string; outcome: string; capacity: string; reason: string }>(
+      `select id::text, outcome::text, capacity::text, reason from decisions
+        where proposal_id = $1 order by decided_at, id`,
+      [id],
+    )
+  ).rows
+}
+const revisionOf = async (id: string) =>
+  (await client.query<{ revision: number }>('select revision from proposals where id=$1', [id]))
+    .rows[0]!.revision
 type Decided = { proposal: ReviewProposal; edition: Edition | null }
-async function decide(
-  id: string,
-  outcome: 'accept' | 'request_changes' | 'reject',
-  who: Who = 'owner',
-  extra: object = {},
-) {
-  const { proposal } = await review(id, who === 'author' ? 'author' : 'owner')
-  return call('POST', `/proposals/${id}/decisions`, who, {
-    revision: proposal.revision,
-    outcome,
-    reason: 'Reviewed against the evidence',
-    ...extra,
+/**
+ * Publish, or return with a note, as the review's buttons do. A publish says first that the
+ * suggestion is unrelated to each live item it clashes with (FR-225), as the reviewer would.
+ */
+async function decide(id: string, outcome: 'accept' | 'request_changes', who: Who = 'owner') {
+  const revision = await revisionOf(id)
+  if (outcome === 'request_changes')
+    return call('POST', `/review/${id}/return`, who, {
+      revision,
+      note: 'Reviewed against the evidence',
+    })
+  const read = await call('GET', `/review/${id}/sheet`, 'admin')
+  const clashes =
+    read.statusCode === 200
+      ? read.json<{ clashes: { itemId: string; relation: string | null }[] }>().clashes
+      : []
+  const relations = clashes
+    .filter((clash) => clash.relation === null)
+    .map((clash) => ({ itemId: clash.itemId, relation: 'unrelated' }))
+  return call('POST', `/review/${id}/publish`, who, {
+    revision,
+    ...(relations.length ? { relations } : {}),
   })
+}
+/**
+ * Mark as checked, as the Context list does it, after opening the item (checking it means reading
+ * it): whether it was done, and the live edition's reason.
+ */
+async function recheck(item: string, who: Who = 'owner') {
+  await call('POST', `/items/${item}/read`, who, {})
+  const response = await call('POST', '/items/bulk', who, { action: 'check', rows: [item] })
+  expect(response.statusCode, response.body).toBe(200)
+  const [live] = (
+    await client.query<{ reason: string }>(
+      'select e.reason::text from editions e join live_edition l on l.seq=e.seq',
+    )
+  ).rows
+  return { done: response.json<{ done: string[] }>().done.includes(item), edition: live!.reason }
+}
+/** The live item as its page in Heed reads it. */
+const page = async (item: string, who: Who = 'author') => {
+  const response = await call('GET', `/items/${item}/page`, who)
+  expect(response.statusCode, response.body).toBe(200)
+  return response.json<ItemPage>().item
 }
 /** A low-risk note, accepted and live. */
 async function acceptedItem(extra: Draft = {}, who: Who = 'author') {
@@ -262,24 +313,14 @@ describe('review and release', () => {
     const before = await liveLabel()
     expect(await delivered()).toEqual([])
     const p = await submitted()
-    const screen = await review(p.id)
+    const screen = await sheet(p.id)
     expect(screen.proposal).toMatchObject({ state: 'submitted', riskLevel: 'low', subject: 'item' })
-    expect(screen.gate).toMatchObject({
-      required: ['format', 'matching', 'delivery'],
-      approvals: { owner: false, approver: null },
-    })
-    expect(screen.gate!.levels.map((l) => [l.level, l.outcome])).toEqual([
+    expect((await levels(p.itemVersionId!)).map((l) => [l.level, l.outcome])).toEqual([
       ['format', 'passed'],
       ['matching', 'passed'],
       ['delivery', 'passed'],
     ])
-    expect(screen.diff.map((d) => d.field)).toContain('title')
-    expect(screen.diff.every((d) => d.before === null)).toBe(true)
-    expect(screen.sourceToolQuestion).toMatch(/belongs in the source tool/)
-    expect((await call('GET', `/proposals/${p.id}/review`, 'stranger')).statusCode).toBe(404)
-    expect(
-      (await call('GET', '/review/queue', 'owner')).json<ReviewProposal[]>().map((q) => q.id),
-    ).toContain(p.id)
+    expect((await call('GET', `/review/${p.id}/sheet`, 'stranger')).statusCode).toBe(404)
     expect(await delivered()).toEqual([])
 
     const accepted = await decide(p.id, 'accept')
@@ -294,12 +335,6 @@ describe('review and release', () => {
 
     const editions = (await call('GET', '/editions', 'owner')).json<Edition[]>()
     expect(editions[0]).toMatchObject({ label: result.edition!.label, live: true })
-    const diff = await call('GET', `/editions/${result.edition!.label}/diff`, 'owner')
-    expect(diff.json()).toMatchObject({
-      from: before,
-      items: [{ id: p.itemId, from: null, to: 1 }],
-      vocabulary: [],
-    })
 
     expect(
       (await call('POST', `/editions/${before}/rollback`, 'owner', { note: 'Undo' })).statusCode,
@@ -325,25 +360,29 @@ describe('review and release', () => {
 
   it('publishes on one accept once levels 1 to 3 pass, at every risk, with no approver (FR-513)', async () => {
     const event = await submitted({ kind: 'event', title: 'Norway event' })
-    expect((await review(event.id)).gate!.required).toEqual(['format', 'matching', 'delivery'])
+    expect((await levels(event.itemVersionId!)).map((l) => l.level)).toEqual([
+      'format',
+      'matching',
+      'delivery',
+    ])
     const normal = await decide(event.id, 'accept')
     expect(normal.statusCode, normal.body).toBe(200)
     expect(normal.json<Decided>().edition).toMatchObject({ reason: 'proposal_accepted' })
 
     const high = await submitted({ title: 'Legal closure', riskLevel: 'high' })
-    const gate = (await review(high.id)).gate!
-    expect(gate.required).toEqual(['format', 'matching', 'delivery'])
-    expect(gate.approvals).toEqual({ owner: false, approver: null })
+    expect((await levels(high.itemVersionId!)).map((l) => l.level)).toEqual([
+      'format',
+      'matching',
+      'delivery',
+    ])
     // No answer test is queued for it, now or by the job.
     await runAnswerTests()
     const runs = await client.query('select 1 from eval_runs where item_version_id=$1', [
       high.itemVersionId,
     ])
     expect(runs.rowCount).toBe(0)
-    // An approver no longer decides, and their queue no longer lists it.
+    // An approver no longer decides.
     expect((await decide(high.id, 'accept', 'approver')).statusCode).toBe(403)
-    const queue = (await call('GET', '/review/queue', 'approver')).json<ReviewProposal[]>()
-    expect(queue.map((q) => q.id)).not.toContain(high.id)
     const accepted = await decide(high.id, 'accept')
     expect(accepted.statusCode, accepted.body).toBe(200)
     expect(accepted.json<Decided>()).toMatchObject({
@@ -351,7 +390,7 @@ describe('review and release', () => {
       edition: { reason: 'proposal_accepted' },
     })
     expect(await delivered()).toContain(high.itemId)
-    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['owner'])
+    expect((await decisions(high.id)).map((d) => d.capacity)).toEqual(['owner'])
   })
 
   it('accepts a version whose format check found warnings only (FR-505, FR-209)', async () => {
@@ -363,44 +402,20 @@ describe('review and release', () => {
     expect(broad.findings).toEqual([
       expect.objectContaining({ code: 'broad_scope', severity: 'warning' }),
     ])
-    const read = await review(broad.id)
-    expect(read.gate!.levels.find((l) => l.level === 'format')).toMatchObject({
+    expect((await levels(broad.itemVersionId!)).find((l) => l.level === 'format')).toMatchObject({
       outcome: 'passed',
       details: { findings: [expect.objectContaining({ code: 'broad_scope' })] },
     })
     expect((await decide(broad.id, 'accept')).statusCode).toBe(200)
 
-    // A dimension every view shares, such as device, belongs to no domain: the domain Cube gives
-    // its member is no warning (B3). A metric Cube puts elsewhere warns, and never blocks either.
-    await client.query(
-      "insert into definitions(ref,connector_id,kind,name,change_mark,area_hint) values('demo:device','demo','dimension','Device','1','marketing')",
-    )
-    const term = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'dim:device',
-      kind: 'dimension',
-      parentKey: null,
-      name: 'Device',
-      aliases: [],
-      areaId: 'finance',
-      definitionRefs: ['demo:device'],
-    })
-    expect(term.statusCode, term.body).toBe(200)
-    expect((await review(term.json<ReviewProposal>().id)).findings).toEqual([])
-    expect((await decide(term.json<ReviewProposal>().id, 'accept')).statusCode).toBe(200)
+    // A metric Cube puts in another domain than its own warns, and never blocks either.
     await client.query("update definitions set area_hint='marketing' where ref='demo:orders'")
     try {
-      const shared = await submitted({
-        title: 'Orders on every device',
-        scope: { metrics: ['metric:orders'], dimensions: ['dim:device'], dimensionValues: [] },
-      })
-      expect(shared.draft.references).toEqual(
-        expect.arrayContaining(['demo:orders', 'demo:device']),
-      )
-      expect(shared.findings.map((f) => [f.code, f.severity, f.message])).toEqual([
-        ['broad_scope', 'warning', expect.stringContaining('Device')],
+      const elsewhere = await submitted({ title: 'Orders counted by Marketing' })
+      expect(elsewhere.findings.map((f) => [f.code, f.severity, f.message])).toEqual([
         ['domain_mismatch', 'warning', 'Cube puts Orders in Marketing'],
       ])
-      const accepted = await decide(shared.id, 'accept')
+      const accepted = await decide(elsewhere.id, 'accept')
       expect(accepted.statusCode, accepted.body).toBe(200)
       expect(accepted.json<Decided>().proposal.state).toBe('accepted')
     } finally {
@@ -410,25 +425,19 @@ describe('review and release', () => {
 
   it('fails level 3 when a change stops delivering an item a test question expects', async () => {
     const item = await acceptedItem({ title: 'Norway orders note' })
-    const question = await call('PUT', '/evals/questions/norway-level-three', 'owner', {
-      id: 'norway-level-three',
-      question: {
-        id: 'norway-level-three',
-        area: 'finance',
-        wordings: [
-          { text: 'What happened to orders in Norway in August 2026?', kind: 'natural' },
-          { text: 'Orders in Norway from 2026-08-01 to 2026-08-31', kind: 'precise' },
-        ],
-        scope: {
-          metrics: ['metric:orders'],
-          dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
-          window: { from: '2026-08-01', to: '2026-08-31' },
-        },
-        expected: { must_deliver: [item] },
-        source: 'Review tests',
+    await testQuestion(
+      'norway-level-three',
+      [
+        { text: 'What happened to orders in Norway in August 2026?', kind: 'natural' },
+        { text: 'Orders in Norway from 2026-08-01 to 2026-08-31', kind: 'precise' },
+      ],
+      {
+        metrics: ['metric:orders'],
+        dimension_filters: [{ dimension: 'dim:market', values: ['val:market/norway'] }],
+        window: { from: '2026-08-01', to: '2026-08-31' },
       },
-    })
-    expect(question.statusCode, question.body).toBe(200)
+      { must_deliver: [item] },
+    )
     try {
       const moved = await submitted(
         {
@@ -442,7 +451,7 @@ describe('review and release', () => {
         'author',
         item,
       )
-      const delivery = (await review(moved.id)).gate!.levels.find((l) => l.level === 'delivery')
+      const delivery = (await levels(moved.itemVersionId!)).find((l) => l.level === 'delivery')
       expect(delivery).toMatchObject({ outcome: 'failed' })
       expect(delivery!.details.questions).toContainEqual({
         id: 'norway-level-three',
@@ -476,14 +485,12 @@ describe('review and release', () => {
     )
     expect(logged.rows[0]?.details).toMatchObject(marked)
 
-    // An administrator with no role in Finance finds their own in the queue and accepts it there,
-    // as administrator, and decides anyone else's too.
+    // An administrator with no role in Finance accepts their own, as administrator, and decides
+    // anyone else's too.
     const admins = await submitted({ kind: 'event', title: 'Administrator event' }, 'admin')
-    const queue = (await call('GET', '/review/queue', 'admin')).json<ReviewProposal[]>()
-    expect(queue.map((q) => q.id)).toContain(admins.id)
     const byAdmin = await decide(admins.id, 'accept', 'admin')
     expect(byAdmin.statusCode, byAdmin.body).toBe(200)
-    expect((await review(admins.id)).decisions).toEqual([
+    expect(await decisions(admins.id)).toEqual([
       expect.objectContaining({ capacity: 'administrator', outcome: 'accept' }),
     ])
     const others = await submitted({ kind: 'guide', title: 'Guide for the administrator' })
@@ -494,97 +501,45 @@ describe('review and release', () => {
     expect((await decide(normal.id, 'accept', 'approver')).statusCode).toBe(403)
     expect((await decide(normal.id, 'accept', 'author')).statusCode).toBe(403)
     expect((await decide(normal.id, 'accept', 'stranger')).statusCode).toBe(404)
-    const stale = await call('POST', `/proposals/${normal.id}/decisions`, 'owner', {
-      revision: 1,
-      outcome: 'reject',
-      reason: 'Old view',
-    })
+    const stale = await call('POST', `/review/${normal.id}/publish`, 'owner', { revision: 1 })
     expect(stale.statusCode).toBe(409)
-    for (const reason of ['Ask @[Orders](metric:orders)', 'Mail jon@example.test'])
+    for (const note of ['Ask @[Orders](metric:orders)', 'Mail jon@example.test'])
       expect(
         (
-          await call('POST', `/proposals/${normal.id}/decisions`, 'owner', {
-            revision: (await review(normal.id)).proposal.revision,
-            outcome: 'reject',
-            reason,
+          await call('POST', `/review/${normal.id}/return`, 'owner', {
+            revision: await revisionOf(normal.id),
+            note,
           })
         ).statusCode,
       ).toBe(422)
   })
 
-  it('asks for changes, takes the resubmitted version and rejects it with the source-tool reason', async () => {
+  it('asks for changes, takes the resubmitted version and publishes it', async () => {
     const p = await submitted({ title: 'Needs work' })
     const changes = await decide(p.id, 'request_changes')
     expect(changes.statusCode, changes.body).toBe(200)
-    expect(changes.json<Decided>()).toMatchObject({
-      proposal: { state: 'changes_requested' },
-      edition: null,
-    })
+    expect(changes.json<Decided>()).toMatchObject({ proposal: { state: 'changes_requested' } })
+    // The author sends it again with the change, from the editor.
     const record = (await call('GET', `/proposals/${p.id}`, 'author')).json<ProposalRecord>()
-    const saved = await app.inject({
-      method: 'PUT',
-      url: `/api/v1/proposals/${p.id}/draft`,
-      headers: headers.author,
-      payload: { revision: record.revision, draft: { ...record.draft, title: 'Better' } },
-    })
-    expect(saved.statusCode, saved.body).toBe(200)
+    expect(record.state).toBe('changes_requested')
+    const resent = await database.transaction(people.author, (tx) =>
+      createProposalsService(tx, systemClock('2026-10-08'), people.author).save(
+        p.id,
+        record.revision,
+        { ...record.draft, title: 'Better' },
+      ),
+    )
     const resubmitted = await call('POST', `/proposals/${p.id}/submit`, 'author', {
-      revision: saved.json<ProposalRecord>().revision,
+      revision: resent.revision,
     })
     expect(resubmitted.statusCode, resubmitted.body).toBe(200)
-    const screen = await review(p.id)
-    expect(screen.gate!.levels.every((l) => l.outcome === 'passed')).toBe(true)
-    // What changed since the request: the title only, against the version it was asked on.
-    expect(screen.sinceRequest).toEqual({
-      decisionId: screen.decisions[0]!.id,
-      diff: [{ field: 'title', before: 'Needs work', after: 'Better' }],
-    })
-    const rejected = await decide(p.id, 'reject', 'owner', { reason: screen.sourceToolQuestion })
-    expect(rejected.statusCode, rejected.body).toBe(200)
-    expect(rejected.json<Decided>().proposal).toMatchObject({ state: 'rejected' })
-    const closed = await review(p.id)
-    expect(closed.decisions.map((d) => d.outcome)).toEqual(['request_changes', 'reject'])
-    expect(closed.sinceRequest).toBeNull()
+    const again = resubmitted.json<ProposalRecord>()
+    expect((await levels(again.itemVersionId!)).every((l) => l.outcome === 'passed')).toBe(true)
+    const published = await decide(p.id, 'accept')
+    expect(published.statusCode, published.body).toBe(200)
+    expect(published.json<Decided>().proposal).toMatchObject({ state: 'accepted' })
+    expect((await decisions(p.id)).map((d) => d.outcome)).toEqual(['request_changes', 'accept'])
     expect((await decide(p.id, 'accept')).statusCode).toBe(409)
-  })
-
-  it('shows mentions added and removed and warns, never blocking, about a narrower audience', async () => {
-    const item = await acceptedItem({
-      title: 'Mentions orders',
-      summaryMarkup: 'Online sales stopped, see @[Orders](metric:orders)',
-    })
-    await client.query("update definitions set visible_groups='{finance}' where ref='demo:orders'")
-    try {
-      const change = await submitted(
-        {
-          title: 'Mentions orders',
-          summaryMarkup:
-            'Online sales stopped in @[Norway](val:market/norway) and @[Orders](metric:orders)',
-        },
-        'author',
-        item,
-      )
-      const screen = await review(change.id)
-      expect(screen.mentions.added.map((m) => m.target)).toEqual(['val:market/norway'])
-      expect(screen.mentions.removed).toEqual([])
-      expect(screen.diff.map((d) => d.field)).toEqual(['summary', 'summaryMarkup'])
-      expect(screen.warnings.map((w) => w.target)).toEqual(['metric:orders'])
-      const accepted = await decide(change.id, 'accept')
-      expect(accepted.statusCode, accepted.body).toBe(200)
-      const dropped = await submitted(
-        { title: 'Mentions orders', summaryMarkup: 'Online sales stopped' },
-        'author',
-        item,
-      )
-      const after = await review(dropped.id)
-      expect(after.mentions.removed.map((m) => m.target).sort()).toEqual([
-        'metric:orders',
-        'val:market/norway',
-      ])
-      expect(after.warnings).toEqual([])
-    } finally {
-      await client.query("update definitions set visible_groups=null where ref='demo:orders'")
-    }
   })
 
   it('retires at once or by proposal, and closes replaced items in the same edition', async () => {
@@ -602,23 +557,27 @@ describe('review and release', () => {
         })
       ).statusCode,
     ).toBe(409)
-    expect((await review(retirement.id)).diff).toEqual([
-      { field: 'status', before: 'accepted', after: 'retired' },
-    ])
     const accepted = await decide(retirement.id, 'accept')
     expect(accepted.statusCode, accepted.body).toBe(200)
     expect(accepted.json<Decided>().edition).toMatchObject({ reason: 'item_retired' })
     expect(await delivered()).not.toContain(proposed)
 
+    // Archive, from the Context list: an owner or an admin, at once.
     const direct = await acceptedItem({ title: 'To retire at once' })
-    expect(
-      (await call('POST', `/items/${direct}/retire`, 'author', { reason: 'No' })).statusCode,
-    ).toBe(403)
-    const retired = await call('POST', `/items/${direct}/retire`, 'admin', {
-      reason: 'Withdrawn by the source',
+    const refused = await call('POST', '/items/bulk', 'author', {
+      action: 'archive',
+      rows: [direct],
+    })
+    expect(refused.json<{ done: string[]; skipped: { code: string }[] }>()).toMatchObject({
+      done: [],
+      skipped: [{ code: 'not_allowed' }],
+    })
+    const retired = await call('POST', '/items/bulk', 'admin', {
+      action: 'archive',
+      rows: [direct],
     })
     expect(retired.statusCode, retired.body).toBe(200)
-    expect(retired.json<Edition>()).toMatchObject({ reason: 'item_retired', live: true })
+    expect(retired.json<{ done: string[] }>().done).toEqual([direct])
     expect(await delivered()).not.toContain(direct)
 
     const old = await acceptedItem({ title: 'Old caveat' })
@@ -629,16 +588,20 @@ describe('review and release', () => {
     const replacement = await submitted({ title: 'New caveat', replaces: [old] })
     const replaced = await decide(replacement.id, 'accept')
     expect(replaced.statusCode, replaced.body).toBe(200)
-    const label = replaced.json<Decided>().edition!.label
-    const diff = (await call('GET', `/editions/${label}/diff`, 'owner')).json<{
-      items: { id: string; from: number | null; to: number | null }[]
-    }>()
-    expect(diff.items).toEqual(
-      expect.arrayContaining([
-        { id: old, from: 1, to: null },
-        { id: replacement.itemId, from: null, to: 1 },
-      ]),
+    // One edition serves the new caveat and closes the old one.
+    const edition = replaced.json<Decided>().edition!
+    const served = await client.query<{ item_id: string; upper: string | null }>(
+      `select v.item_id, upper(s.editions)::text as upper from item_version_service s
+         join item_versions v on v.id = s.version_id where v.item_id = any($1)`,
+      [[old, replacement.itemId]],
     )
+    const seq = (
+      await client.query<{ seq: string }>('select seq::text from editions where label=$1', [
+        edition.label,
+      ])
+    ).rows[0]!.seq
+    expect(served.rows.find((r) => r.item_id === old)?.upper).toBe(seq)
+    expect(served.rows.find((r) => r.item_id === replacement.itemId)?.upper).toBeNull()
     const shown = await delivered()
     expect(shown).toContain(replacement.itemId)
     expect(shown).not.toContain(old)
@@ -661,19 +624,13 @@ describe('review and release', () => {
         "insert into overlay_events(kind,scope,item_id,flag,reason) values('flag_on','item',$1,'needs_check','Definition changed')",
         [item],
       )
-      const flagged = (await ask()).items.find((i) => i.id === item)
-      expect(flagged).toMatchObject({ freshness: 'unverified', unverified_reason: 'needs_check' })
-      expect(
-        (await call('POST', `/items/${item}/recheck`, 'author', { reason: 'Fine' })).statusCode,
-      ).toBe(403)
-      const rechecked = await call('POST', `/items/${item}/recheck`, 'owner', {
-        reason: 'The definition change does not affect this note',
+      const flaggedItem = (await ask()).items.find((i) => i.id === item)
+      expect(flaggedItem).toMatchObject({
+        freshness: 'unverified',
+        unverified_reason: 'needs_check',
       })
-      expect(rechecked.statusCode, rechecked.body).toBe(200)
-      expect(rechecked.json<Decided>()).toMatchObject({
-        proposal: { state: 'accepted' },
-        edition: { reason: 'source_rechecked', live: true },
-      })
+      expect((await recheck(item, 'author')).done).toBe(false)
+      expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
       const versions = await client.query<{ is_recheck: boolean; marks: string[] }>(
         `select v.is_recheck,array(select change_mark from item_version_refs r where r.version_id=v.id) as marks
            from item_versions v where item_id=$1 order by version_no`,
@@ -687,9 +644,9 @@ describe('review and release', () => {
         freshness: 'verified',
         version: 2,
       })
-      expect(
-        (await call('POST', `/items/${item}/recheck`, 'owner', { reason: 'Again' })).statusCode,
-      ).toBe(409)
+      // Who checked it, and when, is what people read: a check with nothing new is recorded too.
+      expect((await recheck(item)).done).toBe(true)
+      expect(await servedVersion(item)).toBe(3)
     } finally {
       await client.query("update definitions set change_mark='1' where ref='demo:orders'")
     }
@@ -711,10 +668,7 @@ describe('review and release', () => {
         )
       ).rows[0]!.review_date
     expect(await reviewDate()).toBe('2026-09-18')
-    const rechecked = await call('POST', `/items/${item}/recheck`, 'owner', {
-      reason: 'Still true',
-    })
-    expect(rechecked.statusCode, rechecked.body).toBe(200)
+    expect((await recheck(item)).done).toBe(true)
     expect(await reviewDate()).toBe('2027-01-06')
   })
 
@@ -730,7 +684,7 @@ describe('review and release', () => {
       edition: { reason: 'proposal_accepted' },
     })
     expect(await delivered()).toContain(high.itemId)
-    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['administrator'])
+    expect((await decisions(high.id)).map((d) => d.capacity)).toEqual(['administrator'])
   })
 
   it('publishes an accept that waited for an approver before migration 0005 when its owner accepts again', async () => {
@@ -750,7 +704,7 @@ describe('review and release', () => {
       edition: { reason: 'proposal_accepted' },
     })
     expect(await delivered()).toContain(high.itemId)
-    expect((await review(high.id)).decisions.map((d) => d.capacity)).toEqual(['owner'])
+    expect((await decisions(high.id)).map((d) => d.capacity)).toEqual(['owner'])
   })
 
   it('publishes a high-risk recheck at once, as at every risk', async () => {
@@ -763,14 +717,7 @@ describe('review and release', () => {
         "insert into overlay_events(kind,scope,item_id,flag,reason) values('flag_on','item',$1,'needs_check','Definition changed')",
         [item],
       )
-      const rechecked = await call('POST', `/items/${item}/recheck`, 'owner', {
-        reason: 'Still right',
-      })
-      expect(rechecked.statusCode, rechecked.body).toBe(200)
-      expect(rechecked.json<Decided>()).toMatchObject({
-        proposal: { state: 'accepted' },
-        edition: { reason: 'source_rechecked', live: true },
-      })
+      expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
       expect(await servedVersion(item)).toBe(2)
       expect(await flagged(item)).toBe(false)
       const marks = await client.query<{ marks: string[] }>(
@@ -788,11 +735,7 @@ describe('review and release', () => {
     const item = await acceptedItem({ title: 'Owners own note' }, 'owner')
     await client.query("update definitions set change_mark='2' where ref='demo:orders'")
     try {
-      const response = await call('POST', `/items/${item}/recheck`, 'owner', {
-        reason: 'Checked against the new definition',
-      })
-      expect(response.statusCode, response.body).toBe(200)
-      expect(response.json<Decided>().edition).toMatchObject({ reason: 'source_rechecked' })
+      expect(await recheck(item)).toEqual({ done: true, edition: 'source_rechecked' })
       const versions = await client.query<{ proposer_id: string; is_recheck: boolean }>(
         'select proposer_id,is_recheck from item_versions where item_id=$1 order by version_no',
         [item],
@@ -896,368 +839,6 @@ describe('review and release', () => {
     const answer = await ask()
     expect(answer.status).not.toBe('area_not_live')
     expect(JSON.stringify(answer)).not.toMatch(/not live|domains_not_live/)
-  })
-
-  it('takes vocabulary changes through review, keeps mentions on rename and checks the Cube domain', async () => {
-    const item = await acceptedItem({
-      title: 'Mentions a metric',
-      summaryMarkup: 'Closed, see @[orders](metric:orders)',
-    })
-    const alias = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'val:market/norway',
-      kind: 'dimension_value',
-      parentKey: 'dim:market',
-      name: 'Norway',
-      aliases: ['Nordland'],
-      areaId: null,
-      definitionRefs: [],
-    })
-    expect(alias.statusCode, alias.body).toBe(200)
-    const aliasProposal = alias.json<ReviewProposal>()
-    expect(aliasProposal).toMatchObject({ subject: 'vocabulary', areaId: null, state: 'submitted' })
-    const hidden = await call('POST', `/proposals/${aliasProposal.id}/decisions`, 'owner', {
-      revision: aliasProposal.revision,
-      outcome: 'accept',
-      reason: 'Not my area',
-    })
-    expect(hidden.statusCode).toBe(404)
-    const accepted = await call('POST', `/proposals/${aliasProposal.id}/decisions`, 'admin', {
-      revision: aliasProposal.revision,
-      outcome: 'accept',
-      reason: 'Common spelling',
-    })
-    expect(accepted.statusCode, accepted.body).toBe(200)
-    expect(accepted.json<Decided>().edition).toMatchObject({ reason: 'vocabulary_changed' })
-    expect(
-      await delivered({
-        ...norway,
-        dimension_filters: [{ dimension: 'Market', values: ['Nordland'] }],
-      }),
-    ).toContain(item)
-
-    const rename = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'metric:orders',
-      kind: 'metric',
-      parentKey: null,
-      name: 'Total orders',
-      aliases: [],
-      areaId: 'finance',
-      definitionRefs: ['demo:orders'],
-    })
-    expect(rename.statusCode, rename.body).toBe(200)
-    const renamed = await decide(rename.json<ReviewProposal>().id, 'accept')
-    expect(renamed.statusCode, renamed.body).toBe(200)
-    const link = (await ask()).items
-      .find((i) => i.id === item)!
-      .links.find((l) => l.rel === 'mentions')
-    expect(link?.target).toMatchObject({ id: 'metric:orders', label: 'Total orders' })
-
-    await client.query(
-      "insert into area_assignments(area_id,person_id,role) values('marketing',$1,'owner')",
-      [people.approver],
-    )
-    const move = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'metric:orders',
-      kind: 'metric',
-      parentKey: null,
-      name: 'Total orders',
-      aliases: [],
-      areaId: 'marketing',
-      definitionRefs: ['demo:orders'],
-    })
-    expect(move.statusCode, move.body).toBe(200)
-    const moveId = move.json<ReviewProposal>().id
-    const taken = await call('POST', `/proposals/${moveId}/decisions`, 'approver', {
-      revision: move.json<ReviewProposal>().revision,
-      outcome: 'accept',
-      reason: 'Ours now',
-    })
-    expect(taken.statusCode, taken.body).toBe(403)
-    expect(taken.json<{ message: string }>().message).toMatch(/an owner of Finance, or an admin/)
-    const unmapped = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'group:payments',
-      kind: 'metric_group',
-      parentKey: null,
-      name: 'Payments',
-      aliases: [],
-      areaId: 'finance',
-      definitionRefs: [],
-    })
-    expect((await decide(unmapped.json<ReviewProposal>().id, 'accept')).statusCode).toBe(403)
-    const moved = await call('POST', `/proposals/${moveId}/decisions`, 'admin', {
-      revision: move.json<ReviewProposal>().revision,
-      outcome: 'accept',
-      reason: 'Marketing owns orders from now on',
-    })
-    expect(moved.statusCode, moved.body).toBe(200)
-    expect(moved.json<Decided>().edition).toMatchObject({ reason: 'area_map_changed' })
-
-    expect(
-      (
-        await call('POST', '/vocabulary/proposals', 'author', {
-          key: 'metric:units_sold',
-          kind: 'metric',
-          parentKey: null,
-          name: 'Revenue',
-          aliases: [],
-          areaId: 'finance',
-          definitionRefs: [],
-        })
-      ).statusCode,
-    ).toBe(422)
-    await client.query(
-      "insert into definitions(ref,connector_id,kind,name,change_mark,area_hint) values('demo:returns','demo','metric','Returns','1','marketing')",
-    )
-    const mismatch = await call('POST', '/vocabulary/proposals', 'author', {
-      key: 'metric:returns',
-      kind: 'metric',
-      parentKey: null,
-      name: 'Returns',
-      aliases: [],
-      areaId: 'finance',
-      definitionRefs: ['demo:returns'],
-    })
-    expect(mismatch.statusCode, mismatch.body).toBe(200)
-    const id = mismatch.json<ReviewProposal>().id
-    expect((await review(id)).findings).toEqual([
-      expect.objectContaining({ code: 'domain_mismatch', severity: 'error' }),
-    ])
-    const refused = await decide(id, 'accept')
-    expect(refused.statusCode).toBe(422)
-    expect((await decide(id, 'reject')).statusCode).toBe(200)
-  })
-
-  it('lets any administrator decide a term without an area, the one who proposed it too', async () => {
-    await client.query(
-      "insert into global_role_grants (person_id,role) values ($1,'administrator')",
-      [people.stranger],
-    )
-    try {
-      const term = await call('POST', '/vocabulary/proposals', 'admin', {
-        key: 'dim:browser',
-        kind: 'dimension',
-        parentKey: null,
-        name: 'Browser',
-        aliases: [],
-        areaId: null,
-        definitionRefs: [],
-      })
-      expect(term.statusCode, term.body).toBe(200)
-      const proposal = term.json<ReviewProposal>()
-      const decideAs = (who: Who) =>
-        call('POST', `/proposals/${proposal.id}/decisions`, who, {
-          revision: proposal.revision,
-          outcome: 'accept',
-          reason: 'Shared by every view',
-        })
-      // An owner of no area does not see it.
-      expect((await decideAs('owner')).statusCode).toBe(404)
-      const open = await review(proposal.id, 'stranger')
-      expect(open.vocabulary).toMatchObject({ before: null, after: { name: 'Browser' } })
-      const accepted = await decideAs('stranger')
-      expect(accepted.statusCode, accepted.body).toBe(200)
-      const decided = await review(proposal.id, 'stranger')
-      expect(decided.decisions).toEqual([
-        expect.objectContaining({ capacity: 'administrator', outcome: 'accept' }),
-      ])
-      // Once live, the new term still reads as new, not as the live term it became.
-      expect(decided.vocabulary).toMatchObject({ before: null, after: { name: 'Browser' } })
-
-      // The administrator who proposes a term decides it too (FR-206).
-      const own = await call('POST', '/vocabulary/proposals', 'admin', {
-        key: 'dim:device',
-        kind: 'dimension',
-        parentKey: null,
-        name: 'Device',
-        aliases: [],
-        areaId: null,
-        definitionRefs: [],
-      })
-      expect(own.statusCode, own.body).toBe(200)
-      const mine = own.json<ReviewProposal>()
-      const accepted2 = await call('POST', `/proposals/${mine.id}/decisions`, 'admin', {
-        revision: mine.revision,
-        outcome: 'accept',
-        reason: 'Shared by every view',
-      })
-      expect(accepted2.statusCode, accepted2.body).toBe(200)
-      expect((await review(mine.id, 'admin')).decisions).toEqual([
-        expect.objectContaining({ capacity: 'administrator', outcome: 'accept' }),
-      ])
-    } finally {
-      await client.query(
-        "delete from global_role_grants where person_id=$1 and role='administrator'",
-        [people.stranger],
-      )
-    }
-  })
-
-  it('proposes the source members as terms in one batch and accepts them as one edition', async () => {
-    await client.query(`insert into definitions(ref,connector_id,kind,name,title,change_mark,area_hint,value_type,synonyms) values
-      ('demo:ads.clicks','demo','metric','ads.clicks','Ads Clicks','1','finance','count','{"ad clicks","Clicks"}'),
-      ('demo:ads.region','demo','dimension','ads.region','Ads Region','1','finance','string','{}'),
-      ('demo:web.region','demo','dimension','web.region','Web Region','1','marketing','string','{}'),
-      ('demo:web.day','demo','dimension','web.day','Web Day','1','marketing','time','{}')`)
-    // Only an administrator reads the members no term links yet.
-    expect((await call('GET', '/vocabulary/candidates', 'owner')).statusCode).toBe(403)
-    const candidates = (await call('GET', '/vocabulary/candidates', 'admin')).json<
-      TermCandidate[]
-    >()
-    expect(candidates.find((c) => c.definitionRefs.includes('demo:ads.clicks'))).toMatchObject({
-      key: 'metric:clicks',
-      kind: 'metric',
-      name: 'Clicks',
-      // The model's other names, without the term's own name (meta.synonyms).
-      aliases: ['ad clicks'],
-      areaId: 'finance',
-      suggested: true,
-    })
-    // A dimension two views share is one term linking both, of no domain; a date is not suggested.
-    expect(candidates.find((c) => c.key === 'dim:region')).toMatchObject({
-      definitionRefs: ['demo:ads.region', 'demo:web.region'],
-      areaId: null,
-      views: ['ads', 'web'],
-      suggested: true,
-    })
-    expect(candidates.find((c) => c.key === 'dim:day')).toMatchObject({ suggested: false })
-    // Orders already has a term.
-    expect(candidates.some((c) => c.definitionRefs.includes('demo:orders'))).toBe(false)
-    // The assistant tells anyone what a domain's source has that is no term yet, and who
-    // proposes it: never a date, an id or a dimension several domains share.
-    const waitingAs = (who: string | null) =>
-      database.transaction(who, (tx) => readsIn(tx, systemClock(), who).waiting())
-    const asAdmin = await waitingAs(people.admin)
-    expect(asAdmin.canPropose).toBe(true)
-    // Served context names roles, never people (FR-326).
-    expect(asAdmin).not.toHaveProperty('administrators')
-    expect(asAdmin.members.find((m) => m.name === 'Clicks')).toMatchObject({
-      areaId: 'finance',
-      kind: 'metric',
-      source: 'demo',
-      proposed: false,
-    })
-    expect(asAdmin.members.some((m) => m.name === 'Region' || m.name === 'Day')).toBe(false)
-    expect((await waitingAs(people.owner)).canPropose).toBe(false)
-    // A member its source limits to some groups is never named, to anyone.
-    await client.query(
-      "update definitions set visible_groups='{finance_team}' where ref='demo:ads.clicks'",
-    )
-    for (const who of [people.admin, people.stranger, null])
-      expect((await waitingAs(who)).members.some((m) => m.name === 'Clicks')).toBe(false)
-    await client.query("update definitions set visible_groups=null where ref='demo:ads.clicks'")
-
-    const term = (key: string, extra: object = {}) => ({
-      key,
-      kind: 'metric',
-      parentKey: null,
-      name: key,
-      aliases: [],
-      areaId: null,
-      definitionRefs: [],
-      ...extra,
-    })
-    const terms = [
-      term('val:region/north', { kind: 'dimension_value', parentKey: 'dim:region', name: 'North' }),
-      term('val:region/south', {
-        kind: 'dimension_value',
-        parentKey: 'dim:region',
-        name: 'South',
-        aliases: ['S'],
-      }),
-      term('metric:clicks', {
-        name: 'Clicks',
-        areaId: 'finance',
-        definitionRefs: ['demo:ads.clicks'],
-      }),
-      term('dim:region', {
-        kind: 'dimension',
-        name: 'Region',
-        definitionRefs: ['demo:ads.region', 'demo:web.region'],
-      }),
-    ]
-    // All or none: a key twice, or a value of a dimension nobody proposes, changes nothing.
-    const twice = await call('POST', '/vocabulary/batches', 'admin', {
-      terms: [...terms, terms[0]],
-    })
-    expect(twice.statusCode).toBe(422)
-    expect(
-      twice.json<{ data: { findings: { code: string; field: string }[] } }>().data.findings,
-    ).toContainEqual(expect.objectContaining({ code: 'duplicate_key', field: 'terms.4.key' }))
-    const orphan = await call('POST', '/vocabulary/batches', 'admin', { terms: [terms[0]] })
-    expect(orphan.statusCode).toBe(422)
-    expect((await call('POST', '/vocabulary/batches', 'author', { terms })).statusCode).toBe(403)
-    const proposed = await call('POST', '/vocabulary/batches', 'admin', {
-      terms,
-      sourceName: 'Cube members',
-    })
-    expect(proposed.statusCode, proposed.body).toBe(200)
-    const batch = proposed.json<{ batchId: string; proposals: ReviewProposal[] }>()
-    expect(batch.proposals.map((p) => [p.termKey, p.state, p.channel])).toEqual([
-      ['metric:clicks', 'submitted', 'import'],
-      ['dim:region', 'submitted', 'import'],
-      ['val:region/north', 'submitted', 'import'],
-      ['val:region/south', 'submitted', 'import'],
-    ])
-    // Proposed is not served: the candidates leave out what waits for a decision.
-    const after = (await call('GET', '/vocabulary/candidates', 'admin')).json<TermCandidate[]>()
-    expect(after.some((c) => c.key === 'metric:clicks' || c.key === 'dim:region')).toBe(false)
-    // An administrator reads it as proposed. Someone who may not read the proposal, and an agent
-    // reading as nobody, still read it as not in the vocabulary yet, with an administrator to ask.
-    expect((await waitingAs(people.admin)).members.find((m) => m.name === 'Clicks')).toMatchObject({
-      areaId: 'finance',
-      proposed: true,
-    })
-    for (const who of [people.stranger, null])
-      expect((await waitingAs(who)).members.find((m) => m.name === 'Clicks')).toMatchObject({
-        areaId: 'finance',
-        proposed: false,
-      })
-    // The owner of Finance sees the Finance term of the batch only.
-    const clicks = batch.proposals[0]!
-    expect((await review(clicks.id)).termBatch).toEqual({ id: batch.batchId, open: 1, total: 1 })
-
-    await client.query(
-      "insert into global_role_grants (person_id,role) values ($1,'administrator')",
-      [people.stranger],
-    )
-    try {
-      const path = `/vocabulary/batches/${batch.batchId}/decisions`
-      const payload = { outcome: 'accept', reason: 'The terms the model defines' }
-      // The proposer, an administrator, decides their own batch (FR-206).
-      expect((await review(clicks.id, 'stranger')).termBatch).toMatchObject({ open: 4, total: 4 })
-      const before = await liveLabel()
-      const decided = await call('POST', path, 'admin', payload)
-      expect(decided.statusCode, decided.body).toBe(200)
-      const result = decided.json<{ proposals: ReviewProposal[]; edition: Edition }>()
-      expect(result.proposals.map((p) => p.state)).toEqual([
-        'accepted',
-        'accepted',
-        'accepted',
-        'accepted',
-      ])
-      expect(result.edition).toMatchObject({ reason: 'vocabulary_changed', live: true })
-      expect(await liveLabel()).not.toBe(before)
-      const editions = await client.query(
-        "select count(*)::int as n from editions where reason='vocabulary_changed' and label=$1",
-        [result.edition.label],
-      )
-      expect(editions.rows[0]).toEqual({ n: 1 })
-      const vocabulary = (await call('GET', '/vocabulary', 'author')).json<{
-        metrics: { id: string }[]
-        dimensions: { id: string; values: { id: string; aliases: string[] }[] }[]
-      }>()
-      expect(vocabulary.metrics.map((m) => m.id)).toContain('clicks')
-      expect(vocabulary.dimensions.find((d) => d.id === 'region')?.values).toEqual([
-        expect.objectContaining({ id: 'north' }),
-        expect.objectContaining({ id: 'south', aliases: ['S'] }),
-      ])
-      expect((await call('POST', path, 'stranger', payload)).statusCode).toBe(404)
-    } finally {
-      await client.query(
-        "delete from global_role_grants where person_id=$1 and role='administrator'",
-        [people.stranger],
-      )
-    }
   })
 
   it('serializes concurrent decisions: a second change to the same item must be rewritten', async () => {
@@ -1369,12 +950,14 @@ describe('issues', () => {
     // A draft saved before its dates were known gets the default once the start is there.
     const early = await create(issue({ validity: undefined }))
     expect(early.draft.reviewDate).toBeNull()
-    const saved = await call('PUT', `/proposals/${early.id}/draft`, 'author', {
-      revision: early.revision,
-      draft: { ...early.draft, validity: { start: '2026-09-01', end: null } },
-    })
-    expect(saved.statusCode, saved.body).toBe(200)
-    expect(saved.json<ProposalRecord>().draft.reviewDate).toBe('2026-09-15')
+    const saved = await database.transaction(people.author, (tx) =>
+      createProposalsService(tx, systemClock('2026-10-08'), people.author).save(
+        early.id,
+        early.revision,
+        { ...early.draft, validity: { start: '2026-09-01', end: null } },
+      ),
+    )
+    expect(saved.draft.reviewDate).toBe('2026-09-15')
 
     // The period is an administrator's setting (FR-809).
     const changed = await call('PUT', '/settings/review.open_issue_days', 'admin', {
@@ -1407,8 +990,7 @@ describe('issues', () => {
     expect(await delivered(window('2026-08-01', '2026-09-30'))).toContain(ended.itemId)
     expect(await delivered(window('2026-08-16', '2026-09-30'))).not.toContain(ended.itemId)
     expect(await delivered(window('2026-09-01', '2026-10-07'))).not.toContain(ended.itemId)
-    const item = await call('GET', `/items/${ended.itemId}`, 'author')
-    expect(item.json()).toMatchObject({
+    expect(await page(ended.itemId!)).toMatchObject({
       kind: 'issue',
       reviewDate: null,
       reviewQuestion: 'still_correct',
@@ -1425,359 +1007,18 @@ describe('issues', () => {
       await delivered({ ...norway, window: { from: '2026-09-01', to: '2026-09-30' } }),
     ).not.toContain(open.itemId)
 
-    const read = await call('GET', `/items/${open.itemId}`, 'author')
-    expect(read.json()).toMatchObject({
+    expect(await page(open.itemId!)).toMatchObject({
       kind: 'issue',
       reviewDate: '2026-10-15',
       reviewQuestion: 'still_going_on',
     })
-    const listed = await call('GET', '/items?kind=issue&limit=100', 'author')
-    expect(listed.statusCode, listed.body).toBe(200)
-    expect(
-      listed
-        .json<{ rows: { id: string; reviewQuestion: string }[] }>()
-        .rows.find((row) => row.id === open.itemId),
-    ).toMatchObject({ reviewQuestion: 'still_going_on' })
 
     // "Yes, still going on": the next review is the issue period from today, not 90 days.
-    const rechecked = await call('POST', `/items/${open.itemId}/recheck`, 'owner', {
-      reason: 'The partner feed is still down',
-    })
-    expect(rechecked.statusCode, rechecked.body).toBe(200)
-    expect((await call('GET', `/items/${open.itemId}`, 'author')).json()).toMatchObject({
+    expect((await recheck(open.itemId!)).done).toBe(true)
+    expect(await page(open.itemId!)).toMatchObject({
       version: 2,
       reviewDate: '2026-10-22',
       reviewQuestion: 'still_going_on',
     })
-  })
-})
-
-describe('owner edits during review (FR-105, FR-106, FR-123, FR-324)', () => {
-  const edit = (id: string, revision: number, change: object, who: Who = 'owner') =>
-    call('POST', `/proposals/${id}/review-edits`, who, { revision, ...change })
-
-  it('raises a low-risk note to high: a new version, the same checks again, then one accept', async () => {
-    const p = await submitted({ title: 'Raised in review' })
-    const before = await review(p.id)
-    const response = await edit(p.id, before.proposal.revision, {
-      riskLevel: 'high',
-      reason: 'It changes how orders are reported',
-    })
-    expect(response.statusCode, response.body).toBe(200)
-    const screen = response.json<Review>()
-    expect(screen.proposal).toMatchObject({
-      riskLevel: 'high',
-      state: 'submitted',
-      proposerId: people.author,
-      revision: before.proposal.revision + 1,
-    })
-    const versions = await client.query(
-      `select id::text,supersedes_version_id::text as supersedes,edited_by::text as editor,risk::text,
-              proposer_id::text as proposer
-         from item_versions where item_id=$1 order by version_no`,
-      [p.itemId],
-    )
-    expect(versions.rows).toEqual([
-      expect.objectContaining({ id: p.itemVersionId, editor: null, risk: 'low' }),
-      expect.objectContaining({
-        id: screen.proposal.itemVersionId,
-        supersedes: p.itemVersionId,
-        editor: people.owner,
-        risk: 'high',
-        proposer: people.author,
-      }),
-    ])
-
-    // The details of every level are typed in the contract.
-    const level = (name: string) => screen.gate!.levels.find((l) => l.level === name)!
-    // A higher risk needs the same three levels (FR-513).
-    expect(screen.gate!.required).toEqual(['format', 'matching', 'delivery'])
-    expect(level('format')).toMatchObject({ outcome: 'passed', details: { findings: [] } })
-    expect(level('matching')).toMatchObject({
-      outcome: 'passed',
-      details: {
-        edition: await liveLabel(),
-        probes: expect.arrayContaining([
-          expect.objectContaining({ name: 'inside', expect: 'delivered', passed: true }),
-        ]) as unknown,
-      },
-    })
-    expect(level('delivery')).toMatchObject({
-      outcome: 'passed',
-      details: { delivered: true, cut: false, replacedShown: [], status: 'matched' },
-    })
-
-    const audit = await client.query<{ actor_id: string; details: object }>(
-      "select actor_id::text,details from audit_log where action='proposal.edited' and subject_id=$1",
-      [p.id],
-    )
-    expect(audit.rows).toEqual([
-      {
-        actor_id: people.owner,
-        details: expect.objectContaining({
-          revision: before.proposal.revision + 1,
-          reason: 'It changes how orders are reported',
-          versionId: screen.proposal.itemVersionId,
-          replaces: p.itemVersionId,
-          changes: { riskLevel: { before: 'low', after: 'high' } },
-        }) as unknown,
-      },
-    ])
-    expect((await client.query('select * from audit_verify()')).rows).toEqual([])
-
-    // The owner's accept publishes the new version: no approver is next.
-    const owner = await decide(p.id, 'accept')
-    expect(owner.statusCode, owner.body).toBe(200)
-    expect(owner.json<Decided>().edition).toMatchObject({ live: true })
-    expect(await servedVersion(p.itemId!)).toBe(2)
-    expect(await delivered()).toContain(p.itemId)
-  })
-
-  it('cancels the open answer tests of the version it replaces, and queues none (FR-513)', async () => {
-    const p = await submitted({ title: 'High and edited', riskLevel: 'high' })
-    const runs = async (version: string | null) =>
-      (
-        await client.query<{ state: string }>(
-          'select state::text from eval_runs where item_version_id=$1 order by created_at',
-          [version],
-        )
-      ).rows.map((r) => r.state)
-    expect(await runs(p.itemVersionId)).toEqual([])
-    // A run of the version queued before migration 0005 is still cancelled by an edit.
-    await client.query(
-      `insert into eval_runs (kind,state,area_id,proposal_id,item_version_id,baseline_edition_seq,
-         tool_schema_digest,model_id,client_label,test_set_digest,tries,estimated_cost_micros)
-       values ('full','queued','finance',$1,$2,(select seq from live_edition),'digest','mock-model',
-         'eval','\\x00'::bytea,3,0)`,
-      [p.id, p.itemVersionId],
-    )
-    const { proposal } = await review(p.id)
-    const response = await edit(p.id, proposal.revision, { reviewDate: '2027-02-01' })
-    expect(response.statusCode, response.body).toBe(200)
-    const edited = response.json<Review>()
-    expect(await runs(p.itemVersionId)).toEqual(['cancelled'])
-    expect(await runs(edited.proposal.itemVersionId)).toEqual([])
-    expect(edited.diff.find((d) => d.field === 'reviewDate')?.after).toBe('2027-02-01')
-  })
-
-  it('accepts an edited change against the live version it was written for', async () => {
-    const item = await acceptedItem({ title: 'Changed, then edited' })
-    const change = await submitted(
-      { title: 'Changed, then edited', summary: 'Closed' },
-      'author',
-      item,
-    )
-    const { proposal } = await review(change.id)
-    const response = await edit(change.id, proposal.revision, { reviewDate: '2027-03-01' })
-    expect(response.statusCode, response.body).toBe(200)
-    const edited = response.json<Review>()
-    expect(edited.diff.map((d) => d.field)).toEqual(
-      expect.arrayContaining(['summary', 'reviewDate']),
-    )
-    const accepted = await decide(change.id, 'accept')
-    expect(accepted.statusCode, accepted.body).toBe(200)
-    expect(accepted.json<Decided>().edition).toMatchObject({ live: true })
-    expect(await servedVersion(item)).toBe(3)
-    const read = await call('GET', `/items/${item}`, 'author')
-    expect(read.json()).toMatchObject({ summary: 'Closed', reviewDate: '2027-03-01' })
-  })
-
-  it('refuses what a review edit may not do', async () => {
-    const edits = async () =>
-      (
-        await client.query<{ n: number }>(
-          "select count(*)::int as n from audit_log where action='proposal.edited'",
-        )
-      ).rows[0]!.n
-    const before = await edits()
-    const p = await submitted({ title: 'Kept as written' })
-    const { proposal } = await review(p.id)
-    // An area the owner has no role in, a claim without its authority, sensitive or marked-up text.
-    const moved = await edit(p.id, proposal.revision, { areaId: 'marketing' })
-    expect(moved.statusCode, moved.body).toBe(403)
-    expect(moved.json<{ message: string }>().message).toMatch(/also needs an owner/)
-    expect((await edit(p.id, proposal.revision, { areaId: 'nowhere' })).statusCode).toBe(422)
-    expect(
-      (await edit(p.id, proposal.revision, { claim: { level: 'effect_stated' } })).statusCode,
-    ).toBe(400)
-    expect(
-      (
-        await edit(p.id, proposal.revision, {
-          claim: { level: 'effect_stated', authority: 'Regulator', quote: 'Call +1 555 123 4567' },
-        })
-      ).statusCode,
-    ).toBe(422)
-    expect(
-      (await edit(p.id, proposal.revision, { riskLevel: 'normal', reason: 'See @[x](item:itm_a)' }))
-        .statusCode,
-    ).toBe(422)
-    // An open-ended item keeps a review date (FR-127).
-    const undated = await edit(p.id, proposal.revision, { reviewDate: null })
-    expect(undated.statusCode, undated.body).toBe(422)
-    expect(undated.json<{ data: { findings: { field: string }[] } }>().data.findings).toEqual([
-      expect.objectContaining({ field: '' }),
-    ])
-    // Only a proposal under review, and never a retirement.
-    expect((await decide(p.id, 'reject')).statusCode).toBe(200)
-    const closed = await review(p.id)
-    expect((await edit(p.id, closed.proposal.revision, { riskLevel: 'normal' })).statusCode).toBe(
-      409,
-    )
-    const item = await acceptedItem({ title: 'To retire' })
-    const retirement = await call('POST', `/items/${item}/retire-proposals`, 'author', {
-      reason: 'No longer true',
-    })
-    const retire = retirement.json<ReviewProposal>()
-    expect((await edit(retire.id, retire.revision, { riskLevel: 'high' })).statusCode).toBe(409)
-    expect(await edits()).toBe(before)
-  })
-})
-
-describe('tests attached to a proposal (FR-524)', () => {
-  const saveQuestion = (id: string, window: { from: string; to: string }, expected: object) =>
-    call('PUT', `/evals/questions/${id}`, 'owner', {
-      id,
-      question: {
-        id,
-        area: 'finance',
-        wordings: [
-          { text: 'What happened to orders in Spain?', kind: 'natural' },
-          { text: `Orders in Spain from ${window.from} to ${window.to}`, kind: 'precise' },
-        ],
-        scope: {
-          metrics: ['metric:orders'],
-          dimension_filters: [{ dimension: 'dim:market', values: ['val:market/spain'] }],
-          window,
-        },
-        expected,
-        source: 'Review tests',
-      },
-    })
-  const spain = {
-    metrics: ['metric:orders'],
-    dimensions: [],
-    dimensionValues: [{ dimension: 'dim:market', value: 'val:market/spain' }],
-  }
-  const audited = async (proposal: string) =>
-    (
-      await client.query<{ action: string; actor: string | null; details: object }>(
-        `select action,actor_id::text as actor,details from audit_log
-          where subject_type='proposal' and subject_id=$1 and action like 'proposal.test_%' order by seq`,
-        [proposal],
-      )
-    ).rows
-
-  it('reports each attached test with the change at level 3, and accepts whatever they say', async () => {
-    const item = await acceptedItem({ title: 'Orders note to move' })
-    const other = await acceptedItem({ title: 'A Norway note that stays' })
-    const fixed = 'attached-spain-august'
-    const failing = 'attached-spain-other'
-    // The change moves the item to Spain; the other item stays in Norway either way. A
-    // test that named the moved item and failed with it would block, attached or not.
-    for (const [id, expected] of [
-      [fixed, item],
-      [failing, other],
-    ] as const) {
-      const saved = await saveQuestion(
-        id,
-        { from: '2026-08-01', to: '2026-08-31' },
-        { must_deliver: [expected] },
-      )
-      expect(saved.statusCode, saved.body).toBe(200)
-    }
-    try {
-      const created = await call('POST', '/proposals', 'author', {
-        draft: draft({ title: 'Orders note to move', scope: spain }),
-        itemId: item,
-      })
-      const p = created.json<ProposalRecord>()
-      for (const question of [fixed, failing]) {
-        const attached = await call('POST', `/proposals/${p.id}/tests`, 'author', { question })
-        expect(attached.statusCode, attached.body).toBe(200)
-      }
-      expect(await audited(p.id)).toEqual([
-        { action: 'proposal.test_attached', actor: people.author, details: { question: fixed } },
-        { action: 'proposal.test_attached', actor: people.author, details: { question: failing } },
-      ])
-      const sent = await call('POST', `/proposals/${p.id}/submit`, 'author', {
-        revision: p.revision,
-      })
-      expect(sent.statusCode, sent.body).toBe(200)
-      const { gate } = await review(p.id)
-      const delivery = gate!.levels.find((l) => l.level === 'delivery')
-      expect(delivery?.outcome).toBe('passed')
-      expect(delivery!.details.questions).toEqual(
-        expect.arrayContaining([
-          { id: fixed, baseline: false, candidate: true, regression: false, attached: true },
-          { id: failing, baseline: false, candidate: false, regression: false, attached: true },
-        ]),
-      )
-      // Low risk has no answer tests (FR-513): only the retrieval result shows.
-      expect(gate!.attached.map(({ attachedHour: _hour, ...test }) => test)).toEqual([
-        {
-          question: fixed,
-          active: true,
-          retrieval: { baseline: false, candidate: true },
-          answer: null,
-        },
-        {
-          question: failing,
-          active: true,
-          retrieval: { baseline: false, candidate: false },
-          answer: null,
-        },
-      ])
-      // The author sees them too; the gate is theirs to read.
-      expect((await review(p.id, 'author')).gate!.attached).toHaveLength(2)
-      const accepted = await decide(p.id, 'accept')
-      expect(accepted.statusCode, accepted.body).toBe(200)
-    } finally {
-      await client.query("update golden_questions set status='retired' where id=any($1)", [
-        [fixed, failing],
-      ])
-    }
-  })
-
-  it('detaches the tests of the area a proposal leaves, whoever moves it', async () => {
-    const id = 'attached-left-behind'
-    const saved = await saveQuestion(
-      id,
-      { from: '2026-08-01', to: '2026-08-31' },
-      { status: 'no_match' },
-    )
-    expect(saved.statusCode, saved.body).toBe(200)
-    await client.query(
-      "insert into area_assignments(area_id,person_id,role) values('marketing',$1,'owner')",
-      [people.owner],
-    )
-    try {
-      const created = await call('POST', '/proposals', 'author', {
-        draft: draft({ title: 'Moving to marketing' }),
-      })
-      const p = created.json<ProposalRecord>()
-      await call('POST', `/proposals/${p.id}/tests`, 'author', { question: id })
-      await call('POST', `/proposals/${p.id}/submit`, 'author', { revision: p.revision })
-      const { proposal } = await review(p.id)
-      // The author may no longer detach a sent proposal's tests, and a review edit moves it.
-      const moved = await call('POST', `/proposals/${p.id}/review-edits`, 'owner', {
-        revision: proposal.revision,
-        areaId: 'marketing',
-        reason: 'Marketing reports this',
-      })
-      expect(moved.statusCode, moved.body).toBe(200)
-      expect((await call('GET', `/proposals/${p.id}/tests`, 'author')).json()).toEqual([])
-      expect((await audited(p.id)).at(-1)).toEqual({
-        action: 'proposal.test_detached',
-        actor: people.owner,
-        details: { question: id, reason: 'area_changed' },
-      })
-      expect((await client.query('select * from audit_verify()')).rows).toEqual([])
-    } finally {
-      await client.query(
-        "delete from area_assignments where area_id='marketing' and person_id=$1 and role='owner'",
-        [people.owner],
-      )
-      await client.query("update golden_questions set status='retired' where id=$1", [id])
-    }
   })
 })

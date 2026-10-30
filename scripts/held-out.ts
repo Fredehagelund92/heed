@@ -54,10 +54,9 @@ const usage =
 /** Where keygen saves a key unless told otherwise: outside every repository. */
 export const defaultKeyFile = () => join(homedir(), '.heed', 'held-out.key')
 
-const emptySet = `# The held-out cases: agent cases under cases, assistant cases under assistant, each with
-# split: held_out. The format is the golden set's (src/domain/golden-set.ts).
+const emptySet = `# The held-out cases: agent cases under cases, each with split: held_out. The format is the
+# golden set's (src/domain/golden-set.ts).
 cases: []
-assistant: []
 `
 
 /** Whether git could commit the file: it is in a work tree and not ignored there. */
@@ -99,7 +98,7 @@ export function countLine(text: string): string {
       .map(([type, n]) => `${type} ${n}`)
       .join(', ')
   }
-  return `${set.cases.length} agent cases (${byType(set.cases)}) and ${set.assistant.length} assistant cases (${byType(set.assistant)}) are sealed.`
+  return `${set.cases.length} agent cases (${byType(set.cases)}) are sealed.`
 }
 
 export type EditOutcome = 'unchanged' | 'sealed' | 'abandoned'

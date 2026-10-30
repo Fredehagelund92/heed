@@ -246,17 +246,11 @@ export const aliasesOf = (name: ToolName): DeprecatedToolName[] =>
 
 /**
  * What the tool service runs, by name: the six tools but suggest_context (the draft tool writes
- * it), the deprecated ids by the code they had (search_context runs search_facts), and the reads
- * the in-app assistant still calls that left the agent tool list (improve_question,
- * domain_overview, what_changed and search_help).
+ * it), and the deprecated ids by the code they had (search_context runs search_facts).
  */
 export type ServedToolName =
   | Exclude<ToolName, 'suggest_context'>
   | Exclude<DeprecatedToolName, 'search_context' | 'draft_context'>
-  | 'improve_question'
-  | 'domain_overview'
-  | 'what_changed'
-  | 'search_help'
 /** The service name a deprecated id runs. */
 export const servedNameOf = (old: Exclude<DeprecatedToolName, 'draft_context'>): ServedToolName =>
   old === 'search_context' ? 'search_facts' : old

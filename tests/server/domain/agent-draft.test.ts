@@ -3,11 +3,10 @@ import {
   datesInText,
   deriveAgentDraft,
   kindByRule,
-  resolveDraftNames,
   summaryCut,
   type DerivationContext,
 } from '../../../src/domain/agent-draft.ts'
-import { draftingGuide, summaryProblem } from '../../../src/domain/drafting-guide.ts'
+import { draftingGuide } from '../../../src/domain/drafting-guide.ts'
 import {
   instructionWords,
   keepMarks,
@@ -461,83 +460,6 @@ describe('provenance', () => {
   })
 })
 
-describe("the names in the assistant's draft (resolveDraftNames)", () => {
-  const owners = [
-    { id: '00000000-0000-4000-8000-000000000001', name: 'Jon Abara', areaId: 'commercial' },
-    { id: '00000000-0000-4000-8000-000000000002', name: 'Sofia Brandt', areaId: 'finance' },
-  ]
-  const names = { ...context, owners }
-
-  it('matches a domain, metrics and markets by name or other name, as draft_context does', () => {
-    const result = resolveDraftNames(
-      {
-        areaId: 'commercial ',
-        title: 'Norway closure',
-        scope: {
-          metrics: ['orders'],
-          dimensionValues: [{ dimension: 'Market', value: 'NL' }],
-        },
-      },
-      names,
-    )
-    expect(result).toEqual({
-      problems: [],
-      draft: {
-        areaId: 'commercial',
-        title: 'Norway closure',
-        scope: {
-          metrics: ['metric:orders'],
-          dimensions: [],
-          dimensionValues: [{ dimension: 'dim:market', value: 'val:market/norway' }],
-        },
-      },
-    })
-    // Keys stay keys: resolving a resolved draft changes nothing.
-    expect(resolveDraftNames(result.draft as never, names)).toEqual(result)
-  })
-
-  it('takes the domain of the metrics, and an owner by name, never by guess', () => {
-    const derived = resolveDraftNames(
-      { ownerId: 'jon abara', scope: { metrics: ['Orders'], dimensionValues: [] } },
-      names,
-    )
-    expect(derived.problems).toEqual([])
-    expect(derived.draft).toMatchObject({
-      areaId: 'commercial',
-      ownerId: '00000000-0000-4000-8000-000000000001',
-    })
-    // An owner of another domain is not this one's.
-    expect(
-      resolveDraftNames({ areaId: 'Commercial', ownerId: 'Sofia Brandt' }, names).problems,
-    ).toEqual([
-      '"Sofia Brandt" is not an owner of that domain. Leave ownerId out: the domain\'s owner is set for you.',
-    ])
-  })
-
-  it('says which names match nothing, with the nearest, and asks for the domain', () => {
-    const result = resolveDraftNames(
-      {
-        areaId: 'Customer value',
-        scope: {
-          metrics: ['Order'],
-          dimensionValues: [{ dimension: 'Market', value: 'Polland' }],
-        },
-      },
-      names,
-    )
-    expect(result.problems).toEqual([
-      'There is no single term called "Order"; the nearest are Orders.',
-      'There is no single term called "Polland"; the nearest are Poland.',
-      'No domain is called "Customer value". The domains are Commercial, Finance.',
-    ])
-    expect(resolveDraftNames({ title: 'No scope' }, names).problems).toEqual([
-      'Say which domain it is about, as areaId: Commercial, Finance.',
-    ])
-    // A change to an accepted item keeps the item's domain.
-    expect(resolveDraftNames({ title: 'A change' }, names, true).problems).toEqual([])
-  })
-})
-
 describe('the drafting guide', () => {
   it('asks for a short summary, detail in the body, no cause, own names, unsure dates and one fact', () => {
     for (const words of [
@@ -551,12 +473,5 @@ describe('the drafting guide', () => {
     ])
       expect(draftingGuide).toContain(words)
     expect(draftingGuide).not.toContain('\u2014')
-  })
-  it('says how long a summary is and what to do, in characters as the format check counts', () => {
-    expect(summaryProblem(undefined)).toBeNull()
-    expect(summaryProblem('é'.repeat(280))).toBeNull()
-    expect(summaryProblem('x'.repeat(281))).toBe(
-      'The summary has 281 characters; it may have at most 280. Shorten it to what happened, where and when, and move the detail, caveats and what it does not mean into the body.',
-    )
   })
 })

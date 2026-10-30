@@ -262,62 +262,6 @@ export async function runChecks(
   return runs
 }
 
-export type DraftToCheck = {
-  draft: Draft
-  proposerId: string | null
-  channel: ItemVersion['createdVia']
-  itemId: string | null
-  /** Names a new item's place in the candidate edition: the proposal id, or any unique key. */
-  key: string
-  /** A saved draft's proposal, whose attached tests level 3 reports (FR-524); null for none. */
-  proposalId: string | null
-}
-export type DraftCheck =
-  CheckRun | { level: CheckRun['level']; outcome: 'not_run'; details: { reason: string } }
-
-/**
- * Levels 1 to 3 on a draft, exactly as submit and review run them, recording nothing: the
- * assistant explains these results and never decides them (FR-704, FR-708). Levels 2 and 3 wait
- * for a draft that passes level 1, and for a live edition.
- */
-export async function draftChecks(
-  tx: Queryable,
-  clock: Clock,
-  draft: DraftToCheck,
-): Promise<{ edition: string | null; levels: DraftCheck[] }> {
-  const format = await checkDraft(tx, draft.draft, draft.proposerId, draft.channel, draft.itemId)
-  const levels: DraftCheck[] = [
-    {
-      level: 'format',
-      outcome: formatOutcome(format.findings),
-      details: { findings: format.findings },
-    },
-  ]
-  const notRun = (reason: string) =>
-    (['matching', 'delivery'] as const).map((level) => ({
-      level,
-      outcome: 'not_run' as const,
-      details: { reason },
-    }))
-  if (!format.version || format.findings.some((f) => f.severity === 'error'))
-    return { edition: null, levels: [...levels, ...notRun('Resolve the format checks first.')] }
-  if (!(await tx.query('select 1 from live_edition')).length)
-    return { edition: null, levels: [...levels, ...notRun('There is no live edition yet.')] }
-  const id = draft.itemId ?? `itm_${draft.key.replaceAll('-', '').slice(-16)}`
-  const [live] = await tx.query<{ version_no: number }>(
-    `select max(v.version_no) as version_no from item_versions v where v.item_id=$1`,
-    [id],
-  )
-  const { head, runs } = await computeChecks(
-    tx,
-    clock,
-    { id: draft.proposalId, channel: draft.channel },
-    { itemId: id, versionNo: (live?.version_no ?? 0) + 1, version: format.version },
-    ['matching', 'delivery'],
-  )
-  return { edition: head.label, levels: [...levels, ...runs] }
-}
-
 /**
  * The newest result of every required level (levels 1 to 3, FR-513), whether an owner or an
  * administrator accepted, and the database's own verdict. No approver is needed any more, so its

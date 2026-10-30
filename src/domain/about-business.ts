@@ -70,7 +70,7 @@ export function aboutBusinessBlock(value: unknown): string | null {
 
 /**
  * What the About our business box tells an administrator to write, in the field itself so nobody
- * has to leave the screen (docs/old-help/tell-heed-about-your-business.md says the same at more
+ * has to leave the screen (the help page on telling the system about your business says the same at more
  * length): two parts, then what stays out. The text is still one plain Markdown text.
  */
 export const ABOUT_BUSINESS_GUIDE = {

@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/client'
-import type { Gate, ReviewProposal } from '../../../contract/review.ts'
+import type { ReviewProposal } from '../../../contract/review.ts'
 import type { Draft, FormatFinding } from '../../../domain/draft.ts'
 import type { Provenance } from '../../../domain/provenance.ts'
 import type { Queryable } from '../../db/database.ts'
@@ -10,7 +10,6 @@ export type LoadedProposal = ReviewProposal & {
   provenance: Provenance | null
 }
 export type Role = 'owner' | 'approver'
-type QueueChecks = { failed: Gate['required']; waiting: Gate['required'] }
 
 const fields = `p.id::text,p.number::float8 as number,p.subject::text as subject,p.action::text as action,
   p.state::text as state,p.area_id as "areaId",p.item_id as "itemId",p.item_version_id::text as "itemVersionId",
@@ -57,40 +56,6 @@ export async function loadProposals(tx: Queryable, ids: readonly string[], lock 
   })
 }
 
-/**
- * The newest outcome of each required check level of an item version under review, as the queue
- * shows it: the levels that failed and the ones that have not passed yet. Null for a term and a
- * retirement, which have no checks. The review screen and a decision read the whole gate.
- */
-const queueChecks = `case when v.id is null or p.action='retire' then null else (
-  select jsonb_build_object(
-    'failed', coalesce(jsonb_agg(need.level order by need.n) filter (where r.outcome='failed'),'[]'::jsonb),
-    'waiting', coalesce(jsonb_agg(need.level order by need.n)
-      filter (where r.outcome is distinct from 'passed' and r.outcome is distinct from 'failed'),'[]'::jsonb))
-  from unnest(cl_required_levels(v.risk)) with ordinality as need(level,n)
-  left join lateral (select c.outcome::text as outcome from check_results c
-    where c.item_version_id=v.id and c.level=need.level order by c.ran_at desc,c.id desc limit 1) r on true
-) end as checks`
-
-/**
- * FR-208: open proposals the person may decide, highest risk first, then oldest: every one for an
- * administrator, their own too, and those of their areas for an owner (FR-202, FR-206).
- */
-export async function reviewQueue(
-  tx: Queryable,
-  input: { areaId?: string | undefined; limit?: number | undefined; offset?: number | undefined },
-) {
-  return tx.query<LoadedProposal & { checks: QueueChecks | null }>(
-    `select ${fields},${queueChecks} ${from}
-      where p.state in ('submitted','in_review') and ($1::text is null or p.area_id=$1)
-        and (cl_is_admin_now() or cl_is_owner_now(p.area_id))
-      order by case v.risk when 'high' then 0 when 'normal' then 1 when 'low' then 2 else 3 end,
-               p.submitted_at,p.id
-      limit $2 offset $3`,
-    [input.areaId ?? null, input.limit ?? 50, input.offset ?? 0],
-  )
-}
-
 /** The person's active roles in an area. Deactivated or erased people hold none. */
 export async function rolesIn(tx: Queryable, area: string | null): Promise<Set<Role>> {
   if (!area) return new Set()
@@ -98,7 +63,7 @@ export async function rolesIn(tx: Queryable, area: string | null): Promise<Set<R
 }
 
 /** `rolesIn` for many areas in one read, by area; an area where the person has none is left out. */
-export async function rolesInAreas(
+async function rolesInAreas(
   tx: Queryable,
   areas: readonly (string | null)[],
 ): Promise<Map<string, Set<Role>>> {
@@ -171,31 +136,6 @@ type NewDecision = {
 const undoneBefore = (version: string, outcome: string) =>
   `(select count(*) from decisions d join decision_undos u on u.decision_id=d.id
      where d.item_version_id=${version} and d.decided_by=cl_person() and d.outcome=${outcome})`
-
-/**
- * Records many decisions in one statement, in their order: each one's id, or null where the same
- * person already made that decision on that version.
- */
-export async function insertDecisions(
-  tx: Queryable,
-  decisions: readonly (NewDecision & { proposalId: string })[],
-): Promise<(string | null)[]> {
-  try {
-    const rows = await tx.query<{ id: string; proposalId: string }>(
-      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason,round)
-       select (row->>'proposalId')::uuid,(row->>'itemVersionId')::uuid,(row->>'vocabularyVersionId')::uuid,
-              row->>'areaId',cl_person(),(row->>'capacity')::decision_capacity,(row->>'outcome')::decision_outcome,row->>'reason',
-              ${undoneBefore("(row->>'itemVersionId')::uuid", "(row->>'outcome')::decision_outcome")}
-         from jsonb_array_elements($1::jsonb) with ordinality as e(row, n) order by n
-       on conflict do nothing returning id::text,proposal_id::text as "proposalId"`,
-      [JSON.stringify(decisions)],
-    )
-    const byProposal = new Map(rows.map((row) => [row.proposalId, row.id]))
-    return decisions.map((decision) => byProposal.get(decision.proposalId) ?? null)
-  } catch (error) {
-    throw forbiddenDecision(error)
-  }
-}
 
 /** The database refuses a decision its row rules do not permit (42501). */
 const forbiddenDecision = (error: unknown) =>

@@ -2,39 +2,6 @@ import * as z from 'zod/mini'
 import { connectorIdPattern } from '../domain/connector-id.ts'
 import { connectorManifestSchema } from '../domain/connector-manifest.ts'
 import { checkStepSchema } from '../domain/connector-runtime.ts'
-import { checkFlags } from '../domain/item.ts'
-
-/**
- * What changes in a definition source mean for accepted items. A definition an item references
- * that changed or disappeared flags the item (`needs_check`, `source_missing`) and it is
- * delivered as unverified until an owner records "checked, still correct" or accepts a new
- * version (CON-209 to CON-211). A definition an item only mentions never flags it: the mention
- * goes on the stale-link list, and the item is delivered as before (FR-333).
- */
-
-export const sourceListSchema = z.strictObject({
-  areaId: z.optional(z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))),
-  limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(500))),
-})
-
-export const flaggedItemSchema = z.object({
-  itemId: z.string(),
-  title: z.string(),
-  areaId: z.string(),
-  flag: z.enum(checkFlags),
-  /** When the flag was raised, ISO 8601 in UTC. */
-  since: z.string(),
-  reason: z.nullable(z.string()),
-  /** The referenced definitions behind the flag. `renamedTo` names the new id when known. */
-  definitions: z.array(
-    z.object({
-      ref: z.string(),
-      name: z.string(),
-      status: z.enum(['changed', 'missing']),
-      renamedTo: z.nullable(z.string()),
-    }),
-  ),
-})
 
 export const staleLinkStatuses = [
   'retired',
@@ -43,28 +10,6 @@ export const staleLinkStatuses = [
   'source_missing',
   'unresolved',
 ] as const
-
-export const staleLinkSchema = z.object({
-  itemId: z.string(),
-  title: z.string(),
-  areaId: z.string(),
-  field: z.enum(['summary', 'body']),
-  position: z.number().check(z.int(), z.minimum(0)),
-  /** The author's words. They never change, whatever happened to the target. */
-  words: z.string(),
-  target: z.object({
-    type: z.nullable(z.string()),
-    key: z.string(),
-    status: z.enum(staleLinkStatuses),
-    /** The definition behind a mentioned metric or dimension. */
-    definition: z.nullable(z.string()),
-    renamedTo: z.nullable(z.string()),
-    replacedBy: z.nullable(z.string()),
-  }),
-})
-
-export type FlaggedItem = z.infer<typeof flaggedItemSchema>
-export type StaleLink = z.infer<typeof staleLinkSchema>
 
 // ---- the sources an administrator adds (Administration › Sources, connector interface 3.0) ----
 

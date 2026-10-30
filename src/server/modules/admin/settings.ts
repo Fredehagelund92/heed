@@ -25,15 +25,6 @@ export async function listSettings(tx: Queryable): Promise<Setting[]> {
   return rows.map(withEditable)
 }
 
-export async function settingHistory(tx: Queryable, key: string): Promise<Setting[]> {
-  const rows = await tx.query<Row>(
-    `select ${columns} from settings_versions where key=$1 order by version desc`,
-    [key],
-  )
-  if (!rows.length) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this setting." })
-  return rows.map(withEditable)
-}
-
 /**
  * A change is a new version with a reason, never an update, and the history log names who made
  * it (FR-806). The caller passes the version they read, so two administrators cannot overwrite

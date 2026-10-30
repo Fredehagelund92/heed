@@ -7,9 +7,7 @@ import type {
   LookupInput,
   Reach,
   Replay,
-  TryItRun,
 } from '../../../contract/answer.ts'
-import type { TryItInput } from '../../../contract/connect.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
 import {
   answer,
@@ -20,7 +18,6 @@ import {
   topicScope,
   topicWords,
   type Answer,
-  type AnswerAsk,
   type TopicCount,
 } from '../../../domain/answer.ts'
 import { followedFrom } from '../../../domain/links.ts'
@@ -28,7 +25,6 @@ import { compareIds } from '../../../domain/resolver.ts'
 import { visibleTotal } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
-import { tryIt } from '../agents/index.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
 import { draftBundle } from '../proposals/index.ts'
 
@@ -185,38 +181,6 @@ function linksOf(
             },
     })),
     notFollowed,
-  }
-}
-
-/**
- * Try it (FR-108, FR-505): get_facts's reply for a typed scope and the engine's answer beside it,
- * on the live edition, or with a draft in it when `draft` names a proposal the person may read.
- * Nothing is recorded.
- */
-export async function tryItRun(
-  tx: Queryable,
-  clock: Clock,
-  cache: BundleCache,
-  input: TryItInput & { draft?: string },
-  web: string | null,
-  proposal: (id: string) => Promise<ProposalRecord>,
-): Promise<TryItRun> {
-  const { draft, ...scope } = input
-  let bundle: ServingBundle
-  let target: Target
-  if (draft) {
-    const drafted = await draftBundle(tx, await proposal(draft), (head) => cache.bundle(tx, head))
-    bundle = drafted.bundle
-    target = { kind: 'draft', proposal: draft, item: drafted.item }
-  } else {
-    bundle = await liveBundle(tx, cache)
-    target = { kind: 'live' }
-  }
-  const reply = await tryIt(tx, clock, scope, web, bundle)
-  const ask: AnswerAsk = { question: '', ...scope }
-  return {
-    ...reply,
-    answer: result(answer(bundle, ask, { today: clock.today(), now: clockMs }), target),
   }
 }
 

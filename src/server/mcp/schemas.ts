@@ -19,7 +19,7 @@ const edition = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}\.\d+$/)
   .optional()
-export const scopeFields = {
+const scopeFields = {
   question: z.string().max(2000),
   metrics: z
     .array(z.string().min(1).max(toolInputLimits.name))
@@ -53,7 +53,7 @@ export const scopeFields = {
  * leaves out bodies, evidence, owners and links, which read_item gives for one item; `full`
  * carries every source detail of FR-326 and FR-331.
  */
-export const responseFormat = z
+const responseFormat = z
   .enum(['concise', 'full'])
   .describe(
     "concise: a shorter reply, about half the size, each item without its body, evidence, owner and links (read_item gives them). full: every source detail and link. Ask for concise when you only need what applies; full when you will cite an item's evidence or follow its links.",
@@ -191,34 +191,6 @@ export const reportInput = z.strictObject({
     ),
 })
 export type ReportInput = z.infer<typeof reportInput>
-/** FR-348: a question about how Heed itself works, in words. */
-export const helpInput = z.strictObject({
-  query: z
-    .string()
-    .min(2)
-    .max(300)
-    .describe(
-      'The question in the words asked, such as "what is an MCP?" or "how do I review a proposal".',
-    ),
-})
-/** FR-339: one domain, or every domain when it names none. */
-export const overviewInput = z.strictObject({
-  domain: domainName.optional(),
-  max_bytes: z.number().int().min(1000).max(100000).default(100000),
-})
-const editionNumber = z.string().min(1).max(40)
-/** FR-340: what changed between two sealed editions, by default the live one and the one before. */
-export const changesInput = z.strictObject({
-  edition: editionNumber
-    .optional()
-    .describe('The edition to report on, such as 2026-10-07.2. The live edition when left out.'),
-  since: editionNumber
-    .optional()
-    .describe('The earlier edition to compare with. The edition just before when left out.'),
-  domain: domainName.optional(),
-  limit: z.number().int().min(1).max(50).default(20),
-  max_bytes: z.number().int().min(1000).max(100000).default(100000),
-})
 /** FR-332: an item id, a vocabulary key, or a domain (`area:<id>` or the bare area id). */
 export const relatedInput = z.strictObject({
   id: z.string().min(1).max(160),
@@ -235,7 +207,6 @@ export const relatedInput = z.strictObject({
   cursor: z.string().max(2000).optional(),
   max_bytes: z.number().int().min(1000).max(100000).default(100000),
 })
-export const improveInput = z.strictObject({ ...scopeFields, edition })
 export const gapInput = z.strictObject({
   ...scopeFields,
   note: z.string().min(1).max(500).optional(),
@@ -448,27 +419,6 @@ const said = {
 export const readOutput = z.object(said).loose()
 /** A read tool that delivers items: each with its page in Heed (FR-347). */
 export const deliveryOutput = z.object({ ...said, items: z.array(citedItem).optional() }).loose()
-/** search_help: sections of Heed's help pages, each with its page in Heed (FR-348). */
-export const helpOutput = z
-  .object({
-    ...said,
-    results: z
-      .array(
-        z
-          .object({
-            page: z.string(),
-            text: z.string(),
-            url: z
-              .string()
-              .describe(
-                'Where the section opens, for the person: link it where you answer from it.',
-              ),
-          })
-          .loose(),
-      )
-      .optional(),
-  })
-  .loose()
 /** read_item: the one item, with its page in Heed (FR-347). */
 export const readItemOutput = z.object({ ...said, item: citedItem.optional() }).loose()
 

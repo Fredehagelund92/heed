@@ -80,7 +80,6 @@ export const createdAccessKeySchema = z.object({
 /** Kept in the history log for good, so it is required, trimmed and checked for sensitive text. */
 const reason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
 export const adminDisconnectSchema = z.strictObject({ id: z.uuid(), reason })
-export const adminDisconnectPersonSchema = z.strictObject({ personId: z.uuid(), reason })
 /** How many connections ended: none when they had all ended already. */
 export const adminDisconnectedSchema = z.object({ disconnected: z.number() })
 
@@ -105,4 +104,3 @@ export type AccessKeyConnection = z.infer<typeof accessKeyConnectionSchema>
 export type AgentConnection = z.infer<typeof agentConnectionSchema>
 export type CreatedAccessKey = z.infer<typeof createdAccessKeySchema>
 export type AdminDisconnect = z.infer<typeof adminDisconnectSchema>
-export type AdminDisconnectPerson = z.infer<typeof adminDisconnectPersonSchema>

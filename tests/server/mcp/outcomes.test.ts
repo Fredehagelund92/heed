@@ -32,7 +32,7 @@ type Reply = {
   check_report: { statements: string[]; withheld: number }
 }
 
-/** The tool service over the fixture edition on 7 October 2026, with owners, gaps and editions. */
+/** The tool service over the fixture edition on 7 October 2026, with what sources have beyond it. */
 function setup(change: (data: ServingBundle) => void = () => {}, waiting?: WaitingTerms) {
   const data = bundle()
   change(data)
@@ -254,8 +254,6 @@ describe('find_facts (FR-338)', () => {
     // By name, only the item for everyone is counted; the one for a group counts as absent.
     const named = await s.call('find_facts', { query: 'Norway' })
     expect(named.out.check_report.withheld).toBe(1)
-    const overview = await s.call('domain_overview', { domain: 'Finance' })
-    expect(overview.out.coverage).toMatchObject({ items: 0, withheld: 1 })
   })
 
   it('shows nothing of a definition its source limits to groups', async () => {
@@ -379,120 +377,31 @@ describe('find_facts (FR-338)', () => {
 })
 
 describe('the size limit of an outcome tool', () => {
-  it('shortens a long list in a few renders, keeping the first entries', async () => {
+  it('shortens a long list to fit, keeping the first entries', async () => {
     const s = setup((data) => {
-      for (let n = 0; n < 2000; n++)
-        data.terms.push({
-          ...data.terms[0]!,
-          key: `metric:m${n}`,
-          name: `Sample metric ${n} with a long name`,
-          definitionRefs: [],
-          definitions: [],
-          described: null,
+      for (let n = 0; n < 60; n++)
+        data.items.push({
+          ...norway(data),
+          id: `itm_sample${String(n).padStart(4, '0')}`,
+          title: `Sample note ${n} about Norway`,
         })
     })
-    const started = performance.now()
-    const { result, out } = await s.call('domain_overview', { max_bytes: 20_000 })
-    expect(byteSize(result)).toBeLessThanOrEqual(20_000)
+    const whole = await s.call('find_facts', { query: 'Norway', limit: 50 })
+    const { result, out } = await s.call('find_facts', {
+      query: 'Norway',
+      limit: 50,
+      max_bytes: 8_000,
+    })
+    expect(byteSize(result)).toBeLessThanOrEqual(8_000)
     expect(out.cut).toBe(true)
-    const metrics = out.metrics as { name: string }[]
-    expect(metrics.length).toBeGreaterThan(0)
-    expect(metrics[0]!.name).toBe('Orders')
-    // Popping one at a time renders the reply about 2,000 times; halving needs a dozen.
-    expect(performance.now() - started).toBeLessThan(2000)
+    expect(out.items.length).toBeGreaterThan(0)
+    expect(out.items.length).toBeLessThan(whole.out.items.length)
+    expect(out.items.map((i) => i.id)).toEqual(
+      whole.out.items.slice(0, out.items.length).map((i) => i.id),
+    )
   })
 })
 
-describe('domain_overview (FR-339)', () => {
-  it('lists every domain with its summary, owners, what needs a look and its open gaps', async () => {
-    const s = setup((data) => {
-      norway(data).reviewDate = '2026-09-01'
-    })
-    const { out } = await s.call('domain_overview', {})
-    expect(out).toMatchObject({
-      status: 'matched',
-      edition: '2026-10-07.1',
-      domains: [
-        {
-          id: 'finance',
-          name: 'Finance',
-          summary: 'Orders and returns, by market.',
-          items: 1,
-          holds: '1 item, mostly about Orders.',
-          owners: { count: 2, reviewed_by: 'the owner of Finance' },
-          needs_a_look: 1,
-          open_gaps: 1,
-        },
-      ],
-      metrics: [{ key: 'metric:orders', name: 'Orders' }],
-    })
-  })
-
-  it('reads one domain by name: coverage, what needs a look and why, gaps and recent changes', async () => {
-    const s = setup((data) => {
-      norway(data).reviewDate = '2026-09-01'
-    })
-    const { out } = await s.call('domain_overview', { domain: 'Finance' })
-    expect(out).toMatchObject({
-      domain: {
-        id: 'finance',
-        name: 'Finance',
-        summary: 'Orders and returns, by market.',
-        description: 'Finance covers **orders** and returns, by market and payment provider.',
-        team: 'Regulation',
-      },
-      coverage: { items: 1, kinds: '1 event', metrics: [{ name: 'Orders', items: 1 }] },
-      needs_a_look: {
-        count: 1,
-        items: [{ id: 'itm_norway01', why: 'Its check date, 1 September 2026, has passed.' }],
-      },
-      open_gaps: {
-        count: 1,
-        gaps: [
-          {
-            id: 'gap_k2m4p6q8',
-            topic: 'Orders, Norway, October 2026',
-            agent_calls_that_found_nothing: 12,
-          },
-        ],
-      },
-      recent_changes: {
-        since: '2026-10-06.1',
-        changes: [
-          { id: 'itm_norway01' },
-          {
-            id: 'itm_retired001',
-            words:
-              "Archived a note in Finance. AI agents no longer get it, so its text isn't shown.",
-          },
-        ],
-      },
-      in_heed: { needs_a_look: '/library?view=attention&area=finance' },
-    })
-    expect(s.reads.asked).toContainEqual({ openGaps: 'finance' })
-  })
-
-  it('counts the items of a stopped domain, without their text', async () => {
-    const s = setup((data) => {
-      data.stopped = { all: false, areas: ['finance'], items: [] }
-    })
-    const { out } = await s.call('domain_overview', { domain: 'finance' })
-    expect(out.coverage).toMatchObject({
-      items: 0,
-      withheld: 1,
-      withheld_note:
-        '1 fact is not shared with AI agents: paused, or high risk and waiting for a check. People can read them in the library.',
-    })
-    expect(JSON.stringify(out)).not.toContain('Norway closure')
-  })
-})
-
-/*
-  A domain created as "Stores & Suplliers", with a typo in its stored name, and a Cube view
-  mapped to it whose members were not proposed as terms yet. Asked for "Stores & Suppliers
-  metrics and dimensions", the assistant said only that Heed holds nothing for it, listed every
-  other domain's terms, and never said that Cube has the domain's metrics waiting.
-*/
 describe('a domain with nothing yet, named by another spelling', () => {
   const typo = (data: ServingBundle) => {
     data.areas.push({
@@ -523,79 +432,6 @@ describe('a domain with nothing yet, named by another spelling', () => {
       { ...member('Refund fees', 'metric'), areaId: 'finance' },
     ],
     canPropose,
-  })
-
-  it("reads the domain by the person's spelling, and says the source's members wait", async () => {
-    const { out } = await setup(typo, waiting(true)).call('domain_overview', {
-      domain: 'Stores & Suppliers',
-    })
-    expect(out).toMatchObject({
-      status: 'matched',
-      domain: { id: 'stores_suppliers', name: 'Stores & Suplliers' },
-      domain_read_as: {
-        wrote: 'Stores & Suppliers',
-        domain: 'Stores & Suplliers',
-        kind: 'close',
-        misspelt: true,
-      },
-      vocabulary: { count: { metrics: 0, dimensions: 0 }, metrics: [], dimensions: [] },
-      waiting_in_source: {
-        metrics: 5,
-        dimensions: 2,
-        examples: ['Purchase orders', 'Lead time days', 'Fill rate', 'Units on order'],
-        where: '/admin?section=sources&source=cube',
-        words:
-          "Cube has 5 metrics and 2 dimensions mapped to Stores & Suplliers that the library doesn't know by name yet, such as Purchase orders, Lead time days, Fill rate and Units on order. As an admin, you can see them all and propose them in Administration › Sources (/admin?section=sources&source=cube), with Propose names; you, another admin or an owner of the domain then accepts them.",
-      },
-    })
-    // The person hears how the words were read and what the domain lacks; the next step for
-    // the AI agent points at what the source has waiting, which says who can add it.
-    expect(out.say).toBe(
-      '"Stores & Suppliers" is taken to mean Stores & Suplliers. Stores & Suplliers has no description yet. It has no facts and no metrics of its own yet.',
-    )
-    expect(out.next).toMatch(/^waiting_in_source says which names the data tool has/)
-    // A short answer, said once, that never lists the other domains' terms.
-    expect(out.instructions).toContain('at most two sentences')
-    expect(out.instructions).toContain('never argue with how the person wrote it')
-    expect(JSON.stringify(out)).not.toContain('Refund fees')
-    expect(JSON.stringify(out.metrics ?? null)).not.toContain('Orders')
-  })
-
-  it('tells someone who is no administrator who can propose the terms, by role', async () => {
-    const { out } = await setup(typo, waiting(false)).call('domain_overview', {
-      domain: 'stores and suppliers',
-    })
-    expect(
-      (out as unknown as { waiting_in_source: { words: string } }).waiting_in_source.words,
-    ).toContain('An admin sees them all and proposes them in Administration › Sources.')
-    // Served context names roles, never people (FR-326).
-    expect(JSON.stringify(out)).not.toContain('Frederik Hagelund')
-  })
-
-  it('says which members are proposed and wait for review', async () => {
-    const { out } = await setup(typo, {
-      members: [member('Purchase orders', 'metric', true), member('Supplier tier', 'dimension')],
-      canPropose: true,
-    }).call('domain_overview', { domain: 'Stores & Suplliers' })
-    expect(out).not.toHaveProperty('domain_read_as')
-    expect(
-      (out as unknown as { waiting_in_source: { words: string } }).waiting_in_source.words,
-    ).toBe(
-      "Cube has 1 metric and 1 dimension mapped to Stores & Suplliers that the library doesn't know by name yet, such as Purchase orders and Supplier tier. 1 of them is proposed as a name and waits for review in Proposals › To review (/proposals?view=review). As an admin, you can see them all and propose the rest in Administration › Sources (/admin?section=sources&source=cube), with Propose names; you, another admin or an owner of the domain then accepts them.",
-    )
-  })
-
-  it("names each domain's own vocabulary and what waits, in the list of domains", async () => {
-    const { out } = await setup(typo, waiting(true)).call('domain_overview', {})
-    const domains = (out as unknown as { domains: Line[] }).domains
-    expect(domains.find((d) => d.id === 'finance')).toMatchObject({
-      vocabulary: { metrics: 1, dimensions: 0 },
-      not_in_vocabulary_yet: { metrics: 1, dimensions: 0 },
-    })
-    expect(domains.find((d) => d.id === 'stores_suppliers')).toMatchObject({
-      vocabulary: { metrics: 0, dimensions: 0 },
-      not_in_vocabulary_yet: { metrics: 5, dimensions: 2 },
-    })
   })
 
   it('find_facts reads the domain in the words, and says what it has and lacks', async () => {
@@ -634,8 +470,6 @@ describe('terms of a domain agents do not get (FR-333)', () => {
     const found = await hidden.call('find_facts', { query: 'what is Orders' })
     expect(found.out.definitions ?? []).toEqual([])
     expect(JSON.stringify(found.out)).not.toContain('The value of paid orders')
-    const overview = await hidden.call('domain_overview', {})
-    expect(JSON.stringify(overview.out.metrics)).not.toContain('Orders')
     const asked = await hidden.call('get_facts', { question: definitionQuestion })
     expect(asked.out).not.toHaveProperty('definitions')
     expect(JSON.stringify(asked.out)).not.toContain('The value of paid orders')
@@ -646,8 +480,6 @@ describe('terms of a domain agents do not get (FR-333)', () => {
       term: 'Orders',
       definition: 'The value of paid orders, in euros.',
     })
-    const all = await live.call('domain_overview', {})
-    expect(all.out.metrics).toEqual([{ key: 'metric:orders', name: 'Orders', domain: 'Finance' }])
   })
 
   it('gives no definitions while all delivery is stopped', async () => {
@@ -656,8 +488,6 @@ describe('terms of a domain agents do not get (FR-333)', () => {
     })
     const found = await s.call('find_facts', { query: 'what is Orders' })
     expect(found.out.definitions ?? []).toEqual([])
-    const overview = await s.call('domain_overview', {})
-    expect(overview.out.metrics).toEqual([])
   })
 })
 
@@ -718,45 +548,5 @@ describe('get_facts for a definition question (FR-338)', () => {
       ['group:payments', 'none'],
       ['metric:orders', 'source'],
     ])
-  })
-})
-
-describe('what_changed (FR-340)', () => {
-  it('filters to a domain by name and says what it did not show', async () => {
-    const s = setup()
-    const { out } = await s.call('what_changed', { domain: 'Finance' })
-    expect(out).toMatchObject({
-      domain: 'Finance',
-      changes: [{ id: 'itm_norway01' }, { id: 'itm_retired001' }],
-    })
-    expect(out.sentence).toMatch(/^2 facts in Finance: 1 changed, 1 archived\. Across 1 edition\./)
-    expect(out).not.toHaveProperty('not_shown')
-    expect(out.in_heed).toBe('/editions/compare?since=2026-10-06.1&until=2026-10-07.1&area=finance')
-  })
-
-  it('compares named editions only with edition scope, as get_facts selects one', async () => {
-    const { result, out } = await setup().call('what_changed', { since: '2026-10-06.1' })
-    expect(result.isError).toBe(true)
-    expect(out.next).toBe(
-      'Comparing named editions requires edition scope. Leave out edition and since for what the live edition changed.',
-    )
-  })
-
-  it('recovers from a missing edition by what was asked, not by the words of the refusal', async () => {
-    const { out } = await setup().call('what_changed', { since: '2026-01-01.9' }, true)
-    expect(out).toMatchObject({
-      status: 'need_more_detail',
-      options: [{ field: 'edition', options: ['2026-10-07.1', '2026-10-06.1'] }],
-    })
-  })
-
-  it('refuses an edition number that cannot be one, listing the recent ones', async () => {
-    const { out } = await setup().call('what_changed', { edition: 'latest' }, true)
-    expect(out).toMatchObject({
-      status: 'need_more_detail',
-      message:
-        "Unknown edition 'latest'. Name one of the editions listed, or leave it out for the live edition.",
-      options: [{ field: 'edition', options: ['2026-10-07.1', '2026-10-06.1'] }],
-    })
   })
 })

@@ -25,7 +25,7 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
   Git host on this machine that wants a token: an admin tests Markdown in Git, chooses its folders
   and maps each to a domain, and the read turns each document into one suggestion for that
   domain's owners. A read never publishes: an owner does. A changed document replaces its
-  suggestion, a deleted one withdraws it, a declined mark is not offered again, a document that
+  suggestion, a deleted one withdraws it, a returned mark is not offered again, a document that
   names people is skipped, the day's cap makes the rest wait, and nothing of a document is kept
   but what CON-605 allows.
 */
@@ -428,21 +428,20 @@ describe('a read of a content source (CON-603 to CON-611)', () => {
     expect(await open(sourceId)).toHaveLength(2)
   })
 
-  it('does not offer a declined document again until it changes (CON-606)', async () => {
+  it('does not offer a returned document again until it changes (CON-606)', async () => {
     const norway = (await open(sourceId)).find(
       (s) => s.document === 'docs/finance/orders-norway.md',
     )!
     await ok(
-      call('POST', `/proposals/${norway.id}/decisions`, 'owner', {
+      call('POST', `/review/${norway.id}/return`, 'owner', {
         revision: norway.revision,
-        outcome: 'reject',
-        reason: 'We count the marketplace apart',
+        note: 'We count the marketplace apart',
       }),
     )
     await read()
     expect(
       (await suggestions(sourceId)).filter((s) => s.document === 'docs/finance/orders-norway.md'),
-    ).toMatchObject([{ state: 'rejected' }])
+    ).toMatchObject([{ state: 'changes_requested' }])
   })
 
   it('lets an owner publish one, and tells them when its document is gone (CON-609)', async () => {

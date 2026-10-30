@@ -40,8 +40,8 @@ instance counts on its own, and an address is the connection's peer, so behind a
 before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are not limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `partitions.ensure` and
-`retention.run` each night (UTC), `outbox.relay` every minute (a backstop for the live relay, see
-[Live updates](reference.md#live-updates-inbox-and-activity)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
+`retention.run` each night (UTC), `outbox.relay` every minute (a backstop for the relay, see
+[The outbox](reference.md#the-outbox-and-inbox-items)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the
 alert rules raise Inbox cards, see [Alerts](reference.md#alerts)), `connectors.sync` every five minutes (reads each source that is
 due on its own schedule, hourly for a definition source by default, see [Definition
 sources](reference.md#definition-sources)), `saved.check` every minute (checks the saved questions once what agents
@@ -58,10 +58,9 @@ presents `Authorization: Bearer <CL_METRICS_TOKEN>`; without the variable the en
 (404), and a session never opens it. It counts HTTP requests and their time by route template or
 API operation, and MCP requests by tool, status and agent family (FR-410), and reads at scrape time what the operations
 view shows: each job's last success, overdue jobs, runs and queue, connector age, model spending
-for today and the month against its cap, the live edition's age, open live streams and the
-database pool. Labels come from closed sets (routes, operations, tools, jobs, connectors, app
+for today and the month against its cap, the live edition's age and the database pool. Labels come from closed sets (routes, operations, tools, jobs, connectors, app
 families), never a path, a question, a person or an agent's own name. The MCP counter's `app_family`
-label counts exactly, for operators holding the metrics token, unlike Observability and the quality read, which hide counts below `privacy.min_count` (FR-614).
+label counts exactly, for operators holding the metrics token, unlike Observability, which hides counts below `privacy.min_count` (FR-614).
 
 Configuration comes from the environment, read once at start-up by
 `src/server/config/env.ts`; `.env.example` lists every variable. The service refuses to start
@@ -72,8 +71,7 @@ default elsewhere) or `demo`: both pick a person from `CL_DEV_PEOPLE_FILE` (defa
 sign-in; the old `CL_DEV_PERSON` setting no longer signs requests in. A browser session ends after
 `CL_SESSION_IDLE_HOURS` unused (12) and `CL_SESSION_MAX_DAYS` after sign-in (7).
 `CL_FIXED_TODAY` pins the service's day for demo runs and tests (refused in production).
-`CL_PRODUCT_NAME` (default `Heed`) is the name the app, the help pages and the assistant's text
-say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is
+`CL_PRODUCT_NAME` (default `Heed`) is the name the app and the help pages say; `docs/rename-checklist.md` covers what it does and does not rename. `CL_SUPPORT_EMAIL` is
 the address the new web app's Contact support and Report a problem write to, read when the app and
 the docs site are built: Report a problem opens a mail to it in the person's own mail app, with
 what they wrote and the page's address, and sends nothing through the service. Unset, an address
@@ -100,37 +98,30 @@ command-line tool. Writes need the session cookie, allowed `Origin` and `x-heed-
 [Run the web app on the service](development.md#run-the-web-app-on-the-service).
 
 - **Settings** (FR-809): `GET /settings` lists the current version of each limit, threshold,
-  retention period, review time and model; `GET /settings/{key}/history` lists its versions.
+  retention period, review time and model.
   `PUT /settings/{key}` takes `{ version, value, reason }`: the version you read (409 when it
   moved), a value the setting accepts (`settingSchemas` in `src/contract/admin.ts`, 422
   otherwise) and a plain-text reason. A change is a new version and a `setting.changed` history
   entry naming the administrator. The services read the current version, so it applies at once.
-- **Tool switch** (FR-407): `GET /tools` and `POST /tools/{tool}` with `{ enabled, reason }`
-  switch an MCP tool on or off for every client (`tool.switched_on` or `tool.switched_off`).
-- **Client policies** (FR-408): `GET /clients` and `PUT /clients/{label}` with `displayName`,
+- **Tool switch** (FR-407): `POST /tools/{tool}` with `{ enabled, reason }` switches an MCP tool
+  on or off for every client (`tool.switched_on` or `tool.switched_off`).
+- **Client policies** (FR-408), API only, with no screen in the web app: `GET /clients` and
+  `PUT /clients/{label}` with `displayName`,
   `toolsAllowed` (null for every switched-on tool), `ratePerMinute` (null for the client rate in
   `limits.mcp_requests_per_minute`), `maxResponseBytes`
   (1,000 to 100,000), `enabled` and `reason` add a client label or change it. Labels are never
   removed; switch one off instead.
-- **MCP traffic** (FR-410): `GET /traffic?days=7` (1 to 90) counts the request log's calls by
-  client label and tool over the last whole hours: outcomes (ok, error, rate limited, forbidden,
-  unauthorized, and `invalidInput`: tool calls with arguments the tool could not read), median
-  and 95th percentile duration, bytes answered and the latest hour, plus the totals and
-  `retention.request_log_days`. Like the log, it holds no person, question, token, address or
-  app's own name. A call that is not a tool call counts as `protocol`, and one refused before a token
-  named its client as `unknown`.
-- **Domains** (FR-801): `GET /areas/{id}` reads one domain as settings edits it: name, hue
-  (`label`), review time in working days (`reviewDays`, 1 to 30), chat channel, owner team, the
-  owners and approvers, its `summary` and `description`, and its `revision`.
-  `POST /areas` creates one with an `id` that never changes, those fields and a reason; it is
-  served from the start (`area.created`). `PUT /areas/{id}` changes them with the `revision` you
-  read (409 when it moved, or when another domain has the name) and a reason (`area.changed`, with
-  the fields before and after). `PUT /areas/{id}/description` (FR-813) lets the domain's owners
+- **Domains** (FR-801): `POST /areas` creates one with an `id` that never changes, its name, hue
+  (`label`), review time in working days (`reviewDays`, 1 to 30), chat channel, owner team,
+  owners and approvers, its `summary` and `description`, and a reason; it is served from the start
+  (`area.created`).
+  `PUT /areas/{id}/description` (FR-813) lets the domain's owners
   or an administrator write its `summary` (one line, at most 160 characters) and
   `description` (light Markdown, at most 1,500) with the `revision` from `GET /areas`; it is
-  recorded as `area.changed` too. All three need an `Idempotency-Key`. Who looks after the domain
-  changes with `/assignments/grant` and `/assignments/revoke`.
-- **Operations** (FR-810): `GET /operations` and `POST /operations/jobs/{job}/run`, above.
+  recorded as `area.changed`. Both need an `Idempotency-Key`. Who looks after the domain changes
+  with `/assignments/grant` and `/assignments/revoke` (API only, with no screen in the web app).
+- **Operations** (FR-810): `GET /operations` and `POST /operations/jobs/{job}/run` (API only,
+  with no screen in the web app), above.
 - **History log** (FR-806 to FR-808): `GET /audit` searches newest first by `action` (a full name
   such as `setting.changed`, or a prefix such as `proposal`), `actorId`, `areaId`, `subjectType`,
   `subjectId` and UTC days `from` and `to`, 50 at a time (`limit` up to 200, `before` the page's
@@ -160,7 +151,7 @@ command-line tool. Writes need the session cookie, allowed `Origin` and `x-heed-
   digest offline, for written content and for the demo bulk seed alike. An export reads back as an
   import.
 - **Item schema** (FR-124): `GET /schema/item` publishes the JSON Schema of the item format,
-  from the same definition that checks items. It needs no sign-in.
+  from the same definition that checks items. It needs no sign-in and is API only.
 
 `heed` (`npm run heed -- <command>`) talks to the service through the typed contract client and
 signs in as a person from the dev people file (`--as` or `HEED_EMAIL`; `--url` or `HEED_URL`,
@@ -180,7 +171,7 @@ npm run heed -- audit --format csv --as administrator@example.test
 
 `heed import-tests` sends a test question file to `POST /evals/import` (a dry run unless
 `--apply`). [docs/templates](templates) has a template for each file, with three worked
-examples: `items.yaml` (practice domain items) and `test-questions.yaml` (golden set cases).
+examples: `items.yaml` (items on the demo data) and `test-questions.yaml` (golden set cases).
 
 `--json` prints the result as JSON for scripts and coding agents. The exit status is 0 when done,
 1 when the file has problems or the service refused, and 2 for wrong usage.

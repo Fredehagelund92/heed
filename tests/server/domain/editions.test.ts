@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  changeSentence,
-  highestRisk,
-  isSystemFilled,
-  noChanges,
-  type SentenceInput,
-} from '../../../src/domain/editions.ts'
+import { changeSentence, noChanges, type SentenceInput } from '../../../src/domain/editions.ts'
 
 const counts = (changes: Partial<ReturnType<typeof noChanges>>) => ({ ...noChanges(), ...changes })
 const edition = (input: Partial<SentenceInput>): SentenceInput => ({
@@ -143,14 +137,5 @@ describe('the sentence of an edition', () => {
     ).toBe(
       '7 facts in Finance: 1 added, 4 changed, 1 checked and still correct, 1 archived. Across 10 editions.',
     )
-  })
-})
-
-describe('change helpers', () => {
-  it('finds the highest risk and the fields the system fills in', () => {
-    expect(highestRisk(['low', null, 'high', 'normal'])).toBe('high')
-    expect(highestRisk([])).toBeNull()
-    expect(isSystemFilled('changeMarks')).toBe(true)
-    expect(isSystemFilled('summary')).toBe(false)
   })
 })

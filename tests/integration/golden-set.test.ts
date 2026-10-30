@@ -88,8 +88,8 @@ it("serves the items of every domain, and names the asked metric's domain with w
   ])
   expect(JSON.stringify(reply)).not.toMatch(/not live|area_not_live|domains_not_live|starting/)
   expect(reply.check_report.checked).not.toContain('area')
-  // The concise reply names the domain and leaves what it is to the full reply and
-  // domain_overview, so it stays within a few kB (FR-342).
+  // The concise reply names the domain and leaves what it is to the full reply, so it stays
+  // within a few kB (FR-342).
   const concise = (await deliver(served, systemClock(c.as_of), {
     ...ask,
     response_format: 'concise',

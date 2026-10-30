@@ -57,18 +57,3 @@ export async function proposalEvents(tx: Queryable, changes: readonly ProposalCh
     [rows],
   )
 }
-
-/**
- * A timeline row's data in today's words. Rows are never rewritten, so one recorded before the
- * rename (0086) says `steward`: a decision made in that capacity, or a review edit of
- * `stewardId`. Both read as the owner's.
- */
-export function eventData(data: Record<string, unknown>): Record<string, unknown> {
-  const read: Record<string, unknown> = { ...data }
-  if (read.capacity === 'steward') read.capacity = 'owner'
-  if (typeof read.changes === 'object' && read.changes !== null && 'stewardId' in read.changes) {
-    const { stewardId, ...rest } = read.changes as Record<string, unknown>
-    read.changes = { ...rest, ownerId: stewardId }
-  }
-  return read
-}

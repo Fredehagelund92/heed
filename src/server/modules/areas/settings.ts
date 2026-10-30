@@ -1,11 +1,6 @@
 import { ORPCError } from '@orpc/client'
 import type * as z from 'zod/mini'
-import type {
-  AreaDetail,
-  createAreaSchema,
-  describeAreaSchema,
-  updateAreaSchema,
-} from '../../../contract/areas.ts'
+import type { AreaDetail, createAreaSchema, describeAreaSchema } from '../../../contract/areas.ts'
 import type { GrantChange } from '../../../contract/auth.ts'
 import { textFindings } from '../../../domain/draft.ts'
 import { domainHues, type DomainHue } from '../../../domain/item.ts'
@@ -56,7 +51,7 @@ const fieldsOf = ({
 type Described = Pick<Fields, 'summary' | 'description'>
 
 /**
- * Everyone, the assistant and agents read what a domain is, so it holds no email address, phone
+ * Everyone and agents read what a domain is, so it holds no email address, phone
  * number or secret (the checks of FR-117): it describes the domain, never a person.
  */
 function plainAbout({ summary, description }: Described) {
@@ -182,27 +177,10 @@ export async function createArea(
   return getArea(tx, input.id)
 }
 
-/** An edit names the revision it read; a newer one is a conflict, so no edit is lost unseen. */
-export async function updateArea(
-  tx: Queryable,
-  input: z.infer<typeof updateAreaSchema>,
-): Promise<AreaDetail> {
-  await adminOnly(tx)
-  plainReason(input.reason)
-  plainAbout(input)
-  await tx.query("select pg_advisory_xact_lock(hashtextextended('heed.areas',0))")
-  const before = await current(tx, input.id, input.revision)
-  if (await nameTaken(tx, input.name, input.id))
-    throw new ORPCError('CONFLICT', {
-      message: 'Another domain already has this name. Choose another.',
-    })
-  return change(tx, input.id, before, fieldsOf(input), input.reason)
-}
-
 /**
  * What a domain is and what kind of data it holds (FR-813), written by one of its owners or an
- * administrator. It changes the domain's page, the assistant's list of domains and what AI
- * clients read about the domain, never what is served, so it is no edition.
+ * administrator. It changes the domain's page and what AI clients read about the domain, never
+ * what is served, so it is no edition.
  */
 export async function describeArea(
   tx: Queryable,

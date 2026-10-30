@@ -218,66 +218,6 @@ export const goldenCaseSchema = z
   )
 export type GoldenCase = z.infer<typeof goldenCaseSchema>
 
-/** What one assistant turn must and must not do (FR-702 to FR-709). */
-export const assistantExpectSchema = z.object({
-  /** At least one of these tools is called. */
-  tools_any: z.optional(z.array(z.string()).check(z.minLength(1))),
-  tools_none: z.optional(z.array(z.string()).check(z.minLength(1))),
-  /** The person is asked to confirm this tool, and nothing is saved meanwhile. */
-  confirmation: z.optional(z.string()),
-  /** Either a confirmation of this tool, or a question or request back for the facts it lacks. */
-  confirmation_or_question: z.optional(z.string()),
-  cites: z.optional(ids),
-  cites_any: z._default(z.boolean(), false),
-  canaries: z._default(z.array(z.string().check(z.minLength(6))).check(z.maxLength(5)), []),
-  forbidden_phrases: z._default(z.array(text).check(z.maxLength(10)), []),
-  asks_no_identity: z._default(z.boolean(), false),
-  /** The answer never asks which metric, market or dates the person means. */
-  asks_no_scope: z._default(z.boolean(), false),
-  /**
-   * The answer links at least one of these pages of Heed, by path, such as `/docs/mcp`: a link to
-   * one of its headings counts.
-   */
-  links_any: z.optional(
-    z.array(z.string().check(z.regex(/^\/[a-z][a-z0-9/-]*$/))).check(z.minLength(1)),
-  ),
-  /** No accepted item, decision, edition, role or saved draft changes. */
-  unchanged: z._default(z.boolean(), true),
-})
-
-export const assistantCaseSchema = z.object({
-  id: questionIdSchema,
-  /** A case the runner already has (src/server/modules/assistant/cases.ts), or a new one. */
-  origin: z.enum(['existing', 'new']),
-  /**
-   * `companion`: a turn the companion review saw fail, where it must reason and know the person.
-   * `meta`: a message about the assistant itself (a greeting, thanks, what it can do) or outside
-   * Heed, answered at once and never with a question about the scope.
-   * `industry`: a question whose answer depends on what the business is and the words it uses,
-   * which About our business tells the assistant; run with `--about-business on` and `off` to
-   * compare what that background adds.
-   * `pilot`: a conversation the captain's pilot saw go wrong, kept visible so anyone may tune
-   * against it, such as a domain named by another spelling that holds nothing yet.
-   * `help`: a question about how Heed itself works, answered from Heed's help pages (docs/old-help)
-   * with a link to the page, as the Docs area and agents over MCP answer it.
-   */
-  type: z.enum([...caseTypes, 'assistant_task', 'companion', 'meta', 'industry', 'pilot', 'help']),
-  split: z._default(z.enum(['development', 'held_out']), 'development'),
-  as_of: date,
-  turns: z
-    .array(
-      z.object({
-        say: z.string().check(z.minLength(2), z.maxLength(2000)),
-        expect: assistantExpectSchema,
-        rubrics,
-      }),
-    )
-    .check(z.minLength(1), z.maxLength(5)),
-  source: z.string().check(z.minLength(1), z.maxLength(300)),
-  notes: z.optional(z.string().check(z.maxLength(600))),
-})
-export type AssistantGoldenCase = z.infer<typeof assistantCaseSchema>
-
 export const goldenSetSchema = z.object({
   /** Bumped with every change to a case after a real run, with the reason in the case's notes. */
   version: z.number().check(z.int(), z.minimum(1)),
@@ -288,7 +228,6 @@ export const goldenSetSchema = z.object({
     fixtures: z.string(),
   }),
   cases: z.array(goldenCaseSchema),
-  assistant: z.array(assistantCaseSchema),
 })
 export type GoldenSet = z.infer<typeof goldenSetSchema>
 

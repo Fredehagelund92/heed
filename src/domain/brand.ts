@@ -35,26 +35,10 @@ export function productNameFrom(value: string | undefined): string {
   return value === undefined || productNameProblem(value) ? DEFAULT_PRODUCT_NAME : value.trim()
 }
 
-/** The token a help page (docs/old-help) writes where it names the product. */
+/** The token a help page (docs/help) writes where it names the product. */
 export const PRODUCT_TOKEN = '{{product}}'
 
 /** A help page's text with the product's name in place of each token. */
 export function withProductName(text: string, productName: string): string {
   return text.replaceAll(PRODUCT_TOKEN, () => productName)
-}
-
-/**
- * A help page's parsed front matter or body with the product's name in place of each token, in
- * every string it holds. The name goes in after parsing, never through the YAML, so punctuation in
- * a name cannot change what a page says.
- */
-export function withProductNameIn<T>(value: T, productName: string): T {
-  if (typeof value === 'string') return withProductName(value, productName) as T
-  if (Array.isArray(value))
-    return value.map((item: unknown) => withProductNameIn(item, productName)) as T
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, withProductNameIn(item, productName)]),
-    ) as T
-  return value
 }

@@ -2,7 +2,6 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import type { FastifyInstance } from 'fastify'
 import type { Database } from '../db/database.ts'
 import type { JobRunner } from '../modules/jobs/index.ts'
-import type { Hub } from '../modules/notifications/index.ts'
 import type { Metrics, Sample } from '../observability/metrics.ts'
 
 export interface MetricsSources {
@@ -11,7 +10,6 @@ export interface MetricsSources {
   token: string | undefined
   database: Database
   jobs: Pick<JobRunner, 'overview'>
-  hub: Pick<Hub, 'size'>
 }
 
 const queueStates = ['queued', 'active', 'deferred', 'failed'] as const
@@ -41,15 +39,8 @@ export function registerMetricsRoutes(app: FastifyInstance, sources: MetricsSour
 const seconds = (from: Date | null, to: Date) =>
   from === null ? NaN : Math.max(0, (to.getTime() - from.getTime()) / 1000)
 
-async function collect({ database, jobs, hub }: MetricsSources): Promise<Sample[]> {
-  const samples: Sample[] = [
-    {
-      name: 'heed_sse_streams',
-      help: 'Open live event streams.',
-      type: 'gauge',
-      values: [{ value: hub.size }],
-    },
-  ]
+async function collect({ database, jobs }: MetricsSources): Promise<Sample[]> {
+  const samples: Sample[] = []
   const pool = database.stats?.()
   if (pool)
     samples.push({

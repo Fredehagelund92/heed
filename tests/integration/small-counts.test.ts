@@ -94,7 +94,7 @@ beforeAll(async () => {
     ids.commonGap = shown.gap
     ids.rareTopic = hidden.topic
   })
-  // Gap events reach inboxes and the activity feed through the outbox relay.
+  // Gap events reach inboxes through the outbox relay.
   await client.query('select cl_outbox_relay(1000)')
 })
 afterAll(() => app.close())
@@ -106,8 +106,8 @@ async function sweep(headers: Record<string, string>, gap: string) {
   const bodies: { surface: string; body: string }[] = []
   const values = { id: gap, areaId: 'finance', label: 'x', key: 'privacy.min_count', tool: 'x' }
   for (const op of contractOperations()) {
-    // Reading operations only; the live stream is read through the inbox and activity it feeds.
-    if (op.method !== 'GET' || op.name === 'events.stream') continue
+    // Reading operations only.
+    if (op.method !== 'GET') continue
     for (const query of ['', '?areaId=finance', '?weeks=12', '?areaId=finance&weeks=12']) {
       const response = await app.inject({
         method: 'GET',
@@ -176,34 +176,5 @@ it('keeps it out of /metrics and the analytics views', async () => {
     expect(views).toContain(common)
   } finally {
     await client.query(`set role ${identifier(localRoles.owner)}`)
-  }
-})
-
-it('answers a test link on a gap under the minimum as if the gap did not exist', async () => {
-  // The stranger owners another area, so the maintain operations reach the gap service.
-  const response = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/sign-in',
-    headers: { origin, 'x-heed-csrf': 'dev-sign-in' },
-    payload: { email: 'stranger@example.test' },
-  })
-  const headers = {
-    cookie: response.cookies.map((c) => `${c.name}=${c.value}`).join('; '),
-    'x-heed-csrf': response.json<{ csrfToken: string }>().csrfToken,
-    origin,
-  }
-  for (const url of [
-    `/api/v1/gaps/${ids.rareGap}/tests`,
-    `/api/v1/gaps/${ids.rareGap}/tests/finance-question/unlink`,
-  ]) {
-    const refused = await app.inject({
-      method: 'POST',
-      url,
-      headers,
-      payload: { question: 'finance-question' },
-    })
-    expect(refused.statusCode, url).toBe(404)
-    expect(refused.body).not.toContain(rare)
-    expect(refused.body).not.toContain(ids.rareTopic!)
   }
 })

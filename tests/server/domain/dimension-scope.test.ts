@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { scopeNames } from '../../../src/domain/catalogue.ts'
-import { draftFromTopic } from '../../../src/domain/gaps.ts'
 import { canRead } from '../../../src/domain/links.ts'
 import { areaOfMetrics, topicFor } from '../../../src/domain/gap-reports.ts'
 import { bundle, event } from './fixtures.ts'
 
 /*
   A scope that names a dimension with any value ("market: any value", FR-126), where it reaches
-  beyond the resolver: who may read the item, the catalogue's shelves, topics and gap drafts.
+  beyond the resolver: who may read the item, the catalogue's shelves, and topics.
 */
 const anyMarket = { metrics: ['metric:orders'], dimensions: ['dim:market'], dimensionValues: [] }
 
@@ -70,18 +69,5 @@ describe('a topic (FR-604)', () => {
     expect(areaOfMetrics(['metric:orders', 'metric:ctr'], metricArea)).toBeNull()
     expect(areaOfMetrics(['metric:unknown'], metricArea)).toBeNull()
     expect(areaOfMetrics([], metricArea)).toBeNull()
-  })
-
-  it('starts a draft about any value of the dimensions it named (FR-616)', () => {
-    expect(
-      draftFromTopic(
-        {
-          metricKeys: ['metric:orders'],
-          valueKeys: [],
-          dimensionKeys: ['dim:market'],
-        },
-        'finance',
-      ).scope,
-    ).toEqual(anyMarket)
   })
 })

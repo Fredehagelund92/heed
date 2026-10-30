@@ -1,6 +1,6 @@
 /*
   The anchor GitHub gives a Markdown heading, so a link to a heading of a help page works on
-  GitHub, in the app's Docs area and in what search_help returns (help-pages.ts).
+  GitHub, and in the app's Docs area.
 */
 
 /**

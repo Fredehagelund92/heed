@@ -1,21 +1,10 @@
 import { ORPCError } from '@orpc/client'
-import type {
-  ConnectInfo,
-  TryIt,
-  TryItInput,
-  TryItReading,
-  TryItReadInput,
-} from '../../../contract/connect.ts'
+import type { ConnectInfo, TryItReading, TryItReadInput } from '../../../contract/connect.ts'
 import { questionReading } from '../../../domain/question-reading.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
-import { byteSize } from '../../mcp/service.ts'
 import { personOnly, toolNames } from '../../mcp/tools.ts'
-import { enabledTools, loadLiveBundle, type ServingBundle } from '../editions/index.ts'
-import { previewDelivery } from '../proposals/index.ts'
-
-/** The gateway's own size limit: no client is ever answered more (FR-408). */
-const REPLY_LIMIT = 100_000
+import { enabledTools, loadLiveBundle } from '../editions/index.ts'
 
 /**
  * Connect your AI, for every signed-in person (FR-404). `address` is the MCP server's public
@@ -47,40 +36,6 @@ export async function connectInfo(
     "select enabled from client_policies where client_label='signed-in'",
   )
   return { address, tools, clients, signIn: signIn && address !== null && Boolean(shared?.enabled) }
-}
-
-/**
- * What an agent would get (Try it): get_facts on the live edition for a typed scope, with the
- * code that serves agents, no model and nothing recorded: no delivery, no gap, no question
- * (FR-602, FR-603). The bundle is read in the person's transaction and resolved with no
- * audience groups, which is every person's audience while groups are parked, so the reply is
- * the caller's own and never another audience's. A caller may pass the bundle: the live edition
- * it already read, or the live edition with a draft in it.
- */
-export async function tryIt(
-  tx: Queryable,
-  clock: Clock,
-  input: TryItInput,
-  /** The web app's address, so the items' pages are the ones an agent gets (FR-347). */
-  web: string | null = null,
-  served?: ServingBundle,
-): Promise<TryIt> {
-  const bundle = served ?? (await loadLiveBundle(tx))
-  if (!bundle)
-    throw new ORPCError('PRECONDITION_FAILED', {
-      message:
-        'Nothing is shared with agents yet. They get facts once an owner accepts the first one.',
-    })
-  const reply = await previewDelivery(bundle, clock, { ...input, question: '' }, web)
-  // Nothing was delivered, so there is no delivery for an agent to give feedback on.
-  const { delivery_id: _delivery, ...result } = reply.structuredContent
-  // The digest names the tools' version for the person; an agent's client gets it in _meta.
-  const digest = reply._meta?.tool_schema_digest
-  return {
-    result: { ...result, ...(digest ? { tool_schema_digest: digest } : {}) } as TryIt['result'],
-    bytes: byteSize(reply),
-    limit: REPLY_LIMIT,
-  }
 }
 
 /**

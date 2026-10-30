@@ -1,6 +1,6 @@
 # MCP and API reference
 
-How agents connect over MCP and what they get, and the HTTP API for definition sources, proposals, review and release, live updates and the assistant. The API is described once in `src/contract` and published as [OpenAPI](api/openapi.json).
+How agents connect over MCP and what they get, and the HTTP API for definition sources, proposals, review and release, and the inbox. The API is described once in `src/contract` and published as [OpenAPI](api/openapi.json).
 
 ### Connect Claude Code to Heed
 
@@ -19,8 +19,8 @@ claude mcp add --transport http heed http://localhost:3000/mcp \
 Since the agent contract (Heed v1, [the product page](product.md#10-what-agents-get)) the server
 offers six tools, described in one list (`AGENT_TOOLS` in `src/domain/mcp-text.ts`):
 `get_context`, `find_context`, `read_context`, `report`, `suggest_context` and `get_related`.
-`improve_question`, `domain_overview`, `what_changed` and `search_help` left the list (the in-app
-assistant still runs them in process, by the same code).
+`improve_question`, `domain_overview`, `what_changed` and `search_help` left the list, and left
+the service with the in-app assistant (30 Oct 2026).
 
 The earlier ids stay for one release as deprecated ids: `get_facts` (now `get_context`),
 `find_facts`, `search_facts` and `search_context` (now `find_context`), `read_item` (now
@@ -155,10 +155,7 @@ and a term that means something else now as `unresolved`. A neighbour the caller
 `links_withheld`, never listed or counted in `counts`, and a start the caller may not see is "Not
 found", exactly like one that does not exist. A link never changes what `get_context` delivers.
 The pure resolver is `src/domain/links.ts`. **It is on by default**, with its own switch
-(`POST /tools/get_related`). For the assistant, `assistantRelatedTool` in
-`src/server/mcp/related-tool.ts` is the same tool as an AI SDK tool run in process (null while
-switched off, and checked again on each call); `relatedCitations` lists the ids a turn may cite
-from its result: items in service only, never a retired item's marker.
+(`POST /tools/get_related`).
 
 **`suggest_context`** (FR-121) lets an agent send a suggestion, as the person it acts for, after
 the person says yes. **It is on by default**, and the `propose` scope is granted at consent (the
@@ -180,7 +177,7 @@ Text that looks like personal data or a secret (FR-117) is refused and nothing i
 saving, accepted items whose scope and dates overlap and whose words read alike are returned as
 `possible_duplicate`, so the agent asks the person and calls again with `item_id` or
 `new_item: true`; without one domain it answers `needs_area`. Then it saves the draft through the
-same function as the assistant's `create_draft` (`saveAgentDraft`) and sends it for review through
+`saveAgentDraft` and sends it for review through
 the same path as the person's own Send for review (`proposals.submit`), so it waits in the owner's
 queue (`status: "suggestion_sent"`, with a link to it waiting in the person's Inbox). Nothing is
 accepted or published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
@@ -269,8 +266,8 @@ Run `npm run connectors:sync` to refresh stored demo definitions or a local Cube
 does the same on each source's own schedule, hourly by default (`connectors.sync`, which runs every
 five minutes and reads the sources that are due), and administrators watch them, read them again
 and pause them in Settings › Integrations (`GET /api/v1/sources`,
-`GET /api/v1/sources/{id}/activity`, `PUT /api/v1/sources/{id}/paused`) and in Administration ›
-Sources. There an administrator also adds a source, such as a Cube model in a Git
+`GET /api/v1/sources/{id}/activity`, `PUT /api/v1/sources/{id}/paused`). There an administrator
+also adds a source, such as a Cube model in a Git
 repository read with a read-only token, tests it before saving and changes its settings
 (`POST /api/v1/sources/test`, `POST /api/v1/sources`, `PUT /api/v1/sources/{id}`), choosing the
 views it reads and the domain of each, and disconnects it (`POST /api/v1/sources/{id}/disconnect`). See
@@ -278,8 +275,8 @@ views it reads and the domain of each, and disconnects it (`POST /api/v1/sources
 invariants, sources an administrator adds and snapshot behavior;
 [Security and egress](connectors/security.md) for the secret store and the hosts a connector
 may reach; and [the Cube connector](connectors/cube.md) for `CUBE_MODEL_DIR`, domain
-overrides, renames and the `sources.cube_model_url` setting that links a metric's or dimension's
-Source tab to its model file. Connector authors start at
+overrides, renames and the `sources.cube_model_url` setting that builds the address of a model
+file. Connector authors start at
 [Writing a connector](connectors/authoring.md).
 
 A refresh compares each definition with what accepted items recorded:
@@ -287,12 +284,10 @@ A refresh compares each definition with what accepted items recorded:
 - An item whose live version references a definition that changed is flagged `needs_check`; one
   that references a definition that disappeared is flagged `source_missing`, naming the new id
   when `CUBE_RENAMES_FILE` lists it. Flagged items are still delivered, as `unverified`, and the
-  domain's owners get an inbox item (`item.flagged`). An owner clears `needs_check`
-  with `POST /items/{id}/recheck`; any accepted version written against the current definitions
-  clears either flag in the edition that serves it.
+  domain's owners get an inbox item (`item.flagged`). An accepted version written against the
+  current definitions clears either flag in the edition that serves it.
 - A definition an item only mentions never flags it. The link shows `source_changed` or
   `source_missing`, the item is delivered as before, and the owners are told (`item.links_stale`).
-  A recheck records the current marks, so the links read as current again.
 - A domain that changed in Cube flags nothing: owners of the terms that use the definition are
   told (`vocabulary.domain_changed`), and serving keeps the accepted domain until a vocabulary
   proposal changes it.
@@ -301,31 +296,22 @@ A refresh compares each definition with what accepted items recorded:
 `GET /api/v1/catalogue` lists every metric and dimension of the live vocabulary (FR-136): its
 definition as the source last read it (the description copy, never a calculation), its domain
 (the vocabulary's domain, then the source's, then none), its status, and what the library holds
-about it, counted per term in the same answer. `GET /api/v1/catalogue/{kind}/{id}` reads one,
-a dimension with its values. Both read as the library does.
+about it, counted per term in the same answer. It reads as the library does.
 
 `GET /api/v1/library` is the library index: every item the person may read, with what a list's
 columns read from it. `lastChecked` is the last acceptance of the current version (a recheck is
-one), `trust` is `current`, `needs_check` or `ended` by the rule `GET /api/v1/library/freshness`
-counts by, `chips` is the scope by name, and `opened` says whether the person opened the item
+one), `trust` is `current`, `needs_check` or `ended`, `chips` is the scope by name, and `opened` says whether the person opened the item
 (Mark as checked takes only those). `GET /api/v1/search?q=` is search everywhere, for
 the command palette: items, definitions (by name or another name), domains and people whose names
 have the words, at most five of each, a name that starts with the words first.
 
-The "where it applies" picker reads `GET /api/v1/vocabulary/search` (a page of metrics and
-dimensions, with per dimension "any value", a count and a few values; a page at a time inside one
-dimension). A scope can
-name a dimension with any value (FR-126); see `docs/api/openapi.json` for the shapes.
-
-`GET /api/v1/sources/flags` lists flagged items with the definitions behind each flag, oldest
-first. `GET /api/v1/sources/stale-links` lists mentions in live items whose target was retired,
-replaced, changed or is gone. Both take an optional `areaId`.
+A scope can name a dimension with any value (FR-126); see `docs/api/openapi.json` for the shapes.
 
 ## Proposal write API
 
 The proposal write API adds `/api/v1/proposals` to the session-authenticated contract. Use the sign-in cookie,
-allowed `Origin`, and session `x-heed-csrf` header for writes. Create, submit, comment and discard
-also require an `Idempotency-Key` header (8-128 printable characters). The key belongs to the acting
+allowed `Origin`, and session `x-heed-csrf` header for writes. Create and submit also require an
+`Idempotency-Key` header (8-128 printable characters). The key belongs to the acting
 person for 24 hours: an identical request replays its response, different content returns 422,
 and a concurrent request using the same key returns 409. A rolled-back request can be retried.
 
@@ -334,41 +320,23 @@ and a concurrent request using the same key returns 409. A rolled-back request c
 - `GET /proposals` supports `own`, `areaId`, `state`, `limit` and `offset`. It answers
   `{ rows, total, limit, offset }` for every kind of proposal the person may read (item, retire,
   recheck and vocabulary), newest first by actual timestamp. `total` counts the readable matches
-  before pagination. `GET /proposals/{id}` and `/events` read a proposal and its timeline
-  under row security; `draft` holds item form content only and is empty for the other kinds.
-- `PUT /proposals/{id}/draft` replaces the saved form with `{ revision, draft }`. Save is allowed
-  while drafting or after changes are requested. Every mutation checks `revision`; a stale
-  write returns 409 with the current record.
+  before pagination. `GET /proposals/{id}` reads a proposal under row security; `draft` holds
+  item form content only and is empty for the other kinds. Every mutation checks `revision`; a
+  stale write returns 409 with the current record.
 - `POST /proposals/{id}/submit` takes `{ revision }`. The proposer submits an immutable version,
   scope, evidence, references, mention rows, digests and format checks in one transaction with
   the proposal state, audit and outbox records. Resubmit creates another version. Submission
   does not publish anything.
-- `POST /proposals/{id}/claim` takes `{ revision }`. A domain owner can claim.
-  `/hand-over` adds `personId` and requires the current claimant and an active domain reviewer.
-- `/comments` takes `{ revision, text, replyTo? }`; `/withdraw` takes `{ revision, reason }`.
-  Comments and withdrawal reasons are plain text, without mentions. Only the proposer withdraws.
-- `POST /proposals/{id}/discard` takes `{ revision }` and closes a draft that was never sent;
-  withdraw is for a sent proposal, which answers 409. The proposer or an administrator may
-  discard. The row stays for its timeline and audit entries, but reads as not found and leaves
-  every list, the overlap check and a gap's proposals. The answer is `{ id, discardedAt }`.
-- `GET /proposals/{id}/overlap` returns accepted overlaps and the caller's own open proposals,
-  each with title and kind (proposals also with number and state). An owner or approver
-  of the domain, or an administrator, also gets other people's open proposals in `otherProposals`;
-  anyone else gets only `otherProposalExists`. Scope and validity decide overlap.
-- `POST /proposals/{id}/preview` takes `question`, optional `metrics`, `dimension_filters`, and
-  `window: { from, to }` (inclusive). It uses the same resolver, link filtering, instructions and
-  response formatter as `get_facts`, in a private candidate bundle. It records no deliveries
-  or demand. Preview access is limited to the proposer, domain owners and administrators
-  for unaccepted content.
-  The answer is `{ proposalId, revision, result }`, where `result` is `get_facts`'s reply,
-  typed by `previewReplySchema` in `src/contract/proposals.ts`.
+- `POST /proposals/{id}/withdraw` takes `{ revision, reason }`. The reason is plain text, without
+  mentions. Only the proposer withdraws.
 
 Draft fields follow `src/contract/proposals.ts` and `src/domain/draft.ts`. The service derives
 identity from the session, title from summary when absent, risk from kind, owner from domain,
 and definition references and their change marks from governed scope. Missing domain can be
 inferred from governed scope or references; ambiguous scope requires an explicit domain. An
 omitted review date starts at 90 days from the current UTC day. Submission due dates use the
-domain's review time in weekdays. A recheck moves the review date (see [Review and release API](#review-and-release-api)).
+domain's review time in weekdays. A recheck (Mark as checked, or Still true on a Due for a check
+card) moves the review date.
 
 Use `summaryMarkup` and `bodyMarkup` for `@[visible words](target)` tokens; tokens supplied in
 plain summary/body fields are normalized too. Plain text and mention rows are derived on the
@@ -393,38 +361,11 @@ resubmission, mention parser parity, Cube metadata and disclosure boundaries.
 
 ## Review and release API
 
-The review and release API adds decisions, check levels 2 and 3, gates, publishing, rollback, retirement, rechecks, the
-stop switch and vocabulary proposals to the same contract. Writes need the session
-cookie, `Origin` and `x-heed-csrf`; decisions, retirements, rechecks, rollback and
-vocabulary proposals also take an `Idempotency-Key`.
+The review and release API adds check levels 2 and 3, gates, publishing, rollback, suggestions to
+archive and the stop switch to the same contract. A person decides a suggestion through the
+review path below. Writes need the session cookie, `Origin` and `x-heed-csrf`; a suggestion to
+archive and a rollback also take an `Idempotency-Key`.
 
-- `GET /review/queue` lists open proposals the person may decide, highest risk first, then
-  oldest: an owner those of their domain, an administrator every one, vocabulary included. An
-  approver decides nothing any more, so their queue is empty.
-- `GET /proposals/{id}/review` returns the field diff against the version in service, mentions
-  added and removed, narrower-audience warnings, findings, the gate and the decisions. The gate
-  is the newest result of levels 1 to 3, which every proposal needs whatever its risk (FR-513),
-  whether an owner or an administrator accepted (`approvals.approver` is always null), and the
-  database's own verdict (`cl_item_version_problem`). `POST /proposals/{id}/checks` runs levels
-  1 to 3 again. No answer test runs on a proposal.
-- `POST /proposals/{id}/review-edits` lets an owner of the domain (not the proposer)
-  change a submitted or in-review item proposal: `riskLevel`, `reviewDate`, `claim` (with
-  authority and quote for `effect_stated`), `ownerId` and `areaId`, with an optional `reason`.
-  Name only what changes; the content stays the proposer's. Moving to another domain also needs an
-  owner there, or an administrator. The edit is a new version that supersedes the
-  submitted one, so earlier accepts and check results stay with the old version; an open answer
-  test run of the old version, made before Heed v1, is cancelled, and levels 1 to 3 run again. A
-  risk level changes no check and needs no other accept. It answers the review, as
-  `GET /proposals/{id}/review` does.
-- `POST /proposals/{id}/decisions` takes `{ revision, outcome, reason, capacity? }` with
-  `accept`, `request_changes` or `reject`. An owner of the domain or an administrator decides; an
-  approver decides nothing (403). An administrator decides any proposal, their own too, and an
-  owner their own in the domain; anyone else never decides their own (403). Accept runs levels 1
-  to 3 against the current live edition, and the accept publishes an edition in the same
-  transaction: the version enters service, replaced items leave it, the edition is sealed with its
-  content digest and the live pointer moves. An accept given before Heed v1 that waited for the
-  approver publishes when the person who gave it accepts again. A change written against a
-  version that is no longer live returns 409.
 - Level 2 probes the item's own scope with the resolver: inside it and on its first day it must
   be delivered (an exact match, a partial one with no dimension filter); the day before, its end
   day, another value of a filtered dimension and an unrelated metric must stay silent. Level 3
@@ -434,59 +375,17 @@ vocabulary proposals also take an `Idempotency-Key`.
 - No answer test gates a proposal (FR-513): levels 4 and 5 (`answer_impact`, `answer_full`) are
   history, kept on the versions whose runs recorded them before Heed v1. A failed level 1 to 3
   blocks acceptance, with no override (FR-514).
-- `POST /items/{id}/retire` retires at once (owner or administrator, with a reason).
-  `POST /items/{id}/retire-proposals` lets anyone propose it; one can be open per item.
-- `POST /items/{id}/recheck` records "checked, still correct": a new version with the same content,
-  the current change marks and a review date `review.default_days` from today, for an item
-  without an end date or one that was given a review date (so its check is no longer due). It answers `{ proposal, edition }`. Levels 1 to 3 run at once; when they pass, at every
-  risk level, the recheck is accepted and publishes a `source_rechecked` edition and clears a
-  needs-check flag. When one fails it answers 422 with the gate, and nothing is published.
-- `POST /vocabulary/proposals` proposes a new or changed term. An owner of the term's domain or an
-  administrator decides; a term without a domain is the administrator's. A Cube domain that
-  differs from a metric's domain is a warning when proposed and refused at the decision; a
-  dimension's Cube domain is only a suggestion, since views share dimensions such as market.
-- Terms from the definition source, for administrators: `GET /vocabulary/candidates` lists the
-  members no term or open proposal links yet, each as the term to propose (one per metric, one
-  per dimension name however many views share it; dates and ids are not suggested), and
-  `POST /vocabulary/batches` proposes many terms in one step, all or none, in one import batch
-  (a value may name a dimension of the same batch). Each term is still decided on its own by an
-  owner of its domain or an administrator, the proposer too; `POST
-/vocabulary/batches/{batchId}/decisions` accepts or rejects every open term of the batch the
-  person may decide, and an accept publishes them as one edition. The proposer can withdraw a
-  term while it waits (`POST /proposals/{id}/withdraw`).
-- `GET /editions` and `GET /editions/{label}/diff?against=` list editions and what changed, for
-  owners of any domain and administrators. `POST /editions/{label}/rollback`
-  (administrator) serves that edition's content as a new edition with the same digest. When a
+- `POST /items/{id}/retire-proposals` (API only, with no screen in the web app) lets anyone
+  suggest archiving an item, with a reason; one can be open per item. Its owners review it like
+  any suggestion, and publishing it archives the item.
+- `GET /editions` lists editions, for owners of any domain and administrators.
+  `POST /editions/{label}/rollback` (administrator, API only, with no screen in the web app)
+  serves that edition's content as a new edition with the same digest. When a
   version it would serve again no longer passes the serving rules (for example a check that
   failed since), it answers 409 naming the item and the reason, with every such version in
   `data.blocked`.
-- Seeing what changed (Editions design G1, G2, G3 and G7), for the same people. Each changed item
-  is `added`, `changed`, `checked` (checked, still correct), `resaved` (another version, the same
-  content), `retired` (retired or replaced) or `removed` (taken out by going back), and carries
-  who and why: the proposal that brought its version in, the proposer and channel, the owner who
-  edited it in review, and the accept (or retire) decisions with their reasons. Like the edition
-  export, a version with an audience group (groups are parked) is only counted, as `withheld`:
-  its title, attributes and fields stay out, and the one-item view answers 404.
-  - `GET /editions/feed?before=&after=&through=&limit=` lists editions newest first, each with counts by
-    change, the domains, the highest risk, vocabulary changes, the first ten changed
-    items, who made it and why, and one sentence in plain words built from a template ("Norway
-    closure" changed in Finance. Proposed by Maria Lindqvist, accepted by Jon Abara. Why: the
-    owner's reason). `next` is the `before` of the next page; `after` stops at an edition and
-    `through` starts at one (included), for a range edition by edition.
-  - `GET /editions/compare?from=&to=` nets every item that differs between two editions once (by
-    default the live edition against the one before it; `to` older than `from` compares
-    backwards), with counts by change, domain, kind and risk over all of them, a sentence, and a
-    page of items (`change`, `areaId`, `kind`, `riskLevel`, `limit` up to 200, `offset`) with the
-    names of the fields that differ. Sealed editions never change, so a page of two named editions
-    is stable.
-  - `GET /editions/compare/items/{id}?from=&to=` shows one item field by field (the fields the
-    system fills in, such as change marks and markup, are marked `systemFilled`), its mentions
-    added and removed, and each edition in between that changed it, with who and why.
-  - `GET /editions/{label}/rollback-preview` (administrator) compares the live edition with that
-    one before anyone goes back, and lists the versions that cannot be served again.
-  - Every version of a seeded item holds the same content, so its starting history reads as
-    added, saved again and retired, except the demo's one regression, whose second version ended
-    its note.
+- `GET /editions/{label}/rollback-preview` (administrator, API only) compares the live edition
+  with that one before anyone goes back, and lists the versions that cannot be served again.
 - `POST /serving/stops` (administrator) switches delivery off or on for an item, a domain or
   everything. Serving reads the overlay on every call, so it applies to the next request.
   `GET /serving/stops` lists the stops that are on for every signed-in person, so the app can
@@ -506,7 +405,7 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   decided; a suggestion to archive shows the version it archives, and once archived the version
   it archived. The read holds the change by
   kind and the values that moved (`diff`), the stored Markdown line by line with the changed
-  words (`source`), and, for what an agent or the assistant wrote, each claim against the
+  words (`source`), and, for what an agent wrote, each claim against the
   sentence it copied (`claims`). It carries the clashes, the overlaps, the readiness line, the
   person's read state and Try it: the suggestion's own question answered on the live edition
   and with the suggestion in it, as agents would get it. A mention of an item the audience rule
@@ -564,8 +463,6 @@ that can be taken back answers with an `undo` token for `POST /decisions/undo`.
   every owner, a named report too), and `still_true` or `archive` for a Due for a check card (a
   recheck, by an owner of the item's domain or an admin as Mark as checked is, or a retirement).
   Each answers with an undo token.
-- `POST /gaps/{id}/scope-draft` starts a draft from a Not found card's scope, dated to its month,
-  or returns the one the person already started from it.
 - `GET /setup` is the setup checklist of a new workspace (FR-816), read from what exists: what
   the business is about, one context item, a question in Ask, an agent connected, and a source
   of definitions. Ask keeps no record of its own (FR-602), so its step is a mark with no person or
@@ -642,11 +539,11 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   the versions (`archived`, `owners`). `canChange` says whether the person may change it.
 - `POST /items/{id}/read` records that the person opened an item, in the quick view or on its
   page. Mark as checked takes only items the person opened.
-- `POST /items/bulk/plan` and `POST /items/bulk` take `{ action, rows, areaId?, kind?, personId? }`
+- `POST /items/bulk` takes `{ action, rows, areaId?, kind?, personId? }`
   (FR-139), up to 200 rows: published items by id and drafts by their proposal's id. `action` is
   `archive`, `delete` (drafts only), `domain`, `kind`, `owner_add`, `owner_set` or `check`.
   Owners of an item's domain and admins change it, and a domain is moved into only by its owners
-  and admins (403 otherwise). The plan names the rows it acts on and each other row with a code
+  and admins (403 otherwise). It names the rows it acts on and each other row with a code
   (`not_found`, `not_allowed`, `archived`, `draft`, `published`, `same_domain`, `same_kind`,
   `not_owner_there`, `already_owner`, `only_owner`, `not_opened`), a few words (`why`) and a
   sentence (`message`). The change does each row it may in full or not at all: an archive is a
@@ -688,8 +585,7 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
 A context item's kind belongs to each version (migration 0008), so Change kind keeps its id,
 history and links. In a change to many items, an owner of a draft's domain may delete it, and
 Mark as checked records a check even when nothing else moved, for an owner of the domain or an
-admin; `POST /proposals/{id}/discard` and `POST /items/{id}/recheck` keep their own rules for the
-earlier screens.
+admin.
 
 ## Terms and synonyms
 
@@ -725,15 +621,10 @@ synonym means what that one means.
   `limits.undo_seconds`, for its maker only.
 - `GET /terms/deleted` lists the deleted terms, newest first, with who deleted them and the
   synonyms that went with them, for the domain's owners, admins and whoever deleted them.
-  `POST /terms/restore` takes `{ ids }` and brings each back with its synonyms; a word that means
+  `POST /terms/restore` (API only, with no screen in the web app) takes `{ ids }` and brings each back with its synonyms; a word that means
   something else by now stays deleted, in `skipped` with why. A term is never removed.
 - `GET /terms/{id}/history` is a term's versions, newest first: what each write made of it
   (`created`, `edited`, `moved`, `deleted`, `restored`) and who wrote it.
-- `GET /definitions/coverage` is coverage first: each metric and each term with its own meaning,
-  with how many live context items are about it, those with none first. A metric's items are
-  those that apply to it; a dimension is about every item, and a synonym's context is its
-  meaning's. `uncovered` of `measurable` have no context yet: agents asking about them get Not
-  found.
 - `GET /definitions/related?key=` is Related on a metric or a dimension, by its key
   (`metric:orders`, `dim:market`), in the shape of `GET /items/{id}/related`: the items that
   mention it or apply to it. A key agents do not read is not found.
@@ -742,162 +633,21 @@ Agents read the live terms and synonyms through `serving_terms()` (migration 001
 no person; the serving role has no grant on the terms tables. What they get is in the agent tools
 above (`terms`).
 
-## Live updates, inbox and activity
+## The outbox and inbox items
 
 Every write records an event in `outbox_events` in its own transaction. The relay
 (`src/server/modules/notifications`) picks events up within milliseconds of commit (PostgreSQL
 `NOTIFY`, with a five-second poll and the `outbox.relay` job as backstops), writes inbox items and
 numbers each event in the order it relays them. Events carry ids and states, never item or
-comment text.
+comment text. The Inbox reads the inbox items its alert cards come from (see [Alerts](#alerts)).
 
-- `GET /events` is a server-sent event stream for the signed-in person. Each message's `id` is
-  its relay number; reconnecting with `Last-Event-ID` replays exactly the events after it, then
-  continues live. A stream without one starts with `stream.ready` (the position to resume from);
-  an unknown or expired id gets `stream.reset`, which means refetch. Events are filtered per
-  person and per read: a proposal's events reach its proposer, the domain's owners
-  and administrators. `inbox: true` marks an event that also reached the person's inbox. A
-  comment line every 15 seconds keeps the stream open; the stream ends when the session does.
-- `GET /inbox` lists the person's items newest first (`filter` = `all`, `unread` or `archived`,
-  `limit`, `before`), with the unread count. `POST /inbox/read` and `/inbox/archive` take
-  `{ ids }`; `POST /inbox/read-all` takes no body. Each change sends `inbox.changed` to the same
-  person's other streams.
-- `GET /activity` lists submissions, comments, claims, hand-overs and withdrawals (and decisions
-  and releases) the person may see, newest first, optionally for one
-  `areaId`, paged by `before`. Entry ids equal stream ids.
+Inbox items go to the reviewers (every active owner of the domain) on submit, withdraw and the
+proposer's comments, and to the proposer on reviewer comments and decisions. Source notices (a
+flagged item, stale links, a changed domain) go to the domain's owners, or to the administrators
+for a term without a domain. Nobody is told about their own action.
 
-Inbox items go to the reviewers (the claimant, or every active owner of the domain
-while unclaimed) on submit, withdraw and the proposer's comments; to the proposer on claim,
-reviewer comments and decisions; and to the new reviewer on hand-over. Source notices (a flagged
-item, stale links, a changed domain) go to the domain's owners, or to the
-administrators for a term without a domain. Nobody is told about their own action.
-
-The web app does not read the stream: it reads a screen again after each change it makes, and when
-its tab comes back into view with what is older than half a minute.
-
-## Assistant
-
-The assistant runs behind `POST /assistant/chat` (FR-701 to FR-710). It explains deliveries
-and items, coaches questions, checks drafts and drafts items. It may propose, never accept or
-publish. No screen of the web app calls it: Ask answers with the answer engine.
-
-- **One turn per request**: the client holds the conversation as AI SDK UI messages and sends it
-  each turn (at most 60 messages and 200,000 characters) with the person's time zone (`timeZone`,
-  UTC when left out or unknown); the server keeps none of it (FR-603),
-  only the drafts a person confirms and the spend counters. The answer streams back as UI message
-  chunks over server-sent events, which the AI SDK's chat reads as they come.
-- **Tools** call the same services as the MCP tools, the form and review, in process and without
-  recording demand (FR-709): `get_facts`, `find_facts`, `read_item` and `improve_question`
-  on the live edition; `explain_item` (why one item does or does not apply to a scope, from the
-  resolver itself, naming the edition); `check_draft` (levels 1 to 3 as submit runs them, saving
-  nothing; test questions appear as counts only, FR-503); `find_overlaps`; `estimate_impact`
-  (what agents would get with the draft accepted, from the fixed rules: no answer test runs on a
-  proposal); `read_gap`;
-  `domain_overview` (a domain by its name, or every domain with the metric and dimension names
-  Heed knows) and `what_changed` (the live edition against the one before, for a domain or all);
-  `search_help` (how Heed itself works, from the help pages, through the MCP tool's function, with
-  the app's paths as links: the answer links the page it used, FR-715); and `create_draft`. A
-  draft is written with names, not ids: the domain, the owner and the
-  scope's metrics and dimension values as the person says them. Heed resolves them as the MCP
-  `draft_context` does (the domain defaults from the metrics, the owner from the domain), before
-  the person is asked to confirm, and a name it cannot match goes back to the model.
-- **Permissions** (FR-706): every tool names its operation, and runs only when it is one of the
-  assistant's own operations and a propose-only principal (no global or domain role) may perform it,
-  in its own transaction as the person, after the session is read again. There is no tool to
-  submit, accept, publish, retire, edit accepted items or administer, whoever uses it.
-  `create_draft` waits for the person's confirmation, signed by the service so a client can
-  confirm only the call the assistant proposed. The card shows every field the draft will be saved with, read only, and nothing opens until the person confirms; once saved the answer links to the draft. A summary over its limit (FR-118) is sent back to be shortened, never cut. It saves a draft with the channel `assistant`,
-  and the draft's `created` history entry carries the label "unreviewed draft" and the source of
-  each field it filled (FR-707). A confirmation sent twice saves one draft.
-- **Citations**: the answer reaches the person a sentence at a time, after a check. A sentence
-  that names an item id no tool returned in this conversation (in any letter case), or quotes text of 20
-  or more characters that no tool result (or the person's own text) holds, is replaced with a
-  plain notice. Quotations are checked whole, so one that runs across sentences is held until it
-  closes; double quotes and single quotes both count, and an apostrophe inside a word (aren't) is
-  not a quote mark. Each tool result is sealed with an HMAC (a key derived from the secret that
-  signs confirmations) over the person, the conversation, the call, the edition and an expiry of two
-  hours (`seals.ts`), sent as a `data-evidence` part. A later turn counts an earlier result as
-  evidence only when its seal verifies, so forged or edited history is not evidence, and a result
-  that expired or was read in an edition no longer live must be read again. A `data-citations`
-  part closes each answer with what it cited, what was removed, and how many cited items were read
-  in an earlier answer.
-- **Turn context**: each turn adds a second system block after the cached instructions, built on
-  the server from the session and the database (`turn-context.ts`), never from the conversation:
-  today's date and weekday in the person's time zone, the live edition, who the person is with their
-  roles and domains, the domains with their state and owner, and Heed's pages. The model never
-  asks for what Heed knows (ids, the person's role, a domain's name).
-- **Untrusted text** (NFR-024): item text, evidence, gap topics, pasted text and web pages reach
-  the model as tool results or as the person's message, never as instructions; gap notes are not
-  shown to it.
-- **Drafts from the web** (FR-714): `read_source` opens a page the person linked in the
-  conversation (or a `search_web` result) and hands the model its title and passages, so the
-  assistant fills the evidence itself: the page's address, one sentence in the page's language and
-  the day it was read. Heed reads it (`src/server/modules/web`): https to public addresses only, the
-  name resolved once with every answer public, each redirect checked again (at most five), 2 MB
-  decompressed and 15 seconds, text pages only, the page's own character set (some pages serve
-  Windows-1252 with none declared). Text that reads like instructions is pointed out in the result,
-  in English, Portuguese and Spanish. A draft whose evidence comes from a page read in the
-  conversation is marked an external source, unreviewed (`provenance.external`), with the automatic
-  quote match: a warning on the draft and in review when the sentence is not on the page, never a
-  block. `search_web` runs one search through the assistant's provider (Anthropic's web search on
-  the gateway's Messages API, on Claude Haiku 5.5, about USD 0.012 a search), returns titles and
-  links with official sources first, refuses search words that look like figures, ids or personal
-  data, and is off until `limits.web_searches_per_day` is above 0 (searches per person a day).
-  Every page read and search is counted in the spend ledger (`web_reads`, `web_searches`), a search
-  with its fee. `CL_WEB_READ_LOOPBACK=on` lets the tests serve their pages on this machine; it is
-  refused in production.
-- **Budgets** (FR-409): at most eight model steps and 2,000 output tokens a step. Before the first
-  step and between steps the turn checks the monthly cap, the assistant cap in
-  `limits.llm_feature_monthly_micros` and the person's daily limit against an estimate, and stops
-  with a message (`data-limit`) that names the limit. Usage from each step goes to the ledger at
-  once, and a step that ends early (client disconnect, the 90 second step timeout, a provider
-  error mid-stream) is recorded too: the provider's partial usage when there is one, otherwise an
-  estimate (known input plus the output streamed so far), counted in `estimated_calls`. A refusal
-  by the model ends with a plain message (`data-refusal`).
-- **Model**: `models.assistant` (Claude Sonnet 5.5 by default) with high effort and a prompt cache
-  breakpoint after the tools and instructions, where its provider has one. `MODELS=mock` is a
-  scripted assistant: it
-  picks one tool from the words of the message and explains its result, citing only what the tool
-  returned; a link pasted with a request for a draft is read first, and the draft is made from it. A greeting, thanks, "what can you do" and other messages about the assistant itself
-  get a plain answer with no tool, and a message it cannot place says it is the demo model
-  (`src/domain/assistant-meta.ts`). Errors are logged by kind and status only, never with a prompt.
-- **Ask's words** (FR-701, FR-710): with real models, the same model writes Ask's words from the
-  items the engine gave (see the answer engine, `POST /ask/lookup`). Their cases
-  (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
-  with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
-  `models.assistant`, which sends the cases' made-up questions and items to its provider.
-- **Test cases** (FR-710): `npm run eval:assistant -- --as <email>` runs the assistant's own cases
-  (explain a delivery, explain an item, why an item does not apply, coach a question, draft from
-  pasted text, an instruction hidden in pasted text, a request to publish) against the live
-  edition, with the scripted mock in every build (`tests/integration/assistant.test.ts`) and with
-  the real model on request (`--real --max-cost-usd`). Runs are recorded as `assistant_mock` and
-  `assistant_real` and listed apart under `GET /evals/runs` for administrators (a run of no domain).
-  Each case is tried three times (`--tries`), each try a fresh conversation of one or more turns
-  (`then`); the majority decides, or every try with `--pass-rule all`. Code checks what happened,
-  the judge model (`models.judge`) grades a turn's rubrics, and a case where the two disagree is
-  named. Every try is kept whole in `assistant_case_tries` (each turn's words and answer, the tool
-  calls with their inputs and results, citations, the time to the first words and the first
-  sentence, the verdict and the cost), readable by administrators and the person who ran it; a try
-  the provider kept failing is not made, and the run ends incomplete. `--golden` runs the golden
-  set's assistant cases instead (`db/seed/golden-set.yml`: definitions, conversations checked turn
-  by turn, the companion's turns, `meta` messages about the assistant itself, which must be
-  answered without a question about the metric, market or dates, and the `pilot` conversations a
-  pilot saw go wrong, such as a domain asked for by another spelling that holds nothing
-  yet, and `help` questions about how Heed itself works, which must call `search_help` and link the
-  help page, `links_any`), each on its as-of day; a case
-  whose items are not in the live edition is skipped, so run it on a database with the golden
-  library. `--type <type>` keeps one type, and `--dry-run` prints each case's estimated cost and
-  makes nothing. With the held-out key, `--golden` also runs the sealed held-out cases and reports
-  them as counts only ([The sealed held-out cases](evaluations.md#the-sealed-held-out-cases)).
-- **Ratings** (FR-712): the thumbs under a finished answer send `POST /assistant/ratings` with the
-  verdict (`helpful` or `wrong`, give_feedback's words) and the metric keys of the answer's scope,
-  nothing else: no question, answer or note, and the service refuses any other field. It stores
-  the verdict, the one domain those metrics belong to on the live edition (as a gap's topic takes
-  it; null when none or several) and the hour in `assistant_ratings`, with a random id and no
-  person, session or address, and no history entry or log line names who rated. Nothing can find
-  a rating again, so an answer is rated once; the page remembers which, in memory, until New chat.
-  Each person may rate `limits.assistant_ratings_per_minute` (default 20) a minute; over it, 429
-  with `Retry-After`. `GET /quality/ratings` gives the counts per domain and week
-  ([Quality reads](evaluations.md#quality-reads)).
+The web app has no live stream: it reads a screen again after each change it makes, and when its
+tab comes back into view with what is older than half a minute.
 
 ## Connect your AI and What an agent would get
 
@@ -906,43 +656,10 @@ Two reads for every signed-in person, with no model and nothing recorded:
 - `GET /connect` (FR-404): the MCP server's address (`MCP_RESOURCE_URL`; null where the service
   serves no MCP), the tools switched on for every client, and the clients switched on, by label
   and name. Each client's tools, rate and size limits, and the clients switched off stay with
-  `GET /tools` and `GET /clients`, which are for administrators. The evaluation runner is the
+  `GET /clients`, which is for administrators (API only, with no screen in the web app). The evaluation runner is the
   gateway's own client and is left out.
-- `POST /try-it` (What an agent would get): a typed scope, `metrics`, `dimension_filters` and an
-  inclusive `window`, and nothing else. It answers `get_facts`'s reply on the live edition
-  exactly as an agent with the default limits gets it (the items in rank order, the check report
-  and the instructions), without its `delivery_id`, with the reply's size and the 100,000 byte
-  limit. There is no question field, so no question text can be stored (FR-602), and no audience
-  field: the bundle resolves with no audience groups, which is every person's audience while
-  groups are parked. It records no delivery, topic, gap or request. Before the first edition is
-  live it answers 412. Beside the reply it gives the answer engine's `answer` for the same scope
-  (its state, items, what was left out and its steps, [The answer engine](#the-answer-engine)).
-  With `draft` (a proposal's id the person may read) both are for the live edition with the
-  draft in it, as the proposal's preview builds it; the answer's `target` names the draft and its
-  item, and a draft's answer is never called Checked.
-- `POST /gaps/reports` (Report a gap, FR-606 case 5): any signed-in person reports a gap about
-  the scope they were looking at: the same `metrics`, `dimension_filters` and `window` as Try it,
-  a gap `type` (FR-607) and an optional `note` of up to 500 characters (FR-611). The scope is
-  resolved on the live edition as `get_facts` resolves it, so an unknown term is refused (422
-  with findings), a scope without dates is read at today, and the topic comes from it alone
-  (FR-604). One
-  report counts against the topic's gap of that type exactly as `report_gap` does (FR-308): the
-  open gap, a won't-fix gap that keeps its status, or a new gap opened by case 5. The answer is
-  the gap's `id`. Nothing records the person (FR-608, FR-613): `cl_report_gap_person` never
-  reads `cl.person_id`, writes no history entry, and the request log keeps its method, path and
-  status only; the gap's weekly counts keep the part of its reports that people made
-  (`personReports` in the API, for the gap's owners and administrators only; `human_reports`
-  in the table). The note goes to the gap's notes
-  as `person` and is checked like an agent's note (no personal data, secrets or question text).
-  An `Idempotency-Key` of 128 random bits (32 hex digits or a version 4 UUID) is required:
-  a double click or a retry counts once, through
-  `gap_report_keys`, which holds a digest of the caller with the key, and one of the request,
-  for a day; without the key, which only the page holds, it names no one. Anyone signed in may
-  add reports, so a reader who does not manage the gap never sees people's reports, and they
-  count neither in that reader's `reports` nor towards which weeks show (FR-614): nobody can
-  uncover a hidden count by adding to it.
-  Each person may report `limits.gap_reports_per_minute` (default 5) a minute; over it, 429 with
-  `Retry-After`.
+- `POST /try-it/read`: a question read as a scope with the live edition's vocabulary, so Try it
+  opens on what was asked. The question is never stored (FR-602).
 
 The web app shows what an agent would get in Ask and in the review's Try it panel.
 
@@ -988,9 +705,12 @@ date; else `grounded`.
   characters, citing only the items given and at least one, with no list, heading, link or number
   it was not given); otherwise, and when the spending limits leave no room, the provider takes
   over 12 seconds or fails, no `words` event comes and Ask writes its own words from the items.
-  The call is the assistant's in the spend ledger, for the person who asked. The question goes to
-  the model's provider for that call; it is read in memory and never stored or logged (FR-602),
-  and with `MODELS=mock` nothing at all is recorded.
+  The call counts under `assistant` in the spend ledger, for the person who asked. The question
+  goes to the model's provider for that call; it is read in memory and never stored or logged
+  (FR-602), and with `MODELS=mock` nothing at all is recorded. The cases of Ask's words
+  (`src/server/modules/answer/words-cases.ts`) run on a scripted words model in every build and
+  with `npm run eval:ask-words` (mock), or `-- --real --max-cost-usd <dollars>` with the model of
+  `models.assistant`, which sends the cases' made-up questions and items to its provider.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday
   to Sunday, UTC), one row per metric, market and dimension with its shown months joined, most asked
   first, each with the state the engine gives its newest shown month now (the month of today for a
@@ -1009,11 +729,6 @@ date; else `grounded`.
   it names), then the vocabulary's metrics, four at
   most, each at the month of today; none while nothing is live. Ask offers them while nothing
   has been asked yet.
-- `POST /engine/reach` (the editor's and the review's "12 questions agents asked this week would
-  get it"): a draft (a proposal's id the person may read). Each topic asked at least the minimum
-  times this week is answered for its month with the draft in the live edition, and the topics
-  whose answer gives the draft count their questions. A topic under the minimum never counts, so
-  the total gives none away.
 - `POST /observability/replay` (the answer panel's replay): a topic's id and `when`, `now` (the
   live edition) or `before` (the sealed edition before it, 412 when there is none). The topic is
   answered for its whole month, step by step. For administrators and the owners of the topic's
@@ -1061,8 +776,9 @@ over its months) found nothing at least the minimum times.
 - `GET /observability/feedback` (Feedback): `range` and `areaId`. What agents reported about
   answers, each with its kind of agent and where it stands (`inbox` while its Reported card waits,
   `fine` when an owner closed it as not a problem, `looked` otherwise), and the reports people made
-  from Try it and the assistant, which name nobody; and the answers people marked good in the
-  assistant, a week each for 14 weeks, and good and wrong in the range (FR-712).
+  from Try it and, until it left on 30 Oct 2026, the in-app assistant, which name nobody; and the
+  answers people marked good in that assistant, a week each for 14 weeks, and good and wrong in
+  the range (FR-712).
 - `GET /observability/usage` (Usage, administrators): `range`. Each tool's calls and how they
   ended (answered, needed more detail, found nothing, failed), the calls of each kind of agent
   with its last hour, reply times (the median and 95 of 100, a day each for 7 days, a week each
@@ -1090,16 +806,15 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
 - `POST /areas/{id}/delete` (administrators): deletes a domain that holds no context item and no
   term, never the sandbox (409, with what it holds). Its open suggestions are withdrawn, its
   drafts stay with their authors and its owners' ownership ends; one that history names is kept as
-  history, as with `POST /areas/{id}/removal`, which deletes everything under a domain.
+  history.
 - `GET /connect/pending?since=` (Connect an agent's live line): the newest of the person's own
   agent signing in (`connected`: it has its tokens) and their no on the consent screen
   (`declined`), since `since`, at most an hour back, with the agent's name for itself; `waiting`
   when there is neither. A no is kept for an hour, for that person alone, and the history log is
   not told, as nothing changed.
-- `GET /agent-connections`, `POST /agent-connections/{id}/disconnect` and
-  `POST /agent-connections/people/{personId}/disconnect` (administrators, formerly
-  `/ai-connections`): every person's agents, and ending one, or all of a person's, with a reason
-  the history log keeps (docs/ai-sign-in.md).
+- `GET /agent-connections` and `POST /agent-connections/{id}/disconnect` (administrators, formerly
+  `/ai-connections`): every person's agents, and ending one, with a reason the history log keeps
+  (docs/ai-sign-in.md).
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the
   Agents and access page; the tools agents call are switched with `POST /tools/{tool}`, and the
   page reads both from `GET /connect` and `GET /serving/stops`, which everyone signed in may read.

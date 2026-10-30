@@ -8,14 +8,14 @@ import { isPublicAddress, publicLookup } from '../oauth/index.ts'
 import { decodePage, pageText, charsetOf } from './page-text.ts'
 
 /*
-  Heed opens a web page a person linked, for the assistant to draft from (read_source). It is
-  the service reaching out to an address someone else chose, so it reaches only the public web:
+  Heed opens a web page a person linked, to draft context from it (the editor's draft from text).
+  It is the service reaching out to an address someone else chose, so it reaches only the public web:
   https only; a name resolved here with every answer public and the connection made to that
   answer, so a second lookup cannot point it inside the network (DNS rebinding); no credentials
   in the address; every redirect checked again, at most five; at most 2 MB, decompressed, within
   15 seconds; text pages only. Every failure is one plain reason, so nothing about the network
-  behind an address reaches the person or the model. The page is kept in memory for the call and
-  never stored (FR-116).
+  behind an address reaches the person. The page is kept in memory for the call and never stored
+  (FR-116).
 */
 
 export const readFailures = [

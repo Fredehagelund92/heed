@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { lastOwnerMessage } from '../../src/contract/auth.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
-import type { ReviewProposal } from '../../src/contract/review.ts'
+import type { Feed } from '../../src/contract/inbox.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -14,9 +14,8 @@ import { apiDatabase, testDatabase, transaction } from './support.ts'
 /*
   Several owners (captain's decisions, 16 October 2026) over authenticated HTTP and PostgreSQL:
   one person may own several domains, and a domain may have several owners. Each owner
-  of a domain reviews it: the queue, the claim and its hand-over, the decisions and the inbox
-  follow any of the domains a person owners. Removing an owner from one domain leaves the
-  others, and a domain keeps at least one owner.
+  of a domain reviews it: the Inbox and the decisions follow any of the domains a person owns.
+  Removing an owner from one domain leaves the others, and a domain keeps at least one owner.
 */
 
 const people = {
@@ -40,7 +39,7 @@ const app = buildApp({
 })
 type Headers = { cookie: string; origin: string; 'x-heed-csrf': string }
 const headers = {} as Record<Who, Headers>
-const call = (method: 'GET' | 'POST', path: string, who: Who, payload?: object) =>
+const call = (method: 'GET' | 'POST' | 'PUT', path: string, who: Who, payload?: object) =>
   app.inject({
     method,
     url: '/api/v1' + path,
@@ -101,14 +100,9 @@ afterAll(async () => {
   await app.close()
 })
 
-const grants = (changes: object[], reason?: string) =>
-  call('POST', '/grants/apply', 'admin', { changes, ...(reason ? { reason } : {}) })
-const owner = (op: 'grant' | 'revoke', who: Who, areaId: string) => ({
-  op,
-  personId: people[who],
-  areaId,
-  role: 'owner',
-})
+/** A domain's owners, all of them, in one step, as Domains and owners sets them. */
+const owners = (areaId: string, who: Who[]) =>
+  call('PUT', `/areas/${areaId}/owners`, 'admin', { personIds: who.map((name) => people[name]) })
 
 async function submitted(areaId: 'finance' | 'marketing', title: string) {
   const draft: Draft = {
@@ -133,10 +127,13 @@ async function submitted(areaId: 'finance' | 'marketing', title: string) {
   return response.json<ProposalRecord>()
 }
 
+/** The suggestions waiting in a person's Inbox. */
 const queue = async (who: Who) => {
-  const response = await call('GET', '/review/queue', who)
+  const response = await call('GET', '/inbox/feed', who)
   expect(response.statusCode, response.body).toBe(200)
-  return response.json<ReviewProposal[]>().map((proposal) => proposal.id)
+  return response
+    .json<Feed>()
+    .cards.flatMap((card) => (card.group === 'suggestion' ? [card.proposalId] : []))
 }
 const assignments = async (who: Who) =>
   (await call('GET', '/me', who)).json<{
@@ -152,13 +149,15 @@ async function told(proposalId: string, kind: string) {
   return rows.rows.map((row) => row.person_id)
 }
 
-describe('a person who owners two domains', () => {
-  it('is given both in one step, and reviews either from one queue and one inbox', async () => {
-    const given = await grants(
-      [owner('grant', 'stranger', 'finance'), owner('grant', 'stranger', 'marketing')],
-      'Stranger covers both domains',
-    )
-    expect(given.statusCode, given.body).toBe(200)
+describe('a person who owns two domains', () => {
+  it('is given both, and reviews either from one Inbox', async () => {
+    for (const [areaId, who] of [
+      ['finance', ['owner', 'stranger']],
+      ['marketing', ['stranger']],
+    ] as const) {
+      const given = await owners(areaId, [...who])
+      expect(given.statusCode, given.body).toBe(200)
+    }
     expect(await assignments('stranger')).toEqual(
       expect.arrayContaining([
         { areaId: 'finance', role: 'owner' },
@@ -176,16 +175,11 @@ describe('a person who owners two domains', () => {
       [people.owner, people.stranger].sort(),
     )
     expect(await told(ads.id, 'proposal.submitted')).toEqual([people.stranger])
-    // They claim and decide in either.
+    // They decide in either.
     for (const p of [money, ads]) {
-      const claimed = await call('POST', `/proposals/${p.id}/claim`, 'stranger', {
+      const decided = await call('POST', `/review/${p.id}/return`, 'stranger', {
         revision: p.revision,
-      })
-      expect(claimed.statusCode, claimed.body).toBe(200)
-      const decided = await call('POST', `/proposals/${p.id}/decisions`, 'stranger', {
-        revision: claimed.json<ProposalRecord>().revision,
-        outcome: 'request_changes',
-        reason: 'Name the source',
+        note: 'Name the source',
       })
       expect(decided.statusCode, decided.body).toBe(200)
       expect(decided.json()).toMatchObject({ proposal: { state: 'changes_requested' } })
@@ -193,7 +187,7 @@ describe('a person who owners two domains', () => {
   })
 
   it('keeps the other domain when one is taken away', async () => {
-    const removed = await grants([owner('revoke', 'stranger', 'finance')])
+    const removed = await owners('finance', ['owner'])
     expect(removed.statusCode, removed.body).toBe(200)
     expect(await assignments('stranger')).toEqual([{ areaId: 'marketing', role: 'owner' }])
     const money = await submitted('finance', 'Finance note, later')
@@ -201,24 +195,23 @@ describe('a person who owners two domains', () => {
     const mine = await queue('stranger')
     expect(mine).toContain(ads.id)
     expect(mine).not.toContain(money.id)
-    const refused = await call('POST', `/proposals/${money.id}/claim`, 'stranger', {
-      revision: money.revision,
-    })
-    // Finance's open proposals are no longer theirs to read, let alone claim.
+    const refused = await call('GET', `/review/${money.id}/sheet`, 'stranger')
+    // Finance's open proposals are no longer theirs to read, let alone decide.
     expect(refused.statusCode).toBe(404)
   })
 
   it('may not leave a domain without an owner: the last one stays, with the next step named', async () => {
     const before = await assignments('stranger')
-    const last = await grants([owner('revoke', 'stranger', 'marketing')])
+    const last = await call('POST', '/assignments/revoke', 'admin', {
+      personId: people.stranger,
+      areaId: 'marketing',
+      role: 'owner',
+    })
     expect(last.statusCode).toBe(409)
     expect(last.json()).toMatchObject({ message: lastOwnerMessage('Marketing') })
     expect(await assignments('stranger')).toEqual(before)
     // Giving it to someone else in the same step replaces them at once.
-    const handed = await grants([
-      owner('revoke', 'stranger', 'marketing'),
-      owner('grant', 'author', 'marketing'),
-    ])
+    const handed = await owners('marketing', ['author'])
     expect(handed.statusCode, handed.body).toBe(200)
     expect(await assignments('stranger')).toEqual([])
     expect(await assignments('author')).toEqual([{ areaId: 'marketing', role: 'owner' }])
@@ -226,11 +219,8 @@ describe('a person who owners two domains', () => {
 })
 
 describe('a domain with three owners', () => {
-  it('lets each of them review, claim, hand over and decide', async () => {
-    const given = await grants([
-      owner('grant', 'second', 'finance'),
-      owner('grant', 'third', 'finance'),
-    ])
+  it('lets each of them review and decide', async () => {
+    const given = await owners('finance', ['owner', 'second', 'third'])
     expect(given.statusCode, given.body).toBe(200)
     const p = await submitted('finance', 'Three owners')
     expect(await told(p.id, 'proposal.submitted')).toEqual(
@@ -238,42 +228,27 @@ describe('a domain with three owners', () => {
     )
     for (const who of ['owner', 'second', 'third'] as const)
       expect(await queue(who)).toContain(p.id)
-    const claimed = await call('POST', `/proposals/${p.id}/claim`, 'second', {
+    const decided = await call('POST', `/review/${p.id}/return`, 'third', {
       revision: p.revision,
-    })
-    expect(claimed.statusCode, claimed.body).toBe(200)
-    // Another of the domain's owners may take it over; an owner of another domain may not.
-    const handed = await call('POST', `/proposals/${p.id}/hand-over`, 'second', {
-      revision: claimed.json<ProposalRecord>().revision,
-      personId: people.third,
-    })
-    expect(handed.statusCode, handed.body).toBe(200)
-    expect(handed.json()).toMatchObject({ claimedBy: people.third })
-    const decided = await call('POST', `/proposals/${p.id}/decisions`, 'third', {
-      revision: handed.json<ProposalRecord>().revision,
-      outcome: 'reject',
-      reason: 'Not a fact',
+      note: 'Not a fact yet: name the source',
     })
     expect(decided.statusCode, decided.body).toBe(200)
-    const review = await call('GET', `/proposals/${p.id}/review`, 'owner')
-    expect(review.json<{ decisions: { capacity: string; decidedBy: string }[] }>()).toMatchObject({
-      decisions: [{ capacity: 'owner', decidedBy: people.third }],
-    })
+    const decisions = await client.query<{ capacity: string; decided_by: string }>(
+      'select capacity::text, decided_by::text from decisions where proposal_id=$1',
+      [p.id],
+    )
+    expect(decisions.rows).toEqual([{ capacity: 'owner', decided_by: people.third }])
   })
 
   it('leaves the others when one or two go, and refuses only the last', async () => {
-    const two = await grants([
-      owner('revoke', 'second', 'finance'),
-      owner('revoke', 'third', 'finance'),
-    ])
+    const two = await owners('finance', ['owner'])
     expect(two.statusCode, two.body).toBe(200)
     const holders = await client.query<{ person_id: string }>(
       "select person_id::text from area_assignments where area_id='finance' and role='owner' and valid_at @> now()",
     )
     expect(holders.rows).toEqual([{ person_id: people.owner }])
-    const last = await grants([owner('revoke', 'owner', 'finance')])
+    const last = await owners('finance', [])
     expect(last.statusCode).toBe(409)
-    expect(last.json()).toMatchObject({ message: lastOwnerMessage('Finance') })
     // The single-change route keeps the same rule.
     const single = await call('POST', '/assignments/revoke', 'admin', {
       personId: people.owner,

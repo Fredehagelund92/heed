@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { fallbackORPCErrorMessage, onError, ORPCError } from '@orpc/client'
 import { SmartCoercionPlugin } from '@orpc/json-schema'
 import { OpenAPIGenerator } from '@orpc/openapi'
@@ -13,27 +13,17 @@ import type { Clock } from '../clock.ts'
 import {
   createProposalsService,
   retryWrite,
-  previewProposal,
   type ProposalsService,
 } from '../modules/proposals/index.ts'
 import {
   archivedAreas,
-  areaRemoval,
   createArea,
   createAreasService,
   deleteEmptyArea,
   describeArea,
-  getArea,
-  removeArea,
-  restoreArea,
-  updateArea,
 } from '../modules/areas/index.ts'
 import {
   activeStops,
-  compareEditions,
-  compareItem,
-  diffEditions,
-  editionFeed,
   listEditions,
   rollbackPreview,
   rollbackTo,
@@ -47,15 +37,12 @@ import {
   knownTools,
   listClients,
   listSettings,
-  listTools,
   plainReason,
   readWorkspace,
   saveClient,
   searchAudit,
   setSetting,
   setTool,
-  settingHistory,
-  trafficSummary,
   verifyAudit,
 } from '../modules/admin/index.ts'
 import { operationsView, type JobRunner } from '../modules/jobs/index.ts'
@@ -72,20 +59,11 @@ import {
   createBundleCache,
   lookupQuestion,
   planWords,
-  reachOfDraft,
   replayTopic,
-  tryItRun,
   wordsInputOf,
   writeWords,
 } from '../modules/answer/index.ts'
 import {
-  createDomainCache,
-  prepareTurn,
-  rateAnswer,
-  ratingsPerMinute,
-} from '../modules/assistant/index.ts'
-import {
-  createBinService,
   createReviewPath,
   createReviewService,
   type ReviewService,
@@ -98,7 +76,6 @@ import { createReportsService } from '../modules/reports/index.ts'
 import {
   can,
   checkMutation,
-  applyGrants,
   createInvites,
   listInvites,
   listMembers,
@@ -112,17 +89,14 @@ import {
   setMemberRole,
   setOwners,
   changeGrant,
-  listGrants,
   cookieAge,
   sessionCookie,
   createPeopleService,
-  personSheet,
   type SignIn,
 } from '../modules/auth/index.ts'
 import { createAlertsService } from '../modules/alerts/index.ts'
 import { createCatalogueService } from '../modules/catalogue/index.ts'
 import {
-  createSourcesService,
   createWorkspaceSources,
   noSecretStore,
   ConnectorRegistry,
@@ -132,7 +106,6 @@ import {
 } from '../modules/connectors/index.ts'
 import { createGapsService, gapReportsPerMinute } from '../modules/gaps/index.ts'
 import { createLibraryService } from '../modules/library/index.ts'
-import { createQualityService } from '../modules/quality/index.ts'
 import { createObservabilityService } from '../modules/observability/index.ts'
 import {
   adoptPublished,
@@ -142,13 +115,6 @@ import {
 import { createVocabularyService } from '../modules/vocabulary/index.ts'
 import type { LoginServer } from '../modules/oauth/index.ts'
 import type { PageReader } from '../modules/web/index.ts'
-import type { HelpLibrary } from '../modules/help/index.ts'
-import {
-  createActivityService,
-  createInboxService,
-  streamEvents,
-  type Hub,
-} from '../modules/notifications/index.ts'
 import { productName } from '../brand.ts'
 
 export interface ApiServices {
@@ -156,9 +122,7 @@ export interface ApiServices {
   database: Database
   clock: Clock
   origins: readonly string[]
-  /** Wakes the live event streams. */
-  hub: Hub
-  /** The language model port for evaluations and the assistant (the mock unless MODELS=live). */
+  /** The language model port for evaluations and Ask's words (the mock unless MODELS=live). */
   models: ModelPort
   /** The MCP server's public address (`MCP_RESOURCE_URL`); null when this app serves no MCP. */
   mcpAddress?: string | null
@@ -170,15 +134,10 @@ export interface ApiServices {
   sources?: Pick<ConnectorRegistry, 'list'>
   /** The sources administrators add, with the secret store that keeps their tokens. */
   workspaceSources?: WorkspaceSources
-  /** Opens a web page for the assistant's read_source; the public web only by default. */
+  /** Opens a web page a link in a draft points at; the public web only by default. */
   readPage?: PageReader
-  /** Heed's help pages for the assistant's search_help; this checkout's pages by default. */
-  help?: HelpLibrary
 }
 type RequestContext = { request: FastifyRequest; reply: FastifyReply }
-/** A retry key of 128 random bits: 32 hex digits (the web binding's) or a version 4 UUID. */
-const randomRetryKey =
-  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i
 const idempotencyKey = (context: RequestContext) =>
   context.request.headers['idempotency-key'] as string | undefined
 
@@ -187,7 +146,6 @@ export function createRouter({
   signIn,
   clock,
   origins,
-  hub,
   models,
   mcpAddress = null,
   login,
@@ -198,14 +156,8 @@ export function createRouter({
     registry: new ConnectorRegistry([...(sources?.list() ?? [])]),
   }),
   readPage,
-  help,
 }: ApiServices) {
-  // A new secret per process: a confirmation or a sealed tool result outlives no restart, and
-  // fails closed after one.
-  const approvalSecret = randomBytes(32)
-  const assistantDomains = createDomainCache()
   const limitGapReports = createLimiter(() => clock.now())
-  const limitRatings = createLimiter(() => clock.now())
   // The editions the answer engine reads, kept a short while: one for every person.
   const answerBundles = createBundleCache()
   const os = implement(contract).$context<RequestContext>()
@@ -244,7 +196,7 @@ export function createRouter({
           await tx.query("select set_config('cl.person_id',$1,true)", [session?.person.id ?? ''])
           const proposals = createProposalsService(tx, clock, session?.person.id ?? '')
           const review = createReviewService(tx, clock)
-          const gaps = createGapsService(tx, clock, session?.person.id ?? '')
+          const gaps = createGapsService(tx)
           const comments = createCommentsService(tx)
           const reviewPath = createReviewPath(
             tx,
@@ -283,13 +235,8 @@ export function createRouter({
               }),
               comments,
               reports: createReportsService(tx),
-              bin: createBinService(tx, clock, proposals),
-              inbox: createInboxService(tx),
-              activity: createActivityService(tx),
               gaps,
-              sources: createSourcesService(tx),
               evals: createEvalsService(tx, { port: models, clock }),
-              quality: createQualityService(tx, clock),
               observability: createObservabilityService(tx, clock),
               saved: createSavedQuestionsService(tx, clock, answerBundles),
               alerts: createAlertsService(tx),
@@ -369,9 +316,6 @@ export function createRouter({
       get: authorized.proposals.get.handler(({ context, input }) =>
         context.proposals.read(input.id),
       ),
-      saveDraft: authorized.proposals.saveDraft.handler(({ context, input }) =>
-        context.proposals.save(input.id, input.revision, input.draft, input.reason),
-      ),
       submit: authorized.proposals.submit.handler(({ context, input }) =>
         retryWrite(
           context.tx,
@@ -381,46 +325,8 @@ export function createRouter({
           () => submitForReview(context)(input.id, input.revision),
         ),
       ),
-      claim: authorized.proposals.claim.handler(({ context, input }) =>
-        context.proposals.claim(input.id, input.revision),
-      ),
-      handOver: authorized.proposals.handOver.handler(({ context, input }) =>
-        context.proposals.claim(input.id, input.revision, input.personId),
-      ),
       withdraw: authorized.proposals.withdraw.handler(({ context, input }) =>
         context.proposals.withdraw(input.id, input.revision, input.reason),
-      ),
-      discard: authorized.proposals.discard.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'proposals.discard', input, () =>
-          context.proposals.discard(input.id, input.revision),
-        ),
-      ),
-      comment: authorized.proposals.comment.handler(({ context, input }) =>
-        retryWrite(
-          context.tx,
-          context.request.headers['idempotency-key'] as string | undefined,
-          'proposals.comment',
-          input,
-          () => context.proposals.comment(input.id, input.revision, input.text, input.replyTo),
-        ),
-      ),
-      events: authorized.proposals.events.handler(({ context, input }) =>
-        context.proposals.events(input.id),
-      ),
-      overlap: authorized.proposals.overlap.handler(({ context, input }) =>
-        context.proposals.overlap(input.id),
-      ),
-      preview: authorized.proposals.preview.handler(async ({ context, input }) =>
-        previewProposal(context.tx, clock, await context.proposals.get(input.id), input),
-      ),
-      tests: authorized.proposals.tests.handler(({ context, input }) =>
-        context.proposals.tests(input.id),
-      ),
-      attachTest: authorized.proposals.attachTest.handler(({ context, input }) =>
-        context.proposals.attachTest(input.id, input.question),
-      ),
-      detachTest: authorized.proposals.detachTest.handler(({ context, input }) =>
-        context.proposals.detachTest(input.id, input.question),
       ),
     },
     review: {
@@ -472,65 +378,15 @@ export function createRouter({
         )
         return done
       }),
-      queue: authorized.review.queue.handler(({ context, input }) => context.review.queue(input)),
-      get: authorized.review.get.handler(({ context, input }) => context.review.get(input.id)),
-      runChecks: authorized.review.runChecks.handler(({ context, input }) =>
-        context.review.runChecks(input.id),
-      ),
-      edit: authorized.review.edit.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.edit', input, () =>
-          context.review.edit(input),
-        ),
-      ),
-      decide: authorized.review.decide.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.decide', input, () =>
-          context.review.decide(input),
-        ),
-      ),
-      planDecisions: authorized.review.planDecisions.handler(({ context, input }) =>
-        context.review.planDecisions(input),
-      ),
-      decideMany: authorized.review.decideMany.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.decideMany', input, () =>
-          context.review.decideMany(input),
-        ),
-      ),
-      assign: authorized.review.assign.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.assign', input, () =>
-          context.proposals.assignMany(input.proposals, input.personId),
-        ),
-      ),
-      retire: authorized.review.retire.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.retire', input, () =>
-          context.review.retire(input.id, input.reason),
-        ),
-      ),
       proposeRetirement: authorized.review.proposeRetirement.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'review.proposeRetirement', input, () =>
           context.review.proposeRetirement(input.id, input.reason),
-        ),
-      ),
-      recheck: authorized.review.recheck.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'review.recheck', input, () =>
-          context.review.recheck(input.id, input.reason),
         ),
       ),
     },
     editions: {
       list: authorized.editions.list.handler(({ context, input }) =>
         listEditions(context.tx, input.limit, input.offset),
-      ),
-      diff: authorized.editions.diff.handler(({ context, input }) =>
-        diffEditions(context.tx, input.label, input.against),
-      ),
-      feed: authorized.editions.feed.handler(({ context, input }) =>
-        editionFeed(context.tx, input),
-      ),
-      compare: authorized.editions.compare.handler(({ context, input }) =>
-        compareEditions(context.tx, input),
-      ),
-      compareItem: authorized.editions.compareItem.handler(({ context, input }) =>
-        compareItem(context.tx, input),
       ),
       export: authorized.editions.export.handler(({ context, input }) =>
         exportEdition(context.tx, input.label),
@@ -666,19 +522,6 @@ export function createRouter({
           })
         return { disconnected: 1 }
       }),
-      disconnectPerson: authorized.agentConnections.disconnectPerson.handler(
-        async ({ context, input }) => {
-          plainReason(input.reason)
-          const ended = await login?.disconnectAsAdmin(
-            context.tx,
-            { personId: input.personId },
-            input.reason,
-            context.request.log,
-          )
-          if (ended === null) throw new ORPCError('FORBIDDEN')
-          return { disconnected: ended ?? 0 }
-        },
-      ),
     },
     accessKeys: {
       // Never a retry write: an answer kept for a retry would keep the key.
@@ -689,7 +532,6 @@ export function createRouter({
       }),
     },
     roles: {
-      list: authorized.roles.list.handler(({ context }) => listGrants(context.tx)),
       grant: authorized.roles.grant.handler(({ context, input }) =>
         changeGrant(context.tx, input, true),
       ),
@@ -705,24 +547,7 @@ export function createRouter({
         changeGrant(context.tx, input, false),
       ),
     },
-    grants: {
-      apply: authorized.grants.apply.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'grants.apply', input, () =>
-          applyGrants(context.tx, input),
-        ),
-      ),
-    },
     items: {
-      list: authorized.items.list.handler(({ input, context }) => context.library.listItems(input)),
-      get: authorized.items.get.handler(async ({ input, context }) =>
-        found(await context.library.getItem(input.id)),
-      ),
-      history: authorized.items.history.handler(async ({ input, context }) =>
-        found(await context.library.getHistory(input.id)),
-      ),
-      links: authorized.items.links.handler(async ({ input, context }) =>
-        found(await context.library.getLinks(input.id)),
-      ),
       page: authorized.items.page.handler(async ({ input, context }) =>
         found(await context.context.page(input.id)),
       ),
@@ -742,9 +567,6 @@ export function createRouter({
           context.context.publish(input),
         ),
       ),
-      bulkPlan: authorized.items.bulkPlan.handler(({ input, context }) =>
-        context.context.plan(input),
-      ),
       bulkApply: authorized.items.bulkApply.handler(({ input, context }) =>
         retryWrite(context.tx, idempotencyKey(context), 'items.bulkApply', input, () =>
           context.context.bulkApply(input),
@@ -760,45 +582,12 @@ export function createRouter({
     },
     library: {
       index: authorized.library.index.handler(({ context }) => context.library.getIndex()),
-      freshness: authorized.library.freshness.handler(({ context, input }) =>
-        context.library.getFreshness(input.weeks),
-      ),
-      reviews: authorized.library.reviews.handler(({ context, input }) =>
-        context.library.getReviews(input.ids),
-      ),
     },
     search: {
       all: authorized.search.all.handler(({ context, input }) => context.library.search(input.q)),
     },
-    bin: {
-      list: authorized.bin.list.handler(({ context }) => context.bin.list()),
-      get: authorized.bin.get.handler(({ context, input }) => context.bin.get(input.id)),
-      preview: authorized.bin.preview.handler(({ context, input }) =>
-        context.bin.preview(input.ids),
-      ),
-      move: authorized.bin.move.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'bin.move', input, () =>
-          context.bin.move(input),
-        ),
-      ),
-      rescuePreview: authorized.bin.rescuePreview.handler(({ context, input }) =>
-        context.bin.rescuePreview(input),
-      ),
-      restore: authorized.bin.restore.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'bin.restore', input, async () => {
-          const restored = await context.bin.restore(input)
-          // A rescue's proposal is submitted, so its checks run at once, as any submit's do.
-          for (const proposal of restored.proposals)
-            await context.review.checkSubmitted(proposal.id)
-          return restored
-        }),
-      ),
-    },
     catalogue: {
       list: authorized.catalogue.list.handler(({ context }) => context.catalogue.list()),
-      get: authorized.catalogue.get.handler(async ({ context, input }) =>
-        found(await context.catalogue.get(input.kind, input.id)),
-      ),
     },
     terms: {
       list: authorized.terms.list.handler(({ context }) => context.terms.list()),
@@ -833,7 +622,6 @@ export function createRouter({
       ),
     },
     definitions: {
-      coverage: authorized.definitions.coverage.handler(({ context }) => context.terms.coverage()),
       related: authorized.definitions.related.handler(async ({ input, context }) =>
         found(await context.context.related(input.key)),
       ),
@@ -843,28 +631,14 @@ export function createRouter({
       setOwners: authorized.areas.setOwners.handler(({ context, input }) =>
         setOwners(context.tx, input),
       ),
-      get: authorized.areas.get.handler(({ context, input }) => getArea(context.tx, input.id)),
       create: authorized.areas.create.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'areas.create', input, () =>
           createArea(context.tx, input),
         ),
       ),
-      update: authorized.areas.update.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'areas.update', input, () =>
-          updateArea(context.tx, input),
-        ),
-      ),
       describe: authorized.areas.describe.handler(({ context, input }) =>
         retryWrite(context.tx, idempotencyKey(context), 'areas.describe', input, () =>
           describeArea(context.tx, input),
-        ),
-      ),
-      removal: authorized.areas.removal.handler(({ context, input }) =>
-        areaRemoval(context.tx, input.id),
-      ),
-      remove: authorized.areas.remove.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'areas.remove', input, () =>
-          removeArea(context.tx, input),
         ),
       ),
       deleteEmpty: authorized.areas.deleteEmpty.handler(({ context, input }) =>
@@ -873,87 +647,11 @@ export function createRouter({
         ),
       ),
       archived: authorized.areas.archived.handler(({ context }) => archivedAreas(context.tx)),
-      restore: authorized.areas.restore.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'areas.restore', input, () =>
-          restoreArea(context.tx, input),
-        ),
-      ),
-      dashboard: authorized.areas.dashboard.handler(({ context, input }) =>
-        context.gaps.dashboard(input.areaId, input.weeks),
-      ),
     },
     gaps: {
-      report: authorized.gaps.report.handler(async ({ context, input }) => {
-        const key = idempotencyKey(context)
-        // 128 random bits, as the web binding sends: the stored digest mixes in the caller, so a
-        // key that could be guessed would let anyone with the table test who reported what.
-        if (!key || !randomRetryKey.test(key))
-          throw new ORPCError('BAD_REQUEST', {
-            message: 'Send an Idempotency-Key header of 32 random hex digits or a random UUID.',
-          })
-        // FR-408: a person's reports have a tighter limit of their own. The key lives in memory
-        // only, for its minute, and the report records no person.
-        const retry = limitGapReports([
-          {
-            key: `gap-report:${context.session!.person.id}`,
-            limit: await gapReportsPerMinute(context.tx),
-          },
-        ])
-        if (retry) {
-          context.reply.header('retry-after', String(retry))
-          throw new ORPCError('TOO_MANY_REQUESTS', {
-            message: `You've sent a lot of reports. Try again in ${retry} seconds.`,
-            data: { retryAfterSeconds: retry },
-          })
-        }
-        return context.gaps.report(input, key)
-      }),
-      list: authorized.gaps.list.handler(({ context, input }) => context.gaps.list(input)),
       get: authorized.gaps.get.handler(({ context, input }) => context.gaps.get(input.id)),
-      setStatus: authorized.gaps.setStatus.handler(({ context, input }) =>
-        context.gaps.setStatus(input.id, input.status, input.reason),
-      ),
-      addNote: authorized.gaps.addNote.handler(({ context, input }) =>
-        context.gaps.addNote(input.id, input.note),
-      ),
-      linkTest: authorized.gaps.linkTest.handler(({ context, input }) =>
-        context.gaps.linkTest(input.id, input.question, input.evidenceRun),
-      ),
-      unlinkTest: authorized.gaps.unlinkTest.handler(({ context, input }) =>
-        context.gaps.unlinkTest(input.id, input.question),
-      ),
-      startDraft: authorized.gaps.startDraft.handler(({ context, input }) =>
-        retryWrite(
-          context.tx,
-          context.request.headers['idempotency-key'] as string | undefined,
-          'gaps.startDraft',
-          input,
-          () => context.gaps.startDraft(input.id, input.areaId),
-        ),
-      ),
-      draft: authorized.gaps.draft.handler(({ context, input }) =>
-        retryWrite(
-          context.tx,
-          context.request.headers['idempotency-key'] as string | undefined,
-          'gaps.draft',
-          input,
-          () => context.gaps.scopeDraft(input.id, input.areaId),
-        ),
-      ),
-    },
-    topics: {
-      counts: authorized.topics.counts.handler(({ context, input }) =>
-        context.gaps.topicCounts(input.areaId, input.weeks),
-      ),
-      weekly: authorized.topics.weekly.handler(({ context, input }) =>
-        context.gaps.weeklyCalls(input.weeks),
-      ),
     },
     sources: {
-      flags: authorized.sources.flags.handler(({ context, input }) => context.sources.flags(input)),
-      staleLinks: authorized.sources.staleLinks.handler(({ context, input }) =>
-        context.sources.staleLinks(input),
-      ),
       list: authorized.sources.list.handler(({ context }) => workspaceSources.list(context.tx)),
       activity: authorized.sources.activity.handler(async ({ context, input }) => {
         const activity = await workspaceSources.activity(context.tx, input.id)
@@ -1054,56 +752,11 @@ export function createRouter({
     },
     people: {
       list: authorized.people.list.handler(({ context }) => context.people.list()),
-      search: authorized.people.search.handler(({ context, input }) =>
-        context.people.search(input),
-      ),
-      sheet: authorized.people.sheet.handler(({ context, input }) =>
-        personSheet(context.people, input.id),
-      ),
     },
     vocabulary: {
       get: authorized.vocabulary.get.handler(({ context }) => context.vocabulary.get()),
-      search: authorized.vocabulary.search.handler(({ context, input }) =>
-        context.vocabulary.search({
-          query: input.q,
-          ...(input.dimension === undefined ? {} : { dimension: input.dimension }),
-          ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
-          ...(input.limit === undefined ? {} : { limit: input.limit }),
-        }),
-      ),
-      describe: authorized.vocabulary.describe.handler(({ context, input }) =>
-        context.vocabulary.describe(input.keys),
-      ),
-      propose: authorized.vocabulary.propose.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'vocabulary.propose', input, () =>
-          context.review.proposeTerm(input),
-        ),
-      ),
-      candidates: authorized.vocabulary.candidates.handler(({ context }) =>
-        context.review.candidateTerms(),
-      ),
-      proposeBatch: authorized.vocabulary.proposeBatch.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'vocabulary.proposeBatch', input, () =>
-          context.review.proposeTerms(input),
-        ),
-      ),
-      decideBatch: authorized.vocabulary.decideBatch.handler(({ context, input }) =>
-        retryWrite(context.tx, idempotencyKey(context), 'vocabulary.decideBatch', input, () =>
-          context.review.decideTermBatch(input),
-        ),
-      ),
     },
     inbox: {
-      list: authorized.inbox.list.handler(({ context, input }) => context.inbox.list(input)),
-      markRead: authorized.inbox.markRead.handler(({ context, input }) =>
-        context.inbox.markRead(input.ids),
-      ),
-      markAllRead: authorized.inbox.markAllRead.handler(({ context }) =>
-        context.inbox.markAllRead(),
-      ),
-      archive: authorized.inbox.archive.handler(({ context, input }) =>
-        context.inbox.archive(input.ids),
-      ),
       feed: authorized.inbox.feed.handler(({ context, input }) => context.cards.feed(input.tab)),
     },
     cards: {
@@ -1174,44 +827,10 @@ export function createRouter({
     setup: {
       state: authorized.setup.state.handler(({ context }) => context.cards.setup()),
     },
-    activity: {
-      list: authorized.activity.list.handler(({ context, input }) => context.activity.list(input)),
-    },
-    events: {
-      // The request's transaction ends when the stream starts: the stream reads in its own
-      // short transactions and checks the session again before every read.
-      stream: authorized.events.stream.handler(async function* ({ context, lastEventId, signal }) {
-        const cookie = context.request.headers.cookie
-        yield* streamEvents({
-          database: forRequest(database, context.request.id),
-          hub,
-          lastEventId,
-          signal: signal ?? new AbortController().signal,
-          reader: async (tx) => (await signIn.currentSession(tx, cookie))?.person.id ?? null,
-        })
-      }),
-    },
     evals: {
       questions: {
-        list: authorized.evals.questions.list.handler(({ context, input }) =>
-          context.evals.questions.list(input),
-        ),
-        get: authorized.evals.questions.get.handler(({ context, input }) =>
-          context.evals.questions.get(input.id),
-        ),
-        save: authorized.evals.questions.save.handler(({ context, input }) =>
-          retryWrite(context.tx, idempotencyKey(context), 'evals.questions.save', input, () =>
-            context.evals.questions.save(input),
-          ),
-        ),
-        setAside: authorized.evals.questions.setAside.handler(({ context, input }) =>
-          context.evals.questions.setAside(input),
-        ),
         import: authorized.evals.questions.import.handler(({ context, input }) =>
           context.evals.questions.import(input),
-        ),
-        export: authorized.evals.questions.export.handler(({ context, input }) =>
-          context.evals.questions.export(input.area),
         ),
       },
       runs: {
@@ -1220,19 +839,6 @@ export function createRouter({
         ),
         get: authorized.evals.runs.get.handler(({ context, input }) =>
           context.evals.runs.get(input.id),
-        ),
-        estimate: authorized.evals.runs.estimate.handler(({ context, input }) =>
-          context.evals.runs.estimate(input.id, input.kind),
-        ),
-        start: authorized.evals.runs.start.handler(({ context, input }) =>
-          retryWrite(context.tx, idempotencyKey(context), 'evals.runs.start', input, () =>
-            context.evals.runs.start(input.id),
-          ),
-        ),
-        startLinks: authorized.evals.runs.startLinks.handler(({ context, input }) =>
-          retryWrite(context.tx, idempotencyKey(context), 'evals.runs.startLinks', input, () =>
-            context.evals.runs.start(input.id, 'links'),
-          ),
         ),
         approve: authorized.evals.runs.approve.handler(({ context, input }) =>
           context.evals.runs.approve(input.id),
@@ -1244,55 +850,6 @@ export function createRouter({
           context.evals.runs.resume(input.id),
         ),
       },
-      transcript: authorized.evals.transcript.handler(({ context, input }) =>
-        context.evals.transcript(input.id),
-      ),
-      scorecard: authorized.evals.scorecard.handler(({ context, input }) =>
-        context.evals.scorecard(input.id),
-      ),
-      retrieval: {
-        latest: authorized.evals.retrieval.latest.handler(({ context, input }) =>
-          context.evals.retrieval.latest(input.area),
-        ),
-        edition: authorized.evals.retrieval.edition.handler(({ context, input }) =>
-          context.evals.retrieval.edition(input.label, input.area),
-        ),
-        trend: authorized.evals.retrieval.trend.handler(({ context, input }) =>
-          context.evals.retrieval.trend(input.area, input.limit),
-        ),
-      },
-    },
-    quality: {
-      history: authorized.quality.history.handler(({ context, input }) =>
-        context.quality.history(input.area, input.limit),
-      ),
-      compare: authorized.quality.compare.handler(({ context, input }) =>
-        context.quality.compare(input.id, input.against),
-      ),
-      feedback: authorized.quality.feedback.handler(({ context, input }) =>
-        context.quality.feedback(input.area, input.weeks),
-      ),
-      ratings: authorized.quality.ratings.handler(({ context, input }) =>
-        context.quality.ratings(input.area, input.weeks),
-      ),
-      apps: authorized.quality.apps.handler(({ context, input }) =>
-        context.quality.apps(input.weeks),
-      ),
-      upkeep: authorized.quality.upkeep.handler(({ context, input }) =>
-        context.quality.upkeep(input.area, input.weeks),
-      ),
-      untested: authorized.quality.untested.handler(({ context, input }) =>
-        context.quality.untested(input.area),
-      ),
-      fixNext: authorized.quality.fixNext.handler(({ context, input }) =>
-        context.quality.fixNext(input.area, input.limit),
-      ),
-      compareQuestion: authorized.quality.compareQuestion.handler(({ context, input }) =>
-        context.quality.compareQuestion(input),
-      ),
-      questionHistory: authorized.quality.questionHistory.handler(({ context, input }) =>
-        context.quality.questionHistory(input.question, input.limit),
-      ),
     },
     me: { get: authorized.me.get.handler(({ context }) => context.session!.person) },
     workspace: {
@@ -1300,9 +857,6 @@ export function createRouter({
     },
     settings: {
       list: authorized.settings.list.handler(({ context }) => listSettings(context.tx)),
-      history: authorized.settings.history.handler(({ context, input }) =>
-        settingHistory(context.tx, input.key),
-      ),
       set: authorized.settings.set.handler(({ context, input }) =>
         setSetting(
           context.tx,
@@ -1313,17 +867,11 @@ export function createRouter({
       ),
     },
     tools: {
-      list: authorized.tools.list.handler(({ context }) => listTools(context.tx)),
       set: authorized.tools.set.handler(({ context, input }) => setTool(context.tx, input)),
     },
     clients: {
       list: authorized.clients.list.handler(({ context }) => listClients(context.tx)),
       save: authorized.clients.save.handler(({ context, input }) => saveClient(context.tx, input)),
-    },
-    traffic: {
-      summary: authorized.traffic.summary.handler(({ context, input }) =>
-        trafficSummary(context.tx, input.days),
-      ),
     },
     operations: {
       // The view reads with the job runner's own connections, outside the request's transaction.
@@ -1386,51 +934,6 @@ export function createRouter({
           : retryWrite(context.tx, idempotencyKey(context), 'imports.items', input, run)
       }),
     },
-    assistant: {
-      // Like the live stream, the turn outlives the request's transaction: each tool call runs
-      // in its own short transaction as the person and checks the session again.
-      chat: authorized.assistant.chat.handler(async ({ context, input, signal }) => {
-        const cookie = context.request.headers.cookie
-        const turn = await prepareTurn(
-          {
-            database: forRequest(database, context.request.id),
-            clock,
-            models,
-            logger: context.request.log,
-            approvalSecret,
-            domains: assistantDomains,
-            ...(readPage ? { readPage } : {}),
-            ...(help ? { help } : {}),
-          },
-          {
-            messages: input.messages,
-            ...(input.timeZone ? { timeZone: input.timeZone } : {}),
-            personId: context.session!.person.id,
-            session: (tx) => signIn.currentSession(tx, cookie),
-            ...(signal ? { signal } : {}),
-          },
-        )
-        return turn.stream()
-      }),
-      rate: authorized.assistant.rate.handler(async ({ context, input }) => {
-        // FR-408: a person's ratings have a tighter limit of their own. The key lives in memory
-        // only, for its minute, and the rating records no person (FR-712).
-        const retry = limitRatings([
-          {
-            key: `rating:${context.session!.person.id}`,
-            limit: await ratingsPerMinute(context.tx),
-          },
-        ])
-        if (retry) {
-          context.reply.header('retry-after', String(retry))
-          throw new ORPCError('TOO_MANY_REQUESTS', {
-            message: `You've sent a lot of ratings. Try again in ${retry} seconds.`,
-            data: { retryAfterSeconds: retry },
-          })
-        }
-        return rateAnswer(context.tx, input)
-      }),
-    },
     connect: {
       get: authorized.connect.get.handler(({ context }) =>
         connectInfo(context.tx, mcpAddress, Boolean(login)),
@@ -1446,11 +949,6 @@ export function createRouter({
       ),
     },
     tryIt: {
-      run: authorized.tryIt.run.handler(({ context, input }) =>
-        tryItRun(context.tx, clock, answerBundles, input, origins[0] ?? null, (id) =>
-          context.proposals.get(id),
-        ),
-      ),
       read: authorized.tryIt.read.handler(({ context, input }) =>
         readTryItQuestion(context.tx, clock, input),
       ),
@@ -1531,11 +1029,6 @@ export function createRouter({
       }),
       asked: authorized.ask.asked.handler(({ context }) =>
         askedThisWeek(context.tx, clock, answerBundles),
-      ),
-    },
-    engine: {
-      reach: authorized.engine.reach.handler(async ({ context, input }) =>
-        reachOfDraft(context.tx, clock, answerBundles, await context.proposals.get(input.draft)),
       ),
     },
     obs: {

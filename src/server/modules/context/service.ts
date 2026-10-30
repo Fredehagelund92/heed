@@ -3,7 +3,6 @@ import type {
   DeletedDraft,
   DraftFromText,
   ItemBulkInput,
-  ItemBulkPlan,
   ItemBulkResult,
   ItemChange,
   ItemPage,
@@ -839,10 +838,6 @@ export function createContextService(
   return {
     page,
     markRead,
-    plan: async (input: ItemBulkInput): Promise<ItemBulkPlan> => {
-      const { act, skipped } = await plan(input)
-      return { act: act.map((r) => ({ id: r.id, title: r.title })), skipped }
-    },
     bulkApply,
     undoChange,
     restoreAsDraft,

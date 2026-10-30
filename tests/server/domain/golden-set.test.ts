@@ -19,7 +19,6 @@ describe('the golden set (output test plan, section 2)', () => {
 
   it('keeps every held-out case out of the visible file: they are sealed (FR-525)', () => {
     expect(set.cases.filter((c) => c.split === 'held_out')).toEqual([])
-    expect(set.assistant.filter((c) => c.split === 'held_out')).toEqual([])
   })
 
   it('refuses a wording a comma cut in two: a text and a stray key', () => {

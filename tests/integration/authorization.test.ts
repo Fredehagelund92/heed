@@ -121,18 +121,13 @@ function allowed(policy: string, role: Role): boolean {
   return true
 }
 
-async function send(op: Operation, headers: Record<string, string>, open = false) {
-  // An allowed live event stream stays open: read the status and headers, then let it go.
-  const streaming = open && op.name === 'events.stream'
-  const response = await app.inject({
+function send(op: Operation, headers: Record<string, string>) {
+  return app.inject({
     method: op.method as 'GET',
     url: pathOf(op),
     headers,
     ...(mutating(op) ? { payload: {} } : {}),
-    ...(streaming ? { payloadAsStream: true } : {}),
   })
-  if (streaming) response.stream().destroy()
-  return response
 }
 
 /** A browser's headers: the session cookie and its CSRF token, or the sign-in header. */
@@ -220,7 +215,7 @@ describe('the access matrix', () => {
       for (const op of order) {
         const policy = policies[op.name as keyof typeof policies]
         if (!allowed(policy, role)) continue
-        const response = await send(op, credentials(role, op), true)
+        const response = await send(op, credentials(role, op))
         if (narrowed.has(`${role} ${op.name}`)) expect(response.statusCode).toBe(403)
         else if ([401, 403].includes(response.statusCode))
           stopped.push(`${role} ${op.name}: ${response.statusCode} ${response.body.slice(0, 160)}`)

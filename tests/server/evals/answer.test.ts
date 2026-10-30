@@ -91,7 +91,7 @@ describe('the status and delivery checks of an answer (try-it-2, round 4)', () =
   it('stay strict when the agent used no context tool, or got the wrong status from one', () => {
     const read = score('gs-definition-net-revenue', [
       ['read_context', { context: { id: 'itm_q2upr28v' } }],
-      ['what_changed', { status: 'matched', context: [{ id: 'itm_q2upr28v' }] }],
+      ['get_related', { status: 'matched', context: [{ id: 'itm_q2upr28v' }] }],
     ])
     expect(read.checks.status).toBe(false)
     expect(read.passed).toBe(false)

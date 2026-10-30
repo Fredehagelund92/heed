@@ -7,8 +7,7 @@
 # or POST the file's text to /api/v1/evals/import as `{ "content": "...", "dryRun": false }`
 # (signed in, with the CSRF header and an Idempotency-Key, as every change). Nothing is saved
 # unless every question is valid; a question with an id that exists already is replaced by a new
-# revision. `GET /api/v1/evals/export` writes them back out in this format. Owners
-# keep the questions of their domains, administrators all of them.
+# revision. Owners keep the questions of their domains, administrators all of them.
 #
 # The first two examples are cases of the golden set (db/seed/golden-set.yml) in this format, so
 # they are about the demo library's invented domains and items: they pass on the demo database

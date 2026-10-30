@@ -7,12 +7,12 @@ import { MockLanguageModelV4 } from 'ai/test'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { EvalRun } from '../../src/contract/evals.ts'
 import type { ProposalRecord } from '../../src/contract/proposals.ts'
-import type { Gate } from '../../src/contract/review.ts'
 import type { Draft } from '../../src/domain/draft.ts'
 import { goldenQuestionSchema, type GoldenQuestionInput } from '../../src/domain/golden-question.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import {
+  createEvalsService,
   evalJobs,
   queueAreaRun,
   runWithheld,
@@ -25,10 +25,10 @@ import { foundation, people } from './fixtures.ts'
 import { apiDatabase, testDatabase, transaction } from './support.ts'
 
 /*
-  S13 end to end: golden questions over HTTP, answer tests through the real MCP wire with the
-  scripted mock model, levels 4 and 5 on the review gate, a deliberately wrong item blocked,
-  flips listed both ways, the cell cache, transcripts, approval, spend caps, the weekly scorecard
-  and baseline, and the alert for a scheduled run that does not finish.
+  S13 end to end: golden questions imported as the command line imports them, answer tests
+  through the real MCP wire with the scripted mock model, no answer test on a suggestion, the
+  cell cache, approval, spend caps, the weekly scorecard and baseline, and the alert for a
+  scheduled run that does not finish.
 */
 
 const { client, url } = testDatabase()
@@ -116,17 +116,14 @@ async function submitted(extra: Draft = {}, itemId?: string) {
   expect(response.statusCode, response.body).toBe(200)
   return response.json<ProposalRecord>()
 }
+/** Publishes a suggestion as its owner does in the Inbox. */
 async function decide(id: string, who: Who = 'owner') {
-  const review = await call('GET', `/proposals/${id}/review`, who)
-  expect(review.statusCode, review.body).toBe(200)
-  return call('POST', `/proposals/${id}/decisions`, who, {
-    revision: review.json<{ proposal: { revision: number } }>().proposal.revision,
-    outcome: 'accept',
-    reason: 'Reviewed against the evidence',
+  const sheet = await call('GET', `/review/${id}/sheet`, who)
+  expect(sheet.statusCode, sheet.body).toBe(200)
+  return call('POST', `/review/${id}/publish`, who, {
+    revision: sheet.json<{ proposal: { revision: number } }>().proposal.revision,
   })
 }
-const gateOf = async (id: string) =>
-  (await call('GET', `/proposals/${id}/review`, 'owner')).json<{ gate: Gate }>().gate
 const runsOf = async (proposal: string) =>
   (await call('GET', `/evals/runs?proposal=${proposal}`, 'owner')).json<EvalRun[]>()
 type Detail = {
@@ -175,12 +172,33 @@ function question(id: string, caveat: string, extra: Partial<GoldenQuestionInput
     ...extra,
   }
 }
-const save = (body: object, who: Who = 'owner', revision?: number) =>
-  call('PUT', `/evals/questions/${(body as { id: string }).id}`, who, {
-    id: (body as { id: string }).id,
-    ...(revision ? { revision } : {}),
-    question: body,
+/** Saves test questions as the command line's import does (`heed evals import`). */
+async function save(...questions: object[]) {
+  const response = await call('POST', '/evals/import', 'owner', {
+    content: JSON.stringify({ questions }),
+    dryRun: false,
   })
+  expect(response.json()).toMatchObject({ applied: true })
+  return response
+}
+/** Starts a full run of an area as an owner, as the command line queues one. */
+async function startRun(area = 'finance') {
+  const run = await database.transaction(people.owner, (tx) =>
+    queueAreaRun(tx, { port: models, clock }, area, 'full', true),
+  )
+  return (await detail(run!.id)).run
+}
+const estimate = (area = 'finance') =>
+  database.transaction(people.owner, (tx) =>
+    createEvalsService(tx, { port: models, clock }).runs.estimate(area),
+  )
+/** The newest finished weekly run of an area and its scorecard, as its owner reads the run. */
+async function weeklyCard(area = 'finance') {
+  const runs = (await call('GET', `/evals/runs?area=${area}`, 'owner')).json<EvalRun[]>()
+  const run = runs.find((r) => r.kind === 'scheduled' && r.state === 'finished')!
+  const read = await call('GET', `/evals/runs/${run.id}`, 'owner')
+  return { run, scorecard: read.json<{ scorecard: unknown }>().scorecard }
+}
 
 let closure = ''
 let liveSeq = ''
@@ -238,65 +256,7 @@ afterAll(async () => {
 })
 
 describe('golden questions', () => {
-  it('lets owners create, change and set questions aside, and hides held-out ones', async () => {
-    expect(
-      (await save(question('norway-cause', 'Online sales to Norway stopped on 4 August'), 'author'))
-        .statusCode,
-    ).toBe(403)
-    const created = await save(
-      question('norway-cause', 'Online sales to Norway stopped on 4 August'),
-    )
-    expect(created.statusCode, created.body).toBe(200)
-    expect(created.json()).toMatchObject({
-      id: 'norway-cause',
-      revision: 1,
-      setAsideReason: null,
-    })
-    const compare = await save(question('norway-compare', 'compare with an unaffected market'))
-    expect(compare.statusCode, compare.body).toBe(200)
-
-    expect((await save(question('norway-cause', 'Changed caveat'))).statusCode).toBe(409)
-    expect((await save(question('norway-cause', 'Changed caveat'), 'owner', 5)).statusCode).toBe(
-      409,
-    )
-    const secret = await save({
-      ...question('norway-secret', 'Online sales stopped'),
-      source: 'Asked by someone@example.test',
-    })
-    expect(secret.statusCode).toBe(422)
-    const oneWording = await save({
-      ...question('norway-short', 'Online sales stopped'),
-      wordings: [{ text: 'Orders in Norway', kind: 'natural' }],
-    })
-    expect(oneWording.statusCode).toBe(400)
-
-    const heldOut = await save(
-      question('norway-held-out', 'Online sales to Norway stopped on 4 August', {
-        split: 'held_out',
-      }),
-    )
-    expect(heldOut.statusCode, heldOut.body).toBe(200)
-    const ids = async (who: Who) =>
-      (await call('GET', '/evals/questions?area=finance', who))
-        .json<{ id: string }[]>()
-        .map((q) => q.id)
-    expect(await ids('owner')).toContain('norway-held-out')
-    expect(await ids('author')).not.toContain('norway-held-out')
-    expect((await call('GET', '/evals/questions/norway-held-out', 'author')).statusCode).toBe(404)
-
-    const aside = await call('POST', '/evals/questions/norway-held-out/set-aside', 'owner', {
-      revision: 1,
-      reason: 'Duplicates norway-cause for now',
-    })
-    expect(aside.statusCode, aside.body).toBe(200)
-    expect(aside.json()).toMatchObject({ setAsideReason: 'Duplicates norway-cause for now' })
-    const history = await client.query(
-      "select revision from golden_question_revisions where question_id='norway-cause'",
-    )
-    expect(history.rowCount).toBe(1)
-  })
-
-  it('imports a file after a dry run and exports the same questions', async () => {
+  it('imports a file after a dry run, and only for those who maintain the area', async () => {
     const file = {
       questions: [
         question('spain-revenue', 'Revenue figures in Spain', {
@@ -320,25 +280,31 @@ describe('golden questions', () => {
     expect(dry.json()).toMatchObject({ applied: false, created: ['spain-revenue'] })
     expect(dry.json<{ errors: { id: string }[] }>().errors.map((e) => e.id)).toEqual(['broken'])
     file.questions.pop()
-    const applied = await call('POST', '/evals/import', 'owner', {
-      content: JSON.stringify(file),
-      dryRun: false,
-    })
-    expect(applied.json()).toMatchObject({ applied: true, created: ['spain-revenue'] })
-    const exported = await call('GET', '/evals/export?area=finance', 'owner')
-    const content = exported.json<{ content: string }>().content
-    expect(content).toContain('id: spain-revenue')
-    const again = await call('POST', '/evals/import', 'owner', { content, dryRun: true })
-    expect(again.json<{ unchanged: string[] }>().unchanged).toContain('spain-revenue')
+    const content = JSON.stringify(file)
     // Owners, deputies and administrators maintain test questions (Quality design G13).
     expect(
       (await call('POST', '/evals/import', 'author', { content, dryRun: false })).statusCode,
     ).toBe(403)
+    const applied = await call('POST', '/evals/import', 'owner', { content, dryRun: false })
+    expect(applied.json()).toMatchObject({ applied: true, created: ['spain-revenue'] })
+    const again = await call('POST', '/evals/import', 'owner', { content, dryRun: true })
+    expect(again.json<{ unchanged: string[] }>().unchanged).toContain('spain-revenue')
+    // The questions the runs below ask: one held out, set aside until the weekly run.
+    await save(
+      question('norway-cause', 'Online sales to Norway stopped on 4 August'),
+      question('norway-compare', 'compare with an unaffected market'),
+      question('norway-held-out', 'Online sales to Norway stopped on 4 August', {
+        split: 'held_out',
+      }),
+    )
+    await client.query(
+      "update golden_questions set set_aside_reason='Duplicates norway-cause for now' where id='norway-held-out'",
+    )
   })
 })
 
-describe('no answer tests on the review gate (FR-513)', () => {
-  it('gates a suggestion on levels 1 to 3 only, and queues no answer test for it', async () => {
+describe('no answer tests on a suggestion (FR-513)', () => {
+  it('queues no answer test for a suggestion', async () => {
     // Five agent deliveries in one topic, as agents asked before.
     const topic = randomUUID()
     await client.query(
@@ -368,10 +334,6 @@ describe('no answer tests on the review gate (FR-513)', () => {
       { summary: 'Orders in Norway fell because online sales stopped on 4 August 2026.' },
       closure,
     )
-    const gate = await gateOf(wrong.id)
-    expect(gate.required).toEqual(['format', 'matching', 'delivery'])
-    expect(gate.levels.map((l) => l.outcome)).toEqual(['passed', 'passed', 'passed'])
-    expect(gate.approvals).toEqual({ owner: false, approver: null })
     const summary = await work()
     expect(summary.runs).toEqual([])
     expect(await runsOf(wrong.id)).toEqual([])
@@ -407,71 +369,11 @@ describe('no answer tests on the review gate (FR-513)', () => {
     })
     await work()
     expect(await runsOf(high.id)).toEqual([])
-    expect((await gateOf(high.id)).required).toEqual(['format', 'matching', 'delivery'])
     const rows = await client.query(
       'select 1 from check_results where item_version_id=$1 and level::text like $2',
       [high.itemVersionId, 'answer_%'],
     )
     expect(rows.rowCount).toBe(0)
-  })
-
-  it('reports the tests attached to a proposal at level 3 only, and never blocks it (FR-524)', async () => {
-    // A test that fails on the live edition, about a market the change does not touch.
-    const id = 'spain-attached'
-    expect(
-      (
-        await save(
-          question(id, 'Spain is not affected', {
-            wordings: [
-              { text: 'How did orders develop in Spain in July 2026?', kind: 'natural' },
-              { text: 'Orders in Spain from 2026-07-01 to 2026-07-31', kind: 'precise' },
-            ],
-            scope: {
-              metrics: ['metric:orders'],
-              dimension_filters: [{ dimension: 'dim:market', values: ['val:market/spain'] }],
-              window: { from: '2026-07-01', to: '2026-07-31' },
-            },
-          }),
-        )
-      ).statusCode,
-    ).toBe(200)
-    try {
-      const created = await call('POST', '/proposals', 'author', {
-        draft: draft({
-          title: 'Spain revenue in May',
-          summary: 'Spain revenue was reported late in May 2026.',
-          scope: {
-            metrics: ['metric:revenue'],
-            dimensions: [],
-            dimensionValues: [{ dimension: 'dim:market', value: 'val:market/spain' }],
-          },
-          validity: { start: '2026-05-01', end: '2026-06-01' },
-        }),
-      })
-      const p = created.json<ProposalRecord>()
-      const attached = await call('POST', `/proposals/${p.id}/tests`, 'author', { question: id })
-      expect(attached.statusCode, attached.body).toBe(200)
-      const sent = await call('POST', `/proposals/${p.id}/submit`, 'author', {
-        revision: p.revision,
-      })
-      expect(sent.statusCode, sent.body).toBe(200)
-      await work()
-      expect(await runsOf(p.id)).toEqual([])
-      expect((await gateOf(p.id)).attached).toEqual([
-        {
-          question: id,
-          active: true,
-          attachedHour: expect.stringMatching(/T\d{2}:00:00Z$/) as unknown,
-          retrieval: { baseline: false, candidate: false },
-          answer: null,
-        },
-      ])
-      // Reported only: the failing test does not stand in the way of acceptance.
-      const accepted = await decide(p.id)
-      expect(accepted.statusCode, accepted.body).toBe(200)
-    } finally {
-      await client.query("update golden_questions set status='retired' where id=$1", [id])
-    }
   })
 })
 
@@ -486,12 +388,8 @@ describe('cost control', () => {
         }),
       )
       expect(fresh.statusCode, fresh.body).toBe(200)
-      const estimate = await call('GET', '/evals/areas/finance/estimate', 'owner')
-      expect(estimate.json()).toMatchObject({ area: 'finance', questions: 4, needsApproval: true })
-      expect((await call('POST', '/evals/areas/finance/runs', 'author')).statusCode).toBe(403)
-      const started = await call('POST', '/evals/areas/finance/runs', 'owner')
-      expect(started.statusCode, started.body).toBe(200)
-      const run = started.json<EvalRun>()
+      expect(await estimate()).toMatchObject({ area: 'finance', questions: 4, needsApproval: true })
+      const run = await startRun()
       expect(run).toMatchObject({ kind: 'full', state: 'awaiting_approval' })
       await work()
       expect((await detail(run.id)).run.state).toBe('awaiting_approval')
@@ -519,7 +417,7 @@ describe('cost control', () => {
         }),
       )
       expect(fresh.statusCode, fresh.body).toBe(200)
-      const run = (await call('POST', '/evals/areas/finance/runs', 'owner')).json<EvalRun>()
+      const run = await startRun()
       await work()
       const d = await detail(run.id)
       // A cap is no failure of the run: it stops incomplete, and resuming it makes what is missing.
@@ -902,43 +800,19 @@ describe('runs that stop before every answer is made (R4, R6)', () => {
 })
 
 describe('weekly scorecard and baseline', () => {
-  // FR-610, slice V3: a gap resolved on the live edition, linked to a development and a held-out
-  // test, waits for the weekly run below to pass both.
-  let gap = ''
-  beforeAll(async () => {
-    const topic = await client.query<{ id: string }>(
-      "insert into topics (key,area_id,metric_keys,value_keys,month) values ('weekly-verify','finance','{metric:orders}','{val:market/norway}','2026-08-01') returning id",
-    )
-    gap = (
-      await client.query<{ id: string }>(
-        "insert into gaps (topic_id,type,opened_by_case) values ($1,'missing',2) returning id::text",
-        [topic.rows[0]!.id],
-      )
-    ).rows[0]!.id
-    for (const question of ['norway-cause', 'norway-held-out']) {
-      const linked = await call('POST', `/gaps/${gap}/tests`, 'owner', { question })
-      expect(linked.statusCode, linked.body).toBe(200)
-    }
-    const resolved = await call('POST', `/gaps/${gap}/status`, 'owner', { status: 'resolved' })
-    expect(resolved.json()).toMatchObject({ status: 'resolved', verifiedAt: null })
-  })
-
   it('scores each live area, moves the baseline and posts the scorecard', async () => {
-    const restored = await call('POST', '/evals/questions/norway-held-out/set-aside', 'owner', {
-      revision: 1,
-      reason: null,
-    })
-    expect(restored.json()).toMatchObject({ setAsideReason: null })
+    await client.query(
+      "update golden_questions set set_aside_reason=null where id='norway-held-out'",
+    )
     const [, weekly] = evalJobs({ port: models, clock })
     const context = { database, logger, signal: new AbortController().signal }
     expect(await weekly!.run(context)).toMatchObject({ areas: 2, queued: 2 })
     expect(await weekly!.run(context)).toMatchObject({ areas: 0, queued: 0 })
     await work()
-    expect((await call('GET', '/evals/areas/finance/scorecard', 'author')).statusCode).toBe(403)
-    const card = await call('GET', '/evals/areas/finance/scorecard', 'owner')
-    expect(card.statusCode, card.body).toBe(200)
-    expect(card.json()).toMatchObject({
-      area: 'finance',
+    // An area's weekly run is a test result, read only by those who maintain the area (G13).
+    expect((await call('GET', '/evals/runs?area=finance', 'author')).statusCode).toBe(403)
+    const card = await weeklyCard()
+    expect(card).toMatchObject({
       run: { kind: 'scheduled', state: 'finished' },
       scorecard: {
         questions: 4,
@@ -957,47 +831,20 @@ describe('weekly scorecard and baseline', () => {
         },
       },
     })
-    expect(card.json<{ baselineRun: string }>().baselineRun).toBe(
-      card.json<{ run: { id: string } }>().run.id,
-    )
+    const [baseline] = (
+      await client.query<{ run: string }>(
+        "select run_id::text as run from eval_baselines where area_id='finance' order by set_at desc limit 1",
+      )
+    ).rows
+    expect(baseline!.run).toBe(card.run.id)
     const outbox = await client.query(
       "select area_id from outbox_events where topic='eval.scorecard' order by area_id",
     )
     expect(outbox.rows).toEqual([{ area_id: 'finance' }, { area_id: 'marketing' }])
   })
 
-  it('verifies a resolved gap by test when the weekly run passes its tests (FR-610)', async () => {
-    const card = (await call('GET', '/evals/areas/finance/scorecard', 'owner')).json<{
-      run: { id: string }
-    }>()
-    const label = (
-      await client.query<{ label: string }>(
-        'select label from editions e join live_edition l on l.seq=e.seq',
-      )
-    ).rows[0]!.label
-    const read = await call('GET', `/gaps/${gap}`, 'owner')
-    expect(read.statusCode, read.body).toBe(200)
-    expect(read.json()).toMatchObject({
-      status: 'resolved',
-      resolvedEdition: label,
-      verifiedEdition: label,
-      tests: [
-        { question: 'norway-cause', passed: { run: card.run.id, edition: label } },
-        { question: 'norway-held-out', passed: { run: card.run.id, edition: label } },
-      ],
-    })
-    expect(read.json<{ verifiedAt: string | null }>().verifiedAt).not.toBeNull()
-    const events = await client.query(
-      "select area_id, payload from outbox_events where topic='gap.verified' and aggregate_id=$1",
-      [gap],
-    )
-    expect(events.rows).toEqual([{ area_id: 'finance', payload: { edition: label } }])
-  })
-
   it('shows held-out questions only to those who maintain them', async () => {
-    const card = (await call('GET', '/evals/areas/finance/scorecard', 'owner')).json<{
-      run: { id: string }
-    }>()
+    const card = await weeklyCard()
     const ids = async (who: Who) => {
       const d = await detail(card.run.id, who)
       return [...d.results.map((q) => q.id), ...d.cells.map((c) => c.questionId)]
@@ -1005,22 +852,13 @@ describe('weekly scorecard and baseline', () => {
     expect(await ids('owner')).toContain('norway-held-out')
     // An area's weekly run is a test result, read only by those who maintain the area (G13).
     expect((await call('GET', `/evals/runs/${card.run.id}`, 'author')).statusCode).toBe(404)
-    // Transcripts belong to the owners of the question's area, not every owner.
-    const cell = (await detail(card.run.id, 'owner')).cells.find(
-      (c) => c.questionId === 'norway-cause',
-    )!
+    // Not every owner: the owners of the area.
     await client.query(
       "insert into area_assignments(area_id,person_id,role) values('marketing',$1,'owner')",
       [people.stranger],
     )
     try {
       expect((await call('GET', `/evals/runs/${card.run.id}`, 'stranger')).statusCode).toBe(404)
-      expect((await call('GET', `/evals/cells/${cell.id}/transcript`, 'stranger')).statusCode).toBe(
-        404,
-      )
-      expect((await call('GET', `/evals/cells/${cell.id}/transcript`, 'owner')).statusCode).toBe(
-        200,
-      )
     } finally {
       await client.query(
         "delete from area_assignments where area_id='marketing' and person_id=$1",
@@ -1037,7 +875,7 @@ describe('weekly scorecard and baseline', () => {
     expect((await call('POST', `/evals/runs/${run!.id}/cancel`, 'author')).statusCode).toBe(404)
     const cancelled = await call('POST', `/evals/runs/${run!.id}/cancel`, 'owner')
     expect(cancelled.json()).toMatchObject({ state: 'cancelled' })
-    const own = (await call('POST', '/evals/areas/finance/runs', 'owner')).json<EvalRun>()
+    const own = await startRun()
     expect((await call('POST', `/evals/runs/${own.id}/cancel`, 'author')).statusCode).toBe(404)
     expect((await call('POST', `/evals/runs/${own.id}/cancel`, 'owner')).statusCode).toBe(200)
   })
@@ -1241,33 +1079,38 @@ describe('the day a question is asked on (round 6)', () => {
         ],
         ...extra,
       })
-    const dated = await save(dateless('norway-as-of', { as_of: '2026-08-10' }))
-    expect(dated.statusCode, dated.body).toBe(200)
-    expect(dated.json()).toMatchObject({ as_of: '2026-08-10' })
-    const undated = await save(dateless('norway-today'))
-    expect(undated.statusCode, undated.body).toBe(200)
-    expect(undated.json()).not.toHaveProperty('as_of')
-    const exported = (await call('GET', '/evals/export?area=finance', 'owner')).json<{
-      content: string
-    }>().content
-    expect(exported).toMatch(/^ {4}as_of: '?2026-08-10'?$/m)
-    // The exported file imports as it is: the day is part of the question.
+    const questions = [dateless('norway-as-of', { as_of: '2026-08-10' }), dateless('norway-today')]
+    await save(...questions)
+    const days = async () =>
+      (
+        await client.query<{ id: string; day: string | null }>(
+          "select id, as_of::text as day from golden_questions where id in ('norway-as-of','norway-today') order by id",
+        )
+      ).rows
+    expect(await days()).toEqual([
+      { id: 'norway-as-of', day: '2026-08-10' },
+      { id: 'norway-today', day: null },
+    ])
+    // The same file imports as it is: the day is part of the question.
     expect(
-      (await call('POST', '/evals/import', 'owner', { content: exported, dryRun: true })).json<{
-        unchanged: string[]
-      }>().unchanged,
+      (
+        await call('POST', '/evals/import', 'owner', {
+          content: JSON.stringify({ questions }),
+          dryRun: true,
+        })
+      ).json<{ unchanged: string[] }>().unchanged,
     ).toEqual(expect.arrayContaining(['norway-as-of', 'norway-today']))
 
     const run = await database.transaction(people.admin, (tx) =>
       queueAreaRun(tx, { port: models, clock }, 'finance', 'full', true),
     )
     await work()
-    const days = await client.query<{ id: string; day: string }>(
+    const planned = await client.query<{ id: string; day: string }>(
       `select q->>'id' as id,q->>'asOf' as day from eval_runs,jsonb_array_elements(summary->'plan'->'questions') q
         where eval_runs.id=$1 and q->>'id' like 'norway-%'`,
       [run!.id],
     )
-    expect(Object.fromEntries(days.rows.map((r) => [r.id, r.day]))).toMatchObject({
+    expect(Object.fromEntries(planned.rows.map((r) => [r.id, r.day]))).toMatchObject({
       'norway-as-of': '2026-08-10',
       'norway-today': '2026-10-08',
     })
@@ -1294,13 +1137,9 @@ describe('the day a question is asked on (round 6)', () => {
     )
 
     // Retired, so the runs after this one keep their own question counts.
-    for (const id of ['norway-as-of', 'norway-today']) {
-      const current = (await call('GET', `/evals/questions/${id}`, 'owner')).json<
-        GoldenQuestionInput & { revision: number }
-      >()
-      const retired = await save({ ...current, status: 'retired' }, 'owner', current.revision)
-      expect(retired.statusCode, retired.body).toBe(200)
-    }
+    await client.query(
+      "update golden_questions set status='retired' where id in ('norway-as-of','norway-today')",
+    )
   })
 })
 

@@ -3,16 +3,14 @@ import pg from 'pg'
 import type { Logger } from 'pino'
 import type { Database } from '../../db/database.ts'
 import type { ScheduledJob } from '../jobs/index.ts'
-import type { Hub } from './hub.ts'
 
 /**
  * The outbox relay. Every write puts its event in `outbox_events` in the same transaction; the
- * relay then writes the inbox items and gives each event its place in the live stream
- * (`cl_outbox_relay`, migration 0020). Delivery is at least once and every consumer is keyed on
+ * relay then writes the inbox items (`cl_outbox_relay`, migration 0020). Delivery is at least once and every consumer is keyed on
  * the event, so a repeated relay adds nothing.
  *
  * In the service the relay runs on the insert trigger's NOTIFY (`cl_events`) and every five
- * seconds, and wakes the live streams on the relay's own NOTIFY (`cl_relayed`). The scheduled
+ * seconds. The scheduled
  * `outbox.relay` job repeats it every minute, so the watchdog notices when events stop moving.
  */
 
@@ -50,7 +48,6 @@ export interface RelayOptions {
   /** The API role's connection string, for the one connection that listens. */
   connectionString: string
   database: Database
-  hub: Hub
   logger: Logger
   pollMs?: number
 }
@@ -64,7 +61,6 @@ export interface Relay {
 export function createRelay({
   connectionString,
   database,
-  hub,
   logger,
   pollMs = 5_000,
 }: RelayOptions): Relay {
@@ -87,8 +83,7 @@ export function createRelay({
       do {
         again = false
         try {
-          const pass = await relayOutbox(database)
-          if (pass.relayed) hub.wake()
+          await relayOutbox(database)
           if (failing) logger.info('outbox relay recovered')
           failing = false
         } catch (error) {
@@ -117,17 +112,13 @@ export function createRelay({
         })
         client.on('end', () => resolve())
       })
-      client.on('notification', ({ channel }) => {
-        if (channel === 'cl_events') void relay()
-        else hub.wake()
-      })
+      client.on('notification', () => void relay())
       try {
         await client.connect()
-        await client.query('listen cl_events; listen cl_relayed')
+        await client.query('listen cl_events')
         wait = 1_000
         // Catch up on anything written while nobody listened.
         void relay()
-        hub.wake()
         await Promise.race([lost, stopped])
       } catch (error) {
         if (!stopping.signal.aborted)

@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type {
   DeletedDraft,
   DraftFromText,
-  ItemBulkPlan,
   ItemBulkResult,
   ItemChange,
   ItemPage,
@@ -162,8 +161,6 @@ const served = async (itemId: string) =>
   ).rows[0] ?? null
 const bulk = (who: Who, input: object) =>
   ok<ItemBulkResult>(call('POST', '/items/bulk', who, input))
-const plan = (who: Who, input: object) =>
-  ok<ItemBulkPlan>(call('POST', '/items/bulk/plan', who, input))
 const undo = (who: Who, token: string) => call('POST', '/decisions/undo', who, { token })
 const indexRow = async (who: Who, id: string) =>
   (await ok<LibraryIndex>(call('GET', '/library', who))).items.find((i) => i.id === id)
@@ -264,15 +261,15 @@ describe('publishing in one step (FR-137)', () => {
 })
 
 describe('a change to many items at once (FR-139)', () => {
-  it('plans which rows it acts on, and says why it leaves the others alone', async () => {
+  it('acts on the rows it may, and says why it leaves the others alone', async () => {
     const mine = await live()
     const theirs = await live({ areaId: 'marketing' }, 'admin')
     const draftId = await aDraft()
-    const result = await plan('owner', {
+    const result = await bulk('owner', {
       action: 'archive',
       rows: [mine, theirs, draftId, 'itm_nothere001'],
     })
-    expect(result.act.map((r) => r.id)).toEqual([mine])
+    expect(result.done).toEqual([mine])
     expect(result.skipped).toEqual([
       expect.objectContaining({ id: 'itm_nothere001', code: 'not_found' }),
       expect.objectContaining({
@@ -355,7 +352,7 @@ describe('a change to many items at once (FR-139)', () => {
     expect(r.done).toEqual([item])
     expect(await served(item)).toMatchObject({ n: 2, area: 'marketing' })
     expect(r.change?.summary).toMatch(/^Moved “.*” to Marketing\.$/)
-    const same = await plan('admin', { action: 'domain', rows: [item], areaId: 'marketing' })
+    const same = await bulk('admin', { action: 'domain', rows: [item], areaId: 'marketing' })
     expect(same.skipped).toEqual([
       expect.objectContaining({ code: 'same_domain', message: 'It is in Marketing already.' }),
     ])
@@ -389,7 +386,7 @@ describe('a change to many items at once (FR-139)', () => {
       restorable: false,
     })
     expect(page.history.at(-1)).toMatchObject({ version: 1, kind: 'published', restorable: true })
-    const same = await plan('owner', { action: 'kind', rows: [item], kind: 'guide' })
+    const same = await bulk('owner', { action: 'kind', rows: [item], kind: 'guide' })
     expect(same.skipped[0]).toMatchObject({ code: 'same_kind', message: 'It is a Guide already.' })
     expect((await undo('owner', r.undo!)).statusCode).toBe(200)
     expect(await served(item)).toMatchObject({ n: 1, kind: 'note' })
@@ -397,7 +394,7 @@ describe('a change to many items at once (FR-139)', () => {
 
   it('names owners of an item who own its domain, and Undo gives back the owners it had', async () => {
     const item = await live()
-    const set = await plan('owner', {
+    const set = await bulk('owner', {
       action: 'owner_set',
       rows: [item],
       personId: people.stranger,
@@ -412,7 +409,7 @@ describe('a change to many items at once (FR-139)', () => {
     expect((await indexRow('author', item))?.owners.sort()).toEqual(
       [people.admin, people.owner].sort(),
     )
-    const again = await plan('owner', { action: 'owner_add', rows: [item], personId: people.admin })
+    const again = await bulk('owner', { action: 'owner_add', rows: [item], personId: people.admin })
     expect(again.skipped[0]).toMatchObject({ code: 'already_owner' })
     const page = await ok<ItemPage>(call('GET', `/items/${item}/page`, 'author'))
     expect(page.history[0]).toMatchObject({ kind: 'owners', version: null })

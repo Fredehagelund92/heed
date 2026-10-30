@@ -10,22 +10,18 @@ design notes.
 One setting holds the name people and agents read: `CL_PRODUCT_NAME`, default `Heed`
 (`src/domain/brand.ts`).
 
-- The service reads it once at start (`src/server/brand.ts`), so the assistant's instructions,
-  the MCP tools' descriptions and the server instructions stay byte-stable between requests. A
+- The service reads it once at start (`src/server/brand.ts`), so the MCP tools' descriptions and
+  the server instructions stay byte-stable between requests. A
   value that is not a usable name stops the start (`src/server/config/env.ts`).
 - The web build reads the same variable (`envPrefix` in `vite.app.config.ts`, `src/app/lib/brand.ts`),
   and so does the page title in `src/app/index.html`. Set it for both.
-- The documentation in `docs/help` names no product ([copy](design/copy.md)). The earlier help
-  pages in `docs/old-help`, which the service's in-app assistant reads, write `{{product}}` where a
-  sentence names the product, and the service's help library puts the name in. A heading never
-  holds the token: its words are its address.
+- The documentation in `docs/help` names no product ([copy](design/copy.md)).
 
 The checks:
 
 - `tests/server/brand.test.ts` checks the setting: the default, a name that stops the start, and
-  the token. It also sets another name and checks that the service's help pages, the
-  assistant's instructions and turn context, and the MCP instructions and tools say it, and never
-  the old name.
+  the token. It also sets another name and checks that the MCP instructions and tools say it, and
+  never the old name.
 - The lint rule `brand/no-product-name` (`eslint.product-name.js`, proved in
   `tests/lint/product-name.test.ts`) reports a string, template text or JSX text in the app, the
   domain, the contract, the service or the CLI that names the product by hand. The technical names below carry
@@ -36,7 +32,7 @@ The checks:
 | Class                         | Rule                                                                                                                      | What to do                                                                                                                                                                                   |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | (a) Labels that need no name  | A navigation or action label, or a sentence where the name is filler: the reader already knows which product they are in. | Rewrite without it: "Back to Heed" is "Back", "Add Heed to your agent" is "Add to your agent", "Last week in Heed" is "Last week", "Heed reads" is "Reads", "Ask Heed first" is "Ask first". |
-| (b) Sentences that name it    | The sentence reads wrongly without the name: "Sign in to Heed", "What is Heed", an agent told what the server holds.      | The name comes from the setting: `productName` in the app and the service, `{{product}}` in a help page, a `product` fact for the scripted assistant (`src/domain/assistant-meta.ts`).       |
+| (b) Sentences that name it    | The sentence reads wrongly without the name: "Sign in to Heed", "What is Heed", an agent told what the server holds.      | The name comes from the setting: `productName` in the app and the service.                                                                                                                   |
 | (c) Technical identifiers     | A name a machine, a file or a stored record depends on.                                                                   | Leave as they are. Listed below as the plan for a real rename.                                                                                                                               |
 | (d) Historical or quoted text | Records of what was said or decided.                                                                                      | Unchanged.                                                                                                                                                                                   |
 
@@ -57,7 +53,7 @@ alone or done wrong.
 | 1     | Brand assets: the lockup, symbol and mark (`src/app/public/heed-*.svg`, the favicons, the wordmark path in `src/app/components/heed/logo.tsx`, `docs/design/logo.md`).                                                                                                                                                                                          | `src/web/public`, `src/web/components/app-shell/logo.tsx`                                                    | Low. Design work, not code: the wordmark is drawn, not typed, so the setting cannot change it. Keep the file names until step 6.                                                                    |
 | 2     | Code names: `Heed*Icon`, `heedIcon`, `heedMarks`, `HEED_STROKE`, the `.heed-point` classes, `HeedClient`, `HeedSetup`, `askHeedFirst`, `whatHeedReads`, `auditByHeed`, the lint rule `heed/plain-words`.                                                                                                                                                        | `src/web`, `src/cli`, `scripts`                                                                              | Low. A rename refactor the type check proves. The design contract's glyph table (6.11) names the marks `heed-*`, so it changes in the same pull request.                                            |
 | 3     | Test ids and data attributes: `data-heed-ask`, `data-heed-markup`, `data-slot="ask-heed-first"`, `home-new-to-heed`, `lucide-heed-*` classes, `window.heedMock`.                                                                                                                                                                                                | `src/web`, `tests/e2e`, `tests/unit`, stories                                                                | Low. Tests find elements by them; change the attribute and every test that reads it together.                                                                                                       |
-| 4     | Docs slugs: `what-is-heed`, `tell-heed-about-your-business` and the picture `images/heed-loop.svg`.                                                                                                                                                                                                                                                             | `docs/old-help`, `src/web/lib/help.ts`, links in the app and on GitHub                                       | Medium. A slug is an address people bookmark and paste: keep a redirect from the old `/docs/<slug>` for a while.                                                                                    |
+| 4     | Docs slugs: none. The help pages with `what-is-heed` and `tell-heed-about-your-business` left with `docs/old-help` (30 Oct 2026); the pages in `docs/help` name no product.                                                                                                                                                                                     | None                                                                                                         | None.                                                                                                                                                                                               |
 | 5     | Environment variables: `HEED_URL`, `HEED_ORIGIN`, `HEED_EMAIL`, `HEED_KEY`, `HEED_API_URL`, `HEED_CONNECTORS`, `HEED_INSTALL` and `VITE_HEED_INSTALL`, `HEED_HELDOUT_KEY`, `HEED_HELDOUT_KEY_FILE`, and the compose file's `HEED_PORT` and `HEED_WEB_PORT`.                                                                                                     | `src/cli`, `scripts`, `vite.config.ts`, `.env.example`, `compose.yaml`, CI                                   | Medium. Read the old name as a fallback for one release, and say so in the release note, or every local `.env` breaks silently.                                                                     |
 | 6     | Local files and folders: `~/.heed/held-out.key`, the container's `/var/lib/heed`, `.heed-dev-key.pem`, `.heed-mcp-state.key`, `.heed-oauth-key.pem` and the public `heed-*.svg` files.                                                                                                                                                                          | `src/server/config/env.ts`, `src/app/public`, `Dockerfile`, `.gitignore`                                     | High for keys: a new default path means a new signing or state key, which signs everyone out and voids sealed questions. Move the file or keep the old default.                                     |
 | 7     | Storage keys and cookies: `heed_session`, `heed_oauth_browser`, the `heed.context.<person>.<draft>` drafts and `heed:lists` in the browser.                                                                                                                                                                                                                     | `src/server/modules/auth`, `src/server/modules/oauth`, `src/web`                                             | High. A new cookie name signs everyone out; a new storage key loses unsaved drafts. Read both names for a release, then drop the old.                                                               |
@@ -84,7 +80,6 @@ Left as written, since it records what happened:
 ## When the name changes
 
 1. Set `CL_PRODUCT_NAME` where the service runs and where the web app is built, and rebuild.
-2. Run `npm test`: the brand tests confirm the service's help pages, the assistant's instructions
-   and the MCP text say the new name and never the old one. Screens and agent text that still write the name by hand
+2. Run `npm test`: the brand tests confirm the MCP text says the new name and never the old one. Screens and agent text that still write the name by hand
    (class (b) strings not yet moved to `productName`) need a search for the old name.
 3. Replace the brand assets (step 1 above), then work down the table as far as the rename goes.

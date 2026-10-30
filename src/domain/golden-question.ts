@@ -7,7 +7,7 @@
 import * as z from 'zod/mini'
 import { isCalendarDate } from './validity.ts'
 
-export const questionStatuses = ['active', 'saturated', 'retired'] as const
+const questionStatuses = ['active', 'saturated', 'retired'] as const
 export const questionSplits = ['development', 'held_out'] as const
 export const deliveryStatuses = ['matched', 'no_match', 'need_more_detail'] as const
 
@@ -51,7 +51,7 @@ export const questionScopeSchema = z.object({
  * link (`read_item` or `get_related`), and the stale or hidden link targets it must neither read
  * nor cite. Both are optional, so earlier questions keep their exact text and cache keys.
  */
-export const expectedSchema = z.object({
+const expectedSchema = z.object({
   must_deliver: z._default(z.array(itemId).check(z.maxLength(20)), []),
   must_not_deliver: z._default(z.array(itemId).check(z.maxLength(20)), []),
   reachable_via_link: z.optional(z.array(itemId).check(z.minLength(1), z.maxLength(20))),

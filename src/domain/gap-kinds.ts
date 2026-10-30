@@ -22,9 +22,6 @@ export type GapType = (typeof gapTypes)[number]
 export const gapStatuses = ['open', 'proposal_made', 'wont_fix', 'resolved'] as const
 export type GapStatus = (typeof gapStatuses)[number]
 
-/** The statuses an owner sets by hand. `proposal_made` follows from starting a draft (FR-616). */
-export const manualGapStatuses = ['open', 'wont_fix', 'resolved'] as const
-
 /**
  * FR-606: the ways a gap is opened, by case number. Case 5 is a person who reports one from Try it
  * or the assistant; like every other origin, it records no person (FR-608, FR-613).

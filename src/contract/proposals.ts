@@ -2,7 +2,6 @@ import * as z from 'zod/mini'
 import { draftSchema } from '../domain/draft.ts'
 import { provenanceSchema } from '../domain/provenance.ts'
 import { proposalStates } from '../domain/proposal-state.ts'
-import { questionIdSchema } from '../domain/golden-question.ts'
 import {
   claimLevels,
   creationChannels,
@@ -11,7 +10,6 @@ import {
   riskLevels,
 } from '../domain/item.ts'
 import { servedLinkStatuses } from '../domain/links.ts'
-import { calendarDateSchema } from '../domain/validity.ts'
 import { proposalActions } from '../domain/proposal.ts'
 import { limits } from '../domain/proposal-rules.ts'
 import { termSchema } from '../domain/vocabulary.ts'
@@ -38,12 +36,6 @@ export const createProposalSchema = z.strictObject({
   itemId: z.optional(z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))),
   derivedFrom: z.optional(z.string().check(z.uuid())),
   channel: z.optional(z.enum(personChannels)),
-})
-export const saveDraftSchema = z.strictObject({
-  ...proposalMutationSchema.shape,
-  draft: draftSchema,
-  /** Left out, the stored reason stays as it is. */
-  reason: z.optional(changeReasonSchema),
 })
 export const proposalRecordSchema = z.object({
   id: z.string(),
@@ -97,36 +89,9 @@ export const proposalListSchema = z.strictObject({
   limit: z.optional(z.number().check(z.int(), z.minimum(1), z.maximum(100))),
   offset: z.optional(z.number().check(z.int(), z.minimum(0))),
 })
-export const proposalEventSchema = z.object({
-  id: z.string(),
-  at: z.string(),
-  actorId: z.nullable(z.string()),
-  kind: z.string(),
-  data: z.record(z.string(), z.unknown()),
-})
-export const commentSchema = z.strictObject({
-  ...proposalMutationSchema.shape,
-  text: z.string().check(z.minLength(1), z.maxLength(2000)),
-  replyTo: z.optional(z.string().check(z.uuid())),
-})
 export const withdrawSchema = z.strictObject({
   ...proposalMutationSchema.shape,
   reason: z.string().check(z.minLength(1), z.maxLength(500)),
-})
-/** What discarding a draft answers: the draft is gone from every list and read from then on. */
-export const discardedDraftSchema = z.object({ id: z.string(), discardedAt: z.string() })
-export const handOverSchema = z.strictObject({
-  ...proposalMutationSchema.shape,
-  personId: z.string().check(z.uuid()),
-})
-export const previewSchema = z.strictObject({
-  ...proposalIdSchema.shape,
-  question: z.string().check(z.maxLength(2000)),
-  metrics: z.optional(z.array(z.string()).check(z.maxLength(10))),
-  dimension_filters: z.optional(
-    z.array(z.object({ dimension: z.string(), values: z.array(z.string()) })),
-  ),
-  window: z.optional(z.object({ from: calendarDateSchema, to: calendarDateSchema })),
 })
 /**
  * A test question of the proposal's area attached to its check (FR-524): its results are reported
@@ -139,15 +104,6 @@ export const proposalTestSchema = z.object({
   attachedHour: z.string(),
 })
 export type ProposalTest = z.infer<typeof proposalTestSchema>
-/**
- * The draft's author attaches while it is a draft; the area's owners, deputies and
- * administrators until a decision. Attaching it again, or detaching one that is not attached,
- * changes nothing.
- */
-export const proposalTestInputSchema = z.strictObject({
-  id: z.string().check(z.uuid()),
-  question: questionIdSchema,
-})
 /** A proposal that overlaps: its number, title and kind of context, and where it stands. */
 const overlappingProposalSchema = z.object({
   id: z.string(),
@@ -332,10 +288,4 @@ export const previewReplySchema = z.object({
   ),
   check_report: replyCheckReportSchema,
   instructions: z.optional(z.string()),
-})
-export type PreviewReply = z.infer<typeof previewReplySchema>
-export const proposalPreviewSchema = z.object({
-  proposalId: z.string(),
-  revision: z.number(),
-  result: previewReplySchema,
 })

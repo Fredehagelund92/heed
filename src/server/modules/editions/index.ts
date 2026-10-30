@@ -9,7 +9,6 @@ export {
 } from './repository.ts'
 export {
   activeStops,
-  diffEditions,
   editionBySeq,
   listEditions,
   lockReleases,
@@ -20,13 +19,7 @@ export {
   type EditionChange,
   type EditionReason,
 } from './release.ts'
-export {
-  blockedVersions,
-  compareEditions,
-  compareItem,
-  editionFeed,
-  rollbackPreview,
-} from './compare.ts'
+export { blockedVersions, rollbackPreview } from './compare.ts'
 export type {
   ClientPolicy,
   EditionSource,

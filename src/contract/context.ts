@@ -42,12 +42,6 @@ const bulkRowSkipSchema = z.object({
   message: z.string(),
 })
 
-/** What a change would do, before it is made: the rows it acts on and the rows it leaves alone. */
-export const itemBulkPlanSchema = z.object({
-  act: z.array(z.object({ id: z.string(), title: z.string() })),
-  skipped: z.array(bulkRowSkipSchema),
-})
-
 /**
  * What a change did. Each row it could change is done or failed: a failed row is left as it was,
  * with why, to try again. `undo` takes back exactly what it did, within limits.undo_seconds.
@@ -219,7 +213,6 @@ export const draftFromTextSchema = z.object({
 })
 
 export type ItemBulkInput = z.infer<typeof itemBulkInputSchema>
-export type ItemBulkPlan = z.infer<typeof itemBulkPlanSchema>
 export type ItemBulkResult = z.infer<typeof itemBulkResultSchema>
 export type ItemChange = z.infer<typeof itemChangeSchema>
 export type DeletedDraft = z.infer<typeof deletedDraftSchema>

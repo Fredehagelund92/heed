@@ -1,10 +1,8 @@
 import type { LanguageModelV4, LanguageModelV4StreamPart } from '@ai-sdk/provider'
-import { jsonSchema, tool, wrapLanguageModel } from 'ai'
+import { wrapLanguageModel } from 'ai'
 import { modelAdapters } from './adapters/index.ts'
-import { scriptedAssistantModel } from './assistant-mock.ts'
 import { ModelConfigError, ModelVendorError } from './errors.ts'
 import { scriptedAnswerModel, scriptedJudgeModel } from './mock.ts'
-import { scriptedSearchModel } from './web-search-mock.ts'
 import { defaultModel, modelProviders, vendorNames } from './providers.ts'
 import type {
   Effort,
@@ -15,12 +13,11 @@ import type {
   Prices,
   ProviderAdapter,
   ProviderEntry,
-  WebSearchRoute,
 } from './types.ts'
 
 /**
  * The model port (plan section 3.1): one explicit model object per role. `get_facts` never
- * calls a model; only the evaluation runner, its judges and the assistant do. A plain string
+ * calls a model; only the evaluation runner, its judges and Ask's words do. A plain string
  * model would route through an AI gateway the service did not choose, so every model here is an
  * object made by the adapter of a provider in the registry (`providers.ts`), for a model that
  * provider lists. `MODELS=mock` puts the scripted mock behind every role instead.
@@ -45,12 +42,6 @@ export interface ModelPort {
    * null when it keeps none, or for the mock. Throws when the counter cannot be read.
    */
   creditsUsed(provider: string): Promise<number | null>
-  /**
-   * The way to search the web through a provider (the assistant's search_web): its vendor's search
-   * tool on the model its entry names for searching, or null when the provider cannot search.
-   * `maxUses` caps the searches of one call.
-   */
-  webSearch(provider: string, maxUses: number): WebSearchRoute | null
 }
 
 /**
@@ -188,34 +179,6 @@ export function createModelPort(options: ModelPortOptions): ModelPort {
       if (!Number.isFinite(used)) throw new Error(`${entry.name} gave no total used`)
       return Math.round(used * 1_000_000)
     },
-    webSearch(provider, maxUses) {
-      const entry = providers.get(provider)
-      const search = entry?.webSearch
-      if (!entry || !search) return null
-      // The registry checked that the adapter searches and the provider lists the model.
-      const listed = entry.models[search.searchModel]!
-      const made = adapters[search.adapter]!.webSearch!(
-        entry,
-        connectionOf('models.assistant', entry),
-      )(search.searchModel, listed, { maxUses })
-      return {
-        model: holdVendor(made.model, search.searchModel, listed.vendor),
-        tools: made.tools,
-        toolName: made.toolName,
-        options: {},
-        cacheBreakpoint: {},
-        id: `${entry.name}/${search.searchModel}`,
-        provider: entry.name,
-        name: search.searchModel,
-        vendor: listed.vendor,
-        family: `${listed.vendor}/${listed.line}`,
-        effort: 'low',
-        prices: listed.prices,
-        recipients: recipients(entry, listed),
-        // Dollars per thousand searches: a thousandth of a dollar per search for each.
-        searchMicros: Math.round(search.perThousand * 1000),
-      }
-    },
   }
 }
 
@@ -232,15 +195,6 @@ function registry(
       throw new ModelConfigError(
         `Provider ${entry.name} names adapter ${entry.adapter}, which does not exist`,
       )
-    const search = entry.webSearch
-    if (search && !adapters[search.adapter]?.webSearch)
-      throw new ModelConfigError(
-        `Provider ${entry.name} searches the web with adapter ${search.adapter}, which cannot search`,
-      )
-    if (search && !Object.hasOwn(entry.models, search.searchModel))
-      throw new ModelConfigError(
-        `Provider ${entry.name} searches the web with model ${search.searchModel}, which it does not list`,
-      )
     byName.set(entry.name, entry)
   }
   return byName
@@ -255,7 +209,7 @@ function mockPort(
   const models: Record<ModelRole, LanguageModelV4> = {
     eval_answer: scriptedAnswerModel(),
     judge: scriptedJudgeModel(),
-    assistant: scriptedAssistantModel(),
+    assistant: scriptedAnswerModel(),
     // No feature drafts test questions with a model yet; the role can be assigned before it does.
     test_authoring: scriptedAnswerModel(),
   }
@@ -280,26 +234,6 @@ function mockPort(
       resolve(setting, ref)
     },
     creditsUsed: () => Promise.resolve(null),
-    webSearch: () => {
-      const model = scriptedSearchModel()
-      return {
-        model,
-        // The scripted search answers whatever tool it is given; this one only names it.
-        tools: { web_search: tool({ inputSchema: jsonSchema({ type: 'object' }) }) },
-        toolName: 'web_search',
-        id: `mock/${model.modelId}`,
-        provider: 'mock',
-        name: model.modelId,
-        vendor: 'mock',
-        family: `mock/${model.modelId}`,
-        effort: 'low',
-        options: {},
-        cacheBreakpoint: {},
-        prices,
-        recipients: 'no one (the scripted mock)',
-        searchMicros: 0,
-      }
-    },
   }
 }
 

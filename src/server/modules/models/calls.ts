@@ -22,7 +22,7 @@ import type { ModelChoice, ModelRole } from './types.ts'
  * - prices the usage the provider reported, cache reads and writes at their own rates, or an
  *   estimate when the call ended before it reported any, and writes it at once: the spend
  *   ledger's totals and, for a test run, one `model_calls` row and the run's cost, in the same
- *   transaction. A person's assistant conversation keeps only the ledger's totals (FR-603).
+ *   transaction. A person's look-up in Ask keeps only the ledger's totals (FR-603).
  */
 
 /** How hard the service may call a provider. Null: no limit of that kind. */

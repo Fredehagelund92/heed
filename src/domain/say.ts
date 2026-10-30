@@ -1,5 +1,5 @@
 import { stateOfStatus, stateWords } from './answer-state.ts'
-import { fullDayWords, periodWords } from './dates.ts'
+import { periodWords } from './dates.ts'
 import { metricsOf } from './resolver.ts'
 import type { ResolvedScope, ScopeIssue } from './scope.ts'
 import { concepts } from './words-v1.ts'
@@ -231,7 +231,7 @@ function issueSay(bundle: Names, issues: readonly ScopeIssue[], question?: strin
         issue.options.slice(0, 3).map((key) => nameOf(bundle, key)),
         and,
       )
-    // improve_question names the whole question when it gives no dates at all.
+    // Dates the words give that cannot be read are named by those words.
     if (issue.field === 'dates')
       return issue.input && issue.input !== question
         ? `"${issue.input}" can't be read as dates.`
@@ -515,105 +515,6 @@ export function findSaid(
 }
 
 /**
- * domain_overview's two sentences: every domain, or one domain, what its owner says it is (its
- * summary, FR-813), and how many of its facts AI agents get.
- */
-export function overviewSaid(c: {
-  domain: { name: string; summary?: string } | undefined
-  coverage: { items: number; withheld?: number } | undefined
-  domains: number
-  /** How many metrics are the domain's own. */
-  metrics?: number
-  /** How the words for the domain were read, when they were not its name. */
-  readAs?: { wrote: string; domain: string } | null
-  /** The data tool has names for the domain that aren't in the vocabulary yet. */
-  waiting?: boolean
-}): Said {
-  if (!c.domain || !c.coverage)
-    return {
-      say:
-        c.domains === 1
-          ? "Here's the one domain, with what it covers and how many facts AI agents get from it."
-          : `Here are all ${c.domains} domains, with what each one covers and how many facts AI agents get from it.`,
-      next: 'Call domain_overview with a domain for its facts that need checking, its open gaps and its recent changes.',
-    }
-  const read = c.readAs ? `"${c.readAs.wrote}" is taken to mean ${c.readAs.domain}.` : null
-  const what = c.domain.summary
-    ? `${c.domain.name}: ${c.domain.summary.replace(/[.!?]$/, '')}.`
-    : `${c.domain.name} has no description yet.`
-  const { items, withheld = 0 } = c.coverage
-  const notShared = (n: number) =>
-    `${count(n, 'fact', 'facts')} ${n === 1 ? "isn't" : "aren't"} shared with AI agents yet`
-  const gets = items
-    ? `AI agents get ${count(items, 'fact', 'facts')} from it${withheld ? `, and ${withheld} more ${withheld === 1 ? "isn't" : "aren't"} shared yet` : ''}.`
-    : withheld
-      ? `${sentence(notShared(withheld))}.`
-      : null
-  // No zero counts (voice.md): what a domain doesn't have yet is said in words.
-  const own =
-    c.metrics === undefined
-      ? items || withheld
-        ? null
-        : 'It has no facts yet.'
-      : c.metrics
-        ? `It has ${count(c.metrics, 'metric', 'metrics')} of its own${items || withheld ? '' : ', and no facts yet'}.`
-        : items || withheld
-          ? 'It has no metrics of its own yet.'
-          : 'It has no facts and no metrics of its own yet.'
-  return {
-    say: [read, what, gets, own].filter(Boolean).join(' '),
-    ...(c.waiting
-      ? {
-          next: 'waiting_in_source says which names the data tool has for this domain beyond these, and who can add them. Tell the person when it helps.',
-        }
-      : {}),
-  }
-}
-
-/** The changes what_changed counts, by kind of change. */
-export type ChangeCounts = Readonly<Record<string, number>>
-
-/**
- * what_changed's sentence: what changed for AI agents since a day, counted in the words people use:
- * "Since 7 October 2026, in Sales: 3 facts added, 2 changed and 1 archived."
- */
-export function changesSaid(c: {
-  /** The day the earlier set of facts was saved, or null when there was none before. */
-  since: string | null
-  domain: string | null
-  counts: ChangeCounts
-  /** Changes that aren't shown: in a domain AI agents don't get yet, paused, or for one group. */
-  hidden: number
-}): Said {
-  const words: [string, string][] = [
-    ['added', 'added'],
-    ['changed', 'changed'],
-    ['checked', 'checked again'],
-    ['retired', 'archived'],
-    ['removed', 'taken back'],
-  ]
-  const parts = words.flatMap(([key, word]) =>
-    c.counts[key] ? [[c.counts[key], word] as const] : [],
-  )
-  const total = parts.reduce((sum, [n]) => sum + n, 0)
-  const since = c.since ? ` since ${fullDayWords(c.since)}` : ''
-  const facts = (n: number) => `${count(n, 'fact', 'facts')}${c.domain ? ` in ${c.domain}` : ''}`
-  const first =
-    total === 0
-      ? `Nothing${c.domain ? ` in ${c.domain}` : ''} changed for AI agents${since}.`
-      : parts.length === 1
-        ? `${sentence(facts(total))} ${total === 1 ? 'was' : 'were'} ${parts[0]![1]}${since}.`
-        : `${sentence(facts(total))} changed for AI agents${since}: ${list(parts.map(([n, word]) => `${n} ${word}`))}.`
-  const hidden = c.hidden
-    ? ` ${count(c.hidden, 'other change', 'other changes')} ${c.hidden === 1 ? "isn't" : "aren't"} shown.`
-    : ''
-  return {
-    say: `${first}${hidden}`,
-    next: 'changes lists each one in words; in_heed opens the comparison for the person.',
-  }
-}
-
-/**
  * read_context's two sentences (read_item's in the fact voice): the one item it gives, or that no
  * item by that id may be read, in the same words for one the caller may not see as for one that
  * does not exist (FR-334). `kind` is the kind as the reply names it.
@@ -673,9 +574,3 @@ export function reportSaid(c: {
     say: `${what} Who asked is not kept.${c.assumed ? ` ${c.assumed}` : ''}`,
   }
 }
-
-/** improve_question's two sentences: how the question reads, and where its suggestions are. */
-export const improveSaid = (scope: string): Said => ({
-  say: `The question reads as ${scope}.`,
-  next: 'suggestions, events and guides say what would make it sharper. For what applies, call get_facts.',
-})

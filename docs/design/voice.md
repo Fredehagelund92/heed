@@ -2,7 +2,7 @@
 
 > **Superseded for the web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the service's own sentences, the plain-words lint and its ratchet still point to it. Where the two differ, Copy wins.
 
-This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/old-help/README.md`) point here.
+This page says how to write every word people read: screens, toasts, errors, the help pages, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/help/README.md`) point here.
 
 The specification is written in a strict, rule-stating English on purpose. A screen is not. Write to a person, the way a colleague who knows the numbers would say it.
 
@@ -12,16 +12,16 @@ People in finance, marketing, operations and management. Many read English as a 
 
 ## The principles
 
-1. **Talk to the person.** Say "you". Say "we" only when the product or the data team does something: "We check the fact when you send it." The assistant says "I".
+1. **Talk to the person.** Say "you". Say "we" only when the product or the data team does something: "We check the fact when you send it."
 2. **Answer first.** The first words say what happened or what to do. The explanation comes after, or goes to a help page.
 3. **One idea per sentence.** About 15 words, never over 25. Keep the small words (the, a, that, then) that make a sentence easy to read and to translate.
 4. **Say it positively.** Say what is true and what to do. Use one negative sentence at most, and only where it carries weight.
 5. **Everyday contractions,** as Notion writes them: "you'll", "it's", "don't", "can't", "isn't" (decided 18 October 2026). Write "not" in full where it carries the weight of the sentence, so nobody misreads it: "This cannot be undone." Avoid unclear contractions ("'d", "'s" for "has") and stacked ones ("wouldn't've").
-6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words-v1.ts`. Never a synonym for variety. The program that connects over MCP is the **agent**: always software outside the app, never a person and never the assistant, which is the helper inside it. Write **AI agent** where a reader meets the word cold (the README, the first mention on a help page, the consent screen, what an agent says to a person, the assistant's replies, the tool titles) and **agent** after that, on buttons, tabs, headers, toasts and table cells. A person who works as an agent is named by the role: the support team, never "support agent".
+6. **One name per thing, the glossary's name, everywhere.** Take it from `src/domain/words-v1.ts`. Never a synonym for variety. The program that connects over MCP is the **agent**: always software outside the app, never a person. Write **AI agent** where a reader meets the word cold (the README, the first mention on a help page, the consent screen, what an agent says to a person, the assistant's replies, the tool titles) and **agent** after that, on buttons, tabs, headers, toasts and table cells. A person who works as an agent is named by the role: the support team, never "support agent".
 7. **Outcome before mechanism.** "Agents get this fact when a question is about Orders in Norway." Not how matching, editions or delivery work: that belongs in help.
 8. **Human values.** "15 June 2026", "1 to 30 September 2026", "3 facts", a person's name, a domain's name. No ISO dates, ids, edition labels, field keys or zero counts on a contributor's screen.
 9. **Calm and honest, never cute.** No jokes, no exclamation marks, no "Oops", no praise. No "Sorry", except for an outage we caused.
-10. **AI proposes, people decide. Say it in those words.** "The assistant drafts it. You check it and send it. The owner of Sales accepts it."
+10. **AI proposes, people decide. Say it in those words.** "An agent drafts it. You check it and send it. The owner of Sales accepts it."
 
 ## Do and don't
 
@@ -77,7 +77,7 @@ The rename covers only what people read. Code, API fields, the database, address
 Two checks hold the service's text to the glossary, and both read `src/domain/words-v1.ts`:
 
 - **The lint rule `heed/plain-words`** (`eslint.plain-words.js`) reads the notifications, the message of every error the service answers with, and the demo's fixtures. The `say` sentence (`src/domain/say.ts`) is checked against the glossary by `tests/server/mcp/say.test.ts`. The text the MCP gives models (instructions, tool descriptions and `next`) keeps its words.
-- **The ratchet** (`npm run lint:words`) also reads the help pages in `docs/old-help` the same way: titles, summaries and every line, without code.
+- **The ratchet** (`npm run lint:words`) counts what the lint rule reports, file by file, against `plain-words.baseline.json`.
 
 Each reports three things, with what to write instead:
 
@@ -87,7 +87,7 @@ Each reports three things, with what to write instead:
 
 Code is never reported. That covers imports, keys, types, comparisons, class names, test ids, addresses, ids and search keywords. It also covers code samples, words made of code's marks (`item_id`, `/library`, `getItem`) and a single lowercase word such as `'item'`, which is a key.
 
-A word the glossary allows somewhere (`allowedOn`) is allowed there. The screens that made those places left with the earlier web app; `surfaces` in `eslint.plain-words.js` lists the files that still make one. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words-v1.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
+A word the glossary allows somewhere (`allowedOn`) is allowed there. The screens that made those places left with the earlier web app, so no file makes one now. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words-v1.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
 
 ### The baseline
 
@@ -96,7 +96,7 @@ The rule warns while the screens are rewritten (voice plan, slices V4 to V7). `p
 - **A file has a word more often than its count, or a new file has any.** The change added old words. The message lists every word in that file with what to write instead. Write the new text in the glossary's words; never raise a count to make it pass. A fixed word never makes room for a new one: counts are kept for each word.
 - **A file has fewer than its count.** The check passes and prints a note. Run `npm run lint:words -- --update` when convenient to lower the baseline; no change has to touch `plain-words.baseline.json` to pass.
 
-To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/server/modules/notifications docs/old-help/editions.md`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
+To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/server/modules/notifications`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
 
 ## Before you ask for review
 

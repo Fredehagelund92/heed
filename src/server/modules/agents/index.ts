@@ -1,1 +1,1 @@
-export { connectInfo, readTryItQuestion, tryIt } from './service.ts'
+export { connectInfo, readTryItQuestion } from './service.ts'

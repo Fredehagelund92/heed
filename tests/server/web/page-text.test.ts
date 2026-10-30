@@ -4,13 +4,12 @@ import {
   decodeEntities,
   decodePage,
   pageText,
-  passages,
 } from '../../../src/server/modules/web/index.ts'
 
 /*
-  A page's words as Heed hands them to the assistant: decoded in the page's own character set
-  (an old official page serves Windows-1252 and says so nowhere), its markup and scripts dropped, one
-  paragraph per block, and, on a long page, the passages that hold the words looked for.
+  A page's words as Heed reads them for a draft: decoded in the page's own character set (an old
+  official page serves Windows-1252 and says so nowhere), its markup and scripts dropped, one
+  paragraph per block.
 */
 
 const latin1 = (text: string) => new Uint8Array(Buffer.from(text, 'latin1'))
@@ -93,50 +92,5 @@ describe('a hostile page', () => {
     ])
     expect(pageText('<p>Kept.</p><!-- never closed <p>Gone.', 'html').paragraphs).toEqual(['Kept.'])
     expect(pageText('<p>Kept.</p><a href="x', 'html').paragraphs).toEqual(['Kept.'])
-  })
-})
-
-describe('the passages handed on', () => {
-  const page = [
-    'Regras do comércio online',
-    'Menu',
-    ...Array.from({ length: 40 }, (_, i) => `Paragraph ${i} about something else entirely.`),
-    'Art. 7º Catorze dias após a data da compra, termina o prazo de devolução.',
-    'The paragraph after the found one.',
-    ...Array.from({ length: 40 }, (_, i) => `Closing paragraph ${i} with nothing in it.`),
-  ]
-
-  it('hands on a short page whole', () => {
-    expect(passages(['A.', 'B.'], undefined, 100)).toEqual({
-      passages: ['A.', 'B.'],
-      truncated: false,
-    })
-  })
-
-  it('on a long page, keeps the opening and the passages that hold the words, with their neighbours', () => {
-    const chosen = passages(page, 'prazo de devolução catorze dias', 300)
-    expect(chosen.truncated).toBe(true)
-    expect(chosen.passages[0]).toBe('Regras do comércio online')
-    expect(chosen.passages).toContain(page[42])
-    expect(chosen.passages).toContain('The paragraph after the found one.')
-    expect(chosen.passages.join('').length).toBeLessThanOrEqual(300)
-    // Accents do not matter to the words looked for.
-    expect(passages(page, 'prazo de devolucao', 200).passages).toContain(page[42])
-  })
-
-  it('without words, hands on the page from its start', () => {
-    const chosen = passages(page, undefined, 100)
-    expect(chosen.passages[0]).toBe('Regras do comércio online')
-    expect(chosen.passages).not.toContain(page[42])
-  })
-
-  it('cuts a very long paragraph at its sentences', () => {
-    const long = Array.from({ length: 60 }, (_, i) => `Sentence number ${i} of a long law.`).join(
-      ' ',
-    )
-    const chosen = passages([long], undefined, 100_000)
-    expect(chosen.passages.length).toBeGreaterThan(1)
-    for (const passage of chosen.passages) expect(passage.length).toBeLessThanOrEqual(1500)
-    expect(chosen.passages.join(' ')).toBe(long)
   })
 })

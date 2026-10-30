@@ -133,7 +133,6 @@
     "token:dev": "node --env-file-if-exists=.env.local src/server/mcp/token-dev.ts",
     "connectors:sync": "node --env-file-if-exists=.env.local src/server/sync-definitions.ts",
     "eval": "node --env-file-if-exists=.env.local src/server/run-evals.ts",
-    "eval:assistant": "node --env-file-if-exists=.env.local src/server/run-assistant-evals.ts",
     "eval:ask-words": "node --env-file-if-exists=.env.local src/server/run-ask-words-cases.ts",
     "eval:drafts": "node scripts/draft-eval.ts",
     "held-out": "node scripts/held-out.ts",

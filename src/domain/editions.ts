@@ -5,7 +5,6 @@
  * it and why. Pure functions of what they are given: no clock, no input or output.
  */
 import { editionChangeKinds, type EditionChangeKind } from './edition-changes.ts'
-import type { RiskLevel } from './item.ts'
 
 export { editionChangeKinds, type EditionChangeKind }
 
@@ -19,32 +18,6 @@ export const noChanges = (): ChangeCounts => ({
   retired: 0,
   removed: 0,
 })
-
-/**
- * Fields the system fills in rather than a person: definition references and their change marks
- * follow the scope, and the markup repeats the text with its mentions. A page folds them away.
- */
-export const systemFilledFields = [
-  'references',
-  'changeMarks',
-  'summaryMarkup',
-  'bodyMarkup',
-] as const
-
-export function isSystemFilled(field: string): boolean {
-  return (systemFilledFields as readonly string[]).includes(field)
-}
-
-const riskOrder: readonly RiskLevel[] = ['low', 'normal', 'high']
-
-/** The highest of some risk levels, or null for none. */
-export function highestRisk(levels: readonly (RiskLevel | null)[]): RiskLevel | null {
-  let highest: RiskLevel | null = null
-  for (const level of levels)
-    if (level && (highest === null || riskOrder.indexOf(level) > riskOrder.indexOf(highest)))
-      highest = level
-  return highest
-}
 
 /** Everything a sentence needs, with people and areas already named. */
 export type SentenceInput = {

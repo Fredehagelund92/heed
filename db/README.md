@@ -161,7 +161,7 @@ The rules that decide when a gap is verified are pure functions in `src/domain/g
 ## Agent drafts
 
 `proposals.provenance` is set on a draft an AI agent (the MCP tool
-`draft_context`, FR-121) or the assistant wrote for the person: who wrote it, a mark per field and
+`draft_context`, FR-121) wrote for the person: who wrote it, a mark per field and
 the flags of its words; null for a draft a person wrote. `draft_context` starts switched off in
 `tool_config`, and the setting `limits.agent_drafts` allows each person 10 in 24 hours and 20
 waiting. `cl_similar_items` is an owner-run read of the accepted items whose title or summary reads like a
@@ -200,8 +200,7 @@ absent until groups return.
 
 `outbox_events.actor_id` defaults to the transaction's `cl.person_id`, and `relay_seq` is the order in which the relay delivered each event. Outbox `seq`
 values are taken at insert, so they can commit out of order; `relay_seq` values cannot, because
-`cl_outbox_relay(int)` serialises relays with an advisory lock. Live streams resume by
-`relay_seq`. The relay runs as the owner, because inbox rows belong to other people than the
+`cl_outbox_relay(int)` serialises relays with an advisory lock. The relay runs as the owner, because inbox rows belong to other people than the
 caller and row security limits the API role to the signed-in person's own inbox; the API role
 may execute it, the serving and analytics roles may not. `cl_inbox_recipients` holds the
 recipient rules. Inbox items are unique per person and event, so relaying twice adds nothing.
@@ -237,7 +236,6 @@ npm run seed                          # the demo: the bulk seed below, then its 
 npm run seed -- --items-only          # the bulk seed alone
 npm run seed -- --items-only --count 50000   # a larger generated library, for performance
 npm run seed -- --library golden      # the golden set's library (below), with the history
-npm run seed -- --practice            # the practice domain (below), into any migrated database
 ```
 
 ### The demo on a new database
@@ -293,7 +291,7 @@ changes no flag.
 
 ### Demo quality history
 
-The bulk seed leaves Quality, Gaps and the Workbench empty, and CI's end-to-end tests rely on
+The bulk seed leaves the quality history and the gaps empty, and the tests rely on
 that (`npm run seed -- --items-only`). The demo (`npm run seed`, `loadDemo`) runs the bulk seed of
 1,500 items and then `seedDemo` (`db/seed/demo.ts`),
 which adds, in one transaction and offline with the scripted mock model: the mock's gaps
@@ -322,39 +320,12 @@ generated items, so every generated id stays, together with the extras the bulk 
 them: the conflicts, the aliases Net sales, GMV and Margin rate, the renamed Cube member
 `basket.margin_rate`, the first version's wording, and a domain that holds nothing yet ("Stores &
 Suplliers", `stores_suppliers`, misspelt on purpose) with three Cube members mapped to it that no
-term names, for the `pilot` assistant cases. `npm run seed -- --library golden` adds the
+term names. `npm run seed -- --library golden` adds the
 demo's quality history to the same library. The integration test `tests/integration/golden-set.test.ts` seeds the same library and
 runs every case's L1 checks (`goldenL1`, `src/server/modules/evals/golden.ts`) with no model.
 The held-out cases go in `db/seed/golden-held-out.age`, sealed, and run there only with the key,
 as counts (README, "The sealed held-out cases"). No cases are sealed at present, so that test
 says the held-out cases did not run and is skipped.
-
-### Practice domain
-
-```sh
-npm run seed -- --practice    # DATABASE_URL and CL_DEV_PEOPLE_FILE as for the service
-```
-
-`db/seed/practice.ts` adds the domain `practice` ("Practice (invented)") to any migrated local
-database, empty or not, to learn and show the workflow on without inventing anything about a real
-metric. Its vocabulary is its own: an invented bakery's two metrics (`metric:practice_loaves_baked`,
-`metric:practice_kiosk_visits`) and its kiosks (`dim:practice_kiosk`), every name ending in
-"(practice)", every title starting "Practice:". It holds:
-
-- proposals in every state: five accepted (one a second version), and one each rejected, changes
-  requested, in review, submitted, withdrawn and still a draft;
-- three gaps reported by a person: one open with a note, one resolved, one set aside (`wont_fix`);
-- its editions: one per vocabulary term and acceptance, and two for going live.
-
-It writes through the service's own API, started in the seed's process on a free loopback port,
-as four invented people of the domain (`practicePeople`: practice.owner, practice.second-owner,
-practice.approver and practice.contributor, all `@example.test`), so every step passes the same
-checks, guards and history log as a person would. The first administrator of the dev people file
-creates the domain, decides its vocabulary and sets it live, with an override reason for the start
-checks a practice domain does not meet. Every item is low risk, so nothing waits for a paid answer
-test. Dates count from the seed's day (`CL_FIXED_TODAY`, else today), so the content stays
-current. Run again on a database with the finished domain, it changes nothing; on one where a first run stopped half way (a gap on kiosk visits, in any status, is its last write) it prints that the domain is half-seeded, to reset and seed again, and exits non-zero. To sign in as a practice
-person, add them to the dev people file.
 
 ## Review and release
 
@@ -526,10 +497,9 @@ in the history. Cells say when the model refused (`refused`, with `passed` null)
 cell and has no UPDATE. The settings add the tries, flip repeats, the run budget, the evaluation spending cap
 and the model per feature.
 
-`models.assistant` is the assistant's model. The assistant
-writes only drafts (channel `assistant`), proposal history and the spend ledger; its own test
-runs are `eval_runs` of kind `assistant_mock` or `assistant_real`, with per-case verdicts in the
-summary and no conversation text.
+`models.assistant` is the model that writes Ask's words (FR-710). It was the in-app assistant's
+model until the assistant left (30 Oct 2026); the drafts it wrote (channel `assistant`) and its
+test runs (`eval_runs` of kind `assistant_mock` or `assistant_real`) stay in the history.
 
 `estimated_calls` in `llm_spend_daily` and `llm_spend_monthly` counts the model calls that ended early (abort, timeout, provider error) and were recorded as an
 estimate, so they can be told from reported usage.
@@ -572,8 +542,7 @@ null, so one person cannot spend everyone's budget.
 its schema (FR-410, FR-345). The service maps the name an app sends about itself (MCP
 `clientInfo`) to a fixed list in `src/domain/app-family.ts`, and a check constraint holds the
 column to that list, so a raw name, a version or any other free text cannot be stored. Requests
-that name no app are `unknown`. Health reads the counts per
-family and week, small ones hidden (`GET /quality/apps`).
+that name no app are `unknown`. Observability's reads filter by it (`GET /observability/agents`).
 
 ## Backup and restore
 

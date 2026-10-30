@@ -126,14 +126,14 @@ This never creates domains or changes an accepted vocabulary term, proposal or e
 
 A read records the model file that defines each member's public view or cube, relative to the
 model folder (`payments.yml`, `views/sales.yml`). The file is not part of the change mark: moving a
-member to another file flags nothing. `GET /catalogue/{kind}/{id}` returns it as `modelFile.path`.
+member to another file flags nothing. The operations overview (`GET /operations`) names it for each
+view (`modelFile`).
 
 The administrator setting `sources.cube_model_url`, on the Cube source's page in Sources, is the
 address of the model folder in the Git host's web view, for example `https://github.com/acme/analytics/blob/main/model`. It is off (null)
-after the migration. When it is set and the read named a file, `modelFile.url` is the folder
-address followed by the file's path, each segment encoded, and the Source tab of the metric or
-dimension and the views on the source's page link to it. Otherwise `url` is null and the tab shows no link. The
-service never calls the Git host: it only builds the address. Change the setting with
+after the migration. When it is set and the read named a file, the file's address is the folder
+address followed by the file's path, each segment encoded. The service never calls the Git host:
+it only builds the address. Change the setting with
 `PUT /settings/sources.cube_model_url` (an https address without credentials, query or fragment,
 or null). The bulk seed turns it on for the demo model, which is in this repository.
 
