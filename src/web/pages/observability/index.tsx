@@ -6,12 +6,16 @@ import { OBS_TITLES, seesObservability, type ObsSection } from '@/lib/obs'
 import { SettingsCrumbs } from '@/pages/settings'
 import { useMe } from '@/lib/workspace'
 import { OverviewPage } from '@/pages/observability/overview'
-import { SummaryPage } from '@/pages/observability/summary'
 import { QuestionsPage } from '@/pages/observability/questions'
 import { QualityPage } from '@/pages/observability/quality'
 import { FeedbackPage } from '@/pages/observability/feedback'
 import { UsagePage } from '@/pages/observability/usage'
 import { AlertsPage } from '@/pages/observability/alerts'
+
+// Summary is its own chunk: it is the largest page and keeps the first load inside its budget.
+const SummaryPage = React.lazy(() =>
+  import('@/pages/observability/summary').then((m) => ({ default: m.SummaryPage })),
+)
 
 // Observability: what agents asked and what they got, as counts and scopes, never the words of a
 // question or who asked. Seven pages in four groups (components/obs/obs-nav.tsx), Summary first,
@@ -75,7 +79,12 @@ export function ObservabilityPage({ section }: { section?: string }) {
         </Empty>
       </Page>
     )
-  if (current === 'summary') return <SummaryPage />
+  if (current === 'summary')
+    return (
+      <React.Suspense fallback={null}>
+        <SummaryPage />
+      </React.Suspense>
+    )
   if (current === 'overview') return <OverviewPage />
   if (current === 'questions') return <QuestionsPage />
   if (current === 'quality') return <QualityPage />
