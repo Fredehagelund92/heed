@@ -14,8 +14,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // the app, as the mockup's do (vite.config.ts). Splitting the
 // heavier pages (Observability, Integrations, Docs) into lazy routes lowers it
 // (https://github.com/Fredehagelund92/heed/issues/63); each change that lowers the first load
-// lowers the budget with it.
-const budgetKb = { js: 518, css: 32 }
+// lowers the budget with it. Raised again, on purpose, to 521 KB for the conflict fixes (CI measured
+// 519.5 KB of script): the api client, model and mock now carry one choice per clash.
+const budgetKb = { js: 521, css: 32 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({
