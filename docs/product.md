@@ -157,7 +157,7 @@ The Help menu in the sidebar's foot opens a small menu: the Help page, the keys,
 
 ## 6. The six answer states
 
-Every answer, for an agent and for a person, starts with one answer line. The words are fixed. Each shows with its icon and its tint, never as colour alone. Under every line but Checked there is one short sentence. The long form is for a tooltip, Help and the answer line's card.
+Every answer to a question that was looked up, for an agent and for a person, starts with one answer line. The words are fixed. Each shows with its icon and its tint, never as colour alone. Under every line but Checked there is one short sentence. The long form is for a tooltip, Help and the answer line's card.
 
 | Label           | The sentence under it              | What it means                                                                               | What to do                                      |
 | --------------- | ---------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |
@@ -169,6 +169,8 @@ Every answer, for an agent and for a person, starts with one answer line. The wo
 | **Not checked** | The check did not run.             | The check could not run just now. It is not the same as Not found.                          | Ask again in a minute.                          |
 
 In the code the states are `grounded`, `partial`, `missing`, `conflict`, `stale` and `failed`. A draft answer says "Based on this draft" and is never called Checked. The labels, sentences and long forms live in one list that Ask, Try it, Help, the docs, the charts and the copy test all read.
+
+A question that names nothing the context is about, no metric and no market, is not looked up, so it gets no answer line. Agents get `need_more_detail` and its reason. Ask says "Nothing was looked up", gives the reason in plain words, names the kinds of question it answers today with two questions from the workspace to try, and says that questions about the context itself come later. Not found is only for a question that was looked up and found nothing: it says nobody wrote anything down, which a question that was never looked up cannot show.
 
 ## 7. The kinds
 

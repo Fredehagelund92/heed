@@ -12,7 +12,7 @@ import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
 import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
-import { scopeText } from '@/model/ask'
+import { scopeText, unreadReason } from '@/model/ask'
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
 export type ReadScope = Asked['rows'][number]['scope']
@@ -187,6 +187,9 @@ function engineAnswerOf(
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'
+  // The engine read nothing: no answer state, only its reason (never Not found, which says that
+  // nothing is written down).
+  if (a.status === 'need_more_detail') return { ...base, state: null, text: unreadReason(a.say) }
   if (a.state === 'failed')
     return {
       ...base,
@@ -196,9 +199,7 @@ function engineAnswerOf(
   if (a.state === 'missing')
     return {
       ...base,
-      text: scope
-        ? `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`
-        : 'This question names no metric or market the context covers, so nothing written down applies. Agents say so rather than guess.',
+      text: `Nobody has written down anything about ${what}. That doesn't mean there's no explanation, only that none is written down yet.`,
     }
   const said = a.items.map((i, n) => `${sentenceOf(i.summary)} [${n + 1}]`).join(' ')
   if (a.state === 'conflict') {

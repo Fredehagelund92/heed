@@ -31,6 +31,9 @@ describe('Copy for Slack', () => {
       'Conflict (2 items). Two items say different things.',
     )
   })
+  it('never gives a question that was not looked up a state', () => {
+    expect(stateLineOf({ state: null }, 0)).toBe('Nothing was looked up.')
+  })
   it("dates the card from the demo world's today, with the workspace's name and no product name in a sentence", () => {
     expect(answeredOn('2026-10-23')).toBe('23 Oct 2026')
     expect(cardFooter('Larchwood Outdoor', '2026-10-23')).toBe(

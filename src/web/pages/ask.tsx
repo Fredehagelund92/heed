@@ -52,6 +52,7 @@ import { TruncatedText } from '@/components/heed/truncated'
 import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { StateLine } from '@/components/heed/bits'
+import { Suggestions } from '@/components/heed/suggestions'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
 // calm centred thread at reading width, and a composer docked to the bottom edge. Mock answers only:
@@ -77,44 +78,6 @@ function ComposerPlaceholder({ placeholder }: { placeholder: string }) {
         {placeholder}
       </div>
       <div className="h-10 border-t" />
-    </div>
-  )
-}
-
-/** Suggestions to ask, as soft chips: conversational, like the box they fill. A grid of starters on a new workspace's empty page. */
-function Suggestions({
-  items,
-  onPick,
-  grid,
-}: {
-  items: string[]
-  onPick: (q: string) => void
-  grid?: boolean
-}) {
-  if (!items.length) return null
-  return (
-    <div
-      role="group"
-      aria-label="Suggested questions"
-      className={cn(
-        'gap-2',
-        // A grid of two where there is room, stacked where there isn't: every starter whole, none cut off.
-        grid ? 'grid grid-cols-1 @lg:grid-cols-2' : 'flex flex-wrap',
-      )}
-    >
-      {items.map((q) => (
-        <button
-          key={q}
-          type="button"
-          onClick={() => onPick(q)}
-          className={cn(
-            'rounded-surface border bg-background px-3 py-2 text-left text-sm text-muted-foreground transition-colors outline-none hover:border-foreground/25 hover:bg-muted/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40',
-            grid ? '@lg:min-h-16' : '',
-          )}
-        >
-          {q}
-        </button>
-      ))}
     </div>
   )
 }
@@ -153,11 +116,13 @@ function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => vo
             <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
               <span className="text-dense">{q}</span>
               <span className="flex flex-wrap items-center gap-1.5">
-                <StateLine
-                  state={a.state}
-                  tip={false}
-                  className="gap-1.5 px-1.5 py-0 text-2xs [&_svg]:size-3"
-                />
+                {a.state && (
+                  <StateLine
+                    state={a.state}
+                    tip={false}
+                    className="gap-1.5 px-1.5 py-0 text-2xs [&_svg]:size-3"
+                  />
+                )}
                 {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
               </span>
             </span>
@@ -414,10 +379,12 @@ export function AskChat({
                     phase={t.phase}
                     onRetry={retry(i)}
                     onSettled={settle(i)}
+                    onAsk={draft ? undefined : (q) => void add(q)}
                   />
                 </div>
               ))}
-              {!draft && !busy && turns.at(-1)?.phase === 'done' && (
+              {/* An answer that looked nothing up offers its own questions instead. */}
+              {!draft && !busy && turns.at(-1)?.phase === 'done' && turns.at(-1)?.answer.state && (
                 <AskNext items={next} onPick={(q) => void add(q)} />
               )}
             </div>

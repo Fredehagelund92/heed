@@ -4,7 +4,7 @@ line: The six lines an answer starts with, and what each one asks of you.
 group: How it works
 order: 2
 minutes: 2
-reviewed: 2026-10-27
+reviewed: 2026-10-30
 ---
 
 Every answer, in the app and in your own agent, starts with one of six lines. Each says what the answer rests on, and what it asks of you.
@@ -23,6 +23,8 @@ Every answer, in the app and in your own agent, starts with one of six lines. Ea
 | Not checked: The check did not run.           | Could not check. The check could not run just now. It is not the same as Not found.                            | Ask again in a minute.                          |
 
 <!-- /include -->
+
+A question that names no metric and no market is not looked up, so its answer has none of the six lines. Ask says "Nothing was looked up", says why, and offers two questions it can answer. Not found is only for a question that was looked up and found nothing.
 
 ## Words
 

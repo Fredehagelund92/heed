@@ -1,4 +1,4 @@
-import { stateLabel, type Answer } from '@/model/ask'
+import { countedState, stateLabel, type Answer } from '@/model/ask'
 import { servedToAgents, type Fact } from '@/model/items'
 import { monthName, monthShort, observability, type Topic } from '@/api/mock/obs-engine'
 import { NEXT, type ReplayStep, type When } from '@/model/replay'
@@ -78,9 +78,14 @@ export function replay(t: Topic, when: When = 'now', pool: Fact[] = allFacts) {
         : 'Nothing about it was left out.',
       items: left,
     },
-    { key: 'checked', title: 'Checked', ms: MS[3], text: stateLabel[answer.state] },
+    { key: 'checked', title: 'Checked', ms: MS[3], text: stateLabel[countedState(answer)] },
     { key: 'said', title: 'Said', ms: MS[4], text: answer.said },
-    { key: 'next', title: 'Told the agent what to do next', ms: MS[5], text: NEXT[answer.state] },
+    {
+      key: 'next',
+      title: 'Told the agent what to do next',
+      ms: MS[5],
+      text: NEXT[countedState(answer)],
+    },
   ]
   return { answer, steps, ms: MS.reduce((a, b) => a + b, 0) }
 }

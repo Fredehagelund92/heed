@@ -9,14 +9,16 @@ import type { Fact } from '@/model/items'
 export function agentReply(answer: Answer, facts: Fact[]) {
   const scope = scopeText(answer) || 'nothing matched'
   return {
-    status: {
-      grounded: 'matched',
-      partial: 'matched',
-      missing: 'no_match',
-      conflict: 'conflict',
-      stale: 'matched',
-      failed: 'check_failed',
-    }[answer.state],
+    status: !answer.state
+      ? 'need_more_detail'
+      : {
+          grounded: 'matched',
+          partial: 'matched',
+          missing: 'no_match',
+          conflict: 'conflict',
+          stale: 'matched',
+          failed: 'check_failed',
+        }[answer.state],
     say: answer.said,
     asked: scope,
     context: facts.map((f) => ({

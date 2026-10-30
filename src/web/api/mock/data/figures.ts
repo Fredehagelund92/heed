@@ -66,7 +66,7 @@ export function sourceOfMetric(name: string): ConnectorId | undefined {
   return metrics.some((m) => m.name === name) ? 'cube' : undefined
 }
 
-type Asked = { metric: string; markets: string[]; dates?: string; state: string }
+type Asked = { metric: string; markets: string[]; dates?: string; state: string | null }
 
 const scopeOf = (a: Asked) =>
   `${a.metric}${a.markets.length ? ` in ${a.markets.join(' and ')}` : ''}${a.dates ? `, ${a.dates}` : ''}`

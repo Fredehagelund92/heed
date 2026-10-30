@@ -57,6 +57,7 @@ export function savedCounts(all: SavedQuestion[], domain?: DomainId): SavedCount
 
 /** What the answer should keep getting, in plain words, from what it gets now. */
 export function expectationOf(a: Answer) {
+  if (!a.state) return 'Nothing was looked up, so there is nothing to keep checking.'
   if (a.state === 'missing') return 'Not found, until someone writes it.'
   const n = a.sources.length
   return `${stateLabel[a.state]}, from ${n === 1 ? 'the item' : `the ${n} items`} it answers from today.`
