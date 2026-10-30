@@ -15,6 +15,7 @@ import {
   type ReactionEmoji,
 } from '../../../domain/comments.ts'
 import type { Queryable } from '../../db/database.ts'
+import { docMarkdown } from '../../../domain/doc-diff.ts'
 import { proposalEvent } from '../proposals/index.ts'
 
 /*
@@ -638,13 +639,23 @@ export function createCommentsService(tx: Queryable) {
    */
   async function anchoredOn(proposal: string, anchor: CommentAnchorInput) {
     const versions = [anchor.before, anchor.after].filter((v) => v !== null)
-    const [row] = await tx.query<{ ok: boolean }>(
-      `select count(*) = cardinality($2::uuid[]) as ok from item_versions v
-         join proposals p on p.item_id=v.item_id where p.id=$1 and v.id=any($2::uuid[])`,
+    const found = await tx.query<{ id: string; summary: string; body: string | null }>(
+      `select v.id::text, coalesce(v.summary_markup, v.summary) as summary,
+              coalesce(v.body_markup, v.body) as body
+         from item_versions v join proposals p on p.item_id=v.item_id
+        where p.id=$1 and v.id=any($2::uuid[])`,
       [proposal, versions],
     )
-    const side = 'side' in anchor ? anchor[anchor.side] : true
-    if (!versions.length || !row?.ok || !side)
+    const named = 'side' in anchor ? anchor[anchor.side] : true
+    const text = named && named !== true ? found.find((v) => v.id === named) : undefined
+    const markdown = text ? docMarkdown(text) : ''
+    const lines = markdown ? markdown.split('\n').length : 0
+    if (
+      !versions.length ||
+      found.length !== new Set(versions).size ||
+      !named ||
+      ('line' in anchor && anchor.line > lines)
+    )
       throw invalid('That line or field is not in this suggestion any more. Open it again.')
   }
 
