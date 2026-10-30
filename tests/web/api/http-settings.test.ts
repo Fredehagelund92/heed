@@ -215,7 +215,11 @@ describe('Settings, Advanced', () => {
       changed: { who: null, when: '1 Oct', why: 'The demo week' },
     })
     expect(rows['limits.agent_drafts']?.value).toBe('10 a day, 20 waiting at once')
-    expect(rows['retention.delivery_days']?.value).toBe('1 day')
+    // The full record lasts the days set; the weekly counts, which hold nobody's words, stay for good.
+    expect(rows['retention.delivery_days']).toMatchObject({
+      value: '1 day',
+      what: 'How long the full record of what agents were given is kept; weekly counts, with no words and no person, are kept for good',
+    })
     expect(rows['models.judge']?.value).toBe('Another line than the answering model')
     expect(rows['models.assistant']?.value).toBe('claude-sonnet-5-5 (anthropic)')
     expect(rows['business.about']?.value).toBe('No text yet')
@@ -415,6 +419,7 @@ describe('Settings, Advanced', () => {
         { name: 'gaps.detect', status: 'ok', lastStartedAt: at(23, 6, 5) },
         { name: 'connectors.sync', status: 'failing', lastStartedAt: at(22, 6) },
         { name: 'evals.weekly', status: 'waiting', lastStartedAt: null },
+        { name: 'observability.rollup', status: 'ok', lastStartedAt: at(23, 2, 45) },
       ],
     } as unknown as OperationsOverviewView
     expect(jobsOf(view, now)).toEqual([
@@ -432,6 +437,12 @@ describe('Settings, Advanced', () => {
         result: 'Failed',
       },
       { key: 'evals.weekly', job: 'Run the answer tests', last: 'Never', result: 'Not run yet' },
+      {
+        key: 'observability.rollup',
+        job: 'Keep the weekly counts for good',
+        last: 'Today, 02:45',
+        result: 'Done',
+      },
     ])
   })
 

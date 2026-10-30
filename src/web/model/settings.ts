@@ -104,7 +104,7 @@ const GROUPS: { group: string; settings: Entry[] }[] = [
       },
       {
         key: 'retention.delivery_days',
-        what: 'How long what agents were given is kept, as scopes and counts',
+        what: 'How long the full record of what agents were given is kept; weekly counts, with no words and no person, are kept for good',
         value: days,
       },
       {
