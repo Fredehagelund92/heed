@@ -184,6 +184,7 @@ describe('Settings, Advanced', () => {
         setting('models.assistant', { provider: 'anthropic', model: 'claude-sonnet-5-5' }),
         setting('business.about', ''),
         setting('serving.legacy', 1, false),
+        setting('serving.unlisted', 1),
       ],
       (id) => (id === 'p1' ? 'Jon Abara' : 'Someone'),
       now,
@@ -218,11 +219,13 @@ describe('Settings, Advanced', () => {
     expect(rows['models.judge']?.value).toBe('Another line than the answering model')
     expect(rows['models.assistant']?.value).toBe('claude-sonnet-5-5 (anthropic)')
     expect(rows['business.about']?.value).toBe('No text yet')
-    // A setting the list does not name still shows, as the service stores it.
+    // An editable setting the list does not name still shows, as the service stores it.
     expect(groups.at(-1)).toEqual({
       group: 'Other',
-      rows: [{ key: 'serving.legacy', value: '1', what: '', changed: null }],
+      rows: [{ key: 'serving.unlisted', value: '1', what: '', changed: null }],
     })
+    // A setting an administrator may not change is left out.
+    expect(rows['serving.legacy']).toBeUndefined()
   })
 
   it('lists what was deleted, newest first, by whom and when, a term with its synonyms', () => {

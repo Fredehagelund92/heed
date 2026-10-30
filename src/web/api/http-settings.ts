@@ -136,18 +136,20 @@ export function settingsOf(
   now: Date,
 ): Advanced['settings'] {
   return settingGroups(
-    settings.map((s) => ({
-      key: s.key,
-      value: s.value,
-      changed:
-        s.changedBy || s.version > 1
-          ? {
-              who: s.changedBy ? person(s.changedBy) : null,
-              when: whenWords(s.changedAt, now),
-              why: s.reason,
-            }
-          : null,
-    })),
+    settings
+      .filter((s) => s.editable)
+      .map((s) => ({
+        key: s.key,
+        value: s.value,
+        changed:
+          s.changedBy || s.version > 1
+            ? {
+                who: s.changedBy ? person(s.changedBy) : null,
+                when: whenWords(s.changedAt, now),
+                why: s.reason,
+              }
+            : null,
+      })),
   )
 }
 
