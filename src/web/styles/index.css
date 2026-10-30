@@ -179,6 +179,18 @@
   }
 }
 
+/* Toasts (Sonner, which brings 400ms of its own): in 220ms on the ease-out curve, out in 150ms. The
+   selectors outweigh Sonner's, which it adds after this sheet. With reduced motion the tokens are 0
+   and Sonner stops its own transitions too. */
+[data-sonner-toaster] [data-sonner-toast] {
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-out);
+
+  &[data-removed='true'] {
+    transition-duration: var(--dur-2);
+  }
+}
+
 /* Popover, menu, select and tooltip: a small step from the trigger, from 97% and 4px towards it.
    In 150ms, out 90ms. Opened from the keyboard, or a second tooltip right after a first: at once
    (Base UI marks those data-instant). */
@@ -187,32 +199,27 @@
   transition-duration: var(--dur-2);
   transition-timing-function: var(--ease-out);
 
+  &[data-side='bottom'] {
+    --from: 0 calc(-1 * var(--dist-1));
+  }
+
+  &[data-side='top'] {
+    --from: 0 var(--dist-1);
+  }
+
+  &:is([data-side='left'], [data-side='inline-start']) {
+    --from: var(--dist-1) 0;
+  }
+
+  &:is([data-side='right'], [data-side='inline-end']) {
+    --from: calc(-1 * var(--dist-1)) 0;
+  }
+
   &[data-starting-style],
   &[data-ending-style] {
     opacity: 0;
     scale: 0.97;
-  }
-
-  &[data-side='bottom']:is([data-starting-style], [data-ending-style]) {
-    translate: 0 calc(-1 * var(--dist-1));
-  }
-
-  &[data-side='top']:is([data-starting-style], [data-ending-style]) {
-    translate: 0 var(--dist-1);
-  }
-
-  &:is([data-side='left'], [data-side='inline-start']):is(
-      [data-starting-style],
-      [data-ending-style]
-    ) {
-    translate: var(--dist-1) 0;
-  }
-
-  &:is([data-side='right'], [data-side='inline-end']):is(
-      [data-starting-style],
-      [data-ending-style]
-    ) {
-    translate: calc(-1 * var(--dist-1)) 0;
+    translate: var(--from);
   }
 
   &[data-ending-style] {
@@ -296,6 +303,78 @@
     @starting-style {
       opacity: 0;
     }
+  }
+}
+
+/* A section or a "more" fold opening and shutting (Base UI's collapsible panel, which measures its
+   height): it opens in 220ms and shuts in 150ms. With reduced motion it is open or shut at once. */
+@utility fold-motion {
+  height: var(--collapsible-panel-height);
+  overflow: hidden;
+  transition: height var(--dur-3) var(--ease-out);
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    height: 0;
+  }
+
+  &[data-ending-style] {
+    transition-duration: var(--dur-2);
+  }
+}
+
+/* A sheet, from the edge it sits on: 16px and a fade, in 220ms on the panel curve, out in 150ms. */
+@utility sheet-motion {
+  --from: var(--dist-3) 0;
+
+  transition-property: opacity, translate;
+  transition-duration: var(--dur-3);
+  transition-timing-function: var(--ease-panel);
+
+  &[data-side='left'] {
+    --from: calc(-1 * var(--dist-3)) 0;
+  }
+
+  &[data-side='top'] {
+    --from: 0 calc(-1 * var(--dist-3));
+  }
+
+  &[data-side='bottom'] {
+    --from: 0 var(--dist-3);
+  }
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    translate: var(--from);
+  }
+
+  &[data-ending-style] {
+    transition-duration: var(--dur-2);
+  }
+}
+
+/* A copy button's icon after the copy: the tick takes the copy icon's place in 90ms, from 97%, and
+   goes back the same way. Both sit in one cell, so the button never changes size. */
+@utility icon-swap {
+  display: inline-grid;
+
+  & > * {
+    grid-area: 1 / 1;
+    transition-property: opacity, scale;
+    transition-duration: var(--dur-1);
+    transition-timing-function: var(--ease-out);
+  }
+
+  & > :last-child,
+  &[data-done] > :first-child {
+    opacity: 0;
+    scale: 0.97;
+  }
+
+  &[data-done] > :last-child {
+    opacity: 1;
+    scale: 1;
   }
 }
 

@@ -39,6 +39,7 @@ import { AGENT_TOOLS, logoFor } from '@/lib/agents'
 import { GuideLink } from '@/components/heed/guide-link'
 import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
 import { connectedLine, keysHint, usedLine, type Connected } from '@/lib/connect'
+import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { servedToAgents } from '@/model/items'
 import { useQuery } from '@tanstack/react-query'
 import type { Advanced as AdvancedPage, Exported } from '@/api/client'
@@ -220,6 +221,9 @@ const AboutPage = React.lazy(() =>
   import('@/pages/about-editor').then((m) => ({ default: m.AboutPage })),
 )
 
+/** A connected agent's row, the same across a refresh: its key, or the agent and who connected it. */
+const rowKey = (r: Connected) => r.key ?? r.agent + r.who
+
 /** General's side help, in the aside (or under the frame on narrower screens). */
 function AboutHelp() {
   return (
@@ -315,6 +319,7 @@ function Agents() {
   }
   const rows = useAgentConnections()
   const [revoking, setRevoking] = React.useState<Connected>()
+  const leaving = useLeavingRows()
   const { shown, more, next, showMore } = useShowMore(rows, 5, 20)
   return (
     <Frame>
@@ -326,48 +331,55 @@ function Agents() {
       </FrameSection>
       <FrameSection title="Connected agents" description={connectedLine(rows)}>
         {rows.length > 0 && (
-          <ul className="border-t" aria-label="Connected agents">
+          <ul ref={arriveRef} className="border-t" aria-label="Connected agents">
             {shown.map((r) => (
               <li
-                key={r.key ?? r.agent + r.who}
-                className={cn(
-                  'grid grid-cols-(--cols-around) items-center gap-x-3 border-t px-4 py-3 first:border-t-0 md:px-5',
-                  r.fresh && 'bg-fresh',
-                )}
+                key={rowKey(r)}
+                data-leaving={leaving.has(rowKey(r)) || undefined}
+                className="row-presence border-t first:border-t-0"
               >
-                {r.key ? (
-                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-logo-plate text-muted-foreground">
-                    <KeyRoundIcon className="size-4" aria-hidden />
-                  </span>
-                ) : (
-                  <ToolLogo c={{ logo: logoFor(r.agent) }} />
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {r.agent}
-                    {r.fresh && <span className="ml-2 text-xs font-normal text-primary">New</span>}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {r.who}
-                    <span className="@max-xl/main:hidden">
-                      , since {r.since.replace(' 2026', '')}
+                <div
+                  className={cn(
+                    'grid grid-cols-(--cols-around) items-center gap-x-3 px-4 py-3 md:px-5',
+                    r.fresh && 'bg-fresh',
+                  )}
+                >
+                  {r.key ? (
+                    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-logo-plate text-muted-foreground">
+                      <KeyRoundIcon className="size-4" aria-hidden />
                     </span>
-                    <span className="@xl/main:hidden"> - {usedLine(r)}</span>
-                  </p>
-                </div>
-                <span className="flex items-center gap-4">
-                  <span className="hidden text-xs text-muted-foreground first-letter:uppercase @xl/main:inline">
-                    {usedLine(r)}
+                  ) : (
+                    <ToolLogo c={{ logo: logoFor(r.agent) }} />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {r.agent}
+                      {r.fresh && (
+                        <span className="ml-2 text-xs font-normal text-primary">New</span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {r.who}
+                      <span className="@max-xl/main:hidden">
+                        , since {r.since.replace(' 2026', '')}
+                      </span>
+                      <span className="@xl/main:hidden"> - {usedLine(r)}</span>
+                    </p>
+                  </div>
+                  <span className="flex items-center gap-4">
+                    <span className="hidden text-xs text-muted-foreground first-letter:uppercase @xl/main:inline">
+                      {usedLine(r)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => setRevoking(r)}
+                    >
+                      Revoke
+                    </Button>
                   </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground"
-                    onClick={() => setRevoking(r)}
-                  >
-                    Revoke
-                  </Button>
-                </span>
+                </div>
               </li>
             ))}
           </ul>
@@ -384,13 +396,16 @@ function Agents() {
         onRevoke={() => {
           if (!revoking) return
           const { agent, who, key } = revoking
-          void write('revokeAgentConnection', { agent, who, ...(key ? { key } : {}) })
-            .then(() => toast(key ? 'Access key revoked' : `${agent} for ${who} revoked`))
-            .catch((e: unknown) =>
-              toast(key ? "Couldn't revoke the access key" : `Couldn't revoke ${agent}`, {
-                description: toApiError(e).message,
-              }),
-            )
+          // The row goes first, then the access is revoked.
+          void leaveThen(rowKey(revoking), () =>
+            write('revokeAgentConnection', { agent, who, ...(key ? { key } : {}) })
+              .then(() => toast(key ? 'Access key revoked' : `${agent} for ${who} revoked`))
+              .catch((e: unknown) =>
+                toast(key ? "Couldn't revoke the access key" : `Couldn't revoke ${agent}`, {
+                  description: toApiError(e).message,
+                }),
+              ),
+          )
           setRevoking(undefined)
         }}
       />

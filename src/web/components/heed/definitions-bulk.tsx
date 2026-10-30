@@ -27,6 +27,7 @@ import type { RowSelection } from '@/hooks/use-selection'
 import { APP_URL } from '@/lib/brand'
 import { count, download, movableTo, planTerms, skippedLine, type Me } from '@/lib/bulk'
 import { useWrite } from '@/api/queries'
+import { leaveAllThen } from '@/lib/presence'
 import { kindName, useGlossary, type Definition } from '@/lib/definitions'
 import { useOnline } from '@/lib/send'
 import { useDomains, useMe } from '@/lib/workspace'
@@ -89,7 +90,14 @@ export function DefinitionsBulk({
       summary: 'Deleted: a term, and the other names that pointed at it.',
       items: gone.map((d) => ({ id: `term:${d.name}`, title: d.name, domain: d.domain })),
     }
-    const { undo } = await write('deleteTerms', { names, entry })
+    // The rows that go (the terms and the names that pointed at them) fade out first, and stay
+    // gone while the list refreshes.
+    const { undo } = await new Promise<{ undo: string }>((done, fail) => {
+      leaveAllThen(
+        gone.map((d) => d.name),
+        () => write('deleteTerms', { names, entry }).then(done),
+      ).catch(fail)
+    })
     settle(deletePlan.act, deletePlan.skipped)
     toast(`${count(names.length, 'term')} deleted`, {
       description: others.length ? `With ${count(others.length, 'other name')}.` : undefined,

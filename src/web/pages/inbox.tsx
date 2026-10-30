@@ -1110,7 +1110,7 @@ export function InboxPage() {
     let undone = false
     let saved: string | undefined
     next()
-    leaveThen(card.id, () =>
+    void leaveThen(card.id, () =>
       React.startTransition(async () => {
         addDecided({ card: card.id, outcome: d.outcome })
         try {

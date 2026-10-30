@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner'
 import { FieldDiff, PersonAvatar } from '@/components/heed/bits'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   Sheet,
   SheetContent,
@@ -106,7 +107,6 @@ export function VersionHistory({
   const [viewing, setViewing] = React.useState<Version | null>(null)
   const { shown, more, next, showMore, showFewer } = useShowMore(versions, 5, 10)
   const latest = versions[0]
-  const listId = React.useId()
   if (!latest) return null
 
   // Shown rows by month, in order: "October 2026", then the rows of that month.
@@ -119,14 +119,8 @@ export function VersionHistory({
   }, [])
 
   return (
-    <div className="flex flex-col">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((o) => !o)}
-        className="group/history -mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
-      >
+    <Collapsible open={open} onOpenChange={setOpen} render={<div className="flex flex-col" />}>
+      <CollapsibleTrigger className="group/history -mx-1.5 flex min-h-8 items-center gap-2 rounded-md px-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
         <ChevronRightIcon
           aria-hidden
           className="size-3.5 shrink-0 text-muted-foreground transition-transform group-aria-expanded/history:rotate-90"
@@ -141,12 +135,9 @@ export function VersionHistory({
             {relativeDate(latest.on)}
           </span>
         </span>
-      </button>
-      {open && (
-        <div
-          id={listId}
-          className="mt-1 flex animate-in flex-col duration-(--dur-3) fade-in-0 slide-in-from-top-1"
-        >
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="mt-1 flex flex-col">
           {months.map((m) => (
             <section key={m.month} aria-label={m.month}>
               <h3 className="px-1.5 pt-2 pb-1 text-xs text-muted-foreground">{m.month}</h3>
@@ -176,7 +167,7 @@ export function VersionHistory({
             )}
           </div>
         </div>
-      )}
+      </CollapsibleContent>
       <Sheet open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
         <SheetContent side="right" className="w-history-panel gap-0 p-0">
           {viewing && (
@@ -229,6 +220,6 @@ export function VersionHistory({
       <span className="sr-only" aria-live="polite">
         {open ? `${shown.length} of ${versions.length} versions shown` : ''}
       </span>
-    </div>
+    </Collapsible>
   )
 }

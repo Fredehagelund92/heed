@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ChevronRightIcon, type LucideIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
 // The quick view (peek) of a context item or a definition, from the peek design's option 2: a note
 // and one closed Details row. Every element passed one test: is it content a person wrote or reads,
@@ -118,35 +119,31 @@ export function PeekDetails({
   rows: [string, React.ReactNode][]
   links: React.ReactNode[]
 }) {
-  const [open, setOpen] = React.useState(false)
-  const id = React.useId()
   return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen((o) => !o)}
-        className="group/det flex h-11 w-full items-center gap-1.5 px-4 text-left text-sm font-semibold outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @md:px-5"
-      >
+    <Collapsible>
+      <CollapsibleTrigger className="group/det flex h-11 w-full items-center gap-1.5 px-4 text-left text-sm font-semibold outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset @md:px-5">
         <ChevronRightIcon
           aria-hidden
           className="size-3.5 text-muted-foreground transition-transform group-aria-expanded/det:rotate-90"
         />
         Details
-      </button>
-      <div id={id} hidden={!open} className="px-4 pb-5 @md:px-5">
-        <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
-          {rows.map(([k, v]) => (
-            <React.Fragment key={k}>
-              <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
-              <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
-            </React.Fragment>
-          ))}
-        </dl>
-        {links.length > 0 && <div className="mt-4 flex flex-col items-start gap-1.5">{links}</div>}
-      </div>
-    </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent keepMounted>
+        <div className="px-4 pb-5 @md:px-5">
+          <dl className="grid grid-cols-(--cols-lead-23) gap-x-3 gap-y-2 text-sm @md:grid-cols-(--cols-lead-26)">
+            {rows.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt className="text-dense leading-5.5 font-medium text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 leading-5.5 break-words">{v}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+          {links.length > 0 && (
+            <div className="mt-4 flex flex-col items-start gap-1.5">{links}</div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
