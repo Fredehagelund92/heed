@@ -8,8 +8,11 @@ import { card, claimsToCheck, expect, go, inHttpOnly, signInAs, test } from './g
 test('the quick view and the row show the claims to check before Review', async ({ page }) => {
   const claims = `${claimsToCheck('sug-agent')} claims to check`
   await go(page, '/inbox?card=sug-agent')
-  await expect(page.getByText(`${claims}before publishing`)).toBeVisible()
+  await expect(page.getByText(`${claims} before publishing`)).toBeVisible()
   await expect(page.locator(`[data-row="${card('sug-agent')}"]`).getByLabel(claims)).toBeVisible()
+  // An overlap names the live item after a colon, with no space before it.
+  await go(page, '/inbox?card=sug-sofia-clash')
+  await expect(page.getByText(/^Overlaps live context: \S/)).toBeVisible()
 })
 
 test("a new date with no source says it isn't checked; one with a new source page doesn't", async ({

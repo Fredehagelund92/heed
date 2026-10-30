@@ -61,17 +61,22 @@ function Alerts() {
     <Frame>
       <FrameSection
         title="Alerts"
-        description={OBS_PURPOSE.alerts}
+        description={
+          <>
+            {OBS_PURPOSE.alerts}
+            {/* The reason is text anyone can read, on a phone too, not a hover tooltip. */}
+            <span id="add-rule-reason" className="mt-1 block">
+              {ADD_REASON}
+            </span>
+          </>
+        }
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            aria-disabled
-            aria-description={ADD_REASON}
-            title={ADD_REASON}
-          >
+          <Button variant="outline" size="sm" aria-disabled aria-describedby="add-rule-reason">
             <PlusIcon data-icon="inline-start" />
             Add a rule
+            <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal">
+              Coming soon
+            </span>
           </Button>
         }
       />
