@@ -63,6 +63,9 @@ test('the Ready line stays put when the outcome replaces the buttons', async ({ 
 
 test("a toast never covers the decision's buttons", async ({ page }) => {
   await open(page, 'sug-ines-format')
+  // Read to the end of the change, as a reader scrolls to it.
+  await page.getByText(/Counts as read after about \d+ seconds here./).scrollIntoViewIfNeeded()
+  await expect(page.locator('[style*="readfill"]')).toHaveCSS('animation-play-state', 'running')
   await page.clock.runFor(8000)
   await page.getByRole('button', { name: "Publish the 1 you've read" }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Publish 1' }).click()

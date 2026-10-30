@@ -156,6 +156,10 @@
   --cols-help: 15rem minmax(0, 1fr) 14rem;
   --cols-docs-page: minmax(0, 1fr) 14rem;
   --cols-sync-row: 8.5rem 9rem minmax(0, 1fr);
+
+  /* The review's Text diff: the line numbers before and after, the sign, the line; one number on a narrow pane. */
+  --cols-diff: 2.75rem 2.75rem 1.25rem minmax(0, 1fr);
+  --cols-diff-one: 2.75rem 1.25rem minmax(0, 1fr);
   --cols-people: auto minmax(0, 1.4fr) 5.5rem minmax(0, 1.6fr) 7rem;
   --cols-source: auto minmax(0, 1fr) 13rem auto;
   --cols-alerts: minmax(0, 1.7fr) minmax(0, 1fr) 11rem 3rem;

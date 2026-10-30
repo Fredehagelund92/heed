@@ -12,17 +12,18 @@ import type { Area } from '@domain/item'
 import type { ClashRelation } from '@domain/clash-relations'
 import { alertCardWords, alertRule, lookTitle } from '@domain/alerts'
 import { hrefOf } from './http-alerts'
+import { parseMentions } from '@domain/mentions'
 import { answerText, savedWhy } from '@domain/saved-check'
 import { shiftDate } from '@domain/validity'
 import type { Inbox, Workspace } from './client'
-import { mentionIdOf, type Words } from './http-context'
+import { mentionIdOf, textFromService, type Words } from './http-context'
 import { commentWhen } from './http-map'
 import type { Subject } from '@/model/comments'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import { kindLabel, type Fact, type Kind } from '@/model/items'
 import { DEFINITIONS_TOOL } from '@/model/integrations'
 import { describe, type Domain, type Domains, type Person } from '@/model/people'
-import type { Block, ChangeKind, Relation, Review } from '@/model/review'
+import type { Block, ChangeKind, FieldSide, Relation, Review } from '@/model/review'
 import { dateLabel, whenLabel } from '@/model/validity'
 
 /* ---------- words for times ---------- */
@@ -654,8 +655,38 @@ const relationOf = {
   unrelated: 'unrelated',
 } as const satisfies Record<ClashRelation, Relation>
 
-/** The plain words of the suggested text, for a clash's side by side. */
-const firstParagraph = (markdown: string) => markdown.split('\n\n')[0] ?? ''
+/** The plain words of the suggested text, for a clash's side by side: a mention reads as its words. */
+const firstParagraph = (markdown: string) =>
+  parseMentions(markdown.split('\n\n')[0] ?? '')
+    .parts.map((p) => (p.kind === 'text' ? p.text : p.label))
+    .join('')
+
+/** The stored text as the app reads it: each mention as the app's token, or its words without the vocabulary. */
+const textOf = (markup: string, words?: Words) =>
+  words
+    ? textFromService(markup, words)
+    : parseMentions(markup)
+        .parts.map((p) => (p.kind === 'text' ? p.text : p.label))
+        .join('')
+
+/** One side of the sheet's fields in the words the Fields table shows. */
+function fieldSideOf(f: ReviewSheet['fields']['before']): FieldSide | null {
+  if (!f) return null
+  return {
+    title: f.title,
+    kind: f.kind === 'example' ? 'Example' : kindLabel[f.kind],
+    domain: f.domain.name,
+    owner: f.owner ? (f.owner.name ?? 'Someone no longer here') : 'Not set',
+    scope: f.scope,
+    validity: {
+      ...(f.validity.from ? { from: f.validity.from } : {}),
+      ...(f.validity.until ? { until: shiftDate(f.validity.until, -1) } : { ongoing: true }),
+    },
+    ...(f.reviewDate ? { reviewDate: f.reviewDate } : {}),
+    sources: f.sources.map((s) => ({ url: s.url, ...(s.quote ? { quote: s.quote } : {}) })),
+    dontConclude: f.notToConclude,
+  }
+}
 
 /** A review sheet as the review draws it, under the id of its card. */
 export function reviewOf(
@@ -782,7 +813,11 @@ export function reviewOf(
       after: say(sheet.tryIt.after),
       reach,
     },
-    source: { before: sheet.source.before, after: sheet.source.after },
+    fields: { before: fieldSideOf(sheet.fields.before), after: fieldSideOf(sheet.fields.after) },
+    source: {
+      before: textOf(sheet.source.before, words),
+      after: textOf(sheet.source.after, words),
+    },
     ready: {
       ok: sheet.readiness.ok,
       bulk: sheet.readiness.bulk,

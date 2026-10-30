@@ -9830,6 +9830,321 @@
                         "only"
                       ]
                     },
+                    "fields": {
+                      "type": "object",
+                      "properties": {
+                        "before": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "note",
+                                    "event",
+                                    "guide",
+                                    "example",
+                                    "issue"
+                                  ],
+                                  "type": "string"
+                                },
+                                "domain": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ]
+                                },
+                                "owner": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "scope": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "validity": {
+                                  "type": "object",
+                                  "properties": {
+                                    "from": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "until": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "from",
+                                    "until"
+                                  ]
+                                },
+                                "reviewDate": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "sources": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "url": {
+                                        "type": "string"
+                                      },
+                                      "quote": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "url",
+                                      "quote"
+                                    ]
+                                  }
+                                },
+                                "notToConclude": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "title",
+                                "kind",
+                                "domain",
+                                "owner",
+                                "scope",
+                                "validity",
+                                "reviewDate",
+                                "sources",
+                                "notToConclude"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "after": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "title": {
+                                  "type": "string"
+                                },
+                                "kind": {
+                                  "enum": [
+                                    "note",
+                                    "event",
+                                    "guide",
+                                    "example",
+                                    "issue"
+                                  ],
+                                  "type": "string"
+                                },
+                                "domain": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "type": "string"
+                                    },
+                                    "name": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "name"
+                                  ]
+                                },
+                                "owner": {
+                                  "anyOf": [
+                                    {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string"
+                                        },
+                                        "name": {
+                                          "anyOf": [
+                                            {
+                                              "type": "string"
+                                            },
+                                            {
+                                              "type": "null"
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "required": [
+                                        "id",
+                                        "name"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "scope": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  }
+                                },
+                                "validity": {
+                                  "type": "object",
+                                  "properties": {
+                                    "from": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "until": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "from",
+                                    "until"
+                                  ]
+                                },
+                                "reviewDate": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "sources": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "url": {
+                                        "type": "string"
+                                      },
+                                      "quote": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "required": [
+                                      "url",
+                                      "quote"
+                                    ]
+                                  }
+                                },
+                                "notToConclude": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "title",
+                                "kind",
+                                "domain",
+                                "owner",
+                                "scope",
+                                "validity",
+                                "reviewDate",
+                                "sources",
+                                "notToConclude"
+                              ]
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "before",
+                        "after"
+                      ]
+                    },
                     "source": {
                       "type": "object",
                       "properties": {
@@ -10437,6 +10752,7 @@
                     "note",
                     "withdrawn",
                     "diff",
+                    "fields",
                     "source",
                     "claims",
                     "clashes",
@@ -12899,6 +13215,321 @@
                               "only"
                             ]
                           },
+                          "fields": {
+                            "type": "object",
+                            "properties": {
+                              "before": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": [
+                                          "note",
+                                          "event",
+                                          "guide",
+                                          "example",
+                                          "issue"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "domain": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name"
+                                        ]
+                                      },
+                                      "owner": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "name"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "scope": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "validity": {
+                                        "type": "object",
+                                        "properties": {
+                                          "from": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "until": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "from",
+                                          "until"
+                                        ]
+                                      },
+                                      "reviewDate": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "sources": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "quote": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "url",
+                                            "quote"
+                                          ]
+                                        }
+                                      },
+                                      "notToConclude": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "kind",
+                                      "domain",
+                                      "owner",
+                                      "scope",
+                                      "validity",
+                                      "reviewDate",
+                                      "sources",
+                                      "notToConclude"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "after": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "enum": [
+                                          "note",
+                                          "event",
+                                          "guide",
+                                          "example",
+                                          "issue"
+                                        ],
+                                        "type": "string"
+                                      },
+                                      "domain": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "name"
+                                        ]
+                                      },
+                                      "owner": {
+                                        "anyOf": [
+                                          {
+                                            "type": "object",
+                                            "properties": {
+                                              "id": {
+                                                "type": "string"
+                                              },
+                                              "name": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string"
+                                                  },
+                                                  {
+                                                    "type": "null"
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "required": [
+                                              "id",
+                                              "name"
+                                            ]
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "scope": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "validity": {
+                                        "type": "object",
+                                        "properties": {
+                                          "from": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "until": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "required": [
+                                          "from",
+                                          "until"
+                                        ]
+                                      },
+                                      "reviewDate": {
+                                        "anyOf": [
+                                          {
+                                            "type": "string"
+                                          },
+                                          {
+                                            "type": "null"
+                                          }
+                                        ]
+                                      },
+                                      "sources": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "url": {
+                                              "type": "string"
+                                            },
+                                            "quote": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "string"
+                                                },
+                                                {
+                                                  "type": "null"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "required": [
+                                            "url",
+                                            "quote"
+                                          ]
+                                        }
+                                      },
+                                      "notToConclude": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "kind",
+                                      "domain",
+                                      "owner",
+                                      "scope",
+                                      "validity",
+                                      "reviewDate",
+                                      "sources",
+                                      "notToConclude"
+                                    ]
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "before",
+                              "after"
+                            ]
+                          },
                           "source": {
                             "type": "object",
                             "properties": {
@@ -13506,6 +14137,7 @@
                           "note",
                           "withdrawn",
                           "diff",
+                          "fields",
                           "source",
                           "claims",
                           "clashes",

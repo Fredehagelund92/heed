@@ -2,7 +2,8 @@ import { devices } from '@playwright/test'
 import { claimsToCheck, cardIn, expect, go, place, test } from './go.ts'
 
 // J17, the review on a phone: the decision bar says the state in words and where you are, its
-// actions are 44px, and nothing you can press is under 44px.
+// actions are 44px, nothing you can press is under 44px, and the source and its preview are both
+// in reach.
 
 test.use({ ...devices['iPhone 13'], browserName: 'chromium' })
 
@@ -15,6 +16,13 @@ test('the bar says the state and the place, with full-size actions', async ({ pa
   expect((await publish.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   await page.getByRole('button', { name: 'Next suggestion' }).click()
   await expect(page).toHaveURL(new RegExp(cardIn('sug-sofia-clash')))
+})
+
+test('the source and its preview are both in reach', async ({ page }) => {
+  await go(page, '/inbox/sug-ines/review')
+  await expect(page.getByRole('region', { name: 'The source' })).toBeVisible()
+  await page.getByRole('button', { name: 'Show the preview' }).click()
+  await expect(page.getByRole('region', { name: 'Preview' })).toBeVisible()
 })
 
 test('no control is under 44px', async ({ page }) => {

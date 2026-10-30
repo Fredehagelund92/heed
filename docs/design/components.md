@@ -160,15 +160,16 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### The Inbox and the review
 
-| Part           | File                                                                           | Job                                                     |
-| -------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
-| Inbox          | `pages/inbox.tsx`, `lib/inbox-rows.ts`, `data/inbox.ts`                        | List, groups, cards, quick view, setup checklist        |
-| Review         | `pages/review-page.tsx`, `pages/review.tsx`, `data/review.ts`                  | The full-screen review and the quick view               |
-| Review parts   | `components/heed/review-parts.tsx`, `change-icons.ts`, `lib/line-diff.ts`      | Change blocks, marks, the Ready line, Source view       |
-| Try it         | `pages/ask.tsx` (`TryIt`, in the dock), `pages/review-page.tsx` (`TryItPanel`) | What agents say before and after, as Draft or Published |
-| Saved line     | `components/obs/saved-line.tsx`                                                | "N of N still answer the same" in a review              |
-| Comment box    | `components/templates/comment-box/*`                                           | Flat threads, five reactions, replies, the composer     |
-| Comments model | `lib/comments.ts`, `data/comments.ts`, `components/heed/guide-link.tsx`        | Threads, read state, "Read the guide"                   |
+| Part           | File                                                                              | Job                                                     |
+| -------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Inbox          | `pages/inbox.tsx`, `lib/inbox-rows.ts`, `data/inbox.ts`                           | List, groups, cards, quick view, setup checklist        |
+| Review         | `pages/review-page.tsx`, `pages/review.tsx`, `data/review.ts`                     | The full-screen review and the quick view               |
+| Review parts   | `components/heed/review-parts.tsx`, `change-icons.ts`                             | Change blocks, marks, the Ready line (the Preview)      |
+| Source review  | `components/heed/source-review.tsx`, `lib/line-diff.ts`, `model/review-fields.ts` | Fields table and Text diff, each fed two sides          |
+| Try it         | `pages/ask.tsx` (`TryIt`, in the dock), `pages/review-page.tsx` (`TryItPanel`)    | What agents say before and after, as Draft or Published |
+| Saved line     | `components/obs/saved-line.tsx`                                                   | "N of N still answer the same" in a review              |
+| Comment box    | `components/templates/comment-box/*`                                              | Flat threads, five reactions, replies, the composer     |
+| Comments model | `lib/comments.ts`, `data/comments.ts`, `components/heed/guide-link.tsx`           | Threads, read state, "Read the guide"                   |
 
 ### Settings, integrations and agents
 

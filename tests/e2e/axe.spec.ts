@@ -16,6 +16,10 @@ const places = [
   '/inbox/sug-ines/review',
   '/inbox/sug-sofia-clash/review',
   '/inbox/gap-spain/review',
+  // The Source review's archive and formatting cases, and its Preview of the rich text.
+  '/inbox/sug-lars-retire/review',
+  '/inbox/sug-ines-format/review',
+  '/inbox/sug-ines/review?view=preview',
   '/context',
   '/context?dock=context.itm_norway_stop',
   '/context/itm_norway_stop',

@@ -128,6 +128,8 @@ const markets = [
   'malta',
   'cyprus',
   'romania',
+  'slovakia',
+  'croatia',
 ]
 const inMarket = (market: string) => ({
   scope: {
@@ -240,6 +242,54 @@ describe('the review sheet (FR-224)', () => {
     })
     // Someone who may not see it gets nothing.
     expect((await call('GET', `/review/${change.id}/sheet`, 'stranger')).statusCode).toBe(404)
+  })
+
+  it('gives every field of both versions, so a new owner shows where the difference has none', async () => {
+    // A second owner of Finance for a moment, to hand the item to.
+    const grant = [people.approver]
+    await client.query(
+      "insert into area_assignments (area_id,person_id,role) values ('finance',$1,'owner')",
+      grant,
+    )
+    const itemId = await live({ ...inMarket('slovakia'), ownerId: people.owner })
+    const change = await submitted(
+      { ...inMarket('slovakia'), ownerId: people.approver },
+      'author',
+      itemId,
+    )
+    const s = await sheet(change.id)
+    await client.query(
+      "delete from area_assignments where area_id='finance' and person_id=$1 and role='owner'",
+      grant,
+    )
+    // The difference compares the text and its fields, never the owner: nothing changed for it.
+    expect(s.diff.counts).toEqual([])
+    expect(s.fields.before).toEqual({
+      title: 'Units sold excludes test accounts',
+      kind: 'note',
+      domain: { id: 'finance', name: 'Finance' },
+      owner: { id: people.owner, name: 'owner' },
+      scope: ['Orders', 'Slovakia'],
+      validity: { from: '2026-01-01', until: null },
+      reviewDate: s.fields.before!.reviewDate,
+      sources: [{ url: 'https://wiki.example/units-sold', quote: 'Test accounts are left out' }],
+      notToConclude: s.fields.before!.notToConclude,
+    })
+    expect(s.fields.after).toEqual({
+      ...s.fields.before,
+      owner: { id: people.approver, name: 'approver' },
+    })
+    // A new item has only an after, with its title, kind and check date; an archive only a before.
+    const fresh = await sheet(
+      (await submitted({ title: 'Payments delayed in Croatia', ...inMarket('croatia') })).id,
+    )
+    expect(fresh.fields.before).toBeNull()
+    expect(fresh.fields.after).toMatchObject({
+      title: 'Payments delayed in Croatia',
+      kind: 'note',
+      domain: { id: 'finance', name: 'Finance' },
+    })
+    expect(fresh.fields.after).toHaveProperty('reviewDate')
   })
 
   it('reads a new item as one addition, and checks an agent’s claims against the sentence it copied', async () => {

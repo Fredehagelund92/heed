@@ -4,6 +4,7 @@ import type {
   answerBriefSchema,
   publishInputSchema,
   publishReadResultSchema,
+  ReviewFields,
   ReviewSheet,
 } from '../../../contract/review-path.ts'
 import { answer, topicWords, type Answer, type AnswerBundle } from '../../../domain/answer.ts'
@@ -150,6 +151,42 @@ export function createReviewPath(
       reviewDate: v.reviewDate,
       sources: v.evidence.map((e) => ({ url: e.url, quote: e.quote ?? null })),
       notToConclude: v.notToConclude,
+    }
+  }
+
+  /**
+   * The two versions' fields as the Fields table reads them, typed, with the domain and the owner
+   * by name: the parts the difference does not compare are still shown, so a change of owner or
+   * domain is seen.
+   */
+  async function fieldsOf(r: Reading): Promise<ReviewSheet['fields']> {
+    const versions = [r.before, r.after].flatMap((v) => (v ? [v.version] : []))
+    const areas = await tx.query<{ id: string; name: string }>(
+      'select id,name from areas where id=any($1::text[])',
+      [[...new Set(versions.map((v) => v.areaId))]],
+    )
+    const people = await tx.query<{ id: string; name: string | null }>(
+      'select id::text as id,display_name as name from people where id::text=any($1::text[])',
+      [[...new Set(versions.flatMap((v) => (v.ownerId ? [v.ownerId] : [])))]],
+    )
+    const area = new Map(areas.map((a) => [a.id, a.name]))
+    const person = new Map(people.map((p) => [p.id, p.name]))
+    const side = (v: ItemVersion): ReviewFields => ({
+      title: v.title,
+      kind: v.kind,
+      domain: { id: v.areaId, name: area.get(v.areaId) ?? v.areaId },
+      // A draft can be sent before anyone owns it.
+      owner: v.ownerId ? { id: v.ownerId, name: person.get(v.ownerId) ?? null } : null,
+      scope: [...sideOf(v, r.candidate).where],
+      // An older stored version can lack a field the schema now has: read it as not set.
+      validity: { from: v.validity.start ?? null, until: v.validity.end ?? null },
+      reviewDate: v.reviewDate ?? null,
+      sources: v.evidence.map((e) => ({ url: e.url, quote: e.quote ?? null })),
+      notToConclude: v.notToConclude,
+    })
+    return {
+      before: r.before ? side(r.before.version) : null,
+      after: r.after ? side(r.after.version) : null,
     }
   }
 
@@ -390,6 +427,7 @@ export function createReviewPath(
       note: p.reason,
       withdrawn,
       diff,
+      fields: await fieldsOf(r),
       source: {
         before: beforeMarkdown,
         after: afterMarkdown,

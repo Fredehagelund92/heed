@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import { ArrowRightIcon, CircleDashedIcon, TriangleAlertIcon } from '@/components/icons'
 import { cn, midSentence } from '@/lib/utils'
 import { DockFrame, DockMissing } from '@/components/dock'
@@ -90,7 +91,16 @@ function Moved({ r }: { r: Review }) {
   )
 }
 
-export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
+export function Summary({
+  r,
+  size = 'lg',
+  stats,
+}: {
+  r: Review
+  size?: 'lg' | 'md'
+  /** What the change counts, in place of the counts by kind: the review's source says lines and fields. */
+  stats?: React.ReactNode
+}) {
   const changed = r.counts.reduce((n, c) => n + c.n, 0)
   return (
     <div className="flex flex-col gap-4">
@@ -106,17 +116,19 @@ export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
       >
         {r.summary}
       </h2>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        {r.counts.map((c) => (
-          <KindLabel key={c.kind} kind={c.kind} n={c.n} />
-        ))}
-        {r.unchanged.length > 0 && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {r.unchanged.length} fields unchanged
-          </span>
-        )}
-        <span className="sr-only">{changed} changed</span>
-      </div>
+      {stats ?? (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {r.counts.map((c) => (
+            <KindLabel key={c.kind} kind={c.kind} n={c.n} />
+          ))}
+          {r.unchanged.length > 0 && (
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {r.unchanged.length} fields unchanged
+            </span>
+          )}
+          <span className="sr-only">{changed} changed</span>
+        </div>
+      )}
       {r.formattingOnly && (
         <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">Formatting only. The words are the same.</span>{' '}

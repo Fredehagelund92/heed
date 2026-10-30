@@ -198,9 +198,6 @@ const edits: { card: string; item: string; before: Before; after: After }[] = ((
     .replace('\n\n- Parcels', '\n\n1. Parcels')
     .replace('\n- Compare', '\n2. Compare')
     .replace('never across it.', '_never across it_.')
-  // The new sentence links to the term Test account, which agents can follow to what it means.
-  const testAccount = `term:${termIds.get('test account')!}`
-  const returns = 'From 1 October 2026 the 28 accounts the returns team'
   const order = reviewText('sug-ines-order')
   const long = reviewText('sug-ines-long')
   const link = reviews.find((r) => r.id === 'sug-ines-link')!
@@ -217,12 +214,10 @@ const edits: { card: string; item: string; before: Before; after: After }[] = ((
       card: 'sug-ines',
       item: 'itm_s90n5xps',
       before: { summary: units.before, source: unitsLink.before },
+      // The mock writes the link to Test account as the editor's token; the service keeps its markup.
       after: {
-        summary: units.after,
-        summaryMarkup: units.after.replace(
-          returns,
-          'From 1 October 2026 the 28 @[accounts](' + testAccount + ') the returns team',
-        ),
+        summary: plain(units.after),
+        summaryMarkup: markupOf(units.after)!,
         source: unitsLink.after,
       },
     },
