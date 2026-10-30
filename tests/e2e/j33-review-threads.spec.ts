@@ -1,4 +1,4 @@
-import { expect, go, inHttpOnly, test } from './go.ts'
+import { expect, go, inHttpOnly, onMockOnly, test } from './go.ts'
 
 // J33, threads on the source: a comment hangs on a line of the text or a row of the Fields table.
 // C comments on the line or field in focus (N steps to a change, the arrows move between lines),
@@ -110,12 +110,16 @@ test('the + beside a line comments on it, and Esc keeps what was written', async
 test('a thread shown apart from the source is resolved and reopened there too', async ({
   page,
 }) => {
-  await go(page, '/inbox?tab=all')
-  await page.getByRole('button', { name: /^Norway launch campaign started.*Mentioned by/ }).click()
-  const thread = page.getByRole('listitem').filter({ hasText: 'Is the scope the Nordics' })
-  await expect(thread).toContainText('Open')
-  await thread.getByRole('button', { name: 'Resolve' }).click()
-  await expect(thread).toContainText('Resolved by Jon Abara')
-  await thread.getByRole('button', { name: 'Reopen' }).click()
-  await expect(thread).toContainText('Open, reopened by Jon Abara')
+  await onMockOnly('thread written on an earlier version', async () => {
+    await go(page, '/inbox?tab=all')
+    await page
+      .getByRole('button', { name: /^Norway launch campaign started.*Mentioned by/ })
+      .click()
+    const thread = page.getByRole('listitem').filter({ hasText: 'Is the scope the Nordics' })
+    await expect(thread).toContainText('Open')
+    await thread.getByRole('button', { name: 'Resolve' }).click()
+    await expect(thread).toContainText('Resolved by Jon Abara')
+    await thread.getByRole('button', { name: 'Reopen' }).click()
+    await expect(thread).toContainText('Open, reopened by Jon Abara')
+  })
 })
