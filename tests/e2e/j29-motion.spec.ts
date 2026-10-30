@@ -228,12 +228,15 @@ test('a copy turns its icon into a tick for a moment, and two toasts both arrive
   await copies.last().click({ force: true })
   const tick = copies.last().locator('[data-slot=copied-icon]')
   await expect(tick).toHaveAttribute('data-done')
-  expect(
-    await tick
-      .locator('svg')
-      .last()
-      .evaluate((el) => parseFloat(getComputedStyle(el).opacity)),
-  ).toBeGreaterThan(0)
+  // The swap takes 90ms, so the tick is read until it shows rather than on the first frame.
+  await expect
+    .poll(() =>
+      tick
+        .locator('svg')
+        .last()
+        .evaluate((el) => parseFloat(getComputedStyle(el).opacity)),
+    )
+    .toBeGreaterThan(0)
   // The question's copy too: two toasts at once, each on the toast tokens.
   await copies.first().click({ force: true })
   const toasts = page.locator('[data-sonner-toast]')
