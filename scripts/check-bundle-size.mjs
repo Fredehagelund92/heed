@@ -13,10 +13,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // (routes/**/*.lazy.tsx, https://github.com/Fredehagelund92/heed/issues/63): 428.6 KB of script
 // measured locally, which CI's gzip counts about 2 KB higher, and 31.7 KB of CSS. The CSS is one
 // stylesheet for the whole app.
-// Raised on purpose for Ask's records answers (the answer itself is a lazy chunk; what remains is
-// the shared kind and contract code Ask reads to route one): CI measured 433.3 KB of script and
-// 32.1 KB of CSS.
-const budgetKb = { js: 435, css: 32.5 }
+const budgetKb = { js: 431, css: 32 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({
