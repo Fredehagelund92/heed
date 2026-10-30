@@ -51,7 +51,8 @@ begin
     from pg_inherits i join pg_class c on c.oid = i.inhrelid
    where i.inhparent = 'public.deliveries'::regclass;
   return coalesce(
-    v_start >= now() - make_interval(days => v_kept) or (v_oldest is not null and v_start >= v_oldest),
+    v_start >= now() - make_interval(days => v_kept)
+      or (v_oldest is not null and v_start >= v_oldest),
     false);
 end $$;
 
