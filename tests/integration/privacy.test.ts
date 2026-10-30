@@ -67,6 +67,9 @@ const columns = {
   // Which records questions Ask was asked (FR-718): a week, an id from a fixed list, and a count.
   // Never the words, never who asked, never what the question named.
   records_asked_weekly: ['week', 'intent', 'asks'],
+  // Summary's monthly snapshots, kept without limit (FR-612): a month, a domain, the day taken and
+  // the page's counts as shown, already disclosed. Never a topic, a question or who asked.
+  obs_snapshots: ['id', 'period', 'starts', 'area_id', 'taken_on', 'summary'],
   // A person's report (FR-606 case 5) keeps digests of its retry key and request, never who sent it.
   gap_report_keys: ['retry_digest', 'request_digest', 'gap_id', 'expires_hour'],
   // FR-410: the agent is kept as its family from a fixed list, never its own name or version.
@@ -230,6 +233,7 @@ it('lets anonymous tables reference only non-person tables, in every schema', as
     { source: 'gaps', target: 'editions' },
     { source: 'gaps', target: 'editions' },
     { source: 'gaps', target: 'topics' },
+    { source: 'obs_snapshots', target: 'areas' },
     { source: 'obs_weekly', target: 'areas' },
     { source: 'proposals', target: 'gaps' },
     { source: 'topic_week_counts', target: 'topics' },
@@ -269,6 +273,7 @@ it('gives every anonymous id a random version 4 UUID, by constraint', async () =
     'gap_notes',
     'gaps',
     'mcp_requests',
+    'obs_snapshots',
     'topics',
   ])
   for (const { table_name: table } of ids.rows) {

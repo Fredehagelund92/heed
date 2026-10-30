@@ -70,6 +70,10 @@ export const queryKeys = {
   observabilityPage: (input: ObsPageInput) => ['observabilityPage', input] as const,
   observabilityPages: ['observabilityPage'] as const,
   observabilitySummary: (input: ObsSummaryInput) => ['observabilitySummary', input] as const,
+  observabilitySummaries: ['observabilitySummary'] as const,
+  observabilitySnapshots: (domain?: string) => ['observabilitySnapshots', domain ?? null] as const,
+  observabilitySnapshotLists: ['observabilitySnapshots'] as const,
+  observabilitySnapshot: (id: string) => ['observabilitySnapshot', id] as const,
   replay: (topic: string, when: string) => ['replayTopic', topic, when] as const,
   replays: ['replayTopic'] as const,
   readQuestion: (question: string) => ['readQuestion', question] as const,
@@ -304,6 +308,18 @@ export const observabilitySummaryQuery = (input: ObsSummaryInput) =>
     queryFn: () => api.observabilitySummary(input),
   })
 
+export const observabilitySnapshotsQuery = (domain?: string) =>
+  queryOptions({
+    queryKey: queryKeys.observabilitySnapshots(domain),
+    queryFn: () => api.observabilitySnapshots(domain ? { domain } : {}),
+  })
+
+export const observabilitySnapshotQuery = (id: string) =>
+  queryOptions({
+    queryKey: queryKeys.observabilitySnapshot(id),
+    queryFn: () => api.observabilitySnapshot(id),
+  })
+
 export const replayQuery = (topic: string, when: 'now' | 'before') =>
   queryOptions({
     queryKey: queryKeys.replay(topic, when),
@@ -419,6 +435,8 @@ type Read =
   | 'getConnectRequest'
   | 'observabilityPage'
   | 'observabilitySummary'
+  | 'observabilitySnapshots'
+  | 'observabilitySnapshot'
   | 'replayTopic'
 export type WriteOperation = Exclude<HeedApiMethod, Read>
 export type WriteInput<K extends WriteOperation> = Parameters<Method<K>>[0]
@@ -553,6 +571,8 @@ export const invalidations: {
   renameChat: () => [queryKeys.chats],
   deleteChat: () => [queryKeys.chats],
   removeView: () => [queryKeys.savedViews],
+  // A snapshot taken shows in every list of them; nothing else changes.
+  takeObservabilitySnapshot: () => [queryKeys.observabilitySnapshotLists],
   muteAlert: () => [queryKeys.alerts],
   setAlertThreshold: () => [queryKeys.alerts],
 }

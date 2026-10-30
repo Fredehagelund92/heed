@@ -135,6 +135,7 @@ export {
   PlayIcon,
   PlugIcon,
   PlusIcon,
+  PrinterIcon,
   QuoteIcon,
   ReceiptTextIcon,
   Redo2,

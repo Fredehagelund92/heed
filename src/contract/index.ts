@@ -55,6 +55,11 @@ import {
   obsAgentsSchema,
   obsFeedbackInputSchema,
   obsFeedbackSchema,
+  obsSnapshotInputSchema,
+  obsSnapshotItemSchema,
+  obsSnapshotSchema,
+  obsSnapshotsInputSchema,
+  obsSnapshotTakeSchema,
   obsSummaryInputSchema,
   obsSummarySchema,
   obsUsageInputSchema,
@@ -1826,6 +1831,35 @@ export const contract = {
       })
       .input(obsSummaryInputSchema)
       .output(obsSummarySchema),
+    snapshots: {
+      list: maintainRead
+        .route({
+          method: 'GET',
+          path: '/observability/snapshots',
+          tags: ['quality'],
+          summary: "Summary's monthly snapshots a reader may open, the latest first (FR-620)",
+        })
+        .input(obsSnapshotsInputSchema)
+        .output(z.array(obsSnapshotItemSchema)),
+      get: maintainRead
+        .route({
+          method: 'GET',
+          path: '/observability/snapshots/{id}',
+          tags: ['quality'],
+          summary:
+            'One monthly snapshot as taken: disclosed counts and their sentences only (FR-612)',
+        })
+        .input(obsSnapshotInputSchema)
+        .output(obsSnapshotSchema),
+      take: admin
+        .route({
+          method: 'POST',
+          path: '/observability/snapshots',
+          tags: ['quality'],
+          summary: "Take the last whole month's snapshots now, as the nightly job does (admins)",
+        })
+        .output(obsSnapshotTakeSchema),
+    },
     usage: admin
       .route({
         method: 'GET',

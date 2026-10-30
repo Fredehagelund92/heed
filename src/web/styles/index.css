@@ -450,10 +450,10 @@
   mask-image: linear-gradient(to bottom, transparent, black 0.75rem);
 }
 
-/* Printing a sheet (Observability's Summary): the page alone, on one A4 sheet. The menus, the
-   header and the controls stay on screen; every box around the sheet grows to its content instead
-   of scrolling; and the hairlines, drawn as backgrounds, print too. Paper is always light
-   (tokens.css). */
+/* Printing a sheet (Observability's Summary and a snapshot's digest): the page alone, on one A4
+   sheet. The menus, the header and the controls stay on screen; every box around the sheet grows
+   to its content instead of scrolling; a page break never cuts a part of it in two; and the
+   hairlines, drawn as backgrounds, print too. Paper is always light (tokens.css). */
 @media print {
   @page {
     size: a4 portrait;
@@ -479,6 +479,10 @@
     & [data-print='sheet'] {
       zoom: 0.7;
       print-color-adjust: exact;
+    }
+
+    & [data-print='sheet'] section {
+      break-inside: avoid;
     }
   }
 }

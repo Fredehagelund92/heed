@@ -1,8 +1,9 @@
 /**
  * Observability on the API (FR-620): what agents asked and what they got, as topics and counts,
  * never the words of a question and never who asked (FR-602, FR-613). Overview and Questions read
- * `obs.agents`, Feedback `obs.feedback`, Usage `obs.usage` (administrators only), and the views
- * people save on Questions belong to the workspace (`obs.views`). Administrators see every domain;
+ * `obs.agents`, Feedback `obs.feedback`, Usage `obs.usage` (administrators only), Summary
+ * `obs.summary` and its monthly snapshots `obs.snapshots`, and the views people save on Questions
+ * belong to the workspace (`obs.views`). Administrators see every domain;
  * an owner sees the domains they own. A count from one to just under the minimum is null, and no
  * count is given when a hidden one could be worked out from it by subtraction (FR-614,
  * src/domain/observability.ts).
@@ -288,6 +289,59 @@ export const obsSummarySchema = z.object({
   hidden: z.number(),
 })
 
+/**
+ * What a monthly snapshot keeps of a Summary: its counts as they were shown, every one already
+ * through the disclosure pass (a hidden count is null, never its value), and nothing else. What
+ * is still open and what changed are kept as counts: no topic, no item and nobody who approved.
+ */
+export const obsSnapshotSummarySchema = z.extend(
+  z.omit(obsSummarySchema, { open: true, changes: true }),
+  {
+    open: z.object({ total: z.number() }),
+    changes: z.object({ total: shown, before: shown }),
+  },
+)
+
+/** The sentences a snapshot keeps, said by fixed templates over its counts when it was taken. */
+export const obsSnapshotWordsSchema = z.object({
+  sentences: z.array(z.string()),
+  caught: z.array(
+    z.object({ key: z.string(), title: z.string(), text: z.string(), measured: z.boolean() }),
+  ),
+  notes: z.array(z.string()),
+})
+
+/** A snapshot as a list says it: which month and scope, when it was taken, and its state. */
+export const obsSnapshotItemSchema = z.object({
+  id: z.string(),
+  period: z.enum(['month']),
+  /** The domain it counts, or null for every domain. */
+  areaId: z.nullable(areaId),
+  now: span,
+  /** The day it was taken. */
+  takenOn: day,
+  state: z.enum(['empty', 'quiet', 'normal']),
+})
+
+export const obsSnapshotSchema = z.extend(obsSnapshotItemSchema, {
+  summary: obsSnapshotSummarySchema,
+  words: obsSnapshotWordsSchema,
+})
+
+export const obsSnapshotsInputSchema = z.strictObject({
+  /** One domain's snapshots; without it, every domain's (administrators) or an owner's own. */
+  areaId: z.optional(areaId),
+})
+
+export const obsSnapshotInputSchema = z.strictObject({ id: z.string().check(z.uuid()) })
+
+export const obsSnapshotTakeSchema = z.object({
+  /** The month taken: the last whole one. */
+  now: span,
+  /** How many scopes had no snapshot of it yet and have one now. */
+  taken: z.number(),
+})
+
 const viewFilters = z.object({
   answer: z.optional(z.array(z.enum(shownStates))),
   domain: z.optional(areaId),
@@ -317,5 +371,10 @@ export type ObsFeedback = z.infer<typeof obsFeedbackSchema>
 export type ObsUsage = z.infer<typeof obsUsageSchema>
 export type ObsSummaryInput = z.infer<typeof obsSummaryInputSchema>
 export type ObsSummary = z.infer<typeof obsSummarySchema>
+export type ObsSnapshotSummary = z.infer<typeof obsSnapshotSummarySchema>
+export type ObsSnapshotWords = z.infer<typeof obsSnapshotWordsSchema>
+export type ObsSnapshotItem = z.infer<typeof obsSnapshotItemSchema>
+export type ObsSnapshot = z.infer<typeof obsSnapshotSchema>
+export type ObsSnapshotTake = z.infer<typeof obsSnapshotTakeSchema>
 export type ObsView = z.infer<typeof obsViewSchema>
 export type ObsViewFilters = z.infer<typeof viewFilters>

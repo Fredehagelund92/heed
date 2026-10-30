@@ -13,6 +13,7 @@ import { norwayDraft } from './data/drafts'
 import { obsData } from './data/observability'
 import { obsPage } from './obs-page'
 import { obsSummary } from './obs-summary'
+import { createSnapshots } from './obs-snapshots'
 import { BEFORE, changedSteps, replay } from './replay'
 import { reviews } from './data/review'
 import type { Relation, Review } from '@/model/review'
@@ -76,6 +77,7 @@ export function createMockApi() {
   const saved = createSaved()
   const alerts = createAlerts()
   const chats = createChats()
+  const snapshots = createSnapshots()
   const scope = createScopeSearch()
   const settings = createSettings()
   const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
@@ -224,6 +226,18 @@ export function createMockApi() {
 
   /** The reports the person sent from Ask this visit, newest first. */
   const reports: { id: string; question: string; at: Date }[] = []
+
+  /** Who reads Observability: an admin, or the owner of some domains. */
+  const obsReader = () => {
+    const person = workspace.people().find((p) => p.name === me())
+    return { admin: !!person?.admin, owns: person?.owns ?? [] }
+  }
+  /** What Summary's snapshots are taken over, and the review flag ?snapshot=due. */
+  const snapshotWorld = () => ({
+    fixture: obsData(scenario.obsState()),
+    domains: workspace.domains(),
+    due: scenario.address().query.snapshot === 'due',
+  })
 
   const copy = <T>(value: T): T => (value === undefined ? value : structuredClone(value))
   const read = <T>(method: HeedApiMethod, key: string, run: () => T) =>
@@ -602,6 +616,13 @@ export function createMockApi() {
         const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
         return obsSummary(obsData(scenario.obsState()), input, reader)
       }),
+    observabilitySnapshots: ({ domain }) =>
+      read('observabilitySnapshots', JSON.stringify(domain ?? null), () =>
+        snapshots.list(snapshotWorld(), obsReader(), domain),
+      ),
+    observabilitySnapshot: (id) =>
+      read('observabilitySnapshot', id, () => snapshots.get(snapshotWorld(), obsReader(), id)),
+    takeObservabilitySnapshot: () => now(() => snapshots.take(snapshotWorld(), obsReader())),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
       now(() => {

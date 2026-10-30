@@ -7,6 +7,9 @@ import type { Replay as ServiceReplay } from '@contract/answer'
 import type {
   ObsAgents,
   ObsFeedback,
+  ObsSnapshot,
+  ObsSnapshotItem,
+  ObsSnapshotTake,
   ObsSummary,
   ObsTopic,
   ObsUsage,
@@ -26,7 +29,7 @@ import {
   type Report,
   type Topic,
 } from '@/model/observability'
-import type { SummaryData } from '@/model/obs-summary'
+import type { Snapshot, SnapshotItem, SummaryData } from '@/model/obs-summary'
 import { NEXT, type Replay, type ReplayStep } from '@/model/replay'
 
 const none = { grounded: null, partial: null, conflict: null, stale: null, missing: null }
@@ -117,6 +120,37 @@ export function obsSummaryOf(s: ObsSummary): SummaryData {
     hidden: s.hidden,
   }
 }
+
+/** A monthly snapshot as a list shows it. */
+export function obsSnapshotItemOf(s: ObsSnapshotItem): SnapshotItem {
+  return {
+    id: s.id,
+    ...(s.areaId ? { domain: s.areaId } : {}),
+    now: { start: atOf(s.now.start), end: atOf(s.now.end) },
+    takenOn: atOf(s.takenOn),
+    state: s.state,
+  }
+}
+
+/** A snapshot as its digest reads it: the Summary's counts, with no list kept, and its words. */
+export function obsSnapshotOf(s: ObsSnapshot): Snapshot {
+  const { open, changes } = s.summary
+  return {
+    ...obsSnapshotItemOf(s),
+    data: obsSummaryOf({
+      ...s.summary,
+      open: { total: open.total, spots: [] },
+      changes: { ...changes, latest: [] },
+    }),
+    words: s.words,
+  }
+}
+
+/** The month a snapshot was taken of, and how many scopes it was taken for. */
+export const obsSnapshotTakeOf = (t: ObsSnapshotTake) => ({
+  now: { start: atOf(t.now.start), end: atOf(t.now.end) },
+  taken: t.taken,
+})
 
 export function topicOf(t: ObsTopic): Topic {
   return {

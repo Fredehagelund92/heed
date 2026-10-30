@@ -111,6 +111,9 @@ import {
   familyOf,
   obsAgentsOf,
   obsFeedbackOf,
+  obsSnapshotItemOf,
+  obsSnapshotOf,
+  obsSnapshotTakeOf,
   obsSummaryOf,
   obsUsageOf,
   replayOf,
@@ -252,6 +255,9 @@ export const wiredMethods = [
   'getMyReports',
   'observabilityPage',
   'observabilitySummary',
+  'observabilitySnapshots',
+  'observabilitySnapshot',
+  'takeObservabilitySnapshot',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -2062,6 +2068,19 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       obsSummaryOf(
         await read(() => client.obs.summary({ period, ...(domain ? { areaId: domain } : {}) })),
       ),
+    observabilitySnapshots: async ({ domain }) =>
+      (await read(() => client.obs.snapshots.list(domain ? { areaId: domain } : {}))).map(
+        obsSnapshotItemOf,
+      ),
+    observabilitySnapshot: async (id) => {
+      if (!isUuid(id)) return null
+      const found = await orNull(() => read(() => client.obs.snapshots.get({ id })))
+      return found && obsSnapshotOf(found)
+    },
+    takeObservabilitySnapshot: async () => {
+      const taken = await write('obs.snapshots.take', {}, (o) => client.obs.snapshots.take({}, o))
+      return obsSnapshotTakeOf(taken)
+    },
     replayTopic: async ({ topic, when }) => {
       const named = listedTopics.get(topic)
       if (!named || !isUuid(topic)) return null

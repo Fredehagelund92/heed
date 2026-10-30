@@ -11,7 +11,7 @@ import { QualityPage } from '@/pages/observability/quality'
 import { FeedbackPage } from '@/pages/observability/feedback'
 import { UsagePage } from '@/pages/observability/usage'
 import { AlertsPage } from '@/pages/observability/alerts'
-import { SummaryPage } from '@/pages/observability/summary'
+import { DigestPage, SummaryPage } from '@/pages/observability/summary'
 
 // Observability: what agents asked and what they got, as counts and scopes, never the words of a
 // question or who asked. Seven pages in four groups (components/obs/obs-nav.tsx), Summary first,
@@ -42,21 +42,25 @@ export function ObsCrumbs({
 /** One page of Observability: the breadcrumb in the header, the frames in the page's gutter. */
 export function ObsPage({
   section,
+  crumbs,
   actions,
   children,
 }: {
   section: ObsSection
+  /** A breadcrumb that goes further than the page, to what is open in it. */
+  crumbs?: React.ReactNode
   actions?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
-    <Page title={<ObsCrumbs section={section} />} actions={actions}>
+    <Page title={crumbs ?? <ObsCrumbs section={section} />} actions={actions}>
       <FramePage>{children}</FramePage>
     </Page>
   )
 }
 
-export function ObservabilityPage({ section }: { section?: string }) {
+/** A page of Observability, or with `snapshot` the digest of one of Summary's monthly snapshots. */
+export function ObservabilityPage({ section, snapshot }: { section?: string; snapshot?: string }) {
   const me = useMe()
   const current = (section && section in OBS_TITLES ? section : 'summary') as ObsSection
   if (!seesObservability(me) || (current === 'usage' && !me.admin))
@@ -78,7 +82,7 @@ export function ObservabilityPage({ section }: { section?: string }) {
         </Empty>
       </Page>
     )
-  if (current === 'summary') return <SummaryPage />
+  if (current === 'summary') return snapshot ? <DigestPage id={snapshot} /> : <SummaryPage />
   if (current === 'overview') return <OverviewPage />
   if (current === 'questions') return <QuestionsPage />
   if (current === 'quality') return <QualityPage />

@@ -1,15 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
-import { observabilitySummaryQuery } from '@/api/queries'
+import { toast } from 'sonner'
+import { toApiError } from '@/api/errors'
+import {
+  observabilitySnapshotQuery,
+  observabilitySnapshotsQuery,
+  observabilitySummaryQuery,
+  useApiWrite,
+} from '@/api/queries'
 import {
   ArrowUpRightIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleSlashIcon,
   FilePenLineIcon,
+  FileTextIcon,
   LockIcon,
   MessageSquareIcon,
+  PrinterIcon,
   TriangleAlertIcon,
 } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { Frame, FrameSection } from '@/components/heed/frame'
@@ -31,18 +41,25 @@ import {
   summaryNumbers,
   summarySentences,
   type Move,
+  type Snapshot,
+  type SnapshotItem,
   type SummaryData,
   type SummaryPeriod,
+  type SummaryWords,
 } from '@/model/obs-summary'
 import { OBS_PURPOSE, useObsAddress, type ObsAddress } from '@/lib/obs'
 import { setQuery, useRoute } from '@/lib/router'
-import { useDomains } from '@/lib/workspace'
-import { ObsPage } from '@/pages/observability'
+import { useDomains, useMe } from '@/lib/workspace'
+import { ObsCrumbs, ObsPage } from '@/pages/observability'
 
 // Summary: one page to pass on, over the last whole calendar month or quarter. Four numbers, each
 // with what it counts a click away; a few plain sentences from fixed templates; what Heed caught,
 // as separate lines; the weekly trend of checked answers; what is still open; and what changed,
 // with who approved it. It prints on one A4 sheet: the controls and the menus stay on screen.
+//
+// Under it, the monthly snapshots: each whole month's Summary as it was on the day it was taken,
+// kept for good as counts and the sentences said over them. A snapshot opens as a digest, a page
+// made to print on one A4 sheet or to save as a PDF and pass on.
 
 const DAY = 86_400_000
 /** What a hidden headline count says: true whether it is small itself or keeps a small one safe. */
@@ -69,7 +86,12 @@ export function SummaryPage() {
         what="the summary"
         skeleton={<ObsSkeleton section="summary" kpis={4} body="overview" />}
       >
-        {load.data && <Summary data={load.data} view={view} />}
+        {load.data && (
+          <>
+            <Summary data={load.data} view={view} />
+            <Snapshots view={view} live={load.data} />
+          </>
+        )}
       </Loadable>
     </ObsPage>
   )
@@ -176,34 +198,53 @@ function Summary({
         {data.state === 'normal' ? (
           <Counted data={data} name={name} before={before} />
         ) : (
-          <Empty className="border-t py-12">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <CircleSlashIcon />
-              </EmptyMedia>
-              <EmptyTitle>
-                {data.state === 'empty'
-                  ? 'No agent has asked anything yet'
-                  : 'Too few questions to show'}
-              </EmptyTitle>
-              <EmptyDescription>
-                {data.state === 'empty'
-                  ? 'Once an agent asks, this page sums up each month and quarter: what was asked, how it was answered, and what changed.'
-                  : `Fewer than 5 questions in ${name}, so no counts are shown. A small count could point to one person.`}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
+          <NotCounted state={data.state} name={name} />
         )}
       </Frame>
     </div>
   )
 }
 
-function Counted({ data, name, before }: { data: SummaryData; name: string; before: string }) {
+/** Nothing asked yet, or too few questions to show any count. */
+function NotCounted({ state, name }: { state: 'empty' | 'quiet'; name: string }) {
+  return (
+    <Empty className="border-t py-12">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <CircleSlashIcon />
+        </EmptyMedia>
+        <EmptyTitle>
+          {state === 'empty' ? 'No agent has asked anything yet' : 'Too few questions to show'}
+        </EmptyTitle>
+        <EmptyDescription>
+          {state === 'empty'
+            ? 'Once an agent asks, this page sums up each month and quarter: what was asked, how it was answered, and what changed.'
+            : `Fewer than 5 questions in ${name}, so no counts are shown. A small count could point to one person.`}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
+/**
+ * The numbers, sentences, trend and lists of a counted Summary. A snapshot's (`frozen`) says the
+ * sentences kept with it, and what is open and what changed as the counts it kept.
+ */
+function Counted({
+  data,
+  name,
+  before,
+  frozen,
+}: {
+  data: SummaryData
+  name: string
+  before: string
+  frozen?: { words: SummaryWords; takenOn: number }
+}) {
   const domains = useDomains()
   const s = summaryNumbers(data)
-  const sentences = summarySentences(data)
-  const caught = caughtLines(data)
+  const sentences = frozen?.words.sentences ?? summarySentences(data)
+  const caught = frozen?.words.caught ?? caughtLines(data)
   const weekValues = data.weeks.map((w) => (w.counted ? w.checked : null))
   const extra = (shown: number, total: number | null) =>
     total !== null && total > shown ? `And ${(total - shown).toLocaleString('en-GB')} more.` : null
@@ -264,7 +305,11 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
       <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-2 print:grid-cols-2">
         <FrameSection
           title="In short"
-          description="Fixed sentences over the numbers on this page. None is written by a model."
+          description={
+            frozen
+              ? `Fixed sentences over the numbers on this page, as they were said on ${dayName(frozen.takenOn)}. None is written by a model.`
+              : 'Fixed sentences over the numbers on this page. None is written by a model.'
+          }
         >
           <ul className="flex flex-col gap-2 px-4 pb-4 text-sm md:px-5">
             {sentences.map((line) => (
@@ -325,10 +370,20 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
       <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-2 print:grid-cols-2">
         <FrameSection
           title="Still open"
-          description={`Topics agents found nothing written down for, the most asked about in ${name} first.`}
+          description={
+            frozen
+              ? `Topics agents found nothing written down for, on ${dayName(frozen.takenOn)}.`
+              : `Topics agents found nothing written down for, the most asked about in ${name} first.`
+          }
         >
           <div className="px-4 pb-4 md:px-5">
-            {data.open.spots.length ? (
+            {frozen ? (
+              <p className="text-sm text-pretty">
+                {data.open.total === 0
+                  ? 'Nothing was open: every topic agents found nothing for had been written down.'
+                  : `${data.open.total === 1 ? 'One topic was' : `${data.open.total.toLocaleString('en-GB')} topics were`} still open, waiting for an owner to write ${data.open.total === 1 ? 'it' : 'them'} down. A snapshot keeps the count, not the topics: Summary lists them as they are today.`}
+              </p>
+            ) : data.open.spots.length ? (
               <ul className="flex flex-col divide-y border-y">
                 {data.open.spots.map((o) => (
                   <li key={o.id} className="flex flex-col gap-0.5 py-2.5">
@@ -357,7 +412,7 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
                 Nothing is open: every topic agents found nothing for has been written down.
               </p>
             )}
-            {extra(data.open.spots.length, data.open.total) && (
+            {!frozen && extra(data.open.spots.length, data.open.total) && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {extra(data.open.spots.length, data.open.total)}
               </p>
@@ -366,11 +421,21 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
         </FrameSection>
         <div className="border-t @4xl/main:border-t-0 @4xl/main:border-l print:border-t-0 print:border-l">
           <FrameSection
-            title="What changed and who approved it"
-            description={`Changes an owner approved in review and published in ${name}, the latest first.`}
+            title={frozen ? 'What changed' : 'What changed and who approved it'}
+            description={
+              frozen
+                ? `Changes an owner approved in review and published in ${name}.`
+                : `Changes an owner approved in review and published in ${name}, the latest first.`
+            }
           >
             <div className="px-4 pb-4 md:px-5">
-              {data.changes.latest.length ? (
+              {frozen ? (
+                <p className="text-sm text-pretty">
+                  {data.changes.total === 0
+                    ? `No change was approved and published in ${name}.`
+                    : `${changesWords(data.changes.total)} ${data.changes.total === 1 ? 'change was' : 'changes were'} approved by an owner and published, against ${changesWords(data.changes.before).toLowerCase()} in ${before}. A snapshot keeps the counts, not the items or who approved them.`}
+                </p>
+              ) : data.changes.latest.length ? (
                 <ul className="flex flex-col divide-y border-y">
                   {data.changes.latest.map((c) => (
                     <li key={`${c.at}-${c.title}`} className="flex flex-col gap-0.5 py-2.5">
@@ -406,7 +471,7 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
                   No change was approved and published in {name}.
                 </p>
               )}
-              {extra(data.changes.latest.length, data.changes.total) && (
+              {!frozen && extra(data.changes.latest.length, data.changes.total) && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   {extra(data.changes.latest.length, data.changes.total)}
                 </p>
@@ -441,9 +506,221 @@ function Counted({ data, name, before }: { data: SummaryData; name: string; befo
               ? 'No number is hidden on this page.'
               : `${data.hidden.toLocaleString('en-GB')} ${data.hidden === 1 ? 'number is' : 'numbers are'} hidden: under 5, or it would give one under 5 away.`}{' '}
             Counted to the end of {dayName(data.last)}.
+            {frozen &&
+              ` A snapshot taken on ${dayName(frozen.takenOn)}, kept for good as counts and these sentences.`}
           </span>
         </p>
       </FrameSection>
     </>
+  )
+}
+
+/* ---------- snapshots ---------- */
+
+/** The month before the one `today` is in: the last whole month, which the job keeps next. */
+function lastMonthOf(last: number) {
+  const today = new Date(last + DAY)
+  return {
+    start: Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1),
+    end: Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1),
+  }
+}
+
+/**
+ * The monthly snapshots of the scope on screen (every domain, or one), the latest month first,
+ * each a link to its digest. An admin can take the last whole month's at once when the nightly
+ * job has not yet. On screen only: the sheet above is what prints.
+ */
+function Snapshots({
+  view,
+  live,
+}: {
+  view: ReturnType<typeof useSummaryAddress>
+  live: SummaryData
+}) {
+  const me = useMe()
+  const load = useQuery(observabilitySnapshotsQuery(view.domain))
+  const take = useApiWrite('takeObservabilitySnapshot')
+  const month = lastMonthOf(live.last)
+  const list = load.data ?? []
+  const due =
+    me.admin &&
+    live.state !== 'empty' &&
+    !!load.data &&
+    !list.some((s) => s.now.start === month.start)
+  const action = due ? (
+    <Button
+      variant="outline"
+      size="sm"
+      disabled={take.isPending}
+      onClick={() =>
+        void take
+          .mutateAsync(undefined)
+          .then((r) =>
+            toast(
+              r.taken
+                ? `Snapshot of ${periodName(r.now)} taken`
+                : `${periodName(r.now)} has no new snapshot`,
+              {
+                description: r.taken
+                  ? 'Its numbers stay as they are today, kept for good. Open it to print or save it as a PDF.'
+                  : 'It was already kept, or agents asked nothing in it.',
+              },
+            ),
+          )
+          .catch((error: unknown) =>
+            toast.error("Couldn't take the snapshot", { description: toApiError(error).message }),
+          )
+      }
+    >
+      <FileTextIcon />
+      Take {periodName(month)} now
+    </Button>
+  ) : null
+  return (
+    <div className="print:hidden">
+      <Frame>
+        <FrameSection
+          title="Monthly snapshots"
+          description="Each whole month's Summary as it was on the day it was taken, kept for good: counts and sentences only. Open one to print it or save it as a PDF."
+          action={action}
+        >
+          <div className="px-4 pb-4 md:px-5">
+            {load.isError ? (
+              <p className="text-sm text-muted-foreground">
+                The snapshots could not be loaded. Reload the page to try again.
+              </p>
+            ) : list.length ? (
+              <ul className="flex flex-col divide-y border-y">
+                {list.map((item) => (
+                  <SnapshotRow key={item.id} item={item} />
+                ))}
+              </ul>
+            ) : load.data ? (
+              <p className="text-sm text-muted-foreground">
+                No snapshot yet. One is taken of each month on the night after it ends.
+              </p>
+            ) : null}
+          </div>
+        </FrameSection>
+      </Frame>
+    </div>
+  )
+}
+
+function SnapshotRow({ item }: { item: SnapshotItem }) {
+  const domains = useDomains()
+  return (
+    <li className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
+      <a
+        href={`/observability/summary/${item.id}`}
+        className="text-sm font-medium underline-offset-2 hover:underline"
+      >
+        {periodName(item.now)}
+        {item.domain && `, ${domains[item.domain]?.name ?? item.domain}`}
+      </a>
+      <span className="text-xs text-muted-foreground">
+        {item.state === 'quiet' ? 'Fewer than 5 questions · ' : ''}
+        Taken on {dayName(item.takenOn)}
+      </span>
+    </li>
+  )
+}
+
+/**
+ * A snapshot's digest: the Summary of a whole month as it was on the day it was taken, its counts
+ * and sentences kept for good. It is made to pass on: Print or save as PDF opens the browser's own
+ * dialog, and the sheet fits one A4 page without menus or controls, readable in black and white.
+ */
+export function DigestPage({ id }: { id: string }) {
+  const load = useQuery(observabilitySnapshotQuery(id))
+  const snapshot = load.data
+  return (
+    <ObsPage
+      section="summary"
+      crumbs={
+        <ObsCrumbs
+          section="summary"
+          rest={[{ label: snapshot ? `${periodName(snapshot.now)} snapshot` : 'Snapshot' }]}
+        />
+      }
+    >
+      <Loadable
+        query={load}
+        what="the snapshot"
+        skeleton={<ObsSkeleton section="summary" kpis={4} body="overview" />}
+      >
+        {snapshot === null ? (
+          <Frame>
+            <Empty className="py-12">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CircleSlashIcon />
+                </EmptyMedia>
+                <EmptyTitle>No snapshot here</EmptyTitle>
+                <EmptyDescription>
+                  It may count a domain you don't own. Summary lists the snapshots you can open.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </Frame>
+        ) : (
+          snapshot && <Digest snapshot={snapshot} />
+        )}
+      </Loadable>
+    </ObsPage>
+  )
+}
+
+function Digest({ snapshot }: { snapshot: Snapshot }) {
+  const domains = useDomains()
+  const { data, words } = snapshot
+  const name = periodName(data.now)
+  const before = periodName(data.before)
+  const where = snapshot.domain ? (domains[snapshot.domain]?.name ?? 'One domain') : 'All domains'
+  return (
+    <div data-print="sheet">
+      <Frame>
+        <FrameSection
+          title={`Summary, ${name}`}
+          description={
+            <>
+              {where} · {dayName(data.now.start)} to {dayName(data.now.end - DAY)}. A snapshot taken
+              on {dayName(snapshot.takenOn)}: the numbers as they were that day. Counts only: never
+              the words of a question or who asked.
+            </>
+          }
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              className="print:hidden"
+              onClick={() => window.print()}
+            >
+              <PrinterIcon />
+              Print or save as PDF
+            </Button>
+          }
+        >
+          {words.notes.length > 0 && data.state === 'normal' && (
+            <ul className="flex flex-col gap-1 px-4 pb-4 text-sm text-muted-foreground md:px-5">
+              {words.notes.map((n) => (
+                <li key={n}>{n}</li>
+              ))}
+            </ul>
+          )}
+        </FrameSection>
+        {data.state === 'normal' ? (
+          <Counted
+            data={data}
+            name={name}
+            before={before}
+            frozen={{ words, takenOn: snapshot.takenOn }}
+          />
+        ) : (
+          <NotCounted state={data.state} name={name} />
+        )}
+      </Frame>
+    </div>
   )
 }

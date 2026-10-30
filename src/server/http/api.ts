@@ -1063,6 +1063,17 @@ export function createRouter({
       summary: authorized.obs.summary.handler(({ context, input }) =>
         context.observability.summary(input),
       ),
+      snapshots: {
+        list: authorized.obs.snapshots.list.handler(({ context, input }) =>
+          context.observability.snapshots(input),
+        ),
+        get: authorized.obs.snapshots.get.handler(({ context, input }) =>
+          context.observability.snapshot(input),
+        ),
+        take: authorized.obs.snapshots.take.handler(({ context }) =>
+          context.observability.takeSnapshots(),
+        ),
+      },
       usage: authorized.obs.usage.handler(({ context, input }) =>
         context.observability.usage(input),
       ),

@@ -2273,6 +2273,49 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(
+      lacks('signIn', 'observabilitySummary', 'observabilitySnapshots', 'observabilitySnapshot'),
+    )(
+      "keeps each whole month's Summary as a snapshot: its counts as shown and its sentences, no list",
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const list = await api().observabilitySnapshots({})
+        // August and September, taken on the first of the month after, the latest first.
+        expect(list.map((s) => [s.now.start, s.takenOn, s.domain])).toEqual([
+          [Date.UTC(2026, 8, 1), Date.UTC(2026, 9, 1), undefined],
+          [Date.UTC(2026, 7, 1), Date.UTC(2026, 8, 1), undefined],
+        ])
+        const september = (await api().observabilitySnapshot(list[0]!.id))!
+        const live = await api().observabilitySummary({ period: 'month' })
+        expect(september.data.now).toEqual(live.now)
+        expect(september.data.numbers).toEqual(live.numbers)
+        expect(september.data.previous).toEqual(live.previous)
+        expect(september.data.weeks).toEqual(live.weeks)
+        expect(september.data.changes.total).toBe(live.changes.total)
+        // Counts only: what is open and what changed are kept as counts, never as a list.
+        expect(september.data.open).toEqual({ total: live.open.total, spots: [] })
+        expect(september.data.changes.latest).toEqual([])
+        expect(september.words.sentences[0]).toMatch(
+          /^Agents asked [\d,]+ questions in September 2026/,
+        )
+        expect(september.words.caught.map((c) => c.key)).toEqual(['warned', 'saved', 'alerts'])
+        expect(await api().observabilitySnapshot('0b6e3c3e-5d8f-4f0c-9a51-7b0d7a3a9f10')).toBeNull()
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilitySnapshots', 'getWorkspace'))(
+      "lists a domain's own snapshots, for its owners",
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const owned = (await api().getWorkspace()).domains.find(
+          (d) => d.owners.includes(person) && !d.sandbox,
+        )!
+        const mine = await api().observabilitySnapshots({ domain: owned.id })
+        expect(mine.length).toBe(2)
+        for (const s of mine) expect(s.domain).toBe(owned.id)
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getSavedViews', 'saveView', 'removeView'))(
       'saves a view of Questions for everyone, and removes it',
       async () => {

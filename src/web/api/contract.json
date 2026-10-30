@@ -2195,6 +2195,56 @@
         }
       }
     },
+    "snapshots": {
+      "list": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "maintain"
+          },
+          "route": {
+            "method": "GET",
+            "path": "/observability/snapshots",
+            "tags": [
+              "quality"
+            ],
+            "summary": "Summary's monthly snapshots a reader may open, the latest first (FR-620)"
+          }
+        }
+      },
+      "get": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "maintain"
+          },
+          "route": {
+            "method": "GET",
+            "path": "/observability/snapshots/{id}",
+            "tags": [
+              "quality"
+            ],
+            "summary": "One monthly snapshot as taken: disclosed counts and their sentences only (FR-612)"
+          }
+        }
+      },
+      "take": {
+        "~orpc": {
+          "errorMap": {},
+          "meta": {
+            "scope": "admin"
+          },
+          "route": {
+            "method": "POST",
+            "path": "/observability/snapshots",
+            "tags": [
+              "quality"
+            ],
+            "summary": "Take the last whole month's snapshots now, as the nightly job does (admins)"
+          }
+        }
+      }
+    },
     "usage": {
       "~orpc": {
         "errorMap": {},

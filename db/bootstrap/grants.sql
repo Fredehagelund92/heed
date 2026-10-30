@@ -189,6 +189,12 @@ grant insert, delete on observability_views to :api;
 -- them, through one function that runs as the owner. Nothing here is granted to the serving or the
 -- analytics role.
 grant execute on function cl_obs_weekly_rollup_due(date) to :api;
+-- Summary's monthly snapshots (obs_snapshots): counts already disclosed and the sentences made from
+-- them, kept without limit. The job and administrators take them, row security says who reads
+-- which, and none is ever changed or deleted. The changes count runs as the owner, so it is the
+-- same whoever reads.
+grant insert on obs_snapshots to :api;
+grant execute on function cl_obs_changes(text[], date, date) to :api;
 -- Content sources (CON-601 to CON-611): a read keeps what it knew about each document, never its text, and
 -- counts on its read what it did; its own transaction names the source it reads for (cl_source), which row
 -- security lets write that source's suggestions and nothing else.

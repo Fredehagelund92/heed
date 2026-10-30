@@ -32,6 +32,7 @@ import { Route as AppContextIdSuggestRouteImport } from './routes/_app/context.$
 import { Route as AppDefinitionsNameIndexRouteImport } from './routes/_app/definitions.$name.index'
 import { Route as AppDefinitionsNameEditRouteImport } from './routes/_app/definitions.$name.edit'
 import { Route as AppInboxIdReviewRouteImport } from './routes/_app/inbox.$id.review'
+import { Route as AppObservabilitySummaryIdRouteImport } from './routes/_app/observability.summary.$id'
 import { Route as AppSettingsSectionIndexRouteImport } from './routes/_app/settings.$section.index'
 import { Route as AppSettingsSectionSubIndexRouteImport } from './routes/_app/settings.$section.$sub.index'
 import { Route as AppSettingsSectionSubStepRouteImport } from './routes/_app/settings.$section.$sub.$step'
@@ -176,6 +177,14 @@ const AppInboxIdReviewRoute = AppInboxIdReviewRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app/inbox.$id.review.lazy').then((d) => d.Route),
 )
+const AppObservabilitySummaryIdRoute =
+  AppObservabilitySummaryIdRouteImport.update({
+    id: '/observability/summary/$id',
+    path: '/observability/summary/$id',
+    getParentRoute: () => AppRoute,
+  } as any).lazy(() =>
+    import('./routes/_app/observability.summary.$id.lazy').then((d) => d.Route),
+  )
 const AppSettingsSectionIndexRoute = AppSettingsSectionIndexRouteImport.update({
   id: '/settings/$section/',
   path: '/settings/$section/',
@@ -225,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/context/$id/suggest': typeof AppContextIdSuggestRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
+  '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id/': typeof AppContextIdIndexRoute
   '/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/settings/$section/': typeof AppSettingsSectionIndexRoute
@@ -252,6 +262,7 @@ export interface FileRoutesByTo {
   '/context/$id/suggest': typeof AppContextIdSuggestRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
+  '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id': typeof AppContextIdIndexRoute
   '/definitions/$name': typeof AppDefinitionsNameIndexRoute
   '/settings/$section': typeof AppSettingsSectionIndexRoute
@@ -281,6 +292,7 @@ export interface FileRoutesById {
   '/_app/context/$id/suggest': typeof AppContextIdSuggestRoute
   '/_app/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/_app/inbox/$id/review': typeof AppInboxIdReviewRoute
+  '/_app/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/_app/context/$id/': typeof AppContextIdIndexRoute
   '/_app/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/_app/settings/$section/': typeof AppSettingsSectionIndexRoute
@@ -310,6 +322,7 @@ export interface FileRouteTypes {
     | '/context/$id/suggest'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
+    | '/observability/summary/$id'
     | '/context/$id/'
     | '/definitions/$name/'
     | '/settings/$section/'
@@ -337,6 +350,7 @@ export interface FileRouteTypes {
     | '/context/$id/suggest'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
+    | '/observability/summary/$id'
     | '/context/$id'
     | '/definitions/$name'
     | '/settings/$section'
@@ -365,6 +379,7 @@ export interface FileRouteTypes {
     | '/_app/context/$id/suggest'
     | '/_app/definitions/$name/edit'
     | '/_app/inbox/$id/review'
+    | '/_app/observability/summary/$id'
     | '/_app/context/$id/'
     | '/_app/definitions/$name/'
     | '/_app/settings/$section/'
@@ -544,6 +559,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxIdReviewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/observability/summary/$id': {
+      id: '/_app/observability/summary/$id'
+      path: '/observability/summary/$id'
+      fullPath: '/observability/summary/$id'
+      preLoaderRoute: typeof AppObservabilitySummaryIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings/$section/': {
       id: '/_app/settings/$section/'
       path: '/settings/$section'
@@ -584,6 +606,7 @@ interface AppRouteChildren {
   AppContextIdSuggestRoute: typeof AppContextIdSuggestRoute
   AppDefinitionsNameEditRoute: typeof AppDefinitionsNameEditRoute
   AppInboxIdReviewRoute: typeof AppInboxIdReviewRoute
+  AppObservabilitySummaryIdRoute: typeof AppObservabilitySummaryIdRoute
   AppContextIdIndexRoute: typeof AppContextIdIndexRoute
   AppDefinitionsNameIndexRoute: typeof AppDefinitionsNameIndexRoute
   AppSettingsSectionIndexRoute: typeof AppSettingsSectionIndexRoute
@@ -607,6 +630,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppContextIdSuggestRoute: AppContextIdSuggestRoute,
   AppDefinitionsNameEditRoute: AppDefinitionsNameEditRoute,
   AppInboxIdReviewRoute: AppInboxIdReviewRoute,
+  AppObservabilitySummaryIdRoute: AppObservabilitySummaryIdRoute,
   AppContextIdIndexRoute: AppContextIdIndexRoute,
   AppDefinitionsNameIndexRoute: AppDefinitionsNameIndexRoute,
   AppSettingsSectionIndexRoute: AppSettingsSectionIndexRoute,

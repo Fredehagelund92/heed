@@ -94,7 +94,7 @@ export function createScenario() {
      */
     dataFlags() {
       const q = address.query
-      return JSON.stringify([this.obsState(), q.quality, q.links, q.figures, q.connect])
+      return JSON.stringify([this.obsState(), q.snapshot, q.quality, q.links, q.figures, q.connect])
     },
     /** Observability's own review flag: ?state=empty (nothing connected), quiet (under 5), busy. */
     obsState(): ObsState {

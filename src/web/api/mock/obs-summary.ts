@@ -25,15 +25,20 @@ const DAY = 86_400_000
 const iso = (at: number) => new Date(at).toISOString().slice(0, 10)
 const atOf = (day: string) => Date.parse(`${day}T00:00:00Z`)
 
-export function obsSummary(fixture: Fixture, input: ObsSummaryInput, reader: Reader): SummaryData {
-  const today = iso(fixture.last + DAY)
+/** Summary as of the demo's today, or as of an earlier day, which a monthly snapshot was taken on. */
+export function obsSummary(
+  fixture: Fixture,
+  input: ObsSummaryInput,
+  reader: Reader,
+  today = iso(fixture.last + DAY),
+): SummaryData {
   const { now, before } = summaryPeriod(input.period, today)
   const weeks = trendWeeks(now)
   const period = (s: { start: string; end: string }) => ({ start: atOf(s.start), end: atOf(s.end) })
   const base: SummaryData = {
     state: 'normal',
     period: input.period,
-    last: fixture.last,
+    last: atOf(today) - DAY,
     now: period(now),
     before: period(before),
     since: null,

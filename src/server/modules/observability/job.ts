@@ -1,5 +1,6 @@
 import { systemClock, type Clock } from '../../clock.ts'
 import type { ScheduledJob } from '../jobs/index.ts'
+import { createObservabilityService } from './service.ts'
 
 /**
  * The weekly counts Observability keeps without limit (FR-612, FR-620): each night, before
@@ -22,6 +23,26 @@ export function weeklyRollupJob({ clock = systemClock() }: { clock?: Clock } = {
         weeks: rows.map((r) => r.week),
         rows: rows.reduce((n, r) => n + Number(r.kept), 0),
       }
+    },
+  }
+}
+
+/**
+ * Summary's monthly snapshot (FR-612, FR-620): each night, after the weekly counts, the last whole
+ * month's Summary is kept for every domain together and for each domain, wherever it is not kept
+ * yet, its counts already disclosed and its sentences said. A month kept is never taken again, so
+ * the job is safe to run twice, and a night it misses is taken the next.
+ */
+export function snapshotJob({ clock = systemClock() }: { clock?: Clock } = {}): ScheduledJob {
+  return {
+    name: 'observability.snapshot',
+    cron: '15 3 * * *',
+    expectedEverySeconds: 36 * 60 * 60,
+    async run({ database }) {
+      const { now, taken } = await database.transaction(null, (tx) =>
+        createObservabilityService(tx, clock).takeSnapshots(),
+      )
+      return { month: now.start, taken }
     },
   }
 }
