@@ -1,5 +1,5 @@
 /*
-  The colour maths of the token tests (tests/lint/tokens.test.ts, tests/lint/web-tokens.test.ts):
+  The colour maths of the token test (tests/lint/web-tokens.test.ts):
   a CSS colour as the 8 bit sRGB a browser paints, and the WCAG 2.x contrast ratio, rounded down
   to one decimal so a number is never overstated (design contract Draft 1, appendix B).
 */

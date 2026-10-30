@@ -222,7 +222,7 @@ and a secret pasted into another field. Changes are kept in the history log (`so
 each secret, only `set`, `replaced` or `removed`. A source added or changed is read at once: the
 change makes it due, and the job runs once it commits.
 
-Settings › Integrations in the new web app reads `sources.list` for its rows: a source is
+Settings › Integrations in the web app reads `sources.list` for its rows: a source is
 **Paused** when an admin paused it, **Reading** while a read it was asked for (Read again, or a
 change to its settings) waits for the job, **Needs a new key** when its last read failed because
 its key was refused or is missing, **Failed** when its last read failed for another reason, and
@@ -573,7 +573,7 @@ Where the build differs from the decided text above:
   `maxItems`. A field's place in the list is its order. `widget` and `examples.invalid` come with
   the conformance kit. The core adds Name and Why to every form. The API takes a source's
   schedule and, for content, its scopes (`sources.add`, `sources.update`); the old Sources form
-  adds definition sources only, and the new web app's five-step connect draws both.
+  adds definition sources only, and the web app's five-step connect draws both.
 - **The icon** is a name from a short list (`database`, `git`, `file`, `list`, `cloud`, `book`),
   not a file, so the web app draws it without loading anything. `docs` is optional.
 - **The registry** refuses a manifest that does not pass the schema, an interface range this
@@ -656,7 +656,7 @@ into a read-only token at a sign-in host the manifest declares, documents export
 now and then (`deletions: 'both'`), with the core choosing which by the cursor it hands
 ([content sources](#full-reads-and-reads-from-a-cursor)).
 
-Slice 5, the screens, is built: the Integrations pages of the new web app read the service
+Slice 5, the screens, is built: the Integrations pages of the web app read the service
 (`sources.list`, `sources.activity`), with Read again and Pause reading, the five-step connect
 (Pick, Connect, Choose, Map, Schedule) drawn from the manifests, Change settings and Disconnect
 ([sources an administrator adds](#sources-an-administrator-adds)). The Figures section of a
@@ -797,8 +797,8 @@ domain informs only. `tests/integration/source-health.test.ts` runs the sources'
 operations view. `tests/integration/sources.test.ts` adds, tests, changes and reads a source
 through the API against a Git host on the machine, and checks that only administrators reach it
 and that its token is in no answer, row, history entry, retry record or log line, and adds,
-tests and reads a static list end to end through the definitions pipeline; the Settings
-conformance suite (`tests/conformance/context-api-settings.ts`) holds the mock to the same rules.
+tests and reads a static list end to end through the definitions pipeline; the web app's
+conformance suite (`tests/web/conformance/heed-api.ts`) holds the mock binding to the same rules.
 The Cube connector's own tests are in [its page](connectors/cube.md#validation), and
 `tests/integration/cube-sources.test.ts` takes a Cube model in Git through the API, its own
 schedule and its backoff, and proves a read never publishes, decides or suggests anything.

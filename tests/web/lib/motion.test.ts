@@ -4,7 +4,7 @@ import { join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-// The motion rules as checks (docs/motion.md): every duration and easing comes from the tokens in
+// The motion rules as checks (docs/design/motion.md): every duration and easing comes from the tokens in
 // index.css, so reduced motion is one rule there, not an override on each component.
 
 const ROOT = fileURLToPath(new URL('../../../src/web', import.meta.url))

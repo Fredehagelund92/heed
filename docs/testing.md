@@ -31,7 +31,7 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   tests and, for the web API, `tests/server/rate-limit.test.ts` and
   `tests/integration/rate-limit.test.ts`. Scanning and the restore drill are in
   [Security, scanning and the restore drill](security.md).
-- **Docs check (Vitest).** `tests/web/docs.test.ts` reads every page of the new app's documentation in
+- **Docs check (Vitest).** `tests/web/docs.test.ts` reads every page of the web app's documentation in
   `docs/help` (`docs/help/README.md`, "The docs check"): the mockup's eleven pages and What's new, their
   links, the app's own lists they include, and every bold control, which must have a row in
   `tests/e2e/docs-controls.ts`; `tests/e2e/docs-controls.spec.ts` draws each row's screen

@@ -5,7 +5,7 @@ import stylelint from 'stylelint'
 import { describe, expect, it } from 'vitest'
 
 /**
- * The guard rails of the new web app (src/web), run through the repository's own eslint.config.js
+ * The guard rails of the web app (src/web), run through the repository's own eslint.config.js
  * on sample components placed at src/web paths: the class rules, the Tailwind classes the new
  * tokens define, the motion rules, the import rules, the product name and the words. The mockup's
  * copy and motion checks become these lint rules (design contract v2, section 9).
@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 // src/web holds no TypeScript project yet, so the rules that read types are left out here; every
-// guard rail of the new app reads the syntax alone.
+// guard rail of the web app reads the syntax alone.
 const eslint = new ESLint({
   cwd: root,
   overrideConfig: { languageOptions: { parserOptions: { projectService: false } } },
@@ -30,7 +30,7 @@ async function lintAs(path: string, source: string) {
 const fixture = (name: string) =>
   readFileSync(new URL(`fixtures/web/${name}`, import.meta.url), 'utf8')
 
-describe('ESLint guard rails of the new app', () => {
+describe('ESLint guard rails of the web app', () => {
   it('reports a component that breaks them, with a message that says what to do', async () => {
     const messages = await lintAs('src/web/pages/bad.tsx', fixture('bad-component.tsx'))
     const text = messages.map((message) => message.message)

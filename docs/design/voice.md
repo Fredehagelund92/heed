@@ -39,7 +39,7 @@ People in finance, marketing, operations and management. Many read English as a 
 
 ## The words
 
-`src/domain/words-v1.ts` holds, for every concept, the name people read, a plain definition, the specification's and the code's words it replaces (`internal`), and the words not to use with what to write instead (`bannedWords`). Its unit test, `tests/unit/words-v1.test.ts`, keeps it consistent. Add or change a name there, in a reviewed pull request, before a screen uses it.
+`src/domain/words-v1.ts` holds, for every concept, the name people read, a plain definition, the specification's and the code's words it replaces (`internal`), and the words not to use with what to write instead (`bannedWords`). Its unit test, `tests/server/domain/words-v1.test.ts`, keeps it consistent. Add or change a name there, in a reviewed pull request, before a screen uses it.
 
 The names that change most often today:
 

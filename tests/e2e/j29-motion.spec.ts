@@ -2,7 +2,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { go, moveTo } from './go.ts'
 
-// J29: motion and loading (docs/motion.md). Decisions do not wait, loading waits before it shows and
+// J29: motion and loading (docs/design/motion.md). Decisions do not wait, loading waits before it shows and
 // takes the page's shape, and nothing moves that the person did not ask for.
 
 test('an Inbox decision shows at once, Undo brings it back, and a failed save takes it back by itself', async ({

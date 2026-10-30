@@ -20,6 +20,5 @@
     "tests/e2e/http",
     "tests/lint/fixtures",
     "eslint.plain-words.d.ts"
-  ],
-  "exclude": ["tests/web/e2e"]
+  ]
 }

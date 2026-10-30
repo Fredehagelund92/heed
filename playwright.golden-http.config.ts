@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 /*
   The golden journeys in http mode (golden plan, section 8.2): the same job specs as
-  playwright.config.ts, on a production build of the new app with VITE_API_MODE=http, whose
+  playwright.config.ts, on a production build of the web app with VITE_API_MODE=http, whose
   preview server forwards /api/v1 to the Heed service on PostgreSQL 18. The global setup seeds the
   mockup's demo week into a template database (tests/e2e/http); each journey starts on its own
   copy with its own service, so they run one at a time. Only the journeys whose screens are wired

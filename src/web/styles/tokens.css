@@ -1,5 +1,5 @@
 /*
-  The design tokens of the new web app (design contract v2, section 2, and docs/design/motion.md).
+  The design tokens of the web app (design contract v2, section 2, and docs/design/motion.md).
   The values are the approved mockup's (mockup/src/index.css at the reference commit), with one
   contrast fix: the dark --mark-fmt-line. A component depends on a name here, never on a value.
   This is the one file in src/web that may write a raw colour, length or time.

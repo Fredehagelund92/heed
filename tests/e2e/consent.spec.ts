@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 import { expect, go, mode, signOut, test } from './go.ts'
 
 /*
-  An agent's consent page (FR-403, golden plan 2.3: the real app's page, in the new app's design).
+  An agent's consent page (FR-403, golden plan 2.3: the real app's page, in the web app's design).
   A person's agent asks to connect; the login server sends them to /connect/approve, where they
   sign in, read which agent asks and what it may do, and allow or deny. On the mock the demo's
   waiting sign-in plays the agent. On the service it is a real one: it registers, the browser goes

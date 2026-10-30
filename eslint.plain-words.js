@@ -35,15 +35,14 @@ export const errorMessageFiles = ['src/server/**/*.ts']
 /** The files whose strings people read in the web app. */
 export const webWordsFiles = ['src/web/**/*.{ts,tsx}']
 /**
- * Code in the app that is not its own copy: the shadcn and editor parts as they ship, the
- * generated route tree and tests, as the mockup's copy check leaves them out.
+ * Code in the app that is not its own copy: the shadcn and editor parts as they ship and the
+ * generated route tree, which the mockup's copy check leaves out too.
  */
 export const webNotProductFiles = [
   'src/web/components/ui/**',
   'src/web/components/editor/**',
   'src/web/components/static-renderer/**',
   'src/web/**/*.gen.ts',
-  'src/web/**/*.test.{ts,tsx}',
 ]
 
 /**

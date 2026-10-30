@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-// Rows that leave and arrive (docs/motion.md): a row that goes collapses in 150ms, then the change is
+// Rows that leave and arrive (docs/design/motion.md): a row that goes collapses in 150ms, then the change is
 // made; a row added later opens in 220ms. Rows already there when a list first shows do not move,
 // so a page never animates in. CSS: the row-presence utility in index.css.
 

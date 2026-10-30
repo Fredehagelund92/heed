@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { webClassRules } from '../../eslint.class-rules.js'
 
 /**
- * The class rules of the new web app (eslint.class-rules.js, `webClassRules`), against samples:
+ * The class rules of the web app (eslint.class-rules.js, `webClassRules`), against samples:
  * every class in the first list must be flagged by its rule, and no rule may flag a class in the
  * second. The second list is the mockup's scales, which design contract v2 allows: half steps,
  * margins, Tailwind's text sizes, weights 400 to 700, and the tokens by name.
@@ -88,7 +88,7 @@ const flaggedBy = (name: string) =>
 /** Outside the dock, where eslint.config.js leaves viewport variants to the page. */
 const outsideDock = (name: string) => flaggedBy(name).filter((id) => id !== 'viewport-variant')
 
-describe('class rules of the new app (design contract v2)', () => {
+describe('class rules of the web app (design contract v2)', () => {
   it.each(mustFlag)('flags %s with %s', (name, rule) => {
     if (rule === 'viewport-variant') expect(flaggedBy(name)).toContain(rule)
     else expect(outsideDock(name)).toEqual([rule])

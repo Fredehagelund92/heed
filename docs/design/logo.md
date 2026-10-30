@@ -59,7 +59,7 @@ it; on its own, `Logo` is one image named "Heed".
 
 | File                                                         | Use                                                                                              |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `components/app-shell/logo.tsx`                              | `LogoSymbol`, `LogoWordmark` and `Logo` (the lockup) in the app, and the two paths               |
+| `components/heed/logo.tsx`                                   | `LogoSymbol` and `Logo` (the lockup) in the app, and the two paths                               |
 | `public/heed-symbol.svg`                                     | The symbol on its own, in currentColor, for docs and slides                                      |
 | `public/heed-lockup.svg`                                     | The lockup, outlined, in currentColor                                                            |
 | `public/heed-mark.svg`                                       | The same as `heed-symbol.svg`, kept so links to the old file still work                          |

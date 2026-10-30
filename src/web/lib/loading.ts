@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { mockControls } from '@/api'
 
-// Loading, by the motion rules (docs/motion.md): nothing for a fast load; a skeleton of the page's
+// Loading, by the motion rules (docs/design/motion.md): nothing for a fast load; a skeleton of the page's
 // own shape only after 150ms, then held at least 300ms so it never flashes; a button's spinner
 // after 150ms. The mock binding answers at once, so the Slow network switch in Help makes each
 // page's first load wait there, so the loading can be seen and reviewed.

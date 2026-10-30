@@ -7,7 +7,7 @@ import plainWords, { webPlacesOf, webSurfaces } from '../../eslint.plain-words.j
 
 /**
  * heed/plain-words with glossary v2 (src/domain/words.ts, docs/design/copy.md) is the copy guard
- * rail of the new web app: the mockup's copy check (`src/lib/copy.test.ts` there), as a lint rule
+ * rail of the web app: the mockup's copy check (`src/lib/copy.test.ts` there), as a lint rule
  * on src/web. It reports each banned word in text people read, allows a word only on the place the
  * glossary names, and leaves code alone.
  */
@@ -15,7 +15,7 @@ import plainWords, { webPlacesOf, webSurfaces } from '../../eslint.plain-words.j
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const linter = new Linter({ cwd: root })
 
-/** What the rule says about `code`, written in `file` of the new app. */
+/** What the rule says about `code`, written in `file` of the web app. */
 function said(code: string, file = 'src/web/pages/inbox.tsx') {
   return linter
     .verify(
@@ -39,7 +39,7 @@ function said(code: string, file = 'src/web/pages/inbox.tsx') {
 const write = (found: string, instead: string) =>
   `Instead of "${found}", write: ${instead}. See docs/design/copy.md.`
 
-describe('heed/plain-words in the new app (glossary v2)', () => {
+describe('heed/plain-words in the web app (glossary v2)', () => {
   it('accepts the names of glossary v2', () => {
     expect(
       said(`export const a = <p>3 context items. Invite people as an Admin or a Member.</p>`),
@@ -139,6 +139,6 @@ describe('heed/plain-words in the new app (glossary v2)', () => {
     expect(webPlacesOf('src/web/components/heed/review-parts.tsx')).toEqual(['the review'])
     expect(webPlacesOf('src/web/pages/inbox.tsx')).toEqual([])
     for (const { files } of webSurfaces)
-      for (const glob of files) expect(glob, 'a place of the new app').toMatch(/^src\/web\//)
+      for (const glob of files) expect(glob, 'a place of the web app').toMatch(/^src\/web\//)
   })
 })

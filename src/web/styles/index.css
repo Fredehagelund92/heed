@@ -1,5 +1,5 @@
 /*
-  The stylesheet of the new web app: Tailwind, the shadcn theme layer, the font and the tokens.
+  The stylesheet of the web app: Tailwind, the shadcn theme layer, the font and the tokens.
   ESLint reads it to know which classes exist (better-tailwindcss in eslint.config.js), so a class
   the tokens do not define is reported as unknown. Below the tokens: the base layer, and the
   motion utilities docs/design/motion.md describes.

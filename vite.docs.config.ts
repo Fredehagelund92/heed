@@ -6,7 +6,7 @@ import { helpDocs } from './scripts/docs-plugin.ts'
 import { productTitle, themeBootstrap } from './vite.config.ts'
 
 /*
-  The static docs site (npm run docs:build): the documentation's pages (docs/help) in the new app's
+  The static docs site (npm run docs:build): the documentation's pages (docs/help) in the web app's
   design, on their own, with search and an index for agents. scripts/docs-build.ts builds it with
   this config twice, for the browser and to draw each page ahead of time, into dist/docs.
   DOCS_BASE is the path it is served under (default /docs, as in the app); VITE_DOCS_APP_URL is

@@ -1,5 +1,5 @@
 // Built from the mockup's scales and the new tokens only: tests/lint/web-guard-rails.test.ts
-// expects no message for it as a file of the new app.
+// expects no message for it as a file of the web app.
 import type { CSSProperties } from 'react'
 
 export function Good({ hue, wide }: { hue: number; wide: boolean }) {

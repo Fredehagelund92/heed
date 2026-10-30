@@ -1,5 +1,5 @@
 /**
- * The one boundary between the new web app (src/web) and its data: `HeedApi`. Two bindings
+ * The one boundary between the web app (src/web) and its data: `HeedApi`. Two bindings
  * implement it. The mock binding (mock/) answers from the demo world's fixtures and runs its rules
  * in memory, with the scenarios a review needs (a page that loads slowly or fails, being offline, a
  * fresh install). The http binding (http.ts) talks to the Heed service through the API contract

@@ -55,7 +55,7 @@ createRoot(document.getElementById('root')!).render(
 )
 
 // After the first paint the app is ready: from then on a dock or a row that arrives moves in; what is
-// on screen at load is simply there (docs/motion.md: no page-enter transition).
+// on screen at load is simply there (docs/design/motion.md: no page-enter transition).
 const ready = router.subscribe('onResolved', () => {
   ready()
   requestAnimationFrame(() =>

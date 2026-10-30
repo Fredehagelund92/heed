@@ -10,7 +10,6 @@ src/web/lib/cn-tables.gen.ts
 # Generated from src/contract by `npm run api:generate`
 docs/api/openapi.json
 src/web/api/contract.json
-**/__screenshots__
 tests/lint/fixtures
 docs/requirements.md
 .claude/settings.local.json

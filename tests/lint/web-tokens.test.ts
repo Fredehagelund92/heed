@@ -5,7 +5,7 @@ import { webClassRules } from '../../eslint.class-rules.js'
 import { contrast, toRgb } from './contrast.ts'
 
 /**
- * The token test of the new web app (design contract v2, sections 2 and 9). It reads
+ * The token test of the web app (design contract v2, sections 2 and 9). It reads
  * src/web/styles/tokens.css, checks that every token exists in light and dark, and recomputes
  * every contrast pair from the values in the file: text 4.5:1; controls, field borders, the
  * review marks and the icons that carry meaning 3:1. Both themes.

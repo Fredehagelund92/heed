@@ -51,7 +51,7 @@ describe('the plain words baseline', () => {
 })
 
 describe('plain-words.baseline.json', () => {
-  it('starts at zero for the new web app: no file in src/web may hold an old word', () => {
+  it('starts at zero for the web app: no file in src/web may hold an old word', () => {
     const baseline = JSON.parse(
       readFileSync(new URL('../../plain-words.baseline.json', import.meta.url), 'utf8'),
     ) as Record<string, unknown>
