@@ -2123,6 +2123,65 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'observabilitySummary'))(
+      'sums up the last whole month and quarter, every count disclosed, the quarter compared only from the first question',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const DAY = 86_400_000
+        const month = await api().observabilitySummary({ period: 'month' })
+        expect(month).toMatchObject({ state: 'normal', period: 'month', notCompared: null })
+        // A whole calendar month, the one before the demo's today (23 October 2026).
+        expect(month.now).toEqual({ start: Date.UTC(2026, 8, 1), end: Date.UTC(2026, 9, 1) })
+        expect(month.before).toEqual({ start: Date.UTC(2026, 7, 1), end: Date.UTC(2026, 8, 1) })
+        expect(month.previous).not.toBeNull()
+        const { asked, checked, warned, missing } = month.numbers
+        expect(asked).toBeGreaterThanOrEqual(5)
+        if (checked !== null && warned !== null && missing !== null)
+          expect(checked + warned + missing).toBe(asked)
+        // Thirteen whole weeks, Monday to Sunday, the last one ending by the month's end.
+        expect(month.weeks).toHaveLength(13)
+        for (const [i, w] of month.weeks.entries()) {
+          expect(new Date(w.at).getUTCDay(), `week ${i}`).toBe(1)
+          if (i) expect(w.at - month.weeks[i - 1]!.at).toBe(7 * DAY)
+        }
+        expect(month.weeks.at(-1)!.at + 7 * DAY).toBeLessThanOrEqual(month.now.end)
+        const shown = [
+          ...Object.values(month.numbers),
+          ...Object.values(month.previous!),
+          ...month.weeks.map((w) => w.checked),
+          ...month.open.spots.map((o) => o.missing),
+          month.changes.total,
+          month.changes.before,
+        ]
+        for (const n of shown) expect(n === null || n === 0 || n >= 5, String(n)).toBe(true)
+        expect(month.open.spots.length).toBeLessThanOrEqual(3)
+        expect(month.changes.latest.length).toBeLessThanOrEqual(
+          Math.min(5, month.changes.total ?? 0),
+        )
+
+        const quarter = await api().observabilitySummary({ period: 'quarter' })
+        expect(quarter.now).toEqual({ start: Date.UTC(2026, 6, 1), end: Date.UTC(2026, 9, 1) })
+        // The demo's agents first asked on 17 April, after April to June began.
+        expect(quarter.since).toBe(Date.UTC(2026, 3, 17))
+        expect(quarter).toMatchObject({ notCompared: 'started', previous: null })
+        expect(quarter.numbers.asked!).toBeGreaterThan(asked!)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilitySummary', 'getWorkspace'))(
+      'narrows the Summary to a domain the person owns',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const all = await api().observabilitySummary({ period: 'month' })
+        const owned = (await api().getWorkspace()).domains.find((d) => d.owners.includes(person))!
+        const one = await api().observabilitySummary({ period: 'month', domain: owned.id })
+        expect(one.numbers.asked).not.toBeNull()
+        expect(one.numbers.asked!).toBeLessThan(all.numbers.asked!)
+        for (const o of one.open.spots) expect(o.domain).toBe(owned.id)
+        for (const c of one.changes.latest) expect(c.domain).toBe(owned.id)
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getSavedViews', 'saveView', 'removeView'))(
       'saves a view of Questions for everyone, and removes it',
       async () => {

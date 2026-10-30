@@ -12,9 +12,14 @@ import { FeedbackPage } from '@/pages/observability/feedback'
 import { UsagePage } from '@/pages/observability/usage'
 import { AlertsPage } from '@/pages/observability/alerts'
 
+// Summary is its own chunk: it is the largest page and keeps the first load inside its budget.
+const SummaryPage = React.lazy(() =>
+  import('@/pages/observability/summary').then((m) => ({ default: m.SummaryPage })),
+)
+
 // Observability: what agents asked and what they got, as counts and scopes, never the words of a
-// question or who asked. Six pages in three groups (components/obs/obs-nav.tsx), for admins and,
-// for their own domains, owners. Usage and spend are for admins.
+// question or who asked. Seven pages in four groups (components/obs/obs-nav.tsx), Summary first,
+// for admins and, for their own domains, owners. Usage and spend are for admins.
 
 // A topic's answer panel, the dock these pages open (App.tsx): it loads with them.
 export { AnswerPanel } from '@/components/obs/answer-panel'
@@ -30,7 +35,7 @@ export function ObsCrumbs({
   return (
     <SettingsCrumbs
       trail={[
-        { label: 'Observability', href: '/observability/overview' },
+        { label: 'Observability', href: '/observability/summary' },
         { label: OBS_TITLES[section], href: `/observability/${section}` },
         ...rest,
       ]}
@@ -57,7 +62,7 @@ export function ObsPage({
 
 export function ObservabilityPage({ section }: { section?: string }) {
   const me = useMe()
-  const current = (section && section in OBS_TITLES ? section : 'overview') as ObsSection
+  const current = (section && section in OBS_TITLES ? section : 'summary') as ObsSection
   if (!seesObservability(me) || (current === 'usage' && !me.admin))
     return (
       <Page title="Observability">
@@ -70,12 +75,18 @@ export function ObservabilityPage({ section }: { section?: string }) {
             </EmptyTitle>
             <EmptyDescription>
               {current === 'usage'
-                ? 'Owners see Overview, Questions, Quality, Feedback and Alerts for their domains.'
+                ? 'Owners see Summary, Overview, Questions, Quality, Feedback and Alerts for their domains.'
                 : 'It shows what agents asked and what they got. Ask an owner of your domain, or an admin.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       </Page>
+    )
+  if (current === 'summary')
+    return (
+      <React.Suspense fallback={null}>
+        <SummaryPage />
+      </React.Suspense>
     )
   if (current === 'overview') return <OverviewPage />
   if (current === 'questions') return <QuestionsPage />

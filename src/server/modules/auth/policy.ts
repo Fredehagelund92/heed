@@ -139,6 +139,7 @@ export const policies = {
   'ask.asked': 'read',
   'obs.agents': 'maintain',
   'obs.feedback': 'maintain',
+  'obs.summary': 'maintain',
   'obs.usage': 'admin',
   'obs.views.list': 'maintain',
   'obs.views.save': 'maintain',

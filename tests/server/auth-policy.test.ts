@@ -26,6 +26,7 @@ const maintainOperations = [
   // Observability's reads and saved views: the service narrows them to the owner's domains.
   'obs.agents',
   'obs.feedback',
+  'obs.summary',
   'obs.views.list',
   'obs.views.save',
   'obs.views.remove',

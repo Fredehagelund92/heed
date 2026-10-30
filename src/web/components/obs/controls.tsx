@@ -5,11 +5,13 @@ import {
   ArrowUpIcon,
   BotIcon,
   ChevronDownIcon,
+  InfoIcon,
   LayersIcon,
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Changed } from '@/components/heed/changed'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +37,7 @@ export function RangeSwitch({ value }: { value: Range }) {
     <div
       role="radiogroup"
       aria-label="Time"
-      className="flex h-8 shrink-0 items-stretch rounded-md border bg-background p-0.5"
+      className="flex h-8 shrink-0 items-stretch rounded-md border bg-background p-0.5 max-sm:h-10"
     >
       {RANGES.map((r) => (
         <button
@@ -45,7 +47,7 @@ export function RangeSwitch({ value }: { value: Range }) {
           aria-checked={value === r}
           onClick={() => setQuery({ range: r === 7 ? undefined : String(r) })}
           className={cn(
-            'rounded-tile px-2.5 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-sm:min-h-10',
+            'rounded-tile px-2.5 text-dense whitespace-nowrap text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50',
             value === r && 'bg-muted font-medium text-foreground',
           )}
         >
@@ -99,27 +101,33 @@ function Filter({
   )
 }
 
-/** The page's filters: a domain, a kind of agent (admins), and the range. */
-export function ObsControls({ view, compact }: { view: ObsView; compact?: boolean }) {
-  const obs = useObservability()
+/** The domain filter alone: every domain or one for admins, an owner's own domains. */
+export function DomainFilter({ view }: { view: Pick<ObsView, 'domain' | 'owned'> }) {
   const domains = useDomains()
   const domainIds = useDomainList().map((d) => d.id)
   const doms = view.owned ?? domainIds.filter((d) => !domains[d]?.sandbox)
+  if (view.owned?.length === 1) return null
+  return (
+    <Filter
+      heading="Domain"
+      icon={<LayersIcon className="size-3.5" />}
+      label={view.domain ? (domains[view.domain]?.name ?? 'All domains') : 'All domains'}
+      value={view.domain ?? 'all'}
+      options={[
+        ...(view.owned ? [] : [{ value: 'all', label: 'All domains' }]),
+        ...doms.map((d) => ({ value: d, label: domains[d]?.name ?? d })),
+      ]}
+      onChange={(v) => setQuery({ domain: v === 'all' ? undefined : v })}
+    />
+  )
+}
+
+/** The page's filters: a domain, a kind of agent (admins), and the range. */
+export function ObsControls({ view, compact }: { view: ObsView; compact?: boolean }) {
+  const obs = useObservability()
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {!compact && (view.owned?.length !== 1 || !view.owned) && (
-        <Filter
-          heading="Domain"
-          icon={<LayersIcon className="size-3.5" />}
-          label={view.domain ? (domains[view.domain]?.name ?? 'All domains') : 'All domains'}
-          value={view.domain ?? 'all'}
-          options={[
-            ...(view.owned ? [] : [{ value: 'all', label: 'All domains' }]),
-            ...doms.map((d) => ({ value: d, label: domains[d]?.name ?? d })),
-          ]}
-          onChange={(v) => setQuery({ domain: v === 'all' ? undefined : v })}
-        />
-      )}
+      {!compact && <DomainFilter view={view} />}
       {!compact && !view.owned && (
         <Filter
           heading="Agent"
@@ -167,7 +175,10 @@ export function kpiChange(
 export const moreOrFewer = (c: Change) =>
   `${Math.abs(c.by).toLocaleString('en-GB')} ${c.by > 0 ? 'more' : 'fewer'}`
 
-/** One number in a row of cells: a label with its icon, the number, and a line on what it compares with. A link goes to its rows. */
+/**
+ * One number in a row of cells: a label with its icon, the number, and a line on what it compares
+ * with. A link goes to its rows; a cell with no link may say exactly what it counts, a click away.
+ */
 export function Kpi({
   icon,
   label,
@@ -176,6 +187,7 @@ export function Kpi({
   change,
   sub,
   href,
+  definition,
 }: {
   icon: React.ReactNode
   label: string
@@ -184,6 +196,7 @@ export function Kpi({
   change?: KpiChange
   sub?: string
   href?: string
+  definition?: string
 }) {
   const Arrow = change?.direction === 'up' ? ArrowUpIcon : ArrowDownIcon
   const body = (
@@ -191,6 +204,26 @@ export function Kpi({
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
         {icon}
         {label}
+        {definition && !href && (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  className="-my-1 text-muted-foreground max-sm:size-9 print:hidden"
+                  aria-label={`What ${label} counts`}
+                />
+              }
+            >
+              <InfoIcon />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="text-pretty">
+              <p className="font-medium">{label}</p>
+              <p className="text-muted-foreground">{definition}</p>
+            </PopoverContent>
+          </Popover>
+        )}
       </span>
       <span className="mt-1 flex items-baseline gap-1.5">
         <Changed

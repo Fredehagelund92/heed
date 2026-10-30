@@ -294,67 +294,73 @@
   --dist-1: 4px;
   --dist-2: 8px;
   --dist-3: 16px;
+
+  /* Paper: the margin of a printed sheet, inside the printer's own. */
+  --print-margin: 10mm;
 }
 
-.dark {
-  color-scheme: dark;
+/* Paper is always light: the dark theme is for screens, so a printed page reads in any theme. */
+@media not print {
+  .dark {
+    color-scheme: dark;
 
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #7aa2f0;
-  --primary-foreground: #0a0a0a;
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: #a3a3a3;
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: #6b6b6b;
-  --ring: #7aa2f0;
-  --mark-add: oklch(0.34 0.07 150);
-  --mark-add-line: oklch(0.72 0.15 150);
-  --mark-del: oklch(0.34 0.07 25);
-  --mark-del-line: oklch(0.7 0.17 25);
-  --mark-fmt: oklch(0.33 0.07 300);
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: #7aa2f0;
+    --primary-foreground: #0a0a0a;
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: #a3a3a3;
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: #6b6b6b;
+    --ring: #7aa2f0;
+    --mark-add: oklch(0.34 0.07 150);
+    --mark-add-line: oklch(0.72 0.15 150);
+    --mark-del: oklch(0.34 0.07 25);
+    --mark-del-line: oklch(0.7 0.17 25);
+    --mark-fmt: oklch(0.33 0.07 300);
 
-  /* Lifted from the mockup's oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
-     fix, not a design change (design contract 2.1). */
-  --mark-fmt-line: oklch(0.72 0.14 295);
-  --mark-link: oklch(0.36 0.07 80);
-  --mark-link-line: oklch(0.78 0.14 80);
-  --mark-move: oklch(0.3 0.015 250);
-  --mark-move-line: oklch(0.7 0.03 250);
-  --ok: oklch(0.78 0.15 150);
-  --warn: oklch(0.78 0.14 70);
-  --idle: #8a8a8a;
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #7aa2f0;
-  --sidebar-primary-foreground: #0a0a0a;
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #7aa2f0;
-  --caution-ink: oklch(0.8 0.13 75);
-  --caution-icon: oklch(0.8 0.13 75);
-  --caution-text: oklch(0.8 0.13 75);
-  --good-ink: oklch(0.78 0.13 150);
-  --destructive-ink: oklch(0.8 0.13 22);
-  --diff-add: oklch(26.6% 0.065 152.934);
-  --diff-add-ink: oklch(96.2% 0.044 156.743);
-  --diff-del: oklch(25.8% 0.092 26.042);
-  --diff-del-ink: oklch(93.6% 0.032 17.717);
-  --chip-hover: oklch(1 0 0 / 10%);
-  --chip-l: 0.3;
-  --chip-c: 0.045;
-  --chip-ink-l: 0.9;
-  --chip-ink-c: 0.04;
+    /* Lifted from the mockup's oklch(0.5 0.2 295), which is too dark on the dark surface: a contrast
+       fix, not a design change (design contract 2.1). */
+    --mark-fmt-line: oklch(0.72 0.14 295);
+    --mark-link: oklch(0.36 0.07 80);
+    --mark-link-line: oklch(0.78 0.14 80);
+    --mark-move: oklch(0.3 0.015 250);
+    --mark-move-line: oklch(0.7 0.03 250);
+    --ok: oklch(0.78 0.15 150);
+    --warn: oklch(0.78 0.14 70);
+    --idle: #8a8a8a;
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: #7aa2f0;
+    --sidebar-primary-foreground: #0a0a0a;
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: #7aa2f0;
+    --caution-ink: oklch(0.8 0.13 75);
+    --caution-icon: oklch(0.8 0.13 75);
+    --caution-text: oklch(0.8 0.13 75);
+    --good-ink: oklch(0.78 0.13 150);
+    --destructive-ink: oklch(0.8 0.13 22);
+    --diff-add: oklch(26.6% 0.065 152.934);
+    --diff-add-ink: oklch(96.2% 0.044 156.743);
+    --diff-del: oklch(25.8% 0.092 26.042);
+    --diff-del-ink: oklch(93.6% 0.032 17.717);
+    --chip-hover: oklch(1 0 0 / 10%);
+    --chip-l: 0.3;
+    --chip-c: 0.045;
+    --chip-ink-l: 0.9;
+    --chip-ink-c: 0.04;
+  }
 }
 
 /* Reduced motion: movement goes, nothing staggers, nothing loops outside loading, and the fade

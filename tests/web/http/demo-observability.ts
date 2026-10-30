@@ -135,6 +135,10 @@ export async function seedObservability(client: pg.Client): Promise<Map<string, 
   await client.query('delete from topic_week_counts where topic_id = any($1::uuid[])', [
     [...ids.values()],
   ])
+  // The weekly counts the nightly job keeps (obs_weekly): every completed week up to today's.
+  await client.query('select count(*) from cl_obs_weekly_rollup_due($1::date)', [
+    iso(Date.parse(`${last}T00:00:00Z`) + DAY),
+  ])
 
   // Tool calls: the week the mock draws, by tool, how they ended and kind of agent, each day's
   // reply times; earlier weeks as many as the mock's weeks back say.

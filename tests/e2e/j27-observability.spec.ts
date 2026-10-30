@@ -34,6 +34,7 @@ test('the row sits between Help and Settings and swaps the sidebar to its own me
   await expect(page).toHaveURL(/\/observability/)
   for (const name of [
     'Back to app',
+    'Summary',
     'Overview',
     'Questions',
     'Quality',
@@ -71,7 +72,7 @@ test('owners see it for their domains without Usage; someone who only suggests h
 test("Overview: the Inbox's own numbers, a way into each, and the range and filters in the address", async ({
   page,
 }) => {
-  await go(page, '/observability')
+  await go(page, '/observability/overview')
   const cells = page.locator('a', { hasText: 'Asked' }).first()
   await expect(cells).toContainText('142')
   // 142 against 129 the 7 days before is a move chance would make: no arrow, no colour, no per cent.
@@ -130,18 +131,18 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
 test("Overview: nothing connected, too few to show, and an owner's own domain", async ({
   page,
 }) => {
-  await go(page, '/observability?state=empty')
+  await go(page, '/observability/overview?state=empty')
   await expect(page.getByRole('heading', { name: 'No agent has asked anything yet' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect an agent' })).toBeVisible()
   await onMockOnly('review flag for too few questions', async () => {
-    await go(page, '/observability?state=quiet')
+    await go(page, '/observability/overview?state=quiet')
     await expect(page.getByText('Too few questions to show')).toBeVisible()
     await expect(page.getByText('Fewer than 5').first()).toBeVisible()
   })
 
   await go(page, '/observability?demo=week')
   await signInAs(page, 'Tomas Eriksen')
-  await go(page, '/observability')
+  await go(page, '/observability/overview')
   await expect(page.getByText('What agents asked about Marketing this week')).toBeVisible()
   await expect(page.getByRole('link', { name: /^Asked/ })).toContainText('24')
   await expect(page.getByRole('heading', { name: 'By agent' })).toHaveCount(0)
@@ -318,7 +319,7 @@ test('Saved questions are saved from Ask, counted everywhere from one list, and 
   await expect(
     page.getByRole('link', { name: /8 saved questions - 5 same - 1 changed - 2 need a look/ }),
   ).toHaveAttribute('href', `/observability/quality?domain=${domainId('sales')}`)
-  await go(page, '/observability')
+  await go(page, '/observability/overview')
   await expect(page.getByRole('link', { name: /Saved questions/ })).toContainText(
     /10\s*same\s*of 13/,
   )

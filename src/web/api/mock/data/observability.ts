@@ -171,6 +171,13 @@ const TOPICS: Topic[] = [
   ),
 ]
 
+/** The day each open topic's questions first found nothing, by the topic that has its gap. */
+const OPEN_SINCE: Record<string, string> = {
+  'orders-poland': '2026-08-24',
+  'orders-spain': '2026-09-07',
+  'orders-germany': '2026-09-21',
+}
+
 /**
  * Calls this week that could not be read: no metric and no market from the definitions, so no topic.
  * Counted, never the words (FR-602). Before, they were in no count at all.
@@ -387,5 +394,5 @@ export function obsData(state: ObsState): ObsData {
   }
 }
 
-export { TOPICS as topicSeed, DAYS as daySeed }
+export { TOPICS as topicSeed, DAYS as daySeed, OPEN_SINCE as openSince }
 export type { DomainId, Publish, Report, Topic, Day }

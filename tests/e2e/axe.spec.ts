@@ -30,6 +30,7 @@ const places = [
   '/ask',
   '/ask?example=grounded',
   '/ask?example=missing',
+  '/observability/summary',
   '/observability/overview',
   '/observability/questions',
   '/observability/questions?sort=name&dir=desc',

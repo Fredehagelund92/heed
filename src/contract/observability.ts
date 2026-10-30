@@ -10,6 +10,7 @@
 import * as z from 'zod/mini'
 import { appFamilies } from '../domain/app-family.ts'
 import { shownStates } from '../domain/observability.ts'
+import { summaryPeriods } from '../domain/obs-summary.ts'
 
 const areaId = z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))
 /** The days a view counts back from the last full day: a week, a month, a quarter. */
@@ -213,6 +214,80 @@ export const obsUsageSchema = z.object({
   }),
 })
 
+export const obsSummaryInputSchema = z.strictObject({
+  /** The last whole calendar month, or quarter. */
+  period: z._default(z.enum(summaryPeriods), 'month'),
+  /** One domain: every number counts only its topics. */
+  areaId: z.optional(areaId),
+})
+
+/** Days from `start` up to, not including, `end`. */
+const span = z.object({ start: day, end: day })
+
+export const obsSummarySchema = z.object({
+  /** Nothing asked yet; fewer than the minimum in the period (no counts at all); or counted. */
+  state: z.enum(['empty', 'quiet', 'normal']),
+  period: z.enum(summaryPeriods),
+  minimumCount: z.number(),
+  /** The last day counted (yesterday): the numbers are as of its end. */
+  last: day,
+  now: span,
+  before: span,
+  /** The first day agents asked anything in the domains read, or null before they ever have. */
+  since: z.nullable(day),
+  /** Whether every day of the period is still counted, by the delivery records or the weekly counts. */
+  complete: z.boolean(),
+  /** What was asked in the period, and how it was answered: checked, with a warning, not found. */
+  numbers: z.object({ asked: shown, checked: shown, warned: shown, missing: shown }),
+  /** The same in the period before, or null when it is not compared (`notCompared` says why). */
+  previous: z.nullable(z.object({ asked: shown, checked: shown, missing: shown })),
+  /** Agents first asked after the period before began, or its days are no longer all counted. */
+  notCompared: z.nullable(z.enum(['started', 'not_kept'])),
+  /** The trend: what was checked each week, from the weekly counts, oldest first. */
+  weeks: z.array(
+    z.object({
+      start: day,
+      /** False for a week before agents first asked, or no longer counted: nothing to draw. */
+      counted: z.boolean(),
+      checked: shown,
+    }),
+  ),
+  /** Topics whose questions found nothing and that are still open, the biggest first. */
+  open: z.object({
+    total: z.number(),
+    spots: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        areaId: z.nullable(areaId),
+        /** The first day its questions found nothing. */
+        firstSeen: day,
+        /** What found nothing about it in the period. */
+        missing: shown,
+        state: z.enum(['draft', 'suggestion', 'none']),
+        proposalId: z.nullable(z.string()),
+      }),
+    ),
+  }),
+  /** Changes published after review in the period, the latest five, and how many in the one before: hidden under the minimum. */
+  changes: z.object({
+    total: shown,
+    before: shown,
+    latest: z.array(
+      z.object({
+        at: z.string(),
+        itemId: z.string(),
+        title: z.string(),
+        areaId: z.nullable(areaId),
+        /** Who approved it. */
+        by: z.nullable(z.string()),
+      }),
+    ),
+  }),
+  /** How many numbers on the page are hidden: under the minimum, or keeping one under it safe. */
+  hidden: z.number(),
+})
+
 const viewFilters = z.object({
   answer: z.optional(z.array(z.enum(shownStates))),
   domain: z.optional(areaId),
@@ -240,5 +315,7 @@ export type ObsTopic = z.infer<typeof obsTopicSchema>
 export type ObsSubject = z.infer<typeof obsSubjectSchema>
 export type ObsFeedback = z.infer<typeof obsFeedbackSchema>
 export type ObsUsage = z.infer<typeof obsUsageSchema>
+export type ObsSummaryInput = z.infer<typeof obsSummaryInputSchema>
+export type ObsSummary = z.infer<typeof obsSummarySchema>
 export type ObsView = z.infer<typeof obsViewSchema>
 export type ObsViewFilters = z.infer<typeof viewFilters>

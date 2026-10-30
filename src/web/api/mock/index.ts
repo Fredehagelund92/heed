@@ -12,6 +12,7 @@ import { cards, waiting, week } from './data/inbox'
 import { norwayDraft } from './data/drafts'
 import { obsData } from './data/observability'
 import { obsPage } from './obs-page'
+import { obsSummary } from './obs-summary'
 import { BEFORE, changedSteps, replay } from './replay'
 import { reviews } from './data/review'
 import type { Relation, Review } from '@/model/review'
@@ -581,6 +582,12 @@ export function createMockApi() {
         const person = workspace.people().find((p) => p.name === me())
         const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
         return obsPage(obsData(scenario.obsState()), view, reader)
+      }),
+    observabilitySummary: (input) =>
+      read('observabilitySummary', JSON.stringify(input), () => {
+        const person = workspace.people().find((p) => p.name === me())
+        const reader = { admin: !!person?.admin, owns: person?.owns ?? [] }
+        return obsSummary(obsData(scenario.obsState()), input, reader)
       }),
     getSavedViews: () => now(() => views),
     saveView: ({ name, filters }) =>
