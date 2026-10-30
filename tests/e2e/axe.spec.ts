@@ -34,6 +34,11 @@ const places = [
   '/ask',
   '/ask?example=grounded',
   '/ask?example=missing',
+  // Marked text: the sentences that disagree, an item that disagrees, a failed read, a refused key.
+  '/ask?example=conflict',
+  '/context/itm_gift_store_credit',
+  '/settings/integrations?state=failed',
+  '/settings/integrations?state=reauth',
   '/observability/summary',
   '/observability/overview',
   '/observability/questions',

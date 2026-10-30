@@ -8,6 +8,7 @@ import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/model/integrations'
 import { Button } from '@/components/ui/button'
 import { careLine, type Review } from '@/model/review'
+import { Mark } from '@/components/heed/mark'
 import { navigate } from '@/lib/router'
 import { useInbox, useReviews } from '@/api/queries'
 
@@ -166,12 +167,14 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
       {sender && <Sender r={r} />}
       {/* What needs care shows before Review, never only inside it. */}
       {care && (
-        <p className="flex items-start gap-2 text-sm font-medium">
+        <p className="flex items-start gap-2 text-sm">
           <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-caution-icon" />
           {/* One span keeps the colon against the words: the row's gap would put a space before it. */}
           <span>
-            {care}
-            <span className="font-normal text-muted-foreground">
+            <Mark role="needs" icon={false}>
+              {care}
+            </Mark>
+            <span className="text-muted-foreground">
               {r.claims ? ' before publishing' : r.clash ? `: ${overlapsWords(r.clash.items)}` : ''}
             </span>
           </span>

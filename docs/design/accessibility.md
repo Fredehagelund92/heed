@@ -20,6 +20,7 @@ Every mark has an icon, a shape or a word as well.
 - Item status and kind: an icon with a tooltip that gives the exact value. Freshness is a filled, half or hollow dot with a value on hover.
 - Review marks: added words are underlined, removed words struck through, formatting has a dotted underline and names itself, a link shows its old and new address, a moved step says where it came from.
 - Saved question results: a check (Same), two arrows (Changed), a triangle (Needs a look).
+- Marked text (Needs you, Differs, Wrong, Good): a triangle, an underline and weight, an icon and the word Failed, or a check and the word. Words that differ tell a screen reader so ("differs").
 - Chips are tinted by what they name, and always carry the type's icon and words.
 - A domain is a dot and its name.
 - Selected rows show a check as well as a fill.

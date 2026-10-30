@@ -98,6 +98,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | Definition marks | `components/heed/definition.tsx`               | Sigma, split, whole-word and equals tiles                            |
 | Tool logo        | `components/heed/tool-logo.tsx`                | An integration's real logo in a white tile                           |
 | Changed value    | `components/heed/changed.tsx`                  | A number that changed while you watched, with a fading tint          |
+| Mark             | `components/heed/mark.tsx`                     | Marked text in four roles: Needs you, Differs, Wrong, Good           |
 
 ### The state line and Ask
 
