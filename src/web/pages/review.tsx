@@ -137,15 +137,15 @@ export function Summary({ r, size = 'lg' }: { r: Review; size?: 'lg' | 'md' }) {
 
 /* ---------- the quick view ---------- */
 
+/** The live items a suggestion overlaps, in a few words: the first by its title, then how many more. */
+const overlapsWords = (items: { title: string }[]) =>
+  `${items[0]?.title ?? ''}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`
+
 /**
  * What the Inbox pane and the dock show: the change, the note and Review. One title (the pane's),
  * one author line, the values that moved, the note and the first change. No counts row and no
  * reach line: those belong to the review and its Try it.
  */
-/** The live items a suggestion overlaps, in a few words: the first by its title, then how many more. */
-const overlapsWords = (items: { title: string }[]) =>
-  `${items[0]?.title ?? ''}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`
-
 export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean }) {
   const first = r.blocks[0]
   const care = careLine(r)
