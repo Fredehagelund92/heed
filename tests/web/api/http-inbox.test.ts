@@ -5,7 +5,8 @@ import type { Area } from '@domain/item'
 import { wordsOf } from '@/api/http-context'
 import { inboxOf, refOf, reviewOf, whenWords, workspaceOf } from '@/api/http-inbox'
 import type { Domains } from '@/model/people'
-import { readiness, readTime } from '@/model/review'
+import { readiness } from '@/model/review'
+import { readTime } from '@/model/review-page'
 
 const now = new Date(2026, 9, 23, 15, 0)
 const at = (day: number, hour = 9, minute = 12) =>

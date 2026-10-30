@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { reviewFor, reviews } from '@/api/mock/data/review'
-import { careLine, clashOutcome, publishedWords, readiness, readTime } from '@/model/review'
+import { careLine, readiness } from '@/model/review'
+import { clashOutcome, publishedWords, readTime } from '@/model/review-page'
 
 // The Ready line never says more than was checked: claims are compared only with a copied sentence,
 // so an edit's new numbers, dates and sentences say that nothing compared them.

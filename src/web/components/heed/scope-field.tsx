@@ -2,35 +2,16 @@ import * as React from 'react'
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import type { ScopeHit, ScopeSearchInput } from '@/api/client'
 import { scopeSearchQuery } from '@/api/queries'
-import {
-  CheckIcon,
-  ChevronRightIcon,
-  GlobeIcon,
-  PlusIcon,
-  SearchIcon,
-  SigmaIcon,
-  SplitIcon,
-  TagIcon,
-  XIcon,
-} from '@/components/icons'
-import { TagChip, WhereChip } from '@/components/heed/tag-chip'
+import { CheckIcon, ChevronRightIcon, PlusIcon, SearchIcon, XIcon } from '@/components/icons'
+import { lookOf, ScopeChip } from '@/components/heed/scope-chips'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useDebounced } from '@/lib/mentions'
-import {
-  anyValue,
-  dimensionIdOf,
-  holds,
-  termLabel,
-  termOfHit,
-  termWords,
-  toggleTerm,
-} from '@/lib/scope'
-import type { Tone } from '@/lib/tones'
+import { anyValue, holds, termOfHit, termWords, toggleTerm } from '@/lib/scope'
 import { cn } from '@/lib/utils'
-import type { Fact, ScopeTerm } from '@/model/items'
+import type { ScopeTerm } from '@/model/items'
 
 // "Applies to" (FR-107, FR-126): the item's metrics, dimensions and values as chips, and one picker
 // that searches the vocabulary on the server. A dimension can hold thousands of values, so nothing
@@ -45,44 +26,8 @@ const PAGE = 50
 /** Rows drawn beyond the visible ones, so scrolling never shows a gap. */
 const OVERSCAN = 6
 
-const isMarket = (t: ScopeTerm) =>
-  t.kind === 'value' && (t.key ? dimensionIdOf(t.key) === 'market' : t.dimension === 'Market')
-
-/** A term's look: the tag chip's tone and icon for what it is. A market is a country. */
-function lookOf(t: ScopeTerm): { tone: Tone; Icon: typeof SigmaIcon } {
-  if (t.kind === 'metric') return { tone: 'metric', Icon: SigmaIcon }
-  if (t.kind === 'dimension') return { tone: 'dimension', Icon: SplitIcon }
-  return isMarket(t) ? { tone: 'market', Icon: GlobeIcon } : { tone: 'dimension', Icon: TagIcon }
-}
-
 const count = (n: number, noun: string) =>
   `${n.toLocaleString('en')} ${n === 1 ? noun : noun === 'match' ? 'matches' : `${noun}s`}`
-
-/** One chosen term as its chip. */
-export function ScopeChip({ term, onRemove }: { term: ScopeTerm; onRemove?: () => void }) {
-  const { tone, Icon } = lookOf(term)
-  return (
-    <TagChip
-      tone={tone}
-      icon={<Icon aria-hidden />}
-      onRemove={onRemove}
-      removeLabel={onRemove ? `Remove ${termWords(term)}` : undefined}
-      title={termWords(term)}
-    >
-      {termLabel(term)}
-    </TagChip>
-  )
-}
-
-/**
- * What an item applies to, read-only: its terms by key when the binding read them, so a value
- * shows as a value of its dimension; otherwise its names.
- */
-export function ScopeChips({ fact }: { fact: Pick<Fact, 'where' | 'scope'> }) {
-  return fact.scope
-    ? fact.scope.map((t) => <ScopeChip key={t.key || `${t.kind}:${t.name}`} term={t} />)
-    : fact.where.map((w) => <WhereChip key={w} w={w} />)
-}
 
 type Row =
   | { id: string; type: 'term'; term: ScopeTerm; label: string; hint?: string }
