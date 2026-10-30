@@ -181,6 +181,25 @@ export const clashSchema = z.object({
   relation: z.nullable(z.enum(clashRelations)),
 })
 
+/**
+ * One side of a suggestion's fields as the review's Fields table compares them: the version agents
+ * get now, or the suggested one. Names are resolved for the reader (the domain, the owner, what it
+ * applies to); `validity.until` is the first day it no longer applies, as stored.
+ */
+export const reviewFieldsSchema = z.object({
+  title: z.string(),
+  kind: z.enum(itemKinds),
+  domain: z.object({ id: z.string(), name: z.string() }),
+  /** Null while nobody owns it yet, as a draft can be sent. */
+  owner: z.nullable(z.object({ id: z.string(), name: z.nullable(z.string()) })),
+  scope: z.array(z.string()),
+  validity: span,
+  reviewDate: z.nullable(z.string()),
+  sources: z.array(z.object({ url: z.string(), quote: z.nullable(z.string()) })),
+  notToConclude: z.string(),
+})
+export type ReviewFields = z.infer<typeof reviewFieldsSchema>
+
 export const reviewIdInputSchema = z.object({ id: z.string().check(z.uuid()) })
 
 /**
@@ -227,6 +246,14 @@ export const reviewSheetSchema = z.object({
     }),
   ),
   diff: docDiffSchema,
+  /**
+   * Every field of the two versions, typed, for the Fields table: before is null for a new item,
+   * after is null for an archive. Unlike `diff`, it also carries the domain and the owner.
+   */
+  fields: z.object({
+    before: z.nullable(reviewFieldsSchema),
+    after: z.nullable(reviewFieldsSchema),
+  }),
   source: z.object({ before: z.string(), after: z.string(), rows: z.array(sourceRowSchema) }),
   /** The claims against the sentence copied from the source, when an agent or the assistant wrote it. */
   claims: z.nullable(z.object({ sentence: z.string(), rows: z.array(claimRowSchema) })),

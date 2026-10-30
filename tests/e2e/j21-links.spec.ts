@@ -76,6 +76,11 @@ test('the review shows a new link, and Try it says whether the answer follows it
   page,
 }) => {
   await go(page, '/inbox/sug-ines/review')
+  // The source shows the new link as its words; the preview says what it links to.
+  await expect(
+    page.getByRole('region', { name: 'Text' }).locator('ins').getByText('accounts'),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Show the preview' }).click()
   await expect(page.getByText('Now links to')).toBeVisible()
   const decide = page.getByRole('complementary', { name: 'Try it and decide' })
   await expect(

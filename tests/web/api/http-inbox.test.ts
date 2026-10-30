@@ -432,6 +432,18 @@ describe('the Inbox', () => {
 })
 
 type Diff = ReviewSheet['diff']
+type Fields = NonNullable<ReviewSheet['fields']['before']>
+const fieldsBefore: Fields = {
+  title: 'Units sold excludes test accounts',
+  kind: 'note',
+  domain: { id: 'area_sales', name: 'Sales' },
+  owner: { id: 'p_jon', name: 'Jon Abara' },
+  scope: ['Units sold', 'Norway'],
+  validity: { from: '2026-05-29', until: null },
+  reviewDate: '2026-12-01',
+  sources: [{ url: 'https://wiki.example/units-sold', quote: 'Test accounts are left out.' }],
+  notToConclude: 'Fewer units are not fewer customers.',
+}
 const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): ReviewSheet => ({
   proposal: {
     id: 'p1',
@@ -472,6 +484,7 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
     only: null,
     ...diff,
   },
+  fields: { before: fieldsBefore, after: fieldsBefore },
   source: { before: 'Leaves out 312 accounts.', after: 'Leaves out 340 accounts.', rows: [] },
   claims: null,
   clashes: [],
@@ -614,6 +627,79 @@ describe('the review', () => {
       },
     ])
     expect(reviewOf(sheet(), 'sug-1').saved).toEqual([])
+  })
+
+  it('gives the Fields table both sides in the words people read, a new owner and domain too', () => {
+    const r = reviewOf(
+      sheet({
+        fields: {
+          before: fieldsBefore,
+          after: {
+            ...fieldsBefore,
+            kind: 'issue',
+            domain: { id: 'area_finance', name: 'Finance' },
+            owner: { id: 'p_gone', name: null },
+            validity: { from: '2026-05-29', until: '2026-11-01' },
+            reviewDate: null,
+          },
+        },
+      }),
+      'p1',
+    )
+    expect(r.fields.before).toEqual({
+      title: 'Units sold excludes test accounts',
+      kind: 'Rule',
+      domain: 'Sales',
+      owner: 'Jon Abara',
+      scope: ['Units sold', 'Norway'],
+      validity: { from: '2026-05-29', ongoing: true },
+      reviewDate: '2026-12-01',
+      sources: [{ url: 'https://wiki.example/units-sold', quote: 'Test accounts are left out.' }],
+      dontConclude: 'Fewer units are not fewer customers.',
+    })
+    // The service's end is the first day it no longer applies; the app's is its last day.
+    expect(r.fields.after).toMatchObject({
+      kind: 'Warning',
+      domain: 'Finance',
+      owner: 'Someone no longer here',
+      validity: { from: '2026-05-29', until: '2026-10-31' },
+    })
+    expect(r.fields.after).not.toHaveProperty('reviewDate')
+    const unowned = reviewOf(
+      sheet({ fields: { before: fieldsBefore, after: { ...fieldsBefore, owner: null } } }),
+      'p1',
+    )
+    expect(unowned.fields.after?.owner).toBe('Not set')
+    expect(
+      reviewOf(sheet({ mode: 'new', fields: { before: null, after: fieldsBefore } }), 'p1').fields
+        .before,
+    ).toBeNull()
+  })
+
+  it("reads the stored text's mentions as the app's tokens, or as their words without the vocabulary", () => {
+    const id = '0190a0a0-0000-7000-8000-00000000000c'
+    const words = wordsOf({ metrics: [], dimensions: [] }, [{ id, name: 'Test account' }])
+    const after = `Leaves out the 28 @[accounts](term:${id}) as well.`
+    const s = sheet({ source: { before: 'Leaves out.', after, rows: [] } })
+    expect(reviewOf(s, 'p1', undefined, words).source.after).toBe(
+      'Leaves out the 28 [@ id="term:Test account" label="accounts"] as well.',
+    )
+    expect(reviewOf(s, 'p1').source.after).toBe('Leaves out the 28 accounts as well.')
+  })
+
+  it("names a clash's own words without the mention markup", () => {
+    const r = reviewOf(
+      sheet({
+        source: {
+          before: '',
+          after: 'Orders on the @[Webshop](item:itm_webshop1) fell.\n\nMore.',
+          rows: [],
+        },
+        clashes: [{ itemId: 'itm_x', title: 'X', summary: 'Other.', relation: null }],
+      }),
+      'p1',
+    )
+    expect(r.clash?.mine).toBe('Orders on the Webshop fell.')
   })
 
   it('names a link to a term written in Definitions by its word, as Try it says it', () => {

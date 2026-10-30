@@ -1,6 +1,8 @@
-import type { Review } from '@/model/review'
+import { kindLabel, type Fact } from '@/model/items'
+import type { FieldSide, Review } from '@/model/review'
 import { spainDraft } from './drafts'
 import { LARS_REPLY } from './comments'
+import { domains, facts } from './world'
 
 // What the full-screen review shows for each waiting suggestion: a one-sentence summary, the
 // change split into blocks by kind, what agents will say before and after, and what to watch for.
@@ -9,7 +11,17 @@ import { LARS_REPLY } from './comments'
 
 const ines = { from: 'Ines Duarte', via: 'a chat', on: '22 Oct 2026' }
 
-export const reviews: Review[] = [
+/** A live item's stored text on both sides: a change that leaves the words alone. */
+function sameText(title: string) {
+  const f = facts.find((x) => x.title === title)!
+  const text = f.body ? `${f.summary}\n\n${f.body}` : f.summary
+  return { before: text, after: text }
+}
+
+/** A review before its fields are added: the Fields table's two sides come from the demo world below. */
+type Fixture = Omit<Review, 'fields'>
+
+const fixtures: Fixture[] = [
   // A Not found card's draft: reviewed, edited and published like any suggestion, never a blank page.
   {
     id: 'gap-spain',
@@ -118,11 +130,12 @@ export const reviews: Review[] = [
       },
       reach: 12,
     },
+    // The stored text, with the new link to Test account as the editor writes it.
     source: {
       before:
-        'Units sold in Norway leaves out the 312 accounts our teams use to test the webshop. From 29 May 2026 the test accounts of the new app are left out too.\n\nSource: [Units sold definition](https://wiki.example/data/definitions/units-sold)',
+        'Units sold in Norway leaves out the 312 accounts our teams use to test the webshop. From 29 May 2026 the test accounts of the new app are left out too.',
       after:
-        'Units sold in Norway leaves out the 340 accounts our teams use to test the webshop. From 29 May 2026 the test accounts of the new app are left out too. From 1 October 2026 the 28 accounts the returns team uses to test refunds are left out as well.\n\nSource: [Units sold definition](https://wiki.example/data/definitions/units-sold-october)',
+        'Units sold in Norway leaves out the 340 accounts our teams use to test the webshop. From 29 May 2026 the test accounts of the new app are left out too. From 1 October 2026 the 28 [@ id="term:Test account" label="accounts"] the returns team uses to test refunds are left out as well.',
     },
   },
   {
@@ -222,12 +235,7 @@ export const reviews: Review[] = [
       },
       reach: 4,
     },
-    source: {
-      before:
-        'Source: [Returns definition changelog](https://wiki.example/data/returns/changelog-2026)',
-      after:
-        'Source: [Returns definition changelog](https://wiki.example/data/definitions/returns#changelog)',
-    },
+    source: sameText('Returns changed definition on 28 April 2026'),
   },
   {
     id: 'sug-ines-order',
@@ -347,7 +355,7 @@ export const reviews: Review[] = [
       },
       reach: 3,
     },
-    source: { before: 'When: 12 to 19 May 2026', after: 'When: 12 to 26 May 2026' },
+    source: sameText('Payment provider switched in France on 12 May 2026'),
   },
   {
     id: 'sug-agent',
@@ -504,8 +512,7 @@ export const reviews: Review[] = [
       reach: 4,
     },
     source: {
-      before:
-        'Sweden orders before 19 January 2026 come from the old payment report, which left out bank transfers.',
+      before: sameText('Data for Orders before 19 January 2026 is not reliable').before,
       after: '',
     },
   },
@@ -514,7 +521,7 @@ export const reviews: Review[] = [
 // Two suggestions today's Google Drive read created for the owners of Sales: never published by
 // the read, waiting in the Inbox like any other suggestion.
 const drive = { from: 'Google Drive', via: "today's read of Google Drive", on: '23 Oct 2026' }
-reviews.push(
+fixtures.push(
   {
     id: 'drive-marketplace',
     title: 'Orders in Germany include marketplace orders from 15 October 2026',
@@ -606,5 +613,129 @@ reviews.push(
     },
   },
 )
+
+/** A context item's fields, as the Fields table reads them. */
+const sideOf = (f: Fact): FieldSide => ({
+  title: f.title,
+  kind: kindLabel[f.kind],
+  domain: domains[f.domain]?.name ?? f.domain,
+  owner: f.owners?.[0] ?? domains[f.domain]?.owners[0] ?? f.checkedBy,
+  scope: f.where,
+  validity: f.valid,
+  sources: [{ url: f.source, quote: f.quote }],
+  dontConclude: f.dontConclude,
+})
+
+const live = (title: string) => sideOf(facts.find((f) => f.title === title)!)
+
+/** A new item's fields: the Sales owners' defaults, and what the suggestion sets. */
+const fresh = (set: Omit<FieldSide, 'domain' | 'owner'> & { owner?: string }): FieldSide => ({
+  domain: 'Sales',
+  owner: 'Jon Abara',
+  ...set,
+})
+
+/**
+ * Each suggestion's two sides: an edit is the live item with what it changes, a new item is only
+ * an after, an archive only a before. The changes match each review's own blocks.
+ */
+const sides: Record<string, (r: Fixture) => Review['fields']> = {
+  'gap-spain': () => ({ before: null, after: sideOf(spainDraft) }),
+  'sug-ines': (r) => {
+    const before = live(r.title)
+    return {
+      before,
+      after: {
+        ...before,
+        sources: [
+          {
+            url: 'https://wiki.example/data/definitions/units-sold-october',
+            quote: before.sources[0]?.quote,
+          },
+        ],
+      },
+    }
+  },
+  'sug-ines-link': (r) => {
+    const before = live(r.title)
+    const quote = before.sources[0]?.quote
+    return {
+      before: {
+        ...before,
+        sources: [{ url: 'https://wiki.example/data/returns/changelog-2026', quote }],
+      },
+      after: {
+        ...before,
+        sources: [{ url: 'https://wiki.example/data/definitions/returns#changelog', quote }],
+      },
+    }
+  },
+  'sug-ines-dates': (r) => {
+    const before = live(r.title)
+    return { before, after: { ...before, validity: { ...before.validity, until: '2026-05-26' } } }
+  },
+  'sug-agent': (r) => ({
+    before: null,
+    after: fresh({
+      title: r.title,
+      kind: kindLabel.issue,
+      owner: 'Kofi Mensah',
+      scope: ['Orders', 'Poland'],
+      validity: { from: '2026-10-14', ongoing: true },
+      sources: [{ url: 'https://status.example/payments/poland', quote: r.claims?.sentence }],
+      dontConclude:
+        'Low orders in Poland for these days do not mean that customers ordered less. Wait until the data catches up before comparing Poland with other markets.',
+    }),
+  }),
+  'sug-sofia-clash': (r) => ({
+    before: null,
+    after: fresh({
+      title: r.title,
+      kind: kindLabel.note,
+      owner: 'Sofia Brandt',
+      scope: ['Orders', 'Norway'],
+      validity: { from: '2026-11-01', ongoing: true },
+      sources: [
+        {
+          url: 'https://wiki.example/finance/store-credit-2026-11',
+          quote: 'From 1 November 2026, store credit and gift cards are not booked as orders.',
+        },
+      ],
+      dontConclude: 'Lower Norway orders from November 2026 do not mean fewer purchases.',
+    }),
+  }),
+  'sug-lars-retire': (r) => ({
+    before: sideOf(facts.find((f) => f.id === r.retire?.factId)!),
+    after: null,
+  }),
+  'drive-marketplace': (r) => ({
+    before: null,
+    after: fresh({
+      title: r.title,
+      kind: kindLabel.note,
+      scope: ['Orders', 'Marketplace', 'Germany'],
+      validity: { from: '2026-10-15', ongoing: true },
+      sources: [{ url: 'https://docs.example/marketplace-orders', quote: r.synced?.quote }],
+      dontConclude: 'cause not proven',
+    }),
+  }),
+  'drive-bundles': (r) => ({
+    before: null,
+    after: fresh({
+      title: r.title,
+      kind: kindLabel.note,
+      scope: ['Units sold'],
+      validity: {},
+      sources: [{ url: 'https://docs.example/units-sold-bundles', quote: r.synced?.quote }],
+      dontConclude: 'cause not proven',
+    }),
+  }),
+}
+
+export const reviews: Review[] = fixtures.map((r) => ({
+  ...r,
+  // A change that leaves every field as it is: the live item on both sides.
+  fields: sides[r.id]?.(r) ?? { before: live(r.title), after: live(r.title) },
+}))
 
 export const reviewFor = (id: string | undefined) => reviews.find((r) => r.id === id)

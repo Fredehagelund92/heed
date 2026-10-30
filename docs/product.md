@@ -306,7 +306,7 @@ The job specs, one line each:
 | J16 | What needs care is said before anyone publishes; archiving always asks first.                                                                    |
 | J17 | The review on a phone: the bar says the state and place; targets are 44 px.                                                                      |
 | J18 | After a decision: a key skips the wait, the pointer holds it, reduced motion waits for Next.                                                     |
-| J19 | The Source view: removed lines before added ones; only the changed words marked.                                                                 |
+| J19 | The Source review: the Fields table and the Text diff, only the changed words marked; N and P; Preview; the gate in both views.                  |
 | J20 | Synonyms as tags: a word with another meaning says who has it and is never saved.                                                                |
 | J21 | Following links (`get_related`): Related, relations, the switch in Settings.                                                                     |
 | J22 | Help: one menu, the keys, the Help page, the documentation, the answer line's card, Report a problem.                                            |

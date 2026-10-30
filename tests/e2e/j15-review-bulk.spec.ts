@@ -13,6 +13,9 @@ import { card, cardIn, expect, go, settle, test } from './go.ts'
 async function hold(page: Page) {
   const line = page.getByText(/Counts as read after about \d+ seconds here./)
   while (!(await line.isVisible())) await page.clock.runFor(100)
+  // The end of the change is under the whole source: a reader scrolls to it, and the read starts.
+  await line.scrollIntoViewIfNeeded()
+  await expect(page.locator('[style*="readfill"]')).toHaveCSS('animation-play-state', 'running')
 }
 
 const bulk = (page: Page) =>

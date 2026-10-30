@@ -316,7 +316,7 @@ One selection model for every list with checkboxes (`hooks/use-selection.ts`, ru
 The quick view shows the summary, what moved, the most important change, how many questions would get it, what needs care, and one button, Review (Enter). It never publishes. The review shows:
 
 - the **queue** of waiting suggestions, grouped by sender, with a dot for where you are, a tick when done and a warning when it needs care;
-- the **change** in the middle: one sentence on what changes, a count by kind, then each change in its own block under a quiet kind label: Wording, Formatting, Link, Order, Added, Removed, Dates. Unchanged fields fold into one line. Publishing takes the whole change. Rich is the default view; a quiet "View source" toggle shows the stored markdown, removed lines before added ones, with only the changed words marked;
+- the **change** in the middle: one sentence on what changes, then what must be decided or known (a withdrawal, the item to archive, a synced document, the claim check, the clash gate), which no view ever hides, then the **source**, which is the review: a **Fields** table (title, kind, domain, owner, applies to, when, check date, source, don't conclude), each row changed or the same with its value now and suggested and the unchanged rows folded into one line, and a **Text** diff of the stored text in the app's own font, with line numbers, removed lines before added ones, the changed words marked inside a line only when at least half of its words stay, and unchanged stretches folded with three lines kept around each change. N and P step through the changes. A quiet "Preview" toggle shows the rich text instead, each change in its own block under a quiet kind label (Wording, Formatting, Link, Order, Added, Removed, Dates). Publishing takes the whole change;
 - **marks that are never colour alone**: added words are underlined, removed words struck through, formatting has a dotted underline and names itself, a link shows its old and new address, a moved step says where it came from;
 - **Try it**: what agents say before and after, as Draft or Published, then "Agents now say" once published;
 - the **Ready line**, which never says more than was checked: a new number or date without a source says "not checked against a source", and only then;
@@ -362,7 +362,7 @@ One shared component per job (`components/heed/switches.tsx`):
 
 | Component     | Job                                                                                                                                       |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `ViewToggle`  | Another view of the same thing, usually an advanced one: a quiet icon button (the review's View source).                                  |
+| `ViewToggle`  | Another view of the same thing, usually an advanced one: a quiet icon button (the review's Preview).                                      |
 | `TextSwitch`  | A list filter or a two-way option: words with counts and a sliding 2 px underline (Needs me / All, Definitions views, Draft / Published). |
 | `ChoiceGroup` | A decision with a few answers: outline buttons in a radio group (how an overlap relates).                                                 |
 | Property menu | A property of a document (a term's Another name for).                                                                                     |

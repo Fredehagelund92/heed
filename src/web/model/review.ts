@@ -1,5 +1,7 @@
 import { relationWords } from '@domain/clash-relations'
 import type { AnswerState } from './ask'
+import type { Validity } from './validity'
+import { lineDiff } from '@/lib/line-diff'
 import type { SavedResult } from './saved-questions'
 
 // A suggestion's review as the app reads it (src/web/api): the change split into blocks by kind,
@@ -73,6 +75,23 @@ export type Block =
 
 export type Answer = { state: AnswerState; text: string }
 
+/**
+ * One side of a suggestion's fields, as the Fields table compares them: the version agents get
+ * now, or the suggested one, in the words people read (the kind's name, the domain and the owner
+ * by name, what it applies to by name). Dates are stored dates; `validity.until` is its last day.
+ */
+export type FieldSide = {
+  title: string
+  kind: string
+  domain: string
+  owner: string
+  scope: string[]
+  validity: Validity
+  reviewDate?: string
+  sources: { url: string; quote?: string }[]
+  dontConclude: string
+}
+
 export type Review = {
   /** The Inbox card this review is for. */
   id: string
@@ -120,7 +139,12 @@ export type Review = {
     withdrawn?: { by: string; when: string; quote: string }
   }
   tryIt: { question: string; before: Answer; after: Answer; reach: number }
-  /** The stored markdown, for the Source view. */
+  /**
+   * Every field of both versions, for the Fields table: before is null for a new item, after is
+   * null for an archive.
+   */
+  fields: { before: FieldSide | null; after: FieldSide | null }
+  /** The stored markdown of each version, mentions as the app's tokens, for the Text diff. */
   source: { before: string; after: string }
   /**
    * The Ready line as the service says it, where the service decides the publish rules: it holds
@@ -196,11 +220,22 @@ export function careLine(r: Review) {
 }
 
 /**
- * How long a change has to be on screen before it counts as read: longer for more words, from a
- * second and a half for a date to eight seconds for a long rewording.
+ * How long a change has to be on screen before it counts as read: longer for more changed words,
+ * from a second and a half for a date to eight seconds for a long rewording.
  */
 export const readTime = (r: Review) =>
-  r.readMs ?? Math.min(8000, Math.max(1500, 1000 + 12 * r.source.after.length))
+  r.readMs ??
+  Math.min(
+    8000,
+    Math.max(
+      1500,
+      1000 +
+        12 *
+          lineDiff(r.source.before, r.source.after)
+            .filter((x) => x.t === '+')
+            .reduce((n, x) => n + x.line.length, 0),
+    ),
+  )
 
 /** An edit's new numbers and dates that come without a source: no new source page came with them. */
 function unsourced(r: Review) {

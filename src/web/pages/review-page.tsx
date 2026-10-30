@@ -5,9 +5,9 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   CircleCheckIcon,
-  CodeXmlIcon,
   CircleDashedIcon,
   CircleIcon,
+  EyeIcon,
   KeyboardIcon,
   ListIcon,
   TriangleAlertIcon,
@@ -49,7 +49,10 @@ import { useSend, type Sender } from '@/lib/send'
 import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { flushSync } from 'react-dom'
 import { TOUCH } from '@/lib/touch'
-import { lineDiff } from '@/lib/line-diff'
+import { diffStats, lineDiff, linesWords } from '@/lib/line-diff'
+import { FieldsDiff, TextDiff } from '@/components/heed/source-review'
+import { fieldRows } from '@/model/review-fields'
+import { useSideChoice } from '@/lib/side-panel'
 import { useLinksEnabled } from '@/lib/links-switch'
 import { Composer } from '@/components/templates/comment-box/composer'
 import { CommentBox } from '@/components/templates/comment-box'
@@ -404,67 +407,183 @@ function ReadMark({ r }: { r: Review }) {
   )
 }
 
-/** The stored markdown, line by line: for a technical reviewer, off by default. Removed lines come before added ones, and only the changed words are marked. */
-function SourceView({ r }: { r: Review }) {
-  const rows = lineDiff(r.source.before, r.source.after)
+/** Which view of the change shows: the source (the review), or a preview of the rich text. */
+type View = 'source' | 'preview'
+
+/**
+ * N and P through the changes of the source, a field row or a place in the text, in reading
+ * order: the one stepped to is ringed, focused and scrolled to at once (keys are instant).
+ */
+function ChangeSteps({
+  within,
+  count,
+}: {
+  within: React.RefObject<HTMLElement | null>
+  count: number
+}) {
+  const [at, setAt] = React.useState(-1)
+  // The first N goes to the first change, the first P to the last; then round and round.
+  const step = React.useCallback(
+    (d: 1 | -1) => setAt((a) => (a < 0 ? (d > 0 ? 0 : count - 1) : (a + d + count) % count)),
+    [count],
+  )
+  // The stop stepped to is ringed, focused and in view, at once.
+  React.useEffect(() => {
+    const all = [...(within.current?.querySelectorAll<HTMLElement>('[data-review-change]') ?? [])]
+    all.forEach((el, k) => el.toggleAttribute('data-active', k === at))
+    all[at]?.focus({ preventScroll: true })
+    all[at]?.scrollIntoView({ block: 'nearest' })
+  }, [at, within])
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!pageKey(e)) return
+      if (e.key === 'n') step(1)
+      if (e.key === 'p') step(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [step])
+  if (!count) return null
   return (
-    <section className="flex flex-col gap-3 py-2">
-      <p className="text-xs text-muted-foreground">
-        The stored markdown, line by line. Exact, but a moved step reads as removed and added.
-      </p>
-      <pre className="overflow-x-auto rounded-frame border font-mono text-dense leading-6">
-        {rows.map((row, k) => (
-          <div
-            key={k}
-            className={cn(
-              'flex gap-3 px-3 whitespace-pre-wrap',
-              row.t === '+' && 'bg-[var(--mark-add)]',
-              row.t === '-' && 'bg-[var(--mark-del)] text-foreground/80',
-            )}
-          >
-            <span
-              aria-label={row.t === '+' ? 'added' : row.t === '-' ? 'removed' : undefined}
-              className="w-3 shrink-0 text-muted-foreground select-none"
-            >
-              {row.t}
-            </span>
-            <span>
-              {row.words
-                ? row.words.map((w, i) =>
-                    w.changed && w.text.trim() ? (
-                      row.t === '-' ? (
-                        <del
-                          key={i}
-                          className="rounded-sm bg-mark-del-line/28 decoration-[var(--mark-del-line)]"
-                        >
-                          {w.text}
-                        </del>
-                      ) : (
-                        <ins key={i} className="rounded-sm bg-mark-add-line/28 no-underline">
-                          {w.text}
-                        </ins>
-                      )
-                    ) : (
-                      <React.Fragment key={i}>{w.text}</React.Fragment>
-                    ),
-                  )
-                : row.line || ' '}
-            </span>
-          </div>
-        ))}
-      </pre>
+    <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+      {at < 0 ? `${count} ${count === 1 ? 'change' : 'changes'}` : `Change ${at + 1} of ${count}`}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Previous change"
+              onClick={() => step(-1)}
+            />
+          }
+        >
+          <ChevronUpIcon />
+        </TooltipTrigger>
+        <TooltipContent>
+          Previous change <Kbd>P</Kbd>
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Next change"
+              onClick={() => step(1)}
+            />
+          }
+        >
+          <ChevronDownIcon />
+        </TooltipTrigger>
+        <TooltipContent>
+          Next change <Kbd>N</Kbd>
+        </TooltipContent>
+      </Tooltip>
+    </span>
+  )
+}
+
+/**
+ * The review of the source: what agents will read, exactly. The fields as a table, then the
+ * stored text as a line diff. Two sides in, so the parts know nothing of suggestions.
+ */
+function SourceReview({ r }: { r: Review }) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  // Each changed field row and each changed place in the text is a stop.
+  const { before, after } = r.fields
+  const count =
+    (before && after ? fieldRows(before, after).filter((x) => x.changed).length : 0) +
+    diffStats(lineDiff(r.source.before, r.source.after)).changes
+  return (
+    <section aria-label="The source" ref={ref} className="flex flex-col gap-6 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p className="text-xs text-muted-foreground">
+          What agents will read, exactly.
+          <span className="pointer-coarse:hidden"> N and P step through the changes.</span>
+        </p>
+        <ChangeSteps within={ref} count={count} />
+      </div>
+      <FieldsDiff before={r.fields.before} after={r.fields.after} />
+      <TextDiff before={r.source.before} after={r.source.after} />
     </section>
   )
 }
 
-/** The change itself, in the style that fits its kind. */
-function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
+/** The rich text with its changes marked, by kind: a second look, never the review itself. */
+function Preview({ r }: { r: Review }) {
   const [showUnchanged, setShowUnchanged] = React.useState(false)
+  const facts = useFacts()
+  const { cards } = useInbox()
+  const fact = facts.find((f) => f.id === itemOfReview(r, cards))
+  return (
+    <section aria-label="Preview" className="flex flex-col">
+      <p className="pb-2 text-xs text-muted-foreground">
+        A preview of the rich text, with the changes marked by kind. The source is what you review.
+      </p>
+      {r.rewrite && <Rewrite rewrite={r.rewrite} />}
+      {r.blocks.length > 0 && (
+        <div>
+          {r.blocks.map((b, i) => (
+            <ChangeBlock key={i} block={b} index={i} total={r.blocks.length} />
+          ))}
+        </div>
+      )}
+      {r.unchanged.length > 0 && (
+        <div className="mt-2 border-t pt-4">
+          <button
+            type="button"
+            aria-expanded={showUnchanged}
+            onClick={() => setShowUnchanged((s) => !s)}
+            className="flex items-center gap-1.5 text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:underline"
+          >
+            {showUnchanged ? (
+              <ChevronUpIcon className="size-4" aria-hidden />
+            ) : (
+              <ChevronDownIcon className="size-4" aria-hidden />
+            )}
+            {r.unchanged.length} fields unchanged: {r.unchanged.join(', ')}
+          </button>
+          {showUnchanged && fact && (
+            <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-(--cols-lead-36)">
+              {r.unchanged.map((f) => (
+                <React.Fragment key={f}>
+                  <dt>{f}</dt>
+                  <dd className="text-foreground/80">
+                    {f === 'Title'
+                      ? fact.title
+                      : f === 'Where'
+                        ? fact.where.join(', ')
+                        : f === 'When'
+                          ? fact.when
+                          : f === "Don't conclude"
+                            ? fact.dontConclude
+                            : f === 'Source'
+                              ? fact.source
+                              : 'As before'}
+                  </dd>
+                </React.Fragment>
+              ))}
+            </dl>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+/**
+ * The change: first what must be decided or known, the same in every view (a withdrawal, the
+ * item to archive, where a synced suggestion came from, the claim check, the clash gate), then
+ * the source or its preview. No view can hide the gate.
+ */
+function TheChange({ r, view }: { r: Review; view: View }) {
   const facts = useFacts()
   const { cards } = useInbox()
   const item = itemOfReview(r, cards)
   const fact = facts.find((f) => f.id === item)
-  if (view === 'source') return <SourceView r={r} />
+  const gate = !!(r.claims || r.clash)
   return (
     <div className="flex flex-col">
       {r.retire?.withdrawn && (
@@ -514,55 +633,9 @@ function TheChange({ r, view }: { r: Review; view: 'rich' | 'source' }) {
       {r.synced && <SyncedFrom r={r} />}
       {r.claims && <ClaimCheck claims={r.claims} from={r.from} drafted={!!r.drafted} />}
       {r.clash && <Clash r={r} />}
-      {r.rewrite && <Rewrite rewrite={r.rewrite} />}
-      {r.blocks.length > 0 && (
-        <div className={cn((r.claims || r.clash) && 'mt-6 border-t pt-4')}>
-          {r.blocks.map((b, i) => (
-            <ChangeBlock key={i} block={b} index={i} total={r.blocks.length} />
-          ))}
-        </div>
-      )}
-      {r.unchanged.length > 0 && (
-        <div className="mt-2 border-t pt-4">
-          <button
-            type="button"
-            aria-expanded={showUnchanged}
-            onClick={() => setShowUnchanged((s) => !s)}
-            className="flex items-center gap-1.5 text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:underline"
-          >
-            {showUnchanged ? (
-              <ChevronUpIcon className="size-4" aria-hidden />
-            ) : (
-              <ChevronDownIcon className="size-4" aria-hidden />
-            )}
-            {r.unchanged.length} fields unchanged: {r.unchanged.join(', ')}
-          </button>
-          {showUnchanged && fact && (
-            <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm text-muted-foreground sm:grid-cols-(--cols-lead-36)">
-              {r.unchanged.map((f) => (
-                <React.Fragment key={f}>
-                  <dt>{f}</dt>
-                  <dd className="text-foreground/80">
-                    {f === 'Title'
-                      ? fact.title
-                      : f === 'Where'
-                        ? fact.where.join(', ')
-                        : f === 'When'
-                          ? fact.when
-                          : f === "Don't conclude"
-                            ? fact.dontConclude
-                            : f === 'Source'
-                              ? fact.source
-                              : f === 'Kind'
-                                ? 'As before'
-                                : 'As before'}
-                  </dd>
-                </React.Fragment>
-              ))}
-            </dl>
-          )}
-        </div>
-      )}
+      <div className={cn((gate || r.retire) && 'mt-6 border-t pt-4')}>
+        {view === 'source' ? <SourceReview r={r} /> : <Preview r={r} />}
+      </div>
     </div>
   )
 }
@@ -1296,6 +1369,22 @@ function AllDone({ last, title, onUndo }: { last: Finished; title: string; onUnd
   )
 }
 
+/** What the source changes, counted as the source counts it: fields, then lines of text. */
+function SourceStats({ r }: { r: Review }) {
+  const { before, after } = r.fields
+  const fields = before && after ? fieldRows(before, after).filter((x) => x.changed).length : null
+  const text = diffStats(lineDiff(r.source.before, r.source.after))
+  const parts = [
+    fields === null
+      ? null
+      : fields
+        ? `${fields} ${fields === 1 ? 'field' : 'fields'} changed`
+        : 'No field changed',
+    text.changes ? `${linesWords(text)} in the text` : 'No change to the text',
+  ].filter(Boolean)
+  return <p className="text-xs text-muted-foreground">{parts.join('. ')}.</p>
+}
+
 /** The full-screen review: queue, change, and decision. J and K move, Esc goes back to the Inbox. */
 export function ReviewPage({ id }: { id: string }) {
   const reviews = useReviews()
@@ -1306,7 +1395,15 @@ export function ReviewPage({ id }: { id: string }) {
   const write = useWrite()
   const commentActions = useCommentActions()
   const isMobile = useIsMobile()
-  const [view, setView] = React.useState<'rich' | 'source'>('rich')
+  // The source is the review; the preview is a second look, kept while you go through the queue.
+  // `?view=preview` opens with it.
+  const [previewChoice, setPreview] = useSideChoice('review-preview')
+  const view: View =
+    (previewChoice ??
+    (typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('view') === 'preview'))
+      ? 'preview'
+      : 'source'
   const [queueOpen, setQueueOpen] = React.useState(false)
   const [finished, setFinished] = React.useState<Finished | null>(null)
   const [mainRef, wide] = useWide<HTMLDivElement>()
@@ -1600,16 +1697,15 @@ export function ReviewPage({ id }: { id: string }) {
                 Keyboard shortcuts <Kbd>?</Kbd>
               </TooltipContent>
             </Tooltip>
-            <span className="max-sm:hidden">
-              <ViewToggle
-                pressed={view === 'source'}
-                onPressedChange={(p) => setView(p ? 'source' : 'rich')}
-                icon={<CodeXmlIcon />}
-                text="Source"
-                on="View source"
-                off="View the rich text"
-              />
-            </span>
+            <ViewToggle
+              pressed={view === 'preview'}
+              onPressedChange={setPreview}
+              icon={<EyeIcon />}
+              // On a phone the header keeps room for the title: the icon alone, named for a screen reader.
+              text={isMobile ? undefined : 'Preview'}
+              on="Show the preview"
+              off="Show the source"
+            />
             {!isMobile && (
               <>
                 <Tooltip>
@@ -1677,7 +1773,7 @@ export function ReviewPage({ id }: { id: string }) {
               <>
                 {/* The next suggestion fades in after a decision or J and K, so the change is seen. */}
                 <div className="mx-auto flex max-w-3xl animate-in flex-col gap-8 px-4 py-6 duration-(--dur-3) fade-in-0 sm:px-8 sm:py-10">
-                  <Summary r={r} />
+                  <Summary r={r} stats={view === 'source' ? <SourceStats r={r} /> : undefined} />
                   <div className="flex flex-col gap-4 border-t pt-6">
                     <TheChange r={r} view={view} />
                     <ReadMark r={r} />
