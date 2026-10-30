@@ -305,10 +305,8 @@ async function httpRoute(
   else if (quality) throw new Error(`?quality=${quality} has no http meaning yet`)
   if (links === 'on' || links === 'off') await followLinks(page, links === 'on')
   else if (links) throw new Error(`?links=${links} has no http meaning yet`)
-  // Figures on or off for Cube, as an admin switches them; only the warehouse on leaves Cube off,
-  // and the service has no warehouse integration.
-  if (figures === 'on' || figures === 'off' || figures === 'warehouse')
-    await figuresOn(page, figures === 'on')
+  // Figures on or off for Cube, as an admin switches them.
+  if (figures === 'on' || figures === 'off') await figuresOn(page, figures === 'on')
   else if (figures) throw new Error(`?figures=${figures} has no http meaning yet`)
   if (example === 'figconflict') await figureDoesNotFit(page)
   const search = query.toString()

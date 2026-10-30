@@ -979,6 +979,32 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'getSettings', 'getIntegrations', 'tryFigure'))(
+      "tries a figure from Cube's figures connection as saved, with figures off, keeping nothing",
+      async () => {
+        const live = await signedIn()
+        expect((await live.getSettings()).figures.cube).toBe(false)
+        // The first of Cube's views by name with a single date is Marketing, and its first measure
+        // by name is Conversion rate: the demo warehouse has nothing for it in the last 7 days,
+        // which still says the endpoint and its token work.
+        const tried = await live.tryFigure({ source: 'cube' })
+        expect(tried).toEqual({
+          kind: 'figure',
+          source: 'cube',
+          label: 'Conversion rate, 17 to 23 Oct 2026',
+          value: null,
+          asOf: 'today at 06:00',
+          took: expect.any(Number) as number,
+        })
+        expect(JSON.stringify(tried)).not.toMatch(/token|secret/i)
+        // Trying changes nothing: figures stay off, and the connection is as it was.
+        expect((await live.getSettings()).figures.cube).toBe(false)
+        expect((await live.getIntegrations()).figureConnections.cube).toMatchObject({
+          secretSet: true,
+        })
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getSettings', 'setDataContact', 'getIntegrations'))(
       'names who hears about a figure that looks wrong',
       async () => {

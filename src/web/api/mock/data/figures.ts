@@ -1,6 +1,7 @@
-import { figureConnections, warehouseHas } from './integrations'
+import { figureConnections } from './integrations'
 import { connectorById, type ConnectorId } from '@/model/integrations'
-import type { Figure, FigureView } from '@/model/figures'
+import type { Figure, FigureTry, FigureView } from '@/model/figures'
+import type { FigureConnection } from '@/model/integrations'
 import { metrics } from './world'
 import {
   discountAfter,
@@ -73,16 +74,12 @@ const scopeOf = (a: Asked) =>
 /** What an answer shows of the data, given which integrations have figures on. No period, no figure. */
 export function figureFor(a: Asked, enabled: (id: ConnectorId) => boolean): FigureView | null {
   if (!a.metric || a.state === 'failed' || !a.dates) return null
-  const anyOn = (['cube', 'warehouse'] as ConnectorId[]).some(enabled)
   const source = sourceOfMetric(a.metric)
   if (!source) {
-    if (!anyOn) return null
-    const warehouse = connectorById('warehouse')!.name
+    if (!enabled('cube')) return null
     return {
       kind: 'none',
-      why: warehouseHas.includes(a.metric)
-        ? `${warehouse} has a table for ${a.metric.toLowerCase()}, but no definition says what it means, so no figure is read for it.`
-        : `No connected integration defines ${a.metric.toLowerCase()}, so no figure is read for it.`,
+      why: `No connected integration defines ${a.metric.toLowerCase()}, so no figure is read for it.`,
       closest: ['Repeat purchase rate', 'Churn rate', 'Support contacts'],
     }
   }
@@ -98,4 +95,26 @@ export function figureFor(a: Asked, enabled: (id: ConnectorId) => boolean): Figu
   return figure.against
     ? { kind: 'against', source, figure, asOf }
     : { kind: 'line', source, figure, asOf }
+}
+
+/**
+ * Try a figure in the demo week, as the service reads it: the first of Cube's views by name with a
+ * single date is Marketing, its first measure by name is Conversion rate, and the demo warehouse
+ * has nothing for it in the last 7 days, which still says the endpoint and its token work. With no
+ * token set there is nothing to try.
+ */
+export function figureTryFor(
+  source: ConnectorId,
+  connection: FigureConnection | undefined,
+): FigureTry {
+  if (!connection?.endpoint || !connection.secretSet)
+    return { kind: 'failed', source, failure: 'not_set_up' }
+  return {
+    kind: 'figure',
+    source,
+    label: 'Conversion rate, 17 to 23 Oct 2026',
+    value: null,
+    asOf: connection.asOf ?? 'just now',
+    took: 412,
+  }
 }

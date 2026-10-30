@@ -21,7 +21,6 @@ import type { Answer } from '@/model/ask'
 
 const SOURCE_URL: Record<string, string> = {
   cube: 'https://cube.larchwood.example/',
-  warehouse: 'https://warehouse.larchwood.example/',
 }
 
 /** Where the figure came from and how fresh it is, then the definition, then the query in words. */

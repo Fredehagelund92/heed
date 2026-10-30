@@ -210,8 +210,14 @@ it is not a historical replay API.
 Off by default (FR-716, CON-612). An admin sets it up on Cube's page in Integrations: **Set up
 figures** takes the data endpoint, the address of Cube's REST API `/v1/load`
 (`https://cube.example.com/cubejs-api/v1/load`), and a read-only token for it, kept in the secret
-store and sent only to that address's origin; then **Show figures in Ask** switches it on, once a
-data contact is named. On the API it is `PUT /api/v1/figures/{id}`.
+store and sent only to that address's origin. This is Cube's second connection, apart from the Git
+repository its definitions are read from, and the page shows it as such. No MCP server is needed.
+**Try a figure** then reads one figure with the settings as saved, whether figures are on or off:
+the first measure, by name, of the first view, by name, that has exactly one time dimension, for
+the last 7 days up to today, the same way Ask reads one and kept nowhere. It answers the value (or
+none, when Cube has nothing for those days) and Cube's `lastRefreshTime`, or a failure code. Then
+**Show figures in Ask** switches it on, once a data contact is named. On the API these are
+`PUT /api/v1/figures/{id}` and `POST /api/v1/figures/{id}/try`, for administrators.
 
 When someone asks in Ask, Heed reads one figure from Cube, apart from the answer and within 4
 seconds, and keeps it nowhere:

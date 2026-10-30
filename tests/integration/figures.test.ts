@@ -5,7 +5,12 @@ import { Writable } from 'node:stream'
 import { randomBytes, randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import type { FigureRead, FigureSources, FigureSource } from '../../src/contract/figures.ts'
+import type {
+  FigureRead,
+  FigureSources,
+  FigureSource,
+  FigureTry,
+} from '../../src/contract/figures.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
 import { identifier } from '../../src/server/db/roles.ts'
@@ -102,6 +107,7 @@ const august = { from: '2026-08-01', to: '2026-08-31' }
 const readFigure = (who: Who, input: object) =>
   ok<FigureRead>(call('POST', '/figures/read', who, input))
 const setFigures = (who: Who, input: object) => call('PUT', '/figures/cube', who, input)
+const tryFigure = (who: Who) => call('POST', '/figures/cube/try', who, {})
 
 beforeAll(async () => {
   await admin.connect()
@@ -475,6 +481,110 @@ describe('a figure that does not fit a context item', () => {
   })
 })
 
+describe('trying a figure', () => {
+  const source = { id: 'cube', type: 'cube', tool: 'Cube', name: 'Cube' }
+  // The service's day is 23 Oct 2026, so a try reads 17 to 23 Oct.
+  const lastWeek = { from: '2026-10-17', to: '2026-10-23' }
+  const warehouse = async (sql: string, values: unknown[] = []) => {
+    const db = new pg.Client({ connectionString: warehouseUrl.href })
+    await db.connect()
+    try {
+      await db.query(sql, values)
+    } finally {
+      await db.end()
+    }
+  }
+
+  it("is an admin's only", async () => {
+    for (const who of ['author', 'owner', 'approver'] as const)
+      expect((await tryFigure(who)).statusCode).toBe(403)
+    expect((await call('POST', '/figures/nobody/try', 'admin', {})).statusCode).toBe(404)
+  })
+
+  it('reads the first view with a single date for the last 7 days, keeping nothing', async () => {
+    const before = await client.query('select count(*)::int as n from audit_log')
+    const asked = cube.requests.length
+    // Marketing comes first by name and has one date, marketing_day; the demo warehouse has no
+    // discount for those days, which still says the endpoint and its token work.
+    expect(await ok<FigureTry>(tryFigure('admin'))).toEqual({
+      state: 'figure',
+      source,
+      measure: { name: 'marketing.discount_cost', title: 'Discount cost' },
+      value: null,
+      format: { kind: 'currency', currency: 'EUR' },
+      ...lastWeek,
+      asOf: refreshed,
+      took: expect.any(Number) as number,
+    })
+    await warehouse(
+      `insert into demo.marketing_daily (marketing_day, market_code, discount_eur)
+       values ('2026-10-20', 'Norway', 1234)`,
+    )
+    try {
+      // A try never reads the cache: it asks the tool each time.
+      expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({
+        state: 'figure',
+        value: 1234,
+        ...lastWeek,
+      })
+    } finally {
+      await warehouse(`delete from demo.marketing_daily where marketing_day = '2026-10-20'`)
+    }
+    const loads = cube.requests.slice(asked).filter((r) => r.path === '/cubejs-api/v1/load')
+    expect(loads).toHaveLength(2)
+    for (const load of loads) {
+      expect(load.authorization).toBe(cube.token)
+      // The fixed template: one measure, its view's one date, no filter.
+      expect(load.query).toEqual({
+        measures: ['marketing.discount_cost'],
+        timeDimensions: [
+          { dimension: 'marketing.marketing_day', dateRange: ['2026-10-17', '2026-10-23'] },
+        ],
+        filters: [],
+      })
+      expect(JSON.stringify(load.headers)).not.toMatch(/example\.test|heed_session/)
+    }
+    expect((await client.query('select count(*)::int as n from audit_log')).rows).toEqual(
+      before.rows,
+    )
+  })
+
+  it('says why in a code when the tool refuses, fails or no view can be tried', async () => {
+    cube.fail(401)
+    expect(await ok<FigureTry>(tryFigure('admin'))).toEqual({
+      state: 'failed',
+      source,
+      failure: 'unauthorized',
+    })
+    cube.fail(404)
+    expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ failure: 'not_found' })
+    // No view keeps exactly one date someone may read: there is no measure to try.
+    await client.query(
+      "update definitions set visible_groups = '{data_team}' where kind = 'dimension' and value_type = 'time'",
+    )
+    try {
+      expect(await ok<FigureTry>(tryFigure('admin'))).toEqual({
+        state: 'failed',
+        source,
+        failure: 'no_measure',
+      })
+    } finally {
+      await client.query(
+        "update definitions set visible_groups = null where kind = 'dimension' and value_type = 'time'",
+      )
+    }
+  })
+
+  it('works while figures are off too, so it can come before switching them on', async () => {
+    await ok<FigureSource>(setFigures('admin', { enabled: false, reason: 'Try first' }))
+    try {
+      expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({ state: 'figure' })
+    } finally {
+      await ok<FigureSource>(setFigures('admin', { enabled: true, reason: 'Tried it' }))
+    }
+  })
+})
+
 describe('the token (CON-105, I-4)', () => {
   it('is in the secret store only: in no answer, row, history entry or log line', async () => {
     const token = cube.token
@@ -535,5 +645,10 @@ describe('the token (CON-105, I-4)', () => {
     })
     // The old token's file is removed once the change commits.
     expect(await readdir(join(secretsDir, 'store'))).toEqual([])
+    // With no token there is nothing to try.
+    expect(await ok<FigureTry>(tryFigure('admin'))).toMatchObject({
+      state: 'failed',
+      failure: 'not_set_up',
+    })
   })
 })

@@ -3,19 +3,19 @@ import dbt from '@/assets/logos/dbt.svg'
 import googledrive from '@/assets/logos/googledrive.svg'
 import markdown from '@/assets/logos/markdown.svg'
 import notion from '@/assets/logos/notion.svg'
-import warehouse from '@/assets/logos/warehouse.svg'
 
 import type { DomainId } from './items'
 
 // The tools Heed reads, from the settings and integrations design (round 3, all picks adopted).
-// Definitions (what exists: metrics and dimensions), context (what people know: documents) and,
-// opt-in, figures for Ask. Heed stores no numbers: it reads one when an answer asks for it, and only
-// from an integration an admin has switched figures on for. A sync never publishes: definitions are
-// a read-only copy that flags the context relying on them, documents become suggestions in the
-// owners' Inbox, one per document.
+// Definitions (what exists: metrics and dimensions) and context (what people know: documents).
+// Figures for Ask are not a kind of their own: a definitions tool that can read them (Cube) has a
+// second connection for them, off until an admin switches it on, because the tool a metric's
+// definition comes from is the one that answers it. Heed stores no numbers: it reads one when an
+// answer asks for it. A sync never publishes: definitions are a read-only copy that flags the
+// context relying on them, documents become suggestions in the owners' Inbox, one per document.
 
-export type ConnectorKind = 'definitions' | 'context' | 'data'
-export type ConnectorId = 'cube' | 'google-drive' | 'markdown-git' | 'dbt' | 'notion' | 'warehouse'
+export type ConnectorKind = 'definitions' | 'context'
+export type ConnectorId = 'cube' | 'google-drive' | 'markdown-git' | 'dbt' | 'notion'
 
 export type Connector = {
   id: ConnectorId
@@ -26,7 +26,10 @@ export type Connector = {
   blurb: string
   /** Built in v1, or shown as Soon. */
   soon?: boolean
-  /** It can answer a figure for Ask (opt-in, off until an admin switches it on). */
+  /**
+   * It can also read a figure for Ask, through a second connection of its own: a data endpoint and
+   * a token (opt-in, off until an admin switches it on).
+   */
   figures?: true
   /** The secret the connect flow takes as a key file someone uploads, not as words typed in. */
   keyFile?: string
@@ -72,20 +75,11 @@ export const connectors: Connector[] = [
     blurb: 'Pages in spaces you choose become suggestions for owners.',
     soon: true,
   },
-  {
-    id: 'warehouse',
-    name: 'Larchwood warehouse',
-    kind: 'data',
-    logo: warehouse,
-    blurb: "Figures for Ask from your warehouse's query API, read only when an answer needs one.",
-    figures: true,
-  },
 ]
 
 export const kindName: Record<ConnectorKind, string> = {
   definitions: 'Definitions',
   context: 'Context',
-  data: 'Figures',
 }
 export const connectorById = (id: string | undefined) => connectors.find((c) => c.id === id)
 

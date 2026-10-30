@@ -400,6 +400,7 @@ type Read =
   | 'connectForm'
   | 'testIntegration'
   | 'readFigure'
+  | 'tryFigure'
   | 'listAgentConnections'
   | 'checkConnect'
   | 'getConnectReview'

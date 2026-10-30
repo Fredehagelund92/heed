@@ -1,3 +1,4 @@
+import type { FigureTryFailure } from '@contract/figures'
 import type { ConnectorId } from './integrations'
 
 // A figure in Ask as the app reads it (src/web/api): read from an integration at a time,
@@ -43,3 +44,23 @@ export type FigureReport = {
   markets: string[]
   dates?: string
 }
+
+/**
+ * What Try a figure read, with the figures settings as they are saved: one measure of the tool's
+ * first view with a single date, for the last 7 days, kept nowhere. Its value is null when the
+ * tool answered with nothing for those days; a failure is a code the page says in words.
+ */
+export type FigureTry =
+  | {
+      kind: 'figure'
+      source: ConnectorId
+      /** What was read and for which days: "Orders, 17 to 23 Oct 2026". */
+      label: string
+      /** As the tool writes it: "€1,234"; null when it had nothing for those days. */
+      value: string | null
+      /** When the tool last refreshed its data: "today at 06:00". */
+      asOf: string
+      /** How long the read took, in milliseconds. */
+      took: number
+    }
+  | { kind: 'failed'; source: ConnectorId; failure: FigureTryFailure }

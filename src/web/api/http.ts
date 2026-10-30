@@ -66,7 +66,7 @@ import {
   type ReadScope,
   type Shelf,
 } from './http-ask'
-import { daysOfDates, figureViewOf } from './http-figures'
+import { daysOfDates, figureTryOf, figureViewOf } from './http-figures'
 import {
   dayShiftOf,
   draftOf,
@@ -213,6 +213,7 @@ export const wiredMethods = [
   'setDataContact',
   'setFigureConnection',
   'readFigure',
+  'tryFigure',
   'getIntegrations',
   'integrationsPage',
   'integrationPage',
@@ -1686,6 +1687,17 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         new Date(),
       )
     },
+    tryFigure: async ({ source }) => {
+      const id = await figureSourceId(source)
+      const tried = figureTryOf(
+        await readPosted((o) => client.figures.try({ id }, o)),
+        connectorOf,
+        new Date(),
+      )
+      if (!tried)
+        throw new ApiError('not-found', `${connectorById(source)?.name ?? source} isn't connected.`)
+      return tried
+    },
     // What the figures read: how each integration that reads figures is reached.
     getIntegrations: async () => ({
       figureConnections: Object.fromEntries(
@@ -1699,7 +1711,6 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
           },
         ]),
       ),
-      warehouseHas: [],
     }),
     // Settings › Integrations: the sources the service reads, each with how it is (CON-104).
     integrationsPage: async () => {

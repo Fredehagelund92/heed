@@ -84,6 +84,7 @@ const adminOperations = [
   'sources.get',
   'sources.add',
   'figures.set',
+  'figures.try',
   'sources.update',
   'sources.test',
   'sources.read',

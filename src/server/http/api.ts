@@ -980,6 +980,9 @@ export function createRouter({
           context.session!.person.permissions.roles.includes('administrator'),
         ),
       ),
+      try: authorized.figures.try.handler(({ context, input }) =>
+        workspaceSources.figures.try(context.tx, input, clock.today()),
+      ),
     },
     reports: {
       create: authorized.reports.create.handler(async ({ context, input }) => {

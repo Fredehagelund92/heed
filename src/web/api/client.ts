@@ -23,7 +23,7 @@ import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items
 import type { Version } from '@/model/history'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
-import type { FigureAsk, FigureReport, FigureView } from '@/model/figures'
+import type { FigureAsk, FigureReport, FigureTry, FigureView } from '@/model/figures'
 import type {
   ConnectChoice,
   ConnectedSource,
@@ -187,15 +187,10 @@ export type Settings = {
   connected: ConnectorId[]
 }
 
-/**
- * What the figures read: how each figure-capable integration is reached, and what the warehouse
- * has tables for.
- */
+/** What the figures read: how each figure-capable integration is reached, its second connection. */
 export type Integrations = {
   /** How each figure-capable integration is reached. */
   figureConnections: Partial<Record<ConnectorId, FigureConnection>>
-  /** What the warehouse has tables for. It answers none of them: no metric's definition comes from it. */
-  warehouseHas: string[]
 }
 
 /** How a suggestion that overlaps a live item relates to it, as the owner chose. */
@@ -587,6 +582,11 @@ export interface HeedApi {
   pauseIntegration: (input: { id: string; paused: boolean }) => Promise<void>
   /** What an answer shows of the data: one figure line, a link into the tool, or why there is none. */
   readFigure: (input: FigureAsk) => Promise<FigureView | null>
+  /**
+   * Try a figure: one figure read now with the integration's figures settings as they are saved,
+   * on or off, so an admin sees the endpoint and its token work. Kept nowhere.
+   */
+  tryFigure: (input: { source: ConnectorId }) => Promise<FigureTry>
   /** The agents connected, newest sign-in first. */
   listAgentConnections: () => Promise<Connected[]>
   /** Ends every connection of that agent for that person, or one access key (`key`), at once. */
@@ -740,6 +740,7 @@ export const heedApiMethods = [
   'readIntegration',
   'pauseIntegration',
   'readFigure',
+  'tryFigure',
   'listAgentConnections',
   'revokeAgentConnection',
   'checkConnect',
