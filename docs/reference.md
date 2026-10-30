@@ -787,7 +787,18 @@ over its months) found nothing at least the minimum times.
   by default), so the `observability.rollup` job keeps, each night before retention, every
   completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
   answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
-  No reader exists yet: no route, screen or service method reads them.
+  Summary's trend is their reader.
+- `GET /observability/summary` (Summary, the first page): `period` (`month` by default, or
+  `quarter`), and `areaId` to narrow every number to one domain. It reads the last whole calendar
+  month or quarter, ending yesterday at the latest, and the same length before it. It answers with
+  `state` (`empty`, `quiet` or `normal`), the headline numbers (`asked`, and of them `checked`,
+  `warned` and `missing`, the answer states grouped as checked, with a warning, and not found),
+  the same for the period before (`previous`, or null with `notCompared` saying why), a weekly
+  trend of checked answers (13 weeks, read from `obs_weekly` where it keeps a whole week and from
+  the delivery records for the rest), what is still open (topics that found nothing, with what
+  waits for each in the Inbox), and the changes published after review, with who approved each.
+  Every number goes through one disclosure pass in `src/domain/obs-summary.ts`, so none can be
+  worked out from the others (FR-614); `hidden` counts the ones kept back.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,
