@@ -17,6 +17,7 @@ import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { DomainDot } from '@/components/heed/tag-chip'
+import { ComingSoon } from '@/components/heed/bits'
 import { lastOf, rulesFor, thresholdOf, type AlertSettings, type Rule } from '@/model/alerts'
 import type { DomainId } from '@/model/items'
 import { OBS_PURPOSE, useObsPageQuery, useObsView } from '@/lib/obs'
@@ -61,17 +62,20 @@ function Alerts() {
     <Frame>
       <FrameSection
         title="Alerts"
-        description={OBS_PURPOSE.alerts}
+        description={
+          <>
+            {OBS_PURPOSE.alerts}
+            {/* The reason is text anyone can read, on a phone too, not a hover tooltip. */}
+            <span id="add-rule-reason" className="mt-1 block">
+              {ADD_REASON}
+            </span>
+          </>
+        }
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            aria-disabled
-            aria-description={ADD_REASON}
-            title={ADD_REASON}
-          >
+          <Button variant="outline" size="sm" aria-disabled aria-describedby="add-rule-reason">
             <PlusIcon data-icon="inline-start" />
             Add a rule
+            <ComingSoon />
           </Button>
         }
       />

@@ -152,9 +152,12 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
       {care && (
         <p className="flex items-center gap-2 text-sm font-medium">
           <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
-          {care}
-          <span className="font-normal text-muted-foreground">
-            {r.claims ? 'before publishing' : r.clash ? `: ${r.clash.title}` : ''}
+          {/* One span keeps the colon against the words: the row's gap would put a space before it. */}
+          <span>
+            {care}
+            <span className="font-normal text-muted-foreground">
+              {r.claims ? ' before publishing' : r.clash ? `: ${r.clash.title}` : ''}
+            </span>
           </span>
         </p>
       )}

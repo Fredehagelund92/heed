@@ -119,6 +119,15 @@ export { StateLine } from './state-line'
 
 /* ---------- review ---------- */
 
+/** Inside a button that is not built yet: it stays where it will be, disabled, and says so. */
+export function ComingSoon() {
+  return (
+    <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-2xs font-normal">
+      Coming soon
+    </span>
+  )
+}
+
 /** Before and now in one line: what went struck out, what came in marked. */
 export function WordDiff({ before, after }: { before: string; after: string }) {
   return (
