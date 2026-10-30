@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { CalendarIcon, PlusIcon, XIcon } from '@/components/icons'
+import { CalendarIcon, XIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { missingDates, WHEN_PRESETS, whenSummary, type WhenMode, type WhenValue } from '@/lib/when'
-import { TagChip, WhereChip } from '@/components/heed/tag-chip'
+import { TagChip } from '@/components/heed/tag-chip'
 import { PersonAvatar } from '@/components/heed/bits'
 
 // An edit page's properties as a calm list under the title, the way a document shows them, not a
@@ -499,145 +499,6 @@ export function WhenField({
         </div>
       </div>
     </PickerField>
-  )
-}
-
-/* ---------- several values with chips ---------- */
-
-export type ChipGroup = { heading: string; items: string[] }
-
-/**
- * Several values as tag chips: each with its type's icon and an x, then a ghost "Add" chip that
- * opens one combobox over every group. Typing filters; a word of the author's own can be added;
- * Backspace in an empty search removes the last tag.
- */
-export function ChipsField({
-  labelId,
-  label,
-  values,
-  groups,
-  onChange,
-  placeholder,
-  searchPlaceholder = 'Search',
-}: {
-  labelId: string
-  label: string
-  values: string[]
-  groups: ChipGroup[]
-  onChange: (values: string[]) => void
-  placeholder: string
-  searchPlaceholder?: string
-}) {
-  const [open, setOpen] = React.useState(false)
-  const [search, setSearch] = React.useState('')
-  const mobile = useIsMobile()
-  const input = React.useRef<HTMLInputElement>(null)
-  const toggle = (v: string) =>
-    onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v])
-  const typed = search.trim()
-  const known = groups.some((g) => g.items.some((i) => i.toLowerCase() === typed.toLowerCase()))
-  const addId = React.useId()
-
-  const list = (
-    <Command label={label} className="p-0">
-      <CommandInput
-        ref={input}
-        value={search}
-        onValueChange={setSearch}
-        placeholder={searchPlaceholder}
-        onKeyDown={(e) => {
-          if (e.key === 'Backspace' && !search && values.length) onChange(values.slice(0, -1))
-        }}
-      />
-      <CommandList label={label} className={mobile ? undefined : 'max-h-72'}>
-        <CommandEmpty>Nothing by that name.</CommandEmpty>
-        {groups.map((g) => (
-          <CommandGroup key={g.heading} heading={g.heading}>
-            {g.items.map((i) => (
-              <CommandItem
-                key={i}
-                value={i}
-                data-checked={values.includes(i)}
-                onSelect={() => toggle(i)}
-              >
-                <WhereChip w={i} />
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-        {typed && !known && (
-          <CommandGroup heading="Your own">
-            <CommandItem
-              value={`${addId}-${typed}`}
-              onSelect={() => {
-                if (!values.includes(typed)) onChange([...values, typed])
-                setSearch('')
-              }}
-            >
-              <PlusIcon aria-hidden />
-              Add “{typed}”
-            </CommandItem>
-          </CommandGroup>
-        )}
-      </CommandList>
-      {mobile && (
-        <div className="flex justify-end border-t pt-3">
-          <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
-            Done
-          </Button>
-        </div>
-      )}
-    </Command>
-  )
-
-  const trigger = (
-    <button
-      type="button"
-      data-prop-value
-      aria-labelledby={`${labelId} ${addId}-t`}
-      className={cn(
-        'inline-flex h-6 items-center gap-1 rounded-sm px-1.5 text-xs text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 data-popup-open:bg-muted',
-        !values.length && '-ml-1.5 h-8 text-sm',
-      )}
-    >
-      <PlusIcon aria-hidden className="size-3" />
-      <span id={`${addId}-t`}>{values.length ? 'Add' : placeholder}</span>
-    </button>
-  )
-
-  return (
-    <div className="flex min-h-8 flex-wrap items-center gap-1.5 py-1">
-      {values.map((v) => (
-        <WhereChip key={v} w={v} onRemove={() => onChange(values.filter((x) => x !== v))} />
-      ))}
-      {mobile ? (
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger render={trigger} />
-          <SheetContent
-            side="bottom"
-            initialFocus={input}
-            className="max-h-bottom-sheet gap-0 pb-safe"
-          >
-            <SheetHeader className="pb-2">
-              <SheetTitle>{label}</SheetTitle>
-            </SheetHeader>
-            <div className="min-h-0 overflow-y-auto px-4">{list}</div>
-          </SheetContent>
-        </Sheet>
-      ) : (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger render={trigger} />
-          <PopoverContent
-            align="start"
-            initialFocus={input}
-            aria-label={label}
-            className="w-80 p-1"
-          >
-            {list}
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
   )
 }
 

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useDomains, usePeople } from '@/lib/workspace'
-import { CircleSlashIcon, FolderIcon, GlobeIcon, UserRoundIcon } from '@/components/icons'
+import { CircleSlashIcon, FolderIcon, GlobeIcon, TagIcon, UserRoundIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
 import { TypeGlyph } from '@/components/heed/definition'
@@ -13,6 +13,7 @@ import {
   mentionParts,
   parseMentionId,
   useMentionTarget,
+  valueDimension,
   type Mentionable,
   type MentionRef,
 } from '@/lib/mentions'
@@ -29,7 +30,7 @@ export function MentionIcon({
   className,
   avatar,
 }: {
-  m: Pick<Mentionable, 'kind' | 'contextKind' | 'synonym' | 'label'>
+  m: Pick<Mentionable, 'kind' | 'contextKind' | 'synonym' | 'label'> & { id?: string }
   className?: string
   avatar?: boolean
 }) {
@@ -49,6 +50,13 @@ export function MentionIcon({
     }
     case 'market':
       return <GlobeIcon aria-hidden className={cls} />
+    // A market is a country; any other dimension's value is a tag of it.
+    case 'value':
+      return m.id && valueDimension(m.id) === 'market' ? (
+        <GlobeIcon aria-hidden className={cls} />
+      ) : (
+        <TagIcon aria-hidden className={cls} />
+      )
     case 'person':
       // In a list a face helps; in a line of text the initials would be too small to read.
       return avatar ? (
@@ -68,6 +76,7 @@ const chip =
 function mentionTone(kind: string, key: string) {
   if (kind === 'metric' || kind === 'dimension' || kind === 'term' || kind === 'market')
     return chipTone(kind)
+  if (kind === 'value') return chipTone(key.startsWith('market/') ? 'market' : 'dimension')
   if (kind === 'domain') return chipTone('domain', domainHue(key))
   return chipTone('neutral')
 }
@@ -166,7 +175,8 @@ export function MentionChip({
   )
   const { kind, key } = parseMentionId(target.id)
   const tone = mentionTone(kind, key)
-  if (!interactive || kind === 'market')
+  // A value has no page of its own: it reads as a chip.
+  if (!interactive || kind === 'market' || kind === 'value')
     return (
       <span title={label} style={tone.style} className={cn(chip, tone.className, className)}>
         {body}

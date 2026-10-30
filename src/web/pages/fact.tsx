@@ -60,7 +60,7 @@ import { VersionHistory } from '@/components/heed/version-history'
 import { TODAY } from '@/model/history'
 import { DeleteDialog } from '@/components/heed/delete-dialog'
 import { Loadable, PageSkeleton, SideSkeleton } from '@/components/heed/load-state'
-import { WhereChip } from '@/components/heed/tag-chip'
+import { ScopeChips } from '@/components/heed/scope-field'
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() =>
@@ -457,7 +457,7 @@ export function FactPage({ id }: { id: string }) {
                   </Property>
                   <Property label="Applies to" icon={<MapPinIcon />}>
                     {fact.where.length ? (
-                      fact.where.map((w) => <WhereChip key={w} w={w} />)
+                      <ScopeChips fact={fact} />
                     ) : (
                       <span>Read from the text</span>
                     )}

@@ -755,6 +755,14 @@ export function createRouter({
     },
     vocabulary: {
       get: authorized.vocabulary.get.handler(({ context }) => context.vocabulary.get()),
+      search: authorized.vocabulary.search.handler(({ context, input }) =>
+        context.vocabulary.search({
+          query: input.q,
+          ...(input.dimension === undefined ? {} : { dimension: input.dimension }),
+          ...(input.cursor === undefined ? {} : { cursor: input.cursor }),
+          ...(input.limit === undefined ? {} : { limit: input.limit }),
+        }),
+      ),
     },
     inbox: {
       feed: authorized.inbox.feed.handler(({ context, input }) => context.cards.feed(input.tab)),

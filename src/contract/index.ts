@@ -163,6 +163,7 @@ import {
 } from './sources.ts'
 import { catalogueSchema } from './catalogue.ts'
 import { searchAllInputSchema, searchResultsSchema } from './search.ts'
+import { scopeSearchInputSchema, scopeSearchSchema } from './scope.ts'
 import {
   deletedTermSchema,
   termChangeResultSchema,
@@ -267,6 +268,7 @@ export type {
 } from './sources.ts'
 export { SEARCH_GROUP_MAX } from './search.ts'
 export type { SearchAllInput, SearchResults } from './search.ts'
+export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
 export type { Comment as ThreadComment, Thread } from './comments.ts'
 export type {
   Catalogue,
@@ -1294,6 +1296,16 @@ export const contract = {
         summary: 'The live vocabulary: metrics, dimensions and their values, by name',
       })
       .output(vocabularySchema),
+    search: read
+      .route({
+        method: 'GET',
+        path: '/vocabulary/search',
+        tags: ['reference'],
+        summary:
+          'A page of metrics, dimensions and values for the scope picker: recent and often used first (FR-107)',
+      })
+      .input(scopeSearchInputSchema)
+      .output(scopeSearchSchema),
   },
   inbox: {
     feed: read

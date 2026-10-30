@@ -40,7 +40,6 @@ import {
   type WhenValue,
 } from '@/lib/when'
 import {
-  ChipsField,
   Ghost,
   InlineText,
   PeopleField,
@@ -54,6 +53,8 @@ import {
   type Option,
 } from '@/components/heed/field-controls'
 import { DomainDot, TagChip } from '@/components/heed/tag-chip'
+import { ScopeField } from '@/components/heed/scope-field'
+import { termsOfNames } from '@/lib/scope'
 import { kindIcons } from '@/components/heed/kind-icons'
 import { plainText } from '@/lib/mentions'
 import { PersonAvatar } from '@/components/heed/bits'
@@ -73,6 +74,7 @@ import {
   type DomainId,
   type Fact,
   type Kind,
+  type ScopeTerm,
   type Status,
 } from '@/model/items'
 import { ownersOf, type Domain, type Domains } from '@/model/people'
@@ -115,7 +117,8 @@ type Form = {
   domain: DomainId
   owners: string[]
   status: Status
-  where: string[]
+  /** What it applies to, each term by its vocabulary key (FR-107). */
+  where: ScopeTerm[]
   when: WhenMode
   from: string
   until: string
@@ -142,7 +145,14 @@ const BLANK: Form = {
   dontConclude: '',
 }
 
-function fromFact(f: Fact, domains: Domains): Form {
+/** An item's scope by key; an item read only as names (a list row, a gap's draft) by its names. */
+const scopeOf = (f: Fact, vocabulary: Vocabulary) => f.scope ?? termsOfNames(f.where, vocabulary)
+
+/** The words of "Applies to" in a sentence: "Orders in any market". */
+const scopeWords = (terms: ScopeTerm[]) =>
+  terms.map((t) => (t.kind === 'dimension' ? `any ${t.name.toLowerCase()}` : t.name)).join(' in ')
+
+function fromFact(f: Fact, domains: Domains, vocabulary: Vocabulary): Form {
   // From the stored dates, so the editor shows the real ones.
   const w = whenOfValid(f.valid)
   return {
@@ -153,7 +163,7 @@ function fromFact(f: Fact, domains: Domains): Form {
     owners: ownersOf(f, domains),
     // A draft is published as Live.
     status: f.status === 'Draft' ? 'Live' : f.status,
-    where: f.where,
+    where: scopeOf(f, vocabulary),
     when: w.mode,
     from: w.from,
     until: w.until,
@@ -184,7 +194,8 @@ function toFact(f: Form, id: string, me: string, domains: Domains, original?: Fa
     // Owners of its own only when they differ from its domain's.
     owners: f.owners.join() === domains[f.domain]?.owners.join() ? undefined : f.owners,
     kind: f.kind,
-    where: f.where,
+    where: f.where.map((t) => t.name),
+    scope: f.where,
     // Until its dates are picked, an edited item keeps saying what it said.
     when: original && missingDates(whenOf(f)) ? original.when : whenText(f),
     status: f.status,
@@ -201,16 +212,21 @@ function initialForm(
   fact: Fact | undefined,
   query: URLSearchParams,
   home: DomainId,
-  { domains, gapDraft, fromText }: { domains: Domains; gapDraft?: Fact; fromText?: Fact },
+  {
+    domains,
+    vocabulary,
+    gapDraft,
+    fromText,
+  }: { domains: Domains; vocabulary: Vocabulary; gapDraft?: Fact; fromText?: Fact },
 ): Form {
-  if (fact) return fromFact(fact, domains)
-  if (fromText) return fromFact(fromText, domains)
+  if (fact) return fromFact(fact, domains, vocabulary)
+  if (fromText) return fromFact(fromText, domains, vocabulary)
   // New context starts in the writer's own domain, so an owner publishes rather than suggests.
   const blank = { ...BLANK, domain: home, owners: domains[home]?.owners ?? [] }
   // A Not found card opens its draft, never a blank page, with the draft's own dates.
   if (gapDraft)
     return {
-      ...fromFact(gapDraft, domains),
+      ...fromFact(gapDraft, domains, vocabulary),
       domain: gapDraft.domain,
       owners: domains[gapDraft.domain]?.owners ?? [],
       when: 'between',
@@ -219,7 +235,14 @@ function initialForm(
     }
   const metric = query.get('metric')
   const market = query.get('market')
-  if (metric || market) return { ...blank, where: [metric, market].filter(Boolean) as string[] }
+  if (metric || market)
+    return {
+      ...blank,
+      where: termsOfNames(
+        [metric, market].filter((w): w is string => !!w),
+        vocabulary,
+      ),
+    }
   return blank
 }
 
@@ -266,14 +289,6 @@ const domainOptions = (domains: Domain[]) =>
     hint: d.covers,
     icon: <DomainDot id={d.id} />,
   }))
-const whereGroups = (domains: Domain[], vocabulary: Vocabulary) => [
-  {
-    heading: 'Domains',
-    items: domains.filter((d) => !d.sandbox).map((d) => d.name),
-  },
-  { heading: 'Metrics', items: vocabulary.metrics.map((m) => m.name) },
-  { heading: 'Markets', items: vocabulary.markets },
-]
 
 /* ---------- the page ---------- */
 
@@ -315,6 +330,7 @@ function Editor({
   const [initial] = React.useState<Form>(() =>
     initialForm(original, query, me.owns[0] ?? 'sales', {
       domains,
+      vocabulary,
       gapDraft: cards.find((c) => c.id === query.get('gap'))?.gap?.draft,
       fromText: mode === 'new' ? fromText : undefined,
     }),
@@ -362,13 +378,18 @@ function Editor({
   const draft = toFact(form, original?.id ?? 'draft', me.name, domains, original)
   React.useEffect(() => setDraft(draft))
 
+  const whereNames = form.where.map((t) => t.name)
+  const inside = (a: string[], b: string[]) => a.every((w) => b.includes(w))
+  // The same place, or one inside the other: a value narrows an item, and still overlaps the
+  // broader one ("Orders in Norway" and "Orders in Norway for one campaign").
   const overlaps = facts.filter(
     (f) =>
       f.id !== original?.id &&
       f.title !== form.title &&
       servedToAgents(f) &&
-      form.where.length >= 2 &&
-      form.where.every((w) => f.where.includes(w)),
+      whereNames.length >= 2 &&
+      f.where.length >= 2 &&
+      (inside(whereNames, f.where) || inside(f.where, whereNames)),
   )
   // Folded unless there is something to say (an overlap), until the person chooses.
   // The panel's open or closed, as the person last left it this session; until then, open only with an overlap.
@@ -379,7 +400,7 @@ function Editor({
     !form.body.trim() && 'what agents should know',
     !form.source && 'a source',
   ].filter(Boolean) as string[]
-  const reaches = form.where.length ? (form.where.includes('Norway') ? 12 : 9) : 0
+  const reaches = whereNames.length ? (whereNames.includes('Norway') ? 12 : 9) : 0
   // Counted as agents read it: a mention is its words.
   const text = plainText(form.body)
   const words = countWords(`${form.title} ${text}`)
@@ -387,7 +408,11 @@ function Editor({
   const long = text.split('\n').filter(Boolean).length + Math.floor(text.length / 45) > 6
 
   const fill = async () => {
-    const filled = fromFact(await queryClient.fetchQuery(draftFromTextQuery(pasted)), domains)
+    const filled = fromFact(
+      await queryClient.fetchQuery(draftFromTextQuery(pasted)),
+      domains,
+      vocabulary,
+    )
     setForm(filled)
     editor?.commands.setContent(filled.body, { contentType: 'markdown' })
     setDraftOpen(false)
@@ -504,7 +529,7 @@ function Editor({
         defaultOpen={!overlaps.length}
         description={
           form.where.length
-            ? `Agents asking about ${form.where.join(' in ')}${form.when === 'always' ? '' : `, ${whenText(form).replace(/^From/, 'from')}`} get this, live as you type.`
+            ? `Agents asking about ${scopeWords(form.where)}${form.when === 'always' ? '' : `, ${whenText(form).replace(/^From/, 'from')}`} get this, live as you type.`
             : 'Add where it applies to see who gets it.'
         }
       >
@@ -873,14 +898,12 @@ function Editor({
           </PropertyGroup>
           <PropertyGroup>
             <PropertyRow id={fieldId('where')} label="Applies to" icon={<MapPinIcon />}>
-              <ChipsField
+              <ScopeField
                 labelId={fieldId('where')}
                 label="Applies to"
-                values={form.where}
-                groups={whereGroups(domainList, vocabulary)}
+                value={form.where}
                 onChange={(w) => set('where', w)}
-                placeholder="Add a metric, market or domain"
-                searchPlaceholder="Search metrics, markets and domains"
+                placeholder="Add a metric, dimension or value"
               />
             </PropertyRow>
             <PropertyRow id={fieldId('when')} label="When" icon={<CalendarIcon />}>

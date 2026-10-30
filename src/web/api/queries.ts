@@ -7,7 +7,7 @@ import {
   type QueryKey,
 } from '@tanstack/react-query'
 import { api, type HeedApi, type HeedApiMethod } from '@/api'
-import { isPageRead, type ObsPageInput } from '@/api/client'
+import { isPageRead, type ObsPageInput, type ScopeSearchInput } from '@/api/client'
 import type { AskInput } from '@/model/ask'
 import type { FigureAsk } from '@/model/figures'
 
@@ -25,6 +25,8 @@ export const queryKeys = {
   activity: (name: string) => ['getActivity', name] as const,
   library: ['getLibrary'] as const,
   search: (q: string) => ['searchAll', q] as const,
+  scopeSearch: (input: ScopeSearchInput) => ['searchScope', input] as const,
+  scopeSearches: ['searchScope'] as const,
   contextPage: ['contextPage'] as const,
   itemPage: (id: string) => ['itemPage', id] as const,
   itemPages: ['itemPage'] as const,
@@ -127,6 +129,17 @@ export const searchQuery = (q: string) =>
     queryKey: queryKeys.search(q),
     queryFn: () => api.searchAll({ q }),
     enabled: q.trim() !== '',
+  })
+
+/**
+ * The "Applies to" picker's search. A page stays fresh for a minute, so typing back and forth
+ * reads it once; a publish or a suggestion refreshes it, as the recent terms change then.
+ */
+export const scopeSearchQuery = (input: ScopeSearchInput) =>
+  queryOptions({
+    queryKey: queryKeys.scopeSearch(input),
+    queryFn: () => api.searchScope(input),
+    staleTime: 60_000,
   })
 
 export const contextPageQuery = () =>
@@ -355,6 +368,7 @@ type Read =
   | 'readInvite'
   | 'getLibrary'
   | 'searchAll'
+  | 'searchScope'
   | 'contextPage'
   | 'itemPage'
   | 'getItemHistory'
@@ -463,9 +477,9 @@ export const invalidations: {
   editItem: () => items,
   restoreAsDraft: () => items,
   // A published item may answer a Not found card, and be the setup checklist's first item.
-  saveItem: () => [...items, ...inbox, ...workspace, queryKeys.session],
+  saveItem: () => [...items, ...inbox, ...workspace, queryKeys.session, queryKeys.scopeSearches],
   applyBulk: () => [...items, queryKeys.advancedPage],
-  sendSuggestion: () => inbox,
+  sendSuggestion: () => [...inbox, queryKeys.scopeSearches],
   withdrawSuggestion: () => inbox,
   undo: () => everything,
   postComment: () => comments,

@@ -540,6 +540,80 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'searchScope'))(
+      'searches what an item applies to without listing every value of a dimension (FR-107)',
+      async () => {
+        const live = await signedIn()
+        // No words: only the person's recent terms, never a dimension's values.
+        const empty = await live.searchScope({ q: '' })
+        expect(empty).toMatchObject({ metrics: [], groups: [], nextCursor: null })
+        expect(empty.recent.length).toBeLessThanOrEqual(6)
+        // Another name finds the value, named with its dimension and the name it matched.
+        const norge = await live.searchScope({ q: 'norge' })
+        expect(norge.groups.find((g) => g.dimension.key === 'dim:market')?.values[0]).toMatchObject(
+          {
+            key: 'val:market/norway',
+            kind: 'dimension_value',
+            name: 'Norway',
+            alias: 'Norge',
+            dimension: { key: 'dim:market', name: 'Market' },
+          },
+        )
+        // Words that match thousands of values give a count and a few, grouped by dimension.
+        const wide = await live.searchScope({ q: 'sale' })
+        const campaigns = wide.groups.find((g) => g.dimension.key === 'dim:campaign')!
+        expect(campaigns).toMatchObject({ named: false, dimension: { kind: 'dimension' } })
+        expect(campaigns.count).toBeGreaterThan(100)
+        expect(campaigns.values.length).toBeLessThanOrEqual(5)
+        // Inside one dimension, a page at a time, in a fixed order.
+        const first = await live.searchScope({ q: 'sale', dimension: 'dim:campaign', limit: 20 })
+        const next = await live.searchScope({
+          q: 'sale',
+          dimension: 'dim:campaign',
+          limit: 20,
+          cursor: first.nextCursor!,
+        })
+        expect(first.groups[0]!.count).toBe(campaigns.count)
+        expect(first.groups[0]!.values).toHaveLength(20)
+        expect(first.nextCursor).toBe('20')
+        const keys = new Set(first.groups[0]!.values.map((v) => v.key))
+        expect(next.groups[0]!.values.some((v) => keys.has(v.key))).toBe(false)
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'getWorkspace', 'getLibrary', 'itemPage', 'saveItem', 'searchScope'))(
+      'keeps a value an item applies to by its key, and offers it again as recent',
+      async () => {
+        const live = await signedIn()
+        const { fact, relations } = await newItem(
+          live,
+          'Conformance: an item for one campaign',
+          '03',
+        )
+        const hit = (
+          await live.searchScope({ q: 'norway spring sale 2026 email', dimension: 'dim:campaign' })
+        ).groups[0]!.values[0]!
+        const scope = [
+          ...(fact.scope ?? []),
+          { key: hit.key, kind: 'value' as const, name: hit.name, dimension: 'Campaign' },
+        ]
+        const { id } = await live.saveItem({
+          fact: { ...fact, scope, where: scope.map((t) => t.name) },
+          isNew: true,
+          relations,
+        })
+        const page = (await live.itemPage({ id }))!
+        expect(page.item.scope).toContainEqual({
+          key: 'val:campaign/norway_spring_sale_2026_email',
+          kind: 'value',
+          name: 'Norway Spring Sale 2026 Email',
+          dimension: 'Campaign',
+        })
+        expect(page.item.where).toContain('Norway Spring Sale 2026 Email')
+        expect((await live.searchScope({ q: '' })).recent.map((h) => h.key)).toContain(hit.key)
+      },
+    )
+
     it.skipIf(
       lacks(
         'signIn',
