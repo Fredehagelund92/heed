@@ -234,10 +234,9 @@ It reads `.env.local`: a library goes into `DATABASE_URL_SEED`, an empty local
 
 ```sh
 npm run seed                          # the demo: the bulk seed below, then its quality history
-npm run seed -- --items-only          # the bulk seed alone, as CI's end-to-end tests expect
+npm run seed -- --items-only          # the bulk seed alone
 npm run seed -- --items-only --count 50000   # a larger generated library, for performance
 npm run seed -- --library golden      # the golden set's library (below), with the history
-npm run seed -- --library norway   # the show's library (docs/demo.md), with the history
 npm run seed -- --practice            # the practice domain (below), into any migrated database
 ```
 

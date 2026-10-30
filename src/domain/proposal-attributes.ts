@@ -14,9 +14,9 @@
 
   The few rules the app's first load needs (the limits, the marks and the fields that carry one)
   live in ./proposal-rules.ts, which this file re-exports: the rest of the table stays out of the
-  first load. tests/server/proposal-attributes.test.ts and tests/unit/proposal-attributes.test.ts
-  enumerate every attribute of the item version schema and every field of the form and the tool,
-  and fail until a new or changed attribute is classified here. CONTRIBUTING.md, "Proposal
+  first load. tests/server/proposal-attributes.test.ts enumerates every attribute of the item
+  version schema and every input of the tool, and fails until a new or changed attribute is
+  classified here. CONTRIBUTING.md, "Proposal
   attributes", says what to do when they fail.
 */
 
@@ -45,7 +45,10 @@ export type AgentTreatment = (typeof agentTreatments)[number]
 export const questionIds = ['area', 'kind', 'scope', 'start', 'end', 'evidence'] as const
 export type QuestionId = (typeof questionIds)[number]
 
-/** The fields of the form (`contextFormSchema`, src/web/lib/context-form.ts). */
+/**
+ * The fields of the form a person writes a proposal with, by the attribute names the web app's
+ * editor fills (`draftOf`, src/app/api/http-context.ts).
+ */
 export const formFields = [
   'kind',
   'title',

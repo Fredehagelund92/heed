@@ -1,6 +1,6 @@
 # Tests
 
-What each test suite covers, how to run it, and how screenshot baselines are made. `npm run check` runs what CI runs, except the browser tests.
+What each test suite covers and how to run it. `npm run check` runs what CI runs, except the browser tests.
 
 `npm test` runs the service's tests without a database. `npm run test:integration` runs the
 tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
@@ -8,13 +8,15 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
 
 ## Tests
 
-- **Unit (Vitest).** Fixtures against the item model, the mock API (the conformance suite), the
-  command registry and hotkeys, the appearance bootstrap, typed search params.
+- **Unit (Vitest).** The web app's own units in `tests/app`: the mock binding against the
+  `HeedApi` conformance suite (`tests/app/conformance/heed-api.ts`), the http binding's mapping of
+  the service's answers, the router, the theme bootstrap and the rules in `lib`. The pure domain
+  in `tests/server/domain`.
 - **Service (Vitest).** Configuration, health checks, request logs without headers or query
   strings, the API's sign-in, validation and typed errors, the generated API files, job and
   connector status rules, the operations endpoints, and the real entry point started with Node.
   `tests/integration` adds a real PostgreSQL 18, runs the conformance suite through the http
-  binding, and runs the job runner under the API role: schedules, retries and the failure alert,
+  binding (`tests/app/integration`), and runs the job runner under the API role: schedules, retries and the failure alert,
   retention, partitions and the watchdog.
 - **Security suite (Vitest, PostgreSQL).** Generated from the contract, so a new operation is
   covered without a new test: `authorization.test.ts` sends every API operation, the operations
@@ -33,41 +35,20 @@ tests that need PostgreSQL 18, against `TEST_DATABASE_URL` (default
   `docs/help` (`docs/help/README.md`, "The docs check"): the mockup's eleven pages and What's new, their
   links, the app's own lists they include, and every bold control, which must have a row in
   `tests/e2e-app/docs-controls.ts`; `tests/e2e-app/docs-controls.spec.ts` draws each row's screen
-  in the browser and finds the control on it. `npm run docs:sync` mends an include that is out of date. `tests/unit/old-help.test.ts`
-  reads every help page of the old app in `docs/old-help`: its
-  front matter, its kind's template, every link to a page, a heading, a picture or a screen, and
-  every bold control name, which must be on one of the app's screens. `tests/e2e/docs.spec.ts`
-  covers the Docs area in the browser. `docs/old-help/README.md` says what each rule means.
+  in the browser and finds the control on it. `npm run docs:sync` mends an include that is out of date.
 - **Module boundaries (Vitest).** `tests/lint/boundaries.test.ts` lints a fixture tree that breaks
   each boundary and expects each break to be reported.
-- **Guard rails (Vitest).** `tests/lint/guard-rails.test.ts` lints a deliberately wrong component
-  and deliberately wrong CSS and expects each rule to report it with a clear message. If you loosen
-  a rule, this fails first.
-- **Layout (Playwright).** `tests/e2e/layout.spec.ts` asserts that the left edges of the header,
-  toolbar and content are equal, and equal to the gutter, on every page at 1440, 1024 and 390.
-- **axe (Playwright).** WCAG 2.2 AA through axe on every page, in light and dark, at the three
-  widths, plus the open command palette and user menu.
-- **Form kit stories (Playwright).** `tests/e2e/stories.spec.ts` opens every
-  `Forms/` story of a static Storybook build in light and dark, waits for its play function (the
-  keyboard interaction test) and runs axe on it.
-- **Screenshots (Playwright).** The shell and every page template at the three widths in both
-  appearances. They compare against baselines made in CI, so they are skipped until baselines are
-  committed and on non-Linux machines. See the next section.
-
-### Screenshot baselines
-
-Pixels differ between operating systems, so baselines are never made on a laptop. They are Linux
-images made by a manual GitHub Actions workflow, on the same `ubuntu-latest` image that CI uses.
-
-1. Open the repository's Actions tab, choose **update-snapshots**, and run it on your branch
-   (or `gh workflow run update-snapshots --ref <branch>`).
-2. When it finishes, download the `screenshot-baselines` artifact and unzip it into
-   `tests/e2e/__screenshots__`.
-3. Look at the images, especially the ones that changed (`git diff --stat`, then open them).
-   Commit them with the change that caused them. Do not regenerate baselines to make a failure
-   go away.
-
-Until the first baselines are committed, CI runs every other test and skips the screenshots with a
-message that says so. With baselines committed, CI compares against them and fails on a
-difference above 0.2% of pixels. `npm run test:e2e:update` rewrites baselines locally for people
-who want to look at the output, but do not commit those.
+- **Guard rails (Vitest).** `tests/lint/app-guard-rails.test.ts` and `tests/lint/guard-rails.test.ts`
+  lint deliberately wrong components and CSS and expect each rule to report them with a clear
+  message; `tests/lint/app-class-rules.test.ts` runs the class rules against samples. If you
+  loosen a rule, these fail first.
+- **Golden job specs (Playwright).** `tests/e2e-app`: the mockup's job specs J1 to J30, the
+  motion journey again under reduced motion, on a production build with the mock binding
+  (`npm run test:e2e`), and those whose screens are wired in http mode against the service
+  (`npm run test:e2e:golden-http`). An agent's consent page runs a real OAuth round trip in http
+  mode, and `calls.spec.ts` holds the calls one Inbox load makes.
+- **axe (Playwright).** WCAG 2.2 AA through axe on every place of the app, at 390 and 1440 wide,
+  in light and dark (`tests/e2e-app/axe.spec.ts`).
+- **The demo install (Playwright).** `tests/e2e-seed` signs in on what `docker compose up` gives a
+  new install and checks that every main screen draws on its data, with no call refused
+  (`npm run test:e2e:seed`).

@@ -1,6 +1,6 @@
 # The help pages
 
-These Markdown files are the product's docs. The app shows them in its Docs area, at `/docs`, in the app's own design, and GitHub shows the same files here. The assistant answers questions about how the product works from the same pages, with its tool `search_help`, and links the page it used. A page changes in the same pull request as the screen, word or tool it describes.
+These pages describe the earlier web app, which the web app in `src/app` replaced; its documentation is [`docs/help`](../help/README.md). The service's in-app assistant still answers questions about how the product works from these pages, with its tool `search_help`, until it is removed with them.
 
 Start with [What is {{product}}](what-is-heed.md).
 
@@ -71,23 +71,3 @@ The kind decides the layout:
 ## Pictures
 
 A picture is an SVG file in `images/`, linked as `![what it shows](images/name.svg 'caption')`. The alt text says everything the picture says. Draw it at the width it shows (at most 640), with text of at least 13, and colour it with the app's tokens and a fallback, `fill: var(--foreground, var(--hf-ink))`, so it follows the app's light and dark and still reads on GitHub. No scripts, no links and no `id`s.
-
-## Help in context
-
-A screen links to the page that answers the question people have there, in their words, with `HelpLink` (`src/web/components/help/help-link.tsx`): `<HelpLink to="mcp">What is an MCP?</HelpLink>`. It opens a card beside the link, a sheet on a phone, with the page's kind and reading time, a few lines and **Read the whole page**, so the person stays where they were. The few lines are a concept's answer in one minute, a guide's first section, or the words under a heading: `to="glossary#gap"` opens the glossary's sentence on a gap. Every place a screen links to is listed in `src/web/lib/help.ts`; add it there first. An empty state says what it means in one sentence, then links to the page that says more.
-
-## The docs check
-
-`tests/unit/old-help.test.ts` runs with the unit tests and fails when:
-
-- front matter is missing a field or has a value outside the lists above
-- a concept page has no `## In one minute`, or it is not 40 to 80 words
-- a page has no answer at its top for `search_help` to return, or it is not 12 to 150 words: a concept's `## In one minute`, or else the words above the first heading, or else the first section
-- a guide has more than 12 steps
-- a link to another page, a heading on it, a picture or a screen of the app does not exist
-- a help link on a screen points at a page or a heading that does not exist
-- a bold word is not on any of the app's screens
-- a page has an em dash or a `#` heading
-- a page names the product by hand instead of with `{{product}}`, or a heading holds the token
-- a page's first mention of the agent is not "AI agent"
-- a picture has a script, a link, an event handler or an `id`

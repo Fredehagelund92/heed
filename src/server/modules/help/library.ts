@@ -18,8 +18,7 @@ import { productName } from '../../brand.ts'
  * Heed's help pages as the service reads them: the same files the Docs area draws
  * (docs/old-help/*.md), read from the repository once, when the service starts, through the page
  * model the app uses (domain/help-pages.ts). A page that cannot be read is left out and named in
- * `problems`, which the service logs; the docs check (tests/unit/old-help.test.ts) keeps it from
- * being merged. A page writes {{product}} where it names the product; the service's name
+ * `problems`, which the service logs. A page writes {{product}} where it names the product; the service's name
  * (src/server/brand.ts) goes in after parsing, as in the app.
  */
 export type HelpLibrary = {

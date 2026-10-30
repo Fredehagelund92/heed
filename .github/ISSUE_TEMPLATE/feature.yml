@@ -10,7 +10,7 @@ body:
     attributes:
       label: The problem
       description: Who runs into it, and when? What do they do today?
-      placeholder: When I review a fact, I can't see ...
+      placeholder: When I review a suggestion, I can't see ...
     validations:
       required: true
   - type: textarea

@@ -6,7 +6,7 @@
 import { productNameFrom } from '../../domain/brand.ts'
 
 /**
- * From `CL_PRODUCT_NAME` when the app was built, the setting the service and the old front end read
+ * From `CL_PRODUCT_NAME` when the app was built, the setting the service reads too
  * (src/domain/brand.ts). Outside a Vite build (the Vite config, unit tests) the process's own
  * environment says it.
  */

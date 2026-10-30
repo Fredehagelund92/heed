@@ -8,17 +8,7 @@ export default defineConfig({
   test: {
     projects: [
       {
-        extends: true,
-        test: {
-          name: 'unit',
-          environment: 'jsdom',
-          include: ['tests/unit/**/*.test.{ts,tsx}'],
-          setupFiles: ['tests/unit/setup.ts'],
-          env: { VITE_MOCK_LATENCY_MS: '0' },
-        },
-      },
-      {
-        // The new web app's own units (src/app), moved with its code from the mockup.
+        // The web app's own units (src/app), moved with its code from the mockup.
         extends: true,
         test: {
           name: 'app',

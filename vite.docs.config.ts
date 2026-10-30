@@ -3,8 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { helpDocs } from './scripts/docs-plugin.ts'
-import { themeBootstrap } from './vite.app.config.ts'
-import { productTitle } from './vite.config.ts'
+import { productTitle, themeBootstrap } from './vite.app.config.ts'
 
 /*
   The static docs site (npm run docs:build): the documentation's pages (docs/help) in the new app's

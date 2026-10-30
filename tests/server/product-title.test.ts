@@ -1,6 +1,6 @@
 import type { Plugin, ResolvedConfig } from 'vite'
 import { describe, expect, it } from 'vitest'
-import { productTitle } from '../../vite.config.ts'
+import { productTitle } from '../../vite.app.config.ts'
 
 function titleFor(name: string | undefined): string {
   const plugin: Plugin = productTitle()

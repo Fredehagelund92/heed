@@ -1,6 +1,6 @@
 # How the product speaks: the voice guide
 
-> **Superseded for the new web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the code, the plain-words lint and the old front end still point to it, and it still governs the old front end until the switch to the new one. Where the two differ, Copy wins.
+> **Superseded for the web app.** [Copy](copy.md) is the voice for the Heed v1 web app and for all new text. This guide stays in place because the service's own sentences, the plain-words lint and its ratchet still point to it. Where the two differ, Copy wins.
 
 This page says how to write every word people read: screens, toasts, errors, the help pages, the assistant's replies, the MCP sentence an agent passes on, release notes and demo data. The words themselves, one name for each concept, are in `src/domain/words-v1.ts`. The design contract (section 1, "Display names", and 12.4, item 13) and the help pages' writing rules (`docs/old-help/README.md`) point here.
 
@@ -74,10 +74,10 @@ The rename covers only what people read. Code, API fields, the database, address
 
 ## The guard rail
 
-Two checks hold every text to the glossary, and both read `src/domain/words-v1.ts`:
+Two checks hold the service's text to the glossary, and both read `src/domain/words-v1.ts`:
 
-- **The lint rule `heed/plain-words`** (`eslint.plain-words.js`) reads the strings, template text and JSX text people read in `src/web`. On the server it reads the notifications and the message of every error the service answers with. The `say` sentence (`src/domain/say.ts`) is checked against the glossary by `tests/server/mcp/say.test.ts`. The text the MCP gives models (instructions, tool descriptions and `next`) keeps its words.
-- **The docs check** (`tests/unit/old-help.test.ts`) reads the help pages the same way: titles, summaries and every line, without code.
+- **The lint rule `heed/plain-words`** (`eslint.plain-words.js`) reads the notifications, the message of every error the service answers with, and the demo's fixtures. The `say` sentence (`src/domain/say.ts`) is checked against the glossary by `tests/server/mcp/say.test.ts`. The text the MCP gives models (instructions, tool descriptions and `next`) keeps its words.
+- **The ratchet** (`npm run lint:words`) also reads the help pages in `docs/old-help` the same way: titles, summaries and every line, without code.
 
 Each reports three things, with what to write instead:
 
@@ -87,7 +87,7 @@ Each reports three things, with what to write instead:
 
 Code is never reported. That covers imports, keys, types, comparisons, class names, test ids, addresses, ids and search keywords. It also covers code samples, words made of code's marks (`item_id`, `/library`, `getItem`) and a single lowercase word such as `'item'`, which is a key.
 
-A word the glossary allows somewhere (`allowedOn`) is allowed there: "edition" on the Editions page, "dimension" in the Catalogue and in Administration, "token" and "model" (the AI model a feature uses) in Administration. The one exception outside a page is the review stamp under a served fact: it says "Edition" next to the edition id, because that id is the only link from the fact to what agents got (FR-326). `surfaces` in `eslint.plain-words.js` lists the files of each place. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words-v1.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
+A word the glossary allows somewhere (`allowedOn`) is allowed there. The screens that made those places left with the earlier web app; `surfaces` in `eslint.plain-words.js` lists the files that still make one. When "not" carries the sentence, add the phrase to `fullNegatives` in `src/domain/words-v1.ts`. For anything else that is right on purpose, such as a technical field the data team types in Administration, give the reason on the line: `// eslint-disable-next-line heed/plain-words -- a field the data team types`.
 
 ### The baseline
 
@@ -96,7 +96,7 @@ The rule warns while the screens are rewritten (voice plan, slices V4 to V7). `p
 - **A file has a word more often than its count, or a new file has any.** The change added old words. The message lists every word in that file with what to write instead. Write the new text in the glossary's words; never raise a count to make it pass. A fixed word never makes room for a new one: counts are kept for each word.
 - **A file has fewer than its count.** The check passes and prints a note. Run `npm run lint:words -- --update` when convenient to lower the baseline; no change has to touch `plain-words.baseline.json` to pass.
 
-To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/web/components/review docs/old-help/editions.md`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
+To read the baseline, run `npm run lint:words -- --list`. It prints every word to change, with its file, line and replacement. Add a path to see one area: `npm run lint:words -- --list src/server/modules/notifications docs/old-help/editions.md`. When every count is 0, the rule becomes an error and the baseline file goes (slice V9).
 
 ## Before you ask for review
 

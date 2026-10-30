@@ -128,7 +128,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
       status: 'draft_saved',
       saved: true,
       submitted: false,
-      url: `http://localhost:5173/library/new?draft=${out.draft_id}`,
+      url: `http://localhost:5173/context/${out.draft_id}/edit`,
       overlaps: { accepted: [{ title: 'A note' }] },
     })
     expect(out.fields).toMatchObject({
@@ -408,7 +408,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
     await wire.close()
     expect(change.structuredContent).toMatchObject({
       status: 'draft_saved',
-      url: `http://localhost:5173/library/${item}/suggest?draft=${(change.structuredContent as { draft_id: string }).draft_id}`,
+      url: `http://localhost:5173/context/${(change.structuredContent as { draft_id: string }).draft_id}/edit`,
     })
   })
 
@@ -480,7 +480,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
       submitted: true,
       message:
         'Sent to the owner of Finance. It waits for their check, and nothing changes until they publish it.',
-      url: `http://localhost:5173/proposals/${out.draft_id}`,
+      url: `http://localhost:5173/inbox?tab=all&card=waiting:${out.draft_id}`,
     })
     expect(out.note).toBeUndefined()
     // It waits in the owner's queue as the person's own suggestion; nothing is accepted.
@@ -522,7 +522,7 @@ describe('an AI agent drafts context for the person it acts for', () => {
       status: 'draft_saved',
       saved: true,
       submitted: false,
-      url: `http://localhost:5173/library/new?draft=${out.draft_id}`,
+      url: `http://localhost:5173/context/${out.draft_id}/edit`,
     })
     expect(out.message).toMatch(/^It was kept as your draft and not sent: /)
     expect(out.blocking.length).toBeGreaterThan(0)

@@ -1,9 +1,0 @@
-<!--
-  The cascade layers in Tailwind's order, before any stylesheet. Storybook loads the app's small
-  stylesheets (scroll-fade, dock-panel and others, which declare `utilities`) before the main one,
-  so without this the first layer named there comes first: `base` (a { color: inherit }) then wins
-  over the utilities, and a link styled as a button loses its label color.
--->
-<style>
-  @layer theme, base, components, utilities;
-</style>

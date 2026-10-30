@@ -6,7 +6,7 @@ Everything written about Heed, in one place. If you are new, start with the prod
 
 The approved Heed v1 mockup is the acceptance specification for the web app. These pages are written from it. Read them in this order.
 
-The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state, with demo data and no backend. It is the acceptance reference for the new web app, which is changed to match it ([how it is checked](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
+The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable version of every screen and state, with demo data and no backend. It is the acceptance reference for the web app, which is changed to match it ([how it is checked](../apps/mockup/ACCEPTANCE.md)). To run it, from the repository root: `npm --prefix apps/mockup ci` once, then `npm run mockup:dev` and open http://localhost:5192.
 
 | Page                                            | What it says                                                                                                                                                     |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,23 +20,21 @@ The mockup itself lives in [apps/mockup](../apps/mockup/README.md): a clickable 
 
 Older design pages that still apply:
 
-| Page                               | What it says                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------- |
-| [Voice guide](design/voice.md)     | The earlier voice guide. [Copy](design/copy.md) replaces it for the new web app |
-| [Demo world](design/demo-world.md) | Larchwood Outdoor, the invented company that all demo text tells                |
-| [Chip input](design/chip-input.md) | How the old front end builds chip-aware inputs                                  |
-| [Logo](design/logo.md)             | The two-blade logo and how to use it                                            |
+| Page                               | What it says                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [Voice guide](design/voice.md)     | The earlier voice guide, for the service's own sentences. [Copy](design/copy.md) is the web app's |
+| [Demo world](design/demo-world.md) | Larchwood Outdoor, the invented company that all demo text tells                                  |
+| [Logo](design/logo.md)             | The two-blade logo and how to use it                                                              |
 
 ## Use Heed
 
-| Page                                                     | What it says                                  |
-| -------------------------------------------------------- | --------------------------------------------- |
-| [What is Heed](help/what-is-heed.md)                     | The idea in a few minutes                     |
-| [A five-minute tour](help/tour.md)                       | A first walk through the app                  |
-| [Add your first context](help/add-your-first-context.md) | Write a first item                            |
-| [Set up an agent](help/connect-an-agent.md)              | Connect an agent over MCP                     |
-| [Common questions](help/common-questions.md)             | Short answers                                 |
-| [All help pages](help/README.md)                         | The help pages, which are also the app's Docs |
+| Page                                               | What it says                                                      |
+| -------------------------------------------------- | ----------------------------------------------------------------- |
+| [Get started](help/get-started.md)                 | From an empty workspace to a first answer, in about ten minutes   |
+| [Write context](help/write-context.md)             | What a context item is and what to put in it                      |
+| [Connect an agent](help/connect-an-agent.md)       | One prompt for Claude, Cursor or another agent                    |
+| [Review a suggestion](help/review-a-suggestion.md) | The quick view, the review, and publishing or returning           |
+| [All help pages](help/README.md)                   | The documentation, which is also the app's Docs and the docs site |
 
 ## Run and build Heed
 
@@ -47,7 +45,6 @@ Older design pages that still apply:
 | [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                           |
 | [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md) |
 | [Evaluations and the golden set](evaluations.md)           | How answers are tested                                      |
-| [The demo](demo.md)                                        | The walkthrough                                             |
 | [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                  |
 | [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                          |
 | [The rename checklist](rename-checklist.md)                | Everything that follows the product name                    |

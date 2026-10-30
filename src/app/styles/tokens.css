@@ -6,7 +6,7 @@
 
   tests/lint/app-tokens.test.ts checks that every token exists in light and dark and recomputes
   every contrast pair from this file: text 4.5:1, controls, field borders, marks and meaningful
-  icons 3:1. The old front end keeps src/web/styles/tokens.css until the switch.
+  icons 3:1.
 */
 
 /* Motion: the curves and the defaults every transition-* class without its own duration uses.

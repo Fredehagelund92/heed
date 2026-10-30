@@ -7,19 +7,17 @@ import { isEmpty } from '../prepare.ts'
 import { bulkSeed, type LibraryExtras } from './bulk.ts'
 import { loadDemo } from './demo.ts'
 import { goldenExtras, goldenLibrary } from './golden-fixtures.ts'
-import { norwayLibrary } from './norway.ts'
 import { PracticeHalfSeededError, seedPractice } from './practice.ts'
 
 /*
   `npm run seed`: data to develop, test and show Heed on, in a local database (db/README.md).
   A new database gets the demo on its own when SEED_DEMO=on (db/prepare.ts); this is the same
-  data, and the variants the tests and the show need.
+  data, and the variants the tests need.
 
     npm run seed                          the demo: 1,500 items with their quality history and gaps
     npm run seed -- --library golden      the golden set's library (golden-fixtures.ts), same history
-    npm run seed -- --library norway   the show's library (norway.ts, docs/demo.md), same history
-    npm run seed -- --items-only          the library alone: Quality, Gaps and Health stay empty,
-                                          as CI's end-to-end tests on the service expect
+    npm run seed -- --items-only          the library alone, with no quality history or gaps,
+                                          as tests on the service may want
     npm run seed -- --items-only --count 50000   a larger generated library, for performance
     npm run seed -- --practice            the practice domain, through the service's API
 
@@ -28,7 +26,7 @@ import { PracticeHalfSeededError, seedPractice } from './practice.ts'
   local database, as the service's role (DATABASE_URL, people from CL_DEV_PEOPLE_FILE).
 */
 
-const usage = `Usage: npm run seed [-- --library demo|golden|norway] [--items-only [--count <n>]]
+const usage = `Usage: npm run seed [-- --library demo|golden] [--items-only [--count <n>]]
        npm run seed -- --practice
 See db/README.md.`
 
@@ -70,7 +68,6 @@ function library(
     throw new UsageError('--count makes a generated library; it goes with the demo library only')
   if (name === 'demo') return { items: generateItems(count) }
   if (name === 'golden') return { items: goldenLibrary(), extras: goldenExtras }
-  if (name === 'norway') return { items: norwayLibrary() }
   throw new UsageError(usage)
 }
 

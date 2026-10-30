@@ -1654,9 +1654,8 @@ export const API_VERSION_HEADER = 'x-heed-api'
 let version: Promise<string> | undefined
 /**
  * The contract the service speaks: a short digest of its OpenAPI document, as
- * `npm run api:generate` writes it to docs/api/openapi.json. The web app is built with the digest
- * of the same file (src/web/api/api-version.json), so it can tell when the service runs other code
- * than it was built from, such as a service started before an update.
+ * `npm run api:generate` writes it to docs/api/openapi.json, so a client can tell when the
+ * service runs other code than it was built from.
  */
 export function apiVersion(): Promise<string> {
   return (version ??= openApiDocument().then((document) =>

@@ -27,13 +27,9 @@ describe('files generated from the contract', () => {
     expect(await readJson('docs/api/openapi.json')).toEqual(
       JSON.parse(JSON.stringify(await openApiDocument())),
     )
-    expect(await readJson('src/web/api/contract.json')).toEqual(
-      JSON.parse(JSON.stringify(minifyContractRouter(contract))),
-    )
     expect(await readJson('src/app/api/contract.json')).toEqual(
       JSON.parse(JSON.stringify(minifyContractRouter(contract))),
     )
-    expect(await readJson('src/web/api/api-version.json')).toEqual({ api: await apiVersion() })
   })
 
   it('name the contract by the digest of the OpenAPI document as written', async () => {

@@ -4,20 +4,20 @@ import { fileURLToPath } from 'node:url'
 import { Linter } from 'eslint'
 import tseslint from 'typescript-eslint'
 import { describe, expect, it } from 'vitest'
-import { bannedWords } from '../../src/domain/words-v1.ts'
 import plainWords, { allowedIn, surfaces } from '../../eslint.plain-words.js'
 
 /**
- * heed/plain-words (eslint.plain-words.js) keeps the old voice out of the words people read
- * (docs/design/voice.md). It is only worth having if it is precise: it reports every banned word,
- * spelled-out negative and unclear contraction in text, and nothing in code.
+ * heed/plain-words (eslint.plain-words.js) keeps the earlier voice out of the server's sentences
+ * and the demo's fixtures (docs/design/voice.md). It is only worth having if it is precise: it
+ * reports every banned word, spelled-out negative and unclear contraction in text, and nothing in
+ * code.
  */
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const linter = new Linter({ cwd: root })
 
 /** What the rule says about `code`, written in `file`, with the options a file there gets. */
-function said(code: string, file = 'src/web/components/library/example.tsx', errorsOnly = false) {
+function said(code: string, file = 'db/seed/fixtures/example.tsx', errorsOnly = false) {
   return linter
     .verify(
       code,
@@ -197,35 +197,13 @@ describe('heed/plain-words leaves code alone', () => {
 })
 
 describe('where a banned word may show', () => {
-  it('allows "edition" on the Editions page and its help page, and nowhere else', () => {
-    expect(
-      said(`export const a = 'Compare two editions'`, 'src/web/components/editions/x.tsx'),
-    ).toEqual([])
+  it('allows "edition" on the Editions page help page, and nowhere else', () => {
     expect(allowedIn('docs/old-help/editions.md')).toContain('edition')
-    expect(allowedIn('src/web/components/library/x.tsx')).toEqual([])
-    // "live edition" stays banned there too.
-    expect(
-      said(`export const b = 'The live edition'`, 'src/web/components/editions/x.tsx'),
-    ).toEqual([write('live edition', 'what agents get today')])
+    expect(allowedIn('docs/old-help/tour.md')).toEqual([])
+    expect(allowedIn('db/seed/fixtures/items.ts')).toEqual([])
   })
 
-  it('allows "dimension" on the Catalogue and in Administration, and "token" and "model" only in Administration', () => {
-    expect(allowedIn('src/web/components/catalogue/x.tsx')).toEqual(['dimension'])
-    expect(allowedIn('src/web/components/settings/sources-section.tsx').sort()).toEqual(
-      ['MCP gateway', 'dimension', 'model', 'token'].sort(),
-    )
-    expect(allowedIn('src/web/lib/sources.ts').sort()).toEqual(
-      ['MCP gateway', 'dimension', 'model', 'token'].sort(),
-    )
-    expect(allowedIn('src/web/components/settings/profile-section.tsx')).toEqual([])
-  })
-
-  it('gives every place the glossary allows a word on its files, and every file glob a match', () => {
-    for (const banned of bannedWords.filter((b) => b.allowedOn))
-      expect(
-        surfaces.filter((surface) => banned.allowedOn!.includes(surface.place)),
-        banned.word,
-      ).not.toEqual([])
+  it('gives every file a place names a match', () => {
     for (const surface of surfaces)
       for (const glob of [...surface.files, ...(surface.except ?? [])])
         expect(globSync(glob, { cwd: root }).length > 0 || existsSync(join(root, glob)), glob).toBe(

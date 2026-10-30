@@ -29,7 +29,9 @@ export function createQueryClient({ onSignedOut }: QueryClientOptions = {}) {
         staleTime: 30_000,
         gcTime: 5 * 60_000,
         retry: retryUnanswered(1),
-        refetchOnWindowFocus: false,
+        // The app has no live updates: a tab someone comes back to reads again what is older
+        // than staleTime, so an Inbox left open does not stay as it was.
+        refetchOnWindowFocus: true,
       },
       mutations: { retry: false },
     },

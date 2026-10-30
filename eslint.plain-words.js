@@ -3,12 +3,12 @@ import { bannedWords, wordsToChange } from './src/domain/words-v1.ts'
 import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
 
 /*
-  The words people read take their names from a glossary. The new web app in src/app follows
-  glossary v2 (src/domain/words.ts, docs/design/copy.md); the old front end and the server follow
-  the earlier one (src/domain/words-v1.ts, docs/design/voice.md) until the switch. This reports a
-  string, template text or JSX text that a person reads and that holds a banned word and says
-  what to write instead. For the old voice it also reports a negative people say short ("do not"
-  for "don't") or an unclear contraction ("you'd").
+  The words people read take their names from a glossary. The web app in src/app follows glossary
+  v2 (src/domain/words.ts, docs/design/copy.md); the server's sentences and the demo's fixtures
+  follow the earlier one (src/domain/words-v1.ts, docs/design/voice.md). This reports a string,
+  template text or JSX text that a person reads and that holds a banned word and says what to
+  write instead. For the earlier voice it also reports a negative people say short ("do not" for
+  "don't") or an unclear contraction ("you'd").
 
   Only text a person reads is checked. Code is not: an import, a key, a type, a comparison, a
   class name, a test id, an address, an id or a word made of code's marks (`item_id`, `/library`,
@@ -19,80 +19,30 @@ import { wordsToChange as appWordsToChange } from './src/domain/words.ts'
   tools give against the glossary instead, and the tool titles people read too.
 
   A banned word may show where the glossary allows it (`allowedOn`): `surfaces` and `appSurfaces`
-  say which files make each place. In the old front end the rule warns while the screens are
-  rewritten (voice plan V4 to V7), and scripts/check-plain-words.ts fails a change that adds to
-  the count in plain-words.baseline.json. In the new app it is an error: its count starts at zero
-  and stays there.
+  say which files make each place. For the earlier glossary the rule warns, and
+  scripts/check-plain-words.ts fails a change that adds to the count in plain-words.baseline.json.
+  In the web app it is an error: its count starts at zero and stays there.
 */
 
-/** The files whose strings people read, and the demo's fixtures, which the demo shows them. */
+/** The server's sentences people read, and the demo's fixtures, which the demo shows them. */
 export const plainWordsFiles = [
-  'src/web/**/*.{ts,tsx}',
   'src/server/modules/notifications/**/*.ts',
   'db/seed/fixtures/**/*.ts',
 ]
 /** Of the rest of the server, only the messages of the errors it answers with. */
 export const errorMessageFiles = ['src/server/**/*.ts']
-/** Code that is not the product: generated tables, stories and the design preview. */
-export const notProductFiles = [
-  'src/web/routeTree.gen.ts',
-  'src/web/**/*.gen.ts',
-  'src/web/**/*.stories.tsx',
-  'src/web/stories/**',
-  'src/web/design-preview/**',
-  'src/web/routes/design-preview/**',
-]
 
 /**
- * The places a banned word may show (`allowedOn` in src/domain/words-v1.ts), each with the files
- * that make it: its screens and its help page.
+ * The places a banned word of the earlier glossary may show (`allowedOn` in
+ * src/domain/words-v1.ts), each with the files that make it. Their screens left with the earlier
+ * front end; the help page that names one stays until the in-app assistant that reads it leaves.
  */
-export const surfaces = [
-  {
-    place: 'the Editions page',
-    files: [
-      'src/web/components/editions/**',
-      'src/web/routes/editions/**',
-      // The Editions page's sentences. The stop banner every page shows, stopHeadline, never
-      // names an edition.
-      'src/web/lib/editions.ts',
-      'src/web/lib/edition-diff.ts',
-      'src/web/lib/edition-compare.ts',
-      'docs/old-help/editions.md',
-    ],
-  },
-  {
-    // Only the stamp's line and sentence, where "edition" stands next to the edition id.
-    place: 'the review stamp',
-    files: ['src/web/components/item/review-stamp.tsx', 'src/web/lib/review-stamp.ts'],
-  },
-  {
-    place: 'the Catalogue',
-    files: ['src/web/components/catalogue/**', 'src/web/routes/catalogue/**'],
-  },
-  {
-    place: 'Administration',
-    files: [
-      'src/web/routes/admin.tsx',
-      'src/web/components/gateway/**',
-      'src/web/components/settings/**',
-      // The words of Limits, the History log, Operations and Sources.
-      'src/web/lib/settings.ts',
-      'src/web/lib/sources.ts',
-    ],
-    // A person's own Settings share the folder.
-    except: [
-      'src/web/components/settings/settings-page.tsx',
-      'src/web/components/settings/profile-section.tsx',
-      'src/web/components/settings/connect-section.tsx',
-    ],
-  },
-]
+export const surfaces = [{ place: 'the Editions page', files: ['docs/old-help/editions.md'] }]
 
-/** The files whose strings people read in the new web app. */
+/** The files whose strings people read in the web app. */
 export const appWordsFiles = ['src/app/**/*.{ts,tsx}']
 /**
- * Code in the new app that is not its own copy: the shadcn and editor parts as they ship, the
+ * Code in the app that is not its own copy: the shadcn and editor parts as they ship, the
  * generated route tree and tests, as the mockup's copy check leaves them out.
  */
 export const appNotProductFiles = [
@@ -104,7 +54,7 @@ export const appNotProductFiles = [
 ]
 
 /**
- * The places of the new app a word of glossary v2 is allowed on, or banned on only (`allowedOn`
+ * The places of the app a word of glossary v2 is allowed on, or banned on only (`allowedOn`
  * and `onlyOn` in src/domain/words.ts), each with the files that make it. The paths are the
  * mockup's, under src/app; the pull request that brings a file in keeps its path here in step.
  */
@@ -129,7 +79,7 @@ export const appSurfaces = [
   },
 ]
 
-/** The places of the new app that a file makes. */
+/** The places of the app that a file makes. */
 export function appPlacesOf(path) {
   return appSurfaces
     .filter(({ files }) => files.some((glob) => matchesGlob(path, glob)))
@@ -376,13 +326,12 @@ const plugin = { rules: { 'plain-words': plainWords } }
 export default plugin
 
 /**
- * The rule where it applies: in the old front end and the server in warn mode until the count is
- * 0 (voice plan V9), in the new app as an error from the start.
+ * The rule where it applies: on the server's sentences and the demo's fixtures in warn mode until
+ * the count is 0 (voice plan V9), in the web app as an error from the start.
  */
 export const plainWordsConfigs = [
   {
     files: plainWordsFiles,
-    ignores: notProductFiles,
     plugins: { heed: plugin },
     rules: { 'heed/plain-words': 'warn' },
   },

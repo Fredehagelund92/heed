@@ -1,13 +1,10 @@
 import {
   fieldMarks,
   isMarked,
-  formFields,
   proposalAttributes,
-  proposalOnlyFields,
   toolControls,
   toolInputs,
   type AgentTreatment,
-  type FormField,
   type ProposalAttribute,
 } from '../../src/domain/proposal-attributes.ts'
 
@@ -54,31 +51,6 @@ export function requiredMismatch(
       ([name, spec]) =>
         `"${name}" is ${spec.required ? 'required' : 'optional'} in src/domain/proposal-attributes.ts but ${spec.required ? 'optional' : 'required'} in the item version schema. Change one so they agree, and check what the form and draft_context do when it is missing.`,
     )
-}
-
-/** The form's fields are exactly the ones the registry names, and each names known attributes. */
-export function formMismatch(
-  fields: readonly string[],
-  registry: Registry = proposalAttributes,
-): string[] {
-  const named = new Set([
-    ...Object.values(registry).flatMap((spec) => ('none' in spec.form ? [] : spec.form)),
-    ...(Object.keys(proposalOnlyFields) as FormField[]),
-  ])
-  return [
-    ...fields
-      .filter((field) => !named.has(field as never) || !formFields.includes(field as never))
-      .map(
-        (field) =>
-          `The form field "${field}" edits no classified attribute. Name it in the form list of the attributes it edits in src/domain/proposal-attributes.ts (and in formFields), and decide how draft_context treats them.`,
-      ),
-    ...[...named]
-      .filter((field) => !fields.includes(field))
-      .map(
-        (field) =>
-          `src/domain/proposal-attributes.ts names the form field "${field}", which contextFormSchema no longer has. Remove it there.`,
-      ),
-  ]
 }
 
 /** The tool's inputs are exactly the registry's, each suggesting attributes it may suggest. */

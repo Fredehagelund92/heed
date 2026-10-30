@@ -168,8 +168,9 @@ A read that fails before anything is read says why with one of these, on a faile
 | `fetch_failed`    | the repository   | The repository could not be read        |
 
 The codes are `sourceWarningCodes` in `src/contract/operations.ts`; the connectors' schema uses
-the same list, and `tests/unit/sources.test.ts` fails when a code has no words on screen
-(`src/web/lib/sources.ts`). A failed read stores a failed snapshot and changes nothing else.
+the same list, and the web app words why a read failed by its code
+(`src/app/api/http-integrations.ts`). A failed read stores a failed snapshot and changes nothing
+else.
 
 ### What the core does with a read
 
@@ -786,7 +787,7 @@ next turn (`POST /sources/{id}/read`), and a change to a source's settings makes
 ## Validation
 
 `npm test` includes the synthetic compiler cases, the manifest and settings checks
-(`tests/unit/connector-manifest.test.ts`) and the registry and runtime reads
+(`tests/server/connectors/connector-manifest.test.ts`) and the registry and runtime reads
 (`tests/server/connectors/platform.test.ts`). `npm run test:integration` exercises PostgreSQL
 snapshots, failures, partial reads, removals, reappearance, concurrency and the API role's grants.
 `tests/integration/source-flags.test.ts` drives recorded model changes end to end: a changed and a

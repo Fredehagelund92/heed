@@ -7,8 +7,8 @@ import { concepts } from './words-v1.ts'
   What the MCP server tells an agent in words, in one place: the six tools as people read them,
   the old tool ids and the tools that replaced them, and the rules an agent follows. The service
   (src/server/mcp/tools.ts) serves them as the server instructions and the tool descriptions, and
-  the Connect page, its setup prompt and the skill file it offers (src/web/lib/connect.ts) show the
-  same sentences, so they never disagree. This is the one source of the agent rules text.
+  the web app's Agents and access, its setup prompt and its agent steps (src/app/lib/agents.ts)
+  show the same sentences, so they never disagree. This is the one source of the agent rules text.
 
   People read some of it: an AI agent shows a tool's title when it calls it, the Connect page shows
   the title and its line, and the instructions set the words an AI agent uses with people. So the

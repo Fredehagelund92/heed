@@ -15,7 +15,6 @@
     "db/prepare.ts",
     "db/seed",
     "tests/server",
-    "tests/integration",
-    "tests/conformance"
+    "tests/integration"
   ]
 }

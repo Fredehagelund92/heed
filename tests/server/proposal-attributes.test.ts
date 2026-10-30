@@ -38,8 +38,7 @@ import { version } from './domain/fixtures.ts'
   change form and the agent tool draft_context write the same proposal, so they must not drift
   apart silently. Every attribute of the proposal schema is classified once, in
   src/domain/proposal-attributes.ts, and this suite fails until a new or changed attribute, tool
-  input, limit or question is decided there. Each failure says what to do. The form's half is
-  tests/unit/proposal-attributes.test.ts.
+  input, limit or question is decided there. Each failure says what to do.
 */
 
 const shape = itemVersionSchema.shape as Record<string, { _zod: { optin?: string } }>
