@@ -35,14 +35,9 @@ export const MOCK_TEST_MS = 1_500
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
-/**
- * The manifest a tool's connect form is drawn from: its connector's. The warehouse has none on
- * the mock, so its form is the repository one the mockup draws for it.
- */
+/** The manifest a tool's connect form is drawn from: its connector's. */
 const manifestOf = (id: ConnectorId): ConnectorManifest | undefined =>
-  builtInManifests.find(
-    (m) => m.id === connectorOfCatalog(id === 'warehouse' ? 'markdown-git' : id),
-  )
+  builtInManifests.find((m) => m.id === connectorOfCatalog(id))
 
 /** What the demo world's tools are connected with: addresses only, never a secret. */
 const demoConfig: Partial<Record<ConnectorId, Record<string, string>>> = {
@@ -52,11 +47,6 @@ const demoConfig: Partial<Record<ConnectorId, Record<string, string>>> = {
     folder: 'cube/',
   },
   'markdown-git': {
-    repository: 'https://git.example/larchwood/handbook',
-    ref: 'main',
-    folder: 'docs/',
-  },
-  warehouse: {
     repository: 'https://git.example/larchwood/handbook',
     ref: 'main',
     folder: 'docs/',

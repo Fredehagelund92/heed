@@ -38,7 +38,6 @@ import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
-import { warehouseHas } from './data/integrations'
 import {
   checkConnect,
   connectFormFor,
@@ -47,7 +46,7 @@ import {
   testFor,
   type Kept,
 } from './integrations'
-import { figureFor } from './data/figures'
+import { figureFor, figureTryFor } from './data/figures'
 import { reportedOn, type AskInput } from '@/model/ask'
 import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
@@ -667,7 +666,6 @@ export function createMockApi() {
     getIntegrations: () =>
       now(() => ({
         figureConnections: settings.connections(),
-        warehouseHas,
       })),
     integrationsPage: () =>
       read('integrationsPage', '', () => integrations.page(scenario.address())),
@@ -680,6 +678,7 @@ export function createMockApi() {
         const on = settings.read(scenario.address()).figures
         return figureFor(asked, (id) => on[id] ?? false)
       }),
+    tryFigure: ({ source }) => now(() => figureTryFor(source, settings.connections()[source])),
     listAgentConnections: () => now(() => settings.agents()),
     revokeAgentConnection: ({ agent, who, key }) => now(() => settings.revoke(agent, who, key)),
     checkConnect: ({ since, agent }) =>

@@ -194,8 +194,10 @@ import {
   figureReadSchema,
   figureSourceSchema,
   figureSourcesSchema,
+  figureTrySchema,
   readFigureInputSchema,
   setFiguresInputSchema,
+  tryFigureInputSchema,
 } from './figures.ts'
 import { connectInfoSchema, tryItReadInputSchema, tryItReadingSchema } from './connect.ts'
 import {
@@ -1706,6 +1708,19 @@ export const contract = {
       })
       .input(readFigureInputSchema)
       .output(figureReadSchema),
+    try: admin
+      .errors({
+        NOT_FOUND: { message: "We couldn't find this integration, or it doesn't read figures." },
+      })
+      .route({
+        method: 'POST',
+        path: '/figures/{id}/try',
+        tags: ['sources'],
+        summary:
+          "Try a figure: one measure of the integration's first view with a single date, for the last 7 days, read with the figures settings as they are saved and the same 4 second limit as Ask, whether Show figures in Ask is on or off. The value and when the data is from, or a failure code; kept nowhere, and no person's identity is passed on",
+      })
+      .input(tryFigureInputSchema)
+      .output(figureTrySchema),
   },
   reports: {
     create: read

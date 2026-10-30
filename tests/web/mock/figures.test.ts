@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { figureFor } from '@/api/mock/data/figures'
+import { figureFor, figureTryFor } from '@/api/mock/data/figures'
+import { figureConnections } from '@/api/mock/data/integrations'
 import type { ConnectorId } from '@/model/integrations'
 
 // A figure is read from the integration its metric's definition comes from, only when that
@@ -34,11 +35,6 @@ describe('figures in an answer', () => {
     expect(v.asOf).toBe('today at 06:00')
   })
 
-  it('lets the definition decide the source, never the integration that happens to be on', () => {
-    // Orders is in the warehouse too, but its definition comes from Cube: with only the warehouse on, Ask links into Cube.
-    expect(figureFor(norway, only('warehouse'))?.kind).toBe('link')
-  })
-
   it('reads no figure for a metric nobody defines, and says why', () => {
     const nps = {
       metric: 'Net promoter score',
@@ -47,9 +43,12 @@ describe('figures in an answer', () => {
       state: 'missing',
     }
     expect(figureFor(nps, only())).toBeNull()
-    const v = figureFor(nps, only('cube', 'warehouse'))
+    const v = figureFor(nps, only('cube'))
     expect(v?.kind).toBe('none')
-    if (v?.kind === 'none') expect(v.why).toMatch(/no definition says what it means/)
+    if (v?.kind === 'none')
+      expect(v.why).toBe(
+        'No connected integration defines net promoter score, so no figure is read for it.',
+      )
   })
 
   it("shows a figure that doesn't fit its context item beside it, without a verdict", () => {
@@ -88,5 +87,21 @@ describe('figures in an answer', () => {
         `${v.figure.label} ${v.figure.value} ${v.figure.change} ${v.figure.words} ${v.figure.against?.figureSays ?? ''}`.toLowerCase(),
       ).not.toContain('checked')
     }
+  })
+
+  it('tries a figure with the connection as saved, and has nothing to try without a token', () => {
+    expect(figureTryFor('cube', figureConnections.cube)).toEqual({
+      kind: 'figure',
+      source: 'cube',
+      label: 'Conversion rate, 17 to 23 Oct 2026',
+      value: null,
+      asOf: 'today at 06:00',
+      took: 412,
+    })
+    expect(figureTryFor('cube', { ...figureConnections.cube!, secretSet: false })).toEqual({
+      kind: 'failed',
+      source: 'cube',
+      failure: 'not_set_up',
+    })
   })
 })

@@ -131,6 +131,7 @@ export const policies = {
   'figures.list': 'read',
   'figures.set': 'admin',
   'figures.read': 'read',
+  'figures.try': 'admin',
   'reports.create': 'read',
   'reports.mine': 'read',
   'ask.lookup': 'read',

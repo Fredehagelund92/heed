@@ -81,8 +81,9 @@ import {
   type When,
 } from '@/model/integrations'
 import type { DomainId } from '@/model/items'
+import type { FigureTry } from '@/model/figures'
 import { useConnectActions } from '@/lib/integrations'
-import { useFigureActions, useFigures } from '@/lib/figures'
+import { tryFailureWords, useFigureActions, useFigures } from '@/lib/figures'
 import { navigate, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import { api, toApiError } from '@/api'
@@ -310,7 +311,8 @@ function FigureConnectionDialog({
               .then(() => {
                 onOpenChange(false)
                 toast(`Figures from ${c.name} are set up`, {
-                  description: 'The token is kept in the secret store and never shown again.',
+                  description:
+                    'The token is kept in the secret store and never shown again. Try a figure to see that they work.',
                 })
               })
               .catch((error: unknown) =>
@@ -323,11 +325,12 @@ function FigureConnectionDialog({
         >
           <DialogHeader>
             <DialogTitle>
-              {endpoint ? 'Replace the secret' : `Set up figures from ${c.name}`}
+              {endpoint ? 'Replace the token' : `Set up figures from ${c.name}`}
             </DialogTitle>
             <DialogDescription>
-              A read-only token for {c.name}&apos;s data API. It is sent only to the endpoint&apos;s
-              address, and a new address needs its token again.
+              Figures have a connection of their own: {c.name}&apos;s data API, with a read-only
+              token for it. The token is sent only to the endpoint&apos;s address, and a new address
+              needs its token again. No MCP server and no warehouse login are needed.
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -369,17 +372,124 @@ function FigureConnectionDialog({
   )
 }
 
+/** Try a figure as the dialog shows it: reading, what was read, or why nothing was. */
+type Trying = { running: boolean; result?: FigureTry; error?: string }
+
+/** Try a figure from a tool: reads now, and says how the read went. */
+function useTryFigure(c: Connector) {
+  const [trying, setTrying] = React.useState<Trying>({ running: false })
+  const run = async () => {
+    setTrying({ running: true })
+    try {
+      setTrying({ running: false, result: await api.tryFigure({ source: c.id }) })
+    } catch (e: unknown) {
+      setTrying({ running: false, error: toApiError(e).message })
+    }
+  }
+  return { trying, run }
+}
+
 /**
- * Figures in Ask, on each integration that can answer one: off by default (Ask then links into the
- * tool), its endpoint, the secret (masked, never any of it shown), the one host it may call, who
- * to ask about a figure, and the rule for which integration answers a metric.
+ * Try a figure: one figure read now from the integration's data API, with the endpoint and token
+ * as saved, so an admin sees they work before switching figures on. It reads one measure of the
+ * tool's first view with a single date, for the last 7 days, and keeps nothing.
+ */
+function TryFigureDialog({
+  c,
+  open,
+  onOpenChange,
+  trying,
+  onRetry,
+}: {
+  c: Connector
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  trying: Trying
+  onRetry: () => void
+}) {
+  const result = trying.result
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Try a figure from {c.name}</DialogTitle>
+          <DialogDescription>
+            Reads one measure for the last 7 days, with the data endpoint and token as saved.
+            Nothing is kept, and Show figures in Ask stays as it is.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-frame border p-4 text-sm" aria-live="polite">
+          {trying.running ? (
+            <p className="flex items-center gap-2 text-muted-foreground">
+              <LoaderCircleIcon aria-hidden className="size-4 animate-spin" />
+              Reading one figure from {c.name}…
+            </p>
+          ) : trying.error ? (
+            <p className="flex items-start gap-2">
+              {stepLook.failed}
+              <span>{trying.error}</span>
+            </p>
+          ) : result?.kind === 'figure' ? (
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 flex">{stepLook.ok}</span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="font-medium">
+                  {result.label}:{' '}
+                  {result.value ?? (
+                    <span className="font-normal text-muted-foreground">
+                      nothing for those days
+                    </span>
+                  )}
+                </p>
+                <p className="text-muted-foreground">
+                  From {c.name}, data as of {result.asOf}. Answered in{' '}
+                  {(result.took / 1000).toFixed(1)} seconds.
+                </p>
+                <p className="text-muted-foreground">The data endpoint and its token work.</p>
+              </div>
+            </div>
+          ) : result?.kind === 'failed' ? (
+            <div className="flex items-start gap-2">
+              <span className="mt-0.5 flex">{stepLook.failed}</span>
+              <div className="flex min-w-0 flex-col gap-1">
+                <p className="font-medium">{tryFailureWords(result.failure, c.name).title}.</p>
+                <p className="text-muted-foreground">
+                  {tryFailureWords(result.failure, c.name).fix}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Code: <code className="font-mono">{result.failure}</code>
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button disabled={trying.running} onClick={onRetry}>
+            Try again
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/**
+ * The figures connection, an integration's second one when its tool can read figures: its own data
+ * endpoint, its own token (masked, never any of it shown), the one host it may call, who to ask
+ * about a figure, Try a figure, and the switch for Show figures in Ask, off by default (Ask then
+ * links into the tool). The definition decides which integration answers a metric.
  */
 function FiguresSection({ c }: { c: Connector }) {
   const f = useFigures()
   const { setFigures, setDataContact } = useFigureActions()
   const people = usePeople()
-  const { figureConnections, warehouseHas } = useIntegrations()
+  const { figureConnections } = useIntegrations()
   const [connecting, setConnecting] = React.useState(false)
+  const [tryOpen, setTryOpen] = React.useState(false)
+  const { trying, run } = useTryFigure(c)
   const fromTool = useDefinitions().filter(
     (d) => d.type === 'metric' && d.synced && d.tool === c.name,
   ).length
@@ -393,10 +503,11 @@ function FiguresSection({ c }: { c: Connector }) {
   const on = f.enabled(c.id)
   const switchId = `figures-${c.id}`
   const notSet = <span className="text-muted-foreground">Not set</span>
+  const ready = conn.endpoint !== null && conn.secretSet
   return (
     <PanelSection
-      title="Figures in Ask"
-      description={`Off, an answer links into ${c.name} instead. On, an answer can show one figure from ${c.name}: read when asked, never stored, and never called checked.`}
+      title="Figures connection"
+      description={`The second of ${c.name}'s two connections, with its own endpoint and token: ${c.name}'s data API. Off, an answer links into ${c.name} instead. On, an answer can show one figure from it: read when asked, never stored, and never called checked.`}
       action={
         <span className="flex items-center gap-2">
           <label htmlFor={switchId} className="text-sm">
@@ -439,19 +550,19 @@ function FiguresSection({ c }: { c: Connector }) {
               ),
             ],
             [
-              'Secret',
-              <span key="s" className="flex flex-wrap items-center gap-3">
-                {conn.secretSet ? (
-                  <code className="font-mono text-dense" aria-label="Secret, set">
+              'Token',
+              conn.secretSet ? (
+                <span key="s">
+                  <code className="font-mono text-dense" aria-label="Token, set">
                     {'••••••••••••'}
                   </code>
-                ) : (
-                  notSet
-                )}
-                <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
-                  {conn.secretSet ? 'Replace' : 'Set up figures'}
-                </Button>
-              </span>,
+                  <span className="block text-xs text-muted-foreground">
+                    Its own, not the definitions token. Only used for reading.
+                  </span>
+                </span>
+              ) : (
+                notSet
+              ),
             ],
             [
               'Declared host',
@@ -526,17 +637,46 @@ function FiguresSection({ c }: { c: Connector }) {
         <p>
           <span className="font-medium">Which integration answers:</span>{' '}
           <span className="text-muted-foreground">
-            {c.id === 'cube'
-              ? `the one a metric's definition comes from, never a guess. All ${fromTool} metrics' definitions come from ${c.name}, so ${c.name} answers them.`
-              : `the one a metric's definition comes from, never a guess. ${c.name} has tables for ${warehouseHas.join(', ')}, but no definition comes from it, so it answers none of them. Orders is in Cube too: its definition comes from Cube, so Cube answers Orders, and Ask says so.`}
+            the one a metric&apos;s definition comes from, never a guess. All {fromTool}{' '}
+            metrics&apos; definitions come from {c.name}, so {c.name} answers them.
           </span>
         </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-3 md:px-5">
+        <Button variant="outline" size="sm" onClick={() => setConnecting(true)}>
+          {conn.secretSet ? 'Replace token' : 'Set up figures'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-disabled={!ready || undefined}
+          aria-describedby={`${switchId}-try`}
+          onClick={() => {
+            if (!ready) return
+            setTryOpen(true)
+            void run()
+          }}
+        >
+          Try a figure
+        </Button>
+        <span id={`${switchId}-try`} className="text-xs text-muted-foreground">
+          {ready
+            ? 'Reads one measure for the last 7 days. Nothing is kept.'
+            : 'Set up figures first: the data endpoint and its token.'}
+        </span>
       </div>
       <FigureConnectionDialog
         c={c}
         open={connecting}
         onOpenChange={setConnecting}
         endpoint={conn.endpoint}
+      />
+      <TryFigureDialog
+        c={c}
+        open={tryOpen}
+        onOpenChange={setTryOpen}
+        trying={trying}
+        onRetry={() => void run()}
       />
     </PanelSection>
   )
@@ -558,8 +698,8 @@ function RequestConnector({
         <DialogHeader>
           <DialogTitle>Request a connector</DialogTitle>
           <DialogDescription>
-            Tell us which tool holds your definitions or your context. Only definitions and context
-            are read, never numbers, so a warehouse isn't one.
+            Tell us which tool holds your definitions or your context. A warehouse on its own isn't
+            one: a figure is read only from the tool a metric&apos;s definition comes from.
           </DialogDescription>
         </DialogHeader>
         <Field>
@@ -602,8 +742,6 @@ const inSentence = (day: string) => (/^[A-Z][a-z]+$/.test(day) ? day.toLowerCase
 /** What a connected tool holds, in one line on its row. */
 function RowDetail({ source }: { source: Source }) {
   const { definitions: d, documents: docs } = source
-  if (source.connector === 'warehouse')
-    return <>Figures for Ask, read only when an answer asks. Answers no metric yet</>
   if (d)
     return (
       <>
@@ -662,9 +800,7 @@ function ConnectedRow({ source, state }: { source: Source; state: string | null 
           <span className="flex items-center gap-1.5">
             <span aria-hidden className={cn('size-2 rounded-full', dotCls.ok)} />
             <span>
-              {c.id === 'warehouse' ? (
-                'Ready, read when asked'
-              ) : source.last ? (
+              {source.last ? (
                 <>
                   Read {inSentence(source.last.at.day)}, {source.last.at.time}
                   {source.next && (
@@ -763,8 +899,9 @@ export function IntegrationsPage() {
           </Loadable>
         </Panel>
         <p className="text-xs text-muted-foreground">
-          There is no data source here on purpose: your workspace holds no numbers, so it never
-          reads a warehouse.
+          Your workspace keeps no numbers. Where a definitions tool can also read figures and an
+          admin switches them on, Ask reads one figure when someone asks, from the tool the
+          metric&apos;s definition comes from, and keeps it nowhere.
         </p>
       </FramePage>
       <RequestConnector open={asking} onOpenChange={setAsking} />
@@ -1016,9 +1153,7 @@ function DisconnectDialog({
           <DialogDescription>
             {c.kind === 'definitions'
               ? 'Reading stops. The definitions already read stay, marked as no longer read, and no context is flagged by it again.'
-              : c.kind === 'data'
-                ? 'Answers stop showing its figures and link nowhere instead. Nothing it returned was kept, so nothing else changes.'
-                : 'Reading stops and its open suggestions are withdrawn. Context that owners already published stays as it is.'}
+              : 'Reading stops and its open suggestions are withdrawn. Context that owners already published stays as it is.'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -1162,12 +1297,11 @@ export function ConnectorPage({ id }: { id: string }) {
 function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
   const domains = useDomains()
   const [leaving, setLeaving] = React.useState(false)
-  const { warehouseHas, figureConnections } = useIntegrations()
+  const { figureConnections } = useIntegrations()
   const { source, views, folders, documents, activity, connection } = page
   const h = source.health
   const isCube = c.kind === 'definitions'
   const isDrive = c.id === 'google-drive'
-  const isWarehouse = c.id === 'warehouse'
   const isContent = c.kind === 'context'
   const d = source.definitions
   const docs = source.documents
@@ -1225,16 +1359,14 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               {isCube
-                ? "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. Figures in Ask, when switched on, read one figure from Cube's data API at the time of the answer."
-                : isWarehouse
-                  ? "Reads one figure from the warehouse's query API when an answer asks for it, if figures are switched on. It never writes and never keeps a row."
-                  : isDrive
-                    ? 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.'
-                    : "Reads the Markdown files in a repository. Each new or changed file becomes one suggestion for the owners of its folder's domain."}
+                ? "Reads your Cube definition files from Git. Read-only, and it keeps no calculation. It has two connections: definitions from Git, and figures, when switched on, from Cube's data API at the time of the answer."
+                : isDrive
+                  ? 'Reads the Google Docs in folders shared with its service account. Each new or changed document becomes one suggestion for the owners of its domain.'
+                  : "Reads the Markdown files in a repository. Each new or changed file becomes one suggestion for the owners of its folder's domain."}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {!isWarehouse && <ReadAgain source={source} c={c} />}
+            <ReadAgain source={source} c={c} />
             <ConnectorMenu source={source} c={c} onDisconnect={() => setLeaving(true)} />
           </div>
         </header>
@@ -1387,44 +1519,33 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
                         : 'none flagged',
                     },
                   ]
-              : isWarehouse
-                ? [
-                    { label: 'Reads', value: 'When asked', sub: 'one figure an answer' },
-                    { label: 'Metrics it answers', value: '0', sub: 'no definition comes from it' },
-                    {
-                      label: 'Tables it has',
-                      value: String(warehouseHas.length),
-                      sub: 'seen, not read',
-                    },
-                    { label: 'Data as of', value: '05:30', sub: 'today' },
-                  ]
-                : [
-                    h === 'reauth'
-                      ? {
-                          label: 'Last read',
-                          value: source.last?.at.day ?? 'Not yet',
-                          sub: 'paused: needs a new key',
-                          tone: 'warn',
-                        }
-                      : {
-                          label: 'Last read',
-                          value: source.last
-                            ? `${source.last.at.day}, ${source.last.at.time}`
-                            : 'Not yet',
-                          sub: readSub(source),
-                        },
-                    nextNumber(source),
-                    {
-                      label: 'Suggestions waiting',
-                      value: String(docs?.waiting ?? 0),
-                      sub: docs?.waiting ? `for ${plural(docs.domains, 'domain')}` : 'none yet',
-                    },
-                    {
-                      label: 'Drafts today',
-                      value: `${docs?.madeToday ?? 0} of ${docs?.perDay ?? 0}`,
-                      sub: 'the daily cap',
-                    },
-                  ]
+              : [
+                  h === 'reauth'
+                    ? {
+                        label: 'Last read',
+                        value: source.last?.at.day ?? 'Not yet',
+                        sub: 'paused: needs a new key',
+                        tone: 'warn',
+                      }
+                    : {
+                        label: 'Last read',
+                        value: source.last
+                          ? `${source.last.at.day}, ${source.last.at.time}`
+                          : 'Not yet',
+                        sub: readSub(source),
+                      },
+                  nextNumber(source),
+                  {
+                    label: 'Suggestions waiting',
+                    value: String(docs?.waiting ?? 0),
+                    sub: docs?.waiting ? `for ${plural(docs.domains, 'domain')}` : 'none yet',
+                  },
+                  {
+                    label: 'Drafts today',
+                    value: `${docs?.madeToday ?? 0} of ${docs?.perDay ?? 0}`,
+                    sub: 'the daily cap',
+                  },
+                ]
           }
         />
 
@@ -1485,7 +1606,14 @@ function ConnectorSections({ page, c }: { page: SourcePage; c: Connector }) {
             <PanelSection title="Activity" description="Every read, newest first.">
               <ActivityList items={activity} />
             </PanelSection>
-            <PanelSection title="Connection">
+            <PanelSection
+              title={c.figures ? 'Definitions connection' : 'Connection'}
+              description={
+                c.figures
+                  ? `The first of ${c.name}'s two connections: its definition files, read from Git ${source.every}, never ${c.name}'s data. Figures have their own connection below.`
+                  : undefined
+              }
+            >
               <Connection
                 rows={shownRows}
                 actions={

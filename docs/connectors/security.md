@@ -96,7 +96,10 @@ once and the connection pinned to an answer that is public, so the name cannot b
 and rebound (built, `pinned-fetch.ts`). It never follows a redirect, has 4 seconds and caps what it
 reads. The endpoint's token is kept in the secret store as the source's secrets are, sent only to
 that origin, and forgotten when the scheme, host or port changes. No person's identity goes with
-the request, and nothing it returns is kept.
+the request, and nothing it returns is kept. Try a figure (`POST /api/v1/figures/{id}/try`,
+administrators only) goes through the same fetch with the saved endpoint and token, never ones
+typed in for the try, skips the figures cache and keeps nothing; its answer is the value or a
+failure code, never what the tool said.
 
 ## Secrets
 

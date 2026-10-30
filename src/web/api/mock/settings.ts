@@ -20,18 +20,18 @@ import type { Address } from './scenario'
 // ?figures=on|off|<integration> set the switches from the address, and ?connect= shows the live
 // line in any state.
 
-export const FIGURE_SOURCES: ConnectorId[] = ['cube', 'warehouse']
+export const FIGURE_SOURCES: ConnectorId[] = ['cube']
 
 export function createSettings() {
   let links = true
   /** The tools an admin switched off; every other is on. */
   let off: string[] = []
   let pause: Settings['pause'] = { all: false, domain: null }
-  let figures: Partial<Record<ConnectorId, boolean>> = { cube: false, warehouse: false }
+  let figures: Partial<Record<ConnectorId, boolean>> = { cube: false }
   let contacts: Partial<Record<ConnectorId, string>> = Object.fromEntries(
     Object.entries(figureConnections).map(([k, v]) => [k, v.contact]),
   )
-  let connected: ConnectorId[] = ['cube', 'google-drive', 'warehouse']
+  let connected: ConnectorId[] = ['cube', 'google-drive']
   let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
   let keys = 0

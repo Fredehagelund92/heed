@@ -136,17 +136,7 @@ export const figureConnections: Record<string, FigureConnection> = {
     contact: 'Ravi Kapoor',
     asOf: 'today at 06:00',
   },
-  warehouse: {
-    endpoint: 'https://warehouse.larchwood.example/api/v2/query',
-    host: 'warehouse.larchwood.example',
-    secretSet: true,
-    contact: 'Ravi Kapoor',
-    asOf: 'today at 05:30',
-  },
 }
-
-/** What the warehouse has tables for. It answers none of them: no metric's definition comes from it. */
-export const warehouseHas = ['Orders', 'Net promoter score', 'Support contacts']
 
 /** The folders of the handbook in Git, once it is connected: its first read is still to come. */
 export const handbookFolders: DriveFolder[] = [
@@ -186,20 +176,6 @@ export const sources: Record<ConnectorId, Source | undefined> = {
     inbox: '/inbox?demo=week&card=drive-marketplace',
     added: { by: 'Ravi Kapoor', when: '1 Oct' },
   },
-  warehouse: {
-    id: 'warehouse',
-    connector: 'warehouse',
-    health: 'healthy',
-    every: 'when asked',
-    staleAfter: '1 day',
-    last: null,
-    next: null,
-    ...quiet,
-    definitions: null,
-    documents: null,
-    inbox: null,
-    added: { by: 'Ravi Kapoor', when: '1 Oct' },
-  },
   'markdown-git': {
     id: 'markdown-git',
     connector: 'markdown-git',
@@ -231,7 +207,6 @@ export const connections: Partial<Record<ConnectorId, SourcePage['connection']>>
     { label: 'Access', value: 'Viewer on the folders above. Nothing else in Drive' },
     { label: 'Service account key', value: 'Set, only used for reading' },
   ],
-  warehouse: [],
   'markdown-git': [
     { label: 'Repository', value: 'https://git.example/larchwood/handbook', code: true },
     { label: 'Branch or tag', value: 'main', code: true },
@@ -295,7 +270,6 @@ export function sourcePageOf(state: IntegrationState, source: Source): SourcePag
         detail: 'First read at 07:00. Nothing is published by a read.',
       },
     ],
-    warehouse: [],
     dbt: [],
     notion: [],
   }

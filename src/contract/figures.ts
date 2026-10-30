@@ -8,7 +8,9 @@ import * as z from 'zod/mini'
  * who hears about a figure that looks wrong. `figures.list` says what each such integration has,
  * the endpoint only to administrators; `figures.set` changes it; `figures.read` reads one figure
  * for an answer, from the integration the metric's definition comes from, within 4 seconds, and
- * keeps it nowhere. No person's identity is passed to the integration.
+ * keeps it nowhere; `figures.try` reads one figure with the settings as they are saved, so an
+ * administrator sees that the endpoint and its token work before anyone asks. No person's identity
+ * is passed to the integration.
  */
 
 const sourceId = z.string().check(z.regex(/^[a-z][a-z0-9_-]{1,39}$/))
@@ -115,6 +117,17 @@ export const figureFailures = [
   'not_set_up',
 ] as const
 
+export const tryFigureInputSchema = z.strictObject({ id: sourceId })
+export type TryFigureInput = z.infer<typeof tryFigureInputSchema>
+
+/** Why a try read no figure: a code only. */
+export const figureTryFailures = [
+  ...figureFailures,
+  /** No view of the integration has a measure and exactly one date, so there is nothing to try. */
+  'no_measure',
+] as const
+export type FigureTryFailure = (typeof figureTryFailures)[number]
+
 export const figureFormatSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('currency'), currency: z.string() }),
   z.object({ kind: z.literal('percent') }),
@@ -154,3 +167,32 @@ export const figureReadSchema = z.discriminatedUnion('state', [
   }),
 ])
 export type FigureRead = z.infer<typeof figureReadSchema>
+
+/**
+ * What a try read: one measure of the integration's first view with a single date, for the last 7
+ * days up to today, read the way Ask reads a figure and kept nowhere. Its value is null when the
+ * tool answered with nothing for those days: the endpoint and the token still work. A failure is a
+ * code only, never what the tool said.
+ */
+export const figureTrySchema = z.discriminatedUnion('state', [
+  z.object({
+    state: z.literal('figure'),
+    source: figureSourceRefSchema,
+    /** The measure read, as the tool names it (`orders.orders`) and as people read it ("Orders"). */
+    measure: z.object({ name: z.string(), title: z.string() }),
+    value: z.nullable(z.number()),
+    format: figureFormatSchema,
+    from: day,
+    to: day,
+    /** When the tool last refreshed its data, or when the figure was read if it doesn't say. */
+    asOf: z.string(),
+    /** How long the read took, in milliseconds. */
+    took: z.number(),
+  }),
+  z.object({
+    state: z.literal('failed'),
+    source: figureSourceRefSchema,
+    failure: z.enum(figureTryFailures),
+  }),
+])
+export type FigureTry = z.infer<typeof figureTrySchema>

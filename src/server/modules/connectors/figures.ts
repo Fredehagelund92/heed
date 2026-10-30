@@ -5,11 +5,15 @@ import type {
   FigureSource,
   FigureSourceRef,
   FigureSources,
+  FigureTry,
   ReadFigureInput,
   SetFiguresInput,
+  TryFigureInput,
 } from '../../../contract/figures.ts'
 import type { FigureQuery, FigureResult } from '../../../domain/connector-runtime.ts'
 import { comparisonDays, queryWords, type Days } from '../../../domain/figures.ts'
+import { memberName } from '../../../domain/term-candidates.ts'
+import { shiftDate } from '../../../domain/validity.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
 import { isFetchableAddress } from './git.ts'
@@ -30,7 +34,15 @@ import type { TransactionHooks } from './workspace.ts'
   values. The read has 4 seconds, its result is kept a minute in this process so a busy Ask asks
   once, and nothing of it is written anywhere. No person's identity is passed on: the token is the
   integration's own (CON-406).
+
+  Try a figure reads one figure the same way, with the settings as they are saved and whether
+  figures are on or off, so an administrator sees the endpoint and its token work before anyone
+  asks: one measure of the source's first view, by name, that has exactly one date, for the last 7
+  days. It skips the cache both ways, so it always asks the tool, and keeps nothing.
 */
+
+/** How many days a try reads, up to today. */
+export const TRY_DAYS = 7
 
 /** How long a figure's read may take. Ask shows the answer first and never waits on it. */
 export const FIGURE_TIMEOUT_MS = 4_000
@@ -163,6 +175,37 @@ export function createFigureSources({
     return result
   }
 
+  /**
+   * The measure a try reads: of the source's views in name order, the first that has exactly one
+   * date and a measure, and that view's first measure by name, with its date. Null when none has.
+   */
+  async function measureToTry(tx: Queryable, id: string) {
+    const members = await tx.query<{
+      kind: 'metric' | 'dimension'
+      name: string
+      title: string | null
+      baseName: string | null
+      type: string | null
+    }>(
+      `select d.kind::text as kind, d.name, d.title, d.base_name as "baseName",
+          d.value_type as type from definitions d
+        where d.connector_id = $1 and d.kind in ('metric', 'dimension')
+          and d.missing_since_snapshot is null and d.visible_groups is null
+          and position('.' in d.name) > 0
+        order by d.name collate "C"`,
+      [id],
+    )
+    const viewOf = (name: string) => name.slice(0, name.lastIndexOf('.'))
+    for (const view of [...new Set(members.map((m) => viewOf(m.name)))]) {
+      const own = members.filter((m) => viewOf(m.name) === view)
+      const dates = own.filter((m) => m.kind === 'dimension' && m.type === 'time')
+      const measure = own.find((m) => m.kind === 'metric')
+      if (dates.length === 1 && measure)
+        return { name: measure.name, title: memberName(measure), date: dates[0]!.name }
+    }
+    return null
+  }
+
   return {
     /** The integrations that read figures; their endpoint and token only for an administrator. */
     async list(tx: Queryable, admin: boolean): Promise<FigureSources> {
@@ -274,6 +317,48 @@ export function createFigureSources({
         },
         true,
       )
+    },
+
+    /**
+     * Try a figure: one measure of the source's first view with a single date, for the last 7 days
+     * up to `today`, read by its connector with the saved endpoint and token, on or off, within the
+     * same 4 seconds as Ask. Nothing is cached, stored or recorded; a failure is a code only.
+     */
+    async try(tx: Queryable, input: TryFigureInput, today: string): Promise<FigureTry> {
+      const [row] = await rows(tx, input.id)
+      if (!row)
+        throw new ORPCError('NOT_FOUND', {
+          message: "We couldn't find this integration, or it doesn't read figures.",
+        })
+      const source = refOf(row)
+      const settings = row.capabilities.figures ?? {}
+      const token = await tokenOf(settings)
+      if (!settings.endpoint || !token) return { state: 'failed', source, failure: 'not_set_up' }
+      const measure = await measureToTry(tx, row.id)
+      if (!measure) return { state: 'failed', source, failure: 'no_measure' }
+      const days: Days = { from: shiftDate(today, 1 - TRY_DAYS), to: today }
+      const started = performance.now()
+      try {
+        const figure = await capable(row.type)!.figure!(
+          { endpoint: settings.endpoint, token },
+          { metric: measure.name, date: measure.date, ...days, filters: [] },
+          AbortSignal.timeout(FIGURE_TIMEOUT_MS),
+        )
+        return {
+          state: 'figure',
+          source,
+          measure: { name: measure.name, title: measure.title },
+          value: figure.value,
+          format: figure.format,
+          ...days,
+          asOf: figure.asOf ?? now().toISOString(),
+          took: Math.round(performance.now() - started),
+        }
+      } catch (error) {
+        if (error instanceof FigureReadError)
+          return { state: 'failed', source, failure: error.code }
+        throw error
+      }
     },
 
     /**

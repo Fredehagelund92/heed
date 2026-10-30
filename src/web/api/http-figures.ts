@@ -5,9 +5,9 @@
  * here say it as the mock's fixtures do: what was counted, the number and how it moved, from where
  * and how fresh.
  */
-import type { FigureRead } from '@contract/figures'
+import type { FigureRead, FigureTry as FigureTried } from '@contract/figures'
 import { comparisonWords, daysWords, type Days } from '@domain/figures'
-import type { Figure, FigureView } from '@/model/figures'
+import type { Figure, FigureTry, FigureView } from '@/model/figures'
 import type { ConnectorId } from '@/model/integrations'
 
 const MONTHS = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')
@@ -170,4 +170,27 @@ export function figureViewOf(
   return read.against
     ? { kind: 'against', source: id, figure, asOf }
     : { kind: 'line', source: id, figure, asOf }
+}
+
+/**
+ * What Try a figure read, as the integration's page says it: the measure and its days, the value as
+ * the tool writes it (null when it had nothing for those days) and how fresh the data is, or the
+ * failure's code. Null for a tool the app doesn't know.
+ */
+export function figureTryOf(
+  tried: FigureTried,
+  source: (type: string) => ConnectorId | undefined,
+  now: Date,
+): FigureTry | null {
+  const id = source(tried.source.type)
+  if (!id) return null
+  if (tried.state === 'failed') return { kind: 'failed', source: id, failure: tried.failure }
+  return {
+    kind: 'figure',
+    source: id,
+    label: `${tried.measure.title}, ${daysWords(tried)}`,
+    value: tried.value === null ? null : figureValue(tried.value, tried.format),
+    asOf: asOfWords(tried.asOf, now),
+    took: tried.took,
+  }
 }

@@ -249,12 +249,11 @@ Integrations connect Heed to where metrics are defined and where documents live.
 | Integration     | For                  | Notes                                                                                         |
 | --------------- | -------------------- | --------------------------------------------------------------------------------------------- |
 | Cube            | Definitions, figures | Metrics and dimensions are a read-only copy. A figure is read on request when figures are on. |
-| A warehouse     | Figures only         | The metric's definition decides which integration answers.                                    |
 | Google Drive    | Context              | Through a service account an admin shares folders with. Documents become suggestions.         |
 | Markdown in Git | Context              | Documents become suggestions.                                                                 |
 | dbt, Notion     | Context, definitions | Shown as Soon.                                                                                |
 
-**A sync never publishes.** Definitions are a read-only copy that flags the context relying on them. Documents become suggestions in the owners' Inbox, one per document, grouped under the read that made them. Every figures integration names a data contact. "Show figures in Ask" is off by default.
+**A sync never publishes.** Definitions are a read-only copy that flags the context relying on them. Documents become suggestions in the owners' Inbox, one per document, grouped under the read that made them. Figures are not an integration of their own: a definitions tool that can read them has a second, labelled connection for them, with its own data endpoint and token, because the metric's definition decides which integration answers, and a tool no definition comes from could answer nothing. **Try a figure** reads one figure with the saved settings before anyone asks. Every figures connection names a data contact. "Show figures in Ask" is off by default.
 
 ## 13. The first day
 
