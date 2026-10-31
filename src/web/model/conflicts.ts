@@ -8,7 +8,7 @@ import type { DomainId, Kind } from '@/model/items'
 /** What agents say: the answer's state and its words. */
 export type Said = { state: AnswerState; text: string }
 
-/** One item of a pair. `readable` false: the person may not read it, so only its domain and owners. */
+/** One item of a pair. Always true: a pair the person may not read whole is not found. */
 export type ConflictSide = {
   id: string
   readable: boolean
@@ -62,7 +62,7 @@ export type Conflict = {
   asked: number
   /** Since when agents get both, as a short date. */
   since: string | null
-  /** What agents say now, with only one side, and with the flag removed; null when a side is hidden. */
+  /** What agents say now, with only one side, and with the flag removed. */
   said: { now: Said; onlyHolder: Said; onlyOther: Said; withoutFlag: Said } | null
   rights: ConflictRights
   /** Kept as both, and neither changed since: off the conflict lists. */

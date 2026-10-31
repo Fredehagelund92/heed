@@ -2,7 +2,7 @@
  * Conflicts on the API (FR-220): the pairs of context items an owner said disagree, one pair read
  * side by side with what agents would say with each alone, and settling it with a reason: keep one
  * (the other is archived), keep both, or not a conflict. Who may do what is checked against the item
- * each action changes; a side the reader may not read comes back without its words (FR-128).
+ * each action changes; a pair is read only when the reader may read both items (FR-128).
  */
 import * as z from 'zod/mini'
 import { SETTLE_QUOTE_MAX, SETTLE_REASON_MAX, settleOutcomes } from '../domain/conflicts.ts'
@@ -12,7 +12,7 @@ import { answerBriefSchema } from './review-path.ts'
 const isoDate = z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))
 const itemIdSchema = z.string().check(z.regex(/^itm_[a-z0-9]{8,16}$/))
 
-/** One item of a pair, as the view shows it. `readable` false: only its domain and owners. */
+/** One item of a pair, as the view shows it. Always readable: a pair the reader may not read whole is not found (FR-128). */
 export const conflictSideSchema = z.object({
   id: itemIdSchema,
   readable: z.boolean(),
