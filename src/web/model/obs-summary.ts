@@ -102,7 +102,7 @@ export const DEFINITIONS = {
   saved:
     'Times a saved question was checked again on its own after a publish, an archive, a restore, a sync or a check date passing, and its answer was no longer the same. Check now, saving and keeping an answer are not counted.',
   alerts:
-    'Alerts that asked an owner for a decision: Not found, a saved question needs a look, and a check is due. Acted on: an owner or admin decided within 14 days, such as a draft, a kept answer or the item checked. Other rules are not counted.',
+    'Alerts that asked an owner for a decision: Not found, a saved question needs a look, and a check is due. Acted on: an owner or admin decided within 14 days, such as a draft, a kept answer or the item checked. Not measured for the other five rules, which ask for no decision that is kept.',
 } as const
 
 /* ---------- snapshots ---------- */
