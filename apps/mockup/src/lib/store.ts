@@ -4,6 +4,7 @@ import { reviews } from "@/data/review"
 
 const reviewIds = () => reviews.map((r) => r.id)
 import { ABOUT_BUSINESS, facts as seedFacts, person, type DomainId, type Fact } from "@/data/world"
+import type { Settled } from "@/data/conflicts"
 
 // The mockup's whole state: who is signed in, what they did to their Inbox and to context.
 // Mock behaviour only. Nothing leaves the browser, and a reload starts the demo again.
@@ -16,7 +17,7 @@ export type LogEntry = {
   /** ISO date. */
   on: string
   who: string
-  what: "archived" | "deleted" | "moved" | "kind" | "owners" | "checked"
+  what: "archived" | "deleted" | "moved" | "kind" | "owners" | "checked" | "settled"
   /** One sentence: "Moved to Marketing." */
   summary: string
   items: { id: string; title: string; domain?: DomainId }[]
@@ -52,6 +53,8 @@ export type State = {
   deleted: Record<string, boolean>
   /** Changes made to many items at once, newest first. */
   log: LogEntry[]
+  /** Conflicts settled this visit, by pair: kept one, kept both or not a conflict. */
+  settled: Record<string, Settled>
 }
 
 export type Action =
@@ -72,7 +75,9 @@ export type Action =
    * Undo one or more decisions exactly, and only them: the cards' outcomes and the context items
    * they changed go back to how they were, while anything else done since stays.
    */
-  | { type: "revert"; before: State; cards: string[]; facts: string[]; entry?: string }
+  | { type: "revert"; before: State; cards: string[]; facts: string[]; entry?: string; pairs?: string[] }
+  /** A conflict settled: the decision, what it changed on the items, and its line in both items' History. */
+  | { type: "settle"; key: string; settled: Settled; patches: Record<string, Partial<Fact>>; entry: LogEntry }
   | { type: "editFact"; id: string; patch: Partial<Fact> }
   | { type: "viewedFact"; id: string }
   /** A change to many items at once: their edits, the drafts it deletes, and its line in History. */
@@ -99,6 +104,7 @@ export const start: State = {
   viewed: {},
   deleted: {},
   log: [],
+  settled: {},
 }
 
 export function reduce(s: State, a: Action): State {
@@ -151,6 +157,7 @@ export function reduce(s: State, a: Action): State {
         published: back(s.published, a.before.published, a.facts),
         added: [...a.before.added.filter((f) => a.facts.includes(f.id)), ...s.added.filter((f) => !a.facts.includes(f.id))],
         deleted: back(s.deleted, a.before.deleted, a.facts),
+        settled: back(s.settled, a.before.settled, a.pairs ?? []),
         // An undone change was never made: its line leaves History.
         log: a.entry ? s.log.filter((e) => e.id !== a.entry) : s.log,
       }
@@ -180,6 +187,11 @@ export function reduce(s: State, a: Action): State {
       const deleted = { ...s.deleted }
       for (const id of a.remove) deleted[id] = true
       return { ...s, edits, deleted, log: [a.entry, ...s.log] }
+    }
+    case "settle": {
+      const edits = { ...s.edits }
+      for (const [id, patch] of Object.entries(a.patches)) edits[id] = { ...edits[id], ...patch }
+      return { ...s, edits, settled: { ...s.settled, [a.key]: a.settled }, log: [a.entry, ...s.log] }
     }
     case "unlog":
       return { ...s, log: s.log.filter((e) => e.id !== a.entry) }

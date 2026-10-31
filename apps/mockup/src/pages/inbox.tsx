@@ -20,7 +20,10 @@ import {
   SearchIcon,
   TriangleAlertIcon,
   BellIcon,
+  ActivityIcon,
 } from "lucide-react"
+import { ConflictPairCompact } from "@/components/heed/conflict-view"
+import { pairAt } from "@/data/conflicts"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { DomainBadge, FieldDiff } from "@/components/heed/bits"
@@ -45,7 +48,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { openDock, useDock } from "@/lib/dock"
 import { open } from "@/lib/events"
 import { navigate, setQuery, useRoute } from "@/lib/router"
-import { useMe, useStore, type Outcome } from "@/lib/store"
+import { useFacts, useMe, useStore, type Outcome } from "@/lib/store"
 import { commentActions, useNewReply, type MentionNote } from "@/lib/comments"
 import { groupOf, INBOX_GROUPS, needs, rowId, rowTitle, useInboxRows, type InboxRow } from "@/lib/inbox-rows"
 import { suggestionIcon } from "@/components/heed/change-icons"
@@ -330,7 +333,7 @@ function useActions(card: InboxCard) {
       case "look":
         return navigate(`/observability/quality?domain=${card.domain}`)
       case "alert":
-        return navigate(card.alert!.href)
+        return card.alert!.pair ? openDock("conflict", card.alert!.pair) : navigate(card.alert!.href)
       case "check":
         return run({
           outcome: "Checked",
@@ -344,6 +347,7 @@ function useActions(card: InboxCard) {
     "Not something we write down": () => run({ outcome: "Closed", message: "Closed", description: "Agents keep saying honestly that nothing is written down." }),
     "Not a problem": () => run({ outcome: "Not a problem", message: "Report closed", description: "The context item stays as it is." }),
     Edit: () => navigate(`/context/${card.factId}/edit`),
+    "Open the topic": () => card.alert && navigate(card.alert.href),
     Archive: () => run({ outcome: "Archived", message: "Archived", description: "Agents stop getting it from the next question.", patch: { status: "Archived" } }),
   }
   // Only what writes needs the connection; Review and Edit only open a page.
@@ -360,6 +364,7 @@ const secondaryIcon: Record<string, typeof FlagIcon> = {
   "Not a problem": BanIcon,
   Edit: PencilIcon,
   Archive: ArchiveIcon,
+  "Open the topic": ActivityIcon,
 }
 
 function from(card: InboxCard) {
@@ -457,6 +462,7 @@ function CardDetail({
               </div>
             )}
             {card.look && <LookList ids={card.look.questions} />}
+            {card.alert?.pair && <AlertPair pairKey={card.alert.pair} />}
             {card.gap && (
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground">
@@ -991,4 +997,11 @@ export function InboxPage() {
       </div>
     </div>
   )
+}
+
+/** A Conflict alert's pair, compact: what each item says, its domain and check. */
+function AlertPair({ pairKey }: { pairKey: string }) {
+  const pair = pairAt(useFacts(), pairKey)
+  if (!pair) return <p className="text-muted-foreground">These two no longer disagree. There is nothing left to decide.</p>
+  return <ConflictPairCompact pair={pair} />
 }

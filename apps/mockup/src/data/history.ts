@@ -5,7 +5,7 @@ import { domains, people, type Fact } from "./world"
 // (item_versions: a number, who, when and what changed). Each item gets the same history every
 // time; "Gift cards are left out of Norway orders" has 60 versions, to show a long one.
 
-export type VersionKind = "wording" | "link" | "formatting" | "dates" | "published" | "returned" | "checked" | "synced" | "archived" | "moved" | "retyped" | "owners"
+export type VersionKind = "wording" | "link" | "formatting" | "dates" | "published" | "returned" | "checked" | "synced" | "archived" | "moved" | "retyped" | "owners" | "settled"
 
 export type Version = {
   v: number
@@ -22,7 +22,7 @@ export type Version = {
 }
 
 /** Whether a version changed the words, so it can be restored (a check or a return changed nothing). */
-export const restorable = (v: Version) => !["checked", "returned", "synced", "archived", "moved", "retyped", "owners"].includes(v.kind)
+export const restorable = (v: Version) => !["checked", "returned", "synced", "archived", "moved", "retyped", "owners", "settled"].includes(v.kind)
 
 /** A short plain verb for each kind, as a row says it: "Jon Abara edited wording". */
 export const VERB: Record<VersionKind, string> = {
@@ -38,6 +38,7 @@ export const VERB: Record<VersionKind, string> = {
   moved: "moved it",
   retyped: "changed its kind",
   owners: "changed its owners",
+  settled: "settled a conflict",
 }
 
 /** The demo's today, as the rest of the mock dates it. */
@@ -89,8 +90,8 @@ function change(kind: VersionKind, text: string, source: string): Pick<Version, 
   return { summary: "", field: "", before: "", after: "" }
 }
 
-const LOGGED: Record<LogEntry["what"], VersionKind> = { archived: "archived", deleted: "archived", moved: "moved", kind: "retyped", owners: "owners", checked: "checked" }
-const FIELD: Record<LogEntry["what"], string> = { archived: "Status", deleted: "Status", moved: "Domain", kind: "Kind", owners: "Owners", checked: "Checked" }
+const LOGGED: Record<LogEntry["what"], VersionKind> = { archived: "archived", deleted: "archived", moved: "moved", kind: "retyped", owners: "owners", checked: "checked", settled: "settled" }
+const FIELD: Record<LogEntry["what"], string> = { archived: "Status", deleted: "Status", moved: "Domain", kind: "Kind", owners: "Owners", checked: "Checked", settled: "Conflict" }
 
 /**
  * A context item's versions, newest first. The newest is the check the item shows; changes made to

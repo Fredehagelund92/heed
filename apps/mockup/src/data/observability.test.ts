@@ -107,9 +107,9 @@ describe("what a topic says", () => {
 })
 
 describe("saved questions, one list for every count", () => {
-  it("are 12 in 4 domains: 9 same, 1 changed, 2 need a look; Sales 7 = 4 + 1 + 2", () => {
-    expect(savedCounts(savedQuestions())).toEqual({ total: 12, same: 9, changed: 1, look: 2, domains: 4 })
-    expect(savedCounts(savedQuestions(), "sales")).toEqual({ total: 7, same: 4, changed: 1, look: 2, domains: 1 })
+  it("are 12 in 4 domains: 8 same, 1 changed, 3 need a look; Sales 7 = 3 + 1 + 3", () => {
+    expect(savedCounts(savedQuestions())).toEqual({ total: 12, same: 8, changed: 1, look: 3, domains: 4 })
+    expect(savedCounts(savedQuestions(), "sales")).toEqual({ total: 7, same: 3, changed: 1, look: 3, domains: 1 })
   })
 })
 

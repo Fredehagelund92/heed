@@ -52,6 +52,7 @@ One Playwright spec per job in `e2e/` (J3 has two). Each job is a flow a person 
 | J28 | `j28-ask-ideas.spec.ts` | The three Ask ideas: an answer travels with its sources, where it says that, asked this week |
 | J29 | `j29-motion.spec.ts` | Motion and loading (`docs/motion.md`), also run with reduced motion |
 | J30 | `j30-topics.spec.ts` | Topics as the real key has them: exact scope and month, no month under 5 given away |
+| J36 | `j36-conflicts.spec.ts` | The conflict view: compare two items that disagree, settle with a reason, Undo, rights across domains, and every place it appears |
 
 ## How to run them
 

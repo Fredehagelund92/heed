@@ -16,7 +16,11 @@ import {
 import { toast } from "sonner"
 import { cn } from "cn"
 import { PersonAvatar, StateLine } from "@/components/heed/bits"
-import { ChangeBlock, ClaimCheck, KindLabel, Marked, Rewrite } from "@/components/heed/review-parts"
+import { ChangeBlock, ClaimCheck, KindLabel, Rewrite } from "@/components/heed/review-parts"
+import { Statement } from "@/components/heed/conflict-view"
+import { comparePair, sharedWords, type Compared } from "@/lib/conflict-words"
+import { SIDE_BY_SIDE } from "@/lib/conflict"
+import { and } from "@/lib/utils"
 import { ToolLogo } from "@/components/heed/tool-logo"
 import { ResizableAside } from "@/components/resizable-aside"
 import { Panel } from "@/components/heed/panel"
@@ -47,11 +51,11 @@ import { cards } from "@/data/inbox"
 import { useSavedQuestions } from "@/data/saved-questions"
 import { checkDraft } from "@/lib/saved-check"
 import { SavedLine } from "@/components/obs/saved-line"
-import { careLine, marks, needsCare, readiness, readTime, reviewFor, reviews, type Review } from "@/data/review"
-import { domains, factById } from "@/data/world"
+import { careLine, needsCare, readiness, readTime, reviewFor, reviews, type Review } from "@/data/review"
+import { domains, factById, ownersOf, type Fact } from "@/data/world"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { navigate } from "@/lib/router"
-import { useMe, useStore, type State } from "@/lib/store"
+import { useFacts, useMe, useStore, type State } from "@/lib/store"
 import { Summary } from "@/pages/review"
 import { TruncatedText } from "@/components/heed/truncated"
 import { plainText } from "@/lib/mentions"
@@ -405,10 +409,10 @@ function TheChange({ r, view }: { r: Review; view: "rich" | "source" }) {
       )}
       {r.synced && <SyncedFrom r={r} />}
       {r.claims && <ClaimCheck claims={r.claims} from={r.from} drafted={!!r.drafted} />}
-      {r.clash && <Clash r={r} />}
+      {r.clashes && <Clashes r={r} />}
       {r.rewrite && <Rewrite rewrite={r.rewrite} />}
       {r.blocks.length > 0 && (
-        <div className={cn((r.claims || r.clash) && "mt-6 border-t pt-4")}>
+        <div className={cn((r.claims || r.clashes) && "mt-6 border-t pt-4")}>
           {r.blocks.map((b, i) => (
             <ChangeBlock key={i} block={b} index={i} total={r.blocks.length} />
           ))}
@@ -481,45 +485,141 @@ function SyncedFrom({ r }: { r: Review }) {
   )
 }
 
-const relations = [
+const relations_ = [
   { id: "replaces", label: "This replaces it", hint: "The live item is archived when you publish." },
-  { id: "disagree", label: "These disagree", hint: "Both stay; agents say context disagrees." },
+  { id: "disagree", label: "These disagree", hint: "Both stay; agents say context disagrees. Only one overlap can be linked, so this replaces an earlier choice." },
   { id: "unrelated", label: "Unrelated", hint: "Both stay; they apply to different things." },
 ] as const
-type Relation = (typeof relations)[number]["id"]
-const RelationContext = React.createContext<[Relation | null, (r: Relation) => void]>([null, () => undefined])
+type Relation = (typeof relations_)[number]["id"]
+/** The answer to each overlap, by live item, and how to set one. */
+type Relations = Record<string, Relation>
+const RelationContext = React.createContext<[Relations, (id: string, r: Relation | undefined) => void]>([{}, () => undefined])
 
-/** A clash with live context: both side by side with the differing words marked, then how they relate. */
-function Clash({ r }: { r: Review }) {
-  const [relation, setRelation] = React.useContext(RelationContext)
-  const c = r.clash!
+/** How many of a suggestion's overlaps have an answer, and what the last answer given does. */
+function answeredOf(r: Review, relations: Relations) {
+  const ids = (r.clashes ?? []).filter((id) => relations[id])
+  const last = ids.at(-1)
+  return { n: ids.length, hint: last ? relations[last] && relations_.find((x) => x.id === relations[last])!.hint : undefined }
+}
+
+/**
+ * Live context it overlaps: each item against the suggestion in the conflict view's split rows (what
+ * each says, with the words compared by the app, and where it comes from), then how they relate.
+ * Ordered by the words they share; an item that overlaps only by where it applies is folded into one
+ * line with one button, Mark it unrelated. Publish waits for an answer to each.
+ */
+function Clashes({ r }: { r: Review }) {
+  const [relations, setRelation] = React.useContext(RelationContext)
+  const facts = useFacts()
+  const mine = r.source.after
+  const items = (r.clashes ?? [])
+    .map((id) => facts.find((f) => f.id === id))
+    .filter((f): f is Fact => !!f)
+    .map((f) => ({ f, c: comparePair(mine, f.summary), shared: sharedWords(mine, f.summary) }))
+    .sort((x, y) => y.shared - x.shared)
+  const words = items.filter((x) => x.c[0].how !== "plain")
+  const scopeOnly = items.filter((x) => x.c[0].how === "plain")
+  const [unfold, setUnfold] = React.useState(false)
+  const shown = unfold ? items : words
+  const folded = unfold ? [] : scopeOnly
   return (
     <section className="flex flex-col gap-4 py-2">
-      <header className="flex items-center gap-2">
-        <TriangleAlertIcon aria-hidden className="size-4 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
-        <span className="text-sm font-medium">It overlaps live context that says something else</span>
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <TriangleAlertIcon aria-hidden className="size-4 text-[var(--warn)]" />
+        <span className="text-sm font-medium text-[var(--warn)]">Overlaps live context</span>
+        <span className="text-sm text-muted-foreground">
+          {words.length} of {items.length} say something about the same thing. Answer for each.
+        </span>
       </header>
-      <div className="grid gap-3 @3xl:grid-cols-2">
-        <div className="flex flex-col gap-2 rounded-frame border p-4">
-          <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
-          <Marked segs={marks(c.mine)} className="text-[15px] leading-7" />
+      {shown.map(({ f, c }, i) => (
+        <div key={f.id} className="flex flex-col gap-3">
+          <p className="text-sm">
+            <span className="font-medium">
+              {i + 1} of {items.length}
+            </span>{" "}
+            <span className="text-xs text-muted-foreground">{c[0].how === "plain" ? "Overlaps only by where it applies" : "Says about the same thing"}</span>
+          </p>
+          <ClashPair r={r} f={f} c={c} />
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-xs text-muted-foreground">How do they relate?</legend>
+            <ChoiceGroup
+              label={`How does it relate to ${f.title}?`}
+              options={relations_.map((x) => ({ value: x.id, label: x.label }))}
+              value={relations[f.id]}
+              onChange={(v) => {
+                if (v === "disagree") for (const id of r.clashes ?? []) if (id !== f.id && relations[id] === "disagree") setRelation(id, undefined)
+                setRelation(f.id, v as Relation)
+              }}
+            />
+            <p className="text-xs text-muted-foreground">{relations[f.id] ? relations_.find((x) => x.id === relations[f.id])!.hint : "Choose one of the three."}</p>
+          </fieldset>
         </div>
-        <div className="flex flex-col gap-2 rounded-frame border p-4">
-          <p className="text-xs font-medium text-muted-foreground">Live: {c.title}</p>
-          <Marked segs={marks(c.theirs)} className="text-[15px] leading-7" />
+      ))}
+      {folded.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-frame border p-3 sm:p-4">
+          <div className="min-w-0 flex-1 basis-60">
+            <p className="text-sm font-medium">
+              {folded.length} more {folded.length === 1 ? "overlaps" : "overlap"} only by where {folded.length === 1 ? "it applies" : "they apply"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {folded.map((x) => plainText(x.f.summary).split(/(?<=\.)\s/)[0]).join(" ")} No shared words.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setUnfold(true)}>
+              Show
+            </Button>
+            {folded.every((x) => relations[x.f.id] === "unrelated") ? (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CircleCheckIcon aria-hidden className="size-4 text-primary" />
+                Marked unrelated
+              </span>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => folded.forEach((x) => setRelation(x.f.id, "unrelated"))}>
+                Mark it unrelated
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-medium">How do they relate? Publish waits for your answer.</legend>
-        <ChoiceGroup
-          label="How do they relate?"
-          options={relations.map((x) => ({ value: x.id, label: x.label }))}
-          value={relation ?? undefined}
-          onChange={(v) => setRelation(v as Relation)}
-        />
-        <p className="text-xs text-muted-foreground">{relation ? relations.find((x) => x.id === relation)!.hint : "Choose one of the three."}</p>
-      </fieldset>
+      )}
     </section>
+  )
+}
+
+/** One overlap in the conflict view's split rows: this suggestion against the live item. */
+function ClashPair({ r, f, c }: { r: Review; f: Fact; c: [Compared, Compared] }) {
+  const [ref, wide] = useWide<HTMLDivElement>(SIDE_BY_SIDE)
+  const cell = "flex min-w-0 flex-col gap-1 p-3 sm:p-4"
+  const side = (label: string, title: string, stmt: Compared, meta: React.ReactNode) => (
+    <div role="group" aria-label={`${label}: ${title}`} className="flex flex-col divide-y">
+      <div className={cn(cell, "bg-muted/40")}>
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-sm font-medium">{title}</span>
+      </div>
+      <div className={cell}>
+        <Statement c={stmt} className="text-[15px]" />
+      </div>
+      <div className={cn(cell, "text-sm text-muted-foreground")}>{meta}</div>
+    </div>
+  )
+  return (
+    <div ref={ref} className={cn("grid overflow-hidden rounded-frame border", wide ? "grid-cols-2 divide-x" : "grid-cols-1 divide-y")}>
+      {side("This suggestion", r.mode === "new" ? "New context" : r.title, c[0], `${r.from}, in the ${r.via === "agent" ? "agent" : "editor"}, ${r.on.replace(/ \d{4}$/, "")}`)}
+      {side(
+        "Live now",
+        f.title,
+        c[1],
+        <>
+          {domains[f.domain].name}, owned by {and(ownersOf(f))}. Checked {f.checkedOn}.{" "}
+          {f.source && (
+            <a href={f.source} target="_blank" rel="noreferrer" className="break-all text-primary underline-offset-4 hover:underline">
+              {f.source.replace("https://", "")}
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -638,7 +738,7 @@ function Decision({
     onHold(hovered.current || focused.current)
   }
   const { state, dispatch } = useStore()
-  const [relation] = React.useContext(RelationContext)
+  const [relations] = React.useContext(RelationContext)
   const me = useMe()
   const first = r.from.split(" ")[0]
   const done = state.done[r.id]
@@ -652,12 +752,12 @@ function Decision({
   }
   const commitPublish = () => {
     const before = state
-    const alsoUndo = publishEffects(r, me.name, dispatch, relation)
+    const alsoUndo = publishEffects(r, me.name, dispatch, relations)
     onDone({
       alsoUndo,
       outcome: "Published",
       message: "Published",
-      description: r.clash && relation === "disagree" ? "Both stay live; agents say context disagrees." : "Agents get it from the next question.",
+      description: Object.values(relations).includes("disagree") ? "Both stay live; agents say context disagrees." : "Agents get it from the next question.",
       before,
       now: r.tryIt.after.text,
     })
@@ -722,7 +822,7 @@ function Decision({
       )}
     </div>
   ) : null
-  const blocked = !!r.clash && !relation
+  const blocked = !!r.clashes && answeredOf(r, relations).n < r.clashes.length
   // What Command and Enter does here, if anything: the hint only shows when the key acts.
   const keyAction =
     done || finished || returning || blockedBySend ? null : withdrawn ? "close" : r.retire ? "archive" : blocked || (r.claims && !r.drafted) ? null : "publish"
@@ -742,7 +842,8 @@ function Decision({
 
   // A draft that would make a saved question worse says so instead of a plain Ready; it never stops Publish.
   const drift = checkDraft(r, useSavedQuestions())
-  const base = readiness(r, relation ? relations.find((x) => x.id === relation) : null)
+  const answered = answeredOf(r, relations)
+  const base = readiness(r, answered.n, answered.hint)
   const ready =
     drift?.look && !r.retire?.withdrawn
       ? r.retire
@@ -968,7 +1069,8 @@ function Decision({
           </span>
         </p>
         <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">Overlaps:</span> {r.clash ? r.clash.title : "none"}.
+          <span className="font-medium text-foreground">Overlaps:</span>{" "}
+          {r.clashes?.length ? `${r.clashes.length} live ${r.clashes.length === 1 ? "item" : "items"}, ${answered.n} answered` : "none"}.
         </p>
       </section>
       <section className="flex min-h-25 flex-col justify-center gap-3 p-4">
@@ -1092,7 +1194,13 @@ export function ReviewPage({ id }: { id: string }) {
     setReturningState(v)
     if (v) requestAnimationFrame(() => document.getElementById("decision")?.scrollIntoView({ block: "start", behavior: "smooth" }))
   }
-  const relation = React.useState<Relation | null>(null)
+  const [relationsOf, setRelations] = React.useState<Relations>({})
+  const relation = React.useMemo(() => [relationsOf, (id: string, v: Relation | undefined) => setRelations((prev) => {
+    const next = { ...prev }
+    if (v) next[id] = v
+    else delete next[id]
+    return next
+  })] as const, [relationsOf])
   const at = reviews.findIndex((x) => x.id === id)
   // The next suggestion crossfades in (150ms) where the browser can; with reduced motion it cuts.
   const go = React.useCallback(
@@ -1252,7 +1360,7 @@ export function ReviewPage({ id }: { id: string }) {
   )
 
   return (
-    <RelationContext.Provider value={relation as [Relation | null, (r: Relation) => void]}>
+    <RelationContext.Provider value={relation as [Relations, (id: string, r: Relation | undefined) => void]}>
       {/* Under a finger every control is at least 40px; the phone bar's actions are 44px. */}
       <div key={r.id} className={cn("flex h-full min-h-0 flex-col bg-background", TOUCH)}>
         <SiteHeader

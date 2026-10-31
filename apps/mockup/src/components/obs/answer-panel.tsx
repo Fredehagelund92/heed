@@ -1,3 +1,5 @@
+import { conflictPairs } from "@/data/conflicts"
+import { useFacts } from "@/lib/store"
 import * as React from "react"
 import {
   ArrowUpRightIcon,
@@ -14,7 +16,7 @@ import {
   ScanSearchIcon,
 } from "lucide-react"
 import { cn } from "cn"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { DockFrame, DockMissing } from "@/components/dock"
 import { StateLine } from "@/components/heed/bits"
 import { ReadingCard } from "@/components/heed/reading"
@@ -288,6 +290,8 @@ function StepsTab({ t, when }: { t: (typeof TOPICS)[number]; when: When }) {
 }
 
 function WarningsTab({ t, counts }: { t: (typeof TOPICS)[number]; counts: Record<Shown, number> }) {
+  // The pair agents got for this topic, named, with the way to the comparison.
+  const pair = conflictPairs(useFacts()).find((p) => p.topic === topicName(t))
   const kinds = (["missing", "partial", "conflict", "stale"] as Shown[]).filter((s) => counts[s] > 0)
   const why: Record<Shown, string> = {
     missing: "Agents asked and nothing applies.",
@@ -314,6 +318,17 @@ function WarningsTab({ t, counts }: { t: (typeof TOPICS)[number]; counts: Record
               <span className="text-muted-foreground">{times(counts[s])}</span>
             </div>
             <p className="text-[13px] text-muted-foreground">{why[s]}</p>
+            {s === "conflict" && pair && (
+              <p className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-[13px]">
+                <span className="min-w-0 flex-1 basis-48">
+                  “{pair.holder.title}” and “{pair.other.title}”.
+                </span>
+                <Button variant="outline" size="xs" className="shrink-0" onClick={() => openDock("conflict", pair.key)}>
+                  <ArrowUpRightIcon />
+                  Compare the two
+                </Button>
+              </p>
+            )}
             {s === "missing" && t.gap && (
               <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-[13px]">
                 <LightbulbIcon className="size-3.5 shrink-0" aria-hidden />

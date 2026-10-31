@@ -31,6 +31,7 @@ import { HelpPage } from "@/pages/help"
 import { DocsSite } from "@/pages/docs"
 import { InboxPage } from "@/pages/inbox"
 import { ContextPage } from "@/pages/context"
+import { ConflictDock, ConflictPage, ConflictsPage } from "@/pages/conflicts"
 import { DefinitionPage } from "@/pages/definition-page"
 import { DefinitionsPage } from "@/pages/definitions"
 import { ReviewSheet } from "@/pages/review"
@@ -137,6 +138,8 @@ function Screen() {
       </React.Suspense>
     )
   if (place === "context") {
+    // Conflicts: the Context list's second view, and a pair's own page.
+    if (a === "conflicts") return b ? <ConflictPage key={b} pairKey={b} /> : <ConflictsPage />
     const mode = a === "new" ? "new" : a && (b === "edit" || b === "suggest") ? b : null
     if (mode)
       return (
@@ -204,6 +207,8 @@ function DockContent() {
       return <SharePanel id={dock.id!} />
     case "where":
       return <WherePanel id={dock.id!} />
+    case "conflict":
+      return <ConflictDock pairKey={dock.id ?? ""} />
   }
 }
 

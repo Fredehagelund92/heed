@@ -1,3 +1,7 @@
+import { ConflictChip } from "@/components/heed/conflict-view"
+import { CompareButton } from "@/components/heed/disagrees"
+import { pairAt } from "@/data/conflicts"
+import { useFacts } from "@/lib/store"
 import * as React from "react"
 import {
   ArrowRightLeftIcon,
@@ -282,6 +286,8 @@ function Quality() {
 }
 
 function QuestionRow({ q, checkedAt, canChange }: { q: SavedQuestion; checkedAt: string; canChange: boolean }) {
+  // Now a Conflict: the comparison leads, and keeping the new answer says it settles nothing.
+  const pair = pairAt(useFacts(), q.conflict)
   const open = (
     <a key="open" href={href(`/context/${q.factId}`)} className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
       <ArrowUpRightIcon data-icon="inline-start" />
@@ -333,10 +339,22 @@ function QuestionRow({ q, checkedAt, canChange }: { q: SavedQuestion; checkedAt:
               <div className="bg-background px-3 py-2">
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">Now</p>
                 {/* A changed answer marks its words; one that got worse is read whole. */}
-                {q.result === "changed" ? <WordDiff before={q.diff.saved} after={q.diff.now} /> : <p className="text-pretty">{q.diff.now}</p>}
+                {q.result === "changed" ? (
+                  <WordDiff before={q.diff.saved} after={q.diff.now} />
+                ) : pair ? (
+                  <span className="flex flex-col gap-1.5">
+                    <ConflictChip />
+                    <span className="text-pretty">
+                      {pair.holder.summary} {pair.other.summary}
+                    </span>
+                  </span>
+                ) : (
+                  <p className="text-pretty">{q.diff.now}</p>
+                )}
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-2">{q.result === "look" ? [open, keep] : [keep, open]}</div>
+            <div className="mt-2 flex flex-wrap gap-2">{pair ? [<CompareButton key="compare" pair={pair} />, open, keep] : q.result === "look" ? [open, keep] : [keep, open]}</div>
+            {pair && <p className="mt-1.5 text-xs text-muted-foreground">Keep the new answer saves the conflict as the answer to expect. It does not settle it.</p>}
           </>
         )}
       </div>

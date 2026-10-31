@@ -35,7 +35,7 @@ import { scopeText, type Answer, type QuestionPart } from "@/data/ask"
 import { MentionChip } from "@/components/heed/mention-chip"
 import { domains, type DomainId, type Fact } from "@/data/world"
 import { openDock, useDock } from "@/lib/dock"
-import { href, navigate, useRoute } from "@/lib/router"
+import { href, useRoute } from "@/lib/router"
 import { useFacts, useMe, useStore } from "@/lib/store"
 import { SaveQuestion } from "@/components/obs/save-question"
 import { agentReply } from "@/lib/agent-reply"
@@ -46,6 +46,12 @@ import { FigureAgainst, FigureLine, FigureLink, NoFigure } from "@/components/he
 import { useDefinitions } from "@/lib/definitions"
 import { follow, linksOf, type Followed } from "@/lib/links"
 import { useLinksEnabled } from "@/lib/links-switch"
+import { conflictPairs, type ConflictPair } from "@/data/conflicts"
+import { ConflictPairCompact } from "@/components/heed/conflict-view"
+import { CompareButton } from "@/components/heed/disagrees"
+
+/** "sources 1 and 2": which of the answer's sources the pair is. */
+const disagreeLabel = (p: ConflictPair, facts: Fact[]) => `sources ${facts.indexOf(p.holder) + 1} and ${facts.indexOf(p.other) + 1}`
 
 // One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
 // bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
@@ -384,17 +390,53 @@ function Cited({ text, facts, draft, caret }: { text: string; facts: Fact[]; dra
  * A finished answer's sentences, each one a way to see where it says that: selected, the right panel
  * walks it back to its context item and the source line. Its numbers stay as markers inside it.
  */
-function WhereSentences({ text, facts, answerId }: { text: string; facts: Fact[]; answerId: string }) {
+function WhereSentences({ text, facts, answerId, disagree }: { text: string; facts: Fact[]; answerId: string; disagree?: number[] }) {
   const dock = useDock()
   const { query } = useRoute()
   const open = dock?.kind === "where" && dock.id === answerId ? Number(query.get("wn")) || 1 : 0
   const sentences = sentencesOf(text)
   const show = (n: number) => openDock("where", answerId, { wn: String(n) })
+  // In a Conflict, the sentences from the two items that disagree sit together under a rule, so the
+  // pair reads as a pair and a sentence from another item stays outside it.
+  const inPair = (s: (typeof sentences)[number]) => !!disagree && s.cites.length > 0 && s.cites.every((n) => disagree.includes(n))
+  const first = sentences.findIndex(inPair)
+  if (disagree && first >= 0) {
+    const last = sentences.length - 1 - [...sentences].reverse().findIndex(inPair)
+    const run = (from: number, to: number) => <SentenceRun sentences={sentences.slice(from, to)} facts={facts} open={open} show={show} offset={from} />
+    return (
+      <div className="flex flex-col gap-3">
+        {first > 0 && run(0, first)}
+        <div className="flex flex-col gap-1 border-l-2 border-[var(--warn)] pl-3">
+          <p className="text-xs font-medium text-[var(--warn)]">These two disagree</p>
+          {run(first, last + 1)}
+        </div>
+        {last < sentences.length - 1 && run(last + 1, sentences.length)}
+      </div>
+    )
+  }
+  return <SentenceRun sentences={sentences} facts={facts} open={open} show={show} offset={0} />
+}
+
+function SentenceRun({
+  sentences,
+  facts,
+  open,
+  show,
+  offset,
+}: {
+  sentences: ReturnType<typeof sentencesOf>
+  facts: Fact[]
+  open: number
+  show: (n: number) => void
+  offset: number
+}) {
   return (
     <p className="text-[15px] leading-relaxed">
-      {sentences.map((s, i) => (
+      {sentences.map((s, j) => {
+        const i = j + offset
+        return (
         <React.Fragment key={i}>
-          {i > 0 && " "}
+          {j > 0 && " "}
           <span
             role="button"
             tabIndex={0}
@@ -424,7 +466,8 @@ function WhereSentences({ text, facts, answerId }: { text: string; facts: Fact[]
             </span>
           </span>
         </React.Fragment>
-      ))}
+        )
+      })}
     </p>
   )
 }
@@ -563,7 +606,7 @@ function SomethingWrong({ answer, facts, onClose, onSent }: { answer: Answer; fa
 }
 
 /** The next step that fits the state: for the owner, or for everyone else. */
-function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
+function NextStep({ answer, facts, pair }: { answer: Answer; facts: Fact[]; pair?: ConflictPair }) {
   const me = useMe()
   const { dispatch } = useStore()
   const owns = me.owns.includes("sales") || me.admin
@@ -588,13 +631,24 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       </div>
     )
   }
-  if (answer.state === "conflict" && owns) {
+  if (answer.state === "conflict" && pair) {
+    const n = disagreeLabel(pair, facts)
     return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${facts[0].id}`)}>
-          Choose which one stays
-        </Button>
-        <span className="text-xs text-muted-foreground">You can keep one, narrow one to where it applies, or keep both.</span>
+      <div className="flex flex-col gap-3">
+        <ConflictPairCompact
+          pair={pair}
+          label={
+            <>
+              These two disagree <span className="font-normal text-muted-foreground">{n}</span>
+            </>
+          }
+        />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <CompareButton pair={pair} />
+          <span className="text-xs text-muted-foreground">
+            {owns ? "You can keep one, narrow one to where it applies, or keep both." : "See them side by side, and ask the owner."}
+          </span>
+        </div>
       </div>
     )
   }
@@ -696,6 +750,9 @@ export function AnswerBody({
     () => (draft ? [draft] : (answer.sources.map((id) => all.find((f) => f.id === id)).filter(Boolean) as Fact[])),
     [draft, answer.sources, all]
   )
+  // In a Conflict, the pair the answer's items form: their sentences are grouped, and the pair is shown under the answer.
+  const pair = answer.state === "conflict" ? conflictPairs(all).find((p) => facts.includes(p.holder) && facts.includes(p.other)) : undefined
+  const disagree = pair ? [facts.indexOf(pair.holder) + 1, facts.indexOf(pair.other) + 1] : undefined
   const [rated, setRated] = React.useState<"up" | "down" | null>(null)
   const [wrong, setWrong] = React.useState(!!answer.correction)
   const [report, setReport] = React.useState(answer.report)
@@ -764,7 +821,7 @@ export function AnswerBody({
         {answer.text && (writing || finished || (stopped && shown > 0)) && (
           <div aria-hidden={phase === "live" && !finished}>
             {finished && !draft && !docked && facts.length > 0 ? (
-              <WhereSentences text={answer.text} facts={facts} answerId={key} />
+              <WhereSentences text={answer.text} facts={facts} answerId={key} disagree={disagree} />
             ) : (
               <Cited text={finished ? answer.text : partial} facts={facts} draft={!!draft} caret={writing} />
             )}
@@ -802,7 +859,7 @@ export function AnswerBody({
                 {answer.alias && <AliasChip alias={answer.alias} />}
                 {facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
                 {answer.related?.length ? <Related ids={answer.related} /> : null}
-                {!draft && <NextStep answer={answer} facts={facts} />}
+                {!draft && <NextStep answer={answer} facts={facts} pair={pair} />}
                 {!draft && report && <ReportLine report={report} />}
                 {!draft && wrong && !report && facts.length > 0 && (
                   <SomethingWrong

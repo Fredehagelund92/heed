@@ -20,14 +20,16 @@ import { historyOf } from "@/data/history"
 import { PeekAttention, PeekBand, PeekBands, PeekDetails, PeekFact, PeekFacts, PeekLink, PeekMeaning, PeekTitle } from "@/components/heed/peek"
 import { Button } from "@/components/ui/button"
 import { cards } from "@/data/inbox"
-import { domains, factById, kindLabel, ownersOf } from "@/data/world"
+import { domains, kindLabel, ownersOf } from "@/data/world"
 import { Related } from "@/components/heed/related"
 import { useRelated } from "@/hooks/use-related"
 import { countComments } from "@/components/templates/comment-box/utils"
 import { closeDock, openDock } from "@/lib/dock"
 import { useComments } from "@/lib/comments"
 import { href, navigate, useRoute } from "@/lib/router"
-import { useFact, useMe, useStore } from "@/lib/store"
+import { useFact, useFacts, useMe, useStore } from "@/lib/store"
+import { askedOf, pairsOf } from "@/data/conflicts"
+import { CompareButton } from "@/components/heed/disagrees"
 import { MentionText } from "@/components/heed/mention-chip"
 import { WhereChip } from "@/components/heed/tag-chip"
 
@@ -38,6 +40,7 @@ import { WhereChip } from "@/components/heed/tag-chip"
 
 export function FactPeek({ id }: { id: string }) {
   const fact = useFact(id)
+  const facts = useFacts()
   const me = useMe()
   const { state, dispatch } = useStore()
   const { query } = useRoute()
@@ -58,7 +61,9 @@ export function FactPeek({ id }: { id: string }) {
   const owner = me.owns.includes(fact.domain) || me.admin
   const owners = ownersOf(fact)
   const page = `/context/${fact.id}`
-  const overlap = fact.disagreesWith ? factById(fact.disagreesWith) : undefined
+  // A conflict this item is in, whichever side holds the link.
+  const pair = pairsOf(facts, fact.id)[0]
+  const overlap = pair ? (pair.holder.id === fact.id ? pair.other : pair.holder) : undefined
   const flag = flagCard?.flag && !state.done[flagCard.id] ? flagCard : undefined
   const stale = fact.status === "Needs checking" || !!fact.outOfDate
   const question = `What should I know about ${fact.where[0]?.toLowerCase() ?? "this"}${fact.where[1] ? ` in ${fact.where[1]}` : ""}?`
@@ -89,13 +94,9 @@ export function FactPeek({ id }: { id: string }) {
   ) : overlap ? (
     <PeekAttention
       icon={ArrowLeftRightIcon}
-      action={
-        <Button variant="outline" size="sm" onClick={() => navigate(page)}>
-          Compare
-        </Button>
-      }
+      action={pair && <CompareButton pair={pair} variant="outline" />}
     >
-      Disagrees with “{overlap.title}”.
+      Disagrees with “{overlap.title}”. Agents say Conflict for {askedOf(pair!).asked} questions this week.
     </PeekAttention>
   ) : stale && fact.status !== "Archived" ? (
     <PeekAttention

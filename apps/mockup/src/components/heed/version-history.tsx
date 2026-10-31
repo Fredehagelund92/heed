@@ -14,6 +14,7 @@ import {
   TypeIcon,
   UsersIcon,
   type LucideIcon,
+  SplitIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 import { FieldDiff, PersonAvatar } from "@/components/heed/bits"
@@ -39,6 +40,7 @@ const KIND_ICON: Record<VersionKind, LucideIcon> = {
   moved: FolderInputIcon,
   retyped: ShapesIcon,
   owners: UsersIcon,
+  settled: SplitIcon,
   checked: CheckIcon,
   synced: RefreshCwIcon,
 }

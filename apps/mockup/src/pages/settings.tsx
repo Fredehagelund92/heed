@@ -537,7 +537,7 @@ function Advanced() {
 function logLine(e: LogEntry) {
   const names = e.items.map((i) => `“${i.title}”`)
   const titles = names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : names.join(" and ")
-  const verb = { archived: "Archived", deleted: "Deleted", moved: "Moved", kind: "Changed the kind of", owners: "Changed the owners of", checked: "Checked" }[e.what]
+  const verb = { archived: "Archived", deleted: "Deleted", moved: "Moved", kind: "Changed the kind of", owners: "Changed the owners of", checked: "Checked", settled: "Settled the conflict between" }[e.what]
   const detail = e.what === "moved" ? e.summary.replace(/^Moved /, "").replace(/\.$/, "") : e.what === "kind" || e.what === "owners" ? e.summary.replace(/\.$/, "") : ""
   return `${verb} ${titles}${detail ? `: ${detail.charAt(0).toLowerCase()}${detail.slice(1)}` : ""}`
 }

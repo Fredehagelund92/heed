@@ -324,8 +324,9 @@ The job specs, one line each:
 | J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion. |
 | J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                    |
 | J33 | Threads on the source: C or + comments on a line or a field; reply, react, resolve, reopen; the rail counts them live.                           |
+| J36 | Conflicts: compare two items that disagree side by side; settle with a reason and Undo; rights across domains; every place it appears.           |
 
-The first plan for the web app named J1 to J29. J30 (topics) was added after that, so the full set is J1 to J33.
+The first plan for the web app named J1 to J29. J30 (topics) was added after that, so the full set is J1 to J33, and J36.
 
 ## 15. The glossary
 

@@ -29,6 +29,8 @@ export type SavedQuestion = {
   factId: string
   /** Before and now, for a result that moved. */
   diff?: { saved: string; now: string }
+  /** Now a Conflict: the pair agents get both of, so the card leads to the comparison. */
+  conflict?: string
 }
 
 const seed: SavedQuestion[] = [
@@ -77,7 +79,22 @@ const seed: SavedQuestion[] = [
       now: "A new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing.",
     },
   },
-  same("sq-gift-cards", "Do Norway orders include gift cards?", "sales", "Jon Abara", "itm_gift_card_only"),
+  {
+    id: "sq-gift-cards",
+    question: "Do Norway orders include gift cards?",
+    domain: "sales",
+    savedBy: "Jon Abara",
+    expect: "Checked: Norway orders are card and cash payments only.",
+    result: "look",
+    why: "Used to answer from 1 item. Now two items apply and disagree.",
+    when: "Yesterday, 20:35",
+    factId: "itm_gift_card_only",
+    diff: {
+      saved: "Orders in Norway count only card and cash payments. Store credit and gift cards are left out.",
+      now: "Conflict: two items say different things. Both are given until an owner chooses.",
+    },
+    conflict: "itm_gift_store_credit.itm_gift_card_only",
+  },
   same("sq-store-credit", "Does Norway count store credit in orders?", "sales", "Sofia Brandt", "itm_gift_store_credit"),
   same("sq-early-orders", "Can I compare orders from before 19 January 2026?", "sales", "Jon Abara", "itm_r6lyl1pc"),
   same("sq-test-accounts", "Do units sold include test accounts?", "sales", "Sofia Brandt", "itm_s90n5xps"),
