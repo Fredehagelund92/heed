@@ -27,8 +27,8 @@ describe("the shared help lists", () => {
   })
 
   it("list every docs page once, and an index agents can read", () => {
-    expect(DOC_PAGES).toHaveLength(12)
-    expect(new Set(DOC_PAGES.map((p) => p.slug)).size).toBe(12)
+    expect(DOC_PAGES).toHaveLength(13)
+    expect(new Set(DOC_PAGES.map((p) => p.slug)).size).toBe(13)
     const index = llmsTxt()
     for (const p of DOC_PAGES) expect(index).toContain(`- [${p.title}](/docs/${p.slug}): ${p.line}`)
   })
