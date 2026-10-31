@@ -37,6 +37,7 @@ import { conflictPath, sideTitle, type ConflictRow } from '@/model/conflicts'
 
 /** The page: the pair, Context before it, and J and K through the conflict list. */
 export function ConflictPage({ pairKey }: { pairKey: string }) {
+  const { query } = useRoute()
   const pair = useQuery(conflictQuery(pairKey))
   const topic = pair.data?.topic
   return (
@@ -62,6 +63,7 @@ export function ConflictPage({ pairKey }: { pairKey: string }) {
           key={pairKey}
           pairKey={pairKey}
           place="page"
+          openAs={query.get('settle') === 'not_conflict' ? 'not_conflict' : undefined}
           onStep={(p) => navigate(conflictPath(p.key))}
         />
       </div>

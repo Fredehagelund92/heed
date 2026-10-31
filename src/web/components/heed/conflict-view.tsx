@@ -535,10 +535,13 @@ export type ConflictPlace = 'page' | 'dock'
 export function ConflictView({
   pairKey,
   place,
+  openAs,
   onStep,
 }: {
   pairKey: string
   place: ConflictPlace
+  /** Opens the Not a conflict confirm step on arrival, as after an edit made from the conflict. */
+  openAs?: 'not_conflict'
   onStep?: (to: ConflictRow) => void
 }) {
   const query = useQuery(conflictQuery(pairKey))
@@ -554,7 +557,12 @@ export function ConflictView({
     measure(el)
     root.current = el
   }
-  const [pending, setPending] = React.useState<Pending | null>(null)
+  const [picked, pick] = React.useState<Pending | null>(null)
+  const [left, setLeft] = React.useState(false)
+  const setPending = (p: Pending | null) => {
+    setLeft(true)
+    pick(p)
+  }
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({})
   const [asking, setAsking] = React.useState<ConflictSide | null>(null)
   const [settling, setSettling] = React.useState(false)
@@ -566,6 +574,8 @@ export function ConflictView({
   const sides = [React.useRef<HTMLDivElement>(null), React.useRef<HTMLDivElement>(null)] as const
 
   const c = query.data ?? null
+  const pending: Pending | null =
+    picked ?? (openAs && !left && c?.rights.notConflict ? { how: 'not_conflict' } : null)
   const rows = list.data ?? []
   const at = rows.findIndex((r) => r.key === (done?.conflict.key ?? c?.key ?? pairKey))
   const next =

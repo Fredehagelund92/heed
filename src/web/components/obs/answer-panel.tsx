@@ -20,6 +20,7 @@ import { useQuery } from '@tanstack/react-query'
 import { conflictsQuery } from '@/api/queries'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { StateLine } from '@/components/heed/bits'
+import { pairOfTopic } from '@/model/conflicts'
 import { countedState } from '@/model/ask'
 import { ReadingCard } from '@/components/heed/reading'
 import { DockStepper } from '@/components/heed/list'
@@ -383,10 +384,7 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
 function WarningsTab({ t, counts }: { t: Topic; counts: Counts }) {
   const obs = useObservability()
   // The pair agents got for this topic, named, with the way to the comparison (FR-220).
-  const name = obs.topicName(t).toLowerCase()
-  const pair = (useQuery(conflictsQuery('all')).data ?? []).find(
-    (r) => r.topic && name.startsWith(r.topic.toLowerCase()),
-  )
+  const pair = pairOfTopic(useQuery(conflictsQuery('all')).data ?? [], obs.topicName(t))
   const kinds = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
     (s) => t.in.answers.includes(s) || (s === 'missing' && t.in.notFound),
   )

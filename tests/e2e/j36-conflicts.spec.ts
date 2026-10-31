@@ -154,21 +154,46 @@ test('the Conflict alert card shows the pair and leads to the comparison', async
   })
 })
 
-test('edit this one: the other item stays beside it, and saving the narrowed one drops the flag', async ({
+async function saveNarrowedFromFrance(page: Page, title: string) {
+  await go(page, '/context/conflicts/itm_france_switch_12.itm_france_switch_21')
+  await page.getByRole('button', { name: 'Edit this one' }).first().click()
+  await expect(page).toHaveURL(/beside=itm_france_switch_21/)
+  const beside = page.getByRole('complementary', { name: 'The item it disagrees with' })
+  await expect(beside).toContainText('Payment provider switched in France on 21 May 2026.')
+  await page.getByRole('textbox', { name: 'Title' }).fill(title)
+  await page.getByRole('button', { name: /^Save/ }).first().click()
+}
+
+test('edit this one: saving returns to the conflict at Not a conflict, and it is settled only with a reason', async ({
   page,
 }) => {
   await onMockOnly('editor publish', async () => {
-    await go(page, '/context/conflicts/itm_france_switch_12.itm_france_switch_21')
-    await page.getByRole('button', { name: 'Edit this one' }).first().click()
-    await expect(page).toHaveURL(/beside=itm_france_switch_21/)
-    const beside = page.getByRole('complementary', { name: 'The item it disagrees with' })
-    await expect(beside).toContainText('Payment provider switched in France on 21 May 2026.')
-    const title = page.getByRole('textbox', { name: 'Title' })
-    await title.fill('Payment provider switched in France for cards on 12 May 2026')
-    await page.getByRole('button', { name: /^Save/ }).first().click()
-    await expect(page.getByText('Saved, and not a conflict any more')).toBeVisible()
+    await saveNarrowedFromFrance(
+      page,
+      'Payment provider switched in France for cards on 12 May 2026',
+    )
+    const box = page.getByRole('dialog', { name: 'Not a conflict' })
+    await expect(box.getByText('Agents will then say')).toBeVisible()
+    await expect(box.getByRole('button', { name: 'Not a conflict' })).toBeDisabled()
+    await box.getByLabel('Why is this not a conflict?').fill('Narrowed to cards.')
+    await box.getByRole('button', { name: 'Not a conflict' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Narrowed to cards.' })).toBeVisible()
     await go(page, '/context/conflicts?whose=all')
     await expect(page.getByRole('link', { name: 'Orders in France' })).toHaveCount(0)
+  })
+})
+
+test('a typo fix saved from a conflict settles nothing, and cancelling leaves it flagged', async ({
+  page,
+}) => {
+  await onMockOnly('editor publish', async () => {
+    await saveNarrowedFromFrance(page, 'Payment provider switched in France on 12 May 2026.')
+    const box = page.getByRole('dialog', { name: 'Not a conflict' })
+    await expect(box).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(box).toBeHidden()
+    await go(page, '/context/conflicts?whose=all')
+    await expect(page.getByRole('cell', { name: 'Orders in France', exact: true })).toBeVisible()
   })
 })
 

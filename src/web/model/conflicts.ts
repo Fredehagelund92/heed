@@ -112,3 +112,11 @@ export const sideTitle = (s: Pick<ConflictSide, 'title'>) => s.title ?? 'An item
 
 /** A pair's own page. */
 export const conflictPath = (key: string) => `/context/conflicts/${key}`
+
+/** The pair whose topic is exactly `name`: "Orders" never takes "Orders in Norway"'s pair. */
+export const pairOfTopic = <T extends Pick<ConflictRow, 'topic'>>(rows: T[], name: string) =>
+  rows.find((r) => r.topic && r.topic.toLowerCase() === name.toLowerCase())
+
+/** The pair a Conflict alert is about: its title names the topic, then a colon. */
+export const pairOfAlert = <T extends Pick<ConflictRow, 'topic'>>(rows: T[], title: string) =>
+  pairOfTopic(rows, title.split(':')[0]!)

@@ -28,6 +28,7 @@ import { DomainBadge, FieldDiff } from '@/components/heed/bits'
 import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
+import { pairOfAlert } from '@/model/conflicts'
 import { connectorById } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
 import { QuickReview, Sender } from '@/pages/review'
@@ -1370,11 +1371,11 @@ export function InboxPage() {
 
 /**
  * A Conflict alert's pair (FR-220): the two items its topic gets, compact, and the way to the
- * comparison. The alert names its topic; the pair is the one whose topic its title starts with.
+ * comparison. The alert names its topic; the pair is the one whose topic its title names before the colon.
  */
 function AlertPair({ title }: { title: string }) {
   const rows = useQuery(conflictsQuery('all')).data ?? []
-  const row = rows.find((r) => r.topic && title.toLowerCase().startsWith(r.topic.toLowerCase()))
+  const row = pairOfAlert(rows, title)
   const pair = useQuery({ ...conflictQuery(row?.key ?? ''), enabled: !!row }).data
   if (!row || !pair) return null
   return (

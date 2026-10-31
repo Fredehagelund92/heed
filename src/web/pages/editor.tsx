@@ -30,6 +30,7 @@ import { useSend } from '@/lib/send'
 import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
+import { conflictPath } from '@/model/conflicts'
 import { type Validity } from '@/model/validity'
 import {
   missingDates,
@@ -98,14 +99,7 @@ import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Vocabulary } from '@/api'
 import type { Relation } from '@/api/client'
-import {
-  conflictQuery,
-  draftFromTextQuery,
-  itemPageQuery,
-  useInbox,
-  useVocabulary,
-  useWrite,
-} from '@/api/queries'
+import { draftFromTextQuery, itemPageQuery, useInbox, useVocabulary, useWrite } from '@/api/queries'
 import { useDomainList, useDomains, useFact, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { useWide } from '@/hooks/use-wide'
 import { Kbd } from '@/components/ui/kbd'
@@ -530,26 +524,11 @@ function Editor({
       navigate('/inbox')
       return
     }
-    // Edited from a conflict: the narrowed item and the other no longer say different things about
-    // the same thing, so the Conflict flag comes off, as a decision with its reason (FR-220).
+    // Edited from a conflict: it stays flagged until its owner settles it, with a reason.
     if (original && beside) {
-      const pair = await queryClient
-        .fetchQuery(conflictQuery(`${original.id}.${beside.id}`))
-        .catch(() => null)
-      if (pair?.rights.notConflict) {
-        await write('settleConflict', {
-          holderId: pair.holder.id,
-          otherId: pair.other.id,
-          outcome: 'not_conflict',
-          reason: 'Narrowed in the editor to where it applies.',
-          versions: { holder: pair.holder.version, other: pair.other.version },
-        })
-        toast('Saved, and not a conflict any more', {
-          description: `Agents get it from the next question, and “${beside.title}” beside it with no flag.`,
-        })
-        navigate(`/context/${id}`)
-        return
-      }
+      toast('Saved', { description: 'Agents get it from the next question.' })
+      navigate(conflictPath(`${original.id}.${beside.id}`), { settle: 'not_conflict' })
+      return
     }
     toast(original ? 'Saved' : 'Published', {
       description: 'Agents get it from the next question.',
