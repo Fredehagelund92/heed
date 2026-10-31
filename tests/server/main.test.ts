@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
 import { request, type IncomingHttpHeaders } from 'node:http'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,6 +63,7 @@ describe('the service entry point', { timeout: 30_000 }, () => {
 
   it('starts in production with company sign-in, and serves MCP on its own address', async () => {
     const keys = await mkdtemp(join(tmpdir(), 'heed-production-'))
+    let server: ReturnType<typeof start> | undefined
     try {
       // Production makes no key of its own: the operator creates the signing key (owner-only).
       const signingKey = join(keys, 'oauth-key.pem')
@@ -71,7 +72,7 @@ describe('the service entry point', { timeout: 30_000 }, () => {
         mode: 0o600,
       })
       const resource = 'https://heed.example.test/mcp'
-      const server = start({
+      const booted = start({
         NODE_ENV: 'production',
         DATABASE_URL: 'postgres://127.0.0.1:1/context_layer_none',
         PORT: '0',
@@ -83,7 +84,8 @@ describe('the service entry point', { timeout: 30_000 }, () => {
         CL_MCP_STATE_KEY_FILE: join(keys, 'state.key'),
         MCP_DEV_KEY_FILE: join(keys, 'dev-key.pem'),
       })
-      const url = await server.listening
+      server = booted
+      const url = await booted.listening
       expect((await fetch(`${url}/health`)).status).toBe(200)
       // fetch always sends the address's own host, so these go out with node:http.
       const mcp = (headers: Record<string, string>) =>
@@ -123,14 +125,19 @@ describe('the service entry point', { timeout: 30_000 }, () => {
         authorization_servers: ['https://heed.example.test'],
       })
 
-      server.child.kill('SIGTERM')
-      expect(await server.exited).toBe(0)
-      const output = server.output()
+      booted.child.kill('SIGTERM')
+      expect(await booted.exited).toBe(0)
+      const output = booted.output()
       expect(output).toContain('"nodeEnv":"production"')
       expect(output).toContain('"auth":"oidc"')
       expect(output).not.toContain('people picker')
       expect(output).toContain('"reason":"unknown_issuer"')
+      await expect(stat(join(keys, 'dev-key.pem'))).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
+      if (server && server.child.exitCode === null && server.child.signalCode === null) {
+        server.child.kill('SIGKILL')
+        await server.exited
+      }
       await rm(keys, { recursive: true, force: true })
     }
   })

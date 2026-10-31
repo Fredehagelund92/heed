@@ -85,6 +85,15 @@ async function ready() {
   }
 }
 
+/** The answer's JSON body, or undefined when it is not JSON (a proxy's error page). */
+function jsonBody<T>(answer: Answer): T | undefined {
+  try {
+    return JSON.parse(answer.body) as T
+  } catch {
+    return undefined
+  }
+}
+
 /** A JSON-RPC result from the MCP server, which answers as JSON or as one event. */
 function rpcResult(answer: Answer): Record<string, unknown> | undefined {
   const text = String(answer.headers['content-type']).includes('text/event-stream')
@@ -150,10 +159,8 @@ try {
   const session = await send(`${publicOrigin}/api/v1/auth/session`, {
     headers: { cookie: cookie() },
   })
-  const { person, csrfToken } = JSON.parse(session.body) as {
-    person?: { name?: string }
-    csrfToken?: string
-  }
+  const { person, csrfToken } =
+    jsonBody<{ person?: { name?: string }; csrfToken?: string }>(session) ?? {}
   check(
     session.status === 200 && person?.name === 'Rowan Tester' && Boolean(csrfToken),
     'the session is the person the provider signed in',
@@ -172,7 +179,7 @@ try {
     },
     body: JSON.stringify({ name: 'Production boot check' }),
   })
-  const { key } = JSON.parse(made.body) as { key?: string }
+  const { key } = jsonBody<{ key?: string }>(made) ?? {}
   check(
     made.status === 200 && Boolean(key?.startsWith('hak_')),
     'the administrator makes an access key',

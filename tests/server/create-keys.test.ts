@@ -38,13 +38,16 @@ describe('creating the keys production needs', { timeout: 30_000 }, () => {
     for (const file of Object.values(env)) expect((await stat(file)).mode & 0o777).toBe(0o600)
     const signingKey = await readFile(env.CL_OAUTH_SIGNING_KEY_FILE, 'utf8')
     expect(signingKey).toContain('BEGIN PRIVATE KEY')
+    const stateKey = await readFile(env.CL_MCP_STATE_KEY_FILE, 'utf8')
 
     const second = run(env)
     expect(second.status).toBe(0)
     expect(second.stdout).toContain(
       `CL_OAUTH_SIGNING_KEY_FILE: kept ${env.CL_OAUTH_SIGNING_KEY_FILE}`,
     )
+    expect(second.stdout).toContain(`CL_MCP_STATE_KEY_FILE: kept ${env.CL_MCP_STATE_KEY_FILE}`)
     expect(await readFile(env.CL_OAUTH_SIGNING_KEY_FILE, 'utf8')).toBe(signingKey)
+    expect(await readFile(env.CL_MCP_STATE_KEY_FILE, 'utf8')).toBe(stateKey)
     expect(second.stdout + second.stderr).not.toContain('PRIVATE KEY')
   })
 
