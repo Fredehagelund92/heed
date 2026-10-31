@@ -2,7 +2,13 @@ import { cp, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it } from 'vitest'
-import { demoModelDir, isEmpty, migrateDatabase, seedDemoIfEmpty } from '../../db/prepare.ts'
+import {
+  demoModelDir,
+  isEmpty,
+  isMissingStory,
+  migrateDatabase,
+  seedDemoIfEmpty,
+} from '../../db/prepare.ts'
 import { migrationDirectory } from '../../src/server/db/migrate.ts'
 import { localRoles } from '../../src/server/db/roles.ts'
 import { testDatabase } from './support.ts'
@@ -40,7 +46,11 @@ it('migrates a new database once, and leaves the demo out beside another model o
   await client.query(
     "insert into people (id, email, display_name) values (gen_random_uuid(), 'first@example.test', 'First')",
   )
+  await client.query(
+    "insert into areas (id, name, label, summary, description) values ('area_own', 'Own', 'gray', 'Mine', 'Mine')",
+  )
   expect(await isEmpty(client)).toBe(false)
+  expect(await isMissingStory(client)).toBe(false)
   expect(await seedDemoIfEmpty({ seedUrl: url, cubeModelDir: demoModelDir })).toBe('not-empty')
   const [items] = (await client.query<{ n: number }>('select count(*)::int as n from items')).rows
   expect(items!.n).toBe(0)

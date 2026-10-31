@@ -106,17 +106,18 @@ export async function isEmpty(client: pg.Client): Promise<boolean> {
   return result.rows[0]!.empty
 }
 
-/** Whether a database holds the demo library (it has a quality history) but not the demo's present. */
+/** Whether a database holds the demo library (its Sandbox domain, which only the demo seed creates) but not the demo's present. */
 export async function isMissingStory(client: pg.Client): Promise<boolean> {
   const result = await client.query<{ missing: boolean }>(
-    `select exists (select 1 from golden_questions)
+    `select exists (select 1 from areas where id = 'area_sandbox' and is_demo)
       and not exists (select 1 from item_versions where title = $1) as missing`,
     [norwayStop.title],
   )
   return result.rows[0]!.missing
 }
 
-export const composeRecovery = 'docker compose down --volumes, then docker compose up again'
+export const composeRecovery =
+  'docker compose down --volumes, which deletes the whole database of this demo install, then docker compose up again'
 
 /**
  * Step 3: the demo into an empty database, as the superuser. Returns what it added, or why it
