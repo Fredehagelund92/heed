@@ -25,6 +25,10 @@ subnet=${HEED_BOOT_SUBNET:-172.31.213}
 run=heed-boot-$$
 root=$(cd "$(dirname "$0")/../.." && pwd)
 web_ip=$subnet.10
+# The port the web image's nginx listens on, as its template says.
+web_port=$(docker run --rm --entrypoint sh "$web_image" -c \
+  "sed -n 's/^ *listen \([0-9]*\);.*/\1/p' /etc/nginx/templates/default.conf.template | head -n 1")
+web_url=http://$web_ip:${web_port:?the web image names no port it listens on}
 public_origin=https://heed.example.test
 
 passed=false
@@ -99,7 +103,7 @@ docker run -d --name "$run-web" --network "$run" --ip "$web_ip" \
   -e "HEED_API_URL=http://$run-service:3000" "$web_image" > /dev/null
 # The check shares the service's network, where the provider it starts is on 127.0.0.1 too.
 docker run --rm --network "container:$run-service" -v "$root/tests:/app/tests:ro" \
-  -e "PUBLIC_ORIGIN=$public_origin" -e "WEB_URL=http://$web_ip" -e ISSUER_PORT=9400 \
+  -e "PUBLIC_ORIGIN=$public_origin" -e "WEB_URL=$web_url" -e ISSUER_PORT=9400 \
   "$service_image" node tests/image/production-check.ts
 log=$(docker logs "$run-service" 2>&1)
 grep -q '"nodeEnv":"production"' <<< "$log" || fail 'the service ran in production mode'
@@ -112,7 +116,7 @@ probe() { # address, then the probe's arguments
   local address=$1
   shift
   docker run --rm --network "$run" --ip "$address" -v "$root/tests:/app/tests:ro" \
-    "$service_image" node tests/image/limit-probe.ts "http://$web_ip/api/v1/auth/methods" "$@"
+    "$service_image" node tests/image/limit-probe.ts "$web_url/api/v1/auth/methods" "$@"
 }
 first=$(probe "$subnet.21" 121)
 [ "$first" = '{"calls":121,"limited":1,"last":429}' ] ||
