@@ -6,7 +6,6 @@ import { createQueryClient } from '@/api/query-client'
 import { isPageQuery, sessionQuery, sharedQueries, useSession } from '@/api/queries'
 import { AppSidebar } from '@/components/app-sidebar'
 import { CommandPalette } from '@/components/command-palette'
-import { ConnectAgentDialog } from '@/components/connect-agent'
 import { ShortcutsDialog } from '@/components/shortcuts-dialog'
 import { ReportDialog } from '@/components/report-dialog'
 import { ErrorBoundary } from '@/components/error-boundary'
@@ -21,7 +20,7 @@ import { SharePanel } from '@/components/heed/share-answer'
 import { WherePanel } from '@/components/heed/where-panel'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useIsMobile } from '@/hooks/use-mobile'
-import { open } from '@/lib/events'
+import { onOpen, open } from '@/lib/events'
 import { clamp, readWidth, saveWidth } from '@/lib/pane-width'
 import { navigate, redirectTo, useInAppLinks, useRoute } from '@/lib/router'
 import { ThemeProvider } from '@/lib/theme'
@@ -204,6 +203,23 @@ export function Loading({
 const AnswerPanel = React.lazy(() =>
   import('@/pages/observability').then((m) => ({ default: m.AnswerPanel })),
 )
+
+// Connect an agent is asked for now and then, so its dialog is not on the first load: its code is
+// fetched with Settings, which shows the same body, once the browser is idle (main.tsx), and the
+// dialog mounts the first time it is asked for.
+const ConnectAgentDialog = React.lazy(() =>
+  import('@/components/connect-agent').then((m) => ({ default: m.ConnectAgentDialog })),
+)
+
+function ConnectAgentOnOpen() {
+  const [asked, setAsked] = React.useState(false)
+  React.useEffect(() => onOpen('connect', () => setAsked(true)), [])
+  return asked ? (
+    <React.Suspense fallback={null}>
+      <ConnectAgentDialog />
+    </React.Suspense>
+  ) : null
+}
 
 /** A screen behind its own error boundary, reset on every navigation, so one failure never blanks the app. */
 function SafeScreen() {
@@ -466,7 +482,7 @@ export default function App() {
             <Gate />
             <SignedIn>
               <CommandPalette />
-              <ConnectAgentDialog />
+              <ConnectAgentOnOpen />
               <ShortcutsDialog />
               <ReportDialog />
             </SignedIn>

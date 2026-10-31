@@ -575,9 +575,10 @@ function ConnectBody({ inDialog }: { inDialog?: boolean }) {
   )
 }
 
-// Connect an agent, from the user menu, the palette or the setup checklist: the same body.
+// Connect an agent, from the user menu, the palette or the setup checklist: the same body. The app
+// mounts it, open, the first time it is asked for (App.tsx).
 export function ConnectAgentDialog() {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(true)
   React.useEffect(() => onOpen('connect', () => setOpen(true)), [])
   return (
     <Dialog open={open} onOpenChange={setOpen}>

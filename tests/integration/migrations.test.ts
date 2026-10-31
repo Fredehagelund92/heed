@@ -42,6 +42,20 @@ it('serializes concurrent migrations, rolls back failures and refuses altered hi
     await rm(join(directory, '0003-bad.sql'))
     await writeFile(join(directory, '0001_test.sql'), 'select 1;')
     await expect(migrate(client, source)).rejects.toThrow('history differs')
+    // One applied from its branch and then renumbered after another took its number is refused.
+    await writeFile(
+      join(directory, '0001_test.sql'),
+      'create table proof (id int primary key); insert into proof values (1);',
+    )
+    await rm(join(directory, '0002_fail.sql'))
+    await writeFile(join(directory, '0002_other.sql'), 'select 1;')
+    await writeFile(join(directory, '0003_fail.sql'), 'insert into proof values (2);')
+    await expect(migrate(client, source)).rejects.toThrow(
+      'Migration 0002_fail.sql is now 0003_fail.sql: the database applied it under its old number',
+    )
+    await rm(join(directory, '0002_other.sql'))
+    await rm(join(directory, '0003_fail.sql'))
+    await writeFile(join(directory, '0002_fail.sql'), 'insert into proof values (2);')
     // A database made by other migrations, such as those the baseline replaced, is refused.
     await writeFile(join(directory, '0001_other.sql'), 'select 1;')
     await rm(join(directory, '0001_test.sql'))
