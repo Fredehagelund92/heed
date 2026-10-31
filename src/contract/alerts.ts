@@ -13,7 +13,7 @@ const areaId = z.string().check(z.regex(/^[a-z][a-z0-9_]{1,39}$/))
 /** Where a raise sends people: the card it raised, a topic's answer panel, a page, an integration. */
 export const raiseSubjectSchema = z.union([
   z.object({ card: z.string() }),
-  z.object({ topic: z.string() }),
+  z.object({ topic: z.string(), pair: z.optional(z.string()) }),
   z.object({ page: z.enum(['overview', 'usage']) }),
   z.object({ connector: z.string() }),
 ])

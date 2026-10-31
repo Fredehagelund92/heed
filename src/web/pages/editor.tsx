@@ -30,6 +30,7 @@ import { useSend } from '@/lib/send'
 import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
+import { conflictPath } from '@/model/conflicts'
 import { type Validity } from '@/model/validity'
 import {
   missingDates,
@@ -523,6 +524,12 @@ function Editor({
       navigate('/inbox')
       return
     }
+    // Edited from a conflict: it stays flagged until its owner settles it, with a reason.
+    if (original && beside) {
+      toast('Saved', { description: 'Agents get it from the next question.' })
+      navigate(conflictPath(`${original.id}.${beside.id}`), { settle: 'not_conflict' })
+      return
+    }
     toast(original ? 'Saved' : 'Published', {
       description: 'Agents get it from the next question.',
     })
@@ -549,7 +556,7 @@ function Editor({
   // A new refusal comes into view, wherever the page was scrolled.
   const refusalRef = React.useRef<HTMLElement>(null)
   React.useEffect(() => {
-    if (refusal) refusalRef.current?.scrollIntoView({ block: 'nearest' })
+    if (refusal) refusalRef.current?.scrollIntoView({ block: 'start' })
   }, [refusal])
   const retryable = !sendError || sendError.kind === 'unanswered' || sendError.kind === 'failed'
   const submit = () => {

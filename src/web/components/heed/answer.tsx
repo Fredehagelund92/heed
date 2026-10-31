@@ -1,5 +1,6 @@
 import * as React from 'react'
 import {
+  ArrowLeftRightIcon,
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -39,9 +40,10 @@ import { scopeText, type Answer, type AnswerLinks, type QuestionPart } from '@/m
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
-import { href, navigate, useRoute } from '@/lib/router'
-import { useQuery } from '@tanstack/react-query'
-import { figureQuery, myReportsQuery, useAskExamples, useWrite } from '@/api/queries'
+import { href, useRoute } from '@/lib/router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ConflictPairCompact } from '@/components/heed/conflict-pair'
+import { conflictQuery, figureQuery, myReportsQuery, useAskExamples, useWrite } from '@/api/queries'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
@@ -523,50 +525,68 @@ function WhereSentences({
   const sentences = sentencesOf(text)
   const show = (n: number) => openDock('where', answerId, { wn: String(n) })
   const marked = differingSentences(sentences, facts, conflict)
-  return (
+  // The sentences from the two items that disagree sit together under a line that says so, so the
+  // pair reads as a pair and a sentence from another item stays outside it.
+  const first = marked.indexOf(true)
+  const last = marked.lastIndexOf(true)
+  const run = (from: number, to: number) => (
     <p className="text-reading leading-relaxed">
-      {sentences.map((s, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && ' '}
-          <span
-            role="button"
-            tabIndex={0}
-            aria-pressed={open === i + 1}
-            onClick={() => show(i + 1)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter' && e.key !== ' ') return
-              e.preventDefault()
-              show(i + 1)
-            }}
-            data-mark={marked[i] ? 'differs' : undefined}
-            className={cn(
-              'cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
-              marked[i] && [
-                markText('differs'),
-                'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
-              ],
-            )}
-          >
-            {s.text}
-            {s.cites.map((n) => (
-              <span
-                key={n}
-                aria-hidden
-                className="ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums"
-              >
-                {n}
+      {sentences.slice(from, to).map((s, j) => {
+        const i = from + j
+        return (
+          <React.Fragment key={i}>
+            {j > 0 && ' '}
+            <span
+              role="button"
+              tabIndex={0}
+              aria-pressed={open === i + 1}
+              onClick={() => show(i + 1)}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return
+                e.preventDefault()
+                show(i + 1)
+              }}
+              data-mark={marked[i] ? 'differs' : undefined}
+              className={cn(
+                'cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
+                marked[i] && [
+                  markText('differs'),
+                  'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
+                ],
+              )}
+            >
+              {s.text}
+              {s.cites.map((n) => (
+                <span
+                  key={n}
+                  aria-hidden
+                  className="ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums"
+                >
+                  {n}
+                </span>
+              ))}
+              <span className="sr-only">
+                {s.cites.length
+                  ? `, from ${s.cites.map((n) => facts[n - 1]?.title ?? `source ${n}`).join(' and ')}`
+                  : ", Ask's own wording"}
+                {marked[i] && ', which says something different from another item'}
               </span>
-            ))}
-            <span className="sr-only">
-              {s.cites.length
-                ? `, from ${s.cites.map((n) => facts[n - 1]?.title ?? `source ${n}`).join(' and ')}`
-                : ", Ask's own wording"}
-              {marked[i] && ', which says something different from another item'}
             </span>
-          </span>
-        </React.Fragment>
-      ))}
+          </React.Fragment>
+        )
+      })}
     </p>
+  )
+  if (first < 0) return run(0, sentences.length)
+  return (
+    <div className="flex flex-col gap-3">
+      {first > 0 && run(0, first)}
+      <div className="flex flex-col gap-1 border-l-2 pl-3">
+        <p className="text-xs font-medium text-caution-text">These two disagree</p>
+        {run(first, last + 1)}
+      </div>
+      {last < sentences.length - 1 && run(last + 1, sentences.length)}
+    </div>
   )
 }
 
@@ -865,19 +885,10 @@ function NextStep({ answer, facts }: { answer: Answer; facts: Fact[] }) {
       </div>
     )
   }
-  // Opens one of the items that disagree, never another item the answer also gives.
-  const disagreeing = facts.find((f) => answer.conflict?.includes(f.id))
-  if (answer.state === 'conflict' && owns && disagreeing) {
-    return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Button size="sm" variant="outline" onClick={() => navigate(`/context/${disagreeing.id}`)}>
-          Choose which one stays
-        </Button>
-        <span className="text-xs text-muted-foreground">
-          You can keep one, narrow one to where it applies, or keep both.
-        </span>
-      </div>
-    )
+  // The two items that disagree, side by side, and the way to the comparison: never another item
+  // the answer also gives.
+  if (answer.state === 'conflict' && answer.conflict?.length === 2) {
+    return <ConflictNextStep pairKey={answer.conflict.join('.')} />
   }
   if (answer.state === 'stale') {
     // An Outdated answer rests on at least one item.
@@ -1033,6 +1044,14 @@ function ContextAnswerBody({
   onAsk,
   docked,
 }: AnswerBodyProps) {
+  // A Conflict's pair is read while the answer is still being written, so it shows with the rest
+  // of the finished answer and nothing below it moves once it is in view.
+  const queryClient = useQueryClient()
+  const pairKey =
+    answer.state === 'conflict' && answer.conflict?.length === 2 ? answer.conflict.join('.') : null
+  React.useEffect(() => {
+    if (pairKey) void queryClient.prefetchQuery(conflictQuery(pairKey))
+  }, [pairKey, queryClient])
   const all = useFacts()
   const facts = React.useMemo(
     () =>
@@ -1293,6 +1312,29 @@ export function DraftBanner() {
     <div className="flex items-center gap-2 rounded-surface border border-dashed border-input px-3 py-2 text-sm">
       <FileTextIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       Trying the draft. Agents don't get it yet.
+    </div>
+  )
+}
+
+/** Under a Conflict answer: the pair, compact, and Compare and decide (or Compare the two). */
+function ConflictNextStep({ pairKey }: { pairKey: string }) {
+  const pair = useQuery(conflictQuery(pairKey)).data
+  if (!pair) return null
+  const can = Object.values(pair.rights).some(Boolean)
+  return (
+    <div className="flex flex-col gap-3">
+      <ConflictPairCompact pair={pair} label="These two disagree" />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button size="sm" onClick={() => openDock('conflict', pair.key)}>
+          <ArrowLeftRightIcon data-icon="inline-start" />
+          {can ? 'Compare and decide' : 'Compare the two'}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {can
+            ? 'You can keep one, narrow one to where it applies, or keep both.'
+            : 'See them side by side, and ask the owner.'}
+        </span>
+      </div>
     </div>
   )
 }

@@ -64014,6 +64014,9 @@
                                     "properties": {
                                       "topic": {
                                         "type": "string"
+                                      },
+                                      "pair": {
+                                        "type": "string"
                                       }
                                     },
                                     "required": [
@@ -100689,6 +100692,9 @@
                                         "properties": {
                                           "topic": {
                                             "type": "string"
+                                          },
+                                          "pair": {
+                                            "type": "string"
                                           }
                                         },
                                         "required": [
@@ -101153,6 +101159,9 @@
                                   "type": "object",
                                   "properties": {
                                     "topic": {
+                                      "type": "string"
+                                    },
+                                    "pair": {
                                       "type": "string"
                                     }
                                   },
@@ -101681,6 +101690,9 @@
                                   "properties": {
                                     "topic": {
                                       "type": "string"
+                                    },
+                                    "pair": {
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -102128,6 +102140,9 @@
                             "type": "object",
                             "properties": {
                               "topic": {
+                                "type": "string"
+                              },
+                              "pair": {
                                 "type": "string"
                               }
                             },

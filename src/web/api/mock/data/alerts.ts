@@ -21,7 +21,7 @@ export const RULES: Rule[] = [
   {
     ...ruleWords('disagree'),
     last: 'Tue 20 Oct',
-    lastHref: '/inbox?card=alert-net-revenue',
+    lastHref: '/inbox?card=alert-orders-norway',
     lastDomain: 'sales',
   },
   {
@@ -81,11 +81,11 @@ export const RAISED: Raised[] = [
   {
     id: 'r-net-revenue',
     rule: 'disagree',
-    title: 'Net revenue in Norway: conflict, 3 times',
+    title: 'Orders in Norway: conflict, 3 times',
     line: 'A card went to Jon Abara and Sofia Brandt.',
     when: 'Tue 20 Oct',
     domain: 'sales',
-    href: '/inbox?card=alert-net-revenue',
+    href: '/inbox?card=alert-orders-norway',
   },
   {
     id: 'r-cube',

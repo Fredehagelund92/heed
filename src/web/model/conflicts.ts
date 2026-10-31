@@ -112,3 +112,18 @@ export const sideTitle = (s: Pick<ConflictSide, 'title'>) => s.title ?? 'An item
 
 /** A pair's own page. */
 export const conflictPath = (key: string) => `/context/conflicts/${key}`
+
+/** The row for the pair of these two items, whichever of them holds the link. */
+export const pairOfItems = <T extends { holder: { id: string }; other: { id: string } }>(
+  rows: T[],
+  ids: readonly string[] | undefined,
+) =>
+  ids?.length === 2
+    ? rows.find((r) => ids.includes(r.holder.id) && ids.includes(r.other.id))
+    : undefined
+
+/** The row for a pair key (`a.b`, either way round). */
+export const pairOfKey = <T extends { holder: { id: string }; other: { id: string } }>(
+  rows: T[],
+  key: string | undefined,
+) => pairOfItems(rows, key?.split('.'))

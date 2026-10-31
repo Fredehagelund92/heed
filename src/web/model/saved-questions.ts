@@ -33,6 +33,8 @@ export type SavedQuestion = {
   factId: string
   /** Before and now, for a result that moved. */
   diff?: { saved: string; now: string }
+  /** Now a Conflict: the items the answer gives, so the card leads to the comparison (FR-220). */
+  conflict?: string[]
 }
 
 export type SavedCounts = {

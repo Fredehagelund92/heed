@@ -48,7 +48,7 @@ test('the Inbox marks what a suggestion needs, once on its row, and only on the 
 
 test("a review's clash says what to do, marked once", async ({ page }) => {
   await go(page, `/inbox/${card('sug-sofia-clash')}/review`)
-  const clash = page.locator('mark[data-mark=needs]', { hasText: /^It overlaps/ })
+  const clash = page.locator('mark[data-mark=needs]', { hasText: /^Overlaps live context/ })
   await expect(clash).toBeVisible()
   await expect(clash).toHaveCount(1)
 })
