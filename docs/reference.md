@@ -573,7 +573,8 @@ can be taken back answers with an `undo` token for `POST /decisions/undo`.
   it in one step, through the same checks and clash gate as the review; anyone else's goes to the
   domain's owners as a suggestion (`published: false`, with `ownerIds`). `relations` says how it
   relates to each live item it clashes with (`replaces`, `disagrees` or `unrelated`), as the
-  owner answered in the editor: a clash left unanswered refuses the publish (422), and an answer
+  owner answered in the editor: a clash left unanswered refuses the publish (422, with the open
+  clashes as `data.clashes`, each `{ itemId, title }`), and an answer
   for an item it does not clash with is left out. `draftId` names the person's own draft it
   finishes: the draft takes the words and is sent as itself, changing the item it was started
   from, if any; only its writer sends a draft (403 otherwise). A publish the checks refuse keeps
