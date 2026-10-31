@@ -552,6 +552,8 @@ export const invalidations: {
   setPause: () => [queryKeys.settings, queryKeys.advancedPage],
   // A new key is listed on Connected agents; the history log notes it.
   createAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  renameAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  setAgentPermission: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   // Checking and exporting change nothing.
   checkHistory: () => [],
   exportHistory: () => [],
@@ -566,7 +568,7 @@ export const invalidations: {
   disconnectIntegration: () => [queryKeys.settings, ...integrations, ...inbox],
   readIntegration: () => integrations,
   pauseIntegration: () => [...integrations, queryKeys.advancedPage],
-  revokeAgentConnection: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  revokeAgent: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   // A yes adds a connected agent; the page then leaves for the agent.
   answerConnectRequest: () => [queryKeys.agentConnections],
   renameChat: () => [queryKeys.chats],

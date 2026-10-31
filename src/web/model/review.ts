@@ -95,6 +95,7 @@ export type Review = {
   id: string
   title: string
   from: string
+  /** Set when an agent sent it, with the person's OK: the agent's name (FR-420). */
   agent?: string
   via: string
   on: string

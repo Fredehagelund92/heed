@@ -129,6 +129,8 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
       const synced = card.synced
       const from = synced ? synced.source.tool : (card.from?.name ?? 'Someone')
       const agent = card.writtenBy === 'agent'
+      // The agent by its name (FR-420); one sent before agents had names is "an agent".
+      const agentName = card.agent ?? 'An agent'
       return {
         ...base,
         type: 'suggestion',
@@ -136,7 +138,7 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
         line: synced
           ? `New context from ${synced.source.tool}: ${synced.document.title}.`
           : agent
-            ? `New context from an agent, sent with ${from}'s OK.`
+            ? `New context from ${card.agent ?? 'an agent'}, sent with ${from}'s OK.`
             : card.action === 'retire'
               ? `${from} suggests archiving it.`
               : card.action === 'create'
@@ -159,7 +161,7 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
         suggestion: {
           ...(card.itemId ? { factId: card.itemId } : {}),
           from,
-          ...(agent ? { agent: 'An agent' } : {}),
+          ...(agent ? { agent: agentName } : {}),
           via: 'a chat',
           on: dayWords(card.at),
           changes: [],
@@ -720,7 +722,7 @@ export function reviewOf(
     id: cardId,
     title: proposal.title,
     from,
-    ...(sheet.writtenBy === 'agent' ? { agent: 'An agent' } : {}),
+    ...(sheet.writtenBy === 'agent' ? { agent: sheet.agent ?? 'An agent' } : {}),
     via: viaOf(proposal.channel),
     on: dayWords(proposal.submittedAt ?? proposal.createdAt),
     ...(sheet.synced

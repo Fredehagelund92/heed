@@ -300,6 +300,7 @@ export function createDraftTool(options: {
           marks: derived.marks,
           ...(args.window?.uncertain ? { datesUncertain: true } : {}),
           ...(answering ? { answersRound: answering.round } : {}),
+          ...(principal.agent ? { agentId: principal.agent.id } : {}),
         })
         // suggest_context sends it to the owner as the person's own Send for review would; a
         // refusal by the review checks keeps it as their draft, with why.

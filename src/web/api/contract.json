@@ -497,7 +497,73 @@
           "tags": [
             "admin"
           ],
-          "summary": "Create an access key for a bot or a scheduled job that cannot sign in: it may read context and give feedback, names no person, and lasts until revoked. The key is in this answer only; it is kept as a digest and never shown again"
+          "summary": "Create an access key with a name, for a bot or a scheduled job that cannot sign in: it may read context and give feedback, names no person, and lasts until revoked. The key is in this answer only; it is kept as a digest and never shown again"
+        }
+      }
+    }
+  },
+  "agents": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/agents",
+          "tags": [
+            "session"
+          ],
+          "summary": "The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, what an administrator lets it do, what it may do now and what it suggested lately. An administrator sees every agent; anyone else their own apps"
+        }
+      }
+    },
+    "rename": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/agents/{id}/name",
+          "tags": [
+            "admin"
+          ],
+          "summary": "Rename an access key, by its agent; the history log keeps the name before and after. An app keeps the name it gives itself"
+        }
+      }
+    },
+    "setPermission": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "admin"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/agents/{id}/permission",
+          "tags": [
+            "admin"
+          ],
+          "summary": "Set what one agent may do: read and suggest, read only, or nothing. It acts at the agent's next request and never widens what a person allowed. The history log keeps the reason"
+        }
+      }
+    },
+    "revoke": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/agents/{id}/revoke",
+          "tags": [
+            "session"
+          ],
+          "summary": "End one agent at once: every connection of an app, or an access key. An administrator ends any agent with a reason the history log keeps; anyone else their own apps"
         }
       }
     }

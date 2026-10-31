@@ -261,6 +261,26 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
         },
       })
     }
+    // An agent an admin set to no access gets nothing, and an app set to read only cannot suggest
+    // (FR-420). Said plainly, without a scope challenge, so its app does not ask the person to sign
+    // in again for what an admin took away.
+    if (principal.agent?.permission === 'none')
+      return deny(
+        403,
+        `An admin turned this agent off in ${productName}. It gets nothing until an admin lets it read again.`,
+        'forbidden',
+      )
+    if (
+      name &&
+      tools[name].scope === 'propose' &&
+      principal.agent?.kind === 'app' &&
+      principal.agent.permission === 'read'
+    )
+      return deny(
+        403,
+        `An admin lets this agent read only, so it cannot suggest. The person can suggest in ${productName} instead.`,
+        'forbidden',
+      )
     const required = name ? tools[name].scope : 'read feedback'
     if (!required.split(' ').some((scope) => principal.scopes.includes(scope))) {
       reply.header(

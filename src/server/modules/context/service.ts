@@ -478,10 +478,19 @@ export function createContextService(
   /** An item's history, newest first: each version agents got, its archives and owner changes. */
   async function historyOf(itemId: string): Promise<ItemVersionEntry[]> {
     const day = (at: string) => `to_char(${at} at time zone 'UTC', 'YYYY-MM-DD')`
-    const served = await tx.query<{ id: string; recheck: boolean; by: string | null; at: string }>(
+    const served = await tx.query<{
+      id: string
+      recheck: boolean
+      by: string | null
+      at: string
+      agent: { name: string; personId: string } | null
+    }>(
       `select v.id::text, v.is_recheck as recheck,
               (select d.decided_by::text from decisions d where d.item_version_id = v.id
                   and d.outcome = 'accept' order by d.decided_at, d.id limit 1) as by,
+              (select jsonb_build_object('name', p.agent_name, 'personId', p.proposer_id::text)
+                 from proposals p where p.item_version_id = v.id and p.agent_name is not null
+                order by p.created_at limit 1) as agent,
               coalesce((select min(e.created_at) from item_version_service s
                           join editions e on e.seq = lower(s.editions) where s.version_id = v.id),
                        v.created_at)::text as at
@@ -512,6 +521,7 @@ export function createContextService(
         at: s.at,
         ...entry,
         restorable: ['published', 'wording', 'link', 'dates'].includes(entry.kind),
+        ...(s.agent ? { agent: s.agent } : {}),
       })
       previous = stored.version
     }

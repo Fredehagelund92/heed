@@ -156,7 +156,7 @@ function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.R
     ? `${card.source.tool}, ${card.source.folder}`
     : s
       ? s.agent
-        ? `An agent, with ${s.from}'s OK`
+        ? `${s.agent}, with ${s.from}'s OK`
         : s.from
       : ''
   if (s || card.source)
@@ -528,7 +528,7 @@ function from(card: InboxCard) {
   const s = card.suggestion
   if (s)
     return s.agent
-      ? `From an agent, sent with ${s.from}'s OK.`
+      ? `From ${s.agent}, sent with ${s.from}'s OK.`
       : `From ${s.from}, ${s.via === 'editor' ? 'written in the editor' : `from ${s.via}`}.`
   if (card.flag)
     return card.flag.by

@@ -88,13 +88,21 @@ test('the dialog shows the same body, and a connect there reaches Settings', asy
   ).toContainText('Claude CodeNew')
 })
 
-test('an admin makes an access key, shown once, lists it, and revokes it', async ({ page }) => {
+test('an admin makes a named access key, shown once, lists it, and revokes it', async ({
+  page,
+}) => {
   await go(page, '/settings/agents')
   await page.getByRole('button', { name: /Show or hide Tools and access keys/ }).click()
   await expect(
     page.getByText("For a bot or a scheduled job that can't sign in. None yet."),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Create an access key' }).click()
+  const naming = page.getByRole('dialog', { name: 'Create an access key' })
+  // A key needs a name: it is what the list, the history log and a review call it.
+  await naming.getByRole('button', { name: 'Create' }).click()
+  await expect(naming.getByText('Give it a name, such as what the job does.')).toBeVisible()
+  await naming.getByLabel('Name').fill('Weekly sales digest')
+  await naming.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByText('Copy it now: it is shown once.')).toBeVisible()
   await expect(
     page.getByText(
@@ -104,17 +112,36 @@ test('an admin makes an access key, shown once, lists it, and revokes it', async
   const key = page
     .getByRole('list', { name: 'Connected agents' })
     .getByRole('listitem')
-    .filter({ hasText: 'Access key' })
+    .filter({ hasText: 'Weekly sales digest' })
   await expect(key).toHaveCount(1)
-  await expect(key).toContainText('Access keyNew')
-  await expect(key).toContainText('Jon Abara')
+  await expect(key).toContainText('Weekly sales digestNewRead only')
+  await expect(key).toContainText('Access key, made by Jon Abara')
   await expect(key).toContainText(/never used/i)
   await key.getByRole('button', { name: 'Revoke' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Revoke this access key?' })
+  const dialog = page.getByRole('dialog', { name: 'Revoke the access key “Weekly sales digest”?' })
   await dialog.getByRole('button', { name: 'Revoke' }).click()
-  await expect(page.getByText('Access key revoked')).toBeVisible()
+  await expect(page.getByText('Access key Weekly sales digest revoked')).toBeVisible()
   await expect(key).toHaveCount(0)
   await expect(
     page.getByText("For a bot or a scheduled job that can't sign in. None yet."),
   ).toBeVisible()
+})
+
+test('an admin sees what each agent may do and sets one to read only', async ({ page }) => {
+  await go(page, '/settings/agents')
+  const kofi = page
+    .getByRole('list', { name: 'Connected agents' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Kofi Mensah' })
+  await expect(kofi).toContainText('Claude CodeRead and suggest')
+  await kofi.getByRole('button', { name: 'Details of Claude Code for Kofi Mensah' }).click()
+  await expect(kofi).toContainText('Suggest new context or a change, for an owner to check')
+  await expect(kofi).toContainText('It never publishes')
+  await expect(kofi).toContainText('Payment provider delays order data in Poland')
+  await kofi.getByRole('combobox', { name: 'What Claude Code may do' }).click()
+  await page.getByRole('option', { name: 'Read only' }).click()
+  await expect(page.getByText('Claude Code: read only')).toBeVisible()
+  await expect(kofi).toContainText('Claude CodeRead only')
+  await expect(kofi).not.toContainText('Suggest new context or a change')
+  await expect(kofi).toContainText('Changed by Jon Abara')
 })

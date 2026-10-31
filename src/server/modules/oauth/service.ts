@@ -209,6 +209,17 @@ export interface LoginServer {
     log: SignInLog,
   ): Promise<number | null>
   /**
+   * Ends every open connection of one agent a person signed in with (FR-420): an administrator
+   * ends anyone's with a reason the history log keeps, a person their own. The count ended; null
+   * when the signed-in person may not end it.
+   */
+  disconnectAgent(
+    tx: Queryable,
+    agentId: string,
+    reason: string | null,
+    log: SignInLog,
+  ): Promise<number | null>
+  /**
    * Ends every open connection of a person removed from the workspace (`person_inactive`), in the
    * removal's transaction: the MCP server refuses their access tokens at once. The count ended.
    */
@@ -865,6 +876,39 @@ export function createLoginServer(options: {
       if (ended) logSignIn(log, 'disconnected_by_admin')
       return ended
     },
+    async disconnectAgent(tx, agentId, reason, log) {
+      const [actor] = await tx.query<{ admin: boolean; id: string | null }>(
+        'select cl_is_admin_now() as admin, cl_person()::text as id',
+      )
+      if (!actor?.id) return null
+      const [agent] = await tx.query<{ personId: string }>(
+        `select person_id::text as "personId" from auth.agents where id=$1 and kind='app'`,
+        [agentId],
+      )
+      if (!agent) return 0
+      const byAdmin = actor.admin && (reason !== null || agent.personId !== actor.id)
+      if (!byAdmin && agent.personId !== actor.id) return null
+      if (byAdmin && reason === null) return null
+      const grants = await tx.query<{ id: string }>(
+        `select g.id::text from auth.oauth_grants g join auth.agents a
+            on a.person_id=g.person_id and a.client_id=g.client_id
+          where a.id=$1 and g.revoked_at is null and g.expires_at > $2
+          order by g.created_at, g.id for update of g`,
+        [agentId, now()],
+      )
+      let ended = 0
+      for (const grant of grants)
+        if (
+          byAdmin
+            ? await revokeGrant(tx, grant.id, 'disconnected_by_admin', actor.id, {
+                reason: reason!,
+              })
+            : await revokeGrant(tx, grant.id, 'disconnected', actor.id)
+        )
+          ended++
+      if (ended) logSignIn(log, byAdmin ? 'disconnected_by_admin' : 'disconnected')
+      return ended
+    },
     async endPerson(tx, personId) {
       const grants = await tx.query<{ id: string }>(
         `select id::text from auth.oauth_grants where person_id=$1 and revoked_at is null
@@ -942,6 +986,25 @@ export function createLoginServer(options: {
       const [client] = await tx.query<{ name: string }>(
         'update auth.oauth_clients set last_used_at=$2 where id=$1 returning name',
         [row.clientId, now()],
+      )
+      // The person and the app are one agent (FR-420), named as the app names itself now. A new
+      // one may suggest, bounded by what the person allowed; one an admin changed keeps it. An app
+      // that registers again gets a new id, so a new agent of the person by the same name starts
+      // from the narrowest that an admin set for one of theirs: registering anew never undoes it.
+      await tx.query(
+        `insert into auth.agents(kind,name,person_id,client_id,permission,permission_set_by,permission_set_at)
+         select 'app',c.name,$1,c.id,coalesce(narrowest.permission,'suggest'),
+                narrowest.permission_set_by,narrowest.permission_set_at
+           from auth.oauth_clients c
+           left join lateral (
+             select a.permission,a.permission_set_by,a.permission_set_at from auth.agents a
+              where a.kind='app' and a.person_id=$1 and lower(a.name)=lower(c.name)
+                and a.permission<>'suggest'
+              order by a.permission='none' desc, a.permission_set_at desc nulls last limit 1
+           ) narrowest on true
+          where c.id=$2
+         on conflict (person_id,client_id) do update set name=excluded.name`,
+        [row.personId, row.clientId],
       )
       await tx.query(
         `insert into audit_log(actor_id,actor_kind,action,subject_type,subject_id,details)

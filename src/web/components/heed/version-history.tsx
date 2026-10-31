@@ -84,6 +84,7 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
         </TooltipTrigger>
         <TooltipContent side="left" className="max-w-64">
           Version {version.v}: {version.summary}
+          {version.sentBy && ` Sent by ${version.sentBy}.`}
         </TooltipContent>
       </Tooltip>
     </li>
@@ -183,7 +184,8 @@ export function VersionHistory({
                   )}
                 </SheetTitle>
                 <SheetDescription>
-                  {viewing.who} {VERB[viewing.kind]}, {relativeDate(viewing.on)}. {viewing.summary}
+                  {viewing.who} {VERB[viewing.kind]}, {relativeDate(viewing.on)}.
+                  {viewing.sentBy && ` Sent by ${viewing.sentBy}.`} {viewing.summary}
                 </SheetDescription>
               </SheetHeader>
               <div className="@container flex flex-col gap-4 p-4">

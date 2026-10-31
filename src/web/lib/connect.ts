@@ -3,6 +3,8 @@
 // 10 minutes it stops checking until Check again. In the demo an agent signs in 8 seconds after the
 // copy (the mock binding plays it), and its review flag ?connect= shows each state.
 
+import type { AgentKind, AgentPermission, AgentScope } from '@domain/agents'
+
 export const CHECK_MS = 3_000
 export const HINT_MS = 120_000
 export const STOP_MS = 600_000
@@ -33,19 +35,33 @@ export function phaseAt(elapsed: number, signIn?: number): Exclude<LivePhase, 'i
 /* ---------- The connected agents, shared by the page, the dialog and the live line ---------- */
 
 /**
- * One row of Connected agents: an agent a person connected, or an access key an admin made, which
- * names no person: `who` is who made it, and `key` its id. `used` is Never for a key no agent used yet.
+ * One row of Connected agents: an agent, by its name (FR-420). An app a person signed in with acts
+ * for them (`who`); an access key an admin made names no person, and `who` is who made it. What an
+ * admin lets it do is `permission`; what it may do now is `scopes`, which is what it was allowed
+ * (`allowed`) narrowed by that. `used` is Never for a key no agent used yet.
  */
 export type Connected = {
+  /** The agent's own id: one per app and person, or per access key. */
+  id: string
+  kind: AgentKind
   agent: string
   who: string
+  /** Where an app came from, as a host; absent for an access key. */
+  host?: string
   since: string
   used: string
   fresh?: boolean
-  key?: string
+  permission: AgentPermission
+  /** Who last changed what it may do, and on what day; absent while it is as it started. */
+  setBy?: { name: string; on: string }
+  allowed: AgentScope[]
+  scopes: AgentScope[]
+  /** Its suggestions in the last 30 days, and the latest few. */
+  sent: number
+  recent: { id: string; title: string; state: string; on: string }[]
 }
 
-/** What an access key is called on Connected agents. */
+/** What an access key is called when it has no name of its own. */
 export const ACCESS_KEY = 'Access key'
 
 /** When a row was last used, as its line ends: "used today", or "never used" for a new key. */
@@ -54,7 +70,7 @@ export const usedLine = (r: Pick<Connected, 'used'>) =>
 
 /** What Connected agents says above its rows: "3 agents people have connected, and 1 access key." */
 export function connectedLine(rows: readonly Connected[]) {
-  const keys = rows.filter((r) => r.key).length
+  const keys = rows.filter((r) => r.kind === 'key').length
   const agents = rows.length - keys
   const parts = [
     ...(agents ? [`${agents} ${agents === 1 ? 'agent' : 'agents'} people have connected`] : []),
@@ -66,6 +82,6 @@ export function connectedLine(rows: readonly Connected[]) {
 
 /** The hint beside Create an access key: how many there are, and where they are listed. */
 export function keysHint(rows: readonly Connected[]) {
-  const keys = rows.filter((r) => r.key).length
+  const keys = rows.filter((r) => r.kind === 'key').length
   return keys ? `${keys} ${keys === 1 ? 'key' : 'keys'}, in Connected agents above.` : 'None yet.'
 }

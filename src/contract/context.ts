@@ -103,6 +103,11 @@ export const itemVersionEntrySchema = z.object({
   after: z.string(),
   /** Its words can come back as a draft (Restore as a draft): a version that changed the words. */
   restorable: z.boolean(),
+  /**
+   * The agent that sent the suggestion this version published, by its name then, and the person
+   * it sent it for (FR-420); absent for a version no agent suggested.
+   */
+  agent: z.optional(z.object({ name: z.string(), personId: z.string() })),
 })
 
 /** A context item's page: the item as published, what its list row reads, and its history. */

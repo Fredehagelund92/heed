@@ -232,3 +232,9 @@ grant execute on function cl_is_figure_contact(text), cl_closes_figure_report(te
 -- server reads no key: one function that runs as the owner says whether a digest is an open key.
 grant select, insert, update (revoked_at, revoked_by) on auth.access_keys to :api;
 grant execute on function serving_access_key(text) to :serve;
+-- Agents (FR-420): an administrator names an access key and renames it, and sets what each agent may do; an
+-- app is named by itself at each sign-in. The MCP server reads no agent: one function that runs as the owner
+-- says, for a person's connection, which agent it is and what it may do.
+grant update (name) on auth.access_keys to :api;
+grant select, insert, update (name, permission, permission_set_by, permission_set_at) on auth.agents to :api;
+grant execute on function serving_agent_permission(uuid) to :serve;

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AuditEntry, Setting } from '@contract/admin'
+import type { Agent } from '@contract/connections'
 import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import { freeAreaId, summaryOf } from '@/api/http'
@@ -27,96 +28,104 @@ describe('the agents people connected', () => {
     expect(usedWords(at(2), now)).toBe('2 Oct')
   })
 
-  it('lists one row per agent and person, newest sign-in first, a sign-in of minutes ago new', () => {
+  const agent = (over: Partial<Agent> & Pick<Agent, 'id' | 'name'>): Agent => ({
+    kind: 'app',
+    host: 'claude.ai',
+    person: { id: 'p1', name: 'Jon Abara', initials: 'JA', email: null },
+    madeBy: null,
+    permission: 'suggest',
+    permissionSetBy: null,
+    allowed: ['read', 'feedback', 'propose'],
+    scopes: ['read', 'feedback', 'propose'],
+    since: at(12),
+    lastUsedAt: at(22),
+    suggestions: { lastDays: 0, recent: [] },
+    ...over,
+  })
+
+  it('lists each agent by its name, as the service orders them, one of minutes ago new', () => {
     const rows = connectedOf(
       [
-        {
-          clientName: 'Cursor',
-          person: { name: 'Jon Abara' },
-          connectedAt: at(12),
-          lastUsedAt: at(22),
-        },
-        {
-          clientName: 'Claude',
-          person: { name: 'Maria Lindqvist' },
-          connectedAt: at(2),
-          lastUsedAt: at(23),
-        },
-        // The same agent signed in again for the same person: one row, the newest sign-in.
-        {
-          clientName: 'Cursor',
-          person: { name: 'Jon Abara' },
-          connectedAt: at(20),
-          lastUsedAt: at(20),
-        },
-        {
-          clientName: 'Claude Code',
-          person: { name: 'Jon Abara' },
-          connectedAt: new Date(now.getTime() - 120_000).toISOString(),
+        agent({
+          id: 'a1',
+          name: 'Claude Code',
+          since: new Date(now.getTime() - 120_000).toISOString(),
           lastUsedAt: new Date(now.getTime() - 120_000).toISOString(),
-        },
+          suggestions: {
+            lastDays: 1,
+            recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', at: at(22) }],
+          },
+        }),
+        agent({
+          id: 'a2',
+          name: 'Claude',
+          person: { id: 'p2', name: 'Ines Duarte', initials: 'ID', email: null },
+          permission: 'read',
+          permissionSetBy: { name: 'Jon Abara', at: at(14) },
+          scopes: ['read', 'feedback'],
+          since: at(1),
+          lastUsedAt: at(23),
+        }),
       ],
-      'Jon Abara',
       now,
     )
     expect(rows).toEqual([
       {
+        id: 'a1',
+        kind: 'app',
         agent: 'Claude Code',
         who: 'Jon Abara',
+        host: 'claude.ai',
         since: '23 Oct 2026',
         used: 'Just now',
         fresh: true,
+        permission: 'suggest',
+        allowed: ['read', 'feedback', 'propose'],
+        scopes: ['read', 'feedback', 'propose'],
+        sent: 1,
+        recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', on: '22 Oct 2026' }],
       },
-      { agent: 'Cursor', who: 'Jon Abara', since: '20 Oct 2026', used: '3 days ago' },
-      { agent: 'Claude', who: 'Maria Lindqvist', since: '2 Oct 2026', used: 'Today' },
+      {
+        id: 'a2',
+        kind: 'app',
+        agent: 'Claude',
+        who: 'Ines Duarte',
+        host: 'claude.ai',
+        since: '1 Oct 2026',
+        used: 'Today',
+        permission: 'read',
+        setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
+        allowed: ['read', 'feedback', 'propose'],
+        scopes: ['read', 'feedback'],
+        sent: 0,
+        recent: [],
+      },
     ])
   })
 
-  it('lists each access key as its own row, by who made it, a key no agent used yet as Never', () => {
-    const key = (id: string, createdAt: string, lastUsedAt: string | null) => ({
-      kind: 'access_key' as const,
-      id,
-      createdAt,
-      lastUsedAt,
-      madeBy: { name: 'Jon Abara' },
-    })
+  it('lists an access key by its name and who made it, one no agent used yet as Never', () => {
     expect(
       connectedOf(
         [
-          key('k1', at(21), at(23, 8)),
-          {
-            clientName: 'Cursor',
-            person: { name: 'Jon Abara' },
-            connectedAt: at(22),
-            lastUsedAt: at(22),
-          },
-          key('k2', new Date(now.getTime() - 60_000).toISOString(), null),
+          agent({
+            id: 'k1',
+            kind: 'key',
+            name: 'Weekly sales digest',
+            host: null,
+            person: null,
+            madeBy: { id: 'p1', name: 'Jon Abara', initials: 'JA' },
+            permission: 'read',
+            allowed: ['read', 'feedback'],
+            scopes: ['read', 'feedback'],
+            since: at(21),
+            lastUsedAt: null,
+          }),
         ],
-        'Jon Abara',
         now,
       ),
-    ).toEqual([
-      {
-        agent: 'Access key',
-        who: 'Jon Abara',
-        since: '23 Oct 2026',
-        used: 'Never',
-        key: 'k2',
-        fresh: true,
-      },
-      { agent: 'Cursor', who: 'Jon Abara', since: '22 Oct 2026', used: 'Yesterday' },
-      { agent: 'Access key', who: 'Jon Abara', since: '21 Oct 2026', used: 'Today', key: 'k1' },
+    ).toMatchObject([
+      { kind: 'key', agent: 'Weekly sales digest', who: 'Jon Abara', used: 'Never' },
     ])
-  })
-
-  it("names the person's own agents by the person, when the list names nobody", () => {
-    expect(
-      connectedOf(
-        [{ clientName: 'Codex', connectedAt: at(21), lastUsedAt: at(21) }],
-        'Ines Duarte',
-        now,
-      ),
-    ).toMatchObject([{ agent: 'Codex', who: 'Ines Duarte' }])
   })
 })
 

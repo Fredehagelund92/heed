@@ -65,6 +65,7 @@ describe("a person's token", () => {
       canSelectEdition: false,
       subject: 'person-1',
       groups: ['finance'],
+      connection: 'g1',
     })
   })
 

@@ -65,6 +65,11 @@ export const proposalRecordSchema = z.object({
    * (FR-121, FR-707); null for a draft a person wrote.
    */
   provenance: z.nullable(provenanceSchema),
+  /**
+   * The agent that sent it for the person (FR-420), by its name when it did; null for anything
+   * else.
+   */
+  agent: z.nullable(z.object({ id: z.string(), name: z.string() })),
   findings: z.array(findingSchema),
   claimedBy: z.nullable(z.string()),
   dueAt: z.nullable(z.string()),

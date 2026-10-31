@@ -5,8 +5,11 @@ export {
   createAccessKeyVerifier,
   isAccessKey,
   listAccessKeys,
+  renameAccessKey,
   revokeAccessKey,
+  servingAgentCheck,
   servingKeyCheck,
   withAccessKeys,
   type AccessKey,
+  type KeyState,
 } from './service.ts'
