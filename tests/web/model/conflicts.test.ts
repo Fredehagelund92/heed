@@ -26,6 +26,7 @@ describe('pairOfItems', () => {
     expect(pairOfItems(rows, undefined)).toBeUndefined()
     expect(pairOfItems(rows, ['a'])).toBeUndefined()
     expect(pairOfItems(rows, ['a', 'c', 'e'])).toBeUndefined()
+    expect(pairOfItems(rows, ['a', 'b', 'c'])).toBeUndefined()
     expect(pairOfItems(rows, ['a', 'c'])).toBeUndefined()
   })
 })

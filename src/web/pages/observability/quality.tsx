@@ -1,3 +1,4 @@
+import { pairOfItems } from '@/model/conflicts'
 import * as React from 'react'
 import {
   ArrowLeftRightIcon,
@@ -515,7 +516,7 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
 /** A saved question that now gets a Conflict leads to the comparison of the two items (FR-220). */
 function CompareNow({ ids }: { ids: string[] }) {
   const rows = useQuery(conflictsQuery('all')).data ?? []
-  const row = rows.find((r) => ids.includes(r.holder.id) && ids.includes(r.other.id))
+  const row = pairOfItems(rows, ids)
   if (!row) return null
   return (
     <Button size="sm" onClick={() => openDock('conflict', row.key)}>
