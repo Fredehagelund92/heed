@@ -967,10 +967,7 @@ export function createMockApi() {
         if (!agent) throw new ApiError('not-found', "We couldn't find this agent.")
         const name = workspace.domainMap()[domain]?.name
         if (!name) throw new ApiError('not-found', "We couldn't find this domain.")
-        return policies.set(
-          { agent, domain, domainName: name, perDay, reason },
-          policyReader(),
-        )
+        return policies.set({ agent, domain, domainName: name, perDay, reason }, policyReader())
       }),
     endAgentPolicy: ({ id }) => now(() => policies.end(id, policyReader())),
     checkConnect: ({ since, agent }) =>

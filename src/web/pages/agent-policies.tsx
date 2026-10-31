@@ -248,9 +248,9 @@ function SetPolicyDialog({
           <DialogHeader>
             <DialogTitle>Publish without review in {domainName}</DialogTitle>
             <DialogDescription>
-              Its suggestions for new, low-risk items publish at once, as your decision. Today
-              that means Rules. Everything else still waits for an owner. You or another owner can
-              undo each one from its history.
+              Its suggestions for new, low-risk items publish at once, as your decision. Today that
+              means Rules. Everything else still waits for an owner. You or another owner can undo
+              each one from its history.
             </DialogDescription>
           </DialogHeader>
           {d.agents.length ? (

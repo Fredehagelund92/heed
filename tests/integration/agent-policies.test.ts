@@ -100,11 +100,7 @@ const undo = (who: Who, decisionId: string) =>
 const switchTo = (who: Who, on: boolean) =>
   who.api('/agent-policies/switch', { on, reason: on ? 'Trying it in Finance' : 'Stopping it' })
 
-const setPolicy = (
-  who: Who,
-  agentId: string,
-  options: { areaId?: string; perDay?: number } = {},
-) =>
+const setPolicy = (who: Who, agentId: string, options: { areaId?: string; perDay?: number } = {}) =>
   who.api('/agent-policies', {
     agentId,
     areaId: options.areaId ?? 'finance',
