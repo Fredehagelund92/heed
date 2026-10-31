@@ -921,7 +921,7 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
   `POST /agent-policies/switch` (administrators) read and switch it for the workspace, and switching
   it off ends every policy; `GET /areas/{areaId}/agent-policies` lists one domain's policies, whether
   the workspace allows them, whether the signed-in person may set one, and the apps that suggested
-  there lately; `POST /agent-policies` sets one (an owner of the domain or an administrator) and
+  there lately; `POST /agent-policies` sets one (an owner of the domain) and
   `POST /agent-policies/{id}/end` turns one off (whoever set it, an owner of the domain, an
   administrator or the person the agent works for), each with a reason the history log keeps.
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the

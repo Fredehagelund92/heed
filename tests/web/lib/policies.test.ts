@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  kindsWords,
-  lowRiskKind,
   policyPauseLine,
   policyRule,
   policySetLine,
@@ -11,11 +9,7 @@ import {
 
 describe('publishing without review, in the screens words', () => {
   it('says what a policy lets through', () => {
-    expect(kindsWords(['note'])).toBe('Rules')
-    expect(kindsWords(['note', 'event', 'guide'])).toBe('Rules, Events and Guides')
-    expect(policyRule({ kinds: ['note'], perDay: 10 })).toBe(
-      'New Rules, low risk only, up to 10 a day',
-    )
+    expect(policyRule({ perDay: 10 })).toBe('New low-risk items only, up to 10 a day')
   })
 
   it('says who set it, how many today, and why it waits although it is on', () => {
@@ -30,11 +24,6 @@ describe('publishing without review, in the screens words', () => {
     expect(policyPauseLine({ pause: 'tool_off', setBy: 'Jon Abara' })).toBe(
       'It waits for review now: suggest_context is off for this agent.',
     )
-  })
-
-  it('lets only a kind that starts at low risk publish', () => {
-    expect(lowRiskKind('note')).toBe(true)
-    for (const kind of ['event', 'issue', 'guide'] as const) expect(lowRiskKind(kind)).toBe(false)
   })
 
   it("names the agent and whose policy published a version, by the owner's first name", () => {

@@ -597,7 +597,7 @@
           "tags": [
             "session"
           ],
-          "summary": "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain or an admin sets it, while the workspace allows it"
+          "summary": "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain sets it, while the workspace allows it"
         }
       }
     },

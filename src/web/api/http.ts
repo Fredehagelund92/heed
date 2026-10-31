@@ -1926,8 +1926,8 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       (await settingsWords()).domainPoliciesOf(
         await read(() => client.agentPolicies.forDomain({ areaId: domain })),
       ),
-    setAgentPolicy: async ({ agentId, domain, kinds, perDay, reason }) => {
-      const input = { agentId, areaId: domain, kinds, perDay, reason }
+    setAgentPolicy: async ({ agentId, domain, perDay, reason }) => {
+      const input = { agentId, areaId: domain, perDay, reason }
       return (await settingsWords()).policyOf(
         await write('agentPolicies.set', input, (o) => client.agentPolicies.set(input, o)),
       )

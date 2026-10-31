@@ -32835,19 +32835,6 @@
                             "areaName": {
                               "type": "string"
                             },
-                            "kinds": {
-                              "type": "array",
-                              "items": {
-                                "enum": [
-                                  "note",
-                                  "event",
-                                  "guide",
-                                  "example",
-                                  "issue"
-                                ],
-                                "type": "string"
-                              }
-                            },
                             "perDay": {
                               "type": "number"
                             },
@@ -32901,7 +32888,6 @@
                             "person",
                             "areaId",
                             "areaName",
-                            "kinds",
                             "perDay",
                             "setBy",
                             "setAt",
@@ -34388,19 +34374,6 @@
                           "areaName": {
                             "type": "string"
                           },
-                          "kinds": {
-                            "type": "array",
-                            "items": {
-                              "enum": [
-                                "note",
-                                "event",
-                                "guide",
-                                "example",
-                                "issue"
-                              ],
-                              "type": "string"
-                            }
-                          },
                           "perDay": {
                             "type": "number"
                           },
@@ -34454,7 +34427,6 @@
                           "person",
                           "areaId",
                           "areaName",
-                          "kinds",
                           "perDay",
                           "setBy",
                           "setAt",
@@ -34764,7 +34736,7 @@
     "/agent-policies": {
       "post": {
         "operationId": "agentPolicies.set",
-        "summary": "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain or an admin sets it, while the workspace allows it",
+        "summary": "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain sets it, while the workspace allows it",
         "tags": [
           "session"
         ],
@@ -34783,21 +34755,6 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "kinds": {
-                    "type": "array",
-                    "minItems": 1,
-                    "maxItems": 5,
-                    "items": {
-                      "enum": [
-                        "note",
-                        "event",
-                        "guide",
-                        "example",
-                        "issue"
-                      ],
-                      "type": "string"
-                    }
-                  },
                   "perDay": {
                     "type": "integer",
                     "minimum": 1,
@@ -34812,7 +34769,6 @@
                 "required": [
                   "agentId",
                   "areaId",
-                  "kinds",
                   "perDay",
                   "reason"
                 ],
@@ -34858,19 +34814,6 @@
                     },
                     "areaName": {
                       "type": "string"
-                    },
-                    "kinds": {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "note",
-                          "event",
-                          "guide",
-                          "example",
-                          "issue"
-                        ],
-                        "type": "string"
-                      }
                     },
                     "perDay": {
                       "type": "number"
@@ -34925,7 +34868,6 @@
                     "person",
                     "areaId",
                     "areaName",
-                    "kinds",
                     "perDay",
                     "setBy",
                     "setAt",

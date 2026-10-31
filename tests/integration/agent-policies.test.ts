@@ -103,12 +103,11 @@ const switchTo = (who: Who, on: boolean) =>
 const setPolicy = (
   who: Who,
   agentId: string,
-  options: { areaId?: string; kinds?: string[]; perDay?: number } = {},
+  options: { areaId?: string; perDay?: number } = {},
 ) =>
   who.api('/agent-policies', {
     agentId,
     areaId: options.areaId ?? 'finance',
-    kinds: options.kinds ?? ['note'],
     perDay: options.perDay ?? 10,
     reason: 'Its month-end rules have been right for weeks',
   })
@@ -169,8 +168,8 @@ describe('publishing without review', () => {
     // The database refuses one too, whoever writes it.
     await expect(
       admin.query(
-        `insert into agent_policies (agent_id,area_id,kinds,per_day,set_by,set_as,reason)
-         values ($1,'finance','{note}',5,$2,'owner','test')`,
+        `insert into agent_policies (agent_id,area_id,per_day,set_by,reason)
+         values ($1,'finance',5,$2,'test')`,
         [app.agentId, people.owner],
       ),
     ).rejects.toThrow(/off for the workspace/)
@@ -191,7 +190,6 @@ describe('publishing without review', () => {
       agentId: app.agentId,
       areaId: 'finance',
       areaName: 'Finance',
-      kinds: ['note'],
       perDay: 3,
       setBy: { id: people.owner, name: 'owner' },
       person: { id: people.author, name: 'author' },
@@ -255,15 +253,11 @@ describe('publishing without review', () => {
   it('keeps every other suggestion waiting for review, and says why', async () => {
     const app = await connect('author')
     await switchTo(boss, true)
-    expect((await setPolicy(owner, app.agentId, { kinds: ['note', 'event'] })).status).toBe(200)
+    expect((await setPolicy(owner, app.agentId)).status).toBe(200)
 
-    // Another kind than the policy covers.
+    // Not low risk: a guide and an event start at normal risk, whatever the policy.
     const guide = await suggest(app.token, suggestion({ kind: 'guide' }))
-    expect(guide).toMatchObject({
-      status: 'suggestion_sent',
-      policy: { published: false, waits_because: 'the policy does not cover its kind' },
-    })
-    // A kind it covers, but not low risk: an event starts at normal risk.
+    expect(guide.policy).toMatchObject({ published: false, waits_because: 'it is not low risk' })
     const event = await suggest(app.token, suggestion({ kind: 'event' }))
     expect(event.policy).toMatchObject({ published: false, waits_because: 'it is not low risk' })
     // A clash with a live item: once one rule about Orders is live, the next one clashes with it,
@@ -354,7 +348,7 @@ describe('publishing without review', () => {
     }
   })
 
-  it('is set only by an owner of the domain or an admin, only for an app', async () => {
+  it('is set only by an owner of the domain, never by an admin who is not one, only for an app', async () => {
     const app = await connect('author')
     await switchTo(boss, true)
     const author = await signedIn('author')
@@ -362,8 +356,21 @@ describe('publishing without review', () => {
     expect((await setPolicy(author, app.agentId)).status).toBe(403)
     // The owner of Finance owns no Marketing.
     expect((await setPolicy(owner, app.agentId, { areaId: 'marketing' })).status).toBe(403)
-    // An admin may set one anywhere; a policy in Marketing publishes nothing in Finance.
-    expect((await setPolicy(boss, app.agentId, { areaId: 'marketing' })).status).toBe(200)
+    // An admin who owns neither domain sets none, and sees no apps to choose from.
+    expect((await setPolicy(boss, app.agentId, { areaId: 'marketing' })).status).toBe(403)
+    expect((await setPolicy(boss, app.agentId)).status).toBe(403)
+    const view = (await (await boss.api('/areas/finance/agent-policies')).json()) as {
+      canSet: boolean
+      agents: unknown[]
+    }
+    expect(view).toMatchObject({ canSet: false, agents: [] })
+    await expect(
+      admin.query(
+        `insert into agent_policies (agent_id,area_id,per_day,set_by,reason)
+         values ($1,'finance',5,$2,'test')`,
+        [app.agentId, people.admin],
+      ),
+    ).rejects.toThrow(/Only an owner of the domain/)
     const reply = await suggest(app.token)
     expect(reply.status).toBe('suggestion_sent')
     expect(reply.policy).toBeUndefined()
@@ -375,13 +382,13 @@ describe('publishing without review', () => {
       'select id::text from auth.agents where key_id=$1',
       [key.id],
     )
-    const refused = await setPolicy(boss, rows[0]!.id)
+    const refused = await setPolicy(owner, rows[0]!.id)
     expect(refused.status).toBe(409)
     expect(await refused.text()).toMatch(/access key/)
     await expect(
       admin.query(
-        `insert into agent_policies (agent_id,area_id,kinds,per_day,set_by,set_as,reason)
-         values ($1,'finance','{note}',5,$2,'owner','test')`,
+        `insert into agent_policies (agent_id,area_id,per_day,set_by,reason)
+         values ($1,'finance',5,$2,'test')`,
         [rows[0]!.id, people.owner],
       ),
     ).rejects.toThrow(/Only an app/)
@@ -476,9 +483,7 @@ describe('the database guard on a decision under a policy', () => {
     // A policy the owner sets after the suggestion was sent, so it still waits.
     const reply = await suggest(app.token, suggestion({ kind }))
     expect(reply.status).toBe('suggestion_sent')
-    const policy = (await (
-      await setPolicy(owner, app.agentId, { kinds: ['note', 'event'] })
-    ).json()) as { id: string }
+    const policy = (await (await setPolicy(owner, app.agentId)).json()) as { id: string }
     const { rows } = await admin.query<{ version: string }>(
       'select item_version_id::text as version from proposals where id=$1',
       [reply.draft_id],

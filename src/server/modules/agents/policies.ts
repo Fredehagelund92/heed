@@ -7,7 +7,6 @@ import type {
 } from '../../../contract/connections.ts'
 import type { ProposalRecord } from '../../../contract/proposals.ts'
 import type { PolicySkip } from '../../../domain/agent-policies.ts'
-import type { ItemKind } from '../../../domain/item.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { plainReason, recordAudit } from '../admin/index.ts'
@@ -17,21 +16,19 @@ import { createReviewPath, createReviewService, loadProposal } from '../review/i
 
 /*
   Publishing without review (FR-421; docs/ai-sign-in.md). An admin switches it on for the
-  workspace; then an owner of a domain, or an admin, sets a policy that lets one app agent's
+  workspace; then an owner of a domain sets a policy that lets one app agent's
   suggestions publish there without a review round. The service publishes such a suggestion in the
   transaction that sent it, through the owner's own publish path and as the owner who set the
   policy, so the decision, the edition and the history name that owner, with the policy. It does so
-  only for a new item of a kind the policy covers, at low risk, that clashes with nothing live, has
-  no claim to check and nothing else that needs care, passes every check, and is under the daily
-  cap, while the person who set the policy is still an owner of the domain (or an admin, if they set
-  it as one) and the agent may still suggest. Anything else waits for review as before. The database
+  only for a new item at low risk that clashes with nothing live, has no claim to check and
+  nothing else that needs care, passes every check, and is under the daily cap, while the person
+  who set the policy is still an owner of the domain and the agent may still suggest. Anything else waits for review as before. The database
   checks every rule again when the decision is recorded (cl_policy_decision_problem).
 */
 
 const SETTING = 'agents.auto_publish'
 
-type Row = Omit<AgentPolicy, 'person' | 'setBy' | 'setAt' | 'kinds'> & {
-  kinds: ItemKind[]
+type Row = Omit<AgentPolicy, 'person' | 'setBy' | 'setAt'> & {
   personId: string
   personName: string
   setById: string
@@ -47,13 +44,12 @@ async function openPolicies(
   const rows = await tx.query<Row>(
     `select p.id::text, p.agent_id::text as "agentId", a.name as "agentName",
             ap.id::text as "personId", ap.display_name as "personName",
-            p.area_id as "areaId", ar.name as "areaName", p.kinds, p.per_day as "perDay",
+            p.area_id as "areaId", ar.name as "areaName", p.per_day as "perDay",
             s.id::text as "setById", s.display_name as "setByName", p.set_at as "setAt", p.reason,
             (select count(*)::int from decisions d
               where d.auto_policy_id = p.id and d.decided_at > now() - interval '24 hours') as today,
             case
-              when not ((p.set_as = 'owner' and cl_has_area_role(p.set_by, p.area_id, 'owner', now()))
-                     or (p.set_as = 'administrator' and cl_is_admin(p.set_by, now()))) then 'not_owner'
+              when not cl_has_area_role(p.set_by, p.area_id, 'owner', now()) then 'not_owner'
               when not 'suggest_context' = any (a.tools) then 'tool_off'
               when not coalesce((select enabled from tool_config where tool = 'suggest_context'), false)
                 then 'workspace_tool_off'
@@ -107,7 +103,7 @@ export async function domainPolicies(tx: Queryable, areaId: string): Promise<Dom
   const [area] = await tx.query('select 1 from areas where id = $1', [areaId])
   if (!area) throw new ORPCError('NOT_FOUND', { message: "We couldn't find this domain." })
   const me = await standing(tx, areaId)
-  const canSet = me.owner || me.admin
+  const canSet = me.owner
   const agents = canSet
     ? await tx.query<DomainPolicies['agents'][number]>(
         `select a.id::text, a.name, json_build_object('id', p.id::text, 'name', p.display_name) as person,
@@ -155,7 +151,7 @@ async function endOne(tx: Queryable, id: string, reason: string) {
 }
 
 /**
- * An owner of the domain, or an admin, lets one app agent publish without review there, while the
+ * An owner of the domain lets one app agent publish without review there, while the
  * workspace allows it. It replaces the agent's policy in that domain, if there is one: a policy is
  * never changed, so a change is a new one.
  */
@@ -168,9 +164,9 @@ export async function setPolicy(tx: Queryable, input: SetAgentPolicy): Promise<A
       message:
         'Publishing without review is off for the workspace. An admin turns it on in Agents and access.',
     })
-  if (!me.owner && !me.admin)
+  if (!me.owner)
     throw new ORPCError('FORBIDDEN', {
-      message: 'Only the owners of this domain, or an admin, can let an agent publish here.',
+      message: 'Only the owners of this domain can let an agent publish here.',
     })
   const [area] = await tx.query<{ name: string }>(
     'select name from areas where id = $1 and archived_at is null',
@@ -191,18 +187,10 @@ export async function setPolicy(tx: Queryable, input: SetAgentPolicy): Promise<A
       where agent_id = $1 and area_id = $2 and ended_at is null returning id::text`,
     [input.agentId, input.areaId],
   )
-  const kinds = [...new Set(input.kinds)]
   const [saved] = await tx.query<{ id: string }>(
-    `insert into agent_policies (agent_id, area_id, kinds, per_day, set_by, set_as, reason)
-     values ($1, $2, $3, $4, cl_person(), $5, $6) returning id::text`,
-    [
-      input.agentId,
-      input.areaId,
-      kinds,
-      input.perDay,
-      me.owner ? 'owner' : 'administrator',
-      input.reason,
-    ],
+    `insert into agent_policies (agent_id, area_id, per_day, set_by, reason)
+     values ($1, $2, $3, cl_person(), $4) returning id::text`,
+    [input.agentId, input.areaId, input.perDay, input.reason],
   )
   await recordAudit(tx, {
     action: 'agent.policy_set',
@@ -213,7 +201,6 @@ export async function setPolicy(tx: Queryable, input: SetAgentPolicy): Promise<A
       name: agent.name,
       policyId: saved!.id,
       area: area.name,
-      kinds,
       perDay: input.perDay,
       reason: input.reason,
       ...(replaced[0] ? { replaced: replaced[0].id } : {}),
@@ -302,7 +289,6 @@ type Candidate = {
   agentId: string | null
   agentName: string | null
   areaId: string | null
-  kind: ItemKind | null
   risk: string | null
   revision: number
   flagged: boolean
@@ -310,11 +296,9 @@ type Candidate = {
 
 type Policy = {
   id: string
-  kinds: ItemKind[]
   perDay: number
   setBy: string
   setByName: string
-  setAs: 'owner' | 'administrator'
   areaName: string
   standing: boolean
   toolOn: boolean
@@ -339,21 +323,19 @@ export async function publishUnderPolicy(
 ): Promise<PolicyOutcome | null> {
   const [c] = await tx.query<Candidate>(
     `select p.action::text, p.agent_id::text as "agentId", p.agent_name as "agentName", p.area_id as "areaId",
-            i.kind::text as kind, v.risk::text as risk, p.revision,
+            v.risk::text as risk, p.revision,
             jsonb_array_length(coalesce(p.provenance -> 'flags', '[]'::jsonb)) > 0 as flagged
        from proposals p
        left join item_versions v on v.id = p.item_version_id
-       left join items i on i.id = v.item_id
       where p.id = $1 and p.state = 'submitted' and p.channel = 'mcp'`,
     [proposalId],
   )
   if (!c?.agentId || !c.areaId) return null
   if (!(await switchOn(tx))) return null
   const [policy] = await tx.query<Policy>(
-    `select p.id::text, p.kinds, p.per_day as "perDay", p.set_by::text as "setBy",
-            s.display_name as "setByName", p.set_as as "setAs", ar.name as "areaName",
-            ((p.set_as = 'owner' and cl_has_area_role(p.set_by, p.area_id, 'owner', now()))
-              or (p.set_as = 'administrator' and cl_is_admin(p.set_by, now()))) as standing,
+    `select p.id::text, p.per_day as "perDay", p.set_by::text as "setBy",
+            s.display_name as "setByName", ar.name as "areaName",
+            cl_has_area_role(p.set_by, p.area_id, 'owner', now()) as standing,
             ('suggest_context' = any (a.tools)
               and coalesce((select enabled from tool_config where tool = 'suggest_context'), false)) as "toolOn",
             (select count(*)::int from decisions d
@@ -374,7 +356,6 @@ export async function publishUnderPolicy(
   }
   const skip = (why: PolicySkip): PolicyOutcome => ({ ...named, published: false, skip: why })
   if (c.action !== 'create') return skip('not_new')
-  if (!c.kind || !policy.kinds.includes(c.kind)) return skip('kind')
   if (c.risk !== 'low') return skip('risk')
   if (!policy.standing) return skip('not_owner')
   if (!policy.toolOn) return skip('tool_off')

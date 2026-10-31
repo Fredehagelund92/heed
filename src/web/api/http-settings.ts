@@ -13,7 +13,6 @@ import { AGENT_TOOLS } from '@/lib/agents'
 import type { Agent, AgentPolicy, DomainPolicies as ServedPolicies } from '@contract/connections'
 import type { Connected } from '@/lib/connect'
 import type { DomainPolicies, Policy } from '@/lib/policies'
-import type { Kind } from '@/model/items'
 import { logLine } from '@/model/history'
 import { settingGroups } from '@/model/settings'
 import type { Advanced, Settings } from './client'
@@ -50,8 +49,6 @@ export function policyOf(p: AgentPolicy): Policy {
     who: p.person.name,
     domain: p.areaId,
     domainName: p.areaName,
-    // The screens write four kinds; a policy for `example` names it nowhere.
-    kinds: p.kinds.filter((k): k is Kind => k !== 'example'),
     perDay: p.perDay,
     setBy: p.setBy.name,
     setOn: dayOf(p.setAt),

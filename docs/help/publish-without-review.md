@@ -17,10 +17,10 @@ An owner can let one named agent publish some of its suggestions in their domain
 A suggestion from that agent publishes at once only when all of this is true:
 
 - It is a new context item. A change to a live item, or archiving one, always waits for an owner.
-- It is one of the kinds the owner chose, and it is low risk. An agent never sets the risk level, so its suggestion keeps the default for its kind: a Rule starts at low risk, and an Event, a Warning or a Guide at normal risk. Today that means Rules only.
+- It is low risk. An agent never sets the risk level, so its suggestion keeps the default for its kind: a Rule starts at low risk, and an Event, a Warning or a Guide at normal risk. Today that means Rules only.
 - It clashes with nothing live, has no claim to check, and nothing in it needs care, such as words that may mean a legal or financial matter.
 - Every check passes, as it must for any publish.
-- The agent has not reached the most it may publish in a day.
+- The agent has not reached the most it may publish in a day. That cap is 10 unless the owner chooses another number from 1 to 50. Over it, the rest of the day's suggestions wait for review, and publishing starts again as the day's count falls.
 - The owner who set it is still an owner of the domain, and the agent may still send suggestions.
 
 Anything else waits in the owners' Inbox as usual. The agent's reply says it waits, and why.
@@ -38,12 +38,12 @@ Switching it off again turns off every agent that publishes without review, at o
 
 ## Let an agent publish in your domain
 
-Owners of the domain, and admins.
+Owners of the domain only. An admin who does not own the domain cannot set one.
 
 1. Open **Settings**, **Domains and owners**, then your domain.
 2. Under Without review, choose **Let an agent publish without review**.
 3. Choose the agent. The list has the agents that sent suggestions to the domain in the last 90 days, with how many were published.
-4. Choose the kinds, the most it may publish in a day, and say why. The history log keeps your reason.
+4. Choose the most it may publish in a day, and say why. The history log keeps your reason.
 5. Choose **Let it publish**.
 
 Setting it again for the same agent and domain replaces what you set before.

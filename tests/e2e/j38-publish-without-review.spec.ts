@@ -37,9 +37,9 @@ test('an admin allows it, the owner lets one agent publish, and turns it off', a
   await page.getByRole('button', { name: 'Let an agent publish without review' }).click()
   const dialog = page.getByRole('dialog', { name: 'Publish without review in Sales' })
   await expect(dialog.getByRole('combobox', { name: 'Agent' })).toContainText(AGENT)
-  // Only a low-risk kind can publish: a Rule. The others start at normal risk.
-  await expect(dialog.getByRole('checkbox', { name: 'Rule' })).toBeChecked()
-  await expect(dialog.getByRole('checkbox', { name: 'Event' })).toBeDisabled()
+  // No kind to choose: only low-risk new items publish, today Rules.
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0)
+  await expect(dialog).toContainText('Today that means Rules.')
   await dialog.getByRole('button', { name: 'Let it publish' }).click()
   await expect(dialog.getByRole('alert')).toHaveText('Say why, for the history log.')
   await dialog.getByRole('textbox', { name: 'Why' }).fill('Its rules have been right for weeks')
@@ -47,7 +47,7 @@ test('an admin allows it, the owner lets one agent publish, and turns it off', a
   await expect(dialog).toBeHidden()
   const policies = page.getByRole('list', { name: 'Agents that publish without review in Sales' })
   await expect(policies).toContainText(AGENT)
-  await expect(policies).toContainText('New Rules, low risk only, up to 10 a day.')
+  await expect(policies).toContainText('New low-risk items only, up to 10 a day.')
   await expect(policies).toContainText('Set by Jon Abara on')
   await expect(policies).toContainText('Why: Its rules have been right for weeks')
 
@@ -201,7 +201,6 @@ test("an agent's Rule publishes under the owner's policy, and the owner undoes i
   await post(page, '/agent-policies', {
     agentId: agent.id,
     areaId: domainId('sales'),
-    kinds: ['note'],
     perDay: 5,
     reason: 'Its rules have been right for weeks',
   })

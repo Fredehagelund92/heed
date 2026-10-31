@@ -176,9 +176,9 @@ const ARTICLES: Record<string, { lead: string; blocks: Block[] }> = {
         t: "list",
         items: [
           "Only a new context item: a change to a live item, or archiving one, always waits for an owner.",
-          "Only the kinds the owner chose, at low risk: today that means Rules.",
+          "Only low-risk items: today that means Rules.",
           "Nothing that clashes with live context, has a claim to check, or needs care.",
-          "No more than the most it may publish in a day.",
+          "No more than the most it may publish in a day: 10 unless the owner chooses another number from 1 to 50.",
         ],
       },
       { t: "p", text: "Anything else waits in the owners' Inbox as usual. It never expires: it stays on until someone turns it off." },

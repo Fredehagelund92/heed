@@ -4,16 +4,14 @@
 // off. Pure, so it is unit tested (tests/web/lib/policies.test.ts).
 
 import {
-  kindListWords,
-  lowRiskKind,
   POLICY_DEFAULT_PER_DAY,
   POLICY_MAX_PER_DAY,
   policyPauseWords,
   type PolicyPause,
 } from '@domain/agent-policies'
-import { kindLabel, type DomainId, type Kind } from '@/model/items'
+import type { DomainId } from '@/model/items'
 
-export { POLICY_DEFAULT_PER_DAY, POLICY_MAX_PER_DAY, lowRiskKind }
+export { POLICY_DEFAULT_PER_DAY, POLICY_MAX_PER_DAY }
 
 /** One policy, as the agent's Details and the domain page show it. */
 export type Policy = {
@@ -25,7 +23,6 @@ export type Policy = {
   who: string
   domain: DomainId
   domainName: string
-  kinds: Kind[]
   perDay: number
   setBy: string
   /** The day it was set: "31 Oct 2026". */
@@ -49,16 +46,9 @@ export type DomainPolicies = {
 /** The workspace switch, as an admin sees it: on or off, and how many policies are on. */
 export type AutoPublish = { on: boolean; open: number }
 
-/** The kinds a policy covers, in the screens' words: "Rules", "Rules and Guides". */
-export const kindsWords = (kinds: readonly Kind[]) =>
-  kindListWords(
-    kinds.map((k) => `${kindLabel[k]}s`),
-    {},
-  )
-
-/** What a policy lets through, in one line: "New Rules, low risk only, up to 10 a day". */
-export const policyRule = (p: Pick<Policy, 'kinds' | 'perDay'>) =>
-  `New ${kindsWords(p.kinds)}, low risk only, up to ${p.perDay} a day`
+/** What a policy lets through, in one line: "New low-risk items only, up to 10 a day". */
+export const policyRule = (p: Pick<Policy, 'perDay'>) =>
+  `New low-risk items only, up to ${p.perDay} a day`
 
 /** Who set it and when: "Set by Jon Abara on 31 Oct 2026". */
 export const policySetLine = (p: Pick<Policy, 'setBy' | 'setOn'>) =>

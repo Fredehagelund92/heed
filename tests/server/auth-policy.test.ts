@@ -115,7 +115,7 @@ const readOperations = [
   // Every agent by name: an administrator sees and ends any, anyone else their own apps.
   'agents.list',
   'agents.revoke',
-  // A policy to publish without review: the service lets an owner of the domain or an admin set
+  // A policy to publish without review: the service lets an owner of the domain set
   // one, and whoever may turn it off do so (FR-421).
   'agentPolicies.forDomain',
   'agentPolicies.set',

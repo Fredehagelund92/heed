@@ -122,7 +122,6 @@ describe('the agents people connected', () => {
               person: { id: 'p1', name: 'Kofi Mensah' },
               areaId: 'area_sales',
               areaName: 'Sales',
-              kinds: ['note', 'example'],
               perDay: 10,
               setBy: { id: 'p2', name: 'Jon Abara' },
               setAt: at(20),
@@ -144,8 +143,6 @@ describe('the agents people connected', () => {
         who: 'Kofi Mensah',
         domain: 'area_sales',
         domainName: 'Sales',
-        // The screens write four kinds: an example is named nowhere.
-        kinds: ['note'],
         perDay: 10,
         setBy: 'Jon Abara',
         setOn: '20 Oct 2026',
@@ -434,7 +431,7 @@ describe('Settings, Advanced', () => {
           action: 'agent.policy_set',
           subjectType: 'agent',
           areaId: 'area_sales',
-          details: { name: 'Claude Code', area: 'Sales', kinds: ['note'], perDay: 10 },
+          details: { name: 'Claude Code', area: 'Sales', perDay: 10 },
         }),
       ),
     ).toEqual({ what: 'Let “Claude Code” publish without review in Sales' })

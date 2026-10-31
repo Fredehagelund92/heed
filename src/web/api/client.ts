@@ -663,13 +663,12 @@ export interface HeedApi {
    */
   getDomainPolicies: (input: { domain: DomainId }) => Promise<DomainPolicies>
   /**
-   * An owner of the domain, or an admin, lets one app publish low-risk new items there without
+   * An owner of the domain lets one app publish low-risk new items there without
    * review, as their own decision, up to a daily cap. It replaces the app's policy there.
    */
   setAgentPolicy: (input: {
     agentId: string
     domain: DomainId
-    kinds: Kind[]
     perDay: number
     reason: string
   }) => Promise<Policy>

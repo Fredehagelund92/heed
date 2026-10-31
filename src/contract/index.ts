@@ -815,7 +815,7 @@ export const contract = {
       .output(agentRevokedSchema),
   },
   // Publishing without review (FR-421): an admin switches it on for the workspace, then an owner of
-  // a domain, or an admin, lets one app agent publish low-risk new items there. Whoever set it, an
+  // a domain lets one app agent publish low-risk new items there. Whoever set it, an
   // owner of the domain, an admin and the person the agent works for may turn one off.
   agentPolicies: {
     forDomain: read
@@ -834,7 +834,7 @@ export const contract = {
         path: '/agent-policies',
         tags: ['session'],
         summary:
-          "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain or an admin sets it, while the workspace allows it",
+          "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain sets it, while the workspace allows it",
       })
       .input(setAgentPolicySchema)
       .output(agentPolicySchema),

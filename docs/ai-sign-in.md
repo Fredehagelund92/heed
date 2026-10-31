@@ -75,9 +75,10 @@ round, as the owner's own decision (FR-421, `agent_policies`, migration 0036; th
 administrator switches it on (`agentPolicies.switch`, the versioned setting `agents.auto_publish`,
 false on a new install). Switching it off again ends every policy at once.
 
-- **The policy.** One row per agent and domain (`agentPolicies.set`, by an owner of the domain or an
-  administrator, as themselves, while the switch is on): the kinds it covers, the most it publishes
-  in 24 hours (1 to 50), who set it, as owner or as administrator, when and why. Only an app a
+- **The policy.** One row per agent and domain (`agentPolicies.set`, by an owner of the domain, as
+  themselves, while the switch is on; an administrator who does not own the domain cannot): the
+  most it publishes in 24 hours (1 to 50, 10 unless the owner chooses otherwise), who set it, when
+  and why. Only an app a
   person signed in with can have one; an access key names no person and never suggests. A row is
   never changed: setting it again ends the old one and adds a new one, and **Turn off**
   (`agentPolicies.end`) ends it, with who and why. Whoever set it, an owner of the domain, an
@@ -85,11 +86,11 @@ false on a new install). Switching it off again ends every policy at once.
   open connection of the app is revoked, on any path, the database ends its policies too.
 - **What it publishes.** After `suggest_context` sends a suggestion for review, in the same
   transaction, the service publishes it when the open policy for its agent and domain covers it:
-  a new item (never a change to a live item or an archive), of a kind the policy covers, at low
+  a new item (never a change to a live item or an archive), at low
   risk as the server derived it (an agent never sets the risk level, so its suggestion keeps the
   default for its kind: low for a Rule, normal for every other kind), with no provenance flag, no
   claim to check and no clash with live context (FR-225), under the daily cap, while the person who
-  set it still holds the standing they set it with and `suggest_context` is on for the agent and the
+  set it is still an owner of the domain and `suggest_context` is on for the agent and the
   workspace. It goes through the owner's own publish path, run as the owner who set the policy:
   every required check runs again, the decision names that owner as decider with a link to the
   policy (`decisions.auto_policy_id`), and the edition and the history log name them. Anything else
@@ -98,8 +99,8 @@ false on a new install). Switching it off again ends every policy at once.
 - **The database checks it again.** A decision that names a policy is refused unless every rule
   holds at that moment (`cl_policy_decision_problem`): the policy is open and the workspace switch
   is on, the decider is the person who set it, deciding as themselves and still an owner of the
-  domain (or still an administrator, if they set it as one), and the suggestion is a new, low-risk
-  item from the policy's agent in its domain, of a kind it covers, under the daily cap, with
+  domain, and the suggestion is a new, low-risk item from the policy's agent in its domain, under
+  the daily cap, with
   `suggest_context` on. The serving guard (FR-205) is unchanged: it still requires an accept by an
   owner of the domain or an administrator, and every required check passed.
 - **Named and undone.** The item's history says "Published by Claude Code for Kofi under Jon's

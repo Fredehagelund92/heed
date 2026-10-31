@@ -4,7 +4,6 @@ import { toast } from 'sonner'
 import { Loadable } from '@/components/heed/load-state'
 import { StaticField } from '@/components/heed/field-controls'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogClose,
@@ -26,7 +25,6 @@ import {
 import { toApiError } from '@/api/errors'
 import { domainPoliciesQuery, useWrite } from '@/api/queries'
 import {
-  lowRiskKind,
   POLICY_DEFAULT_PER_DAY,
   POLICY_MAX_PER_DAY,
   policyPauseLine,
@@ -37,14 +35,12 @@ import {
   type Policy,
 } from '@/lib/policies'
 import { href } from '@/lib/router'
-import { kindHint, kindLabel, type DomainId, type Kind } from '@/model/items'
+import type { DomainId } from '@/model/items'
 
 // Publishing without review (FR-421): an owner of a domain lets one named agent's suggestions for
 // low-risk new items publish there without a review round, as their own decision, up to a daily
 // cap. It stays on until someone turns it off, so Turn off is beside every policy, here and in the
 // agent's Details in Agents and access.
-
-const KINDS: Kind[] = ['note', 'event', 'issue', 'guide']
 
 /** One policy: what it lets through, who set it and why, today's count, and Turn off. */
 export function PolicyCard({
@@ -100,7 +96,7 @@ export function PolicyCard({
   )
 }
 
-/** The domain page's row: its policies, and for an owner or an admin, a way to set one. */
+/** The domain page's row: its policies, and for an owner, a way to set one. */
 export function DomainPoliciesField({
   domain,
   domainName,
@@ -195,7 +191,7 @@ function DomainPoliciesBody({
   )
 }
 
-/** Sets a policy for one app in this domain: which kinds, up to how many a day, and why. */
+/** Sets a policy for one app in this domain: up to how many a day, and why. */
 function SetPolicyDialog({
   d,
   domain,
@@ -210,7 +206,6 @@ function SetPolicyDialog({
   const write = useWrite()
   const ids = React.useId()
   const [agentId, setAgentId] = React.useState(d.agents[0]?.id ?? '')
-  const [kinds, setKinds] = React.useState<Kind[]>(['note'])
   const [perDay, setPerDay] = React.useState(String(POLICY_DEFAULT_PER_DAY))
   const [reason, setReason] = React.useState('')
   const [problem, setProblem] = React.useState<string | null>(null)
@@ -222,13 +217,11 @@ function SetPolicyDialog({
     const cap = Number(perDay)
     const found = !agent
       ? 'Choose an agent.'
-      : !kinds.length
-        ? 'Choose at least one kind.'
-        : !Number.isInteger(cap) || cap < 1 || cap > POLICY_MAX_PER_DAY
-          ? `Choose a number from 1 to ${POLICY_MAX_PER_DAY}.`
-          : !reason.trim()
-            ? 'Say why, for the history log.'
-            : null
+      : !Number.isInteger(cap) || cap < 1 || cap > POLICY_MAX_PER_DAY
+        ? `Choose a number from 1 to ${POLICY_MAX_PER_DAY}.`
+        : !reason.trim()
+          ? 'Say why, for the history log.'
+          : null
     setProblem(found)
     if (found || !agent) return
     setSaving(true)
@@ -236,7 +229,6 @@ function SetPolicyDialog({
       await write('setAgentPolicy', {
         agentId: agent.id,
         domain,
-        kinds,
         perDay: cap,
         reason: reason.trim(),
       })
@@ -256,9 +248,9 @@ function SetPolicyDialog({
           <DialogHeader>
             <DialogTitle>Publish without review in {domainName}</DialogTitle>
             <DialogDescription>
-              Its suggestions for new, low-risk items publish at once, as your decision. Everything
-              else still waits for an owner. You or another owner can undo each one from its
-              history.
+              Its suggestions for new, low-risk items publish at once, as your decision. Today
+              that means Rules. Everything else still waits for an owner. You or another owner can
+              undo each one from its history.
             </DialogDescription>
           </DialogHeader>
           {d.agents.length ? (
@@ -296,38 +288,6 @@ function SetPolicyDialog({
               with suggestions an owner checked.
             </p>
           )}
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-1.5 text-sm font-medium">Kinds</legend>
-            {KINDS.map((k) => {
-              const low = lowRiskKind(k)
-              const id = `${ids}-kind-${k}`
-              return (
-                <div key={k} className="flex items-start gap-2">
-                  <Checkbox
-                    id={id}
-                    className="mt-0.5"
-                    checked={kinds.includes(k)}
-                    disabled={!low}
-                    aria-describedby={`${id}-hint`}
-                    onCheckedChange={(on) =>
-                      setKinds((was) => (on ? [...was, k] : was.filter((x) => x !== k)))
-                    }
-                  />
-                  <span className="flex flex-col gap-0.5">
-                    <label
-                      htmlFor={id}
-                      className={low ? 'text-sm' : 'text-sm text-muted-foreground'}
-                    >
-                      {kindLabel[k]}
-                    </label>
-                    <span id={`${id}-hint`} className="text-xs text-muted-foreground">
-                      {low ? kindHint[k] : 'Starts at normal risk, so it waits for review.'}
-                    </span>
-                  </span>
-                </div>
-              )
-            })}
-          </fieldset>
           <div className="flex flex-col gap-1.5">
             <label htmlFor={`${ids}-cap`} className="text-sm font-medium">
               Most in a day

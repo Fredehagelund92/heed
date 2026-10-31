@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { POLICY_MAX_PER_DAY, policyKinds, policyPauses } from '../domain/agent-policies.ts'
+import { POLICY_MAX_PER_DAY, policyPauses } from '../domain/agent-policies.ts'
 import { agentKinds, agentNameProblem, agentToolNames } from '../domain/agents.ts'
 
 /**
@@ -93,8 +93,8 @@ export const createAccessKeySchema = z.strictObject({ name: agentNameSchema })
 export const renameAccessKeySchema = z.strictObject({ id: z.uuid(), name: agentNameSchema })
 
 /**
- * A policy that lets one app agent publish without review in one domain (FR-421): the kinds it
- * covers, its daily cap, who set it and why, and whether it publishes now. It stays on until someone
+ * A policy that lets one app agent publish without review in one domain (FR-421): its daily
+ * cap, who set it and why, and whether it publishes now. It stays on until someone
  * turns it off. `pause` says why it waits for review although it is on; `canEnd` whether the
  * signed-in person may turn it off: whoever set it, an owner of the domain, an admin, or the person
  * the agent works for.
@@ -107,7 +107,6 @@ export const agentPolicySchema = z.object({
   person: z.object({ id: z.string(), name: z.string() }),
   areaId: z.string(),
   areaName: z.string(),
-  kinds: z.array(z.enum(policyKinds)),
   perDay: z.number(),
   setBy: z.object({ id: z.string(), name: z.string() }),
   setAt: z.string(),
@@ -187,7 +186,7 @@ export const domainPoliciesInputSchema = z.strictObject({
 export const domainPoliciesSchema = z.object({
   /** Whether an admin switched publishing without review on for the workspace. */
   on: z.boolean(),
-  /** Whether the signed-in person may set a policy here: an owner of the domain or an admin. */
+  /** Whether the signed-in person may set a policy here: an owner of the domain. */
   canSet: z.boolean(),
   policies: z.array(agentPolicySchema),
   /**
@@ -208,11 +207,6 @@ export const domainPoliciesSchema = z.object({
 export const setAgentPolicySchema = z.strictObject({
   agentId: z.uuid(),
   areaId: z.string().check(z.minLength(1)),
-  kinds: z.array(z.enum(policyKinds)).check(
-    z.minLength(1),
-    z.maxLength(policyKinds.length),
-    z.refine((k) => new Set(k).size === k.length),
-  ),
   perDay: z.int().check(z.minimum(1), z.maximum(POLICY_MAX_PER_DAY)),
   reason: agentReason,
 })

@@ -1241,10 +1241,11 @@ export function describeHeedApi(
       'lets an owner choose an agent that publishes without review, once an admin allows it',
       async () => {
         const live = await signedIn()
-        const { people } = await live.getWorkspace()
-        const domain = people.find((p) => p.name === person)!.owns[0]!
+        const { people, domains } = await live.getWorkspace()
+        const owns = people.find((p) => p.name === person)!.owns
+        const domain = owns[0]!
         const app = (await live.listAgentConnections()).find((r) => r.kind === 'app')!
-        const policy = { agentId: app.id, domain, kinds: ['note' as const], perDay: 5 }
+        const policy = { agentId: app.id, domain, perDay: 5 }
         // Off for the workspace as it starts: nobody sets one.
         expect(await live.getAutoPublish()).toEqual({ on: false, open: 0 })
         expect(await live.getDomainPolicies({ domain })).toMatchObject({
@@ -1257,13 +1258,23 @@ export function describeHeedApi(
         ).rejects.toMatchObject({ kind: 'conflict' })
         // An admin switches it on; the owner sets one, which the agent's row and the domain show.
         await live.setAutoPublish({ on: true })
+        // An admin who does not own a domain cannot set one there: only its owners do.
+        const other = domains.find((d) => !owns.includes(d.id))
+        if (other) {
+          expect(await live.getDomainPolicies({ domain: other.id })).toMatchObject({
+            canSet: false,
+            agents: [],
+          })
+          await expect(
+            live.setAgentPolicy({ ...policy, domain: other.id, reason: 'Not mine' }),
+          ).rejects.toMatchObject({ kind: 'forbidden' })
+        }
         const set = await live.setAgentPolicy({ ...policy, reason: 'Its rules were right' })
         expect(set).toMatchObject({
           agentId: app.id,
           agent: app.agent,
           who: app.who,
           domain,
-          kinds: ['note'],
           perDay: 5,
           setBy: person,
           reason: 'Its rules were right',

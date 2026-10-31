@@ -961,14 +961,14 @@ export function createMockApi() {
     setAutoPublish: ({ on }) => now(() => policies.switchTo(on, policyReader())),
     getDomainPolicies: ({ domain }) =>
       now(() => policies.forDomain(domain, policyReader(), settings.agents(me(), true))),
-    setAgentPolicy: ({ agentId, domain, kinds, perDay, reason }) =>
+    setAgentPolicy: ({ agentId, domain, perDay, reason }) =>
       now(() => {
         const agent = settings.agent(agentId)
         if (!agent) throw new ApiError('not-found', "We couldn't find this agent.")
         const name = workspace.domainMap()[domain]?.name
         if (!name) throw new ApiError('not-found', "We couldn't find this domain.")
         return policies.set(
-          { agent, domain, domainName: name, kinds, perDay, reason },
+          { agent, domain, domainName: name, perDay, reason },
           policyReader(),
         )
       }),

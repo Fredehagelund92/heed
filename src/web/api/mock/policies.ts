@@ -1,7 +1,7 @@
 import { ApiError } from '../errors'
 import type { Connected } from '@/lib/connect'
 import type { DomainPolicies, Policy } from '@/lib/policies'
-import type { DomainId, Kind } from '@/model/items'
+import type { DomainId } from '@/model/items'
 
 // Publishing without review in the demo (FR-421), kept until the page reloads. It is off for the
 // workspace as the demo starts, with no policy anywhere, as on a new install; the review flag
@@ -45,7 +45,7 @@ export function createPolicies() {
     ofAgent: (agentId: string, r: Reader) =>
       policies.filter((p) => p.agentId === agentId).map((p) => shown(p, r)),
     forDomain(domain: DomainId, r: Reader, agents: readonly Connected[]): DomainPolicies {
-      const canSet = r.admin || r.owns.includes(domain)
+      const canSet = r.owns.includes(domain)
       return {
         on,
         canSet,
@@ -73,7 +73,6 @@ export function createPolicies() {
         agent: Connected
         domain: DomainId
         domainName: string
-        kinds: Kind[]
         perDay: number
         reason: string
       },
@@ -84,10 +83,10 @@ export function createPolicies() {
           'conflict',
           'Publishing without review is off for the workspace. An admin turns it on in Agents and access.',
         )
-      if (!r.admin && !r.owns.includes(input.domain))
+      if (!r.owns.includes(input.domain))
         throw new ApiError(
           'forbidden',
-          'Only the owners of this domain, or an admin, can let an agent publish here.',
+          'Only the owners of this domain can let an agent publish here.',
         )
       if (input.agent.kind !== 'app')
         throw new ApiError(
@@ -101,7 +100,6 @@ export function createPolicies() {
         who: input.agent.who,
         domain: input.domain,
         domainName: input.domainName,
-        kinds: [...new Set(input.kinds)],
         perDay: input.perDay,
         setBy: r.name,
         setOn: '23 Oct 2026',
