@@ -152,6 +152,7 @@
   },
   "overrides": {
     "basic-ftp": "6.2.2",
-    "handlebars": "4.7.10"
+    "handlebars": "4.7.10",
+    "minimatch": "11.0.3"
   }
 }
