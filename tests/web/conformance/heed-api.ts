@@ -7,12 +7,9 @@
  */
 import { describe, expect, it } from 'vitest'
 import { settingKeys } from '@contract/admin'
-<<<<<<< HEAD
 import { agentToolNames } from '@domain/agents'
 import { toolsOn } from '@/lib/connect'
-=======
 import { ApiError } from '@/api/errors'
->>>>>>> ebead77 (no-mistakes(ci): Two causes. (1) Seed Playwright spec: this PR made the item page title an h1 (fact.tsx), but tests/e2e-seed/demo.spec.ts:50 still looked for an h2; changed it to level 1 (the panel assertion at line 47 stays h2). Not run locally (needs demo install + browser). (2) http-api conformance test "restores an earlier version's words as a draft": the publish was refused with 'Say how this relates to ...' because the test's client-side overlap guess missed a live item the service counted as a clash. It passes locally (whole file, 110 tests), so I could not reproduce the CI failure or confirm why CI hit that clash. As a hedge I added a saveAnswered helper in tests/web/conformance/heed-api.ts that, on a refusal naming clashes (the new ApiError.clashes), answers them as 'unrelated' and saves again, and used it for all four saveItem calls in the shared suite. Verified locally: http-api.test.ts passes, mock conformance tests pass, tsc web passes. The CI gate failure was only the aggregate of these two jobs. Nothing committed or pushed)
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
 import { labelDay, whenLabel } from '@/model/validity'
