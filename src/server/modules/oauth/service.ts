@@ -991,19 +991,22 @@ export function createLoginServer(options: {
       // The person and the app are one agent (FR-420), named as the app names itself now. A new
       // one has every tool on, bounded by what the person allowed; one an admin changed keeps its
       // switches. An app that registers again gets a new id, so a new agent of the person by the
-      // same name starts from the fewest tools an admin left on for one of theirs: registering
-      // anew never undoes a switch.
+      // same name starts with only the tools every one of theirs an admin switched still has on:
+      // registering anew never undoes a switch.
       await tx.query(
-        `insert into auth.agents(kind,name,person_id,client_id,tools,tools_set_by,tools_set_at)
-         select 'app',c.name,$1,c.id,coalesce(narrowest.tools,$3::text[]),
-                narrowest.tools_set_by,narrowest.tools_set_at
+        `with switched as (
+           select a.tools,a.tools_set_by,a.tools_set_at from auth.agents a
+             join auth.oauth_clients c on c.id=$2
+            where a.kind='app' and a.person_id=$1 and lower(a.name)=lower(c.name)
+              and a.tools_set_by is not null
+         ), latest as (select * from switched order by tools_set_at desc limit 1)
+         insert into auth.agents(kind,name,person_id,client_id,tools,tools_set_by,tools_set_at)
+         select 'app',c.name,$1,c.id,
+                array(select t from unnest($3::text[]) with ordinality as u(t,n)
+                       where not exists (select 1 from switched s where not u.t=any(s.tools))
+                       order by u.n),
+                (select tools_set_by from latest),(select tools_set_at from latest)
            from auth.oauth_clients c
-           left join lateral (
-             select a.tools,a.tools_set_by,a.tools_set_at from auth.agents a
-              where a.kind='app' and a.person_id=$1 and lower(a.name)=lower(c.name)
-                and a.tools_set_by is not null
-              order by cardinality(a.tools), a.tools_set_at desc limit 1
-           ) narrowest on true
           where c.id=$2
          on conflict (person_id,client_id) do update set name=excluded.name`,
         [row.personId, row.clientId, toolsFor('app')],

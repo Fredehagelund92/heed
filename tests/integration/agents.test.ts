@@ -331,6 +331,22 @@ describe('every agent by name', () => {
     expect(await mcpStatus(other.token)).toBe(200)
   })
 
+  it('keeps every switch of every earlier registration of the same app, not only one', async () => {
+    const boss = await signedIn('admin')
+    const one = await connect('owner')
+    const two = await connect('owner')
+    expect(
+      (await setTool(boss, await agentOfClient(one.clientId), 'suggest_context', false)).status,
+    ).toBe(200)
+    expect(
+      (await setTool(boss, await agentOfClient(two.clientId), 'get_related', false)).status,
+    ).toBe(200)
+    const again = await connect('owner')
+    const id = await agentOfClient(again.clientId)
+    const fresh = (await agentsOf(boss)).find((r) => r.id === id)!
+    expect(toolsOn(fresh)).toEqual(['get_context', 'find_context', 'read_context', 'report'])
+  })
+
   it('ends every connection of an app at once when an agent is revoked', async () => {
     const app = await connect('author')
     const id = await agentOfClient(app.clientId)

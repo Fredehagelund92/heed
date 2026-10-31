@@ -44,9 +44,9 @@ administrator gives it.
   `suggest_context`: it names no person. An agent with every tool off gets nothing. A new app starts
   with every tool on, bounded by the consent; one an administrator changed keeps its switches
   across a new sign-in of the same app. An app that registers again gets a new client id; a new
-  agent of the same person by the same name starts from the fewest tools an administrator left on
-  for one of theirs, so registering anew never undoes a switch. A tool Heed adds later starts off
-  for the agents there are. The workspace switches in **Tools and access keys** still turn a tool
+  agent of the same person by the same name starts with only the tools every one of theirs an
+  administrator switched still has on, so registering anew never undoes a switch. A tool Heed adds
+  later starts off for the agents there are. The workspace switches in **Tools and access keys** still turn a tool
   off for every agent.
 - **At the next request.** The MCP server asks the serving database at every request which tools
   the agent has on (`serving_agent_tools` for a connection, `serving_access_key` for a key), and
