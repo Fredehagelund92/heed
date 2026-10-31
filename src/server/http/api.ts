@@ -80,6 +80,7 @@ import {
   createReviewService,
   type ReviewService,
 } from '../modules/review/index.ts'
+import { createConflictsService } from '../modules/conflicts/index.ts'
 import { createContextService } from '../modules/context/index.ts'
 import { createTermsService } from '../modules/terms/index.ts'
 import { createInboxFeedService } from '../modules/inbox/index.ts'
@@ -231,6 +232,13 @@ export function createRouter({
                 review,
                 path: reviewPath,
                 readPage,
+              }),
+              conflicts: createConflictsService(tx, clock, answerBundles, {
+                library,
+                proposals,
+                review,
+                path: reviewPath,
+                comments,
               }),
               catalogue: createCatalogueService(tx, clock),
               terms: createTermsService(tx),
@@ -612,6 +620,19 @@ export function createRouter({
         changeGrant(context.tx, input, false),
       ),
     },
+    conflicts: {
+      list: authorized.conflicts.list.handler(({ input, context }) =>
+        context.conflicts.list(input),
+      ),
+      read: authorized.conflicts.read.handler(({ input, context }) =>
+        context.conflicts.read(input),
+      ),
+      settle: authorized.conflicts.settle.handler(({ input, context }) =>
+        retryWrite(context.tx, idempotencyKey(context), 'conflicts.settle', input, () =>
+          context.conflicts.settle(input),
+        ),
+      ),
+    },
     items: {
       page: authorized.items.page.handler(async ({ input, context }) =>
         found(await context.context.page(input.id)),
@@ -895,6 +916,7 @@ export function createRouter({
           if (kind === 'decision' || kind === 'decisions')
             return context.path.undoDecisions(ids.split(','))
           if (kind === 'change') return context.context.undoChange(ids)
+          if (kind === 'conflict') return context.conflicts.undo({ id: ids })
           if (kind === 'terms') return context.terms.undoChange(ids)
           if (kind === 'saved') return context.saved.undoSaved(ids)
           if (kind === 'kept') return context.saved.undoKept(ids)

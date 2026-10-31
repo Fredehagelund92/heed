@@ -15,6 +15,7 @@ export type VersionKind =
   | 'moved'
   | 'retyped'
   | 'owners'
+  | 'conflict'
 
 export type Version = {
   v: number
@@ -34,7 +35,9 @@ export type Version = {
 
 /** Whether a version changed the words, so it can be restored (a check or a return changed nothing). */
 export const restorable = (v: Version) =>
-  !['checked', 'returned', 'synced', 'archived', 'moved', 'retyped', 'owners'].includes(v.kind)
+  !['checked', 'returned', 'synced', 'archived', 'moved', 'retyped', 'owners', 'conflict'].includes(
+    v.kind,
+  )
 
 /** A short plain verb for each kind, as a row says it: "Jon Abara edited wording". */
 export const VERB: Record<VersionKind, string> = {
@@ -50,6 +53,7 @@ export const VERB: Record<VersionKind, string> = {
   moved: 'moved it',
   retyped: 'changed its kind',
   owners: 'changed its owners',
+  conflict: 'changed a conflict',
 }
 
 /**

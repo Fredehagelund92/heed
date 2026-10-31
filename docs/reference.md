@@ -588,6 +588,37 @@ history and links. In a change to many items, an owner of a draft's domain may d
 Mark as checked records a check even when nothing else moved, for an owner of the domain or an
 admin.
 
+## Conflicts
+
+A conflict is two live context items where one item's version says it disagrees with the other
+(FR-220). A person declares it, in the review ("These disagree") or in the editor; nothing compares
+what the items say. Agents get both with the Conflict state until someone settles it. The contract
+is in `src/contract/conflicts.ts`, the rules in `src/domain/conflicts.ts`.
+
+- `GET /conflicts?whose=mine|all` lists the pairs the person may read, most asked first: both
+  items, the topic in words built from the holder's scope ("Orders in Norway"), how many agent
+  questions got the pair as a Conflict in the last 7 days, since when agents get both, and whether
+  the person can settle it. A pair kept as both is left out while both items are at the versions
+  the decision saw.
+- `GET /conflicts/{holderId}/{otherId}` reads one pair, in either order, the item that holds the
+  flag first: each side's words, domain, owners, version, check and first source with its quoted
+  line; what agents say to the holder's own question now, with only the holder, with only the
+  other, and with the flag removed (the answer engine on the live edition, no model); who may
+  settle it how; and the decision that kept it as both, if it still holds. A side the person may not
+  read comes back with its domain and owners only, and with no answers (FR-128).
+- `POST /conflicts/settle` takes the pair, the outcome (`kept_one` with `keepId`, `kept_both` or
+  `not_conflict`), a reason in plain words, an optional quoted line, and the versions the person
+  saw. A newer version of either answers 409 and changes nothing. Each outcome is checked against
+  the item it changes: keeping one archives the other, so it needs an owner of the other item or an
+  administrator; removing the flag publishes a new version of the item that holds it (and of the
+  other, when both hold it), so it needs its owner; keeping both needs an owner of either. Keeping
+  one also drops the kept item's flag on the archived one. The other owners are mentioned in a
+  comment on the item (on the one that stays, when one is archived), and the decision is on both
+  items' history (`conflict`). Its `undo` token, `conflict:<id>`, goes to `POST /decisions/undo`
+  within the undo window, by the person who decided, and takes back exactly what it did.
+- `GET /items/{id}/page` gives `conflicts`: the live items the item is in a conflict with, either
+  way round, that the person may read.
+
 ## Terms and synonyms
 
 Definitions (docs/product.md, section 3) keeps the words people write beside the metrics and
@@ -958,8 +989,8 @@ the contract is in `src/contract/alerts.ts`.
   what it is about, as no person, and raises once for each thing it finds, keyed on what it was
   about, so a second run raises nothing new: a gap that is open (Not found); a domain's saved
   questions that came to need a look since its last raise (A saved question needs a look); a topic
-  agents got two disagreeing items for at least the threshold of times in 7 days, once a week
-  (Conflict); a share of a full day's questions that found nothing, above the threshold two days
+  agents got two disagreeing items for at least the threshold of times in 7 days, once a week,
+  unless every pair it gives was kept as both and neither item changed since (Conflict); a share of a full day's questions that found nothing, above the threshold two days
   running (More questions not found); a share of yesterday's calls that failed or could not be
   read (Calls fail); this month's model spend at the threshold of the monthly cap (Model spend); a
   definition source whose last read failed or that has not read for longer than it should (A

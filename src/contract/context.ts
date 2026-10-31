@@ -89,6 +89,8 @@ export const versionKinds = [
   'retyped',
   'owners',
   'archived',
+  // The Conflict flag set or removed, or a conflict settled with a reason (FR-220).
+  'conflict',
 ] as const
 
 export const itemVersionEntrySchema = z.object({
@@ -122,6 +124,11 @@ export const itemPageSchema = z.object({
   history: z.array(itemVersionEntrySchema),
   /** Whether the person may change it: an owner of its domain or an admin. */
   canChange: z.boolean(),
+  /**
+   * The live items it is in a conflict with, either way round (FR-220): agents get both with the
+   * Conflict state. Only items the person may read.
+   */
+  conflicts: z.array(z.string()),
 })
 
 export const restoreAsDraftInputSchema = z.strictObject({

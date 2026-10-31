@@ -244,3 +244,8 @@ grant execute on function serving_access_key(text) to :serve;
 grant update (name) on auth.access_keys to :api;
 grant select, insert, update (name, tools, tools_set_by, tools_set_at) on auth.agents to :api;
 grant execute on function serving_agent_tools(uuid) to :serve;
+-- Conflicts (FR-220): a person settles a conflict between two items they may read, with a reason, and only
+-- they mark their decision undone. What it changes goes through the retire and publish paths above. Nothing
+-- here is granted to the serving or the analytics role.
+grant insert, update (undone_at) on conflict_decisions to :api;
+grant execute on function cl_conflicts_kept() to :api;

@@ -157,6 +157,11 @@ const readOperations = [
   'terms.deleted',
   'terms.history',
   'definitions.related',
+  // Conflicts: anyone signed in reads a pair they may read; the service checks each way of settling
+  // it against the item it changes (an owner of it, or an admin).
+  'conflicts.list',
+  'conflicts.read',
+  'conflicts.settle',
   // Context: the service narrows changes to owners of each item's domain and admins.
   'items.page',
   'items.markRead',

@@ -89,6 +89,11 @@ export const policies = {
   'terms.deleted': 'read',
   'terms.history': 'read',
   'definitions.related': 'read',
+  // Conflicts: anyone signed in reads a pair they may read; settling is checked against the item each
+  // way changes (an owner of it, or an admin) in the service.
+  'conflicts.list': 'read',
+  'conflicts.read': 'read',
+  'conflicts.settle': 'propose',
   'items.page': 'read',
   'items.markRead': 'read',
   'items.related': 'read',
