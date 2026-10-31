@@ -48,7 +48,8 @@ Older design pages that still apply:
 | [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                  |
 | [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                          |
 | [The rename checklist](rename-checklist.md)                | Everything that follows the product name                    |
-| [Contributing](../CONTRIBUTING.md)                         | The rules for people and for coding agents                  |
+| [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents   |
+| [Working with coding agents](agents.md)                    | Where an agent reads first, and what it may and may not do  |
 
 ## The order of authority
 
