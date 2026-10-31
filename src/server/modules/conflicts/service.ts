@@ -312,9 +312,10 @@ export function createConflictsService(
       area: { id: item.areaId, name: area[0]?.name ?? item.areaId },
       owners: settled.owners.map((id) => ({ id, name: people.get(id) ?? '' })),
       version: open ? item.version : 0,
-      checked: open && row?.lastChecked
-        ? { on: row.lastChecked.on, personId: row.lastChecked.personId }
-        : null,
+      checked:
+        open && row?.lastChecked
+          ? { on: row.lastChecked.on, personId: row.lastChecked.personId }
+          : null,
       source: open && source ? { url: source.url, quote: source.quote } : null,
       from: open ? item.validity.start || null : null,
     }
@@ -384,8 +385,8 @@ export function createConflictsService(
             },
       keptBoth:
         open.size === 2 && kept.has(`${holder.id}.${other.id}`)
-        ? publicDecision(kept.get(`${holder.id}.${other.id}`)!)
-        : null,
+          ? publicDecision(kept.get(`${holder.id}.${other.id}`)!)
+          : null,
     }
   }
 

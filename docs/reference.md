@@ -604,8 +604,8 @@ is in `src/contract/conflicts.ts`, the rules in `src/domain/conflicts.ts`.
   flag first: each side's words, domain, owners, version, check and first source with its quoted
   line; what agents say to the holder's own question now, with only the holder, with only the
   other, and with the flag removed (the answer engine on the live edition, no model); who may
-  settle it how; and the decision that kept it as both, if it still holds. A side the person may not
-  read comes back with its domain and owners only, and with no answers (FR-128).
+  settle it how; and the decision that kept it as both, if it still holds and the person may read both
+  items. A side the person may not read comes back with its domain and owners only, and with no answers (FR-128).
 - `POST /conflicts/settle` takes the pair, the outcome (`kept_one` with `keepId`, `kept_both` or
   `not_conflict`), a reason in plain words, an optional quoted line, and the versions the person
   saw. A newer version of either answers 409 and changes nothing. Each outcome is checked against
@@ -990,9 +990,9 @@ the contract is in `src/contract/alerts.ts`.
   about, so a second run raises nothing new: a gap that is open (Not found); a domain's saved
   questions that came to need a look since its last raise (A saved question needs a look); a topic
   agents got two disagreeing items for at least the threshold of times in 7 days, once a week,
-  unless every pair it gives was kept as both and neither item changed since (Conflict); a share of a full day's questions that found nothing, above the threshold two days
-  running (More questions not found); a share of yesterday's calls that failed or could not be
-  read (Calls fail); this month's model spend at the threshold of the monthly cap (Model spend); a
+  unless every pair it gives was kept as both and neither item changed since (Conflict); a share
+  of a full day's questions that found nothing, above the threshold two days running (More
+  questions not found); a share of yesterday's calls that failed or could not be read (Calls fail); this month's model spend at the threshold of the monthly cap (Model spend); a
   definition source whose last read failed or that has not read for longer than it should (A
   connected tool did not sync), told to the owners of the domains whose live items rely on its
   definitions too; and a live item whose check date passed, from 07:00 UTC (A check is due).
