@@ -77,7 +77,8 @@ import {
   type ScopeTerm,
   type Status,
 } from '@/model/items'
-import { ownersOf, type Domain, type Domains } from '@/model/people'
+import { homeDomain, ownersOf, type Domain, type Domains } from '@/model/people'
+import { toApiError, type Clash } from '@/api/errors'
 import { closeDock, openDock, useDock } from '@/lib/dock'
 import { HeaderMore, SaveStatus } from '@/components/heed/editor-header'
 import { Panel, PanelGroup } from '@/components/heed/panel'
@@ -290,6 +291,12 @@ const domainOptions = (domains: Domain[]) =>
     icon: <DomainDot id={d.id} />,
   }))
 
+const RELATIONS: Option<Relation>[] = [
+  { value: 'replaces', label: 'Replaces it' },
+  { value: 'disagree', label: 'Disagrees' },
+  { value: 'unrelated', label: 'Unrelated' },
+]
+
 /* ---------- the page ---------- */
 
 export function FactEditor(props: { mode: 'new' | 'edit' | 'suggest'; factId?: string }) {
@@ -328,7 +335,7 @@ function Editor({
   const { query } = useRoute()
   // What the page opened with, so an edit or a suggestion that changes nothing can't be sent.
   const [initial] = React.useState<Form>(() =>
-    initialForm(original, query, me.owns[0] ?? 'sales', {
+    initialForm(original, query, homeDomain(me, domainList)?.id ?? '', {
       domains,
       vocabulary,
       gapDraft: cards.find((c) => c.id === query.get('gap'))?.gap?.draft,
@@ -344,11 +351,24 @@ function Editor({
   const [pasted, setPasted] = React.useState('')
   const [draftOpen, setDraftOpen] = React.useState(false)
   const [previewAll, setPreviewAll] = React.useState(false)
+  const { state: sendState, error: sendError, send, online, reset } = useSend()
+  // Live items the service named when it refused to publish until this says how it relates to
+  // each: asked right under the title, and sent with the next publish.
+  const [clashes, setClashes] = React.useState<Clash[]>([])
+  // Read by the text editor's own handler too, which keeps the first render's closure.
+  const failed = React.useRef(false)
+  React.useEffect(() => {
+    failed.current = sendState === 'failed'
+  })
+  // A refusal was about the words as they were: once they change, Publish tries them afresh.
+  React.useEffect(() => {
+    if (failed.current) reset()
+  }, [form, reset])
   // Drafts save themselves: a quiet status instead of a Save button.
   const [saving, setSaving] = React.useState(false)
   const saveTimer = React.useRef<number>(0)
   const set = <K extends keyof Form>(k: K, v: Form[K]) => {
-    setForm((f) => ({ ...f, [k]: v }))
+    setForm((f) => (Object.is(f[k], v) ? f : { ...f, [k]: v }))
     setSaving(true)
     window.clearTimeout(saveTimer.current)
     saveTimer.current = window.setTimeout(() => setSaving(false), 700)
@@ -368,7 +388,6 @@ function Editor({
   })
 
   const trying = useDock()?.kind === 'try'
-  const { state: sendState, send, online } = useSend()
   const owner = me.owns.includes(form.domain) || me.admin
   const isSuggest = mode === 'suggest' || !owner
   const ownerName = form.owners[0] ?? domains[form.domain]?.owners[0] ?? ''
@@ -395,11 +414,20 @@ function Editor({
   // The panel's open or closed, as the person last left it this session; until then, open only with an overlap.
   const [sideChoice, setSideChoice] = useSideChoice()
   const sideOpen = sideChoice ?? overlaps.length > 0
+  // What the service needs before it publishes or sends: a domain that exists, where it applies
+  // (a mention in the text is not that), and a source with a sentence copied from it. An edit that
+  // leaves its source alone keeps the sentence it has.
+  const quoteNeeded =
+    mode === 'new' || form.source !== initial.source || form.quote !== initial.quote
   const missing = [
+    !domains[form.domain] && 'a domain',
     !form.title && 'a title',
     !form.body.trim() && 'what agents should know',
+    !form.where.length && 'where it applies',
     !form.source && 'a source',
+    form.source && quoteNeeded && !form.quote.trim() && 'a sentence copied from the source',
   ].filter(Boolean) as string[]
+  const unanswered = clashes.find((c) => !overlap[c.itemId])
   const reaches = whereNames.length ? (whereNames.includes('Norway') ? 12 : 9) : 0
   // Counted as agents read it: a mention is its words.
   const text = plainText(form.body)
@@ -423,18 +451,28 @@ function Editor({
   // The first paragraph is the summary agents read first; the real schema keeps it to 280 characters.
   const summaryLength = plainText(form.body.split('\n\n')[0] ?? '').length
   const tooLong = summaryLength > 280
+  // With no definitions connected there is nothing to say where it applies with yet.
+  const noWords = !form.where.length && !vocabulary.metrics.length && !vocabulary.dimensions.length
   const blocked = missing.length
-    ? `Add ${missing.join(', ')} first.`
+    ? `Add ${missing.join(', ')} first.${noWords ? ' Where it applies is named from your definitions: connect them in Settings, Integrations.' : ''}`
     : tooLong
       ? 'Shorten the first paragraph to 280 characters first.'
       : unchanged
         ? 'Nothing has changed yet.'
-        : ''
+        : unanswered
+          ? `Say how this relates to “${unanswered.title}” first.`
+          : ''
   // A blocked click goes to the first thing missing instead of answering with a toast.
+  const focusField = (name: string) =>
+    document.getElementById(fieldId(name))?.nextElementSibling?.querySelector('button')?.focus()
   const goToMissing = () => {
-    if (!form.title) titleRef.current?.focus()
+    if (!domains[form.domain]) focusField('domain')
+    else if (!form.title) titleRef.current?.focus()
     else if (!form.body.trim()) editor?.commands.focus('end')
-    else if (!form.source) setSourceOpen(true)
+    else if (!form.where.length) focusField('where')
+    else if (!form.source || (quoteNeeded && !form.quote.trim())) setSourceOpen(true)
+    else if (unanswered)
+      document.getElementById(`${ids}-clashes`)?.querySelector<HTMLElement>('[role=radio]')?.focus()
   }
 
   const commit = async () => {
@@ -464,7 +502,15 @@ function Editor({
       fact: draft,
       isNew: !original,
       // Each overlap as the owner answered it; one left alone is unrelated, as it reads.
-      relations: Object.fromEntries(overlaps.map((f) => [f.id, overlap[f.id] ?? 'unrelated'])),
+      relations: {
+        ...Object.fromEntries(overlaps.map((f) => [f.id, overlap[f.id] ?? 'unrelated'])),
+        ...Object.fromEntries(
+          clashes.flatMap((c) => {
+            const r = overlap[c.itemId]
+            return r ? [[c.itemId, r] as const] : []
+          }),
+        ),
+      },
       gap: query.get('gap') ?? undefined,
       setup: !!query.get('setup'),
     })
@@ -482,9 +528,31 @@ function Editor({
   }
   // Sending, then done; or failed with Retry, the text untouched. Offline, nothing is sent.
   const verb = isSuggest ? 'Send' : original ? 'Save' : 'Publish'
+  // A refusal that names live items to relate to lists them, unanswered, under the title.
+  const publish = () =>
+    commit().catch((e: unknown) => {
+      const named = toApiError(e).clashes.filter((c) => !clashes.some((k) => k.itemId === c.itemId))
+      if (named.length) setClashes((k) => [...k, ...named])
+      throw e
+    })
+  // Retry only where sending again can help: no answer, or the service failing on its side. A
+  // refusal says why instead, and the change it asks for makes Publish work again.
+  // The service's own words for a refusal, as a sentence.
+  const refusal =
+    sendState === 'failed' &&
+    sendError &&
+    !(sendError.kind === 'unanswered' || sendError.kind === 'failed')
+      ? sendError.message.replace(/[^.!?]$/, '$&.')
+      : ''
+  // A new refusal comes into view, wherever the page was scrolled.
+  const refusalRef = React.useRef<HTMLElement>(null)
+  React.useEffect(() => {
+    if (refusal) refusalRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [refusal])
+  const retryable = !sendError || sendError.kind === 'unanswered' || sendError.kind === 'failed'
   const submit = () => {
     if (blocked) return goToMissing()
-    send(commit)
+    send(publish)
   }
   const held =
     blocked || (!online ? `You're offline. ${verb} once you're back; your text stays here.` : '')
@@ -610,11 +678,7 @@ function Editor({
                   label={`How this relates to ${f.title}`}
                   value={overlap[f.id] ?? 'unrelated'}
                   onChange={(v) => setOverlap((o) => ({ ...o, [f.id]: v }))}
-                  options={[
-                    { value: 'replaces', label: 'Replaces it' },
-                    { value: 'disagree', label: 'Disagrees' },
-                    { value: 'unrelated', label: 'Unrelated' },
-                  ]}
+                  options={RELATIONS}
                 />
               </div>
             ))}
@@ -623,19 +687,18 @@ function Editor({
       </PanelGroup>
     </>
   )
+  const notReady = missing.length ? `Add ${missing.join(', ')}.` : unanswered ? blocked : ''
   const ready = (
     <p className="flex items-start gap-2 p-4 text-sm">
-      {missing.length ? (
+      {notReady ? (
         <CircleDashedIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
       ) : (
         <CircleCheckIcon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
       )}
       <span>
-        <span className="font-medium">{missing.length ? 'Not ready yet.' : 'Ready.'}</span>{' '}
+        <span className="font-medium">{notReady ? 'Not ready yet.' : 'Ready.'}</span>{' '}
         <span className="text-muted-foreground">
-          {missing.length
-            ? `Add ${missing.join(', ')}.`
-            : 'Complete, and it reaches the questions it is meant for.'}
+          {notReady || 'Complete, and it reaches the questions it is meant for.'}
         </span>
       </span>
     </p>
@@ -753,7 +816,12 @@ function Editor({
       footer={
         <DocFooter
           status={
-            sendState === 'failed' ? (
+            sendState === 'failed' && !retryable ? (
+              <span className="flex items-center gap-2 text-destructive">
+                <CircleAlertIcon className="size-3.5 shrink-0" aria-hidden />
+                Not {verb === 'Send' ? 'sent' : verb === 'Save' ? 'saved' : 'published'}
+              </span>
+            ) : sendState === 'failed' ? (
               <span role="alert" className="flex items-center gap-2 text-destructive">
                 <CircleAlertIcon className="size-3.5 shrink-0" aria-hidden />
                 <span>
@@ -764,7 +832,7 @@ function Editor({
                   variant="outline"
                   size="sm"
                   className="h-7 text-foreground"
-                  onClick={() => send(commit)}
+                  onClick={() => send(publish)}
                 >
                   <RefreshCwIcon data-icon="inline-start" />
                   Retry
@@ -781,6 +849,13 @@ function Editor({
               <>
                 <CircleDashedIcon className="size-3.5" aria-hidden />
                 No changes yet
+              </>
+            ) : unanswered ? (
+              <>
+                <CircleDashedIcon className="size-3.5" aria-hidden />
+                <span>
+                  Not ready<span className="hidden sm:inline">: say how it relates</span>
+                </span>
               </>
             ) : (
               <>
@@ -826,11 +901,62 @@ function Editor({
           onChange={(e) => set('title', e.target.value.replace(/\n/g, ' '))}
           onPaste={(e) => noteEmoji(e.clipboardData.getData('text/plain'))}
         />
+        {/* What stopped a publish, in the service's words, and the live items it named to relate
+            to, answered here, under the title, at any width. */}
+        {(refusal || clashes.length > 0) && (
+          <section
+            ref={refusalRef}
+            id={`${ids}-clashes`}
+            aria-label="Before it can be published"
+            className="mb-5 flex flex-col gap-3 rounded-frame bg-muted px-3 py-2 text-sm"
+          >
+            {refusal ? (
+              <p role="alert" className="flex items-start gap-2">
+                <CircleAlertIcon
+                  className="mt-0.5 size-3.5 shrink-0 text-destructive"
+                  aria-hidden
+                />
+                <span>
+                  Couldn't {verb.toLowerCase()}. {refusal}
+                </span>
+              </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Agents get these for the same questions. Say how this relates to each.
+              </p>
+            )}
+            {clashes.map((c) => (
+              <div key={c.itemId} className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  className="text-left font-medium underline-offset-4 hover:underline"
+                  onClick={() => openDock('context', c.itemId)}
+                >
+                  {c.title}
+                </button>
+                <ChoiceGroup
+                  label={`How this relates to ${c.title}`}
+                  value={overlap[c.itemId]}
+                  onChange={(v) => {
+                    setOverlap((o) => ({ ...o, [c.itemId]: v }))
+                    reset()
+                  }}
+                  options={RELATIONS}
+                />
+              </div>
+            ))}
+          </section>
+        )}
         {/* The properties as a calm list under the title: what it is, when and where it applies,
             where it comes from. Each value shows as the thing it is; a click edits it. */}
         <PropertyList label="Properties">
           <PropertyGroup>
-            <PropertyRow id={fieldId('domain')} label="Domain" icon={<FolderIcon />}>
+            <PropertyRow
+              id={fieldId('domain')}
+              label="Domain"
+              icon={<FolderIcon />}
+              required={!domains[form.domain]}
+            >
               <SelectField
                 labelId={fieldId('domain')}
                 label="Domain"
@@ -841,10 +967,14 @@ function Editor({
                   set('owners', domains[d]?.owners ?? [])
                 }}
                 display={
-                  <>
-                    <DomainDot id={form.domain} />
-                    <span className="font-medium">{domains[form.domain]?.name}</span>
-                  </>
+                  domains[form.domain] ? (
+                    <>
+                      <DomainDot id={form.domain} />
+                      <span className="font-medium">{domains[form.domain]?.name}</span>
+                    </>
+                  ) : (
+                    <Ghost>Choose a domain</Ghost>
+                  )
                 }
               />
             </PropertyRow>
@@ -897,7 +1027,12 @@ function Editor({
             </PropertyRow>
           </PropertyGroup>
           <PropertyGroup>
-            <PropertyRow id={fieldId('where')} label="Applies to" icon={<MapPinIcon />}>
+            <PropertyRow
+              id={fieldId('where')}
+              label="Applies to"
+              icon={<MapPinIcon />}
+              required={!form.where.length}
+            >
               <ScopeField
                 labelId={fieldId('where')}
                 label="Applies to"

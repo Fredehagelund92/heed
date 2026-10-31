@@ -112,7 +112,8 @@ const GROUPS: Record<Group, string> = { none: 'No grouping', domain: 'Domain', m
 
 /** When it was last checked; a draft was never checked, so it sorts last. */
 const checked = (f: Fact) => (f.checkedOn ? Date.parse(f.checkedOn) : 0)
-const items = (n: number) => `${n.toLocaleString('en-GB')} context ${n === 1 ? 'item' : 'items'}`
+const count = (n: number) => n.toLocaleString('en-GB')
+const items = (n: number) => `${count(n)} context ${n === 1 ? 'item' : 'items'}`
 /** The first metric an item applies to, for grouping by metric. */
 const metricOf = (f: Fact, metrics: Set<string>) =>
   f.where.find((w) => metrics.has(w)) ?? 'No metric'
@@ -510,7 +511,7 @@ export function ContextPage() {
                   {archived > 0 && !status.includes('Archived') && (
                     <span className="flex shrink-0 items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground @max-5xl/main:hidden">
                       <EyeIcon className="size-3.5" aria-hidden />
-                      {archived} archived {showArchived ? 'shown' : 'hidden'}
+                      {count(archived)} archived {showArchived ? 'shown' : 'hidden'}
                       <button
                         type="button"
                         className="font-medium text-foreground underline underline-offset-4"
@@ -527,8 +528,10 @@ export function ContextPage() {
                     items(facts.length)
                   ) : (
                     <>
-                      <span className="font-semibold text-foreground">{filtered.length}</span> of{' '}
-                      {items(facts.length)}
+                      <span className="font-semibold text-foreground">
+                        {count(filtered.length)}
+                      </span>{' '}
+                      of {items(facts.length)}
                     </>
                   )}
                 </Count>
@@ -648,14 +651,14 @@ export function ContextPage() {
                       <td className="h-bar px-1.5 @max-xl/main:px-3">{items(filtered.length)}</td>
                       <td className="hidden px-1.5 @min-[60rem]/main:table-cell" />
                       <td colSpan={2} className="hidden px-1.5 @xl/main:table-cell">
-                        {
+                        {count(
                           filtered.filter((f) => servedToAgents(f) && inForce(parseWhen(f.when)))
-                            .length
-                        }{' '}
+                            .length,
+                        )}{' '}
                         in force now
                       </td>
                       <td colSpan={2} className="px-1.5 @max-xl/main:pr-4 @max-xl/main:text-right">
-                        {filtered.filter((f) => trustOf(f) === 'due').length} to check
+                        {count(filtered.filter((f) => trustOf(f) === 'due').length)} to check
                       </td>
                     </tr>
                   </tfoot>

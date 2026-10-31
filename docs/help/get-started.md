@@ -14,7 +14,7 @@ From an empty workspace to a first answer from what you wrote, in about ten minu
 <!-- include setup-steps -->
 
 1. **Say what the business is about**. Paste a paragraph or write a few lines. Every agent reads it first.
-2. **Write your first context item**. Two sentences and a source. You own the domain Company, so it goes live at once.
+2. **Write your first context item**. Two sentences and a source. In a domain you own, it goes live at once.
 3. **Ask a question about it**. See the answer an agent gets, from what you just wrote.
 4. **Connect your agent**. Paste one prompt into Claude, Cursor or another agent, and approve it once.
 5. **Connect your definitions**. Connect where your metrics are defined, so their names arrive by themselves. It can wait.

@@ -374,9 +374,10 @@ export function FactPage({ id }: { id: string }) {
             {/* The document is the page: the title (with its status only when it isn't Live), the text,
               then who owns it and where it comes from, and everything else folded into Details. */}
             <div className="mb-5 flex flex-wrap items-start gap-x-3 gap-y-2 sm:mb-6">
-              <h2 className="text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
+              {/* The page's heading: the breadcrumb above only leads to it. */}
+              <h1 className="text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
                 {fact.title}
-              </h2>
+              </h1>
               {fact.status !== 'Live' && (
                 <Badge variant="outline" className="mt-1.5 text-muted-foreground sm:mt-2">
                   {fact.status}

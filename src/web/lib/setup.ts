@@ -14,7 +14,7 @@ export const setupSteps: SetupStep[] = [
   {
     id: 'fact',
     title: 'Write your first context item',
-    description: 'Two sentences and a source. You own the domain Company, so it goes live at once.',
+    description: 'Two sentences and a source. In a domain you own, it goes live at once.',
     action: 'Write context',
   },
   {

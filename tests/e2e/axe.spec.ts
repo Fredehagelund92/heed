@@ -58,6 +58,7 @@ const places = [
   '/settings/integrations/cube/connect',
   '/settings/advanced',
   '/help',
+  '/nowhere',
   '/docs',
   '/docs/connect-an-agent',
   '/inbox?open=palette',

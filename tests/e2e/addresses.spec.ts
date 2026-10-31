@@ -17,13 +17,14 @@ test('a renamed place and an old peek land where they live now', async ({ page }
   await expect(page.getByRole('region', { name: /Context/ }).last()).toBeVisible()
 })
 
-test('the app opens on the Inbox, and an unknown address shows it too', async ({ page }) => {
+test('the app opens on the Inbox, and an unknown address says it is not found', async ({
+  page,
+}) => {
   await go(page, '/')
   await expect(page).toHaveURL(/\/inbox$/)
   await go(page, '/nowhere')
-  await expect(
-    page.locator('[data-sidebar=sidebar]').first().getByRole('link', { name: /Inbox/ }),
-  ).toBeVisible()
+  await expect(page).toHaveURL(/\/nowhere$/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found')
 })
 
 test('a link inside the app moves without loading the page again', async ({ page }) => {

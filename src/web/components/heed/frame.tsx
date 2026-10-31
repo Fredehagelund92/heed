@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronDownIcon } from '@/components/icons'
+import { ArrowLeftRightIcon, ChevronDownIcon } from '@/components/icons'
 import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
@@ -198,7 +198,8 @@ export type FrameColumn = {
 
 /**
  * A table's scroller under a section's header row. While the table is wider than the page it scrolls
- * sideways, and takes a tab stop so the keys can scroll it too (WCAG 2.1.1).
+ * sideways, says so above it (a cut column looks like the table's end), and takes a tab stop so
+ * the keys can scroll it too (WCAG 2.1.1).
  */
 export function FrameScroll({ children }: { children: React.ReactNode }) {
   const [el, setEl] = React.useState<HTMLDivElement | null>(null)
@@ -213,13 +214,21 @@ export function FrameScroll({ children }: { children: React.ReactNode }) {
     return () => ro.disconnect()
   }, [el])
   return (
-    <div
-      ref={setEl}
-      tabIndex={scrolls ? 0 : undefined}
-      className="overflow-x-auto border-t outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
-    >
-      {children}
-    </div>
+    <>
+      {scrolls && (
+        <p className="flex items-center gap-1.5 border-t px-4 py-2 text-xs text-muted-foreground md:px-5">
+          <ArrowLeftRightIcon className="size-3.5 shrink-0" aria-hidden />
+          Wider than the page: scroll sideways for every column.
+        </p>
+      )}
+      <div
+        ref={setEl}
+        tabIndex={scrolls ? 0 : undefined}
+        className="overflow-x-auto border-t outline-none focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:ring-inset"
+      >
+        {children}
+      </div>
+    </>
   )
 }
 

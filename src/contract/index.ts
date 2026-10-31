@@ -363,6 +363,8 @@ const review = read.meta({ scope: 'propose' }).errors({
       z.object({
         findings: z.optional(z.array(findingSchema)),
         gate: z.optional(gateSchema),
+        /** The live items a publish clashes with and must say how it relates to first (FR-225). */
+        clashes: z.optional(z.array(z.object({ itemId: z.string(), title: z.string() }))),
       }),
     ),
   },

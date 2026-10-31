@@ -75,6 +75,7 @@ import {
 } from '@/api/queries'
 import { setupSteps } from '@/lib/setup'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
+import { homeDomain, listOf, type Domain, type Person } from '@/model/people'
 import type { Outcome } from '@/model/inbox'
 import { useCommentActions, useNewReply, type MentionNote } from '@/lib/comments'
 import {
@@ -893,10 +894,24 @@ function MentionDetail({
 
 /* ---------- setup and all done ---------- */
 
+/** Where the first context item goes, as the editor starts it, and who publishes it there. */
+function whereContextGoes(me: Person, domains: Domain[]) {
+  const home = homeDomain(me, domains)
+  if (!home)
+    return 'Context goes to a domain, and there is none yet: an admin adds one in Settings, under Domains and owners.'
+  if (me.owns.includes(home.id)) return `Context goes to the domain ${home.name}, owned by you.`
+  const by = home.owners.length ? `owned by ${listOf(home.owners)}` : 'which has no owner yet'
+  return `Context goes to the domain ${home.name}, ${by}. ${
+    me.admin ? 'As an admin, you publish it at once.' : 'It goes live once an owner publishes it.'
+  }`
+}
+
 function Setup() {
   const {
     setup: { done: setupDone },
+    domains: domainList,
   } = useWorkspace()
+  const me = useMe()
   const write = useWrite()
   const first = setupSteps.find((s) => !setupDone[s.id])
   // A question about the first item, from what it applies to or, if that is empty, its own words.
@@ -947,8 +962,8 @@ function Setup() {
                 </CardTitle>
                 <CardDescription>
                   Your team writes down what the numbers don't show, and every agent reads it before
-                  it answers. Write first, connect later: about ten minutes to your first answer.
-                  Context goes to the domain Company, owned by you.
+                  it answers. Write first, connect later: about ten minutes to your first answer.{' '}
+                  {whereContextGoes(me, domainList)}
                 </CardDescription>
                 <CardAction className="text-xs text-muted-foreground tabular-nums">
                   {doneCount} of {setupSteps.length} done

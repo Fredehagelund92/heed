@@ -55,7 +55,7 @@ const AppSplatRoute = AppSplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => AppRoute,
-} as any)
+} as any).lazy(() => import('./routes/_app/$.lazy').then((d) => d.Route))
 const AppAskRoute = AppAskRouteImport.update({
   id: '/ask',
   path: '/ask',

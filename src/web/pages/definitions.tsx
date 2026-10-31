@@ -778,6 +778,16 @@ export function DefinitionsPage() {
                   <td className="hidden @xl/main:table-cell" />
                   <td className="h-bar pr-2 pl-4 md:pl-6 @xl/main:pl-1.5">
                     {mix(shown) || plural(0, 'definition')}
+                    {/* Each context item once, however many of these it is about. */}
+                    <span className="hidden @xl/main:inline">
+                      , with{' '}
+                      {new Set(
+                        shown.flatMap((d) =>
+                          d.sameAs ? [] : glossary.contextAbout(d, facts).map((f) => f.id),
+                        ),
+                      ).size.toLocaleString('en-GB')}{' '}
+                      context items about them
+                    </span>
                   </td>
                   <td
                     className={cn(
@@ -785,11 +795,9 @@ export function DefinitionsPage() {
                       group !== 'domain' && '@min-[60rem]/main:table-cell',
                     )}
                   />
-                  <td className="hidden px-2 text-right @xl/main:table-cell">
-                    {shown.reduce((n, d) => n + (d.sameAs ? 0 : about(d)), 0)}
-                  </td>
-                  <td colSpan={3} className="px-1">
-                    {shown.filter((d) => flagOf(d)).length} to look at
+                  <td className="hidden px-2 @xl/main:table-cell" />
+                  <td colSpan={3} className="pr-4 pl-1 text-right md:pr-6">
+                    {shown.filter((d) => flagOf(d)).length.toLocaleString('en-GB')} to look at
                   </td>
                 </tr>
               </tfoot>

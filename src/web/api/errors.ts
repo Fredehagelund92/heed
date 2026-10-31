@@ -23,15 +23,25 @@ export type ApiErrorKind =
   /** The service this app talks to does not offer this yet (the http binding, until it is wired). */
   | 'not-available'
 
+/** A live item a publish clashes with and has to say how it relates to first. */
+export type Clash = { itemId: string; title: string }
+
 export class ApiError extends Error {
   readonly kind: ApiErrorKind
   readonly status: number | undefined
+  /** For a publish refused until it says how it relates to these live items. */
+  readonly clashes: Clash[]
 
-  constructor(kind: ApiErrorKind, message: string, details: { status?: number } = {}) {
+  constructor(
+    kind: ApiErrorKind,
+    message: string,
+    details: { status?: number; clashes?: Clash[] } = {},
+  ) {
     super(message)
     this.name = 'ApiError'
     this.kind = kind
     this.status = details.status
+    this.clashes = details.clashes ?? []
   }
 
   /**
@@ -59,6 +69,14 @@ const kindOfStatus = (status: number): ApiErrorKind =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
+const clashesOf = (data: unknown): Clash[] =>
+  isRecord(data) && Array.isArray(data.clashes)
+    ? data.clashes.filter(
+        (c): c is Clash =>
+          isRecord(c) && typeof c.itemId === 'string' && typeof c.title === 'string',
+      )
+    : []
+
 /**
  * Reads an error from either binding: an `ApiError` passes through; an answer with a status is
  * mapped by it; anything else (a failed fetch, a thrown string) means no answer.
@@ -66,7 +84,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) return error
   if (isRecord(error) && typeof error.status === 'number' && typeof error.message === 'string')
-    return new ApiError(kindOfStatus(error.status), error.message, { status: error.status })
+    return new ApiError(kindOfStatus(error.status), error.message, {
+      status: error.status,
+      clashes: clashesOf(error.data),
+    })
   const message = error instanceof Error ? error.message : "We didn't get an answer."
   return new ApiError('unanswered', message)
 }

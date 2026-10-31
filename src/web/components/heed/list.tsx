@@ -122,7 +122,7 @@ export function Count({ children }: { children: React.ReactNode }) {
   return (
     <span
       aria-live="polite"
-      className="w-30 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums @max-5xl/main:sr-only"
+      className="min-w-30 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums @max-5xl/main:sr-only"
     >
       {children}
     </span>

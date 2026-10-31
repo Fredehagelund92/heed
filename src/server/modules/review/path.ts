@@ -559,9 +559,14 @@ export function createReviewPath(
     const known = await relationsOf(r)
     const open = r.clashes.filter((id) => !given.has(id) && !known.has(id))
     if (open.length) {
-      const title = r.candidate.items.find((i) => i.id === open[0])?.title ?? open[0]!
+      // Each one by its title, so the editor can ask how this relates to it.
+      const clashes = open.map((itemId) => ({
+        itemId,
+        title: r.candidate.items.find((i) => i.id === itemId)?.title ?? itemId,
+      }))
       throw new ORPCError('UNPROCESSABLE_CONTENT', {
-        message: `Say how this relates to “${title}” first: it replaces it, they disagree, or they are unrelated.`,
+        message: `Say how this relates to “${clashes[0]!.title}” first: it replaces it, they disagree, or they are unrelated.`,
+        data: { clashes },
       })
     }
     if (r.after && given.size)

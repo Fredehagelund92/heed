@@ -606,6 +606,12 @@ export async function invalidateAfter<K extends WriteOperation>(
   input: WriteInput<K>,
   result: WriteResult<K>,
 ) {
+  // Someone else now: a read still under way for the last person must not land in the new one's
+  // cache, and what was read for them is not shown again. The sign-in page's own reads stay.
+  if (operation === 'signIn') {
+    await queryClient.cancelQueries()
+    queryClient.removeQueries({ type: 'inactive' })
+  }
   const keys = coveringKeys(invalidations[operation](input, result))
   await Promise.all(keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })))
 }

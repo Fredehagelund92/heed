@@ -30,7 +30,7 @@ test('an owner chooses which one stays among the items that disagree', async ({ 
   await page.getByRole('button', { name: 'Choose which one stays' }).click()
   await expect(
     page.getByRole('heading', {
-      level: 2,
+      level: 1,
       name: /^(Norway orders count store credit|Norway orders are card and cash payments only)$/,
     }),
   ).toBeVisible()

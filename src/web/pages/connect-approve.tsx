@@ -1,3 +1,4 @@
+import { usePageTitle } from '@/lib/page-title'
 import * as React from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ConnectionScope } from '@contract/connections'
@@ -58,6 +59,7 @@ const framed = () => {
 }
 
 export function ConnectApprovePage() {
+  usePageTitle('Connect an agent')
   const { query } = useRoute()
   const requestId = query.get('request')
   return (
