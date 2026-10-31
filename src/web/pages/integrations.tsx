@@ -25,6 +25,8 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { PersonAvatar } from '@/components/heed/bits'
+import { Mark } from '@/components/heed/mark'
+import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { Page } from '@/components/site-header'
 import { Badge } from '@/components/ui/badge'
@@ -778,7 +780,42 @@ function RowDetail({ source }: { source: Source }) {
   )
 }
 
-function ConnectedRow({ source, state }: { source: Source; state: string | null }) {
+/** The tools whose row is marked: a read that failed, and a key to replace. */
+const markedHealth = (s: Source) => s.health === 'failed' || s.health === 'reauth'
+
+/**
+ * A row's state when it is not healthy. A failed read and a refused key are the exceptions, marked
+ * (unless `plain`: every row has one); reading and paused are a badge.
+ */
+function RowHealth({ source, plain }: { source: Source; plain: boolean }) {
+  const h = source.health
+  if (!markedHealth(source)) return <HealthBadge health={h} />
+  const words = healthLook[h].label
+  return (
+    <span>
+      {plain ? (
+        <span className="font-medium">{words}</span>
+      ) : (
+        <Mark role={h === 'failed' ? 'wrong' : 'needs'}>{words}</Mark>
+      )}
+      {source.lastGood && (
+        <span className="text-muted-foreground">
+          , last good read {inSentence(source.lastGood.day)}, {source.lastGood.time}
+        </span>
+      )}
+    </span>
+  )
+}
+
+function ConnectedRow({
+  source,
+  state,
+  plain,
+}: {
+  source: Source
+  state: string | null
+  plain: boolean
+}) {
   const c = connectorById(source.connector)!
   const h = source.health
   return (
@@ -820,7 +857,7 @@ function ConnectedRow({ source, state }: { source: Source; state: string | null 
             </span>
           </span>
         ) : (
-          <HealthBadge health={h} />
+          <RowHealth source={source} plain={plain} />
         )}
       </div>
       <Button
@@ -991,7 +1028,12 @@ function IntegrationsBody({ view, onRequest }: { view: IntegrationsView; onReque
         ) : (
           <ul className="border-t">
             {rows.map((s) => (
-              <ConnectedRow key={s.id} source={s} state={state} />
+              <ConnectedRow
+                key={s.id}
+                source={s}
+                state={state}
+                plain={!marksExceptions(rows, markedHealth)}
+              />
             ))}
           </ul>
         )}

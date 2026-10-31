@@ -63,6 +63,10 @@ const surfaces = ['background', 'card', 'popover', 'muted', 'accent', 'secondary
 const marks = ['add', 'del', 'fmt', 'link', 'move'] as const
 /** The marks with a stronger fill for a changed word inside a changed line of the Text diff. */
 const words = ['add', 'del'] as const
+/** The inks of marked text (components/heed/mark.tsx) and the caution icon and line beside them. */
+const inks = ['caution-text', 'caution-icon', 'good-ink', 'destructive-ink'] as const
+/** Where marked text sits: the page, a card, a popover, and a selected or hovered row. */
+const markedOn = ['background', 'card', 'popover', 'muted', 'accent']
 const colours = [
   ...surfaces,
   ...[
@@ -91,6 +95,7 @@ const colours = [
   ],
   ...marks.flatMap((mark) => [`mark-${mark}`, `mark-${mark}-line`]),
   ...words.map((mark) => `mark-${mark}-word`),
+  ...inks,
 ]
 
 describe('src/web/styles/tokens.css holds every token of the design contract', () => {
@@ -270,6 +275,17 @@ describe('contrast pairs meet their minimum in both themes', () => {
       what: 'mark line on a changed word',
       fg: `mark-${mark}-line`,
       bg: `mark-${mark}-word`,
+      min: 3,
+    })),
+    // Marked text (components/heed/mark.tsx): its ink is text, 4.5:1; the triangle beside it and
+    // the 2 px underline of words that differ are marks, 3:1.
+    ...(['caution-text', 'good-ink', 'destructive-ink'] as const).flatMap((fg) =>
+      markedOn.map((bg): Pair => ({ what: 'marked text', fg, bg, min: 4.5 })),
+    ),
+    ...markedOn.map((bg): Pair => ({
+      what: 'mark icon and underline',
+      fg: 'caution-icon',
+      bg,
       min: 3,
     })),
     ...['ok', 'warn', 'idle'].flatMap((fg) =>

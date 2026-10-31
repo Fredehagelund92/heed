@@ -1,4 +1,5 @@
 import { MentionChip } from '@/components/heed/mention-chip'
+import { Mark } from '@/components/heed/mark'
 import { useDomains } from '@/lib/workspace'
 import { relLabel, type Link } from '@/lib/links'
 import { useRelated } from '@/hooks/use-related'
@@ -8,7 +9,8 @@ import { useRelated } from '@/hooks/use-related'
 // each as the shared mention chip with its type icon. A retired target says it is not followed; a
 // definition another domain owns says whose it is.
 
-function LinkLine({ link }: { link: Link }) {
+/** `mark`: this is the link that needs a look, an item that says something else (one per list). */
+function LinkLine({ link, mark }: { link: Link; mark?: boolean }) {
   const domains = useDomains()
   const typed = link.rel === 'replaces' || link.rel === 'replaced_by' || link.rel === 'disagrees'
   const note = link.to.retired
@@ -20,9 +22,14 @@ function LinkLine({ link }: { link: Link }) {
   return (
     <li className="flex min-w-0 flex-col gap-0.5">
       <span className="flex min-w-0 items-center gap-1.5">
-        {typed && (
-          <span className="shrink-0 text-xs text-muted-foreground">{relLabel[link.rel]}</span>
-        )}
+        {typed &&
+          (mark ? (
+            <Mark role="needs" className="shrink-0 text-xs">
+              {relLabel[link.rel]}
+            </Mark>
+          ) : (
+            <span className="shrink-0 text-xs text-muted-foreground">{relLabel[link.rel]}</span>
+          ))}
         <MentionChip mention={{ id: link.to.id, label: link.to.label }} className="min-w-0" />
       </span>
       {note && <span className="pl-1 text-xs text-muted-foreground">{note}</span>}
@@ -36,6 +43,8 @@ export function Related({ id }: { id: string }) {
   if (!links.length) return null
   const out = links.filter((l) => l.rel !== 'mentioned_by' && l.rel !== 'replaced_by')
   const back = links.filter((l) => l.rel === 'mentioned_by' || l.rel === 'replaced_by')
+  // An item that disagrees with this one needs a look: the first such link is marked.
+  const disagrees = out.find((l) => l.rel === 'disagrees')
   return (
     <div className="flex min-w-0 flex-col gap-2 py-1">
       {out.length > 0 && (
@@ -43,7 +52,7 @@ export function Related({ id }: { id: string }) {
           <p className="text-xs font-medium text-muted-foreground">Links to</p>
           <ul aria-label="Links to" className="flex flex-col gap-2">
             {out.map((l) => (
-              <LinkLine key={l.to.id} link={l} />
+              <LinkLine key={l.to.id} link={l} mark={l === disagrees} />
             ))}
           </ul>
         </div>

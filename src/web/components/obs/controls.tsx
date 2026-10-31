@@ -149,7 +149,9 @@ export function ObsControls({ view, compact }: { view: ObsView; compact?: boolea
 /**
  * How a number moved from the period before, as a cell says it: the words ("+4 pts", "About the
  * same"), an arrow when it went up or down by more than chance would, and whether that is good or
- * bad. Colour comes only with an arrow, and only when the move means something.
+ * bad. Colour comes only with an arrow, and only when the move means something: green ink for
+ * better, amber for "look here" (never red, which says something failed). The arrow and the words
+ * give the direction, so amber never has to mean "down".
  */
 export type KpiChange = { words: string; direction?: 'up' | 'down'; tone?: 'good' | 'bad' }
 
@@ -241,8 +243,8 @@ export function Kpi({
           className={cn(
             'mt-0.5 flex items-center gap-0.5 text-xs font-semibold text-muted-foreground',
             !change.direction && 'font-medium',
-            change.direction && change.tone === 'good' && 'text-[var(--ok)]',
-            change.direction && change.tone === 'bad' && 'text-destructive-ink',
+            change.direction && change.tone === 'good' && 'text-good-ink',
+            change.direction && change.tone === 'bad' && 'text-caution-text',
             change.direction && !change.tone && 'text-foreground',
           )}
         >

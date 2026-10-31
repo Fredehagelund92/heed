@@ -121,7 +121,7 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   const up = page.getByRole('link', { name: /^Checked answers/ }).locator('[data-slot=kpi-change]')
   await expect(up).toContainText(/\+\d+ pts/)
   await expect(up.locator('svg')).toHaveCount(1)
-  await expect(up).toHaveClass(/--ok/)
+  await expect(up).toHaveClass(/text-good-ink/)
 
   // A number is a way into its rows.
   await page.getByRole('link', { name: /^Not found/ }).click()

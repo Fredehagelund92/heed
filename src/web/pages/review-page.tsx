@@ -18,6 +18,7 @@ import { cn, midSentence } from '@/lib/utils'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel, Marked } from '@/components/heed/review-parts'
 import { ClaimCheck, Rewrite } from '@/components/heed/review-page-parts'
+import { Mark } from '@/components/heed/mark'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { ResizableAside } from '@/components/resizable-aside'
 import { Panel } from '@/components/heed/panel'
@@ -752,12 +753,12 @@ function Clash({ r }: { r: Review }) {
   return (
     <section className="flex flex-col gap-4 py-2">
       <header className="flex items-center gap-2">
-        <TriangleAlertIcon aria-hidden className="size-4 text-caution-icon" />
-        <span className="text-sm font-medium">
+        <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
+        <Mark role="needs" icon={false} className="text-sm">
           {many
             ? `It overlaps ${c.items.length} live context items. Say how it relates to each.`
             : 'It overlaps live context that says something else'}
-        </span>
+        </Mark>
       </header>
       <div className="flex flex-col gap-2 rounded-frame border p-4">
         <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
@@ -1278,7 +1279,13 @@ function Decision({
                   <ReadyIcon className="size-4 shrink-0" aria-hidden />
                 )}
                 <span className="min-w-0 flex-1 font-medium text-pretty">
-                  {careLine(r) ?? ready.title}
+                  {careLine(r) ? (
+                    <Mark role="needs" icon={false}>
+                      {careLine(r)}
+                    </Mark>
+                  ) : (
+                    ready.title
+                  )}
                 </span>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                   {at + 1} of {reviews.length}

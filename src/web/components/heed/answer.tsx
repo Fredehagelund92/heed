@@ -13,6 +13,8 @@ import {
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { markText } from '@/components/heed/mark'
+import { marksExceptions } from '@/lib/marks'
 import { TypeGlyph } from '@/components/heed/definition'
 import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
@@ -484,16 +486,35 @@ function Cited({
 }
 
 /**
+ * Which sentences come from the items that disagree (`conflict`, their ids): each is marked as
+ * words that differ, unless every sentence would be, when none is.
+ */
+function differingSentences(
+  sentences: ReturnType<typeof sentencesOf>,
+  facts: Fact[],
+  conflict: string[] | undefined,
+) {
+  const differs = sentences.map((s) =>
+    s.cites.some((n) => !!conflict?.includes(facts[n - 1]?.id ?? '')),
+  )
+  return marksExceptions(differs, (d) => d) ? differs : differs.map(() => false)
+}
+
+/**
  * A finished answer's sentences, each one a way to see where it says that: selected, the right panel
  * walks it back to its context item and the source line. Its numbers stay as markers inside it.
+ * In a conflict, the sentences from the items that disagree (`conflict`, their ids) are marked as
+ * the ones that differ, unless every sentence is.
  */
 function WhereSentences({
   text,
   facts,
+  conflict,
   answerId,
 }: {
   text: string
   facts: Fact[]
+  conflict?: string[]
   answerId: string
 }) {
   const dock = useDock()
@@ -501,6 +522,7 @@ function WhereSentences({
   const open = dock?.kind === 'where' && dock.id === answerId ? Number(query.get('wn')) || 1 : 0
   const sentences = sentencesOf(text)
   const show = (n: number) => openDock('where', answerId, { wn: String(n) })
+  const marked = differingSentences(sentences, facts, conflict)
   return (
     <p className="text-reading leading-relaxed">
       {sentences.map((s, i) => (
@@ -516,7 +538,14 @@ function WhereSentences({
               e.preventDefault()
               show(i + 1)
             }}
-            className="cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25"
+            data-mark={marked[i] ? 'differs' : undefined}
+            className={cn(
+              'cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
+              marked[i] && [
+                markText('differs'),
+                'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
+              ],
+            )}
           >
             {s.text}
             {s.cites.map((n) => (
@@ -532,6 +561,7 @@ function WhereSentences({
               {s.cites.length
                 ? `, from ${s.cites.map((n) => facts[n - 1]?.title ?? `source ${n}`).join(' and ')}`
                 : ", Ask's own wording"}
+              {marked[i] && ', which says something different from another item'}
             </span>
           </span>
         </React.Fragment>
@@ -1106,7 +1136,12 @@ function ContextAnswerBody({
         {answer.text && (writing || finished || (stopped && shown > 0)) && (
           <div aria-hidden={phase === 'live' && !finished}>
             {finished && !draft && !docked && facts.length > 0 ? (
-              <WhereSentences text={answer.text} facts={facts} answerId={key} />
+              <WhereSentences
+                text={answer.text}
+                facts={facts}
+                conflict={answer.state === 'conflict' ? answer.conflict : undefined}
+                answerId={key}
+              />
             ) : (
               <Cited
                 text={finished ? answer.text : partial}
@@ -1119,6 +1154,9 @@ function ContextAnswerBody({
         )}
         {finished && !draft && !docked && facts.length > 0 && (
           <p className="-mt-1.5 text-xs text-muted-foreground">
+            {answer.state === 'conflict' &&
+              differingSentences(sentencesOf(answer.text), facts, answer.conflict).some(Boolean) &&
+              'The sentences in bold say different things. '}
             Select a sentence to see where it says that.
           </p>
         )}

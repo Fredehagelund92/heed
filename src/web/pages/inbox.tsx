@@ -24,6 +24,8 @@ import {
 import { toast } from 'sonner'
 import { cn, midSentence } from '@/lib/utils'
 import { DomainBadge, FieldDiff } from '@/components/heed/bits'
+import { Mark } from '@/components/heed/mark'
+import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
@@ -130,14 +132,21 @@ function evidence(r: Review | undefined) {
       : r.mode === 'retire'
         ? 'Archives an item'
         : r.counts.map((c) => `${c.n} ${countWord(c.kind, c.n)}`).join(', ')
-  const care = careLine(r)
-  return [care, size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? 'question' : 'questions'}`]
-    .filter(Boolean)
-    .join(' - ')
+  return [size, `${r.tryIt.reach} ${r.tryIt.reach === 1 ? 'question' : 'questions'}`].join(' - ')
 }
 
-/** The row's second line: who it is from and what it is worth, so the list can be read without opening. */
-function meta(row: InboxRow, reviews: Review[]) {
+/** What a row's suggestion needs before it can go out, from its review: "Overlaps live context". */
+function rowCare(row: InboxRow, reviews: Review[]) {
+  if (row.kind !== 'card' || row.done) return undefined
+  const review = reviews.find((r) => r.id === row.card.id)
+  return review ? careLine(review) : undefined
+}
+
+/**
+ * The row's second line: who it is from and what it is worth, so the list can be read without
+ * opening. A suggestion's `care` (what it needs before it can go out) comes after who it is from.
+ */
+function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.ReactNode {
   if (row.kind === 'mention') return `Mentioned by ${row.note.from}`
   if (row.kind === 'waiting') return `Waiting for ${row.item.waitingFor.split(',')[0]}`
   const { card, done } = row
@@ -151,7 +160,14 @@ function meta(row: InboxRow, reviews: Review[]) {
         : s.from
       : ''
   if (s || card.source)
-    return [from, evidence(reviews.find((r) => r.id === card.id))].filter(Boolean).join(' - ')
+    return [from, care, evidence(reviews.find((r) => r.id === card.id))]
+      .filter(Boolean)
+      .map((part, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && ' - '}
+          {part}
+        </React.Fragment>
+      ))
   if (card.gap)
     return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ', across a month edge' : ''}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
@@ -160,8 +176,12 @@ function meta(row: InboxRow, reviews: Review[]) {
   return card.line.startsWith(DEFINITIONS_TOOL) ? 'A definition changed' : 'Its check date passed'
 }
 
-/** The row's second line; a mention of you, or a reply in a suggestion's comments, takes its place, quietly. */
-function RowMeta({ row }: { row: InboxRow }) {
+/**
+ * The row's second line; a mention of you, or a reply in a suggestion's comments, takes its place,
+ * quietly. What a suggestion needs is its one mark, after who it is from, unless `plain` says every
+ * row in the list needs the same look; the row's triangle is the mark's icon.
+ */
+function RowMeta({ row, plain }: { row: InboxRow; plain: boolean }) {
   const reply = useNewReply(`review:${rowId(row)}`)
   const reviews = useReviews()
   if (row.note)
@@ -178,7 +198,22 @@ function RowMeta({ row }: { row: InboxRow }) {
         New reply from {reply.from}
       </span>
     )
-  return <span className="line-clamp-1 text-xs text-muted-foreground">{meta(row, reviews)}</span>
+  const care = rowCare(row, reviews)
+  return (
+    <span className="line-clamp-1 text-xs text-muted-foreground">
+      {meta(
+        row,
+        reviews,
+        care && !plain ? (
+          <Mark role="needs" icon={false}>
+            {care}
+          </Mark>
+        ) : (
+          care
+        ),
+      )}
+    </span>
+  )
 }
 
 /** In the quick view: who answered, and what, with the way to the thread. */
@@ -220,6 +255,8 @@ function InboxList({
   const leaving = useLeavingRows()
   // Rows added after the list first shows open in; the first ones are simply there.
   React.useEffect(() => arriveRef(list.current), [list])
+  // What a suggestion needs is marked on its row, unless every row needs the same look.
+  const plain = !marksExceptions(rows, (row) => !!rowCare(row, reviews))
   // The selected row stays in sight: on a click, on J and K, and on a link straight to a card.
   React.useEffect(() => {
     list.current
@@ -246,7 +283,7 @@ function InboxList({
               ? AtSignIcon
               : ClockIcon
         // A suggestion that needs care says so on its row, before it is opened.
-        const care = review && row.kind === 'card' && !row.done ? careLine(review) : undefined
+        const care = rowCare(row, reviews)
         const group = groupOf(row)
         const firstOfGroup = i === 0 || groupOf(rows[i - 1]!) !== group
         const inGroup = rows.filter((r) => groupOf(r) === group).length
@@ -341,7 +378,7 @@ function InboxList({
                         done ? 'text-muted-foreground' : 'text-foreground',
                       )}
                     />
-                    <RowMeta row={row} />
+                    <RowMeta row={row} plain={plain} />
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1.5 self-center">
                     <span className="text-xs text-muted-foreground tabular-nums">

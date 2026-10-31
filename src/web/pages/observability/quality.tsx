@@ -37,7 +37,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Frame, FrameSection } from '@/components/heed/frame'
-import { WordDiff } from '@/components/heed/bits'
+import { DifferingWords } from '@/components/heed/differing-words'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { LineChart } from '@/components/obs/charts'
 import { Kpi } from '@/components/obs/controls'
@@ -395,16 +395,16 @@ function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean })
             <div className="mt-2 grid gap-px overflow-hidden rounded-md border bg-border text-sm @lg:grid-cols-2">
               <div className="bg-background px-3 py-2">
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">Saved answer</p>
-                <p className="text-pretty">{q.diff.saved}</p>
+                {/* Each side marks the words the other does not have, when a few words differ. */}
+                <p className="text-pretty">
+                  <DifferingWords text={q.diff.saved} other={q.diff.now} />
+                </p>
               </div>
               <div className="bg-background px-3 py-2">
                 <p className="mb-1 text-xs font-semibold text-muted-foreground">Now</p>
-                {/* A changed answer marks its words; one that got worse is read whole. */}
-                {q.result === 'changed' ? (
-                  <WordDiff before={q.diff.saved} after={q.diff.now} />
-                ) : (
-                  <p className="text-pretty">{q.diff.now}</p>
-                )}
+                <p className="text-pretty">
+                  <DifferingWords text={q.diff.now} other={q.diff.saved} />
+                </p>
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
