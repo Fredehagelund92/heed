@@ -1,3 +1,4 @@
+import * as React from 'react'
 import type { ReactNode } from 'react'
 import { ArrowLeftIcon, MonitorIcon, MoonIcon, SearchIcon, SunIcon } from '@/components/icons'
 import {
@@ -17,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { open } from '@/lib/events'
 import { TruncatedText } from '@/components/heed/truncated'
 import { OfflineBanner } from '@/components/heed/load-state'
+import { pageTitle } from '@/lib/page-title'
 
 /** The nav's toggle, always in the same spot, saying what it will do and its shortcut. */
 function NavToggle() {
@@ -119,6 +121,11 @@ export function SiteHeader({
   back,
   bare,
 }: {
+  /**
+   * The page's name, or a breadcrumb that leads to it. A breadcrumb's current page is the page's
+   * `h1`, or the page has its own below, so the heading is the name alone and never the trail's
+   * words run together.
+   */
   title: ReactNode
   icon?: ReactNode
   children?: ReactNode
@@ -129,9 +136,17 @@ export function SiteHeader({
   bare?: boolean
 }) {
   const { isMobile } = useSidebar()
+  // The tab says the page's heading: the header's, or the page's own under it (an item's title).
+  const ref = React.useRef<HTMLElement>(null)
+  React.useEffect(() => {
+    const h1 = ref.current?.querySelector('h1') ?? ref.current?.parentElement?.querySelector('h1')
+    const next = pageTitle(h1?.textContent)
+    if (document.title !== next) document.title = next
+  })
   return (
     <>
       <header
+        ref={ref}
         className={cn(
           'relative z-header flex h-bar shrink-0 items-center justify-between gap-2 border-b px-4 md:px-6',
           'bg-background/95 backdrop-blur-sm supports-backdrop-filter:bg-background/50',
@@ -162,15 +177,18 @@ export function SiteHeader({
               <TooltipContent>{back.label}</TooltipContent>
             </Tooltip>
           )}
-          <h1 className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
-            {icon}
-            {/* A long title is cut with an ellipsis and shown in full on hover or focus. */}
-            {typeof title === 'string' ? (
+          {typeof title === 'string' ? (
+            <h1 className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
+              {icon}
+              {/* A long title is cut with an ellipsis and shown in full on hover or focus. */}
               <TruncatedText text={title} className="min-w-0" />
-            ) : (
+            </h1>
+          ) : (
+            <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-foreground/75 [&>svg]:size-3.5 [&>svg]:shrink-0">
+              {icon}
               <span className="min-w-0 truncate">{title}</span>
-            )}
-          </h1>
+            </div>
+          )}
         </div>
         <div data-header-actions className="flex shrink-0 items-center gap-2 sm:gap-3">
           {/* On a phone the sidebar is a sheet, so search lives here, as a magnifier. */}

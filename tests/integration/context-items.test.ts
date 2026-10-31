@@ -230,6 +230,10 @@ describe('publishing in one step (FR-137)', () => {
     const waits = await call('POST', '/items/publish', 'owner', { draft: draft({ scope }) })
     expect(waits.statusCode).toBe(422)
     expect(waits.json<{ message: string }>().message).toMatch(/^Say how this relates to/)
+    // It names each item it waits for, so the editor can ask about it in place.
+    expect(
+      waits.json<{ data: { clashes: { itemId: string }[] } }>().data.clashes.map((c) => c.itemId),
+    ).toEqual([there])
     const r = await ok<PublishItemResult>(
       call('POST', '/items/publish', 'owner', {
         draft: draft({ scope }),

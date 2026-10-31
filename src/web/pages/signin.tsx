@@ -1,3 +1,4 @@
+import { usePageTitle } from '@/lib/page-title'
 import * as React from 'react'
 import { ChevronRightIcon } from '@/components/icons'
 import { PersonAvatar } from '@/components/heed/bits'
@@ -69,6 +70,7 @@ function InviteLine({ token }: { token: string }) {
  * came back refused says why. In a demo, or in development, the person picker.
  */
 export function SignInPage() {
+  usePageTitle('Sign in')
   const method = useQuery(signInMethodQuery())
   const query = useRoute().query
   const token = query.get('invite')

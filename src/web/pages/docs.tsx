@@ -1,3 +1,4 @@
+import { usePageTitle } from '@/lib/page-title'
 import * as React from 'react'
 import {
   ArrowLeftIcon,
@@ -839,6 +840,7 @@ export function DocsSite({ slug, query, go }: DocsPlace) {
     return () => document.removeEventListener('keydown', down)
   }, [asked, inBrowser])
   const page = docPage(slug)
+  usePageTitle(slug ? (page?.title ?? 'Documentation') : 'Documentation')
   // The plain-text index for agents: no page around it, as a text file would be.
   if (slug === 'llms.txt')
     return (

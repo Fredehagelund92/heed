@@ -1740,12 +1740,14 @@ export function ReviewPage({ id }: { id: string }) {
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="max-sm:hidden" />
                 <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="flex min-w-0 items-center gap-1.5 font-medium">
-                    {r.agent && (
-                      <BotIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-                    )}
-                    <span className="truncate">{r.title}</span>
-                  </BreadcrumbPage>
+                  <h1 className="flex min-w-0">
+                    <BreadcrumbPage className="flex min-w-0 items-center gap-1.5 font-medium">
+                      {r.agent && (
+                        <BotIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="truncate">{r.title}</span>
+                    </BreadcrumbPage>
+                  </h1>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>

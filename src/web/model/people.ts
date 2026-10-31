@@ -39,6 +39,19 @@ export type Domains = Record<DomainId, Domain>
 export const ownersOf = (f: Pick<Fact, 'owners' | 'domain'>, domains: Domains) =>
   f.owners?.length ? f.owners : (domains[f.domain]?.owners ?? [])
 
+/**
+ * Where new context a person writes starts: a domain they own (the sandbox last), else the
+ * workspace's first. Undefined only in a workspace with no domains at all.
+ */
+export function homeDomain(p: Pick<Person, 'owns'>, domains: Domain[]): Domain | undefined {
+  const owned = domains.filter((d) => p.owns.includes(d.id))
+  return owned.find((d) => !d.sandbox) ?? owned[0] ?? domains.find((d) => !d.sandbox) ?? domains[0]
+}
+
+/** "Jon Abara", "Jon Abara and Sofia Brandt", "Ravi Kapoor, Ella Voss or Lars Dahl". */
+export const listOf = (names: string[], last = 'and') =>
+  names.length > 1 ? `${names.slice(0, -1).join(', ')} ${last} ${names.at(-1)}` : (names[0] ?? '')
+
 /** What a person holds in the server's words: administrator, and owner of each domain they own. */
 export const toServerPermissions = (p: Person): Permissions => ({
   roles: p.admin ? ['administrator'] : [],
@@ -52,8 +65,7 @@ export const emailOf = (p: Person) =>
 export function describe(p: Person, domains: Domains) {
   if (p.invited) return 'Invited'
   const owned = p.owns.filter((d) => domains[d] && !domains[d].sandbox).map((d) => domains[d]?.name)
-  if (owned.length)
-    return `Owner of ${owned.length > 1 ? `${owned.slice(0, -1).join(', ')} and ${owned.at(-1)}` : owned[0]}${p.admin ? ', admin' : ''}`
+  if (owned.length) return `Owner of ${listOf(owned as string[])}${p.admin ? ', admin' : ''}`
   return p.admin ? 'Admin' : 'Suggests context, owns no domain'
 }
 

@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest'
 import { settingKeys } from '@contract/admin'
 import { agentToolNames } from '@domain/agents'
 import { toolsOn } from '@/lib/connect'
+import { ApiError } from '@/api/errors'
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
 import { labelDay, whenLabel } from '@/model/validity'
@@ -516,6 +517,20 @@ export function describeHeedApi(
       }
     }
 
+    // Saves as an owner does: the service names the live items it waits to hear about, and the
+    // owner answers each (unrelated), so a save does not hang on what the list above missed.
+    const saveAnswered = async (live: HeedApi, input: Parameters<HeedApi['saveItem']>[0]) => {
+      try {
+        return await live.saveItem(input)
+      } catch (error) {
+        if (!(error instanceof ApiError) || !error.clashes.length) throw error
+        const answers = Object.fromEntries(
+          error.clashes.map((c) => [c.itemId, 'unrelated' as const]),
+        )
+        return live.saveItem({ ...input, relations: { ...input.relations, ...answers } })
+      }
+    }
+
     it.skipIf(lacks('signIn', 'getWorkspace', 'getLibrary', 'itemPage', 'saveItem'))(
       'publishes a new item in one step as an owner, and an edit to it as a new version',
       async () => {
@@ -525,7 +540,7 @@ export function describeHeedApi(
           'Conformance: a new item, published in one step',
           '01',
         )
-        const { id } = await live.saveItem({ fact, isNew: true, relations })
+        const { id } = await saveAnswered(live, { fact, isNew: true, relations })
         const library = await live.getLibrary()
         expect(library.items.find((f) => f.id === id)).toMatchObject({
           title: fact.title,
@@ -536,7 +551,7 @@ export function describeHeedApi(
         const page = (await live.itemPage({ id }))!
         expect(page.item).toMatchObject({ summary: fact.summary, source: fact.source })
         const edited = { ...page.item, title: `${fact.title}, edited` }
-        expect(await live.saveItem({ fact: edited, isNew: false, relations })).toEqual({ id })
+        expect(await saveAnswered(live, { fact: edited, isNew: false, relations })).toEqual({ id })
         const after = (await live.itemPage({ id }))!
         expect(after.item.title).toBe(edited.title)
         expect(after.item.summary).toBe(page.item.summary)
@@ -600,7 +615,7 @@ export function describeHeedApi(
           ...(fact.scope ?? []),
           { key: hit.key, kind: 'value' as const, name: hit.name, dimension: 'Campaign' },
         ]
-        const { id } = await live.saveItem({
+        const { id } = await saveAnswered(live, {
           fact: { ...fact, scope, where: scope.map((t) => t.name) },
           isNew: true,
           relations,
@@ -630,9 +645,9 @@ export function describeHeedApi(
     )("restores an earlier version's words as a draft, and what agents get stays", async () => {
       const live = await signedIn()
       const { fact, relations } = await newItem(live, 'Conformance: an item to restore', '02')
-      const { id } = await live.saveItem({ fact, isNew: true, relations })
+      const { id } = await saveAnswered(live, { fact, isNew: true, relations })
       const page = (await live.itemPage({ id }))!
-      await live.saveItem({
+      await saveAnswered(live, {
         fact: { ...page.item, title: `${fact.title}, renamed` },
         isNew: false,
         relations,

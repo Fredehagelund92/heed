@@ -22,7 +22,8 @@ import type { Advanced as AdvancedPage, Exported } from '@/api/client'
 import { toApiError } from '@/api/errors'
 import { advancedPageQuery, useWrite } from '@/api/queries'
 import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
-import { useFacts, useMe } from '@/lib/workspace'
+import { useFacts, useMe, usePeople } from '@/lib/workspace'
+import { listOf } from '@/model/people'
 import { useDomainList, useDomains } from '@/lib/workspace'
 import { useDefinitions } from '@/lib/definitions'
 import { DomainDot } from '@/components/heed/tag-chip'
@@ -294,7 +295,7 @@ function SettingsTable({ groups }: { groups: AdvancedPage['settings'] }) {
                 >
                   {r.key}
                 </th>
-                <td className={cn(cell, 'min-w-40 break-words')}>{r.value}</td>
+                <td className={cn(cell, 'min-w-40 wrap-anywhere')}>{r.value}</td>
                 <td className={cn(cell, 'whitespace-nowrap')}>
                   {r.changed ? 'Changed' : 'Default'}
                 </td>
@@ -541,12 +542,17 @@ export function SettingsCrumbs({ trail }: { trail: { label: string; href?: strin
               />
             )}
             <BreadcrumbItem className={cn(i < trail.length - 1 && 'max-sm:hidden', 'min-w-0')}>
-              {t.href && i < trail.length - 1 ? (
+              {/* The page it ends in is the page's heading. */}
+              {i === trail.length - 1 ? (
+                <h1 className="min-w-0 truncate">
+                  <BreadcrumbPage className="font-medium">{t.label}</BreadcrumbPage>
+                </h1>
+              ) : t.href ? (
                 <BreadcrumbLink href={t.href} className="text-foreground/75 hover:text-foreground">
                   {t.label}
                 </BreadcrumbLink>
               ) : (
-                <BreadcrumbPage className="truncate font-medium">{t.label}</BreadcrumbPage>
+                <span className="text-foreground/75">{t.label}</span>
               )}
             </BreadcrumbItem>
           </React.Fragment>
@@ -567,6 +573,9 @@ export function SettingsPage({
   step?: string
 }) {
   const me = useMe()
+  const admins = usePeople()
+    .filter((p) => p.admin && !p.invited && p.name !== me.name)
+    .map((p) => p.name)
   const current = section && TITLES[section] ? section : me.admin ? 'general' : 'domains'
   // Owners who aren't admins use two places here: their domains and the people list.
   if (!me.admin && current !== 'domains' && current !== 'people')
@@ -576,7 +585,9 @@ export function SettingsPage({
           <EmptyHeader>
             <EmptyTitle>Settings are for admins</EmptyTitle>
             <EmptyDescription>
-              Ask Ravi Kapoor or Jon Abara if something here needs changing.
+              {admins.length
+                ? `Ask ${listOf(admins, 'or')} if something here needs changing.`
+                : 'Ask an admin if something here needs changing.'}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

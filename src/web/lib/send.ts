@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { mockControls } from '@/api'
+import { toApiError } from '@/api/errors'
 
 // Sending and being offline, as every Save, Publish and decision shows them. A send is a mutation:
 // sending while the binding works, then done, or failed with a retry that keeps everything the
@@ -36,13 +37,15 @@ export function useSend() {
   const isOnline = useOnline()
   const mutation = useMutation({ mutationFn: (run: () => Promise<unknown>) => run() })
   const state: SendState = mutation.isPending ? 'sending' : mutation.isError ? 'failed' : 'idle'
+  /** Why the last send failed, as the binding said it. */
+  const error = mutation.error ? toApiError(mutation.error) : null
   const send = (run: () => Promise<unknown>) => {
     if (!isOnline || mutation.isPending) return
     mutation.mutate(run)
   }
   /** Back to idle, for the next item on a page that moves between items. */
-  const reset = () => mutation.reset()
-  return { state, send, online: isOnline, reset }
+  const reset = mutation.reset
+  return { state, error, send, online: isOnline, reset }
 }
 
 export type Sender = ReturnType<typeof useSend>
