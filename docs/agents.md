@@ -30,7 +30,7 @@ In this order, and only as far as the task needs:
 - **Plain words on screen.** Use the glossary in `src/domain/words.ts`. `npm run lint:words` fails on a banned word.
 - **No em dashes.** Use a plain dash, in code, docs and commit messages.
 - **Demo data is invented.** Every name, number and company in examples and tests is made up (the demo is Larchwood Outdoor). No real keys, passwords or personal data, ever.
-- **Stay inside the budget.** The first load is held to 431 KB of script and 32 KB of CSS. Load route code on demand rather than raising it.
+- **Stay inside the budget.** The first load is held to 438 KB of script and 32 KB of CSS. Load route code on demand rather than raising it.
 - **Keep the sealed test cases sealed.** The held-out cases for answer tests are encrypted. A change to them goes in a pull request of its own, with nothing under `src/`.
 - **Do not weaken a check to make it pass.** If a rule is wrong, change the rule in the same pull request and say why.
 - **Do not change the licence** (Apache-2.0).
@@ -47,6 +47,7 @@ In this order, and only as far as the task needs:
 - Merge, force-push, or delete branches that are not its own.
 - Change access, sign-in, the security rules or dependencies. These take the Sensitive tier in CI and need a closer read.
 - Raise the budget, loosen a lint rule, skip a test or edit a migration that is already applied.
+- Repair a red CI run on a feature pull request by editing `scripts/check-bundle-size.mjs`, a lockfile, the `overrides` in `package.json` or anything in `db/migrations`. Report the failure instead: the fix belongs in a pull request of its own that says why. The no-mistakes pipeline enforces this for its automatic repairs (`protected_paths` in `.no-mistakes.yaml`).
 - Create issues in bulk, post on behalf of a person, or send content to an outside service.
 - Decide a product question. If a choice changes what gets built, say so in the pull request or issue and let a maintainer decide.
 

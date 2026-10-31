@@ -246,7 +246,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run db:restore-drill`                | Backs up the local database with pg_dump, restores it into a scratch database and proves it identical (see below)                                                                                                                     |
 | `npm run start:server`                    | The service without the file watcher                                                                                                                                                                                                  |
 | `npm run build` / `npm run preview`       | Type check, then a production build of the web app in `dist/web` (`VITE_API_MODE=http` for the build that ships) / serve that build at http://localhost:4173                                                                          |
-| `npm run size`                            | Checks the first load of `dist/web` against its budget (after a build)                                                                                                                                                                |
+| `npm run size`                            | Builds the web app as it ships (http mode) and checks its first load against the budget, with the bytes, the budget and the margin; `node scripts/check-bundle-size.mjs` checks the build already in `dist/web`                       |
 | `npm run typecheck`                       | `tsc` for the app, the service, and the config and test code                                                                                                                                                                          |
 | `npm run lint`                            | ESLint, then Stylelint                                                                                                                                                                                                                |
 | `npm run lint:words`                      | Checks the words people read against `plain-words.baseline.json`: no file may gain old words, a fall is only a note (`-- --list` prints them, `-- --update` lowers the counts); see [the voice guide](design/voice.md#the-guard-rail) |
@@ -260,13 +260,14 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request, every push to `main`, every night at 03:17
-UTC, and by hand (`gh workflow run CI --ref <branch>`). Its first job, **What the change needs**,
-sorts the changed paths into a tier with `.github/scripts/ci-scope.sh`, and the expensive jobs
-run only when the tier needs them. Its last job, **CI gate**, passes when every job passed or was
-skipped on purpose, and fails on a failure, a cancel, or a job that should have run and did not.
-It is the one check a branch rule needs to require. A new push to a pull request cancels the run
-it replaces; runs on `main` and at night always finish.
+`.github/workflows/ci.yml` runs on every pull request, every merge queue entry, every push to
+`main`, every night at 03:17 UTC, and by hand (`gh workflow run CI --ref <branch>`). Its first job,
+**What the change needs**, sorts the changed paths into a tier with `.github/scripts/ci-scope.sh`,
+and the expensive jobs run only when the tier needs them. Its last job, **CI gate**, passes when
+every job passed or was skipped on purpose, and fails on a failure, a cancel, or a job that should
+have run and did not. It is the one check a branch rule and the merge queue need to require. A new
+push to a pull request cancels the run it replaces; runs on `main`, in the merge queue and at night
+always finish.
 
 ### Validation tiers
 
@@ -280,9 +281,9 @@ A pull request takes the highest tier any of its files falls in.
 | Sensitive | `db/**`, `src/server/**`, any path with `auth`, `sign-in`, `mcp` or `security` in it, `SECURITY.md`, `.gitleaks.toml`, `osv-scanner.toml`, `.github/**`, every `package.json` and `package-lock.json`, `.nvmrc`, `.npmrc`, Docker files | Everything, the mockup job included                                                                                   |
 
 Every tier also runs the security scan (known vulnerabilities in dependencies, and secrets in the
-history) and the held-out seal. A path no rule names counts as Medium, and an empty change runs
-everything, so a gap in the rules runs more, never less. Change the rules in
-`.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
+history), the held-out seal and the migration numbers check. A path no rule names counts as Medium,
+and an empty change runs everything, so a gap in the rules runs more, never less. Change the rules
+in `.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
 
 The slow jobs run in parallel parts, each on its own runner (and its own database where it needs
 one): the checks in two jobs, the service tests in two parts, and the golden job specs in three
@@ -290,11 +291,35 @@ parts on the mock build and three in http mode. Every job stops after 25 minutes
 part fails instead of holding the run. The first load check writes the measured sizes, the budget
 and the margin to its job's summary page.
 
+### Migration numbers
+
+**Migration numbers** (`scripts/check-migration-numbers.ts`) runs first, beside the scope job, and
+the jobs with a database wait for it. It compares the commit under test with its first parent,
+the base branch, and fails within seconds when a new migration takes a number the base already
+gives another file, when two files share a number, when a migration the base has is renamed or
+deleted, or when `db/migrations/latest.txt` does not name the last file. Its message says to rebase
+and run `npm run db:renumber` ([Generated files and rebasing](#generated-files-and-rebasing)). Run
+it yourself with `node scripts/check-migration-numbers.ts origin/main`.
+
+### The merge queue
+
+A pull request is tested on the base it had when CI ran. Two pull requests that each pass on
+their own can still fail together on `main`: both take the next migration number, or each adds a
+little to the first load and together they pass its budget. In the merge queue, each entry runs CI
+again (`merge_group`) on top of `main` and the entries ahead of it, with every job, and merges only
+when **CI gate** passes there.
+
+The first load budget (`scripts/check-bundle-size.mjs`) keeps about 3 percent of room over what
+CI measures, so ordinary changes fit. The automatic repairs of the pipeline that validates
+changes before they are pushed (no-mistakes) may not edit the budget, the `package.json` files,
+the lockfiles or `db/migrations` (`protected_paths` in `.no-mistakes.yaml`): such a repair stops
+and reports instead, and the change goes in a pull request of its own that says why.
+
 ### On main and every night
 
-Every push to `main`, the nightly run and a manual run take the Sensitive tier: every job,
-whatever changed. The nightly run also catches a new advisory against an unchanged lockfile, and
-a flaky test that a single pull request run passed by luck.
+Every push to `main`, every merge queue entry, the nightly run and a manual run take the Sensitive
+tier: every job, whatever changed. The nightly run also catches a new advisory against an unchanged
+lockfile, and a flaky test that a single pull request run passed by luck.
 
 ### Generated files and rebasing
 
