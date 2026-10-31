@@ -556,7 +556,7 @@ function Editor({
   // A new refusal comes into view, wherever the page was scrolled.
   const refusalRef = React.useRef<HTMLElement>(null)
   React.useEffect(() => {
-    if (refusal) refusalRef.current?.scrollIntoView({ block: 'nearest' })
+    if (refusal) refusalRef.current?.scrollIntoView({ block: 'start' })
   }, [refusal])
   const retryable = !sendError || sendError.kind === 'unanswered' || sendError.kind === 'failed'
   const submit = () => {
