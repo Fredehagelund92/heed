@@ -1226,6 +1226,73 @@ export function describeHeedApi(
       expect(after.length).toBe(rows.length - 1)
     })
 
+    it.skipIf(
+      lacks(
+        'signIn',
+        'getWorkspace',
+        'listAgentConnections',
+        'getAutoPublish',
+        'setAutoPublish',
+        'getDomainPolicies',
+        'setAgentPolicy',
+        'endAgentPolicy',
+      ),
+    )(
+      'lets an owner choose an agent that publishes without review, once an admin allows it',
+      async () => {
+        const live = await signedIn()
+        const { people } = await live.getWorkspace()
+        const domain = people.find((p) => p.name === person)!.owns[0]!
+        const app = (await live.listAgentConnections()).find((r) => r.kind === 'app')!
+        const policy = { agentId: app.id, domain, kinds: ['note' as const], perDay: 5 }
+        // Off for the workspace as it starts: nobody sets one.
+        expect(await live.getAutoPublish()).toEqual({ on: false, open: 0 })
+        expect(await live.getDomainPolicies({ domain })).toMatchObject({
+          on: false,
+          canSet: true,
+          policies: [],
+        })
+        await expect(
+          live.setAgentPolicy({ ...policy, reason: 'Its rules were right' }),
+        ).rejects.toMatchObject({ kind: 'conflict' })
+        // An admin switches it on; the owner sets one, which the agent's row and the domain show.
+        await live.setAutoPublish({ on: true })
+        const set = await live.setAgentPolicy({ ...policy, reason: 'Its rules were right' })
+        expect(set).toMatchObject({
+          agentId: app.id,
+          agent: app.agent,
+          who: app.who,
+          domain,
+          kinds: ['note'],
+          perDay: 5,
+          setBy: person,
+          reason: 'Its rules were right',
+          today: 0,
+          canEnd: true,
+        })
+        expect(set.setOn).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+        expect(
+          (await live.listAgentConnections()).find((r) => r.id === app.id)!.policies,
+        ).toMatchObject([{ id: set.id, domain }])
+        expect((await live.getDomainPolicies({ domain })).policies).toMatchObject([{ id: set.id }])
+        expect(await live.getAutoPublish()).toEqual({ on: true, open: 1 })
+        // Setting it again replaces it: one policy per agent and domain.
+        const again = await live.setAgentPolicy({ ...policy, perDay: 3, reason: 'Fewer a day' })
+        expect((await live.getDomainPolicies({ domain })).policies).toMatchObject([
+          { id: again.id, perDay: 3 },
+        ])
+        // Turn off ends it at once; the workspace switch off ends every one.
+        await live.endAgentPolicy({ id: again.id, from: 'agents' })
+        expect((await live.getDomainPolicies({ domain })).policies).toEqual([])
+        await live.setAgentPolicy({ ...policy, reason: 'Back on' })
+        expect(await live.setAutoPublish({ on: false })).toEqual({ ended: 1 })
+        expect(await live.getAutoPublish()).toEqual({ on: false, open: 0 })
+        expect((await live.listAgentConnections()).find((r) => r.id === app.id)!.policies).toEqual(
+          [],
+        )
+      },
+    )
+
     it.skipIf(lacks('signIn', 'checkConnect'))(
       'waits while no agent signed in since the wait began',
       async () => {

@@ -249,3 +249,8 @@ grant execute on function serving_agent_tools(uuid) to :serve;
 -- here is granted to the serving or the analytics role.
 grant insert, update (undone_at) on conflict_decisions to :api;
 grant execute on function cl_conflicts_kept() to :api;
+-- Publishing without review (FR-421): an owner of a domain or an administrator sets a policy for one app agent,
+-- and it is turned off by its end alone. The decision a policy publishes names it. Nothing here is granted to
+-- the serving or the analytics role.
+grant select, insert, update (ended_at, ended_by, ended_reason) on agent_policies to :api;
+grant execute on function cl_auto_publish_on() to :api;

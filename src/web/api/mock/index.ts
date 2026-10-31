@@ -41,6 +41,7 @@ import { advancedOf, contextFile, demoAccessKey, historyFile } from './advanced'
 import { createChats } from './chats'
 import { askedThisWeek } from './data/asked-week'
 import { createSettings } from './settings'
+import { createPolicies } from './policies'
 import {
   checkConnect,
   connectFormFor,
@@ -93,6 +94,7 @@ export function createMockApi() {
   const snapshots = createSnapshots()
   const scope = createScopeSearch()
   const settings = createSettings()
+  const policies = createPolicies()
   const integrations = createIntegrations(() => settings.read(scenario.address()).connected)
   /** What the connect flow set for each tool this visit. */
   const kept = new Map<ConnectorId, Kept>()
@@ -250,6 +252,16 @@ export function createMockApi() {
   /** The reports the person sent from Ask this visit, newest first. */
   const reports: { id: string; question: string; at: Date }[] = []
 
+  /** Who sets and turns off a policy to publish without review, by name; the review flag first. */
+  const policyReader = () => {
+    policies.fromAddress(scenario.address().query)
+    return { name: me(), ...obsReader() }
+  }
+  /** Whether publishing without review is on in the demo, the review flag first. */
+  const autoPublishOn = () => {
+    policies.fromAddress(scenario.address().query)
+    return policies.state().on
+  }
   /** Who reads Observability: an admin, or the owner of some domains. */
   const obsReader = () => {
     const person = workspace.people().find((p) => p.name === me())
@@ -837,7 +849,8 @@ export function createMockApi() {
             "We couldn't find this access key. It may be revoked already.",
           )
       }),
-    advancedPage: () => read('advancedPage', '', () => advancedOf(state.log, state.about)),
+    advancedPage: () =>
+      read('advancedPage', '', () => advancedOf(state.log, state.about, autoPublishOn())),
     checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
     exportHistory: () => now(() => historyFile(state.log)),
     exportContext: () =>
@@ -915,7 +928,12 @@ export function createMockApi() {
         return figureFor(asked, (id) => on[id] ?? false)
       }),
     tryFigure: ({ source }) => now(() => figureTryFor(source, settings.connections()[source])),
-    listAgentConnections: () => now(() => settings.agents(me(), obsReader().admin)),
+    listAgentConnections: () =>
+      now(() =>
+        settings
+          .agents(me(), obsReader().admin)
+          .map((r) => ({ ...r, policies: policies.ofAgent(r.id, policyReader()) })),
+      ),
     setAgentTool: ({ id, tool, on }) =>
       now(() => {
         if (!obsReader().admin)
@@ -932,7 +950,29 @@ export function createMockApi() {
         if (!obsReader().admin && !(agent.kind === 'app' && agent.who === me()))
           throw new ApiError('forbidden', 'Only an admin revokes the agents of others.')
         settings.revoke(id)
+        policies.endAgent(id)
       }),
+    // Publishing without review (FR-421): off as the demo starts, with no policy anywhere.
+    getAutoPublish: () =>
+      now(() => {
+        if (!policyReader().admin) throw new ApiError('forbidden', 'Only an admin sees this.')
+        return policies.state()
+      }),
+    setAutoPublish: ({ on }) => now(() => policies.switchTo(on, policyReader())),
+    getDomainPolicies: ({ domain }) =>
+      now(() => policies.forDomain(domain, policyReader(), settings.agents(me(), true))),
+    setAgentPolicy: ({ agentId, domain, kinds, perDay, reason }) =>
+      now(() => {
+        const agent = settings.agent(agentId)
+        if (!agent) throw new ApiError('not-found', "We couldn't find this agent.")
+        const name = workspace.domainMap()[domain]?.name
+        if (!name) throw new ApiError('not-found', "We couldn't find this domain.")
+        return policies.set(
+          { agent, domain, domainName: name, kinds, perDay, reason },
+          policyReader(),
+        )
+      }),
+    endAgentPolicy: ({ id }) => now(() => policies.end(id, policyReader())),
     checkConnect: ({ since, agent }) =>
       now(() => settings.check(scenario.address(), since, agent, me())),
     getConnectReview: () => now(() => settings.review(scenario.address(), me())),

@@ -31,6 +31,11 @@ export type Version = {
   after: string
   /** The agent that sent the suggestion this version published, and for whom (FR-420). */
   sentBy?: string
+  /**
+   * Published under an owner's policy, without a review round (FR-421): `who` is the owner who set
+   * it. `undo` takes the publish back, while the signed-in person may; null when they may not.
+   */
+  policy?: { undo: string | null; undone: boolean }
 }
 
 /** Whether a version changed the words, so it can be restored (a check or a return changed nothing). */

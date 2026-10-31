@@ -67,6 +67,9 @@ const places = [
   '/nowhere',
   '/docs',
   '/docs/connect-an-agent',
+  '/docs/publish-without-review',
+  // Publishing without review switched on for the workspace (the review flag): the domain's row.
+  '/settings/domains/sales?autopublish=on',
   '/inbox?open=palette',
   '/inbox?open=shortcuts',
   '/inbox?open=report',
@@ -147,6 +150,36 @@ for (const { name, width, height } of widths) {
           expect(await violations(page)).toEqual([])
         })
       }
+
+      // Publishing without review (FR-421): the dialog that sets a policy, the policy on the domain
+      // page, the workspace switch, and the policy with Turn off in the agent's Details.
+      test('publishing without review: the dialog, the policy and its Details', async ({
+        page,
+      }) => {
+        await page.goto(withTheme('/settings/domains/sales?autopublish=on', theme))
+        await page.getByRole('button', { name: 'Let an agent publish without review' }).click()
+        const dialog = page.getByRole('dialog')
+        await expect(dialog.getByRole('checkbox', { name: 'Rule' })).toBeChecked()
+        expect(await violations(page)).toEqual([])
+        await dialog.getByRole('textbox', { name: 'Why' }).fill('Its rules were right for weeks')
+        await dialog.getByRole('button', { name: 'Let it publish' }).click()
+        await expect(
+          page.getByRole('list', { name: 'Agents that publish without review in Sales' }),
+        ).toBeVisible()
+        expect(await violations(page)).toEqual([])
+        await page.evaluate(() => {
+          const link = Object.assign(document.createElement('a'), { href: '/settings/agents' })
+          document.body.append(link)
+          link.click()
+          link.remove()
+        })
+        await page.getByRole('button', { name: 'Show or hide Publish without review' }).click()
+        await page.getByRole('button', { name: 'Details of Claude Code for Kofi Mensah' }).click()
+        await expect(
+          page.getByRole('list', { name: 'Where Claude Code publishes without review' }),
+        ).toBeVisible()
+        expect(await violations(page)).toEqual([])
+      })
 
       test('the Sort menu, open, sorted the other way', async ({ page }) => {
         await page.goto(withTheme('/context', theme))

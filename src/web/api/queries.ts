@@ -69,6 +69,9 @@ export const queryKeys = {
   figure: (asked: FigureAsk) => ['readFigure', asked] as const,
   figures: ['readFigure'] as const,
   agentConnections: ['listAgentConnections'] as const,
+  autoPublish: ['getAutoPublish'] as const,
+  domainPolicies: (domain: string) => ['getDomainPolicies', domain] as const,
+  allDomainPolicies: ['getDomainPolicies'] as const,
   connectReview: ['getConnectReview'] as const,
   connectRequest: ['getConnectRequest'] as const,
   observabilityPage: (input: ObsPageInput) => ['observabilityPage', input] as const,
@@ -257,6 +260,17 @@ export const agentConnectionsQuery = () =>
   queryOptions({
     queryKey: queryKeys.agentConnections,
     queryFn: () => api.listAgentConnections(),
+  })
+
+/** Publishing without review: the workspace switch, for an admin (FR-421). */
+export const autoPublishQuery = () =>
+  queryOptions({ queryKey: queryKeys.autoPublish, queryFn: () => api.getAutoPublish() })
+
+/** One domain's policies to publish without review, and the apps one may be for. */
+export const domainPoliciesQuery = (domain: string) =>
+  queryOptions({
+    queryKey: queryKeys.domainPolicies(domain),
+    queryFn: () => api.getDomainPolicies({ domain }),
   })
 
 export const connectReviewQuery = () =>
@@ -449,6 +463,8 @@ type Read =
   | 'readFigure'
   | 'tryFigure'
   | 'listAgentConnections'
+  | 'getAutoPublish'
+  | 'getDomainPolicies'
   | 'checkConnect'
   | 'getConnectReview'
   | 'getConnectRequest'
@@ -574,12 +590,17 @@ export const invalidations: {
   reportAnswer: () => [queryKeys.myReports, ...inbox],
   // Related says whether agents follow links.
   setLinks: () => [queryKeys.settings, queryKeys.relateds],
-  setTool: () => [queryKeys.settings],
+  setTool: () => [queryKeys.settings, queryKeys.agentConnections, queryKeys.allDomainPolicies],
   setPause: () => [queryKeys.settings, queryKeys.advancedPage],
   // A new key is listed on Connected agents; the history log notes it.
   createAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   renameAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
-  setAgentTool: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  // suggest_context off pauses the agent's policies.
+  setAgentTool: () => [
+    queryKeys.agentConnections,
+    queryKeys.advancedPage,
+    queryKeys.allDomainPolicies,
+  ],
   // Checking and exporting change nothing.
   checkHistory: () => [],
   exportHistory: () => [],
@@ -594,7 +615,32 @@ export const invalidations: {
   disconnectIntegration: () => [queryKeys.settings, ...integrations, ...inbox],
   readIntegration: () => integrations,
   pauseIntegration: () => [...integrations, queryKeys.advancedPage],
-  revokeAgent: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  // A revoked app's policies end with it.
+  revokeAgent: () => [
+    queryKeys.agentConnections,
+    queryKeys.advancedPage,
+    queryKeys.autoPublish,
+    queryKeys.allDomainPolicies,
+  ],
+  // Publishing without review: Agents and access, the domain pages and the history log show it.
+  setAutoPublish: () => [
+    queryKeys.autoPublish,
+    queryKeys.agentConnections,
+    queryKeys.allDomainPolicies,
+    queryKeys.advancedPage,
+  ],
+  setAgentPolicy: () => [
+    queryKeys.autoPublish,
+    queryKeys.agentConnections,
+    queryKeys.allDomainPolicies,
+    queryKeys.advancedPage,
+  ],
+  endAgentPolicy: () => [
+    queryKeys.autoPublish,
+    queryKeys.agentConnections,
+    queryKeys.allDomainPolicies,
+    queryKeys.advancedPage,
+  ],
   // A yes adds a connected agent; the page then leaves for the agent.
   answerConnectRequest: () => [queryKeys.agentConnections],
   renameChat: () => [queryKeys.chats],

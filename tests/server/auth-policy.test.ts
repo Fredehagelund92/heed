@@ -85,6 +85,9 @@ const adminOperations = [
   'accessKeys.create',
   'agents.rename',
   'agents.setTool',
+  // Publishing without review (FR-421): only an administrator switches it for the workspace.
+  'agentPolicies.state',
+  'agentPolicies.switch',
   // Sources an administrator adds: their settings, secrets, test reads and Read again and Disconnect.
   'sources.types',
   'sources.get',
@@ -112,6 +115,11 @@ const readOperations = [
   // Every agent by name: an administrator sees and ends any, anyone else their own apps.
   'agents.list',
   'agents.revoke',
+  // A policy to publish without review: the service lets an owner of the domain or an admin set
+  // one, and whoever may turn it off do so (FR-421).
+  'agentPolicies.forDomain',
+  'agentPolicies.set',
+  'agentPolicies.end',
   // Connect an agent's live line: a person's own sign-ins and declines (FR-418).
   'connect.pending',
   'proposals.create',

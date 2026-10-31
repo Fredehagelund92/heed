@@ -35,6 +35,11 @@ import {
 export const sourceToolQuestion =
   'Does this change a definition or the way agents choose data? That belongs in the source tool.'
 type Decide = z.infer<typeof decideSchema>
+/**
+ * An accept made under an owner's policy, without a review round (FR-421): the decision names the
+ * policy, and its timeline entry and history log line carry what the policy and the agent were.
+ */
+export type UnderPolicy = { policyId: string; details: Record<string, unknown> }
 type Capacity = Role | 'administrator'
 /**
  * Marks a decision its proposer made, so its timeline entry and the history log say so plainly: an
@@ -160,7 +165,7 @@ export function createReviewService(tx: Queryable, clock: Clock) {
     return gate
   }
 
-  async function decideItem(p: LoadedProposal, input: Decide) {
+  async function decideItem(p: LoadedProposal, input: Decide, policy?: UnderPolicy) {
     const version = await stored(p.itemVersionId)
     const capacity = await capacityFor(
       version.version.areaId,
@@ -221,9 +226,10 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         message: 'The accepted fact changed after this version was written. Ask for changes.',
       })
     await checkedGate(p, version)
-    const id =
-      (await insertDecision(tx, { ...decision, outcome: 'accept' })) ??
-      (await waitingAccept(version.id))
+    const id = policy
+      ? await insertDecision(tx, { ...decision, outcome: 'accept', autoPolicyId: policy.policyId })
+      : ((await insertDecision(tx, { ...decision, outcome: 'accept' })) ??
+        (await waitingAccept(version.id)))
     if (!id) throw new ORPCError('CONFLICT', { message: 'You already accepted this version.' })
     const data = {
       decisionId: id,
@@ -231,11 +237,17 @@ export function createReviewService(tx: Queryable, clock: Clock) {
       capacity,
       reason: input.reason,
       ...byProposer(p, await me()),
+      ...policy?.details,
     }
     const [waiting] = await tx.query<{ problem: string | null }>(
       'select cl_item_version_problem($1) as problem',
       [version.id],
     )
+    // A policy publishes at once or not at all: the suggestion then waits for review as it is.
+    if (waiting?.problem && policy)
+      throw new ORPCError('CONFLICT', {
+        message: `It can't be shared with agents: ${waiting.problem}.`,
+      })
     if (waiting?.problem) {
       const updated = await loadProposal(tx, p.id)
       await proposalEvent(
@@ -377,7 +389,7 @@ export function createReviewService(tx: Queryable, clock: Clock) {
       })
     },
 
-    async decide(input: Decide) {
+    async decide(input: Decide, policy?: UnderPolicy) {
       await lockReleases(tx)
       const p = await loadProposal(tx, input.id, true)
       if (p.revision !== input.revision)
@@ -399,8 +411,12 @@ export function createReviewService(tx: Queryable, clock: Clock) {
         if (!comment) throw new ORPCError('UNPROCESSABLE_CONTENT', { message: 'Write a comment.' })
         plainReason(comment)
       }
+      if (policy && (p.action !== 'create' || input.outcome !== 'accept'))
+        throw new ORPCError('CONFLICT', { message: 'A policy only publishes a new fact.' })
       const result =
-        p.action === 'retire' ? await decideRetirement(p, input) : await decideItem(p, input)
+        p.action === 'retire'
+          ? await decideRetirement(p, input)
+          : await decideItem(p, input, policy)
       if (comment) await decisionComment(result.proposal, comment)
       return { proposal: publicRecord(result.proposal), edition: result.edition }
     },

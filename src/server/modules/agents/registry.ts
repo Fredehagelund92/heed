@@ -8,6 +8,7 @@ import {
 } from '../../../domain/agents.ts'
 import type { Queryable } from '../../db/database.ts'
 import { initialsOf } from '../auth/index.ts'
+import { policiesOfAgents } from './policies.ts'
 
 /*
   Every agent by name (FR-420): an app a person signed in with is one agent per person and app,
@@ -100,6 +101,10 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
       order by l.last_used desc nulls last, l.since desc, l.id`,
     [now, me.admin, me.id, RECENT_DAYS, RECENT_COUNT],
   )
+  const policies = await policiesOfAgents(
+    tx,
+    rows.filter((row) => row.kind === 'app').map((row) => row.id),
+  )
   return rows.map((row) => {
     const may = new Set<AgentToolName>(toolsFor(row.kind))
     return {
@@ -129,6 +134,7 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
         row.setByName && row.setAt ? { name: row.setByName, at: row.setAt.toISOString() } : null,
       since: row.since.toISOString(),
       lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+      policies: policies.filter((policy) => policy.agentId === row.id),
       suggestions: {
         lastDays: row.lastDays,
         recent: row.recent.map((r) => ({ ...r, at: new Date(r.at).toISOString() })),

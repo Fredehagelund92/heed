@@ -128,6 +128,11 @@ const GROUPS: { group: string; settings: Entry[] }[] = [
     group: 'Agents and requests',
     settings: [
       {
+        key: 'agents.auto_publish',
+        what: 'Owners can let an agent publish without review',
+        value: (v) => (v === true ? 'On' : 'Off'),
+      },
+      {
         key: 'limits.agent_drafts',
         what: 'Suggestions one person’s agents can send',
         value: (v) => `${n(field(v, 'per_day'))} a day, ${n(field(v, 'open'))} waiting at once`,

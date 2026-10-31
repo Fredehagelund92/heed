@@ -59,6 +59,9 @@ export const settingSchemas = {
   // Drafts that the AI agents of one person may save in a day, and their agent drafts still
   // open, with the draft tool (FR-121).
   'limits.agent_drafts': z.strictObject({ per_day: int(1, 1000), open: int(1, 1000) }),
+  // Whether owners may let an agent publish without review (FR-421); off ends every policy, in the
+  // database, whichever way it is switched.
+  'agents.auto_publish': z.boolean(),
   // Web searches one person's assistant may run in a day (search_web); 0 switches web search off.
   // The search words leave the company to the model provider and its search partners.
   'limits.web_searches_per_day': int(0, 1000),

@@ -325,13 +325,15 @@ const question = z.strictObject({
 /**
  * What `suggest_context` and `draft_context` return (their MCP output schema), field names and
  * marks from the attribute table (src/domain/proposal-attributes.ts). `status` says which parts
- * are present: a suggestion sent to the owner, a saved draft (draft_context's, or one the review
- * checks kept back), a domain to choose, possible duplicates, or a refusal, which saves nothing.
+ * are present: a suggestion sent to the owner, one published under an owner's policy (FR-421), a
+ * saved draft (draft_context's, or one the review checks kept back), a domain to choose, possible
+ * duplicates, or a refusal, which saves nothing.
  */
 export const draftOutput = z
   .object({
     status: z.enum([
       'suggestion_sent',
+      'suggestion_published',
       'draft_saved',
       'needs_area',
       'possible_duplicate',
@@ -378,6 +380,18 @@ export const draftOutput = z
       )
       .optional(),
     findings: z.array(z.record(z.string(), z.unknown())).optional(),
+    /**
+     * When it was published under an owner's policy: whose policy, in which domain. When a policy is
+     * on but did not publish it: why it waits for review instead.
+     */
+    policy: z
+      .strictObject({
+        published: z.boolean(),
+        set_by: z.string(),
+        domain: z.string(),
+        waits_because: z.string().optional(),
+      })
+      .optional(),
     instructions: z.string().optional(),
   })
   .loose()

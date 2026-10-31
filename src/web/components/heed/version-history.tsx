@@ -37,11 +37,20 @@ import {
   type VersionKind,
 } from '@/model/history'
 import { useShowMore } from '@/hooks/use-show-more'
+import { publishedUnderLine } from '@/lib/policies'
 
 // A history that stays small however long it gets: one line until opened ("12 changes - last
 // edited by Jon Abara, 3 Oct"), then compact rows grouped by month, the newest five first and
 // "Show earlier" for more, so the page grows and nothing scrolls inside it. A row's tooltip says
 // what changed; a click opens that version's read-only diff in a sheet, with Restore for owners.
+// A version published under an owner's policy, without a review round (FR-421), says so on its row
+// and in its sheet, which has Undo for an owner of the domain or an admin.
+
+/** What a row says of who did it: "Jon published a suggestion", or under a policy, who sent it. */
+const rowWords = (v: Version) =>
+  v.policy && v.sentBy
+    ? { who: '', what: publishedUnderLine(v.sentBy, v.who) }
+    : { who: v.who.split(' ')[0], what: VERB[v.kind] }
 
 const KIND_ICON: Record<VersionKind, LucideIcon> = {
   wording: TypeIcon,
@@ -76,8 +85,12 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
         >
           <PersonAvatar name={version.who} size={20} className="shrink-0" />
           <span className="min-w-0 flex-1 truncate">
-            <span className="font-medium">{version.who.split(' ')[0]}</span>{' '}
-            <span className="text-muted-foreground">{VERB[version.kind]}</span>
+            {rowWords(version).who && (
+              <>
+                <span className="font-medium">{rowWords(version).who}</span>{' '}
+              </>
+            )}
+            <span className="text-muted-foreground">{rowWords(version).what}</span>
           </span>
           <Icon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="w-16 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
@@ -85,8 +98,12 @@ function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {
           </span>
         </TooltipTrigger>
         <TooltipContent side="left" className="max-w-64">
-          Version {version.v}: {version.summary}
-          {version.sentBy && ` Sent by ${version.sentBy}.`}
+          Version {version.v}:{' '}
+          {version.policy && version.sentBy
+            ? `${publishedUnderLine(version.sentBy, version.who)}, without a review round.`
+            : version.summary}
+          {!version.policy && version.sentBy && ` Sent by ${version.sentBy}.`}
+          {version.policy?.undone && ' Undone since.'}
         </TooltipContent>
       </Tooltip>
     </li>
@@ -101,10 +118,13 @@ export function VersionHistory({
   versions,
   canRestore,
   onRestore,
+  onUndo,
 }: {
   versions: Version[]
   canRestore: boolean
   onRestore?: (version: Version) => Promise<unknown>
+  /** Takes back a publish made under an owner's policy, by its token (FR-421, FR-227). */
+  onUndo?: (token: string) => Promise<unknown>
 }) {
   const [open, setOpen] = React.useState(false)
   const [viewing, setViewing] = React.useState<Version | null>(null)
@@ -186,12 +206,53 @@ export function VersionHistory({
                   )}
                 </SheetTitle>
                 <SheetDescription>
-                  {viewing.who} {VERB[viewing.kind]}, {relativeDate(viewing.on)}.
-                  {viewing.sentBy && ` Sent by ${viewing.sentBy}.`} {viewing.summary}
+                  {viewing.policy && viewing.sentBy ? (
+                    <>
+                      {publishedUnderLine(viewing.sentBy, viewing.who)}, {relativeDate(viewing.on)}.
+                      Nobody reviewed it first: it was {viewing.who}'s decision, made in advance.
+                      {viewing.policy.undone && ' It was undone since.'}
+                    </>
+                  ) : (
+                    <>
+                      {viewing.who} {VERB[viewing.kind]}, {relativeDate(viewing.on)}.
+                      {viewing.sentBy && ` Sent by ${viewing.sentBy}.`} {viewing.summary}
+                    </>
+                  )}
                 </SheetDescription>
               </SheetHeader>
               <div className="@container flex flex-col gap-4 p-4">
                 <FieldDiff label={viewing.field} before={viewing.before} after={viewing.after} />
+                {viewing.policy?.undo && onUndo && (
+                  <div className="flex flex-col gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                      onClick={() => {
+                        const token = viewing.policy!.undo!
+                        setViewing(null)
+                        void onUndo(token).then(
+                          () =>
+                            toast('Publish undone', {
+                              description:
+                                'Agents stop getting it. The suggestion waits for review.',
+                            }),
+                          (e: unknown) =>
+                            toast("Couldn't undo it", {
+                              description:
+                                e instanceof Error ? e.message : 'Nothing changed. Try again.',
+                            }),
+                        )
+                      }}
+                    >
+                      <CornerUpLeftIcon data-icon="inline-start" />
+                      Undo this publish
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Agents stop getting it, and the suggestion waits for an owner.
+                    </span>
+                  </div>
+                )}
                 {canRestore && viewing.v !== latest.v && restorable(viewing) && (
                   <Button
                     variant="outline"

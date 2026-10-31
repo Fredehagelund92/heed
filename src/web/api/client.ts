@@ -38,6 +38,7 @@ import type {
   SourcePage,
 } from '@/model/integrations'
 import type { Connected, LivePhase } from '@/lib/connect'
+import type { AutoPublish, DomainPolicies, Policy } from '@/lib/policies'
 import type { Filters, SavedView } from '@/lib/obs-views'
 import type { ObsData, Range } from '@/model/observability'
 import type {
@@ -650,6 +651,34 @@ export interface HeedApi {
   /** Ends an agent at once: every connection of an app, or an access key. Anyone their own apps. */
   revokeAgent: (input: { id: string }) => Promise<void>
   /**
+   * Publishing without review (FR-421): whether an admin switched it on for the workspace, and how
+   * many policies are on. Admins only.
+   */
+  getAutoPublish: () => Promise<AutoPublish>
+  /** An admin switches it on or off for the workspace. Off ends every policy at once. */
+  setAutoPublish: (input: { on: boolean }) => Promise<{ ended: number }>
+  /**
+   * One domain's policies, whether the workspace allows them, whether the signed-in person may set
+   * one there, and the apps that suggested to it lately.
+   */
+  getDomainPolicies: (input: { domain: DomainId }) => Promise<DomainPolicies>
+  /**
+   * An owner of the domain, or an admin, lets one app publish low-risk new items there without
+   * review, as their own decision, up to a daily cap. It replaces the app's policy there.
+   */
+  setAgentPolicy: (input: {
+    agentId: string
+    domain: DomainId
+    kinds: Kind[]
+    perDay: number
+    reason: string
+  }) => Promise<Policy>
+  /**
+   * Turns a policy off at once. Whoever set it, an owner of the domain, an admin and the person the
+   * agent works for may. `from` says where, for the history log.
+   */
+  endAgentPolicy: (input: { id: string; from: 'agents' | 'domain' }) => Promise<void>
+  /**
    * Whether an agent signed in since a wait began (`since`, ms): the live line asks every few
    * seconds. Connected names the agent as it reported itself.
    */
@@ -812,6 +841,11 @@ export const heedApiMethods = [
   'listAgentConnections',
   'setAgentTool',
   'revokeAgent',
+  'getAutoPublish',
+  'setAutoPublish',
+  'getDomainPolicies',
+  'setAgentPolicy',
+  'endAgentPolicy',
   'checkConnect',
   'getConnectReview',
   'getConnectRequest',

@@ -294,6 +294,18 @@ function Agents() {
           ]}
         />
       </FrameSection>
+      <FrameSection title="Publish without review" level={3} description="Off. Every suggestion waits for an owner." collapsible defaultOpen={false}>
+        <FrameRows
+          rows={[
+            {
+              id: "auto-publish",
+              label: <label htmlFor="auto-publish">Let owners choose agents that publish without review</label>,
+              hint: "Low-risk new items only, as the owner's decision. Off ends every policy.",
+              value: <Switch id="auto-publish" defaultChecked={false} />,
+            },
+          ]}
+        />
+      </FrameSection>
       <FrameSection
         title="Tools and access keys"
         level={3}

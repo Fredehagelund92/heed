@@ -42,6 +42,7 @@ export const seedAgents: readonly Connected[] = [
     since: '20 Oct 2026',
     used: 'Yesterday',
     tools: toolRows('app', everything),
+    policies: [],
     sent: 2,
     recent: [
       {
@@ -67,6 +68,7 @@ export const seedAgents: readonly Connected[] = [
     since: '2 Oct 2026',
     used: 'Today',
     tools: toolRows('app', everything),
+    policies: [],
     sent: 0,
     recent: [],
   },
@@ -80,6 +82,7 @@ export const seedAgents: readonly Connected[] = [
     used: 'Today',
     tools: toolRows('app', everything, ['suggest_context']),
     setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
+    policies: [],
     sent: 0,
     recent: [],
   },
@@ -92,6 +95,7 @@ export const seedAgents: readonly Connected[] = [
     since: '12 Sep 2026',
     used: 'Yesterday',
     tools: toolRows('app', ['read', 'feedback']),
+    policies: [],
     sent: 0,
     recent: [],
   },

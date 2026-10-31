@@ -113,6 +113,7 @@ describe('the docs check', () => {
       'review-a-suggestion',
       'settle-a-conflict',
       'definitions-and-synonyms',
+      'publish-without-review',
       'domains-and-owners',
       'integrations',
       'how-agents-use-it',

@@ -34,7 +34,7 @@ The data team that runs Heed is the first reader of this page. The people it ser
 1. **Agents read only what an owner published.** A draft, a suggestion or a comment never reaches an agent.
 2. **Every item has a source and a check date.** An item whose check date has passed is marked, and agents are told it may be old.
 3. **Nothing written down is said as nothing written down.** An agent never fills a gap with a guess that sounds sure.
-4. **People decide, software proposes.** An agent or an integration can suggest. Only a person publishes.
+4. **People decide, software proposes.** An agent or an integration can suggest. Only a person publishes. An owner may decide in advance for one named agent's low-risk new items in their domain ([Publish without review](help/publish-without-review.md)); each is still their decision, under their name, and can be undone.
 5. **Heed stores no numbers.** It reads a figure when someone asks, only if an admin switched figures on for that integration, and keeps it nowhere.
 6. **Heed keeps no record of what people asked an agent.** It keeps only what a question was about and how often (section 9).
 
@@ -291,40 +291,41 @@ If the mockup and the real app differ, the real app changes. If the mockup and a
 
 The job specs, one line each:
 
-| Job | What it proves                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| J1  | An owner reviews a suggestion and publishes it in three steps.                                                                                   |
-| J2  | A member who owns no domain suggests a change and sees it waiting.                                                                               |
-| J3  | Someone asks, gets an answer that says how sure it is, and reports a wrong part. Answers arrive and can be stopped.                              |
-| J4  | A Not found card comes with a draft, reviewed and published like any suggestion.                                                                 |
-| J5  | An owner answers a report and the card is done.                                                                                                  |
-| J6  | A read from a connected document arrives as a suggestion and is published.                                                                       |
-| J7  | A new workspace reaches its first answer, write first, in about ten actions.                                                                     |
-| J8  | Loading, a failed load, offline, and a Publish that fails and works on Retry.                                                                    |
-| J9  | Domains are documents; an empty one can be deleted, one with context cannot.                                                                     |
-| J10 | People: invites with roles and domains; the last owner cannot leave; owners add owners to their own domain.                                      |
-| J11 | Figures in Ask: off by default, one figure with source and freshness when on, the definition decides.                                            |
-| J12 | Connect an agent: prompt, live line, hint after 2 minutes, stop at 10, Check again.                                                              |
-| J13 | The review's keys never act while you type; Esc order; the key hint shows only where the key acts.                                               |
-| J14 | Deciding with no connection: Publish waits and says why; a failed try changes nothing; a returned note is kept.                                  |
-| J15 | "Publish the ones you've read": opening is not reading; Undo puts all of them back.                                                              |
-| J16 | What needs care is said before anyone publishes; archiving always asks first.                                                                    |
-| J17 | The review on a phone: the bar says the state and place; targets are 44 px.                                                                      |
-| J18 | After a decision: a key skips the wait, the pointer holds it, reduced motion waits for Next.                                                     |
-| J19 | The Source review: the Fields table and the Text diff, only the changed words marked; N and P; Preview; the gate in both views.                  |
-| J20 | Synonyms as tags: a word with another meaning says who has it and is never saved.                                                                |
-| J21 | Following links (`get_related`): Related, relations, the switch in Settings.                                                                     |
-| J22 | Help: one menu, the keys, the Help page, the documentation, the answer line's card, Report a problem.                                            |
-| J23 | Focus moves after J, K and a decision; the last decision says everything is handled, with Undo.                                                  |
-| J24 | Picking several rows works the same in every list (Shift range, Cmd toggle, X, Cmd A, Esc).                                                      |
-| J25 | Bulk actions from one bar: Archive with Undo, Delete for drafts only, skips with reasons, Retry.                                                 |
-| J26 | Emoji where people talk (`:` and two letters), the five reactions; none in context text.                                                         |
-| J27 | Observability: its menu, range and domain, Overview, Questions, Quality, Feedback, Usage, Alerts.                                                |
-| J28 | Ask ideas: Share with state and sources, Show me where it says that, Asked this week.                                                            |
-| J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion. |
-| J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                    |
-| J33 | Threads on the source: C or + comments on a line or a field; reply, react, resolve, reopen; the rail counts them live.                           |
-| J36 | Conflicts: compare two items that disagree side by side; settle with a reason and Undo; rights across domains; every place it appears.           |
+| Job | What it proves                                                                                                                                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| J1  | An owner reviews a suggestion and publishes it in three steps.                                                                                                                  |
+| J2  | A member who owns no domain suggests a change and sees it waiting.                                                                                                              |
+| J3  | Someone asks, gets an answer that says how sure it is, and reports a wrong part. Answers arrive and can be stopped.                                                             |
+| J4  | A Not found card comes with a draft, reviewed and published like any suggestion.                                                                                                |
+| J5  | An owner answers a report and the card is done.                                                                                                                                 |
+| J6  | A read from a connected document arrives as a suggestion and is published.                                                                                                      |
+| J7  | A new workspace reaches its first answer, write first, in about ten actions.                                                                                                    |
+| J8  | Loading, a failed load, offline, and a Publish that fails and works on Retry.                                                                                                   |
+| J9  | Domains are documents; an empty one can be deleted, one with context cannot.                                                                                                    |
+| J10 | People: invites with roles and domains; the last owner cannot leave; owners add owners to their own domain.                                                                     |
+| J11 | Figures in Ask: off by default, one figure with source and freshness when on, the definition decides.                                                                           |
+| J12 | Connect an agent: prompt, live line, hint after 2 minutes, stop at 10, Check again.                                                                                             |
+| J13 | The review's keys never act while you type; Esc order; the key hint shows only where the key acts.                                                                              |
+| J14 | Deciding with no connection: Publish waits and says why; a failed try changes nothing; a returned note is kept.                                                                 |
+| J15 | "Publish the ones you've read": opening is not reading; Undo puts all of them back.                                                                                             |
+| J16 | What needs care is said before anyone publishes; archiving always asks first.                                                                                                   |
+| J17 | The review on a phone: the bar says the state and place; targets are 44 px.                                                                                                     |
+| J18 | After a decision: a key skips the wait, the pointer holds it, reduced motion waits for Next.                                                                                    |
+| J19 | The Source review: the Fields table and the Text diff, only the changed words marked; N and P; Preview; the gate in both views.                                                 |
+| J20 | Synonyms as tags: a word with another meaning says who has it and is never saved.                                                                                               |
+| J21 | Following links (`get_related`): Related, relations, the switch in Settings.                                                                                                    |
+| J22 | Help: one menu, the keys, the Help page, the documentation, the answer line's card, Report a problem.                                                                           |
+| J23 | Focus moves after J, K and a decision; the last decision says everything is handled, with Undo.                                                                                 |
+| J24 | Picking several rows works the same in every list (Shift range, Cmd toggle, X, Cmd A, Esc).                                                                                     |
+| J25 | Bulk actions from one bar: Archive with Undo, Delete for drafts only, skips with reasons, Retry.                                                                                |
+| J26 | Emoji where people talk (`:` and two letters), the five reactions; none in context text.                                                                                        |
+| J27 | Observability: its menu, range and domain, Overview, Questions, Quality, Feedback, Usage, Alerts.                                                                               |
+| J28 | Ask ideas: Share with state and sources, Show me where it says that, Asked this week.                                                                                           |
+| J29 | Motion and loading: decisions do not wait, loading waits 150 ms and takes the page's shape, nothing moves unasked. Also run with reduced motion.                                |
+| J30 | Topics: an exact scope with its month; a month under 5 is never given away; a gap counts across a month edge.                                                                   |
+| J33 | Threads on the source: C or + comments on a line or a field; reply, react, resolve, reopen; the rail counts them live.                                                          |
+| J36 | Conflicts: compare two items that disagree side by side; settle with a reason and Undo; rights across domains; every place it appears.                                          |
+| J38 | Publish without review: an admin allows it, an owner lets one agent publish low-risk new Rules, turns it off; on the service an agent's Rule publishes and the owner undoes it. |
 
 The first plan for the web app named J1 to J29. J30 (topics) was added after that, so the full set is J1 to J33, and J36.
 

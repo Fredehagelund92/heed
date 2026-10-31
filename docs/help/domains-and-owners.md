@@ -28,6 +28,7 @@ The person who publishes and checks a domain's context. Agents read only what an
 - Admins do everything, including roles and invitations.
 - An owner who isn't an admin edits their own domain and adds owners to it.
 - A domain with no context can be deleted; the sandbox never reaches agents.
+- An owner can let one agent publish low-risk new items in their domain without a review round, once an admin allows it: [Publish without review](publish-without-review.md).
 
 ## People
 

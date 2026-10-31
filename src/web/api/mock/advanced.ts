@@ -18,7 +18,7 @@ const capped = {
 }
 
 /** Every tuning setting in the demo: the values it was installed with, but for the name and caps. */
-function settingsOf(name: string, about: string) {
+function settingsOf(name: string, about: string, autoPublish: boolean) {
   const values: [key: string, value: unknown, changed?: SettingChange][] = [
     ['workspace.name', name, { who: 'Jon Abara', when: '1 Oct', why: 'Name the workspace' }],
     ['business.about', about],
@@ -33,6 +33,14 @@ function settingsOf(name: string, about: string) {
     ['retention.note_days', 180],
     ['retention.request_log_days', 90],
     ['retention.outbox_days', 30],
+    // Publishing without review: off as installed, until an admin switches it on in the demo.
+    autoPublish
+      ? [
+          'agents.auto_publish',
+          true,
+          { who: 'Jon Abara', when: 'Today', why: 'Changed in Settings, Agents and access.' },
+        ]
+      : ['agents.auto_publish', false],
     ['limits.agent_drafts', { per_day: 10, open: 20 }],
     ['limits.mcp_requests_per_minute', { person: 30, client: 120 }],
     ['limits.mcp_rate_per_minute', { get_context: 120, report: 20 }],
@@ -61,9 +69,9 @@ function settingsOf(name: string, about: string) {
 const toolHref = '/settings/integrations/cube'
 
 /** What Settings, Advanced shows in the demo, with what this visit changed on top. */
-export function advancedOf(log: readonly LogEntry[], about = ''): Advanced {
+export function advancedOf(log: readonly LogEntry[], about = '', autoPublish = false): Advanced {
   return {
-    settings: settingsOf(WORKSPACE_NAME, about),
+    settings: settingsOf(WORKSPACE_NAME, about, autoPublish),
     // Newest first: drafts and terms. Published context is archived, never deleted.
     deleted: [
       ...log

@@ -1189,6 +1189,29 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
             ],
             "type": "object",
           },
+          "policy": {
+            "additionalProperties": false,
+            "properties": {
+              "domain": {
+                "type": "string",
+              },
+              "published": {
+                "type": "boolean",
+              },
+              "set_by": {
+                "type": "string",
+              },
+              "waits_because": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "published",
+              "set_by",
+              "domain",
+            ],
+            "type": "object",
+          },
           "possible_duplicates": {
             "items": {
               "additionalProperties": false,
@@ -1263,6 +1286,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
           "status": {
             "enum": [
               "suggestion_sent",
+              "suggestion_published",
               "draft_saved",
               "needs_area",
               "possible_duplicate",
@@ -1292,7 +1316,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
       "title": "Send a suggestion",
     },
   ],
-  "digest": "4bc1fb768e83611d7f8d6c6d80e1064753396f8bc2b04b53ffc9fb70d857d98a",
+  "digest": "e89d6d60ced95b5ccd897f1c1e5bc0a3adba19ed7b87372f072ccf65bd781009",
   "tools": [
     {
       "annotations": {
@@ -2476,6 +2500,29 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
             ],
             "type": "object",
           },
+          "policy": {
+            "additionalProperties": false,
+            "properties": {
+              "domain": {
+                "type": "string",
+              },
+              "published": {
+                "type": "boolean",
+              },
+              "set_by": {
+                "type": "string",
+              },
+              "waits_because": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "published",
+              "set_by",
+              "domain",
+            ],
+            "type": "object",
+          },
           "possible_duplicates": {
             "items": {
               "additionalProperties": false,
@@ -2550,6 +2597,7 @@ exports[`locks the production prompt, schemas, annotations and digest 1`] = `
           "status": {
             "enum": [
               "suggestion_sent",
+              "suggestion_published",
               "draft_saved",
               "needs_area",
               "possible_duplicate",

@@ -166,6 +166,13 @@ export const DOC_PAGES: DocPage[] = [
     group: "Write and review",
     mins: 3,
   },
+  {
+    slug: "publish-without-review",
+    title: "Publish without review",
+    line: "Let one agent publish low-risk new items in your domain, as your decision, and turn it off.",
+    group: "Write and review",
+    mins: 4,
+  },
   { slug: "domains-and-owners", title: "Domains and owners", line: "Who publishes what, how to add a domain, and the sandbox.", group: "Set up", mins: 3 },
   {
     slug: "integrations",

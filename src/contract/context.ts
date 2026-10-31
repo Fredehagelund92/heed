@@ -110,6 +110,14 @@ export const itemVersionEntrySchema = z.object({
    * it sent it for (FR-420); absent for a version no agent suggested.
    */
   agent: z.optional(z.object({ name: z.string(), personId: z.string() })),
+  /**
+   * When this version was published under an owner's policy, without a review round (FR-421): the
+   * decision, whether it was undone, and whether the signed-in person may undo it now (an owner of
+   * the domain or an admin, while this version is live). `personId` is the owner who set it.
+   */
+  policy: z.optional(
+    z.object({ decisionId: z.string(), undone: z.boolean(), undoable: z.boolean() }),
+  ),
 })
 
 /** A context item's page: the item as published, what its list row reads, and its history. */

@@ -407,6 +407,14 @@ export function historyOf(
     ...(entry.agent
       ? { sentBy: `${entry.agent.name} for ${names.person(entry.agent.personId)}` }
       : {}),
+    ...(entry.policy
+      ? {
+          policy: {
+            undo: entry.policy.undoable ? `decision:${entry.policy.decisionId}` : null,
+            undone: entry.policy.undone,
+          },
+        }
+      : {}),
   }))
 }
 

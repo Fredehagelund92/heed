@@ -10,8 +10,10 @@ import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import type { DeletedTerm } from '@contract/terms'
 import { AGENT_TOOLS } from '@/lib/agents'
-import type { Agent } from '@contract/connections'
+import type { Agent, AgentPolicy, DomainPolicies as ServedPolicies } from '@contract/connections'
 import type { Connected } from '@/lib/connect'
+import type { DomainPolicies, Policy } from '@/lib/policies'
+import type { Kind } from '@/model/items'
 import { logLine } from '@/model/history'
 import { settingGroups } from '@/model/settings'
 import type { Advanced, Settings } from './client'
@@ -39,6 +41,43 @@ export function usedWords(at: string, now: Date): string {
 /** How long after it signed in an agent, or was made, a row reads as new on the list. */
 const NEW_MS = 15 * 60_000
 
+/** A policy to publish without review, as the screens say it (FR-421). */
+export function policyOf(p: AgentPolicy): Policy {
+  return {
+    id: p.id,
+    agentId: p.agentId,
+    agent: p.agentName,
+    who: p.person.name,
+    domain: p.areaId,
+    domainName: p.areaName,
+    // The screens write four kinds; a policy for `example` names it nowhere.
+    kinds: p.kinds.filter((k): k is Kind => k !== 'example'),
+    perDay: p.perDay,
+    setBy: p.setBy.name,
+    setOn: dayOf(p.setAt),
+    reason: p.reason,
+    today: p.today,
+    pause: p.pause,
+    canEnd: p.canEnd,
+  }
+}
+
+/** One domain's policies, and the apps that suggested to it lately. */
+export function domainPoliciesOf(d: ServedPolicies): DomainPolicies {
+  return {
+    on: d.on,
+    canSet: d.canSet,
+    policies: d.policies.map(policyOf),
+    agents: d.agents.map((a) => ({
+      id: a.id,
+      agent: a.name,
+      who: a.person.name,
+      sent: a.sent,
+      published: a.published,
+    })),
+  }
+}
+
 /**
  * The agents by name, as the service lists them, the last used first (FR-420): an app a person
  * signed in with by that person, an access key by who made it. A new one reads as new.
@@ -62,6 +101,7 @@ export function connectedOf(rows: readonly Agent[], now: Date): Connected[] {
       state: x.state,
       on: dayOf(x.at),
     })),
+    policies: r.policies.map(policyOf),
   }))
 }
 
@@ -210,6 +250,25 @@ export function historyLine(
     return {
       what: `Switched ${e.details.tool} ${e.details.on === true ? 'on' : 'off'} for ${named('name') ?? 'an agent'}`,
     }
+  // Publishing without review (FR-421): a policy set or turned off, the workspace switch, and a
+  // suggestion published under a policy.
+  if (e.action === 'agent.policy_set')
+    return {
+      what: `Let ${named('name') ?? 'an agent'} publish without review${typeof e.details.area === 'string' ? ` in ${e.details.area}` : e.areaId ? ` in ${domain(e.areaId)}` : ''}`,
+    }
+  if (e.action === 'agent.policy_ended')
+    return {
+      what: `Turned off publishing without review for ${named('name') ?? 'an agent'}${e.areaId ? ` in ${domain(e.areaId)}` : ''}`,
+    }
+  if (e.action === 'setting.changed' && e.subjectId === 'agents.auto_publish')
+    return {
+      what: `Switched publishing without review ${e.details.value === true ? 'on' : 'off'} for the workspace`,
+    }
+  const policy = e.details.policy as { setByName?: unknown } | undefined
+  if (e.action === 'decision.accept' && typeof policy?.setByName === 'string')
+    return {
+      what: `Published ${e.subjectTitle ? `“${e.subjectTitle}”` : 'a suggestion'} under ${policy.setByName}'s policy`,
+    }
   if (e.action === 'access_key.renamed' && named('from') && named('to'))
     return { what: `Renamed the access key ${named('from')} to ${named('to')}` }
   if (noun === 'access_key' && named('name'))
@@ -235,11 +294,17 @@ export function historyLine(
   return { what: `${said} ${subject}${detail}`, ...(href ? { href } : {}) }
 }
 
-/** Who did it: the person, or the agent that did it for them ("Claude Code for Kofi Mensah"). */
-function whoOf(e: AuditEntry) {
-  const person = e.actorName ?? 'Someone'
-  const agent = e.details.agent as { name?: unknown } | undefined
-  return typeof agent?.name === 'string' ? `${agent.name} for ${person}` : person
+/**
+ * Who did it: the person, or the agent that did it for them ("Claude Code for Kofi Mensah"). A
+ * publish under a policy is the owner's decision; the agent that sent it did it for its own person.
+ */
+function whoOf(e: AuditEntry, person: (id: string) => string) {
+  const actor = e.actorName ?? 'Someone'
+  const agent = e.details.agent as { name?: unknown; personId?: unknown } | undefined
+  if (typeof agent?.name !== 'string') return actor
+  if (e.details.policy && typeof agent.personId === 'string')
+    return `${agent.name} for ${person(agent.personId)}`
+  return `${agent.name} for ${actor}`
 }
 
 /** How close an entry of the history log is to a change to many items for that change to cover it. */
@@ -270,7 +335,7 @@ export function historyOf(
         at: e.at,
         key: String(e.seq),
         when: whenWords(e.at, now),
-        who: e.actorKind === 'person' ? whoOf(e) : 'Automatic',
+        who: e.actorKind === 'person' ? whoOf(e, names.person) : 'Automatic',
         ...historyLine(e, names.domain),
       })),
     ...shown.map((c) => ({

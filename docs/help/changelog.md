@@ -4,6 +4,12 @@ line: Changes people notice, newest first.
 reviewed: 2026-10-31
 ---
 
+## Publish without review
+
+2026-10-31
+
+An owner can let one agent publish low-risk new items in their domain without a review round, once an admin switches it on. Each one names the owner, and can be undone from its history.
+
 ## Summary shows what was caught
 
 2026-10-31
