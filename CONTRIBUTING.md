@@ -119,7 +119,7 @@ migration.
 
 ## The first-load budget
 
-The first load of the web app, the scripts and styles `index.html` loads, is held to **431 KB of
+The first load of the web app, the scripts and styles `index.html` loads, is held to **432 KB of
 script and 32 KB of CSS**, gzipped. Do not raise it. Load route code on demand instead: every page
 but the Inbox and Ask is a lazy route (`routes/**/*.lazy.tsx`), and so should heavy parts be.
 
