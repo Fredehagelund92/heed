@@ -226,7 +226,7 @@ export const wiredMethods = [
   'renameAccessKey',
   'setPause',
   'listAgentConnections',
-  'setAgentPermission',
+  'setAgentTool',
   'revokeAgent',
   'checkConnect',
   'advancedPage',
@@ -1865,9 +1865,9 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // An admin sees every agent; anyone else their own apps. The service decides which.
     listAgentConnections: async () =>
       (await settingsWords()).connectedOf(await read(() => client.agents.list()), new Date()),
-    setAgentPermission: async ({ id, permission }) => {
-      const input = { id, permission, reason: BY_SETTINGS }
-      await write('agents.setPermission', input, (o) => client.agents.setPermission(input, o))
+    setAgentTool: async ({ id, tool, on }) => {
+      const input = { id, tool, on, reason: BY_SETTINGS }
+      await write('agents.setTool', input, (o) => client.agents.setTool(input, o))
     },
     // Every connection of an app ends at once, or the access key, with the reason an admin's log
     // keeps; a person ends their own app with no reason.

@@ -27,15 +27,15 @@ export function phaseAt(elapsed: number, signIn?: number): Exclude<LivePhase, "i
 
 /* ---------- The connected agents, shared by the page, the dialog and the live line ---------- */
 
-/** What an admin lets an agent do (FR-420); read and suggest when not set. */
-export type AgentMay = "Read and suggest" | "Read only" | "No access"
+/** How many of its tools an agent may call (FR-420); every one when not set. */
+export type AgentMay = "All 6 tools" | "All 5 tools" | "5 of 6 tools" | "Off"
 export type Connected = { agent: string; who: string; since: string; used: string; fresh?: boolean; may?: AgentMay }
 
 let rows: Connected[] = [
   { agent: "Claude", who: "Maria Lindqvist", since: "2 Oct 2026", used: "Today" },
-  { agent: "Cursor", who: "Jon Abara", since: "12 Sep 2026", used: "Yesterday", may: "Read only" },
+  { agent: "Cursor", who: "Jon Abara", since: "12 Sep 2026", used: "Yesterday", may: "All 5 tools" },
   { agent: "Claude Code", who: "Kofi Mensah", since: "20 Oct 2026", used: "Yesterday" },
-  { agent: "Claude", who: "Ines Duarte", since: "1 Oct 2026", used: "Today", may: "Read only" },
+  { agent: "Claude", who: "Ines Duarte", since: "1 Oct 2026", used: "Today", may: "5 of 6 tools" },
 ]
 const listeners = new Set<() => void>()
 const changed = () => {

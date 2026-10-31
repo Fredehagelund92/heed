@@ -218,7 +218,7 @@ function Agents() {
                     <span className="min-w-0 truncate">{r.agent}</span>
                     {r.fresh && <span className="text-xs font-normal text-primary">New</span>}
                     <Badge variant="outline" className="font-normal">
-                      {r.may ?? "Read and suggest"}
+                      {r.may ?? "All 6 tools"}
                     </Badge>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">

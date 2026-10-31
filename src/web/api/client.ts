@@ -12,7 +12,7 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import type { ConnectRequest } from '@contract/connections'
-import type { AgentPermission } from '@domain/agents'
+import type { AgentToolName } from '@domain/agents'
 import type { ScopeSearchResult } from '@contract/scope'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { FactAction } from '@/lib/bulk'
@@ -632,10 +632,10 @@ export interface HeedApi {
    */
   listAgentConnections: () => Promise<Connected[]>
   /**
-   * What one agent may do: read and suggest, read only, or nothing. It acts at the agent's next
-   * request and never widens what a person allowed; an access key never suggests. Admins only.
+   * Switches one tool on or off for one agent. It acts at the agent's next request and never widens
+   * what a person allowed; an access key never gets suggest_context. Admins only.
    */
-  setAgentPermission: (input: { id: string; permission: AgentPermission }) => Promise<void>
+  setAgentTool: (input: { id: string; tool: AgentToolName; on: boolean }) => Promise<void>
   /** Ends an agent at once: every connection of an app, or an access key. Anyone their own apps. */
   revokeAgent: (input: { id: string }) => Promise<void>
   /**
@@ -795,7 +795,7 @@ export const heedApiMethods = [
   'readFigure',
   'tryFigure',
   'listAgentConnections',
-  'setAgentPermission',
+  'setAgentTool',
   'revokeAgent',
   'checkConnect',
   'getConnectReview',

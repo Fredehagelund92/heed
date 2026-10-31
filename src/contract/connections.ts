@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { agentKinds, agentNameProblem, agentPermissions } from '../domain/agents.ts'
+import { agentKinds, agentNameProblem, agentToolNames } from '../domain/agents.ts'
 
 /**
  * A person's own agents (FR-403, docs/ai-sign-in.md): the consent screen for a sign-in in
@@ -93,8 +93,8 @@ export const renameAccessKeySchema = z.strictObject({ id: z.uuid(), name: agentN
 
 /**
  * One agent (FR-420): an app a person signed in with, acting for them, or an access key, which
- * names no person. Its name, its kind, what an administrator lets it do, and what it may do now,
- * which is what it was allowed narrowed by that. Never a key, a token or a digest.
+ * names no person. Its name, its kind and every MCP tool with whether an administrator switched it
+ * on for this agent and whether the agent may have it at all. Never a key, a token or a digest.
  */
 export const agentSchema = z.object({
   id: z.string(),
@@ -115,14 +115,14 @@ export const agentSchema = z.object({
   ),
   /** Who made an access key; null for an app. */
   madeBy: z.nullable(z.object({ id: z.string(), name: z.string(), initials: z.string() })),
-  /** What an administrator lets it do. */
-  permission: z.enum(agentPermissions),
-  /** Who last changed that, and when; null while it is as it started. */
-  permissionSetBy: z.nullable(z.object({ name: z.string(), at: z.string() })),
-  /** What it was allowed: by the person when an app connected, fixed for an access key. */
-  allowed: z.array(connectionScopeSchema),
-  /** What it may do now: what it was allowed, narrowed by its permission. */
-  scopes: z.array(connectionScopeSchema),
+  /**
+   * Every tool, in the order agents read them: whether an administrator switched it on for this
+   * agent, and whether the agent may have it at all, which the person decided when an app
+   * connected and which an access key never has for suggest_context. It works only when both hold.
+   */
+  tools: z.array(z.object({ tool: z.enum(agentToolNames), on: z.boolean(), allowed: z.boolean() })),
+  /** Who last switched a tool, and when; null while every switch is as it started. */
+  toolsSetBy: z.nullable(z.object({ name: z.string(), at: z.string() })),
   /** Since when: an app's oldest open connection, or when the key was made. */
   since: z.string(),
   /** Null until an agent first used it. */
@@ -142,9 +142,10 @@ export const agentSchema = z.object({
 })
 /** Kept in the history log for good, so it is trimmed, required and checked for sensitive text. */
 const agentReason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
-export const agentPermissionInputSchema = z.strictObject({
+export const agentToolInputSchema = z.strictObject({
   id: z.uuid(),
-  permission: z.enum(agentPermissions),
+  tool: z.enum(agentToolNames),
+  on: z.boolean(),
   reason: agentReason,
 })
 /** An administrator gives a reason the log keeps; a person ending their own app needs none. */
@@ -177,5 +178,5 @@ export type AccessKeyConnection = z.infer<typeof accessKeyConnectionSchema>
 export type AgentConnection = z.infer<typeof agentConnectionSchema>
 export type CreatedAccessKey = z.infer<typeof createdAccessKeySchema>
 export type Agent = z.infer<typeof agentSchema>
-export type AgentPermissionInput = z.infer<typeof agentPermissionInputSchema>
+export type AgentToolInput = z.infer<typeof agentToolInputSchema>
 export type AdminDisconnect = z.infer<typeof adminDisconnectSchema>

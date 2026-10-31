@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AuditEntry, Setting } from '@contract/admin'
 import type { Agent } from '@contract/connections'
+import { agentToolNames } from '@domain/agents'
 import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import { freeAreaId, summaryOf } from '@/api/http'
@@ -33,10 +34,8 @@ describe('the agents people connected', () => {
     host: 'claude.ai',
     person: { id: 'p1', name: 'Jon Abara', initials: 'JA', email: null },
     madeBy: null,
-    permission: 'suggest',
-    permissionSetBy: null,
-    allowed: ['read', 'feedback', 'propose'],
-    scopes: ['read', 'feedback', 'propose'],
+    tools: agentToolNames.map((tool) => ({ tool, on: true, allowed: true })),
+    toolsSetBy: null,
     since: at(12),
     lastUsedAt: at(22),
     suggestions: { lastDays: 0, recent: [] },
@@ -60,9 +59,12 @@ describe('the agents people connected', () => {
           id: 'a2',
           name: 'Claude',
           person: { id: 'p2', name: 'Ines Duarte', initials: 'ID', email: null },
-          permission: 'read',
-          permissionSetBy: { name: 'Jon Abara', at: at(14) },
-          scopes: ['read', 'feedback'],
+          tools: agentToolNames.map((tool) => ({
+            tool,
+            on: tool !== 'suggest_context',
+            allowed: true,
+          })),
+          toolsSetBy: { name: 'Jon Abara', at: at(14) },
           since: at(1),
           lastUsedAt: at(23),
         }),
@@ -79,9 +81,7 @@ describe('the agents people connected', () => {
         since: '23 Oct 2026',
         used: 'Just now',
         fresh: true,
-        permission: 'suggest',
-        allowed: ['read', 'feedback', 'propose'],
-        scopes: ['read', 'feedback', 'propose'],
+        tools: agentToolNames.map((tool) => ({ tool, on: true, allowed: true })),
         sent: 1,
         recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', on: '22 Oct 2026' }],
       },
@@ -93,10 +93,12 @@ describe('the agents people connected', () => {
         host: 'claude.ai',
         since: '1 Oct 2026',
         used: 'Today',
-        permission: 'read',
+        tools: agentToolNames.map((tool) => ({
+          tool,
+          on: tool !== 'suggest_context',
+          allowed: true,
+        })),
         setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
-        allowed: ['read', 'feedback', 'propose'],
-        scopes: ['read', 'feedback'],
         sent: 0,
         recent: [],
       },
@@ -114,9 +116,11 @@ describe('the agents people connected', () => {
             host: null,
             person: null,
             madeBy: { id: 'p1', name: 'Jon Abara', initials: 'JA' },
-            permission: 'read',
-            allowed: ['read', 'feedback'],
-            scopes: ['read', 'feedback'],
+            tools: agentToolNames.map((tool) => ({
+              tool,
+              on: tool !== 'suggest_context',
+              allowed: tool !== 'suggest_context',
+            })),
             since: at(21),
             lastUsedAt: null,
           }),
@@ -315,6 +319,51 @@ describe('Settings, Advanced', () => {
     reason: null,
     source: null,
     ...over,
+  })
+
+  it('names the agent: a tool switched for it, a key renamed, and what it did for a person', () => {
+    expect(
+      historyLine(
+        entry({
+          action: 'agent.tool_switched',
+          subjectType: 'agent',
+          details: { name: 'Claude Code', kind: 'app', tool: 'suggest_context', on: false },
+        }),
+      ),
+    ).toEqual({ what: 'Switched suggest_context off for “Claude Code”' })
+    expect(
+      historyLine(
+        entry({
+          action: 'access_key.renamed',
+          subjectType: 'access_key',
+          details: { from: 'Weekly digest', to: 'Monday digest' },
+        }),
+      ),
+    ).toEqual({ what: 'Renamed the access key “Weekly digest” to “Monday digest”' })
+    expect(
+      historyLine(
+        entry({
+          action: 'access_key.created',
+          subjectType: 'access_key',
+          details: { name: 'Weekly digest', scopes: ['read', 'feedback'] },
+        }),
+      ),
+    ).toEqual({ what: 'Created the access key “Weekly digest”' })
+    const [row] = historyOf(
+      [
+        entry({
+          action: 'proposal.submitted',
+          actorName: 'Kofi Mensah',
+          subjectType: 'proposal',
+          subjectId: 'p9',
+          details: { revision: 1, agent: { id: 'a1', name: 'Claude Code' } },
+        }),
+      ],
+      [],
+      now,
+      { person: (id) => id },
+    )
+    expect(row).toMatchObject({ who: 'Claude Code for Kofi Mensah' })
   })
 
   it('says each history entry as a line, with a link to what it names', () => {

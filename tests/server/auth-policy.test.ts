@@ -84,7 +84,7 @@ const adminOperations = [
   // Access keys for a bot or a scheduled job: made by administrators only.
   'accessKeys.create',
   'agents.rename',
-  'agents.setPermission',
+  'agents.setTool',
   // Sources an administrator adds: their settings, secrets, test reads and Read again and Disconnect.
   'sources.types',
   'sources.get',

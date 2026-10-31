@@ -1,11 +1,11 @@
 import type { Settings } from '../client'
 import { AGENT_TOOLS } from '@/lib/agents'
 import { MCP_URL } from '@/lib/brand'
-import { permissionScopes, scopesWith, type AgentPermission } from '@domain/agents'
+import { toolsFor, type AgentToolName } from '@domain/agents'
 import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
 import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
 import type { ConnectRequest } from '@contract/connections'
-import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents } from './data/agents'
+import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents, toolRows } from './data/agents'
 import { figureConnections } from './data/integrations'
 import type { Address } from './scenario'
 
@@ -34,12 +34,11 @@ export function createSettings() {
   let answered = false
 
   /**
-   * A sign-in adds the agent on top, marked new, with every tool the person allowed; the same agent
-   * for the same person keeps its row and what an admin set, and moves up.
+   * A sign-in adds the agent on top, marked new, with every tool on that the person allowed; the
+   * same agent for the same person keeps its row and the switches an admin set, and moves up.
    */
   const addAgent = (agent: string, who: string) => {
     const was = agents.find((r) => r.kind === 'app' && r.agent === agent && r.who === who)
-    const allowed = [...permissionScopes.suggest]
     const row: Connected = {
       id: was?.id ?? `agent-${++made}`,
       kind: 'app',
@@ -49,10 +48,8 @@ export function createSettings() {
       since: '23 Oct 2026',
       used: 'Just now',
       fresh: true,
-      permission: was?.permission ?? 'suggest',
+      tools: was?.tools ?? toolRows('app', ['read', 'feedback', 'propose']),
       ...(was?.setBy ? { setBy: was.setBy } : {}),
-      allowed,
-      scopes: scopesWith(allowed, was?.permission ?? 'suggest'),
       sent: was?.sent ?? 0,
       recent: was?.recent ?? [],
     }
@@ -151,9 +148,7 @@ export function createSettings() {
         since: '23 Oct 2026',
         used: 'Never',
         fresh: true,
-        permission: 'read',
-        allowed: ['read', 'feedback'],
-        scopes: ['read', 'feedback'],
+        tools: toolRows('key', ['read', 'feedback']),
         sent: 0,
         recent: [],
       }
@@ -165,18 +160,17 @@ export function createSettings() {
       agents = agents.map((r) => (r.id === id ? { ...r, agent: name } : r))
       return true
     },
-    /** What an agent may do now: what it was allowed, narrowed by the permission. Null for no agent. */
-    setPermission(id: string, permission: AgentPermission, by: string) {
+    /** Switches one tool for one agent. Null for no agent, or suggest_context on an access key. */
+    setAgentTool(id: string, tool: AgentToolName, on: boolean, by: string) {
       const row = agents.find((r) => r.id === id)
-      if (!row || (row.kind === 'key' && permission === 'suggest')) return null
-      if (row.permission === permission) return false
+      if (!row || (on && !toolsFor(row.kind).includes(tool))) return null
+      if (row.tools.find((t) => t.tool === tool)?.on === on) return false
       agents = agents.map((r) =>
         r === row
           ? {
               ...r,
-              permission,
               setBy: { name: by, on: '23 Oct 2026' },
-              scopes: scopesWith(r.allowed, permission),
+              tools: r.tools.map((t) => (t.tool === tool ? { ...t, on } : t)),
             }
           : r,
       )

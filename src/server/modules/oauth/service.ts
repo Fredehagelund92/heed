@@ -4,6 +4,7 @@ import type { Database, Queryable } from '../../db/database.ts'
 import { createLimiter } from '../../http/rate-limit.ts'
 import type { LoginServerConfig } from '../../config/env.ts'
 import { createPersonVerifier, personScopes, signedInClient } from '../../mcp/auth.ts'
+import { toolsFor } from '../../../domain/agents.ts'
 import { initialsOf, principalFor } from '../auth/index.ts'
 import {
   fetchMetadataDocument,
@@ -988,23 +989,24 @@ export function createLoginServer(options: {
         [row.clientId, now()],
       )
       // The person and the app are one agent (FR-420), named as the app names itself now. A new
-      // one may suggest, bounded by what the person allowed; one an admin changed keeps it. An app
-      // that registers again gets a new id, so a new agent of the person by the same name starts
-      // from the narrowest that an admin set for one of theirs: registering anew never undoes it.
+      // one has every tool on, bounded by what the person allowed; one an admin changed keeps its
+      // switches. An app that registers again gets a new id, so a new agent of the person by the
+      // same name starts from the fewest tools an admin left on for one of theirs: registering
+      // anew never undoes a switch.
       await tx.query(
-        `insert into auth.agents(kind,name,person_id,client_id,permission,permission_set_by,permission_set_at)
-         select 'app',c.name,$1,c.id,coalesce(narrowest.permission,'suggest'),
-                narrowest.permission_set_by,narrowest.permission_set_at
+        `insert into auth.agents(kind,name,person_id,client_id,tools,tools_set_by,tools_set_at)
+         select 'app',c.name,$1,c.id,coalesce(narrowest.tools,$3::text[]),
+                narrowest.tools_set_by,narrowest.tools_set_at
            from auth.oauth_clients c
            left join lateral (
-             select a.permission,a.permission_set_by,a.permission_set_at from auth.agents a
+             select a.tools,a.tools_set_by,a.tools_set_at from auth.agents a
               where a.kind='app' and a.person_id=$1 and lower(a.name)=lower(c.name)
-                and a.permission<>'suggest'
-              order by a.permission='none' desc, a.permission_set_at desc nulls last limit 1
+                and a.tools_set_by is not null
+              order by cardinality(a.tools), a.tools_set_at desc limit 1
            ) narrowest on true
           where c.id=$2
          on conflict (person_id,client_id) do update set name=excluded.name`,
-        [row.personId, row.clientId],
+        [row.personId, row.clientId, toolsFor('app')],
       )
       await tx.query(
         `insert into audit_log(actor_id,actor_kind,action,subject_type,subject_id,details)

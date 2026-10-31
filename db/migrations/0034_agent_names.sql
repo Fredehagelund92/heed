@@ -1,18 +1,18 @@
--- 0033_agent_names: every agent has a name, a kind and what it may do (FR-420, FR-419, FR-121;
--- docs/ai-sign-in.md).
+-- 0034_agent_names: every agent has a name, a kind and the tools it may call (FR-420, FR-419,
+-- FR-121; docs/ai-sign-in.md).
 --
 -- - One row per agent in auth.agents. An app a person signed in with is one agent per person and
 --   app: its name is the one the app gives itself, kept up to date at each sign-in and kept when
 --   the app's registration goes. An access key is one agent: its name is the one the administrator
 --   gave it, and access keys gain that name.
--- - What an agent may do: suggest (read, give feedback and send suggestions an owner checks), read
---   (read and give feedback) or none (nothing, until an administrator changes it). An app starts
---   at suggest, bounded by what the person allowed when it connected; an access key starts at
---   read and never suggests, as it names no person. Who last changed it, and when, is kept here
---   and in the history log (`agent.permission_changed`).
+-- - The tools an agent may call: one switch per MCP tool, kept as the tools switched on. An app
+--   starts with every tool on, bounded by what the person allowed when it connected; an access key
+--   starts with every tool but suggest_context, which it can never have, as it names no person. An
+--   agent with every tool off gets nothing. A tool added later starts off for the agents there are.
+--   Who last changed a switch, and when, is kept here and in the history log (`agent.tool_switched`).
 -- - A suggestion an agent sent names the agent, with its name as it was then, beside the person
 --   who said yes to it. Neither changes after the suggestion is made.
--- - The MCP server reads no row here: serving_access_key and serving_agent_permission answer for
+-- - The MCP server reads no row here: serving_access_key and serving_agent_tools answer for
 --   one key or one connection, at every request, so a change acts at the next one.
 
 alter table auth.access_keys add column name text;
@@ -28,26 +28,30 @@ create table auth.agents (
     person_id uuid references public.people(id),
     client_id text,
     key_id uuid unique references auth.access_keys(id),
-    permission text not null,
-    permission_set_by uuid references public.people(id),
-    permission_set_at timestamp with time zone,
+    tools text[] not null,
+    tools_set_by uuid references public.people(id),
+    tools_set_at timestamp with time zone,
     created_at timestamp with time zone default now() not null,
     constraint agents_kind_check check (
         (kind = 'app' and person_id is not null and client_id is not null and key_id is null)
         or (kind = 'key' and key_id is not null and person_id is null and client_id is null)),
     constraint agents_name_check check (char_length(name) between 1 and 100 and btrim(name) <> ''),
-    constraint agents_permission_check check (
-        permission in ('suggest', 'read', 'none') and (kind = 'app' or permission <> 'suggest')),
-    constraint agents_permission_set_check check ((permission_set_by is null) = (permission_set_at is null)),
+    constraint agents_tools_check check (
+        tools <@ array['get_context', 'find_context', 'read_context', 'report', 'suggest_context', 'get_related']
+        and (kind = 'app' or not 'suggest_context' = any (tools))),
+    constraint agents_tools_set_check check ((tools_set_by is null) = (tools_set_at is null)),
     constraint agents_app_unique unique (person_id, client_id)
 );
 
-insert into auth.agents (kind, name, person_id, client_id, permission, created_at)
-select distinct on (g.person_id, g.client_id) 'app', c.name, g.person_id, g.client_id, 'suggest', g.created_at
+insert into auth.agents (kind, name, person_id, client_id, tools, created_at)
+select distinct on (g.person_id, g.client_id) 'app', c.name, g.person_id, g.client_id,
+       array['get_context', 'find_context', 'read_context', 'report', 'suggest_context', 'get_related'], g.created_at
   from auth.oauth_grants g join auth.oauth_clients c on c.id = g.client_id
  order by g.person_id, g.client_id, g.created_at;
-insert into auth.agents (kind, name, key_id, permission, created_at)
-select 'key', k.name, k.id, 'read', k.created_at from auth.access_keys k;
+insert into auth.agents (kind, name, key_id, tools, created_at)
+select 'key', k.name, k.id,
+       array['get_context', 'find_context', 'read_context', 'report', 'get_related'], k.created_at
+  from auth.access_keys k;
 
 alter table public.proposals
     add column agent_id uuid references auth.agents(id),
@@ -72,11 +76,11 @@ end $$;
 create trigger proposals_keep_agent before update of agent_id, agent_name on public.proposals
     for each row execute function public.proposals_keep_agent();
 
--- An access key, by its digest: whether it is open, and the agent it is with what it may do. No
+-- An access key, by its digest: whether it is open, and the agent it is with its tools on. No
 -- row for no key at all. A used key's last use moves on at most once a minute.
 drop function public.serving_access_key(text);
 create function public.serving_access_key(p_hash text)
-    returns table (state text, agent_id uuid, permission text)
+    returns table (state text, agent_id uuid, tools text[])
     language plpgsql security definer
     set search_path to 'public', 'pg_temp'
     as $$
@@ -91,21 +95,21 @@ begin
      where id = found_key.id and revoked_at is null;
   end if;
   return query
-    select case when found_key.revoked_at is null then 'open' else 'revoked' end, a.id, a.permission
+    select case when found_key.revoked_at is null then 'open' else 'revoked' end, a.id, a.tools
       from auth.agents a where a.key_id = found_key.id;
 end $$;
 revoke all on function public.serving_access_key(text) from public;
 
--- The agent a person's connection signs in as, by the connection's id, with what it may do. No
--- row for a connection nobody knows here.
-create function public.serving_agent_permission(p_grant uuid)
-    returns table (agent_id uuid, permission text)
+-- The agent a person's connection signs in as, by the connection's id, with its tools on. No row
+-- for a connection nobody knows here.
+create function public.serving_agent_tools(p_grant uuid)
+    returns table (agent_id uuid, tools text[])
     language sql stable security definer
     set search_path to 'public', 'pg_temp'
     as $$
-  select a.id, a.permission
+  select a.id, a.tools
     from auth.oauth_grants g
     join auth.agents a on a.kind = 'app' and a.person_id = g.person_id and a.client_id = g.client_id
    where g.id = p_grant
 $$;
-revoke all on function public.serving_agent_permission(uuid) from public;
+revoke all on function public.serving_agent_tools(uuid) from public;

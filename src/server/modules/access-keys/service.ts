@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { Queryable } from '../../db/database.ts'
-import { scopesWith, type AgentPermission } from '../../../domain/agents.ts'
+import { agentToolNames, toolsFor, type AgentToolName } from '../../../domain/agents.ts'
 import { TokenError, type AgentCheck, type Principal, type TokenVerifier } from '../../mcp/auth.ts'
 import { initialsOf } from '../auth/index.ts'
 
@@ -46,9 +46,9 @@ async function administrator(tx: Queryable) {
 }
 
 /**
- * Creates a key with a name for the signed-in administrator, and the agent it is, which may read:
- * the key itself is in this answer only. The history log notes that a key was made and its name,
- * never the key or its digest. Null when the signed-in person is no longer an administrator.
+ * Creates a key with a name for the signed-in administrator, and the agent it is, with every tool
+ * but suggest_context on: the key itself is in this answer only. The history log notes that a key
+ * was made and its name, never the key or its digest. Null when the signed-in person is no longer an administrator.
  */
 export async function createAccessKey(
   tx: Queryable,
@@ -63,9 +63,9 @@ export async function createAccessKey(
     [digest(key), actor, name],
   )
   await tx.query(
-    `insert into auth.agents(kind, name, key_id, permission, created_at)
-     values('key', $2, $1, 'read', $3)`,
-    [row!.id, name, row!.createdAt],
+    `insert into auth.agents(kind, name, key_id, tools, created_at)
+     values('key', $2, $1, $4, $3)`,
+    [row!.id, name, row!.createdAt, toolsFor('key')],
   )
   await tx.query(
     `insert into audit_log(actor_id, actor_kind, action, subject_type, subject_id, details)
@@ -155,18 +155,22 @@ export async function revokeAccessKey(
   return true
 }
 
-/** What the serving database says of a key's digest: open or revoked, and its agent. */
+/** What the serving database says of a key's digest: open or revoked, and its agent's tools on. */
 export type KeyState = {
   state: 'open' | 'revoked'
   agentId: string
-  permission: AgentPermission
+  tools: readonly AgentToolName[]
 }
+
+/** Only the tools Heed knows: a name the database might hold for a tool since retired is dropped. */
+const known = (tools: readonly string[]): AgentToolName[] =>
+  agentToolNames.filter((tool) => tools.includes(tool))
 
 /**
  * The MCP server's check of an access key (FR-402): its digest must be an open key, asked of the
  * database at every request, so a revoked key is refused at once. `check` answers for a digest
- * (serving_access_key). A key names a client label, scopes and its agent, never a person; an
- * agent an admin set to no access holds no scope (FR-420).
+ * (serving_access_key). A key names a client label, scopes and its agent with its tools on,
+ * never a person (FR-420).
  */
 export function createAccessKeyVerifier(
   check: (hash: string) => Promise<KeyState | null>,
@@ -178,10 +182,10 @@ export function createAccessKeyVerifier(
       if (found?.state === 'open')
         return {
           client: accessKeyClient,
-          scopes: scopesWith(accessKeyScopes, found.permission),
+          scopes: accessKeyScopes,
           caller: 'agent',
           canSelectEdition: false,
-          agent: { kind: 'key', id: found.agentId, permission: found.permission },
+          agent: { kind: 'key', id: found.agentId, tools: found.tools },
         } satisfies Principal
       throw new TokenError(found ? 'revoked' : 'unknown_key', accessKeyClient)
     },
@@ -200,24 +204,25 @@ export function withAccessKeys(tokens: TokenVerifier, keys: TokenVerifier): Toke
 export const servingKeyCheck =
   (database: Queryable) =>
   async (hash: string): Promise<KeyState | null> => {
-    const [row] = await database.query<KeyState>(
-      `select state, agent_id::text as "agentId", permission from serving_access_key($1)`,
-      [hash],
-    )
-    return row ?? null
+    const [row] = await database.query<{
+      state: 'open' | 'revoked'
+      agentId: string
+      tools: string[]
+    }>(`select state, agent_id::text as "agentId", tools from serving_access_key($1)`, [hash])
+    return row ? { ...row, tools: known(row.tools) } : null
   }
 
 /**
- * Which agent a person's connection signs in as, and what it may do, on the serving database
- * through the one function the serving role may call (FR-420).
+ * Which agent a person's connection signs in as, and its tools on, on the serving database through
+ * the one function the serving role may call (FR-420).
  */
 export const servingAgentCheck =
   (database: Queryable): AgentCheck =>
   async (connection) => {
     if (!/^[0-9a-f-]{36}$/i.test(connection)) return null
-    const [row] = await database.query<{ agentId: string; permission: AgentPermission }>(
-      `select agent_id::text as "agentId", permission from serving_agent_permission($1)`,
+    const [row] = await database.query<{ agentId: string; tools: string[] }>(
+      `select agent_id::text as "agentId", tools from serving_agent_tools($1)`,
       [connection],
     )
-    return row ?? null
+    return row ? { agentId: row.agentId, tools: known(row.tools) } : null
   }

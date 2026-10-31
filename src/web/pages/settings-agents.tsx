@@ -31,19 +31,19 @@ import { useShowMore } from '@/hooks/use-show-more'
 import { toApiError } from '@/api/errors'
 import { useAgentConnections, useSettings, useWrite } from '@/api/queries'
 import { AGENT_TOOLS, logoFor } from '@/lib/agents'
-import { connectedLine, keysHint, usedLine, type Connected } from '@/lib/connect'
+import {
+  connectedLine,
+  keysHint,
+  toolsLine,
+  toolsOn,
+  usedLine,
+  type Connected,
+} from '@/lib/connect'
 import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
 import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { cn } from '@/lib/utils'
 import { useDomainList, useDomains, useMe } from '@/lib/workspace'
-import {
-  agentNameProblem,
-  mayDo,
-  neverWords,
-  permissionsFor,
-  permissionWords,
-  type AgentPermission,
-} from '@domain/agents'
+import { agentNameProblem, type AgentToolName } from '@domain/agents'
 
 /*
   Settings, Agents and access: connect an agent, every agent by its name with what it may do
@@ -197,69 +197,67 @@ function KeyNameForm({
   )
 }
 
-/** Why an agent may do less than its permission says: the person allowed less when it connected. */
-function narrowerLine(r: Connected) {
-  if (r.kind !== 'app' || r.permission !== 'suggest' || r.allowed.includes('propose')) return null
-  return `${r.who.split(' ')[0]} allowed it to read only when it connected, so it cannot suggest.`
+/** Why an agent can't have a tool: an access key never suggests, and an app has what the person allowed. */
+function notAllowedLine(r: Connected) {
+  if (r.kind === 'key') return 'An access key names no person, so it never suggests.'
+  return `${r.who.split(' ')[0]} didn't allow this when connecting it.`
 }
 
-/** What one agent may do, who changed it, and what it sent lately: the fold under its row. */
+/** The tools of one agent, each with its switch, who changed one, and what it sent lately: the fold under its row. */
 function AgentDetails({
   r,
   admin,
-  onPermission,
+  workspaceOff,
+  onTool,
   onRename,
 }: {
   r: Connected
   admin: boolean
-  onPermission: (permission: AgentPermission) => void
+  /** Whether a tool is off for every agent (Tools and access keys). */
+  workspaceOff: (tool: AgentToolName) => boolean
+  onTool: (tool: AgentToolName, on: boolean) => void
   onRename: () => void
 }) {
-  const may = mayDo(r.scopes)
-  const narrower = narrowerLine(r)
-  const id = `agent-permission-${r.id}`
   return (
     <div className="grid gap-4 border-t bg-muted/40 px-4 py-4 text-sm md:px-5 @2xl/main:grid-cols-2">
       <div className="flex flex-col gap-2">
-        <h4 className="text-xs font-medium text-muted-foreground">What it may do</h4>
-        {admin ? (
-          <Select
-            items={permissionsFor(r.kind).map((p) => ({
-              label: permissionWords[p].label,
-              value: p,
-            }))}
-            value={r.permission}
-            onValueChange={(v) => v && v !== r.permission && onPermission(v)}
-          >
-            <SelectTrigger id={id} aria-label={`What ${r.agent} may do`} className="w-full sm:w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {permissionsFor(r.kind).map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {permissionWords[p].label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        ) : (
-          <p className="font-medium">{permissionWords[r.permission].label}</p>
-        )}
-        {may.length ? (
-          <ul className="list-disc pl-5 text-muted-foreground">
-            {may.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground">{permissionWords.none.line}</p>
-        )}
+        <h4 className="text-xs font-medium text-muted-foreground">Tools it may call</h4>
+        <ul className="flex flex-col gap-2" aria-label={`Tools ${r.agent} may call`}>
+          {r.tools.map(({ tool, on, allowed }) => {
+            const id = `agent-${r.id}-${tool}`
+            const hint = !allowed
+              ? notAllowedLine(r)
+              : workspaceOff(tool)
+                ? 'Off for every agent, in Tools and access keys.'
+                : AGENT_TOOLS.find((t) => t.name === tool)?.what
+            return (
+              <li key={tool} className="flex items-start justify-between gap-3">
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <label htmlFor={id} className="font-mono text-xs">
+                    {tool}
+                  </label>
+                  <span className="text-xs text-muted-foreground">{hint}</span>
+                </span>
+                {admin ? (
+                  <Switch
+                    id={id}
+                    checked={on && allowed}
+                    disabled={!allowed}
+                    onCheckedChange={(next) => onTool(tool, next)}
+                  />
+                ) : (
+                  <span id={id} className="shrink-0 text-xs text-muted-foreground">
+                    {on && allowed ? 'On' : 'Off'}
+                  </span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
         <p className="text-muted-foreground">
-          {narrower ? `${narrower} ` : ''}
-          {r.kind === 'key' ? 'An access key names no person, so it never suggests. ' : ''}
-          {neverWords}
+          {toolsOn(r).length
+            ? 'It never publishes, never reads comments and never sees who asked.'
+            : 'Every tool is off: it gets nothing until an admin switches one on. Revoke ends it for good.'}
         </p>
         {r.setBy && (
           <p className="text-xs text-muted-foreground">
@@ -309,23 +307,20 @@ function AgentRow({
   admin,
   leaving,
   onRevoke,
-  onPermission,
+  workspaceOff,
+  onTool,
   onRename,
 }: {
   r: Connected
   admin: boolean
   leaving: boolean
+  workspaceOff: (tool: AgentToolName) => boolean
   onRevoke: () => void
-  onPermission: (permission: AgentPermission) => void
+  onTool: (tool: AgentToolName, on: boolean) => void
   onRename: () => void
 }) {
   const [open, setOpen] = React.useState(false)
-  // What it may do now: its permission, narrowed by what the person allowed.
-  const now: AgentPermission = r.scopes.includes('propose')
-    ? 'suggest'
-    : r.scopes.length
-      ? 'read'
-      : 'none'
+  const off = toolsOn(r).length === 0
   const who = r.kind === 'key' ? `Access key, made by ${r.who}` : r.who
   return (
     <li data-leaving={leaving || undefined} className="row-presence border-t first:border-t-0">
@@ -348,8 +343,8 @@ function AgentRow({
               <span className="min-w-0 truncate">{r.agent}</span>
 
               {r.fresh && <span className="text-xs font-normal text-primary">New</span>}
-              <Badge variant={now === 'none' ? 'destructive' : 'outline'} className="font-normal">
-                {permissionWords[now].label}
+              <Badge variant={off ? 'destructive' : 'outline'} className="font-normal">
+                {toolsLine(r)}
               </Badge>
             </p>
             <p className="truncate text-xs text-muted-foreground">
@@ -393,7 +388,13 @@ function AgentRow({
           </span>
         </div>
         <CollapsibleContent>
-          <AgentDetails r={r} admin={admin} onPermission={onPermission} onRename={onRename} />
+          <AgentDetails
+            r={r}
+            admin={admin}
+            workspaceOff={workspaceOff}
+            onTool={onTool}
+            onRename={onRename}
+          />
         </CollapsibleContent>
       </Collapsible>
     </li>
@@ -447,12 +448,16 @@ export function Agents() {
       return false
     }
   }
-  const setPermission = (r: Connected, permission: AgentPermission) =>
-    void write('setAgentPermission', { id: r.id, permission })
-      .then(() => toast(`${r.agent}: ${permissionWords[permission].label.toLowerCase()}`))
+  const setAgentTool = (r: Connected, tool: AgentToolName, on: boolean) =>
+    void write('setAgentTool', { id: r.id, tool, on })
+      .then(() => toast(`${tool} ${on ? 'on' : 'off'} for ${r.agent}`))
       .catch((e: unknown) =>
-        toast(`Couldn't change what ${r.agent} may do`, { description: toApiError(e).message }),
+        toast(`Couldn't switch ${tool} ${on ? 'on' : 'off'} for ${r.agent}`, {
+          description: toApiError(e).message,
+        }),
       )
+  const workspaceOff = (tool: AgentToolName) =>
+    tool === 'get_related' ? !linksOn : tools[tool] === false
   const rows = useAgentConnections()
   const [revoking, setRevoking] = React.useState<Connected>()
   const leaving = useLeavingRows()
@@ -475,7 +480,8 @@ export function Agents() {
                 admin={admin}
                 leaving={leaving.has(r.id)}
                 onRevoke={() => setRevoking(r)}
-                onPermission={(permission) => setPermission(r, permission)}
+                workspaceOff={workspaceOff}
+                onTool={(tool, on) => setAgentTool(r, tool, on)}
                 onRename={() => openNaming(r)}
               />
             ))}

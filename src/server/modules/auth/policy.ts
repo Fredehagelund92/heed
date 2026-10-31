@@ -42,7 +42,7 @@ export const policies = {
   'accessKeys.create': 'admin',
   'agents.list': 'read',
   'agents.rename': 'admin',
-  'agents.setPermission': 'admin',
+  'agents.setTool': 'admin',
   'agents.revoke': 'read',
   'me.get': 'read',
   // People as Heed v1 has them: anyone signed in reads them and the open invites; the service and

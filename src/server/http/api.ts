@@ -57,7 +57,7 @@ import {
   connectInfo,
   listAgents,
   readTryItQuestion,
-  setAgentPermission,
+  setAgentTool,
 } from '../modules/agents/index.ts'
 import {
   createAccessKey,
@@ -554,20 +554,15 @@ export function createRouter({
           })
         return { changed: true }
       }),
-      setPermission: authorized.agents.setPermission.handler(async ({ context, input }) => {
+      setTool: authorized.agents.setTool.handler(async ({ context, input }) => {
         plainReason(input.reason)
-        const changed = await setAgentPermission(
-          context.tx,
-          input.id,
-          input.permission,
-          input.reason,
-        )
+        const changed = await setAgentTool(context.tx, input.id, input.tool, input.on, input.reason)
         if (changed === null) throw new ORPCError('FORBIDDEN')
         if (changed === undefined)
           throw new ORPCError('NOT_FOUND', {
             message:
-              input.permission === 'suggest'
-                ? "We couldn't find this agent, or it is an access key, which can't suggest: it names no person."
+              input.tool === 'suggest_context'
+                ? "We couldn't find this agent, or it is an access key, which can't have suggest_context: it names no person."
                 : "We couldn't find this agent.",
           })
         return { changed }

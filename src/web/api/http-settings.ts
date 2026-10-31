@@ -11,7 +11,6 @@ import type { Edition } from '@contract/review'
 import type { DeletedTerm } from '@contract/terms'
 import { AGENT_TOOLS } from '@/lib/agents'
 import type { Agent } from '@contract/connections'
-import { permissionWords, type AgentPermission } from '@domain/agents'
 import type { Connected } from '@/lib/connect'
 import { logLine } from '@/model/history'
 import { settingGroups } from '@/model/settings'
@@ -54,12 +53,8 @@ export function connectedOf(rows: readonly Agent[], now: Date): Connected[] {
     since: dayOf(r.since),
     used: r.lastUsedAt ? usedWords(r.lastUsedAt, now) : 'Never',
     ...(now.getTime() - new Date(r.since).getTime() < NEW_MS ? { fresh: true } : {}),
-    permission: r.permission,
-    ...(r.permissionSetBy
-      ? { setBy: { name: r.permissionSetBy.name, on: dayOf(r.permissionSetBy.at) } }
-      : {}),
-    allowed: [...r.allowed],
-    scopes: [...r.scopes],
+    tools: r.tools.map((t) => ({ ...t })),
+    ...(r.toolsSetBy ? { setBy: { name: r.toolsSetBy.name, on: dayOf(r.toolsSetBy.at) } } : {}),
     sent: r.suggestions.lastDays,
     recent: r.suggestions.recent.map((x) => ({
       id: x.id,
@@ -210,10 +205,10 @@ export function historyLine(
     const value = e.details[key]
     return typeof value === 'string' ? `“${value}”` : null
   }
-  // An agent's own changes name it (FR-420): what it may do now, or a key's new name.
-  if (e.action === 'agent.permission_changed' && typeof e.details.to === 'string')
+  // An agent's own changes name it (FR-420): a tool switched for it, or a key's new name.
+  if (e.action === 'agent.tool_switched' && typeof e.details.tool === 'string')
     return {
-      what: `Changed what ${named('name') ?? 'an agent'} may do: ${permissionWords[e.details.to as AgentPermission]?.label.toLowerCase() ?? e.details.to}`,
+      what: `Switched ${e.details.tool} ${e.details.on === true ? 'on' : 'off'} for ${named('name') ?? 'an agent'}`,
     }
   if (e.action === 'access_key.renamed' && named('from') && named('to'))
     return { what: `Renamed the access key ${named('from')} to ${named('to')}` }

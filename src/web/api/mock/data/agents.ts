@@ -1,11 +1,36 @@
 import type { ConnectRequest } from '@contract/connections'
 import type { Connected } from '@/lib/connect'
+import {
+  agentToolNames,
+  toolScopes,
+  toolsFor,
+  type AgentKind,
+  type AgentToolName,
+} from '@domain/agents'
 
 const everything = ['read', 'feedback', 'propose'] as const
 
 /**
+ * Every tool as an agent's row has it: switched on unless `off` names it, and allowed by the scopes
+ * the person gave it, and for an access key never suggest_context.
+ */
+export function toolRows(
+  kind: AgentKind,
+  scopes: readonly string[],
+  off: readonly AgentToolName[] = [],
+): Connected['tools'] {
+  const may = toolsFor(kind)
+  return agentToolNames.map((tool) => ({
+    tool,
+    on: may.includes(tool) && !off.includes(tool),
+    allowed: may.includes(tool) && scopes.includes(toolScopes[tool]),
+  }))
+}
+
+/**
  * The agents people connected as the demo starts, the last used first (FR-420): each by its name,
- * the person it acts for and what an admin lets it do. Ines Duarte's is read only, as Jon Abara set it.
+ * the person it acts for and its tools. Jon Abara switched suggest_context off for Ines Duarte's;
+ * Jon's own Cursor was allowed to read only when he connected it.
  */
 export const seedAgents: readonly Connected[] = [
   {
@@ -16,9 +41,7 @@ export const seedAgents: readonly Connected[] = [
     host: 'claude.ai',
     since: '20 Oct 2026',
     used: 'Yesterday',
-    permission: 'suggest',
-    allowed: [...everything],
-    scopes: [...everything],
+    tools: toolRows('app', everything),
     sent: 2,
     recent: [
       {
@@ -43,9 +66,7 @@ export const seedAgents: readonly Connected[] = [
     host: 'claude.ai',
     since: '2 Oct 2026',
     used: 'Today',
-    permission: 'suggest',
-    allowed: [...everything],
-    scopes: [...everything],
+    tools: toolRows('app', everything),
     sent: 0,
     recent: [],
   },
@@ -57,10 +78,8 @@ export const seedAgents: readonly Connected[] = [
     host: 'claude.ai',
     since: '1 Oct 2026',
     used: 'Today',
-    permission: 'read',
+    tools: toolRows('app', everything, ['suggest_context']),
     setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
-    allowed: [...everything],
-    scopes: ['read', 'feedback'],
     sent: 0,
     recent: [],
   },
@@ -72,9 +91,7 @@ export const seedAgents: readonly Connected[] = [
     host: 'cursor.com',
     since: '12 Sep 2026',
     used: 'Yesterday',
-    permission: 'suggest',
-    allowed: ['read', 'feedback'],
-    scopes: ['read', 'feedback'],
+    tools: toolRows('app', ['read', 'feedback']),
     sent: 0,
     recent: [],
   },

@@ -760,11 +760,11 @@ export function createMockApi() {
       }),
     tryFigure: ({ source }) => now(() => figureTryFor(source, settings.connections()[source])),
     listAgentConnections: () => now(() => settings.agents(me(), obsReader().admin)),
-    setAgentPermission: ({ id, permission }) =>
+    setAgentTool: ({ id, tool, on }) =>
       now(() => {
         if (!obsReader().admin)
-          throw new ApiError('forbidden', 'Only an admin changes what an agent may do.')
-        if (settings.setPermission(id, permission, me()) === null)
+          throw new ApiError('forbidden', 'Only an admin switches the tools of an agent.')
+        if (settings.setAgentTool(id, tool, on, me()) === null)
           throw new ApiError('not-found', "We couldn't find this agent.")
       }),
     // An admin ends any agent; anyone else the apps they signed in with.

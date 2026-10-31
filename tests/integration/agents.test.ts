@@ -7,7 +7,7 @@ import { signInHarness } from './sign-in-harness.ts'
   per person and app, an access key is one; each is listed with its name, its kind and what an
   administrator lets it do, and what it may do is enforced by the MCP server at the agent's very
   next request. An agent set to read only can never suggest, one set to no access gets nothing,
-  a permission never widens what the person allowed, a revoke ends the agent at once, and every
+  a switch never widens what the person allowed, a revoke ends the agent at once, and every
   change is in the history log. A suggestion an agent sends names the agent, never publishes, and
   which agent sent it can never change.
 */
@@ -32,10 +32,8 @@ type Listed = {
   host: string | null
   person: { id: string; name: string } | null
   madeBy: { id: string; name: string } | null
-  permission: 'suggest' | 'read' | 'none'
-  permissionSetBy: { name: string; at: string } | null
-  allowed: string[]
-  scopes: string[]
+  tools: { tool: string; on: boolean; allowed: boolean }[]
+  toolsSetBy: { name: string; at: string } | null
   suggestions: { lastDays: number; recent: { id: string; title: string; state: string }[] }
 }
 
@@ -99,14 +97,33 @@ const suggestion = (title: string) => ({
 const proposalCount = async () =>
   (await admin.query<{ n: number }>('select count(*)::int as n from proposals')).rows[0]!.n
 
-async function setPermission(
-  boss: Awaited<ReturnType<typeof signedIn>>,
+const toolNames = [
+  'get_context',
+  'find_context',
+  'read_context',
+  'report',
+  'suggest_context',
+  'get_related',
+]
+
+/** An administrator switches one tool of one agent, with a reason the history log keeps. */
+function setTool(
+  who: Awaited<ReturnType<typeof signedIn>>,
   id: string,
-  permission: string,
+  tool: string,
+  on: boolean,
   reason = 'Checking what it sends',
 ) {
-  return boss.api(`/agents/${id}/permission`, { permission, reason })
+  return who.api(`/agents/${id}/tools`, { tool, on, reason })
 }
+
+/** Every tool of one agent switched the same way. */
+async function setAll(boss: Awaited<ReturnType<typeof signedIn>>, id: string, on: boolean) {
+  for (const tool of toolNames) expect((await setTool(boss, id, tool, on)).status).toBe(200)
+}
+
+/** The tools an agent's row says it may call now: switched on and allowed. */
+const toolsOn = (row: Listed) => row.tools.filter((t) => t.on && t.allowed).map((t) => t.tool)
 
 describe('every agent by name', () => {
   it('lists an app by its name, kind and person, and names it on the suggestion it sends', async () => {
@@ -120,10 +137,8 @@ describe('every agent by name', () => {
       host: '127.0.0.1',
       person: { id: people.author, name: 'author' },
       madeBy: null,
-      permission: 'suggest',
-      permissionSetBy: null,
-      allowed: ['read', 'feedback', 'propose'],
-      scopes: ['read', 'feedback', 'propose'],
+      tools: toolNames.map((tool) => ({ tool, on: true, allowed: true })),
+      toolsSetBy: null,
       suggestions: { lastDays: 0, recent: [] },
     })
 
@@ -185,18 +200,20 @@ describe('every agent by name', () => {
     ).rejects.toThrow(/cannot change/)
   })
 
-  it('stops an app set to read only from suggesting at its next request, plainly', async () => {
+  it('stops an app with suggest_context switched off from suggesting at its next request', async () => {
     const app = await connect('author')
     const id = await agentOfClient(app.clientId)
     const boss = await signedIn('admin')
     const before = await proposalCount()
 
     // A reason is required, and it is checked for secrets like every reason the log keeps.
-    expect((await setPermission(boss, id, 'read', '')).status).toBe(400)
+    expect((await setTool(boss, id, 'suggest_context', false, '')).status).toBe(400)
     expect(
-      (await setPermission(boss, id, 'read', `password: ${'hak_' + 'x'.repeat(43)}`)).status,
+      (await setTool(boss, id, 'suggest_context', false, `password: ${'hak_' + 'x'.repeat(43)}`))
+        .status,
     ).toBe(422)
-    expect((await setPermission(boss, id, 'read')).status).toBe(200)
+    expect((await setTool(boss, id, 'not_a_tool', false)).status).toBe(400)
+    expect((await setTool(boss, id, 'suggest_context', false)).status).toBe(200)
 
     const wire = await mcpClient(app.token)
     const names = (await wire.listTools()).tools.map((t) => t.name)
@@ -212,18 +229,19 @@ describe('every agent by name', () => {
     expect(refused.headers.get('www-authenticate')).toBeNull()
     expect(await refused.json()).toEqual({
       error:
-        'An admin lets this agent read only, so it cannot suggest. The person can suggest in Heed instead.',
+        'An admin switched suggest_context off for this agent in Heed. The person can suggest in Heed instead.',
     })
     expect(await proposalCount()).toBe(before)
 
     // The row says so, and who changed it; the history log keeps why.
     const row = (await agentsOf(boss)).find((r) => r.id === id)!
-    expect(row).toMatchObject({
-      permission: 'read',
-      scopes: ['read', 'feedback'],
-      allowed: ['read', 'feedback', 'propose'],
-      permissionSetBy: { name: 'admin' },
+    expect(toolsOn(row)).toEqual(toolNames.filter((t) => t !== 'suggest_context'))
+    expect(row.tools.find((t) => t.tool === 'suggest_context')).toEqual({
+      tool: 'suggest_context',
+      on: false,
+      allowed: true,
     })
+    expect(row.toolsSetBy).toMatchObject({ name: 'admin' })
     const audit = await admin.query<{ action: string; actor: string; details: unknown }>(
       `select action, actor_id::text as actor, details, reason from audit_log
         where subject_type='agent' and subject_id=$1 order by seq`,
@@ -231,15 +249,15 @@ describe('every agent by name', () => {
     )
     expect(audit.rows).toEqual([
       {
-        action: 'agent.permission_changed',
+        action: 'agent.tool_switched',
         actor: people.admin,
-        details: { name: 'Test client', kind: 'app', from: 'suggest', to: 'read' },
+        details: { name: 'Test client', kind: 'app', tool: 'suggest_context', on: false },
         reason: 'Checking what it sends',
       },
     ])
 
-    // Back to suggest, it may suggest again at once.
-    expect((await setPermission(boss, id, 'suggest')).status).toBe(200)
+    // Switched back on, it may suggest again at once.
+    expect((await setTool(boss, id, 'suggest_context', true)).status).toBe(200)
     const again = await mcpClient(app.token)
     const reply = await again.callTool(suggestion('Orders exclude staff orders'))
     await again.close()
@@ -247,57 +265,66 @@ describe('every agent by name', () => {
     expect(await proposalCount()).toBe(before + 1)
   })
 
-  it('gives an agent set to no access nothing, and never widens what the person allowed', async () => {
+  it('refuses one tool switched off, gives an agent with every tool off nothing, and never widens consent', async () => {
     const app = await connect('author')
     const reader = await connect('author', 'read feedback')
     const boss = await signedIn('admin')
     const id = await agentOfClient(app.clientId)
     expect(await mcpStatus(app.token)).toBe(200)
 
-    expect((await setPermission(boss, id, 'none')).status).toBe(200)
+    // One read tool off: it is neither offered nor run, and the others go on.
+    expect((await setTool(boss, id, 'find_context', false)).status).toBe(200)
+    const wire0 = await mcpClient(app.token)
+    expect((await wire0.listTools()).tools.map((t) => t.name)).not.toContain('find_context')
+    await wire0.close()
+    const one = await call(app.token, {
+      method: 'tools/call',
+      params: { name: 'find_context', arguments: { query: 'orders' } },
+    })
+    expect(one.status).toBe(403)
+    expect(((await one.json()) as { error: string }).error).toBe(
+      'An admin switched find_context off for this agent in Heed.',
+    )
+    expect(await mcpStatus(app.token)).toBe(200)
+
+    await setAll(boss, id, false)
     const refused = await call(app.token, { method: 'tools/list' })
     expect(refused.status).toBe(403)
     expect(refused.headers.get('www-authenticate')).toBeNull()
     expect(((await refused.json()) as { error: string }).error).toMatch(
-      /^An admin turned this agent off/,
+      /^An admin switched off every tool for this agent/,
     )
     // Its other connections are the same agent, and get nothing either.
     const second = await signInFlow(app.clientId, { person: 'author', scope: 'read' })
     const tokens = await exchange(app.clientId, second.code!, second.verifier)
     expect(await mcpStatus(tokens.body.access_token!)).toBe(403)
-    expect((await agentsOf(boss)).find((r) => r.id === id)).toMatchObject({
-      permission: 'none',
-      scopes: [],
-    })
-    expect((await setPermission(boss, id, 'read')).status).toBe(200)
+    expect(toolsOn((await agentsOf(boss)).find((r) => r.id === id)!)).toEqual([])
+    await setAll(boss, id, true)
     expect(await mcpStatus(app.token)).toBe(200)
 
-    // An app the person allowed only to read never suggests, whatever its permission says.
+    // An app the person allowed only to read never suggests, whatever its switch says.
     const readerId = await agentOfClient(reader.clientId)
-    expect((await setPermission(boss, readerId, 'suggest')).status).toBe(200)
+    expect((await setTool(boss, readerId, 'suggest_context', true)).status).toBe(200)
     const wire = await mcpClient(reader.token)
     expect((await wire.listTools()).tools.map((t) => t.name)).not.toContain('suggest_context')
     await wire.close()
-    expect((await agentsOf(boss)).find((r) => r.id === readerId)!.scopes).toEqual([
-      'read',
-      'feedback',
-    ])
+    const readerRow = (await agentsOf(boss)).find((r) => r.id === readerId)!
+    expect(toolsOn(readerRow)).not.toContain('suggest_context')
+    expect(readerRow.tools.find((t) => t.tool === 'suggest_context')).toMatchObject({
+      allowed: false,
+    })
   })
 
   it('keeps what an admin set when the same app registers again as a new client', async () => {
     const first = await connect('author')
     const boss = await signedIn('admin')
-    expect((await setPermission(boss, await agentOfClient(first.clientId), 'none')).status).toBe(
-      200,
-    )
+    await setAll(boss, await agentOfClient(first.clientId), false)
     // The same app, registered anew: a new client id, the same name, the same person.
     const again = await connect('author')
     const id = await agentOfClient(again.clientId)
-    expect((await agentsOf(boss)).find((r) => r.id === id)).toMatchObject({
-      permission: 'none',
-      scopes: [],
-      permissionSetBy: { name: 'admin' },
-    })
+    const row = (await agentsOf(boss)).find((r) => r.id === id)!
+    expect(toolsOn(row)).toEqual([])
+    expect(row.toolsSetBy).toMatchObject({ name: 'admin' })
     expect(await mcpStatus(again.token)).toBe(403)
     // Another person's app by that name starts as usual.
     const other = await connect('owner')
@@ -338,7 +365,7 @@ describe('every agent by name', () => {
     expect(listed.length).toBeGreaterThan(0)
     expect(listed.every((r) => r.kind === 'app' && r.person?.id === people.author)).toBe(true)
     expect(listed.map((r) => r.id)).not.toContain(theirsId)
-    expect((await setPermission(author, mineId, 'read')).status).toBe(403)
+    expect((await setTool(author, mineId, 'get_context', false)).status).toBe(403)
     expect((await author.api(`/agents/${theirsId}/revoke`, {})).status).toBe(403)
     expect(await mcpStatus(theirs.token)).toBe(200)
     expect((await author.api(`/agents/${mineId}/revoke`, {})).status).toBe(200)
@@ -362,15 +389,15 @@ describe('every agent by name', () => {
     expect(row).toMatchObject({
       person: null,
       madeBy: { id: people.admin, name: 'admin' },
-      permission: 'read',
-      scopes: ['read', 'feedback'],
     })
-    // An access key names no person, so it can never be let suggest.
-    expect((await setPermission(boss, row.id, 'suggest')).status).toBe(404)
+    expect(toolsOn(row)).toEqual(toolNames.filter((t) => t !== 'suggest_context'))
+    // An access key names no person, so it can never be given suggest_context.
+    expect((await setTool(boss, row.id, 'suggest_context', true)).status).toBe(404)
 
-    expect((await setPermission(boss, row.id, 'none')).status).toBe(200)
+    await setAll(boss, row.id, false)
     expect(await mcpStatus(created.key)).toBe(403)
-    expect((await setPermission(boss, row.id, 'read')).status).toBe(200)
+    for (const tool of toolNames.filter((t) => t !== 'suggest_context'))
+      expect((await setTool(boss, row.id, tool, true)).status).toBe(200)
     expect(await mcpStatus(created.key)).toBe(200)
 
     const renamed = await boss.api(`/agents/${row.id}/name`, { name: 'Monday digest' })

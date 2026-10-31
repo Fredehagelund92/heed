@@ -553,7 +553,7 @@ export const invalidations: {
   // A new key is listed on Connected agents; the history log notes it.
   createAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   renameAccessKey: () => [queryKeys.agentConnections, queryKeys.advancedPage],
-  setAgentPermission: () => [queryKeys.agentConnections, queryKeys.advancedPage],
+  setAgentTool: () => [queryKeys.agentConnections, queryKeys.advancedPage],
   // Checking and exporting change nothing.
   checkHistory: () => [],
   exportHistory: () => [],

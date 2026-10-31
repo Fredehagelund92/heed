@@ -9,9 +9,12 @@ import {
   phaseAt,
   seenAt,
   STOP_MS,
+  toolsLine,
+  toolsOn,
   usedLine,
   type Connected,
 } from '@/lib/connect'
+import { toolRows } from '@/api/mock/data/agents'
 
 // The live line checks every 3 seconds, shows what usually helps after 2 minutes and stops at 10.
 
@@ -80,8 +83,7 @@ describe('the connected agents', () => {
 describe('access keys on Connected agents', () => {
   const base = {
     since: '23 Oct 2026',
-    allowed: ['read', 'feedback'],
-    scopes: ['read', 'feedback'],
+    tools: toolRows('app', ['read', 'feedback']),
     sent: 0,
     recent: [],
   } satisfies Partial<Connected>
@@ -93,7 +95,6 @@ describe('access keys on Connected agents', () => {
     who: 'Jon Abara',
     since: '12 Sep 2026',
     used: 'Yesterday',
-    permission: 'suggest',
   }
   const key = (id: string): Connected => ({
     ...base,
@@ -102,7 +103,7 @@ describe('access keys on Connected agents', () => {
     agent: 'Weekly sales digest',
     who: 'Jon Abara',
     used: 'Never',
-    permission: 'read',
+    tools: toolRows('key', ['read', 'feedback']),
   })
 
   it('counts the keys beside Create an access key, and says where they are', () => {
@@ -145,21 +146,31 @@ describe('access keys on Connected agents', () => {
     expect(after.filter((r) => r.kind === 'app')).toHaveLength(before.length)
   })
 
-  it('sets what an agent may do, never wider than what it was allowed', async () => {
+  it('switches one tool per agent, never wider than what it was allowed', async () => {
     const { api } = createMockApi()
     await api.signIn({ name: 'Jon Abara', fresh: false })
     const kofi = (await api.listAgentConnections()).find((r) => r.who === 'Kofi Mensah')!
-    await api.setAgentPermission({ id: kofi.id, permission: 'read' })
+    expect(toolsLine(kofi)).toBe('All 6 tools')
+    await api.setAgentTool({ id: kofi.id, tool: 'suggest_context', on: false })
     let now = (await api.listAgentConnections()).find((r) => r.id === kofi.id)!
-    expect(now).toMatchObject({ permission: 'read', scopes: ['read', 'feedback'] })
+    expect(toolsOn(now)).not.toContain('suggest_context')
+    expect(toolsLine(now)).toBe('5 of 6 tools')
     expect(now.setBy?.name).toBe('Jon Abara')
-    await api.setAgentPermission({ id: kofi.id, permission: 'none' })
+    for (const { tool } of now.tools) await api.setAgentTool({ id: kofi.id, tool, on: false })
     now = (await api.listAgentConnections()).find((r) => r.id === kofi.id)!
-    expect(now.scopes).toEqual([])
+    expect(toolsOn(now)).toEqual([])
+    expect(toolsLine(now)).toBe('Off')
+    // Jon allowed his Cursor to read only: switching suggest_context on gives it nothing more.
     const jon = (await api.listAgentConnections()).find((r) => r.who === 'Jon Abara')!
-    await api.setAgentPermission({ id: jon.id, permission: 'suggest' })
+    await api.setAgentTool({ id: jon.id, tool: 'suggest_context', on: true })
     now = (await api.listAgentConnections()).find((r) => r.id === jon.id)!
-    expect(now.scopes).not.toContain('propose')
+    expect(toolsOn(now)).not.toContain('suggest_context')
+    // An access key can never have suggest_context.
+    await api.createAccessKey({ name: 'Nightly export' })
+    const key = (await api.listAgentConnections()).find((r) => r.kind === 'key')!
+    await expect(
+      api.setAgentTool({ id: key.id, tool: 'suggest_context', on: true }),
+    ).rejects.toMatchObject({ kind: 'not-found' })
   })
 
   it('lets only an admin change an agent, and shows anyone else only their own apps', async () => {
@@ -168,7 +179,7 @@ describe('access keys on Connected agents', () => {
     const mine = await api.listAgentConnections()
     expect(mine.map((r) => r.who)).toEqual(['Ines Duarte'])
     await expect(
-      api.setAgentPermission({ id: mine[0]!.id, permission: 'none' }),
+      api.setAgentTool({ id: mine[0]!.id, tool: 'get_context', on: false }),
     ).rejects.toMatchObject({ kind: 'forbidden' })
     await expect(api.createAccessKey({ name: 'Mine' })).rejects.toMatchObject({
       kind: 'forbidden',

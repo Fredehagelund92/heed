@@ -1,13 +1,20 @@
 import type { Agent } from '../../../contract/connections.ts'
-import { scopesWith, type AgentKind, type AgentPermission } from '../../../domain/agents.ts'
+import {
+  agentToolNames,
+  toolScopes,
+  toolsFor,
+  type AgentKind,
+  type AgentToolName,
+} from '../../../domain/agents.ts'
 import type { Queryable } from '../../db/database.ts'
 import { initialsOf } from '../auth/index.ts'
 
 /*
   Every agent by name (FR-420): an app a person signed in with is one agent per person and app,
-  and an access key is one. An administrator sees each with what it may do and what it suggested
-  lately, and sets what it may do; anyone else sees their own apps. The MCP server enforces the
-  setting at the agent's next request (mcp/auth.ts withAgents, access-keys createAccessKeyVerifier).
+  and an access key is one. An administrator sees each with its tools and what it suggested lately,
+  and switches each tool on or off for it; anyone else sees their own apps. The MCP server enforces
+  the switches at the agent's next request (mcp/auth.ts withAgents, access-keys
+  createAccessKeyVerifier, gateway.ts).
 */
 
 /** How far back an agent's suggestions are counted on its row. */
@@ -26,7 +33,7 @@ type Row = {
   email: string | null
   madeById: string | null
   madeByName: string | null
-  permission: AgentPermission
+  tools: string[]
   setByName: string | null
   setAt: Date | null
   allowed: string[]
@@ -76,7 +83,7 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
             p.id::text as "personId", p.display_name as "personName",
             case when p.erased_at is null then p.email end as email,
             m.id::text as "madeById", m.display_name as "madeByName",
-            l.permission, s.display_name as "setByName", l.permission_set_at as "setAt",
+            l.tools, s.display_name as "setByName", l.tools_set_at as "setAt",
             l.allowed, l.since, l.last_used as "lastUsedAt",
             (select count(*)::int from proposals x
               where x.agent_id = l.id and x.created_at > $1 - make_interval(days => $4)) as "lastDays",
@@ -89,12 +96,12 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
        left join public.people p on p.id = l.person_id
        left join auth.access_keys k on k.id = l.key_id
        left join public.people m on m.id = k.created_by
-       left join public.people s on s.id = l.permission_set_by
+       left join public.people s on s.id = l.tools_set_by
       order by l.last_used desc nulls last, l.since desc, l.id`,
     [now, me.admin, me.id, RECENT_DAYS, RECENT_COUNT],
   )
   return rows.map((row) => {
-    const allowed = scopesWith(row.allowed, 'suggest')
+    const may = new Set<AgentToolName>(toolsFor(row.kind))
     return {
       id: row.id,
       kind: row.kind,
@@ -113,11 +120,13 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
         row.madeById && row.madeByName
           ? { id: row.madeById, name: row.madeByName, initials: initialsOf(row.madeByName) }
           : null,
-      permission: row.permission,
-      permissionSetBy:
+      tools: agentToolNames.map((tool) => ({
+        tool,
+        on: row.tools.includes(tool),
+        allowed: may.has(tool) && row.allowed.includes(toolScopes[tool]),
+      })),
+      toolsSetBy:
         row.setByName && row.setAt ? { name: row.setByName, at: row.setAt.toISOString() } : null,
-      allowed,
-      scopes: scopesWith(allowed, row.permission),
       since: row.since.toISOString(),
       lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
       suggestions: {
@@ -129,44 +138,35 @@ export async function listAgents(tx: Queryable, now: Date): Promise<Agent[]> {
 }
 
 /**
- * An administrator sets what one agent may do, with a reason the history log keeps beside the
- * agent's name and what it was before. It acts at the agent's next request. Whether it changed;
- * false when it was so already, null when the signed-in person is no longer an administrator,
- * undefined when there is no such agent or an access key would suggest.
+ * An administrator switches one tool on or off for one agent, with a reason the history log keeps
+ * beside the agent's name, the tool and the switch. It acts at the agent's next request. Whether it
+ * changed; false when it was so already, null when the signed-in person is no longer an
+ * administrator, undefined when there is no such agent or an access key would get suggest_context.
  */
-export async function setAgentPermission(
+export async function setAgentTool(
   tx: Queryable,
   id: string,
-  permission: AgentPermission,
+  tool: AgentToolName,
+  on: boolean,
   reason: string,
 ): Promise<boolean | null | undefined> {
   const me = await actor(tx)
   if (!me.admin || !me.id) return null
-  const [agent] = await tx.query<{ kind: AgentKind; name: string; permission: AgentPermission }>(
-    'select kind, name, permission from auth.agents where id = $1 for update',
+  const [agent] = await tx.query<{ kind: AgentKind; name: string; tools: string[] }>(
+    'select kind, name, tools from auth.agents where id = $1 for update',
     [id],
   )
-  if (!agent || (agent.kind === 'key' && permission === 'suggest')) return undefined
-  if (agent.permission === permission) return false
+  if (!agent || (on && !toolsFor(agent.kind).includes(tool))) return undefined
+  if (agent.tools.includes(tool) === on) return false
+  const tools = agentToolNames.filter((t) => (t === tool ? on : agent.tools.includes(t)))
   await tx.query(
-    `update auth.agents set permission = $2, permission_set_by = $3, permission_set_at = now()
-      where id = $1`,
-    [id, permission, me.id],
+    `update auth.agents set tools = $2, tools_set_by = $3, tools_set_at = now() where id = $1`,
+    [id, tools, me.id],
   )
   await tx.query(
     `insert into audit_log(actor_id, actor_kind, action, subject_type, subject_id, details, reason)
-     values($1, 'person', 'agent.permission_changed', 'agent', $2, $3, $4)`,
-    [
-      me.id,
-      id,
-      JSON.stringify({
-        name: agent.name,
-        kind: agent.kind,
-        from: agent.permission,
-        to: permission,
-      }),
-      reason,
-    ],
+     values($1, 'person', 'agent.tool_switched', 'agent', $2, $3, $4)`,
+    [me.id, id, JSON.stringify({ name: agent.name, kind: agent.kind, tool, on }), reason],
   )
   return true
 }

@@ -29,25 +29,29 @@ access, where **Revoke** ends every connection of that agent for that person.
 ## Every agent by name
 
 Each app a person signs in with is one agent for that person, and each access key is one agent
-(FR-420, `auth.agents`, migration 0033). Settings, Agents and access lists every agent
-(`agents.list`) with its name, its kind, who it acts for or who made it, and what it may do; an
+(FR-420, `auth.agents`, migration 0034). Settings, Agents and access lists every agent
+(`agents.list`) with its name, its kind, who it acts for or who made it, and its tools; an
 administrator sees every agent, anyone else their own apps. An app's name is the one it gives
 itself, kept up to date at each sign-in and shown as it says it; an access key's name is the one an
 administrator gives it.
 
-- **What it may do.** An administrator sets each agent to **Read and suggest**, **Read only** or
-  **No access** (`agents.setPermission`, with a reason the history log keeps as
-  `agent.permission_changed`, with the agent's name and what it was before). It bounds what the
-  person allowed at consent and never widens it: an app the person allowed only to read never
-  suggests, whatever its setting. An access key is **Read only** or **No access**: it names no
-  person, so it never suggests. A new app starts at **Read and suggest**, bounded by the consent;
-  one an administrator changed keeps that across a new sign-in of the same app. An app that
-  registers again gets a new client id; a new agent of the same person by the same name starts from
-  the narrowest setting an administrator gave one of theirs, so registering anew never undoes it.
-- **At the next request.** The MCP server asks the serving database at every request what the
-  agent may do now (`serving_agent_permission` for a connection, `serving_access_key` for a key),
-  and reads no agent row itself. An agent set to read only gets no `suggest_context`, and a call to
-  it is refused with a plain sentence; an agent set to no access gets nothing. Neither answer is a
+- **One switch per tool.** An administrator switches each MCP tool (`get_context`,
+  `find_context`, `read_context`, `report`, `suggest_context`, `get_related`) on or off for each
+  agent (`agents.setTool`, with a reason the history log keeps as `agent.tool_switched`, with the
+  agent's name, the tool and the switch). A switch bounds what the person allowed at consent and
+  never widens it: a tool works only when it is switched on and its scope was allowed, so an app the
+  person allowed only to read never suggests, whatever its switch says. An access key can never have
+  `suggest_context`: it names no person. An agent with every tool off gets nothing. A new app starts
+  with every tool on, bounded by the consent; one an administrator changed keeps its switches
+  across a new sign-in of the same app. An app that registers again gets a new client id; a new
+  agent of the same person by the same name starts from the fewest tools an administrator left on
+  for one of theirs, so registering anew never undoes a switch. A tool Heed adds later starts off
+  for the agents there are. The workspace switches in **Tools and access keys** still turn a tool
+  off for every agent.
+- **At the next request.** The MCP server asks the serving database at every request which tools
+  the agent has on (`serving_agent_tools` for a connection, `serving_access_key` for a key), and
+  reads no agent row itself. A tool switched off is neither listed nor run, and a call to it is
+  refused with a plain sentence; an agent with every tool off gets nothing. Neither answer is a
   scope challenge, so the app does not ask the person to sign in again for what an administrator
   took away.
 - **Named on what it sends.** A suggestion an agent sends names the agent, by its name at the time,
@@ -178,7 +182,7 @@ its access token.
 - **Named, listed and revoked.** A key has a name, given when it is made and changed with
   **Rename** (`agents.rename`). Connected agents lists each key by its name, who made it, since
   when and when it was last used (to the minute), in `agents.list` and `agentConnections.list`.
-  An administrator may set it to **No access** and back (above). **Revoke** there
+  An administrator may switch its tools off and on (above). **Revoke** there
   (`agents.revoke` or `agentConnections.disconnect`, with a reason the history log keeps) ends it
   at once: the MCP
   server asks the database about the key at every request, through one function the serving role

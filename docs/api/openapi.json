@@ -32455,7 +32455,7 @@
     "/agents": {
       "get": {
         "operationId": "agents.list",
-        "summary": "The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, what an administrator lets it do, what it may do now and what it suggested lately. An administrator sees every agent; anyone else their own apps",
+        "summary": "The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, every tool with whether it is switched on for this agent and whether the agent may have it, and what it suggested lately. An administrator sees every agent; anyone else their own apps",
         "tags": [
           "session"
         ],
@@ -32555,15 +32555,37 @@
                           }
                         ]
                       },
-                      "permission": {
-                        "enum": [
-                          "suggest",
-                          "read",
-                          "none"
-                        ],
-                        "type": "string"
+                      "tools": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "tool": {
+                              "enum": [
+                                "get_context",
+                                "find_context",
+                                "read_context",
+                                "report",
+                                "suggest_context",
+                                "get_related"
+                              ],
+                              "type": "string"
+                            },
+                            "on": {
+                              "type": "boolean"
+                            },
+                            "allowed": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "tool",
+                            "on",
+                            "allowed"
+                          ]
+                        }
                       },
-                      "permissionSetBy": {
+                      "toolsSetBy": {
                         "anyOf": [
                           {
                             "type": "object",
@@ -32584,28 +32606,6 @@
                             "type": "null"
                           }
                         ]
-                      },
-                      "allowed": {
-                        "type": "array",
-                        "items": {
-                          "enum": [
-                            "read",
-                            "feedback",
-                            "propose"
-                          ],
-                          "type": "string"
-                        }
-                      },
-                      "scopes": {
-                        "type": "array",
-                        "items": {
-                          "enum": [
-                            "read",
-                            "feedback",
-                            "propose"
-                          ],
-                          "type": "string"
-                        }
                       },
                       "since": {
                         "type": "string"
@@ -32666,10 +32666,8 @@
                       "host",
                       "person",
                       "madeBy",
-                      "permission",
-                      "permissionSetBy",
-                      "allowed",
-                      "scopes",
+                      "tools",
+                      "toolsSetBy",
                       "since",
                       "lastUsedAt",
                       "suggestions"
@@ -33221,10 +33219,10 @@
         }
       }
     },
-    "/agents/{id}/permission": {
+    "/agents/{id}/tools": {
       "post": {
-        "operationId": "agents.setPermission",
-        "summary": "Set what one agent may do: read and suggest, read only, or nothing. It acts at the agent's next request and never widens what a person allowed. The history log keeps the reason",
+        "operationId": "agents.setTool",
+        "summary": "Switch one tool on or off for one agent. It acts at the agent's next request and never widens what a person allowed; an access key never gets suggest_context. The history log keeps the reason",
         "tags": [
           "admin"
         ],
@@ -33246,13 +33244,19 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "permission": {
+                  "tool": {
                     "enum": [
-                      "suggest",
-                      "read",
-                      "none"
+                      "get_context",
+                      "find_context",
+                      "read_context",
+                      "report",
+                      "suggest_context",
+                      "get_related"
                     ],
                     "type": "string"
+                  },
+                  "on": {
+                    "type": "boolean"
                   },
                   "reason": {
                     "type": "string",
@@ -33261,7 +33265,8 @@
                   }
                 },
                 "required": [
-                  "permission",
+                  "tool",
+                  "on",
                   "reason"
                 ],
                 "additionalProperties": false

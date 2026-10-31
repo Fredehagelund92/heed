@@ -1,2 +1,2 @@
 export { connectInfo, readTryItQuestion } from './service.ts'
-export { agentFor, listAgents, setAgentPermission } from './registry.ts'
+export { agentFor, listAgents, setAgentTool } from './registry.ts'

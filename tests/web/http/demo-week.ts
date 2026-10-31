@@ -9,6 +9,7 @@ import { spainDraft } from '@/api/mock/data/drafts'
 import { reviews } from '@/api/mock/data/review'
 import { facts, people as worldPeople, WORKSPACE_NAME } from '@/api/mock/data/world'
 import { seedAgents } from '@/api/mock/data/agents'
+import { agentScopes, toolScopes } from '@domain/agents'
 import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
@@ -986,18 +987,21 @@ async function seedAgentConnections(client: pg.Client) {
         `${isoDay(row.since, TODAY)}T09:00:00Z`,
         ago[row.used] ?? '3 days',
         index,
-        row.allowed,
+        // What the person allowed: the scopes of the tools the agent may have.
+        agentScopes.filter((scope) =>
+          row.tools.some((t) => t.allowed && toolScopes[t.tool] === scope),
+        ),
       ],
     )
-    // Each is an agent by name, with what an admin lets it do, as the mock has it (FR-420).
+    // Each is an agent by name, with the tools an admin left on for it, as the mock has it (FR-420).
     await client.query(
-      `insert into auth.agents (kind, name, person_id, client_id, permission, permission_set_by, permission_set_at)
+      `insert into auth.agents (kind, name, person_id, client_id, tools, tools_set_by, tools_set_at)
        values ('app', $1, $2, $3, $4, $5, $6)`,
       [
         row.agent,
         seedPersonId(personId(row.who)),
         clientId,
-        row.permission,
+        row.tools.filter((t) => t.on).map((t) => t.tool),
         row.setBy ? seedPersonId(personId(row.setBy.name)) : null,
         row.setBy ? `${isoDay(row.setBy.on, TODAY)}T09:00:00Z` : null,
       ],

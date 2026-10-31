@@ -7,7 +7,7 @@ import {
 } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { SignJWT, decodeJwt, errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose'
-import { scopesWith, type AgentKind, type AgentPermission } from '../../domain/agents.ts'
+import type { AgentKind, AgentToolName } from '../../domain/agents.ts'
 
 export type Principal = {
   client: string
@@ -29,10 +29,11 @@ export type Principal = {
   connection?: string
   /**
    * The agent Heed knows the token as (FR-420): an app a person connected, or an access key, with
-   * what an admin lets it do now. `scopes` are already narrowed by it. Absent for a token Heed
-   * keeps no agent for: a dev token, or one from another login server.
+   * the tools an admin left on for it now. The gateway offers and runs only those, and only where
+   * `scopes` allow them too. Absent for a token Heed keeps no agent for: a dev token, or one from
+   * another login server.
    */
-  agent?: { kind: AgentKind; id: string; permission: AgentPermission }
+  agent?: { kind: AgentKind; id: string; tools: readonly AgentToolName[] }
 }
 export interface TokenVerifier {
   verify(token: string): Promise<Principal>
@@ -157,15 +158,15 @@ export function createPersonVerifier(options: {
   }
 }
 
-/** Which agent a connection signs in as, and what it may do; null when Heed keeps no agent for it. */
+/** Which agent a connection signs in as, and its tools on; null when Heed keeps no agent for it. */
 export type AgentCheck = (
   connection: string,
-) => Promise<{ agentId: string; permission: AgentPermission } | null>
+) => Promise<{ agentId: string; tools: readonly AgentToolName[] } | null>
 
 /**
- * Names the agent behind a person's token (FR-420) and narrows its scopes to what an admin lets it
- * do now, asked at every request so a change acts at the next one. A token that names no
- * connection passes as it is.
+ * Names the agent behind a person's token (FR-420) with the tools an admin left on for it, asked
+ * at every request so a switch acts at the next one. A token that names no connection passes as
+ * it is.
  */
 export function withAgents(tokens: TokenVerifier, check: AgentCheck): TokenVerifier {
   return {
@@ -174,11 +175,7 @@ export function withAgents(tokens: TokenVerifier, check: AgentCheck): TokenVerif
       if (!principal.connection) return principal
       const agent = await check(principal.connection)
       if (!agent) return principal
-      return {
-        ...principal,
-        scopes: scopesWith(principal.scopes, agent.permission),
-        agent: { kind: 'app', id: agent.agentId, permission: agent.permission },
-      }
+      return { ...principal, agent: { kind: 'app', id: agent.agentId, tools: agent.tools } }
     },
   }
 }

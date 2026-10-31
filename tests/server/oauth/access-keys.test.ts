@@ -11,7 +11,8 @@ import {
 const key = `hak_${'x'.repeat(43)}`
 const digest = createHash('sha256').update(key).digest('hex')
 const agentId = '00000000-0000-4000-8000-0000000000a1'
-const open = { state: 'open' as const, agentId, permission: 'read' as const }
+const keyTools = ['get_context', 'find_context', 'read_context', 'report', 'get_related'] as const
+const open = { state: 'open' as const, agentId, tools: keyTools }
 
 const reason = (verifier: TokenVerifier, token: string) =>
   verifier.verify(token).then(
@@ -33,7 +34,7 @@ describe('the MCP server and access keys', () => {
       scopes: ['read', 'feedback'],
       caller: 'agent',
       canSelectEdition: false,
-      agent: { kind: 'key', id: agentId, permission: 'read' },
+      agent: { kind: 'key', id: agentId, tools: keyTools },
     })
     expect(principal.subject).toBeUndefined()
     // Only the digest is asked about, never the key.
@@ -49,15 +50,15 @@ describe('the MCP server and access keys', () => {
     expect(await reason(verifier, `hak_${'x'.repeat(42)}!`)).toBe('malformed/access-key')
   })
 
-  it('holds no scope when an admin set its agent to no access, and still names the agent', async () => {
-    const verifier = createAccessKeyVerifier(() => Promise.resolve({ ...open, permission: 'none' }))
+  it('names the agent with the tools an admin left on, never changing the scopes', async () => {
+    const verifier = createAccessKeyVerifier(() => Promise.resolve({ ...open, tools: [] }))
     expect(await verifier.verify(key)).toMatchObject({
-      scopes: [],
-      agent: { kind: 'key', id: agentId, permission: 'none' },
+      scopes: ['read', 'feedback'],
+      agent: { kind: 'key', id: agentId, tools: [] },
     })
   })
 
-  it("names the agent of a person's connection and narrows its scopes to its permission", async () => {
+  it("names the agent of a person's connection with its tools on, asked at every request", async () => {
     const person = {
       client: 'signed-in',
       scopes: ['read', 'feedback', 'propose'],
@@ -68,31 +69,16 @@ describe('the MCP server and access keys', () => {
     }
     const tokens: TokenVerifier = { verify: () => Promise.resolve(person) }
     const asked: string[] = []
-    const permissions = { suggest: 'suggest', read: 'read', none: 'none' } as const
-    for (const [permission, scopes] of [
-      ['suggest', ['read', 'feedback', 'propose']],
-      ['read', ['read', 'feedback']],
-      ['none', []],
-    ] as const) {
-      const verifier = withAgents(tokens, (connection) => {
-        asked.push(connection)
-        return Promise.resolve({ agentId, permission: permissions[permission] })
-      })
+    const verifier = withAgents(tokens, (connection) => {
+      asked.push(connection)
+      return Promise.resolve({ agentId, tools: ['get_context', 'report'] as const })
+    })
+    for (let i = 0; i < 2; i++)
       expect(await verifier.verify('token')).toMatchObject({
-        scopes,
-        agent: { kind: 'app', id: agentId, permission },
+        scopes: ['read', 'feedback', 'propose'],
+        agent: { kind: 'app', id: agentId, tools: ['get_context', 'report'] },
       })
-    }
-    expect(asked).toEqual([person.connection, person.connection, person.connection])
-    // A permission never widens what the person allowed.
-    const narrow: TokenVerifier = {
-      verify: () => Promise.resolve({ ...person, scopes: ['read'] }),
-    }
-    expect(
-      await withAgents(narrow, () => Promise.resolve({ agentId, permission: 'suggest' })).verify(
-        'token',
-      ),
-    ).toMatchObject({ scopes: ['read'] })
+    expect(asked).toEqual([person.connection, person.connection])
     // A token that names no connection, such as a dev token, passes as it is.
     const dev = { ...person, connection: undefined }
     const unnamed = withAgents({ verify: () => Promise.resolve(dev) }, () => {

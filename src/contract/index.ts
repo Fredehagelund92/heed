@@ -213,7 +213,7 @@ import {
   adminDisconnectedSchema,
   adminDisconnectSchema,
   agentConnectionSchema,
-  agentPermissionInputSchema,
+  agentToolInputSchema,
   agentRevokedSchema,
   agentRevokeSchema,
   agentSchema,
@@ -738,7 +738,7 @@ export const contract = {
         path: '/agents',
         tags: ['session'],
         summary:
-          'The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, what an administrator lets it do, what it may do now and what it suggested lately. An administrator sees every agent; anyone else their own apps',
+          'The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, every tool with whether it is switched on for this agent and whether the agent may have it, and what it suggested lately. An administrator sees every agent; anyone else their own apps',
       })
       .output(z.array(agentSchema)),
     rename: admin
@@ -751,15 +751,15 @@ export const contract = {
       })
       .input(renameAccessKeySchema)
       .output(changed),
-    setPermission: agentDisconnect
+    setTool: agentDisconnect
       .route({
         method: 'POST',
-        path: '/agents/{id}/permission',
+        path: '/agents/{id}/tools',
         tags: ['admin'],
         summary:
-          "Set what one agent may do: read and suggest, read only, or nothing. It acts at the agent's next request and never widens what a person allowed. The history log keeps the reason",
+          "Switch one tool on or off for one agent. It acts at the agent's next request and never widens what a person allowed; an access key never gets suggest_context. The history log keeps the reason",
       })
-      .input(agentPermissionInputSchema)
+      .input(agentToolInputSchema)
       .output(changed),
     revoke: read
       .errors({

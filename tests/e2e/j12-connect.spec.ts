@@ -114,7 +114,7 @@ test('an admin makes a named access key, shown once, lists it, and revokes it', 
     .getByRole('listitem')
     .filter({ hasText: 'Weekly sales digest' })
   await expect(key).toHaveCount(1)
-  await expect(key).toContainText('Weekly sales digestNewRead only')
+  await expect(key).toContainText('Weekly sales digestNewAll 5 tools')
   await expect(key).toContainText('Access key, made by Jon Abara')
   await expect(key).toContainText(/never used/i)
   await key.getByRole('button', { name: 'Revoke' }).click()
@@ -127,21 +127,41 @@ test('an admin makes a named access key, shown once, lists it, and revokes it', 
   ).toBeVisible()
 })
 
-test('an admin sees what each agent may do and sets one to read only', async ({ page }) => {
+test('an admin switches one tool off for one agent', async ({ page }) => {
   await go(page, '/settings/agents')
   const kofi = page
     .getByRole('list', { name: 'Connected agents' })
     .getByRole('listitem')
     .filter({ hasText: 'Kofi Mensah' })
-  await expect(kofi).toContainText('Claude CodeRead and suggest')
+  await expect(kofi.first()).toContainText('Claude CodeAll 6 tools')
   await kofi.getByRole('button', { name: 'Details of Claude Code for Kofi Mensah' }).click()
-  await expect(kofi).toContainText('Suggest new context or a change, for an owner to check')
-  await expect(kofi).toContainText('It never publishes')
-  await expect(kofi).toContainText('Payment provider delays order data in Poland')
-  await kofi.getByRole('combobox', { name: 'What Claude Code may do' }).click()
-  await page.getByRole('option', { name: 'Read only' }).click()
-  await expect(page.getByText('Claude Code: read only')).toBeVisible()
-  await expect(kofi).toContainText('Claude CodeRead only')
-  await expect(kofi).not.toContainText('Suggest new context or a change')
-  await expect(kofi).toContainText('Changed by Jon Abara')
+  const tools = page.getByRole('list', { name: 'Tools Claude Code may call' })
+  for (const tool of [
+    'get_context',
+    'find_context',
+    'read_context',
+    'report',
+    'suggest_context',
+    'get_related',
+  ])
+    await expect(tools.getByRole('switch', { name: tool })).toBeChecked()
+  await expect(kofi.first()).toContainText('Payment provider delays order data in Poland')
+  await tools.getByRole('switch', { name: 'suggest_context' }).click()
+  await expect(page.getByText('suggest_context off for Claude Code')).toBeVisible()
+  await expect(tools.getByRole('switch', { name: 'suggest_context' })).not.toBeChecked()
+  await expect(kofi.first()).toContainText('Claude Code5 of 6 tools')
+  await expect(kofi.first()).toContainText('Changed by Jon Abara')
+})
+
+test("a tool the person didn't allow can't be switched on", async ({ page }) => {
+  await go(page, '/settings/agents')
+  const cursor = page
+    .getByRole('list', { name: 'Connected agents' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Cursor' })
+  await expect(cursor.first()).toContainText('CursorAll 5 tools')
+  await cursor.getByRole('button', { name: 'Details of Cursor for Jon Abara' }).click()
+  const tools = page.getByRole('list', { name: 'Tools Cursor may call' })
+  await expect(tools.getByRole('switch', { name: 'suggest_context' })).toBeDisabled()
+  await expect(tools).toContainText("Jon didn't allow this when connecting it.")
 })

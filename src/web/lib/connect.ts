@@ -3,7 +3,7 @@
 // 10 minutes it stops checking until Check again. In the demo an agent signs in 8 seconds after the
 // copy (the mock binding plays it), and its review flag ?connect= shows each state.
 
-import type { AgentKind, AgentPermission, AgentScope } from '@domain/agents'
+import type { AgentKind, AgentToolName } from '@domain/agents'
 
 export const CHECK_MS = 3_000
 export const HINT_MS = 120_000
@@ -36,9 +36,10 @@ export function phaseAt(elapsed: number, signIn?: number): Exclude<LivePhase, 'i
 
 /**
  * One row of Connected agents: an agent, by its name (FR-420). An app a person signed in with acts
- * for them (`who`); an access key an admin made names no person, and `who` is who made it. What an
- * admin lets it do is `permission`; what it may do now is `scopes`, which is what it was allowed
- * (`allowed`) narrowed by that. `used` is Never for a key no agent used yet.
+ * for them (`who`); an access key an admin made names no person, and `who` is who made it. Each of
+ * `tools` is switched on or off for this agent by an admin (`on`), and the agent may have it at all
+ * (`allowed`) only when the person allowed it at connection and, for suggest_context, it is no
+ * access key. A tool works only when both hold. `used` is Never for a key no agent used yet.
  */
 export type Connected = {
   /** The agent's own id: one per app and person, or per access key. */
@@ -51,11 +52,9 @@ export type Connected = {
   since: string
   used: string
   fresh?: boolean
-  permission: AgentPermission
-  /** Who last changed what it may do, and on what day; absent while it is as it started. */
+  tools: { tool: AgentToolName; on: boolean; allowed: boolean }[]
+  /** Who last switched a tool, and on what day; absent while every switch is as it started. */
   setBy?: { name: string; on: string }
-  allowed: AgentScope[]
-  scopes: AgentScope[]
   /** Its suggestions in the last 30 days, and the latest few. */
   sent: number
   recent: { id: string; title: string; state: string; on: string }[]
@@ -63,6 +62,17 @@ export type Connected = {
 
 /** What an access key is called when it has no name of its own. */
 export const ACCESS_KEY = 'Access key'
+
+/** The tools an agent may call now: switched on and allowed. */
+export const toolsOn = (r: Pick<Connected, 'tools'>) =>
+  r.tools.filter((t) => t.on && t.allowed).map((t) => t.tool)
+
+/** What an agent's row says of its tools: "All 6 tools", "4 of 6 tools" or "Off". */
+export function toolsLine(r: Pick<Connected, 'tools'>) {
+  const on = toolsOn(r).length
+  const all = r.tools.filter((t) => t.allowed).length
+  return on === 0 ? 'Off' : on === all ? `All ${all} tools` : `${on} of ${all} tools`
+}
 
 /** When a row was last used, as its line ends: "used today", or "never used" for a new key. */
 export const usedLine = (r: Pick<Connected, 'used'>) =>
