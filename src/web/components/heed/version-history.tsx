@@ -14,6 +14,7 @@ import {
   TypeIcon,
   UsersIcon,
   type LucideIcon,
+  SplitIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { FieldDiff, PersonAvatar } from '@/components/heed/bits'
@@ -55,6 +56,7 @@ const KIND_ICON: Record<VersionKind, LucideIcon> = {
   owners: UsersIcon,
   checked: CheckIcon,
   synced: RefreshCwIcon,
+  conflict: SplitIcon,
 }
 
 function Row({ version, onOpen }: { version: Version; onOpen: () => void }) {

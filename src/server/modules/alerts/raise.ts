@@ -1,4 +1,5 @@
-import { topicScope, topicWords } from '../../../domain/answer.ts'
+import { answer, topicScope, topicWords } from '../../../domain/answer.ts'
+import { pairKey, stillKept } from '../../../domain/conflicts.ts'
 import {
   alertRuleIds,
   dueHour,
@@ -52,6 +53,43 @@ type Topic = {
 function topicTitle(bundle: ServingBundle | null, t: Topic, fallback: string) {
   if (!bundle || !t.month) return fallback
   return `${topicWords(bundle, topicScope({ metrics: t.metrics, values: t.values, dimensions: t.dimensions, month: t.month }))}, ${monthWords(t.month)}`
+}
+
+/** The pairs kept as both whose items are still at the versions the decision saw, by pair key. */
+async function keptPairs(tx: Queryable, bundle: ServingBundle): Promise<Set<string>> {
+  const rows = await tx.query<{ holder: string; other: string; hv: number; ov: number }>(
+    `select holder_item_id as holder, other_item_id as other, holder_version as hv, other_version as ov
+       from cl_conflicts_kept()`,
+  )
+  const version = new Map(bundle.items.map((i) => [i.id, i.version]))
+  return new Set(
+    rows
+      .filter((r) =>
+        stillKept(
+          { holderVersion: r.hv, otherVersion: r.ov },
+          { holderVersion: version.get(r.holder) ?? 0, otherVersion: version.get(r.other) ?? 0 },
+        ),
+      )
+      .map((r) => pairKey(r.holder, r.other)),
+  )
+}
+
+/** Whether every pair the topic's answer gives was kept as both: then the topic raises nothing. */
+function allKept(
+  bundle: ServingBundle,
+  t: Topic,
+  kept: ReadonlySet<string>,
+  today: string,
+): boolean {
+  const scope = topicScope({
+    metrics: t.metrics,
+    values: t.values,
+    dimensions: t.dimensions,
+    month: t.month!,
+  })
+  const given = answer(bundle, { scope }, { today }).items
+  const pairs = new Set(given.flatMap((i) => i.conflictsWith.map((c) => pairKey(i.id, c))))
+  return pairs.size > 0 && [...pairs].every((p) => kept.has(p))
 }
 
 const topicFields = `t.area_id as area, cl_topic_domains(t.area_id, t.metric_keys) as areas,
@@ -120,12 +158,16 @@ const rules: Record<AlertRuleId, (c: Context) => Raise[] | Promise<Raise[]>> = {
       [clock.today(), threshold ?? 3],
     )
     const week = mondayOf(clock.today())
-    return rows.map((t) => ({
-      key: `${t.id}:${week}`,
-      areas: t.area ? [t.area] : t.areas,
-      title: `${topicTitle(bundle, t, 'A topic')}: conflict, ${timesWords(t.calls, minimum)}`,
-      subject: { topic: t.id },
-    }))
+    // A topic whose every pair an owner kept as both, unchanged since, is settled for now (FR-220).
+    const kept = bundle ? await keptPairs(tx, bundle) : new Set<string>()
+    return rows
+      .filter((t) => !(bundle && t.month && allKept(bundle, t, kept, clock.today())))
+      .map((t) => ({
+        key: `${t.id}:${week}`,
+        areas: t.area ? [t.area] : t.areas,
+        title: `${topicTitle(bundle, t, 'A topic')}: conflict, ${timesWords(t.calls, minimum)}`,
+        subject: { topic: t.id },
+      }))
   },
 
   /** More questions not found: more than a share of a full day's questions, two days running. */

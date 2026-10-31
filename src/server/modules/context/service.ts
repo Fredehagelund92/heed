@@ -23,6 +23,7 @@ import {
 import type { Draft } from '../../../domain/draft.ts'
 import type { ItemVersion } from '../../../domain/item-version.ts'
 import { termDomain } from '../../../domain/catalogue.ts'
+import { conflictPairs } from '../../../domain/conflicts.ts'
 import { related } from '../../../domain/links.ts'
 import type { ClashRelation } from '../../../domain/readiness.ts'
 import { kinds, type Kind } from '../../../domain/words.ts'
@@ -438,7 +439,8 @@ export function createContextService(
     after: ItemVersion,
     recheck: boolean,
     names: (id: string) => string,
-  ): Pick<ItemVersionEntry, 'kind' | 'field' | 'before' | 'after'> {
+    readable: Set<string>,
+  ): Pick<ItemVersionEntry, 'kind' | 'field' | 'before' | 'after'> | null {
     const none = { field: '', before: '', after: '' }
     if (!before) return { kind: 'published', ...none }
     if (recheck) return { kind: 'checked', ...none }
@@ -467,6 +469,21 @@ export function createContextService(
     const source = (v: ItemVersion) => v.evidence.map((e) => e.url).join('\n')
     if (source(before) !== source(after))
       return { kind: 'link', field: 'Source', before: source(before), after: source(after) }
+    // A version that only set or removed the Conflict flag says so, not a wording change.
+    const flags = (v: ItemVersion) =>
+      v.conflicts
+        .filter((c) => readable.has(c))
+        .sort()
+        .join('\n')
+    if ([...before.conflicts].sort().join('\n') !== [...after.conflicts].sort().join('\n')) {
+      if (flags(before) === flags(after)) return null
+      return {
+        kind: 'conflict',
+        field: 'Disagrees with',
+        before: flags(before),
+        after: flags(after),
+      }
+    }
     return {
       kind: 'wording',
       field: "Don't conclude",
@@ -508,12 +525,25 @@ export function createContextService(
       ).map((v) => [v.id, v]),
     )
     const names = await domainNames()
+    const flagged = [...new Set([...contents.values()].flatMap((v) => v.version.conflicts))]
+    const readable = new Set(
+      flagged.length
+        ? (
+            await tx.query<{ id: string }>(
+              'select i.id from v_item_list i where i.id = any($1::text[]) and cl_audience_allows(i.audience_groups)',
+              [flagged],
+            )
+          ).map((r) => r.id)
+        : [],
+    )
     const dated: (ItemVersionEntry & { at: string })[] = []
     let previous: ItemVersion | null = null
     for (const s of served) {
       const stored = contents.get(s.id)
       if (!stored) continue
-      const entry = entryOf(previous, stored.version, s.recheck, names)
+      const entry = entryOf(previous, stored.version, s.recheck, names, readable)
+      previous = stored.version
+      if (!entry) continue
       dated.push({
         version: stored.versionNo,
         personId: s.by,
@@ -523,10 +553,9 @@ export function createContextService(
         restorable: ['published', 'wording', 'link', 'dates'].includes(entry.kind),
         ...(s.agent ? { agent: s.agent } : {}),
       })
-      previous = stored.version
     }
     const others = await tx.query<{
-      kind: 'archived' | 'owners'
+      kind: 'archived' | 'owners' | 'conflict'
       by: string
       on: string
       at: string
@@ -545,7 +574,16 @@ export function createContextService(
                    else 'Changed the owners of ' || jsonb_array_length(c.items) || ' items.' end
          from item_changes c
         where c.action = 'owners' and c.undone_at is null
-          and c.items @> jsonb_build_array(jsonb_build_object('id', $1::text))`,
+          and c.items @> jsonb_build_array(jsonb_build_object('id', $1::text))
+       union all
+       -- A conflict settled with a reason is on both items' history (FR-220).
+       select 'conflict', k.decided_by::text, ${day('k.decided_at')}, k.decided_at::text,
+              case k.outcome when 'kept_one' then 'Settled a conflict: kept one, archived the other. '
+                             when 'kept_both' then 'Kept both items of a conflict. '
+                             else 'Not a conflict: the flag was removed. ' end
+              || 'Reason: ' || k.reason || coalesce(' “' || k.quote || '”', '')
+         from conflict_decisions k
+        where k.undone_at is null and $1 in (k.holder_item_id, k.other_item_id)`,
       [itemId],
     )
     for (const o of others)
@@ -565,6 +603,21 @@ export function createContextService(
       .map(({ at: _at, ...entry }) => entry)
   }
 
+  /** The live items this one is in a conflict with, either way round, that the person may read. */
+  async function conflictsOf(id: string): Promise<string[]> {
+    const bundle = await liveServingBundle(tx, cache)
+    const served = bundle.items.filter((i) => i.status === 'accepted')
+    const others = conflictPairs(served).flatMap((p) =>
+      p.holderId === id ? [p.otherId] : p.otherId === id ? [p.holderId] : [],
+    )
+    if (!others.length) return []
+    const open = await tx.query<{ id: string }>(
+      'select i.id from v_item_list i where i.id = any($1::text[]) and cl_audience_allows(i.audience_groups) order by i.id',
+      [others],
+    )
+    return open.map((r) => r.id)
+  }
+
   async function page(id: string): Promise<ItemPage | null> {
     const row = await library.getIndexRow(id)
     const item = row ? await library.getItem(id) : null
@@ -578,6 +631,7 @@ export function createContextService(
       owners: row.owners,
       history: await historyOf(id),
       canChange: mine.admin || mine.owns.includes(row.areaId),
+      conflicts: await conflictsOf(id),
     }
   }
 

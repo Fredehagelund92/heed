@@ -632,6 +632,56 @@
       }
     }
   },
+  "conflicts": {
+    "list": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/conflicts",
+          "tags": [
+            "conflicts"
+          ],
+          "summary": "The pairs of live context items an owner said disagree, most asked first; a pair kept as both is left out until either item changes (FR-220)"
+        }
+      }
+    },
+    "read": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "GET",
+          "path": "/conflicts/{holderId}/{otherId}",
+          "tags": [
+            "conflicts"
+          ],
+          "summary": "One pair side by side: what each says and where it comes from, what agents would say with each alone, and who may settle it how (FR-220)"
+        }
+      }
+    },
+    "settle": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "propose"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/conflicts/settle",
+          "tags": [
+            "conflicts"
+          ],
+          "summary": "Settle a pair with a reason and an optional quote: keep one (the other is archived), keep both, or not a conflict; a newer version of either holds it (FR-220)"
+        }
+      }
+    }
+  },
   "items": {
     "page": {
       "~orpc": {

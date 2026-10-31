@@ -8,6 +8,14 @@ import { eventIterator, oc } from '@orpc/contract'
 import * as z from 'zod/mini'
 import { areaSchema, personSchema, vocabularySchema } from '../domain/item.ts'
 import {
+  conflictListInputSchema,
+  conflictListSchema,
+  conflictReadInputSchema,
+  conflictViewSchema,
+  settleConflictInputSchema,
+  settledConflictSchema,
+} from './conflicts.ts'
+import {
   definitionRelatedInputSchema,
   deletedDraftSchema,
   draftFromTextInputSchema,
@@ -284,6 +292,15 @@ export type {
 } from './sources.ts'
 export { SEARCH_GROUP_MAX } from './search.ts'
 export type { SearchAllInput, SearchResults } from './search.ts'
+export type {
+  ConflictDecision,
+  ConflictList,
+  ConflictRow,
+  ConflictSide,
+  ConflictView,
+  SettleConflictInput,
+  SettledConflict,
+} from './conflicts.ts'
 export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
 export type {
   Comment as ThreadComment,
@@ -800,6 +817,38 @@ export const contract = {
       .route({ method: 'POST', path: '/assignments/revoke', tags: ['roles'] })
       .input(assignmentInputSchema)
       .output(changed),
+  },
+  conflicts: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/conflicts',
+        tags: ['conflicts'],
+        summary:
+          'The pairs of live context items an owner said disagree, most asked first; a pair kept as both is left out until either item changes (FR-220)',
+      })
+      .input(conflictListInputSchema)
+      .output(conflictListSchema),
+    read: read
+      .route({
+        method: 'GET',
+        path: '/conflicts/{holderId}/{otherId}',
+        tags: ['conflicts'],
+        summary:
+          'One pair side by side: what each says and where it comes from, what agents would say with each alone, and who may settle it how (FR-220)',
+      })
+      .input(conflictReadInputSchema)
+      .output(conflictViewSchema),
+    settle: review
+      .route({
+        method: 'POST',
+        path: '/conflicts/settle',
+        tags: ['conflicts'],
+        summary:
+          'Settle a pair with a reason and an optional quote: keep one (the other is archived), keep both, or not a conflict; a newer version of either holds it (FR-220)',
+      })
+      .input(settleConflictInputSchema)
+      .output(settledConflictSchema),
   },
   items: {
     page: read

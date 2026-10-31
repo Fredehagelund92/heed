@@ -500,6 +500,15 @@ items rely on a source's definitions; each runs as the owner. Administrators rea
 an owner those about their domains. The serving and analytics roles have no grant on these
 tables.
 
+Conflicts (migration 0035). `conflict_decisions` keeps each decision on a conflict between two
+items (FR-220): who settled it and when, the outcome (one kept and the other archived, both kept,
+or not a conflict), the reason and an optional quoted line, the versions both items had, and the
+retire and accept decisions it made, so Undo, by the person who decided, takes back exactly those.
+What it changes goes through the retire and publish paths; the row only records it. Anyone signed in
+who may read both items reads a decision; a person writes only their own. `cl_conflicts_kept()`,
+which runs as the owner, gives the alert job the pairs kept as both with the versions the decision
+saw, ids and numbers only. The serving and analytics roles have no grant on the table.
+
 Figures in Ask (migration 0025). A definitions source keeps its figures settings in
 `connectors.capabilities.figures`: whether Ask shows figures from it (off by default), the data
 endpoint an administrator set and the name of the endpoint's token in the secret store, never the

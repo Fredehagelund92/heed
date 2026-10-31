@@ -342,6 +342,7 @@ const page = (patch: Partial<ItemPage['item']> = {}, extra: Partial<ItemPage> = 
   trust: 'current',
   chips: ['Orders', 'Norway'],
   owners: [],
+  conflicts: [],
   history: [
     entry({ version: 2, kind: 'wording', field: 'Text', before: 'Old.', after: 'New.' }),
     entry({ version: 1 }),
