@@ -1,3 +1,5 @@
 * text=auto eol=lf
 src/web/routeTree.gen.ts linguist-generated=true
 package-lock.json linguist-generated=true
+src/web/api/contract.json linguist-generated=true
+src/web/lib/cn-tables.gen.ts linguist-generated=true
