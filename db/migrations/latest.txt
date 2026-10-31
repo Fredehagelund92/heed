@@ -1,1 +1,1 @@
-0033_main_thing.sql
+0033_my_table.sql
