@@ -2,6 +2,7 @@ import * as React from 'react'
 import {
   ArchiveIcon,
   ArrowLeftIcon,
+  ArrowLeftRightIcon,
   AtSignIcon,
   BanIcon,
   MessageSquareTextIcon,
@@ -64,6 +65,8 @@ import { open } from '@/lib/events'
 import { navigate, setQuery, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
 import {
+  conflictQuery,
+  conflictsQuery,
   inboxPageQuery,
   readQuestionQuery,
   useInbox,
@@ -74,6 +77,7 @@ import {
   useWrite,
 } from '@/api/queries'
 import { setupSteps } from '@/lib/setup'
+import { ConflictPairCompact } from '@/components/heed/conflict-pair'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { homeDomain, listOf, type Domain, type Person } from '@/model/people'
 import type { Outcome } from '@/model/inbox'
@@ -656,6 +660,7 @@ function CardDetail({
               </div>
             )}
             {card.look && <LookList ids={card.look.questions} />}
+            {card.alert?.rule === 'disagree' && <AlertPair title={card.title} />}
             {card.gap && (
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground">
@@ -1358,6 +1363,28 @@ export function InboxPage() {
             </Loadable>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A Conflict alert's pair (FR-220): the two items its topic gets, compact, and the way to the
+ * comparison. The alert names its topic; the pair is the one whose topic its title starts with.
+ */
+function AlertPair({ title }: { title: string }) {
+  const rows = useQuery(conflictsQuery('all')).data ?? []
+  const row = rows.find((r) => r.topic && title.toLowerCase().startsWith(r.topic.toLowerCase()))
+  const pair = useQuery({ ...conflictQuery(row?.key ?? ''), enabled: !!row }).data
+  if (!row || !pair) return null
+  return (
+    <div className="flex flex-col gap-3">
+      <ConflictPairCompact pair={pair} />
+      <div>
+        <Button size="sm" onClick={() => openDock('conflict', pair.key)}>
+          <ArrowLeftRightIcon data-icon="inline-start" />
+          {row.canSettle ? 'Compare and decide' : 'Compare the two'}
+        </Button>
       </div>
     </div>
   )

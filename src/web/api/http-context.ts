@@ -306,6 +306,8 @@ export function factOfPage(page: ServiceItemPage, names: Names, words: Words): F
     quote: evidence?.quote ?? '',
     dontConclude: item.notToConclude,
     ...(owners ? { owners } : {}),
+    // The item it is in a conflict with, either way round (FR-220): its page and peek say so.
+    ...(page.conflicts[0] ? { disagreesWith: page.conflicts[0] } : {}),
   }
 }
 

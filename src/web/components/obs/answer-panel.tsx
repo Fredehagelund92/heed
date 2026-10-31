@@ -15,7 +15,9 @@ import {
   ScanSearchIcon,
 } from '@/components/icons'
 import { cn } from '@/lib/utils'
-import { buttonVariants } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { useQuery } from '@tanstack/react-query'
+import { conflictsQuery } from '@/api/queries'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { StateLine } from '@/components/heed/bits'
 import { countedState } from '@/model/ask'
@@ -380,6 +382,11 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
 
 function WarningsTab({ t, counts }: { t: Topic; counts: Counts }) {
   const obs = useObservability()
+  // The pair agents got for this topic, named, with the way to the comparison (FR-220).
+  const name = obs.topicName(t).toLowerCase()
+  const pair = (useQuery(conflictsQuery('all')).data ?? []).find(
+    (r) => r.topic && name.startsWith(r.topic.toLowerCase()),
+  )
   const kinds = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
     (s) => t.in.answers.includes(s) || (s === 'missing' && t.in.notFound),
   )
@@ -409,6 +416,23 @@ function WarningsTab({ t, counts }: { t: Topic; counts: Counts }) {
               <span className="text-muted-foreground">{times(counts[s])}</span>
             </div>
             <p className="text-dense text-muted-foreground">{why[s]}</p>
+            {s === 'conflict' && pair && (
+              <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-dense">
+                <span className="flex-1">
+                  “{pair.holder.title ?? 'An item you cannot read'}” and “
+                  {pair.other.title ?? 'An item you cannot read'}”.
+                </span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  className="shrink-0"
+                  onClick={() => openDock('conflict', pair.key)}
+                >
+                  <ArrowUpRightIcon />
+                  Compare the two
+                </Button>
+              </p>
+            )}
             {s === 'missing' && t.gap && (
               <p className="mt-2 flex items-center gap-2 rounded-md bg-muted/60 px-2.5 py-2 text-dense">
                 <LightbulbIcon className="size-3.5 shrink-0" aria-hidden />

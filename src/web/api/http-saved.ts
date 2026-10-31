@@ -32,6 +32,9 @@ export function savedQuestionOf(q: SavedQuestionRecord, now: Date): SavedQuestio
     ...(result === 'same'
       ? {}
       : { diff: { saved: answerText(q.saved), now: answerText(q.result.now) } }),
+    ...(result !== 'same' && q.result.now.state === 'conflict'
+      ? { conflict: q.result.now.items.map((i) => i.id) }
+      : {}),
   }
 }
 

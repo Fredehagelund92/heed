@@ -1,5 +1,6 @@
 import * as React from 'react'
 import {
+  ArrowLeftRightIcon,
   ArrowRightLeftIcon,
   ArrowUpRightIcon,
   BookmarkIcon,
@@ -45,7 +46,8 @@ import { ResultIcon } from '@/components/obs/result'
 import { ReadingLine } from '@/components/heed/reading'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { SavedCheck } from '@/api'
-import { queryKeys, savedCheckQuery, useWrite } from '@/api/queries'
+import { conflictsQuery, queryKeys, savedCheckQuery, useWrite } from '@/api/queries'
+import { openDock } from '@/lib/dock'
 import { savedCounts, type SavedQuestion, type SavedResult } from '@/model/saved-questions'
 import { useSavedQuestions } from '@/api/queries'
 import type { DomainId } from '@/model/items'
@@ -408,8 +410,15 @@ function QuestionRow({ q, canChange }: { q: SavedQuestion; canChange: boolean })
               </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
+              {q.conflict ? <CompareNow key="compare" ids={q.conflict} /> : null}
               {q.result === 'look' ? [open, keep] : [keep, open]}
             </div>
+            {q.conflict && (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Keep the new answer saves the conflict as the answer to expect. It does not settle
+                it.
+              </p>
+            )}
           </>
         )}
       </div>
@@ -500,5 +509,18 @@ function AddQuestion({ domains: choices, me }: { domains: DomainId[]; me: string
         </form>
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** A saved question that now gets a Conflict leads to the comparison of the two items (FR-220). */
+function CompareNow({ ids }: { ids: string[] }) {
+  const rows = useQuery(conflictsQuery('all')).data ?? []
+  const row = rows.find((r) => ids.includes(r.holder.id) && ids.includes(r.other.id))
+  if (!row) return null
+  return (
+    <Button size="sm" onClick={() => openDock('conflict', row.key)}>
+      <ArrowLeftRightIcon data-icon="inline-start" />
+      {row.canSettle ? 'Compare and decide' : 'Compare the two'}
+    </Button>
   )
 }

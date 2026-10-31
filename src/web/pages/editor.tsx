@@ -98,7 +98,14 @@ import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Vocabulary } from '@/api'
 import type { Relation } from '@/api/client'
-import { draftFromTextQuery, itemPageQuery, useInbox, useVocabulary, useWrite } from '@/api/queries'
+import {
+  conflictQuery,
+  draftFromTextQuery,
+  itemPageQuery,
+  useInbox,
+  useVocabulary,
+  useWrite,
+} from '@/api/queries'
 import { useDomainList, useDomains, useFact, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { useWide } from '@/hooks/use-wide'
 import { Kbd } from '@/components/ui/kbd'
@@ -522,6 +529,27 @@ function Editor({
       })
       navigate('/inbox')
       return
+    }
+    // Edited from a conflict: the narrowed item and the other no longer say different things about
+    // the same thing, so the Conflict flag comes off, as a decision with its reason (FR-220).
+    if (original && beside) {
+      const pair = await queryClient
+        .fetchQuery(conflictQuery(`${original.id}.${beside.id}`))
+        .catch(() => null)
+      if (pair?.rights.notConflict) {
+        await write('settleConflict', {
+          holderId: pair.holder.id,
+          otherId: pair.other.id,
+          outcome: 'not_conflict',
+          reason: 'Narrowed in the editor to where it applies.',
+          versions: { holder: pair.holder.version, other: pair.other.version },
+        })
+        toast('Saved, and not a conflict any more', {
+          description: `Agents get it from the next question, and “${beside.title}” beside it with no flag.`,
+        })
+        navigate(`/context/${id}`)
+        return
+      }
     }
     toast(original ? 'Saved' : 'Published', {
       description: 'Agents get it from the next question.',

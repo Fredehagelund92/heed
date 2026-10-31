@@ -190,12 +190,12 @@ export const cards: InboxCard[] = [
     look: { questions: ['sq-support-norway', 'sq-gross-margin'] },
   },
   {
-    id: 'alert-net-revenue',
+    id: 'alert-orders-norway',
     type: 'alert',
     domain: 'sales',
     for: 'Jon Abara',
     when: 'Tue 20 Oct',
-    title: 'Net revenue in Norway: conflict, 3 times',
+    title: 'Orders in Norway: conflict, 3 times',
     line: alertCardWords.disagree.line,
     detail: alertCardWords.disagree.detail,
     primary: alertCardWords.disagree.open,
@@ -203,7 +203,7 @@ export const cards: InboxCard[] = [
     alert: {
       rule: 'disagree',
       name: 'Conflict',
-      href: '/observability/questions?dock=topic.net-revenue-norway',
+      href: '/observability/questions?dock=topic.orders-norway',
     },
   },
   {

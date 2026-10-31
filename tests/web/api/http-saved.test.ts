@@ -67,6 +67,28 @@ describe('a saved question from the service', () => {
   })
 })
 
+describe('a saved question that now gets a Conflict', () => {
+  it('names the two items, so its card leads to the comparison', () => {
+    const q = savedQuestionOf(
+      record({
+        result: 'look',
+        reason: 'worse',
+        now: {
+          state: 'conflict',
+          say: 'Two items say different things.',
+          items: [
+            item('itm_a', 'Store credit counts.'),
+            item('itm_b', 'Store credit is left out.'),
+          ],
+        },
+      }),
+      now,
+    )
+    expect(q.conflict).toEqual(['itm_a', 'itm_b'])
+    expect(savedQuestionOf(record(), now).conflict).toBeUndefined()
+  })
+})
+
 describe('where the check stands', () => {
   const weeks = Array.from({ length: 8 }, (_, n) => ({
     week: [
