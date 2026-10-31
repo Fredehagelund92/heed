@@ -402,6 +402,11 @@ describe('settling a conflict', () => {
     )
   })
 
+  it('answers a malformed conflict undo token with not found', async () => {
+    const res = await call('POST', '/decisions/undo', 'owner', { token: 'conflict:not-a-uuid' })
+    expect(res.statusCode).toBe(404)
+  })
+
   it('holds a decision when either item changed since it was read', async () => {
     const { first, second } = await pair()
     const stale = await settle('owner', {

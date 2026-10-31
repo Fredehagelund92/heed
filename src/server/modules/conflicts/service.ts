@@ -559,6 +559,8 @@ export function createConflictsService(
 
   /** Takes back a decision, by the person who made it, within the undo window. */
   async function undo(input: { id: string }): Promise<{ edition: string | null }> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input.id))
+      throw new ORPCError('NOT_FOUND')
     const [row] = await tx.query<{
       decisions: string[]
       mine: boolean
