@@ -12,6 +12,7 @@ import { buildApp } from '../../src/server/app.ts'
 import { createDatabase } from '../../src/server/db/database.ts'
 import { createJobRunner } from '../../src/server/modules/jobs/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
+import { heedVersion } from '../../src/server/version.ts'
 
 const { client, url: databaseUrl } = testDatabase()
 
@@ -30,7 +31,12 @@ describe('PostgreSQL', () => {
     try {
       const response = await app.inject({ method: 'GET', url: '/health/ready' })
       expect(response.statusCode).toBe(200)
-      expect(response.json()).toEqual({ status: 'ok', service: 'heed', checks: { database: 'ok' } })
+      expect(response.json()).toEqual({
+        status: 'ok',
+        service: 'heed',
+        version: heedVersion,
+        checks: { database: 'ok' },
+      })
     } finally {
       await app.close()
     }

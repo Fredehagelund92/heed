@@ -16,3 +16,5 @@ docs/requirements.md
 .claude
 # The clickable mockup is its own package with its own formatting (apps/mockup/README.md).
 apps/mockup
+# Written by release-please in the release pull request (docs/releasing.md)
+CHANGELOG.md

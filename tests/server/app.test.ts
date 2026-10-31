@@ -4,6 +4,7 @@ import { buildApp } from '../../src/server/app.ts'
 import { createDatabase, type Database } from '../../src/server/db/database.ts'
 import type { JobRunner } from '../../src/server/modules/jobs/index.ts'
 import { createLogger } from '../../src/server/observability/logger.ts'
+import { heedVersion } from '../../src/server/version.ts'
 
 function captureLogs() {
   const lines: string[] = []
@@ -66,14 +67,19 @@ describe('health', () => {
     const { instance } = app(reachable)
     const response = await instance.inject({ method: 'GET', url: '/health' })
     expect(response.statusCode).toBe(200)
-    expect(response.json()).toEqual({ status: 'ok', service: 'heed' })
+    expect(response.json()).toEqual({ status: 'ok', service: 'heed', version: heedVersion })
   })
 
   it('is ready when the database answers', async () => {
     const { instance } = app(reachable)
     const response = await instance.inject({ method: 'GET', url: '/health/ready' })
     expect(response.statusCode).toBe(200)
-    expect(response.json()).toEqual({ status: 'ok', service: 'heed', checks: { database: 'ok' } })
+    expect(response.json()).toEqual({
+      status: 'ok',
+      service: 'heed',
+      version: heedVersion,
+      checks: { database: 'ok' },
+    })
   })
 
   it('is unavailable when the database cannot be reached', async () => {
@@ -86,6 +92,7 @@ describe('health', () => {
     expect(response.json()).toEqual({
       status: 'unavailable',
       service: 'heed',
+      version: heedVersion,
       checks: { database: 'unavailable' },
     })
     expect(lines.some((line) => line.includes('readiness check: database unreachable'))).toBe(true)

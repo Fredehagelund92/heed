@@ -25,7 +25,7 @@ the demo, and the variants the tests use, by hand (db/README.md).
 
 Check it: `curl localhost:3000/health` answers while the process runs, and
 `curl localhost:3000/health/ready` also asks the database and answers 503 when it cannot reach
-it. Logs are JSON lines on stdout. Every line about a request carries its id (`reqId`), and the
+it. Both name the version that runs (`"version": "0.1.0"`), the one in `package.json`. Logs are JSON lines on stdout. Every line about a request carries its id (`reqId`), and the
 response returns the same id as `X-Request-Id`, so a person can quote it; the service makes its
 own ids and ignores one a client sends. Logs never hold a header, a body, a query string, a
 credential or a person.

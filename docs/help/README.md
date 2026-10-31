@@ -78,7 +78,7 @@ Help in the app (`/help`) shows the same answer lines and words, from the same l
 
 ## What's new
 
-`changelog.md` lists the changes people notice, newest first. Each change is a `##` heading in plain words, then its day on a line of its own (`2026-10-23`), then a sentence or two on what changed. It is not the release changelog, which is made from the commits.
+`changelog.md` lists the changes people notice, newest first. Each change is a `##` heading in plain words, then its day on a line of its own (`2026-10-23`), then a sentence or two on what changed. It is not the release changelog, `CHANGELOG.md`, which release-please makes from the commits ([Releasing Heed](../releasing.md)).
 
 ## Writing rules
 

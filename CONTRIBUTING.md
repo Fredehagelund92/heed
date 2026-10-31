@@ -144,7 +144,8 @@ for the same build, so go by the margin CI prints.
 - Reviewers look at the same things the template asks: is the problem real, is the change small
   and tested, do the words follow the glossary, do the screens match the mockup.
 - Push fixes as new commits while a review is open. The history on `main` is one commit per pull
-  request, titled like `feat(web): ...`, `fix(server): ...` or `docs: ...`.
+  request, titled like `feat(web): ...`, `fix(server): ...` or `docs: ...`. The title is also the
+  line in `CHANGELOG.md` and the release notes ([Releasing Heed](docs/releasing.md)).
 - Rebase on `main` when it moves, and regenerate generated files rather than merging them by hand.
 
 ## Using a coding agent

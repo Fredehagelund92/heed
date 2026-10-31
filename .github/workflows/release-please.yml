@@ -1,0 +1,35 @@
+name: Release pull request
+
+# Keeps one pull request open that would release what main holds (docs/releasing.md). release-please
+# reads the conventional commit titles since the last release and, in that pull request, writes
+# CHANGELOG.md and raises the version in package.json, package-lock.json,
+# .release-please-manifest.json, docs/api/openapi.json and SECURITY.md (release-please-config.json).
+# Merging it releases nothing yet: pushing the tag does (release.yml).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One run at a time, so two quick merges never write the release branch at once.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-pr:
+    name: Open or update the release pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the release branch
+      pull-requests: write # the release pull request
+      issues: write # its labels ("autorelease: pending")
+    steps:
+      # The tag and the GitHub Release are release.yml's, so this only opens the pull request.
+      # CI runs on it as on any pull request, once a maintainer approves the run (docs/releasing.md).
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          skip-github-release: true

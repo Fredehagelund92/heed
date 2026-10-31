@@ -1,7 +1,7 @@
 {
   "info": {
     "title": "Heed API",
-    "version": "1.0.0",
+    "version": "0.0.0",
     "description": "Accepted business context, proposals, gaps and domain dashboards, dev sessions and role administration. Only dev sign-in and its people list are public."
   },
   "servers": [
