@@ -1,5 +1,6 @@
-// Adds a migration, or renumbers this branch's migrations after a rebase (db/README.md, "Adding a
-// migration"). Numbers run from 0001 without a gap, so two branches that each add one take the
+// Adds a migration, or renumbers this branch's migrations after a rebase (see db/README.md and
+// docs/development.md, "Generated files and rebasing"). Numbers run from 0001 without a gap, so
+// two branches that each add one take the
 // same number; db/migrations/latest.txt names the last one, so the second branch to merge gets a
 // merge conflict instead of a main that refuses to migrate.
 //
