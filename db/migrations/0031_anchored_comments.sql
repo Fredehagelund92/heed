@@ -1,4 +1,4 @@
--- 0032_anchored_comments: comments on a line of a suggestion's text or on one of its fields, and
+-- 0031_anchored_comments: comments on a line of a suggestion's text or on one of its fields, and
 -- a thread's resolved state (docs/product.md, section 4; design contract, section 5.3).
 --
 -- - A comment of its own on a suggestion may hang on one place of the review's source: a line of

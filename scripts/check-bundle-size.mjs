@@ -12,9 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist', 'web')
 // with it. Set on 30 Oct 2026 once the pages other than the Inbox and Ask became lazy routes
 // (routes/**/*.lazy.tsx, https://github.com/Fredehagelund92/heed/issues/63): 428.6 KB of script
 // measured locally, which CI's gzip counts about 2 KB higher, and 31.7 KB of CSS. The CSS is one
-// stylesheet for the whole app. Raised to 432 KB on 31 Oct 2026: anchored comments and the Mark
-// component (#86, #87) put CI's measure at 431.0 KB.
-const budgetKb = { js: 432, css: 32 }
+// stylesheet for the whole app.
+const budgetKb = { js: 431, css: 32 }
 
 const html = readFileSync(join(root, 'index.html'), 'utf8')
 const assets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(js|css))"/g)].map((match) => ({
