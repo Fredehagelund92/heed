@@ -11,7 +11,6 @@ In this order, and only as far as the task needs:
 3. [Develop Heed](development.md): the folder map and every command.
 4. For a screen: [Product](product.md), the [design contract](design/design-contract.md), [copy](design/copy.md) and [components](design/components.md). The [mockup](../apps/mockup/README.md) is the living design reference; the web app is changed to match it, never the other way round.
 5. For the service: [db/README.md](../db/README.md), [Run and operate the service](operations.md) and [the API reference](reference.md).
-6. [The roadmap](roadmap.md), so you do not build something that is not planned.
 
 ## The loop
 

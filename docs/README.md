@@ -50,7 +50,6 @@ Older design pages that still apply:
 | [The rename checklist](rename-checklist.md)                | Everything that follows the product name                    |
 | [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents   |
 | [Working with coding agents](agents.md)                    | Where an agent reads first, and what it may and may not do  |
-| [Roadmap](roadmap.md)                                      | Where Heed is going, and what is not planned                |
 
 ## The order of authority
 

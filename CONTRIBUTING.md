@@ -160,8 +160,7 @@ Issues carry labels that say how ready they are:
 - **bug** and **enhancement**: what the issue templates add. An enhancement without a label above
   is still being shaped; discuss before you build.
 
-[The roadmap](docs/roadmap.md) says where the product is going and what is not planned. If your
-idea is not on it, open an issue and make the case.
+If your idea has no issue yet, open one and make the case.
 
 ## Writing code here
 

@@ -172,7 +172,7 @@ The help pages are also the app's own Docs, at `/docs`, and a static site (`npm 
 [Requirements](docs/requirements.md) says what Heed must do, and [Writing a connector](docs/connectors/authoring.md)
 how to read another source.
 
-The [documentation index](docs/README.md) lists every page, and the [roadmap](docs/roadmap.md) says where Heed is going. The [product page](docs/product.md) and the
+The [documentation index](docs/README.md) lists every page. The [product page](docs/product.md) and the
 [design contract](docs/design/design-contract.md) say what the Heed v1 web app is and how it looks.
 
 [The clickable mockup](apps/mockup/README.md) is the acceptance specification the app is changed to match.
