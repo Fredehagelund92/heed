@@ -97,7 +97,7 @@ The words follow [Copy](../design/copy.md), the same rules as the screens:
 `tests/web/docs.test.ts` runs with the unit tests and fails when:
 
 - a page cannot be read: front matter missing a field or with a value outside the lists above, a `#` heading, no lead, a note without its title, a code block without its title, a picture or HTML
-- a page or What's new is missing, or a page is not one of the mockup's eleven
+- a page or What's new is missing, or a page is not one of the mockup's twelve
 - a link points at a page, a heading or a screen that does not exist
 - an include's Markdown is not the app's list as it is now (`npm run docs:sync` mends it)
 - a bold phrase has no row in `tests/e2e/docs-controls.ts` (the page, the screen and how it is drawn); `docs-controls.spec.ts` then opens each screen and fails when the control is not there
