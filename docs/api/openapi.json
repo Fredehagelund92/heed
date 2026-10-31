@@ -37938,6 +37938,24 @@
                                 "problem",
                                 "attached"
                               ]
+                            },
+                            "clashes": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "itemId": {
+                                    "type": "string"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "itemId",
+                                  "title"
+                                ]
+                              }
                             }
                           }
                         }
