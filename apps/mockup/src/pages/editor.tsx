@@ -243,6 +243,8 @@ export function FactEditor({ mode, factId }: { mode: "new" | "edit" | "suggest";
   const me = useMe()
   const { dispatch } = useStore()
   const { query } = useRoute()
+  // Opened from a conflict: the other item stays in view while this one is narrowed.
+  const beside = facts.find((f) => f.id === query.get("beside") && f.id !== factId)
   // What the page opened with, so an edit or a suggestion that changes nothing can't be sent.
   const [initial] = React.useState<Form>(() => initialForm(mode, original, query, me.owns[0] ?? "sales"))
   const [form, setForm] = React.useState<Form>(initial)
@@ -336,6 +338,11 @@ export function FactEditor({ mode, factId }: { mode: "new" | "edit" | "suggest";
       return
     }
     const id = original?.id ?? `itm_new_${Date.now().toString(36)}`
+    // Edited from a conflict: publishing the narrowed item removes the link, from whichever side holds it.
+    if (original && beside) {
+      if (original.disagreesWith === beside.id) dispatch({ type: "editFact", id, patch: { disagreesWith: undefined } })
+      if (beside.disagreesWith === original.id) dispatch({ type: "editFact", id: beside.id, patch: { disagreesWith: undefined } })
+    }
     if (original) dispatch({ type: "editFact", id, patch: draft })
     else dispatch({ type: "addFact", fact: { ...draft, id } })
     dispatch({ type: "published", id })
@@ -606,6 +613,15 @@ export function FactEditor({ mode, factId }: { mode: "new" | "edit" | "suggest";
       }
     >
       <Paper>
+        {beside && original && (
+          <aside aria-label="The item it disagrees with" className="mb-5 flex flex-col gap-1.5 rounded-frame border border-l-4 border-l-[var(--warn)] px-3 py-2.5 text-sm">
+            <p className="text-xs text-muted-foreground">Disagrees with “{beside.title}”, {domains[beside.domain].name}, checked {beside.checkedOn}</p>
+            <p>{beside.summary}</p>
+            <p className="text-xs text-muted-foreground">
+              Narrow this one to where it applies. {mode === "suggest" ? "The owner publishes it" : "Publishing it"} removes the Conflict flag between the two.
+            </p>
+          </aside>
+        )}
         {mode === "suggest" && original && (
           <p className="mb-5 rounded-frame bg-muted px-3 py-2 text-sm text-muted-foreground">
             You're suggesting a change. {ownerName}, owner of {domains[original.domain].name}, decides; agents keep getting the context item as it is until then.

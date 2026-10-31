@@ -37,7 +37,7 @@ npm run preview    # serve the build
 npm run typecheck
 npm run lint       # oxlint, warnings fail it
 npm test           # unit tests: what agents get, answers, the store, the contract, copy rules
-npm run e2e        # one Playwright spec per job (J1 to J30) on the installed Chrome
+npm run e2e        # one Playwright spec per job (J1 to J30, and J36) on the installed Chrome
 ```
 
 Routes live after `#`, so the static build needs no server rewrites. Add `theme=dark` or
@@ -380,6 +380,62 @@ next, an expand icon to the page, and close; the one action is the only footer b
 | From a Drive document, archived | `#/context?dock=context.itm_eprlkrz2`, `#/context?dock=context.itm_kh4llvi9` |
 | A synced metric with a conflicting synonym | `#/definitions?dock=def.Net%20revenue` |
 | A dimension, a term, a synonym, a word that means two things | `#/definitions?dock=def.Market`, `def.Webshop`, `def.Turnover`, `def.Sales` |
+
+### Conflicts (the conflict view, variant V1 with the outcome preview in the confirm step)
+
+A conflict is two context items an owner said disagree, in the review ("These disagree") or in the
+editor. The app never decides one by itself, and the view never says the texts contradict: it shows
+what each says and who said it. One component, `components/heed/conflict-view.tsx`, driven by a pair
+of items, serves every place. It reads its own width: two columns side by side from 560px, as in the
+720 dock, the review and a wide page; one pile per item below that (a 480 dock, a phone), in the same
+row order.
+
+The view, top to bottom: the Conflict chip (a triangle and the word) with since when and how often
+agents met it this week; a one-line summary built from structure, never from the words ("Two items
+say different things about Orders in Norway."), and a line on what both apply to; the legend; then
+row by row for each item: its title, what it says, where it comes from (domain and kind, owners,
+checked, the source and its quoted line), what agents would say with only that one, and the actions
+for that one (Keep this one, Edit this one). Under it, "Or settle it another way" (Keep both, Not a
+conflict, Ask the owner) and what agents say now. The words are compared by the app only: a near copy
+gets the Differs mark (a 2px underline, semibold, "[differs: ...]" for a screen reader) on at most
+three places; statements written apart get the stretches they share greyed, with a legend line and a
+screen-reader line "Words in both: ..."; when neither helps, one plain line says so
+(`lib/conflict-words.ts`).
+
+Every choice asks why first (needed) and takes an optional line that settles it, shows "Agents will
+then say" with the answer the choice leads to, and says who is told. The outcome shows in place with
+Undo for six seconds and a countdown to the next conflict (hover holds it, a letter key moves on,
+reduced motion waits for Next). Keep this one archives the other; Edit this one opens the editor with
+the other beside it, and publishing the edit removes the flag; Keep both keeps agents saying
+Conflict and takes the pair off the lists until either item changes; Not a conflict removes the flag
+from whichever item holds it. Who may do what: Keep this one needs an owner of the item it archives
+(or an admin), Edit an owner of that item, Keep both an owner of either, Not a conflict an owner of
+the item that holds the flag; a button that cannot act says why, and someone who owns one side gets
+Suggest archiving this one and Ask the owner. Keys (the Conflict scope, never while typing): Left and
+Right pick the item, 1 and 2 keep the first or the second, E edits, B keeps both, N is not a
+conflict, O asks the owner, J and K move through the list, Command-Enter confirms, Esc closes the box
+and keeps the text. `?as=<name>` signs in as a demo person, so a state seen by someone else has a link.
+
+| State | Address |
+|---|---|
+| The page, two columns | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only` |
+| The dock at 720, from Ask | `#/ask?dock=conflict.itm_gift_store_credit.itm_gift_card_only` |
+| A near copy, the words that differ underlined | `#/context/conflicts/itm_france_switch_12.itm_france_switch_21` |
+| Across two domains: what cannot act says why | `#/context/conflicts/itm_spain_vat_in.itm_spain_vat_out?as=Sofia%20Brandt` |
+| Conflicts in Context: mine or all, most asked first | `#/context/conflicts` |
+| Many, six shown | `#/context/conflicts?state=many&whose=all` |
+| Nothing disagrees | `#/context/conflicts?demo=setup` |
+| Changed while you read: the buttons held | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only?state=changed` |
+| Already settled by someone else | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only?state=settled` |
+| The two items fail to load | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only?state=failed` |
+| A decision fails, the reason kept in the box | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only?state=refused`, then Keep both |
+| Offline: the buttons say Off until you are back | `#/context/conflicts/itm_gift_store_credit.itm_gift_card_only?state=offline` |
+| In Ask, the pair grouped under "These two disagree" | `#/ask?example=conflict` |
+| In the review, each overlap side by side, one folded | `#/inbox/sug-sofia-clash/review` |
+| The Inbox alert card | `#/inbox?card=alert-orders-norway` |
+| Quality, a saved question that now gets a Conflict | `#/observability/quality` |
+| The item page and the peek | `#/context/itm_gift_store_credit`, `#/context?dock=context.itm_gift_store_credit` |
+| The editor with the other item beside | `#/context/itm_gift_store_credit/edit?beside=itm_gift_card_only` |
 
 ### Definitions
 

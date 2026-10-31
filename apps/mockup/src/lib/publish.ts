@@ -9,7 +9,7 @@ import { afterPublish } from "@/lib/saved-check"
 // changed, so Undo can put exactly that back.
 
 /** Publishes; gives back what Undo needs beyond the store (the saved questions it touched), if anything. */
-export function publishEffects(r: Review, me: string, dispatch: (a: Action) => void, relation?: string | null): (() => void) | undefined {
+export function publishEffects(r: Review, me: string, dispatch: (a: Action) => void, relations: Record<string, string> = {}): (() => void) | undefined {
   const card = cards.find((c) => c.id === r.id)
   const s = card?.suggestion
   if (s?.factId && r.mode === "edit") dispatch({ type: "editFact", id: s.factId, patch: { ...s.draft, checkedOn: "23 Oct 2026" } })
@@ -18,7 +18,10 @@ export function publishEffects(r: Review, me: string, dispatch: (a: Action) => v
   if (card?.gap?.draft) dispatch({ type: "addFact", fact: { ...card.gap.draft, checkedBy: me } })
   const itemId = itemOf(r)
   if (itemId) dispatch({ type: "published", id: itemId })
-  if (r.clash && relation === "replaces") dispatch({ type: "editFact", id: r.clash.factId, patch: { status: "Archived" } })
+  // Each overlap the owner said it replaces is archived; one they said disagrees gets the link.
+  for (const id of r.clashes ?? []) if (relations[id] === "replaces") dispatch({ type: "editFact", id, patch: { status: "Archived" } })
+  const disagrees = (r.clashes ?? []).find((id) => relations[id] === "disagree")
+  if (itemId && disagrees) dispatch({ type: "editFact", id: itemId, patch: { disagreesWith: disagrees } })
   // The saved questions that answer from it are checked, and a gap's question can be saved.
   return afterPublish(r, me, itemId, card?.domain ?? "sales")
 }
@@ -31,4 +34,4 @@ function itemOf(r: Review) {
 }
 
 /** The context items a decision on this suggestion can change: what Undo puts back. */
-export const touchedBy = (r: Review) => [itemOf(r), r.clash?.factId, r.retire?.factId].filter((x): x is string => !!x)
+export const touchedBy = (r: Review) => [itemOf(r), ...(r.clashes ?? []), r.retire?.factId].filter((x): x is string => !!x)

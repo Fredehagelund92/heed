@@ -50,6 +50,8 @@ import { historyOf, TODAY } from "@/data/history"
 import { DeleteDialog } from "@/components/heed/delete-dialog"
 import { Loadable, PageSkeleton, SideSkeleton } from "@/components/heed/load-state"
 import { WhereChip } from "@/components/heed/tag-chip"
+import { DisagreesSection } from "@/components/heed/disagrees"
+import { pairsOf } from "@/data/conflicts"
 
 // The comments load on their own: their composer is Tiptap, which stays out of the first load.
 const CommentBox = React.lazy(() => import("@/components/templates/comment-box").then((m) => ({ default: m.CommentBox })))
@@ -115,11 +117,12 @@ export function FactPage({ id }: { id: string }) {
   }
   const pending = state.sent.find((x) => x.factId === fact.id && x.by === me.name)
   const published = state.published[fact.id]
-  const other = fact.disagreesWith ? facts.find((f) => f.id === fact.disagreesWith) : undefined
+  // A conflict this item is in, held by either side: the other item, and the way to settle it.
+  const pair = pairsOf(facts, fact.id)[0]
 
   // What needs a decision: in the side when there is room, and in the document itself on a phone,
   // above the comments rather than below them.
-  const attention = (fact.outOfDate || other) && (
+  const attention = (fact.outOfDate || pair) && (
     <>
       {fact.outOfDate && (
         <SideSection title="Outdated" description={fact.outOfDate}>
@@ -137,26 +140,7 @@ export function FactPage({ id }: { id: string }) {
           )}
         </SideSection>
       )}
-      {other && (
-        <SideSection title="Disagrees with" description="Choose which one stays: keep one, narrow one to where it applies, or keep both.">
-          <button type="button" className="text-left text-sm font-medium text-primary underline-offset-4 hover:underline" onClick={() => openDock("context", other.id)}>
-            {other.title}
-          </button>
-          {owner && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => toast("Kept this one", { description: `${other.title} was archived.` })}>
-                Keep this one
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/context/${fact.id}/edit`)}>
-                Narrow this one
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => toast("Both kept", { description: "Agents keep getting both, and say they disagree." })}>
-                Keep both
-              </Button>
-            </div>
-          )}
-        </SideSection>
-      )}
+      {pair && <DisagreesSection pair={pair} self={fact.id} />}
     </>
   )
   const side = (

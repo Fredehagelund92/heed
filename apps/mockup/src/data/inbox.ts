@@ -64,7 +64,13 @@ export type InboxCard = {
    * Raised by an alert rule with a card of its own (Conflict, More questions not found, Calls fail,
    * Model spend, A connected tool did not sync): its rule, and where its one action goes.
    */
-  alert?: { rule: "disagree" | "share" | "fail" | "spend" | "sync"; name: string; href: string }
+  alert?: {
+    rule: "disagree" | "share" | "fail" | "spend" | "sync"
+    name: string
+    href: string
+    /** A Conflict alert: the pair agents got, opened in the conflict dock. */
+    pair?: string
+  }
   /** Created by a sync from a document, never by a person. */
   source?: { tool: "Google Drive"; folder: string; doc: string; read: string }
 }
@@ -235,25 +241,30 @@ export const cards: InboxCard[] = [
     domain: "sales",
     for: "Jon Abara",
     when: "Today, 09:41",
-    title: "2 saved questions need a look",
-    line: "One after Payment provider switched in Norway was archived, one after a check date passed.",
+    title: "3 saved questions need a look",
+    line: "One after Payment provider switched in Norway was archived, one after a check date passed, and one now gets a Conflict.",
     detail: "Agents get the new answer until someone fixes the item, or keeps the new answer as the saved one. Quality has before and now for each.",
     primary: "Open in Quality",
     secondary: [],
-    look: { questions: ["sq-support-norway", "sq-gross-margin"] },
+    look: { questions: ["sq-support-norway", "sq-gross-margin", "sq-gift-cards"] },
   },
   {
-    id: "alert-net-revenue",
+    id: "alert-orders-norway",
     type: "alert",
     domain: "sales",
     for: "Jon Abara",
     when: "Tue 20 Oct",
-    title: "Net revenue in Norway: conflict, 3 times",
+    title: "Orders in Norway: conflict, 3 times",
     line: "Agents got two context items that say different things about this.",
-    detail: "Fix the one that is wrong, or archive it. The answer panel shows both.",
-    primary: "Open the topic",
-    secondary: [],
-    alert: { rule: "disagree", name: "Conflict", href: "/observability/questions?dock=topic.net-revenue-norway" },
+    detail: "Compare the two and keep one, narrow one, or keep both. Nothing changes until an owner chooses.",
+    primary: "Compare and decide",
+    secondary: ["Open the topic"],
+    alert: {
+      rule: "disagree",
+      name: "Conflict",
+      href: "/observability/questions?dock=topic.orders-norway",
+      pair: "itm_gift_store_credit.itm_gift_card_only",
+    },
   },
   {
     id: "check-returns",

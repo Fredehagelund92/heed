@@ -78,8 +78,11 @@ export type Review = {
   rewrite?: { field: string; before: string; after: string; changes: number }
   /** An agent's suggestion: each claim against the sentence the agent copied from the source. */
   claims?: { sentence: string; rows: { claim: string; source: string; same: "same" | "different" | "check" }[] }
-  /** Overlaps a live context item that says something else. */
-  clash?: { factId: string; title: string; mine: string; theirs: string }
+  /**
+   * Live context items it overlaps: each is answered on its own (replaces, disagrees, unrelated)
+   * before Publish. The words are compared by the app, not marked by hand.
+   */
+  clashes?: string[]
   retire?: {
     factId: string
     reason: string
@@ -436,12 +439,7 @@ export const reviews: Review[] = [
       },
     ],
     unchanged: [],
-    clash: {
-      factId: "itm_gift_store_credit",
-      title: "Norway orders count store credit",
-      mine: "From 1 November 2026, orders in Norway {+leave out+} store credit and gift cards.",
-      theirs: "Orders in Norway {*include*} orders paid with store credit and gift cards, in euros at the daily rate.",
-    },
+    clashes: ["itm_gift_store_credit", "itm_gift_card_only", "itm_norway_stop"],
     tryIt: {
       question: "Do Norway orders include gift-card money?",
       before: { state: "grounded", text: "Orders in Norway include orders paid with store credit and gift cards." },
@@ -564,7 +562,7 @@ reviews.push(
 export const reviewFor = (id: string | undefined) => reviews.find((r) => r.id === id)
 
 /** Needs care before publishing: an unverified claim, or a clash with live context. */
-export const needsCare = (r: Review) => !!r.claims || !!r.clash
+export const needsCare = (r: Review) => !!r.claims || !!r.clashes?.length
 
 /** The claims an agent or a draft makes that the copied sentence doesn't plainly say. */
 export const claimsToCheck = (r: Review) => r.claims?.rows.filter((x) => x.same !== "same").length ?? 0
@@ -573,7 +571,7 @@ export const claimsToCheck = (r: Review) => r.claims?.rows.filter((x) => x.same 
 export function careLine(r: Review) {
   const n = claimsToCheck(r)
   if (n) return `${n} ${n === 1 ? "claim" : "claims"} to check`
-  if (r.clash) return "Overlaps live context"
+  if (r.clashes?.length) return "Overlaps live context"
   if (r.retire?.withdrawn) return `Withdrawn by ${r.retire.withdrawn.by}`
   return undefined
 }
@@ -601,10 +599,10 @@ export type Readiness = { ok: boolean; title: string; text: string; bulk: boolea
 
 /**
  * The Ready line: what can honestly be said before publishing. Claims are checked only against a
- * copied sentence; a new number or date with no source says so, and only then. `relation` is the
- * answer to a clash, once given.
+ * copied sentence; a new number or date with no source says so, and only then. `answered` is how
+ * many of its overlaps have an answer, and `hint` what the last answer does.
  */
-export function readiness(r: Review, relation?: { hint: string } | null): Readiness {
+export function readiness(r: Review, answered = 0, hint?: string): Readiness {
   const n = claimsToCheck(r)
   const no = (x: Omit<Readiness, "bulk">): Readiness => ({ ...x, bulk: false })
   if (r.drafted)
@@ -615,10 +613,12 @@ export function readiness(r: Review, relation?: { hint: string } | null): Readin
       title: `Ready, with ${n === 1 ? "a claim" : `${n} claims`} to check`,
       text: `${n === 1 ? "One claim isn't" : `${n} claims aren't`} plainly in the copied sentence. Return it with a note, or publish anyway if you know it's right.`,
     })
-  if (r.clash)
-    return relation
-      ? no({ ok: true, title: "Ready", text: relation.hint })
-      : no({ ok: false, title: "Not ready: choose how they relate", text: "Publish waits until you say how this relates to the live item." })
+  if (r.clashes?.length) {
+    const n = r.clashes.length
+    return answered >= n
+      ? no({ ok: true, title: "Ready", text: hint ?? "Every overlap has an answer." })
+      : no({ ok: false, title: "Not ready: say how it relates", text: `${answered} of ${n} answered. Publish waits until each overlap has an answer.` })
+  }
   if (r.retire?.withdrawn)
     return no({
       ok: false,

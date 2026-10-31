@@ -106,6 +106,13 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     ],
   },
   {
+    group: "Conflict",
+    rows: [
+      { keys: ["1"], or: ["2"], label: "Keep the first, or the second one" },
+      { keys: ["B"], or: ["N"], label: "Keep both, or Not a conflict" },
+    ],
+  },
+  {
     group: "Ask",
     rows: [
       { keys: ["/"], label: "Start typing a question" },
@@ -144,6 +151,13 @@ export const DOC_PAGES: DocPage[] = [
     line: "The quick view, the review, Try it, and publishing or returning.",
     group: "Write and review",
     mins: 4,
+  },
+  {
+    slug: "settle-a-conflict",
+    title: "Settle a conflict",
+    line: "Two items that say different things: compare them, then keep one, narrow one or keep both.",
+    group: "Write and review",
+    mins: 3,
   },
   {
     slug: "definitions-and-synonyms",

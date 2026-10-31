@@ -94,7 +94,7 @@ export function DocFooter({ children, status }: { children: ReactNode; status?: 
 }
 
 /** A section of the side panel, Efferd style: a 16px title over a hairline. */
-export function SideSection({ title, description, children, className }: { title: string; description?: string; children?: ReactNode; className?: string }) {
+export function SideSection({ title, description, children, className }: { title: ReactNode; description?: string; children?: ReactNode; className?: string }) {
   return (
     <section className={cn("border-b px-4 py-4", className)}>
       <h2 className="text-base leading-snug font-medium">{title}</h2>

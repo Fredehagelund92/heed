@@ -16,7 +16,7 @@ test("the row sits between Help and Settings and swaps the sidebar to its own me
   for (const name of ["Back to app", "Overview", "Questions", "Quality", "Feedback", "Usage", "Alerts"])
     await expect(sidebar.getByRole("link", { name: new RegExp(`^${name}`) })).toBeVisible()
   // Quality's badge counts what needs a look, from the saved questions.
-  await expect(sidebar.getByRole("link", { name: /^Quality/ }).locator("..")).toContainText("2")
+  await expect(sidebar.getByRole("link", { name: /^Quality/ }).locator("..")).toContainText("3")
   await sidebar.getByRole("link", { name: "Back to app" }).click()
   await expect(page).toHaveURL(/#\/inbox/)
 })
@@ -52,8 +52,8 @@ test("Overview: the Inbox's own numbers, a way into each, and the range and filt
   const nothing = page.getByRole("link", { name: /^Not found/ })
   await expect(nothing).toContainText("About the same")
   await expect(nothing.locator("[data-slot=kpi-change] svg")).toHaveCount(0)
-  // One source for saved questions: 9 same of 12.
-  await expect(page.getByRole("link", { name: /Saved questions/ })).toContainText(/9\s*same\s*of 12/)
+  // One source for saved questions: 8 same of 12.
+  await expect(page.getByRole("link", { name: /Saved questions/ })).toContainText(/8\s*same\s*of 12/)
   // The chart's numbers, for a screen reader, with the publish marked.
   await expect(page.locator("table caption", { hasText: "Questions per day" })).toHaveCount(1)
   await expect(
@@ -153,9 +153,9 @@ test("The replay runs on what agents got before the last publish", async ({ page
 test("Quality: the one list, grouped by result, with before and now and Keep the new answer", async ({ page }) => {
   await go(page, "/observability/quality")
   for (const [name, n] of [
-    ["Needs a look", "2"],
+    ["Needs a look", "3"],
     ["Changed", "1"],
-    ["Same", "9"],
+    ["Same", "8"],
   ])
     await expect(page.getByRole("region", { name }).getByRole("heading")).toContainText(n)
   const look = page.getByRole("region", { name: "Needs a look" })
@@ -193,9 +193,9 @@ test("Saved questions are saved from Ask, counted everywhere from one list, and 
   await expect(page.getByRole("link", { name: /Saved questions/ }).or(page.getByText("Saved questions").first())).toBeVisible()
   await expect(page.locator("div", { hasText: /^Saved questions13in 4 domains$/ }).first()).toBeVisible()
   await go(page, "/settings/domains/sales")
-  await expect(page.getByRole("link", { name: /8 saved questions - 5 same - 1 changed - 2 need a look/ })).toHaveAttribute("href", "#/observability/quality?domain=sales")
+  await expect(page.getByRole("link", { name: /8 saved questions - 4 same - 1 changed - 3 need a look/ })).toHaveAttribute("href", "#/observability/quality?domain=sales")
   await go(page, "/observability")
-  await expect(page.getByRole("link", { name: /Saved questions/ })).toContainText(/10\s*same\s*of 13/)
+  await expect(page.getByRole("link", { name: /Saved questions/ })).toContainText(/9\s*same\s*of 13/)
 
   // The review says what a draft would do to the saved questions that answer from its item.
   await go(page, "/inbox/sug-ines/review")
@@ -253,18 +253,20 @@ test("Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await page.getByRole("switch", { name: "Model spend" }).click()
   await expect(page.getByText("Turned off: Model spend")).toBeVisible()
   // The saved-question alert is a card in the Inbox, and the card opens Quality on its domain.
-  await page.getByRole("link", { name: "2 saved questions need a look" }).click()
+  await page.getByRole("link", { name: "3 saved questions need a look" }).click()
   await expect(page).toHaveURL(/#\/inbox\?card=look-sales/)
   await expect(page.getByText("Why did support contacts in Norway rise in autumn 2025?")).toBeVisible()
   await page.getByRole("button", { name: "Open in Quality" }).click()
   await expect(page).toHaveURL(/#\/observability\/quality\?domain=sales/)
   // A rule with a card of its own raises an Alert card, with one action to where the rule points.
   await go(page, "/observability/alerts")
-  await page.getByRole("link", { name: "Net revenue in Norway: conflict, 3 times" }).click()
-  await expect(page).toHaveURL(/#\/inbox\?card=alert-net-revenue/)
+  await page.getByRole("link", { name: "Orders in Norway: conflict, 3 times" }).click()
+  await expect(page).toHaveURL(/#\/inbox\?card=alert-orders-norway/)
   await expect(page.getByText("From the alert rule Conflict.")).toBeVisible()
+  // A Conflict card shows the pair; its action opens the comparison, and the topic is one step aside.
+  await expect(page.getByRole("group", { name: "The two items" })).toBeVisible()
   await page.getByRole("button", { name: "Open the topic" }).click()
-  await expect(page).toHaveURL(/#\/observability\/questions\?dock=topic\.net-revenue-norway/)
+  await expect(page).toHaveURL(/#\/observability\/questions\?dock=topic\.orders-norway/)
   await go(page, "/observability/alerts?state=empty")
   await expect(page.getByText("Nothing has raised an alert yet")).toBeVisible()
 
@@ -277,5 +279,5 @@ test("Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await expect(page.getByText("Muted for Marketing", { exact: true })).toBeVisible()
   await expect(page.getByText("- muted for Marketing")).toBeVisible()
   await expect(page.getByRole("link", { name: /Regulator paused price promotions in Italy/ })).toHaveAttribute("href", "#/inbox?card=check-italy")
-  await expect(page.getByRole("link", { name: "2 saved questions need a look" })).toHaveCount(0)
+  await expect(page.getByRole("link", { name: "3 saved questions need a look" })).toHaveCount(0)
 })

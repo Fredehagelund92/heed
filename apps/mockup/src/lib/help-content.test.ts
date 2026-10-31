@@ -27,15 +27,16 @@ describe("the shared help lists", () => {
   })
 
   it("list every docs page once, and an index agents can read", () => {
-    expect(DOC_PAGES).toHaveLength(11)
-    expect(new Set(DOC_PAGES.map((p) => p.slug)).size).toBe(11)
+    expect(DOC_PAGES).toHaveLength(12)
+    expect(new Set(DOC_PAGES.map((p) => p.slug)).size).toBe(12)
     const index = llmsTxt()
     for (const p of DOC_PAGES) expect(index).toContain(`- [${p.title}](/docs/${p.slug}): ${p.line}`)
   })
 
+  // Seventeen with the Conflict scope's two rows: the rest of its keys are in the view's own hints.
   it("keep the shortcut sheet to about fifteen rows", () => {
     const rows = SHORTCUTS.flatMap((g) => g.rows)
     expect(rows.length).toBeGreaterThanOrEqual(12)
-    expect(rows.length).toBeLessThanOrEqual(16)
+    expect(rows.length).toBeLessThanOrEqual(17)
   })
 })

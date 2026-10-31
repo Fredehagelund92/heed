@@ -189,6 +189,33 @@ const ARTICLES: Record<string, { lead: string; blocks: Block[] }> = {
       },
     ],
   },
+  "settle-a-conflict": {
+    lead: "Two items that say different things: compare them side by side, then keep one, narrow one, or keep both.",
+    blocks: [
+      { t: "h2", text: "Where a conflict comes from" },
+      {
+        t: "p",
+        text: "An owner says two items disagree, in the review or in the editor. The app never decides it by itself. Until an owner settles it, agents give both and say that context disagrees.",
+      },
+      { t: "h2", text: "Compare" },
+      {
+        t: "p",
+        text: "Compare and decide shows the two side by side: what each says, where it comes from, and what agents would say with only that one. When the two are written apart, the words both share are grey, so the words where they part stand out. A near copy has the words that differ underlined.",
+      },
+      { t: "h2", text: "Settle it" },
+      {
+        t: "list",
+        items: [
+          "Keep this one archives the other one. It needs an owner of the other item, or an admin.",
+          "Edit this one narrows it to where it applies. Publishing the edit removes the Conflict flag.",
+          "Keep both records why. Agents keep saying Conflict, and the pair leaves the conflict lists until either item changes.",
+          "Not a conflict removes the flag. It needs an owner of the item that holds it, or an admin.",
+          "Ask the owner mentions them in a comment on the item, and it reaches their Inbox.",
+        ],
+      },
+      { t: "note", title: "A reason every time", text: "Each choice asks why, and can take a line from the source that settles it. Both are kept on both items, and the other owners are told." },
+    ],
+  },
   "domains-and-owners": {
     lead: "Who publishes what, how to add a domain, and the sandbox.",
     blocks: [

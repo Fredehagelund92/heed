@@ -65,7 +65,7 @@ export const RULES: Rule[] = [
     isNew: true,
     threshold: { value: "3", choices: ["2", "3", "5"] },
     last: "Tue 20 Oct",
-    lastHref: "#/inbox?card=alert-net-revenue",
+    lastHref: "#/inbox?card=alert-orders-norway",
     lastDomain: "sales",
   },
   {
@@ -127,8 +127,8 @@ export const RAISED: Raised[] = [
   {
     id: "r-look",
     rule: "saved",
-    title: "2 saved questions need a look",
-    line: "One after Payment provider switched in Norway was archived, one after a check date passed. A card went to Jon Abara and Sofia Brandt.",
+    title: "3 saved questions need a look",
+    line: "One after Payment provider switched in Norway was archived, one after a check date passed, and one now gets a Conflict. A card went to Jon Abara and Sofia Brandt.",
     when: "Today, 09:41",
     domain: "sales",
     href: "#/inbox?card=look-sales",
@@ -152,13 +152,13 @@ export const RAISED: Raised[] = [
     href: "#/inbox?card=gap-spain",
   },
   {
-    id: "r-net-revenue",
+    id: "r-orders-norway",
     rule: "disagree",
-    title: "Net revenue in Norway: conflict, 3 times",
+    title: "Orders in Norway: conflict, 3 times",
     line: "A card went to Jon Abara and Sofia Brandt.",
     when: "Tue 20 Oct",
     domain: "sales",
-    href: "#/inbox?card=alert-net-revenue",
+    href: "#/inbox?card=alert-orders-norway",
   },
   {
     id: "r-cube",

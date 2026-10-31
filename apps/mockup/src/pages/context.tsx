@@ -51,6 +51,7 @@ import { WhereChip } from "@/components/heed/tag-chip"
 import { useRoute } from "@/lib/router"
 import { useSelection } from "@/hooks/use-selection"
 import { ContextBulk } from "@/components/heed/context-bulk"
+import { ContextViews } from "@/pages/conflicts"
 
 // Context: what agents should know, as a compact list like the Heed app's. One quiet bar (Filter,
 // Sort, Group, the archived note, search, count), the filters that are on as sentences under it, a
@@ -301,6 +302,8 @@ export function ContextPage() {
           ) : (
             <>
               <ListBar>
+                <ContextViews value="items" />
+                <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className={cn(barButton, filters > 0 && "bg-muted text-foreground")} />}>
                     <ListFilterIcon />

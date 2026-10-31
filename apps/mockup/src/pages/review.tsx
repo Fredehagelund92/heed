@@ -129,7 +129,7 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
         <p className="flex items-center gap-2 text-sm font-medium">
           <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-[oklch(0.55_0.15_60)] dark:text-[oklch(0.8_0.13_75)]" />
           {care}
-          <span className="font-normal text-muted-foreground">{r.claims ? "before publishing" : r.clash ? `: ${r.clash.title}` : ""}</span>
+          <span className="font-normal text-muted-foreground">{r.claims ? "before publishing" : r.clashes?.length ? `: ${r.clashes.length} live ${r.clashes.length === 1 ? "item" : "items"}` : ""}</span>
         </p>
       )}
       <p className="text-[15px] leading-relaxed text-pretty">{r.summary}</p>
