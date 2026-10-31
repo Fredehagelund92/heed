@@ -74,9 +74,10 @@ describe('the check on a real git history', () => {
     mkdirSync(join(root, 'db/migrations'), { recursive: true })
     writeFileSync(join(root, 'db/migrations', name), `-- ${name}\n`)
   }
+  const identity = ['-c', 'user.name=Test', '-c', 'user.email=test@example.com']
   const commit = (message: string) => {
     git('add', '-A')
-    git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-qm', message)
+    git(...identity, 'commit', '-qm', message)
     return git('rev-parse', 'HEAD')
   }
   const check = (from: string, to: string) =>
@@ -98,7 +99,7 @@ describe('the check on a real git history', () => {
     git('checkout', '-q', 'main')
     add('0003_theirs.sql')
     const theirs = commit('theirs')
-    git('merge', '-q', '--no-ff', '-m', 'merge', 'mine')
+    git(...identity, 'merge', '-q', '--no-ff', '-m', 'merge', 'mine')
     const clash = check(theirs, 'HEAD')
     expect(clash.status).toBe(1)
     expect(clash.stderr).toMatch(
