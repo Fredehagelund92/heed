@@ -27,6 +27,8 @@ const maintainOperations = [
   'obs.agents',
   'obs.feedback',
   'obs.summary',
+  'obs.snapshots.list',
+  'obs.snapshots.get',
   'obs.views.list',
   'obs.views.save',
   'obs.views.remove',
@@ -50,6 +52,7 @@ const maintainOperations = [
 const adminOperations = [
   // Usage: tool calls, kinds of agent and model spend, for administrators only.
   'obs.usage',
+  'obs.snapshots.take',
   // Alert rules: administrators turn them on and off and set their thresholds.
   'alerts.setRule',
   'roles.grant',

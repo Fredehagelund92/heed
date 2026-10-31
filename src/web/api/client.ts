@@ -38,7 +38,13 @@ import type {
 import type { Connected, LivePhase } from '@/lib/connect'
 import type { Filters, SavedView } from '@/lib/obs-views'
 import type { ObsData, Range } from '@/model/observability'
-import type { SummaryData, SummaryPeriod } from '@/model/obs-summary'
+import type {
+  Period,
+  Snapshot,
+  SnapshotItem,
+  SummaryData,
+  SummaryPeriod,
+} from '@/model/obs-summary'
 import type { Replay, When } from '@/model/replay'
 import type { Domain, Person } from '@/model/people'
 import type { Relation, Review } from '@/model/review'
@@ -489,6 +495,18 @@ export interface HeedApi {
    * trend, what is still open and what changed, every count through one disclosure pass (FR-614).
    */
   observabilitySummary: (input: ObsSummaryInput) => Promise<SummaryData>
+  /**
+   * Summary's monthly snapshots, the latest month first: every domain's together for an admin, or
+   * one domain's for its owners and admins.
+   */
+  observabilitySnapshots: (input: { domain?: DomainId }) => Promise<SnapshotItem[]>
+  /** One snapshot as it was taken; null when there is none, or it counts a domain not owned. */
+  observabilitySnapshot: (id: string) => Promise<Snapshot | null>
+  /**
+   * Admins: take the last whole month's snapshot now, for every domain together and each one,
+   * wherever it is not kept yet and agents asked anything, as the nightly job does.
+   */
+  takeObservabilitySnapshot: () => Promise<{ now: Period; taken: number }>
   /** The views people saved on Questions, beyond the five every workspace starts with. */
   getSavedViews: () => Promise<SavedView[]>
   saveView: (input: { name: string; filters: Filters }) => Promise<{ id: string }>
@@ -721,6 +739,9 @@ export const heedApiMethods = [
   'getMyReports',
   'observabilityPage',
   'observabilitySummary',
+  'observabilitySnapshots',
+  'observabilitySnapshot',
+  'takeObservabilitySnapshot',
   'replayTopic',
   'getSavedViews',
   'saveView',
@@ -788,6 +809,8 @@ export const pageReads = [
   'inboxPage',
   'observabilityPage',
   'observabilitySummary',
+  'observabilitySnapshots',
+  'observabilitySnapshot',
   'advancedPage',
   'integrationsPage',
   'integrationPage',

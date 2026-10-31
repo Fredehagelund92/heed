@@ -312,6 +312,7 @@ const JOBS: Record<string, string> = {
   'evals.work': 'Work through the answer tests',
   'evals.retrieval': 'Check what the answer tests find',
   'observability.rollup': 'Keep the weekly counts for good',
+  'observability.snapshot': "Keep each month's summary",
   'retention.run': 'Clear what is kept for a while only',
   'partitions.ensure': 'Make room for the next weeks',
 }

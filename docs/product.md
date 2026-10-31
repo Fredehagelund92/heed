@@ -131,11 +131,12 @@ Inside Settings, the app sidebar gives way to the settings menu, with Back to ap
 
 ### Observability (admins and domain owners)
 
-Inside Observability the sidebar gives way to its own menu, with Back to app on top: At a glance (Summary, the first page), Agents (Overview, Questions), Answers (Quality, Feedback), System (Usage for admins, Alerts). Summary reads a fixed calendar period, `period=month|quarter` (the last whole month by default); every other page takes `range=7|30|90`. Admins also take `domain=` and `agent=`. An owner sees only their own domains.
+Inside Observability the sidebar gives way to its own menu, with Back to app on top: At a glance (Summary, the first page), Agents (Overview, Questions), Answers (Quality, Feedback), System (Usage for admins, Alerts). Summary reads a fixed calendar period, `period=month|quarter` (the last whole month by default), and lists its monthly snapshots, each a digest that prints on one A4 sheet or saves as a PDF; every other page takes `range=7|30|90`. Admins also take `domain=` and `agent=`. An owner sees only their own domains.
 
 | Screen                                   | Address                                    |
 | ---------------------------------------- | ------------------------------------------ |
 | Summary, the last whole month or quarter | `/observability/summary`                   |
+| A monthly snapshot's digest, to print    | `/observability/summary/<id>`              |
 | Overview                                 | `/observability/overview`                  |
 | Questions, grouped by topic              | `/observability/questions`                 |
 | The answer panel, a replay of a topic    | `/observability/questions?dock=topic.<id>` |

@@ -7,6 +7,7 @@ import {
   shareWords,
   summaryNumbers,
   summarySentences,
+  summaryWords,
   type SummaryData,
 } from '@/model/obs-summary'
 
@@ -183,5 +184,24 @@ describe('notComparedWords', () => {
       'No comparison with August 2026: its records are no longer all kept.',
     )
     expect(notComparedWords(data())).toBeNull()
+  })
+})
+
+describe('summaryWords', () => {
+  it('keeps what the page says: its sentences, what was caught and why nothing is compared', () => {
+    const d = data()
+    expect(summaryWords(d)).toEqual({
+      sentences: summarySentences(d),
+      caught: caughtLines(d),
+      notes: [],
+    })
+  })
+
+  it('says when the period before is not compared, and when the period is not all kept', () => {
+    const d = data({ notCompared: 'not_kept', previous: null, complete: false })
+    expect(summaryWords(d).notes).toEqual([
+      'No comparison with August 2026: its records are no longer all kept.',
+      'Some of September 2026 is no longer kept, so its counts may be low.',
+    ])
   })
 })

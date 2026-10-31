@@ -32,6 +32,7 @@ import { idleJobs } from '../../server/idle-jobs.ts'
 import { seedDriveRead, type DriveCard } from './demo-drive.ts'
 import { seedObservability } from './demo-observability.ts'
 import { raiseDemoAlerts } from './demo-alerts.ts'
+import { takeDemoSnapshots } from './demo-snapshots.ts'
 import { seedSavedQuestions } from './demo-saved.ts'
 
 /*
@@ -1094,6 +1095,8 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   const drive = await seedDriveRead(superuserUrl, TODAY)
   // What the alert rules raised on it, and the Inbox items they sent (P12).
   await raiseDemoAlerts(superuserUrl, TODAY)
+  // Summary's monthly snapshots of August and September, as the nightly job took them.
+  await takeDemoSnapshots(superuserUrl)
   return {
     ...ids,
     ...drive,

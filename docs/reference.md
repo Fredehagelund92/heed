@@ -814,6 +814,20 @@ over its months) found nothing at least the minimum times.
   (`changes.total`, `changes.before`) go through it too, and the latest list is dropped when its
   total is hidden. Days up to the first day agents asked (`since`) count as a known zero, and the
   open-spot counts are left out of the pass while the period is not `complete`.
+- `GET /observability/snapshots` (`areaId` to read one domain's), `GET /observability/snapshots/{id}`
+  and `POST /observability/snapshots` (administrators): Summary's monthly snapshots
+  (`obs_snapshots`), kept without limit as FR-612 allows. A snapshot is the last whole month's
+  Summary, for every domain together and for each domain, as the page showed it on the day it was
+  taken: the counts after the disclosure pass (a hidden count is kept as hidden, never as its
+  value), what is still open and what changed as counts alone (no topic, no item, nobody who
+  approved), and the sentences, what was caught and the notes said over them then
+  (`src/domain/obs-summary-words.ts`), so a digest printed later reads the same after the delivery
+  records are gone. Administrators read every snapshot, an owner those of the domains they own;
+  without `areaId` the list is every domain's together for an administrator. The
+  `observability.snapshot` job takes the last whole month's each night where it is not kept yet and
+  agents asked anything, and the `POST` takes it at once, as the job does; a month taken is never
+  taken again, changed or deleted. The change counts on Summary and in a snapshot come from
+  `cl_obs_changes`, which runs as the owner, so they are the same whoever reads.
 - `GET /observability/views`, `POST /observability/views` (`{ name, filters }`) and
   `DELETE /observability/views/{id}`: the views people save on Questions, for everyone in the
   workspace (`observability_views`): a name, unique whatever its case, and filters (answer states,

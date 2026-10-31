@@ -109,6 +109,17 @@ the migration ran it once to count the weeks already held. Small counts are kept
 hidden when they are read (FR-614). The API role reads the table and runs only
 `cl_obs_weekly_rollup_due`; the serving and analytics roles reach neither.
 
+`obs_snapshots` (migration 0031) keeps Summary's monthly snapshots without limit, the same
+exception: for each whole calendar month and scope (every domain, `area_id` null, or one), the
+page's counts as shown, already through the disclosure pass, and the sentences said over them, as
+one JSON object of bounded size. It holds no topic, no item, no words of a question and no person;
+a check constraint refuses a day that does not start a month, and a month and scope has one row.
+The `observability.snapshot` job inserts as no person, an administrator through the API; row
+security lets administrators read every row and an owner the rows of a domain they own. The API
+role may insert and read, never update or delete, and retention never touches it.
+`cl_obs_changes(areas, from, to)` counts the changes published after review and runs as the owner,
+so the count is the same for any reader and for the job.
+
 Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
 updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores
 evidence from before its `status_since` hour, and newer evidence opens a new gap. `report_gap`

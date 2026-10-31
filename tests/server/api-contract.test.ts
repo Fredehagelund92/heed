@@ -291,6 +291,8 @@ describe('the API over HTTP', () => {
       '/observability/agents',
       '/observability/feedback',
       '/observability/replay',
+      '/observability/snapshots',
+      '/observability/snapshots/{id}',
       '/observability/summary',
       '/observability/usage',
       '/observability/views',
