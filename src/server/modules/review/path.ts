@@ -242,9 +242,13 @@ export function createReviewPath(
       ? docDiff(sideOf(before.version, candidate), sideOf(after.version, candidate))
       : null
     const only = diff?.only ?? null
-    // A version whose words do not change at all, only which items it names as replaced or
-    // disagreeing (as removing a Conflict flag does), changes nothing a clash asks about.
-    const wordsSame = !!diff && diff.counts.length === 0
+    // A version whose words do not change at all and that names the same items as replaced, only
+    // other items as disagreeing (as removing a Conflict flag does), changes nothing a clash asks
+    // about. One that drops a replaced item still has its check: that item comes back.
+    const sameReplaces =
+      !!before &&
+      [...before.version.replaces].sort().join() === [...after.version.replaces].sort().join()
+    const wordsSame = !!diff && diff.counts.length === 0 && sameReplaces
     const clashes =
       scope && !wordsSame && only !== 'formatting' && only !== 'order' && only !== 'dates'
         ? answer(candidate as AnswerBundle, { scope }, { today: clock.today() })
