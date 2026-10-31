@@ -422,6 +422,7 @@ export function createReviewPath(
       note: p.reason,
       withdrawn,
       diff,
+      versions: { before: r.before?.id ?? null, after: r.after?.id ?? null },
       fields: await fieldsOf(r),
       source: {
         before: beforeMarkdown,

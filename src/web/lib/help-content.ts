@@ -163,6 +163,7 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     rows: [
       { keys: ['J'], or: ['K'], label: 'Next, or previous suggestion' },
       { keys: ['N'], or: ['P'], label: 'Next, or previous change' },
+      { keys: ['C'], label: 'Comment on the line or field in focus' },
       { keys: ['⌘', '↵'], label: 'Publish, when it is ready' },
       { keys: ['Esc'], label: 'Close the note, keeping it' },
     ],

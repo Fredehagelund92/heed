@@ -192,6 +192,7 @@ import {
   editCommentSchema,
   listCommentsInputSchema,
   removeCommentResultSchema,
+  resolveCommentSchema,
   threadInputSchema,
   toggleReactionResultSchema,
   toggleReactionSchema,
@@ -278,7 +279,11 @@ export type {
 export { SEARCH_GROUP_MAX } from './search.ts'
 export type { SearchAllInput, SearchResults } from './search.ts'
 export type { ScopeHit, ScopeSearchInput, ScopeSearchResult } from './scope.ts'
-export type { Comment as ThreadComment, Thread } from './comments.ts'
+export type {
+  Comment as ThreadComment,
+  CommentAnchorInput as CommentAnchor,
+  Thread,
+} from './comments.ts'
 export type {
   Catalogue,
   CatalogueDefinition,
@@ -1398,6 +1403,15 @@ export const contract = {
           "Marks one's own comment on a suggestion to archive, while it waits, as taking it back, or takes the mark back: its owners see it in the review and close it or archive anyway",
       })
       .input(withdrawCommentSchema)
+      .output(threadCommentSchema),
+    resolve: commentWrite
+      .route({
+        method: 'POST',
+        path: '/comments/{id}/resolve',
+        tags: ['comments'],
+        summary: 'Resolves a thread on a line or a field of a suggestion, or opens it again',
+      })
+      .input(resolveCommentSchema)
       .output(threadCommentSchema),
     markMentionsRead: read
       .route({

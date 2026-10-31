@@ -1,3 +1,4 @@
+import type { CommentAnchor } from '@domain/comments'
 import type { CommentItem, CommentReaction } from '@/components/templates/comment-box/types'
 import { peopleIn, plainOf } from '@/components/templates/comment-box/utils'
 
@@ -6,6 +7,9 @@ import { peopleIn, plainOf } from '@/components/templates/comment-box/utils'
 // apart from the context on purpose: nothing an agent reads is built from them.
 
 export type Subject = `review:${string}` | `context:${string}`
+
+// A thread on a line or a field of a review's source names where it hangs (model/source-places.ts).
+export type { CommentAnchor }
 
 /** A reply the owner hasn't opened yet: the Inbox's quiet marker. */
 export type NewReply = { from: string; when: string; excerpt: string }

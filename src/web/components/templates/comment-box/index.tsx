@@ -1,6 +1,7 @@
 import * as React from 'react'
+import { toast } from 'sonner'
 import { MessageSquarePlusIcon } from '@/components/icons'
-import { cn } from '@/lib/utils'
+import { cn, midSentence } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
   useCommentActions,
@@ -8,8 +9,10 @@ import {
   useSubjectReactions,
   useWithdrawable,
 } from '@/lib/comments'
-import type { Subject } from '@/model/comments'
+import type { CommentAnchor, Subject } from '@/model/comments'
+import { onVersions, placeLabel, placeOf, type ReviewVersions } from '@/model/source-places'
 import { Composer } from './composer'
+import type { CommentItem } from './types'
 import { CommentThread, ReactionChips, ReactionPicker, type ThreadActions } from './thread'
 import { countComments } from './utils'
 import { ShowMoreButton } from '@/components/heed/show-more'
@@ -21,16 +24,57 @@ import '@/components/static-renderer/style.css'
 // out flat in the Efferd style, with no card around it. Reactions to the thing itself sit on the
 // heading's row. An empty box stays folded to its heading until someone adds a comment, and the
 // rule about agents is printed under the heading, always. It has no side padding of its own: it
-// takes the edges of the column it sits in (the review's reading column, the item's sheet).
+// takes the edges of the column it sits in (the review's reading column, the item's sheet). In a
+// review, a thread on a line or a field of the source hangs there instead; one written against an
+// earlier version of the suggestion stays here, saying where it was, as every such thread does in
+// the Inbox.
+
+/**
+ * Where a thread on a review's source hangs, said above it where it is shown apart from the
+ * source: in the Inbox, or in the review when it was written on an earlier version.
+ */
+const whereItHangs = (anchor: CommentAnchor, earlier: boolean) =>
+  `On ${placeLabel(placeOf(anchor)).toLowerCase()}${earlier ? ', of an earlier version' : ''}`
+
+/** The state of a thread on a line or a field, with Resolve or Reopen, above it where it is shown apart. */
+function AnchoredState({
+  comment,
+  earlier,
+  onResolve,
+}: {
+  comment: CommentItem
+  earlier: boolean
+  onResolve: (resolved: boolean) => void
+}) {
+  const resolved = !!comment.resolved
+  const state = comment.resolved
+    ? `Resolved by ${comment.resolved.by}, ${midSentence(comment.resolved.when)}`
+    : comment.reopened
+      ? `Open, reopened by ${comment.reopened.by}, ${midSentence(comment.reopened.when)}`
+      : 'Open'
+  return (
+    <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+      <span className="min-w-0">
+        {whereItHangs(comment.anchor!, earlier)}. {state}
+      </span>
+      <Button variant="outline" size="xs" className="ml-auto" onClick={() => onResolve(!resolved)}>
+        {resolved ? 'Reopen' : 'Resolve'}
+      </Button>
+    </div>
+  )
+}
 
 export function CommentBox({
   subject,
   me,
   owners,
   note,
+  versions,
   className,
 }: {
   subject: Subject
+  /** A review's two versions: its threads on a line or a field of them hang on the source. */
+  versions?: ReviewVersions
   me: string
   /** The owners of the domain: their comments say "Owner", since their word settles it. */
   owners: string[]
@@ -38,7 +82,11 @@ export function CommentBox({
   note?: React.ReactNode
   className?: string
 }) {
-  const comments = useComments(subject)
+  const all = useComments(subject)
+  const comments = React.useMemo(
+    () => (versions ? all.filter((c) => !c.anchor || !onVersions(c.anchor, versions)) : all),
+    [all, versions],
+  )
   const reactions = useSubjectReactions(subject)
   const withdrawable = useWithdrawable(subject)
   const commentActions = useCommentActions()
@@ -60,6 +108,15 @@ export function CommentBox({
     ...(withdrawable
       ? { withdraw: (id, withdrew) => void commentActions.withdraw(subject, id, withdrew) }
       : {}),
+  }
+
+  const resolve = (thread: CommentItem, resolved: boolean) => {
+    commentActions.resolve(subject, thread.id, resolved).then(
+      () => {
+        if (resolved) toast('Resolved')
+      },
+      () => toast.error(resolved ? "The thread wasn't resolved" : "The thread wasn't reopened"),
+    )
   }
 
   return (
@@ -109,7 +166,20 @@ export function CommentBox({
       {comments.length > 0 && (
         <ul className="border-t">
           {visible.map((c) => (
-            <CommentThread key={c.id} comment={c} actions={actions} />
+            <CommentThread
+              key={c.id}
+              comment={c}
+              actions={actions}
+              context={
+                c.anchor && (
+                  <AnchoredState
+                    comment={c}
+                    earlier={!!versions}
+                    onResolve={(resolved) => resolve(c, resolved)}
+                  />
+                )
+              }
+            />
           ))}
         </ul>
       )}

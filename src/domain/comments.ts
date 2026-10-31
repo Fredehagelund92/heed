@@ -1,8 +1,9 @@
 /*
   Comments and reactions (FR-817, docs/product.md): people talk about a suggestion or a context
   item, in the comment box's small document (paragraphs, lists, bold, italic, inline code, and
-  mentions of people), and react with one of five reactions, each with one meaning. Agents never
-  read any of it. Pure: the service stores what these rules accept.
+  mentions of people), and react with one of five reactions, each with one meaning. On a
+  suggestion, a thread may hang on a line of its text or on one of its fields, and be resolved.
+  Agents never read any of it. Pure: the service stores what these rules accept.
 */
 
 /** The five reactions, each with one meaning. Nothing else is a reaction (docs/design/copy.md). */
@@ -58,6 +59,36 @@ export function parseSubject(subject: string): CommentSubject | null {
 
 export const subjectName = (subject: CommentSubject) =>
   subject.kind === 'proposal' ? `review:${subject.id}` : `context:${subject.id}`
+
+/**
+ * The fields of a review's Fields table a comment may hang on, by name: every field of a context
+ * item but its text, which is commented on by the line.
+ */
+export const anchorFields = [
+  'title',
+  'kind',
+  'domain',
+  'owner',
+  'scope',
+  'validity',
+  'reviewDate',
+  'sources',
+  'dontConclude',
+] as const
+export type AnchorField = (typeof anchorFields)[number]
+
+/** The most lines a stored text has: 20,000 characters, each a line at the most. */
+export const anchorMaxLine = 20000
+
+/**
+ * Where on a suggestion's source a thread hangs: a field by its name, or a line of the text on the
+ * side it was read on (`before`, the text agents get now; `after`, the suggested one). It names
+ * the two versions it was read against, so it reads the same after a reload, and a later version
+ * shows it as written on an earlier one.
+ */
+export type CommentAnchor = { before: string | null; after: string | null } & (
+  { field: AnchorField } | { side: 'before' | 'after'; line: number }
+)
 
 /** The pattern of a subject's name, for the contract. */
 export const subjectPattern =

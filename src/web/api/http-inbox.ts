@@ -814,6 +814,7 @@ export function reviewOf(
       reach,
     },
     fields: { before: fieldSideOf(sheet.fields.before), after: fieldSideOf(sheet.fields.after) },
+    versions: sheet.versions,
     source: {
       before: textOf(sheet.source.before, words),
       after: textOf(sheet.source.after, words),

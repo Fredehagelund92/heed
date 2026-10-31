@@ -51,7 +51,9 @@ import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { flushSync } from 'react-dom'
 import { TOUCH } from '@/lib/touch'
 import { changeWords, diffStats, lineDiff } from '@/lib/line-diff'
-import { FieldsDiff, TextDiff } from '@/components/heed/source-review'
+import { FieldsDiff, TextDiff, type SourceNotes } from '@/components/heed/source-review'
+import { goToThread, SourceThreadsSummary, useSourceNotes } from '@/components/heed/source-threads'
+import { placeFromKey } from '@/model/source-places'
 import { fieldRows } from '@/model/review-fields'
 import { useSideChoice } from '@/lib/side-panel'
 import { useLinksEnabled } from '@/lib/links-switch'
@@ -483,11 +485,62 @@ function ChangeSteps({
 }
 
 /**
- * The review of the source: what agents will read, exactly. The fields as a table, then the
- * stored text as a line diff. Two sides in, so the parts know nothing of suggestions.
+ * The arrows and C on the source: Up and Down move between its lines and field rows (from a
+ * change N or P stepped to, into it), and C comments on the one in focus, or on the last line of
+ * the change in focus. Only while nobody types, and only with the focus in the source.
  */
-function SourceReview({ r }: { r: Review }) {
+function useSourceKeys(within: React.RefObject<HTMLElement | null>, notes: SourceNotes) {
+  const comment = React.useRef(notes.comment)
+  React.useEffect(() => {
+    comment.current = notes.comment
+  }, [notes.comment])
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!pageKey(e) || e.shiftKey) return
+      const root = within.current
+      const el = document.activeElement
+      if (!root || !(el instanceof HTMLElement) || !root.contains(el)) return
+      const places = [...root.querySelectorAll<HTMLElement>('[data-source-place]')]
+      const change = el.matches('[data-review-change]:not([data-source-place])') ? el : null
+      const inside = change ? places.filter((p) => change.contains(p)) : []
+      const here = el.matches('[data-source-place]') ? el : null
+      if (e.key === 'c') {
+        const target = here ?? inside.at(-1)
+        const at = target && placeFromKey(target.dataset.sourcePlace ?? '')
+        if (!at) return
+        e.preventDefault()
+        comment.current(at)
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const from = here ? places.indexOf(here) : -1
+      const to = change
+        ? e.key === 'ArrowDown'
+          ? places.indexOf(inside[0]!)
+          : places.indexOf(inside[0]!) - 1
+        : here
+          ? from + (e.key === 'ArrowDown' ? 1 : -1)
+          : -1
+      const next = places[to]
+      if (!next) return
+      e.preventDefault()
+      next.focus({ preventScroll: true })
+      next.scrollIntoView({ block: 'nearest' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [within])
+}
+
+/**
+ * The review of the source: what agents will read, exactly. The fields as a table, then the
+ * stored text as a line diff. Two sides in, so the parts know nothing of suggestions; the
+ * comments on its lines and fields come in as `notes`.
+ */
+function SourceReview({ r, me, owners }: { r: Review; me: string; owners: string[] }) {
   const ref = React.useRef<HTMLDivElement>(null)
+  const notes = useSourceNotes({ subject: `review:${r.id}`, versions: r.versions, me, owners })
+  useSourceKeys(ref, notes)
   // Each changed field row and each changed place in the text is a stop.
   const { before, after } = r.fields
   const count =
@@ -496,14 +549,17 @@ function SourceReview({ r }: { r: Review }) {
   return (
     <section aria-label="The source" ref={ref} className="flex flex-col gap-6 py-2">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-pretty text-muted-foreground">
           What agents will read, exactly.
-          <span className="pointer-coarse:hidden"> N and P step through the changes.</span>
+          <span className="pointer-coarse:hidden">
+            {' '}
+            N and P step through the changes, the arrows through the lines, and C comments on one.
+          </span>
         </p>
         <ChangeSteps within={ref} count={count} />
       </div>
-      <FieldsDiff before={r.fields.before} after={r.fields.after} />
-      <TextDiff before={r.source.before} after={r.source.after} />
+      <FieldsDiff before={r.fields.before} after={r.fields.after} notes={notes} />
+      <TextDiff before={r.source.before} after={r.source.after} notes={notes} />
     </section>
   )
 }
@@ -575,7 +631,17 @@ function Preview({ r }: { r: Review }) {
  * item to archive, where a synced suggestion came from, the claim check, the clash gate), then
  * the source or its preview. No view can hide the gate.
  */
-function TheChange({ r, view }: { r: Review; view: View }) {
+function TheChange({
+  r,
+  view,
+  me,
+  owners,
+}: {
+  r: Review
+  view: View
+  me: string
+  owners: string[]
+}) {
   const facts = useFacts()
   const { cards } = useInbox()
   const item = itemOfReview(r, cards)
@@ -631,7 +697,7 @@ function TheChange({ r, view }: { r: Review; view: View }) {
       {r.claims && <ClaimCheck claims={r.claims} from={r.from} drafted={!!r.drafted} />}
       {r.clash && <Clash r={r} />}
       <div className={cn((gate || r.retire) && 'mt-6 border-t pt-4')}>
-        {view === 'source' ? <SourceReview r={r} /> : <Preview r={r} />}
+        {view === 'source' ? <SourceReview r={r} me={me} owners={owners} /> : <Preview r={r} />}
       </div>
     </div>
   )
@@ -1621,8 +1687,25 @@ export function ReviewPage({ id }: { id: string }) {
   const queue = (
     <Queue current={r.id} onPick={(to) => (setQueueOpen(false), setQueuePeek(false), go(to))} />
   )
+  // The owners of the domain: their comments say "Owner", since their word settles it.
+  const owners = domains[state.cards.find((c) => c.id === r.id)?.domain ?? '']?.owners ?? []
+  // A thread is on the source: from the preview, going to one shows the source first.
+  const toThread = (threadId: string) => {
+    if (view === 'source') return goToThread(threadId)
+    setPreview(false)
+    requestAnimationFrame(() => requestAnimationFrame(() => goToThread(threadId)))
+  }
+  const threadsSummary = (
+    <SourceThreadsSummary
+      key={`threads-${r.id}`}
+      subject={`review:${r.id}`}
+      versions={r.versions}
+      onGo={toThread}
+    />
+  )
   const side = (
     <>
+      {threadsSummary}
       <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
       <Decision key={`d-${r.id}`} {...decision} />
     </>
@@ -1772,16 +1855,15 @@ export function ReviewPage({ id }: { id: string }) {
                 <div className="mx-auto flex max-w-3xl animate-in flex-col gap-8 px-4 py-6 duration-(--dur-3) fade-in-0 sm:px-8 sm:py-10">
                   <Summary r={r} stats={view === 'source' ? <SourceStats r={r} /> : undefined} />
                   <div className="flex flex-col gap-4 border-t pt-6">
-                    <TheChange r={r} view={view} />
+                    <TheChange r={r} view={view} me={me.name} owners={owners} />
                     <ReadMark r={r} />
                   </div>
                   <CommentBox
                     key={r.id}
                     subject={`review:${r.id}`}
+                    versions={r.versions}
                     me={me.name}
-                    owners={
-                      domains[state.cards.find((c) => c.id === r.id)?.domain ?? '']?.owners ?? []
-                    }
+                    owners={owners}
                     note={
                       r.agent
                         ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`
@@ -1810,6 +1892,7 @@ export function ReviewPage({ id }: { id: string }) {
                 title="Try it and decide"
                 footer={<Decision key={`d-${r.id}`} {...decision} />}
               >
+                {threadsSummary}
                 <TryItPanel key={`try-${r.id}`} r={r} now={finished?.now} />
               </Panel>
             </ResizableAside>

@@ -194,6 +194,7 @@ export const wiredMethods = [
   'editComment',
   'removeComment',
   'withdrawWithComment',
+  'resolveComment',
   'markThreadSeen',
   'markMentionSeen',
   'getInbox',
@@ -1460,7 +1461,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       ])
       return commentsOf(threads, people, who.name, new Date())
     },
-    postComment: async ({ subject, content, parentId, returned }) => {
+    postComment: async ({ subject, content, parentId, returned, anchor }) => {
       // A returned note is written by the return itself (returnReview), never on its own.
       if (returned)
         throw new ApiError('invalid', 'A note is returned with its suggestion, from the review.')
@@ -1468,6 +1469,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         subject,
         body: bodyToService(content, await readPeople()),
         ...(parentId ? { parentId } : {}),
+        ...(anchor ? { anchor } : {}),
       }
       const posted = await write('comments.create', input, (o) => client.comments.create(input, o))
       return { id: posted.id }
@@ -1492,6 +1494,10 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       await write('comments.withdraw', input, (o) => client.comments.withdraw(input, o))
       // The review now reads it as taken back, or not.
       refs.clear()
+    },
+    resolveComment: async ({ id, resolved }) => {
+      const input = { id, resolved }
+      await write('comments.resolve', input, (o) => client.comments.resolve(input, o))
     },
     // Only a suggestion's review and a context item hold a thread on the service: a card of
     // another kind (a check, a report) has none to open.

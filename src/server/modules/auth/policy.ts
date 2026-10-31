@@ -99,13 +99,15 @@ export const policies = {
   'cards.markRead': 'read',
   'cards.decide': 'propose',
   // Comments (FR-817): anyone signed in, on what they may read; the service and row security keep
-  // edits and deletes to the author, and taking a suggestion to archive back to its sender.
+  // edits and deletes to the author, and taking a suggestion to archive back to its sender. Anyone
+  // who may read a suggestion resolves a thread on one of its lines or fields.
   'comments.list': 'read',
   'comments.create': 'read',
   'comments.edit': 'read',
   'comments.remove': 'read',
   'comments.markMentionsRead': 'read',
   'comments.withdraw': 'read',
+  'comments.resolve': 'read',
   'reactions.toggle': 'read',
   'threads.markRead': 'read',
   'setup.state': 'read',

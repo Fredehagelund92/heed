@@ -286,6 +286,9 @@ describe('reading comments', () => {
             editedAt: at,
             deleted: false,
             reactions: [{ emoji: '👍', by: [ines, jon] }],
+            anchor: null,
+            resolved: null,
+            reopened: null,
             replies: [
               {
                 id: 'c2',
@@ -320,6 +323,24 @@ describe('reading comments', () => {
             deleted: false,
             reactions: [],
             replies: [],
+            anchor: null,
+            resolved: null,
+            reopened: null,
+          },
+          {
+            id: 'c4',
+            author: ines,
+            returned: false,
+            withdrew: false,
+            body: said('person:p_jon', 'Jon'),
+            at,
+            editedAt: null,
+            deleted: false,
+            reactions: [],
+            replies: [],
+            anchor: { before: 'v1', after: 'v2', side: 'after', line: 3 },
+            resolved: { by: jon, at },
+            reopened: { by: ines, at },
           },
         ],
         reactions: [],
@@ -351,6 +372,15 @@ describe('reading comments', () => {
     expect(read.threads['review:0f8fad5b-d9cb-469f-a165-70867728950e']![0]).toMatchObject({
       returned: true,
     })
+    // A thread on a line keeps its place, and says who resolved it and who opened it again.
+    expect(read.threads['review:0f8fad5b-d9cb-469f-a165-70867728950e']![1]).toMatchObject({
+      anchor: { before: 'v1', after: 'v2', side: 'after', line: 3 },
+      resolved: { by: 'Jon Abara', when: 'Today, 09:40' },
+      reopened: { by: 'Ines Duarte', when: 'Today, 09:40' },
+    })
+    expect(read.threads['review:0f8fad5b-d9cb-469f-a165-70867728950e']![0]).not.toHaveProperty(
+      'anchor',
+    )
     expect(read.reactions).toEqual({ 'context:itm_norway01': [{ emoji: '🙏', by: ['Jon Abara'] }] })
     expect(read.newReplies).toEqual({
       'context:itm_norway01': { from: 'Jon Abara', when: 'Today, 09:40', excerpt: 'Ask @Ines' },

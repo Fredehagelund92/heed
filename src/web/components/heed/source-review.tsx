@@ -1,6 +1,7 @@
 import * as React from 'react'
-import { ChevronsUpDownIcon } from '@/components/icons'
+import { ChevronsUpDownIcon, MessageSquarePlusIcon, PlusIcon } from '@/components/icons'
 import { MentionText } from '@/components/heed/mention-chip'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   changeWords,
@@ -14,6 +15,7 @@ import {
 } from '@/lib/line-diff'
 import { fieldRows, type FieldRow } from '@/model/review-fields'
 import type { FieldSide } from '@/model/review'
+import { placeKey, placeLabel, type SourcePlace } from '@/model/source-places'
 
 // The Source review's two parts, each fed two sides, so the same parts compare a suggestion with
 // the live item today and, later, a live item with a suggestion beside it:
@@ -28,6 +30,69 @@ import type { FieldSide } from '@/model/review'
 // Marks are never colour alone: a removed line has a minus and says "removed", removed words are
 // struck through, added words underlined. Every change is a stop for N and P (`data-review-change`),
 // which the page steps through.
+//
+// Given `notes`, every line and every field row is a place to comment (`data-source-place`): a
+// "+" beside it on hover, C on the one in focus, and on a touch screen a Comment button under the
+// one tapped. Its threads hang under it, and a fold that holds one opens.
+
+/**
+ * Comments on the source, when the parts take them: what hangs under a line or a field (its
+ * threads, an open composer), whether one holds a thread, and how to start one there.
+ */
+export type SourceNotes = {
+  under: (at: SourcePlace) => React.ReactNode
+  holds: (at: SourcePlace) => boolean
+  comment: (at: SourcePlace) => void
+}
+
+/** The place of a line: a removed one on the text before, any other on the text after. */
+export const placeOfRow = (row: Row): SourcePlace =>
+  row.t === '-' ? { side: 'before', line: row.a! } : { side: 'after', line: row.b! }
+
+/** A place to comment, focusable for C and the arrow keys; ringed while in focus. */
+const place =
+  'group/row outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset'
+
+/** The "+" beside a line or a field, on hover; a finger gets the Comment button instead. */
+function AddNote({
+  at,
+  notes,
+  className,
+}: {
+  at: SourcePlace
+  notes: SourceNotes
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-label={`Comment on ${placeLabel(at).toLowerCase()}`}
+      onClick={() => notes.comment(at)}
+      className={cn(
+        'absolute z-raised flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 transition-opacity duration-(--dur-1) outline-none group-hover/row:opacity-100 pointer-coarse:hidden',
+        className,
+      )}
+    >
+      <PlusIcon aria-hidden className="size-3.5" />
+    </button>
+  )
+}
+
+/** Under the line or field a finger tapped: one button to comment on it. */
+function TouchNote({ at, notes }: { at: SourcePlace; notes: SourceNotes }) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-muted-foreground"
+      onClick={() => notes.comment(at)}
+    >
+      <MessageSquarePlusIcon data-icon="inline-start" />
+      Comment on {placeLabel(at).toLowerCase()}
+    </Button>
+  )
+}
 
 /** What each side is called: "Now" and "Suggested" in a review. */
 export type SideLabels = { before: string; after: string }
@@ -202,18 +267,22 @@ export function FieldsDiff({
   before,
   after,
   labels = REVIEW_SIDES,
+  notes,
 }: {
   before: FieldSide | null
   after: FieldSide | null
   labels?: SideLabels
+  notes?: SourceNotes
 }) {
   const id = React.useId()
   const [showSame, setShowSame] = React.useState(false)
   const rows = fieldRows(before, after)
   const both = !!before && !!after
   const changed = rows.filter((r) => r.changed)
-  const same = both ? rows.filter((r) => !r.changed) : []
-  const shown = both ? (showSame ? rows : changed) : rows
+  // A row with a thread stays in sight, folded or not.
+  const held = (r: FieldRow) => !!notes?.holds({ field: r.key })
+  const same = both ? rows.filter((r) => !r.changed && !held(r)) : []
+  const shown = both ? (showSame ? rows : rows.filter((r) => r.changed || held(r))) : rows
   const sides = (['before', 'after'] as const).filter((s) => (s === 'before' ? before : after))
   const line = both
     ? changed.length
@@ -235,7 +304,13 @@ export function FieldsDiff({
           <table className="w-full table-fixed text-sm">
             <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground @max-lg:sr-only">
               <tr>
-                <th scope="col" className="w-32 px-3 py-2 font-medium">
+                <th
+                  scope="col"
+                  className={cn(
+                    'w-32 px-3 py-2 font-medium',
+                    notes && 'w-36 pl-7 pointer-coarse:pl-3',
+                  )}
+                >
                   Field
                 </th>
                 {sides.map((s) => (
@@ -246,52 +321,76 @@ export function FieldsDiff({
               </tr>
             </thead>
             <tbody>
-              {shown.map((row) => (
-                <tr
-                  key={row.key}
-                  data-review-change={row.changed ? '' : undefined}
-                  tabIndex={row.changed ? -1 : undefined}
-                  aria-label={row.changed ? `${row.label}, changed` : undefined}
-                  className={cn(
-                    'border-t align-top first:border-t-0 @max-lg:grid @max-lg:gap-1 @max-lg:py-2',
-                    row.changed && stop,
-                  )}
-                >
-                  <th
-                    scope="row"
-                    className="px-3 py-2.5 text-left font-medium @max-lg:py-0 @max-lg:pt-0.5"
-                  >
-                    <span className="flex flex-wrap items-baseline gap-x-2">
-                      {row.label}
-                      {both && (
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {row.changed ? 'Changed' : 'The same'}
-                        </span>
+              {shown.map((row) => {
+                const at: SourcePlace = { field: row.key }
+                const under = notes?.under(at)
+                return (
+                  <React.Fragment key={row.key}>
+                    <tr
+                      data-review-change={row.changed ? '' : undefined}
+                      data-source-place={notes ? placeKey(at) : undefined}
+                      tabIndex={row.changed || notes ? -1 : undefined}
+                      aria-label={row.changed ? `${row.label}, changed` : undefined}
+                      className={cn(
+                        'border-t align-top first:border-t-0 @max-lg:grid @max-lg:gap-1 @max-lg:py-2',
+                        row.changed && stop,
+                        notes && place,
                       )}
-                    </span>
-                  </th>
-                  {/* An unchanged value is said once, across both sides. */}
-                  {both && !row.changed ? (
-                    <td colSpan={2} className="px-3 py-2.5 break-words @max-lg:py-0">
-                      <Value row={row} side="after" />
-                    </td>
-                  ) : (
-                    sides.map((s) => (
-                      <td
-                        key={s}
-                        className="px-3 py-2.5 break-words @max-lg:grid @max-lg:grid-cols-(--cols-lead-23) @max-lg:gap-2 @max-lg:py-0"
+                    >
+                      <th
+                        scope="row"
+                        className={cn(
+                          'relative px-3 py-2.5 text-left font-medium @max-lg:py-0 @max-lg:pt-0.5',
+                          // A gutter for the + beside the field's name, which a finger doesn't get.
+                          notes && 'pl-7 pointer-coarse:pl-3',
+                        )}
                       >
-                        <span className="text-xs text-muted-foreground @lg:sr-only">
-                          {labels[s]}
+                        {notes && <AddNote at={at} notes={notes} className="top-2 left-0" />}
+                        <span className="flex flex-wrap items-baseline gap-x-2">
+                          {row.label}
+                          {both && (
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {row.changed ? 'Changed' : 'The same'}
+                            </span>
+                          )}
                         </span>
-                        <span className="min-w-0">
-                          <Value row={row} side={s} />
-                        </span>
-                      </td>
-                    ))
-                  )}
-                </tr>
-              ))}
+                        {notes && (
+                          <span className="hidden pointer-coarse:group-focus-within/row:flex">
+                            <TouchNote at={at} notes={notes} />
+                          </span>
+                        )}
+                      </th>
+                      {/* An unchanged value is said once, across both sides. */}
+                      {both && !row.changed ? (
+                        <td colSpan={2} className="px-3 py-2.5 break-words @max-lg:py-0">
+                          <Value row={row} side="after" />
+                        </td>
+                      ) : (
+                        sides.map((s) => (
+                          <td
+                            key={s}
+                            className="px-3 py-2.5 break-words @max-lg:grid @max-lg:grid-cols-(--cols-lead-23) @max-lg:gap-2 @max-lg:py-0"
+                          >
+                            <span className="text-xs text-muted-foreground @lg:sr-only">
+                              {labels[s]}
+                            </span>
+                            <span className="min-w-0">
+                              <Value row={row} side={s} />
+                            </span>
+                          </td>
+                        ))
+                      )}
+                    </tr>
+                    {under && (
+                      <tr>
+                        <td colSpan={sides.length + 1} className="px-3 pb-3">
+                          {under}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -318,12 +417,13 @@ export function FieldsDiff({
 
 /* ---------- the Text diff ---------- */
 
-/** One line: its numbers, its sign in a glyph and in words, and its text. */
-function Line({ row }: { row: Row }) {
+/** One line: its numbers, its sign in a glyph and in words, and its text; its threads under it. */
+function Line({ row, notes }: { row: Row; notes?: SourceNotes }) {
   const side = row.t === '-' ? 'before' : 'after'
   // A blank line added or removed only starts or joins a paragraph: no sign, said in words.
   const pause = isBreak(row)
-  return (
+  const at = placeOfRow(row)
+  const line = (
     <div
       className={cn(
         'grid grid-cols-(--cols-diff) @max-lg:grid-cols-(--cols-diff-one)',
@@ -337,11 +437,11 @@ function Line({ row }: { row: Row }) {
       >
         {row.a}
       </span>
-      <span
-        aria-hidden
-        className="border-r px-2 py-0.5 text-right text-xs leading-6 text-muted-foreground tabular-nums select-none"
-      >
-        {row.t === '-' ? <span className="@lg:hidden">{row.a}</span> : row.b}
+      <span className="relative border-r px-2 py-0.5 text-right text-xs leading-6 text-muted-foreground tabular-nums select-none">
+        <span aria-hidden>
+          {row.t === '-' ? <span className="@lg:hidden">{row.a}</span> : row.b}
+        </span>
+        {notes && <AddNote at={at} notes={notes} className="top-1 left-0" />}
       </span>
       <span
         className="py-0.5 text-center leading-6 text-muted-foreground select-none"
@@ -368,16 +468,29 @@ function Line({ row }: { row: Row }) {
       </span>
     </div>
   )
+  if (!notes) return line
+  return (
+    <>
+      <div data-source-place={placeKey(at)} tabIndex={-1} className={place}>
+        {line}
+        <span className="hidden justify-end pointer-coarse:group-focus-within/row:flex">
+          <TouchNote at={at} notes={notes} />
+        </span>
+      </div>
+      {notes.under(at)}
+    </>
+  )
 }
 
-/** Unchanged lines folded into one row that opens them. */
-function Fold({ rows, all }: { rows: Row[]; all: boolean }) {
+/** Unchanged lines folded into one row that opens them; a fold that holds a thread is open. */
+function Fold({ rows, all, notes }: { rows: Row[]; all: boolean; notes?: SourceNotes }) {
   const [open, setOpen] = React.useState(false)
-  if (open)
+  const held = !!notes && rows.some((row) => notes.holds(placeOfRow(row)))
+  if (open || held)
     return (
-      <div className="animate-in duration-(--dur-3) fade-in-0 slide-in-from-top-1">
+      <div className={cn(open && 'animate-in duration-(--dur-3) fade-in-0 slide-in-from-top-1')}>
         {rows.map((row, i) => (
-          <Line key={i} row={row} />
+          <Line key={i} row={row} notes={notes} />
         ))}
       </div>
     )
@@ -399,7 +512,15 @@ function Fold({ rows, all }: { rows: Row[]; all: boolean }) {
  * The Text diff of two stored texts: every change a stop for N and P, with what stays the same
  * folded around it. One number column on a narrow pane, two when there is room.
  */
-export function TextDiff({ before, after }: { before: string; after: string }) {
+export function TextDiff({
+  before,
+  after,
+  notes,
+}: {
+  before: string
+  after: string
+  notes?: SourceNotes
+}) {
   const id = React.useId()
   const rows = React.useMemo(() => lineDiff(before, after), [before, after])
   const parts = React.useMemo(() => hunks(rows), [rows])
@@ -422,9 +543,9 @@ export function TextDiff({ before, after }: { before: string; after: string }) {
         <div className="overflow-hidden rounded-frame border">
           {parts.map((part, i) =>
             part.t === 'fold' ? (
-              <Fold key={i} rows={part.rows} all={!changes} />
+              <Fold key={i} rows={part.rows} all={!changes} notes={notes} />
             ) : part.t === 'same' ? (
-              part.rows.map((row, k) => <Line key={`${i}-${k}`} row={row} />)
+              part.rows.map((row, k) => <Line key={`${i}-${k}`} row={row} notes={notes} />)
             ) : (
               <div
                 key={i}
@@ -440,7 +561,7 @@ export function TextDiff({ before, after }: { before: string; after: string }) {
                   </p>
                 )}
                 {part.rows.map((row, k) => (
-                  <Line key={k} row={row} />
+                  <Line key={k} row={row} notes={notes} />
                 ))}
               </div>
             ),

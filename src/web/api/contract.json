@@ -1545,6 +1545,22 @@
         }
       }
     },
+    "resolve": {
+      "~orpc": {
+        "errorMap": {},
+        "meta": {
+          "scope": "read"
+        },
+        "route": {
+          "method": "POST",
+          "path": "/comments/{id}/resolve",
+          "tags": [
+            "comments"
+          ],
+          "summary": "Resolves a thread on a line or a field of a suggestion, or opens it again"
+        }
+      }
+    },
     "markMentionsRead": {
       "~orpc": {
         "errorMap": {},

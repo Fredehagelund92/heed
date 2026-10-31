@@ -521,6 +521,7 @@ export const invalidations: {
   removeComment: () => comments,
   // The suggestion's review reads whether its sender took it back.
   withdrawWithComment: () => [...comments, queryKeys.reviews],
+  resolveComment: () => [queryKeys.comments],
   markThreadSeen: () => [queryKeys.comments],
   markMentionSeen: () => comments,
   saveTerm: () => definitions,

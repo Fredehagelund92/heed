@@ -142,6 +142,11 @@ export type Review = {
    * null for an archive.
    */
   fields: { before: FieldSide | null; after: FieldSide | null }
+  /**
+   * The two versions the review compares: the one agents get now (null for a new item) and the
+   * suggested one (null for an archive). A thread on a line or a field names them.
+   */
+  versions: { before: string | null; after: string | null }
   /** The stored markdown of each version, mentions as the app's tokens, for the Text diff. */
   source: { before: string; after: string }
   /**
