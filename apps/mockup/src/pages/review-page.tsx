@@ -1195,7 +1195,12 @@ export function ReviewPage({ id }: { id: string }) {
     if (v) requestAnimationFrame(() => document.getElementById("decision")?.scrollIntoView({ block: "start", behavior: "smooth" }))
   }
   const [relationsOf, setRelations] = React.useState<Relations>({})
-  const relation = React.useMemo(() => [relationsOf, (id: string, v: Relation | undefined) => setRelations(({ [id]: _, ...rest }) => (v ? { ...rest, [id]: v } : rest))] as const, [relationsOf])
+  const relation = React.useMemo(() => [relationsOf, (id: string, v: Relation | undefined) => setRelations((prev) => {
+    const next = { ...prev }
+    if (v) next[id] = v
+    else delete next[id]
+    return next
+  })] as const, [relationsOf])
   const at = reviews.findIndex((x) => x.id === id)
   // The next suggestion crossfades in (150ms) where the browser can; with reduced motion it cuts.
   const go = React.useCallback(
@@ -1355,7 +1360,7 @@ export function ReviewPage({ id }: { id: string }) {
   )
 
   return (
-    <RelationContext.Provider value={relation as [Relations, (id: string, r: Relation) => void]}>
+    <RelationContext.Provider value={relation as [Relations, (id: string, r: Relation | undefined) => void]}>
       {/* Under a finger every control is at least 40px; the phone bar's actions are 44px. */}
       <div key={r.id} className={cn("flex h-full min-h-0 flex-col bg-background", TOUCH)}>
         <SiteHeader
