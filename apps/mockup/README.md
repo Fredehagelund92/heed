@@ -678,7 +678,7 @@ holds only what is particular to the product: the six answer lines (the line, wh
 you do), ten words, and four facts on how agents use what people write. Help goes to where the
 words are: an answer line in Ask opens a card with what it means and what to do, each aside (About
 our business, a domain) ends with "Read the guide", and `?` opens a sheet of fifteen keys. A "how do
-I" goes to the documentation: its own site, opened in a new tab, twelve pages plus What's new, left
+I" goes to the documentation: its own site, opened in a new tab, thirteen pages plus What's new, left
 navigation, On this page, previous and next, search with Cmd K, and a plain-text index for agents.
 The answer lines, words, setup steps, connect prompt and tools are each one list
 (`lib/help-content.ts`, `data/agents.ts`), drawn by Help, the card, Ask's own labels and the docs, so
