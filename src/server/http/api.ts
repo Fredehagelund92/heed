@@ -128,6 +128,7 @@ import { createVocabularyService } from '../modules/vocabulary/index.ts'
 import type { LoginServer } from '../modules/oauth/index.ts'
 import type { PageReader } from '../modules/web/index.ts'
 import { productName } from '../brand.ts'
+import { heedVersion } from '../version.ts'
 
 export interface ApiServices {
   signIn: SignIn
@@ -1237,7 +1238,7 @@ export function openApiDocument() {
   return new OpenAPIGenerator({ schemaConverters }).generate(contract, {
     info: {
       title: `${productName} API`,
-      version: '1.0.0',
+      version: heedVersion,
       description:
         'Accepted business context, proposals, gaps and domain dashboards, dev sessions and role administration. Only dev sign-in and its people list are public.',
     },

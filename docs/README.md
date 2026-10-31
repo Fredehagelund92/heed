@@ -47,6 +47,7 @@ Older design pages that still apply:
 | [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md)            |
 | [Evaluations and the golden set](evaluations.md)           | How answers are tested                                                 |
 | [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                             |
+| [Release Heed](releasing.md)                               | One version number, the release pull request and the tag               |
 | [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                                     |
 | [The rename checklist](rename-checklist.md)                | Everything that follows the product name                               |
 | [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents              |

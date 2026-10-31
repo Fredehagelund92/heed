@@ -274,6 +274,10 @@ have run and did not. It is the one check a branch rule and the merge queue need
 push to a pull request cancels the run it replaces; runs on `main`, in the merge queue and at night
 always finish.
 
+Two more workflows make releases ([Releasing Heed](releasing.md)): `release-please.yml` keeps the
+release pull request current after every push to `main`, and `release.yml`
+builds and publishes a release when a maintainer pushes a version tag.
+
 ### Validation tiers
 
 A pull request takes the highest tier any of its files falls in.
@@ -332,16 +336,18 @@ Some files are written by a command and checked by a test, so a stale one fails 
 command to run. Never edit them by hand, and never pick a side in a conflict in them: take either
 side, then run the command again.
 
-| File                                                 | Written by                                        | Checked by                             |
-| ---------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
-| `docs/api/openapi.json`, `src/web/api/contract.json` | `npm run api:generate`                            | `tests/server/api-contract.test.ts`    |
-| `src/web/lib/cn-tables.gen.ts`                       | `npm run cn:generate`                             | `tests/web/cn-tables.test.ts`          |
-| `src/web/routeTree.gen.ts`                           | the router plugin, on every build                 | the type check                         |
-| `plain-words.baseline.json`                          | `npm run lint:words -- --update`                  | `npm run lint:words`                   |
-| `db/migrations/latest.txt`                           | `npm run db:new-migration`, `npm run db:renumber` | `tests/server/migration-files.test.ts` |
+| File                                                 | Written by                                        | Checked by                                  |
+| ---------------------------------------------------- | ------------------------------------------------- | ------------------------------------------- |
+| `docs/api/openapi.json`, `src/web/api/contract.json` | `npm run api:generate`                            | `tests/server/api-contract.test.ts`         |
+| `src/web/lib/cn-tables.gen.ts`                       | `npm run cn:generate`                             | `tests/web/cn-tables.test.ts`               |
+| `src/web/routeTree.gen.ts`                           | the router plugin, on every build                 | the type check                              |
+| `plain-words.baseline.json`                          | `npm run lint:words -- --update`                  | `npm run lint:words`                        |
+| `db/migrations/latest.txt`                           | `npm run db:new-migration`, `npm run db:renumber` | `tests/server/migration-files.test.ts`      |
+| `CHANGELOG.md`, and the version in `package.json`    | release-please, in the release pull request       | the version: `tests/server/version.test.ts` |
 
 The API's version, sent in the `x-heed-api` header, is the digest of the OpenAPI document. It is
-worked out when the service starts, so no file holds it.
+worked out when the service starts, so no file holds it. The document names Heed's version, so
+the digest changes with each release too ([Releasing Heed](releasing.md)).
 
 To add a migration, run `npm run db:new-migration -- <snake_case_name>`. It writes the next
 numbered file in `db/migrations` and names it in `db/migrations/latest.txt`. Numbers run from 0001

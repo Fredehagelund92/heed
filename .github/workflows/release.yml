@@ -1,0 +1,295 @@
+name: Release
+
+# A release, from a version tag pushed by hand (docs/releasing.md): the tag must name the commit
+# that merged the release pull request (release-please.yml), whose CI passed. Then both images in
+# the Dockerfile, the service and the web app, are built natively for linux/amd64 and linux/arm64,
+# pushed to ghcr.io with an SBOM and the build provenance, and signed with GitHub's build
+# provenance. Last, the GitHub Release gets the notes release-please wrote into CHANGELOG.md.
+# Only the workflow's own token is used, each job with the least it needs.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+# bash with -e and pipefail, so a failed command inside a pipe fails its step.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: The tag is a release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      checks: read # CI on the tagged commit
+      pull-requests: read # the release pull request it merged
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      pr: ${{ steps.pr.outputs.pr }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: The tag names the version in package.json
+        id: version
+        run: |
+          version=$(jq -r .version package.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME does not name the version in package.json ($version). Tag the commit that merged the release pull request."
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: The tagged commit merged the release pull request into main
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          pr=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq '
+            [.[] | select(.merged_at != null and .base.ref == "main"
+              and any(.labels[]; .name == "autorelease: pending" or .name == "autorelease: tagged"))]
+            | first | .number // empty')
+          if [ -z "$pr" ]; then
+            echo "::error::$sha is not the commit that merged a release pull request into main. Tag that commit (docs/releasing.md)."
+            exit 1
+          fi
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "$sha merged release pull request #$pr."
+      - name: CI passed on the tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          passed=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/check-runs?check_name=CI%20gate" \
+            --jq '[.check_runs[] | select(.conclusion == "success")] | length')
+          if [ "$passed" -eq 0 ]; then
+            echo "::error::The CI gate has not passed on $sha. Once it has, re-run this workflow."
+            exit 1
+          fi
+
+  build:
+    # Each image on each platform on a runner of that platform, so nothing runs under emulation.
+    # Each pushes by digest only; the publish job gives the platforms one name and the tags.
+    name: 'Build ${{ matrix.image }} for ${{ matrix.platform }}'
+    needs: check
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [service, web]
+        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - image: service
+            suffix: ''
+            title: Heed service
+            description: The API, the MCP server agents read from, and the background jobs.
+          - image: web
+            suffix: '-web'
+            title: Heed web app
+            description: The web app, served by nginx, which forwards /api/v1 to the service.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Named after the repository, ghcr.io/fredehagelund92/heed and heed-web here, so a fork
+      # never pushes to this repository's names.
+      - name: Image name
+        id: name
+        env:
+          SUFFIX: ${{ matrix.suffix }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}$SUFFIX" >> "$GITHUB_OUTPUT"
+          echo "pair=${PLATFORM//\//-}" >> "$GITHUB_OUTPUT"
+      - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: meta
+        with:
+          images: ${{ steps.name.outputs.image }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build and push by digest, with an SBOM and the build provenance
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: ${{ matrix.image }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ steps.name.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          provenance: mode=max
+          sbom: true
+      - name: Keep the digest for the publish job
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.image }}-${{ steps.name.outputs.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: 'Publish ${{ matrix.image }}'
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # signs the build provenance
+      attestations: write # stores it
+    strategy:
+      matrix:
+        include:
+          - image: service
+            suffix: ''
+            title: Heed service
+            description: The API, the MCP server agents read from, and the background jobs.
+          - image: web
+            suffix: '-web'
+            title: Heed web app
+            description: The web app, served by nginx, which forwards /api/v1 to the service.
+    outputs:
+      # One output per image, from the matrix job that published it.
+      service: ${{ steps.result.outputs.service }}
+      web: ${{ steps.result.outputs.web }}
+    steps:
+      - name: Image name
+        id: name
+        env:
+          SUFFIX: ${{ matrix.suffix }}
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}$SUFFIX" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-${{ matrix.image }}-*
+          merge-multiple: true
+      # The version, its minor line and latest: ghcr.io/fredehagelund92/heed:0.1.0, :0.1 and :latest.
+      - uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        id: meta
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with:
+          images: ${{ steps.name.outputs.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          annotations: |
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=${{ matrix.description }}
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: One name and the tags for both platforms
+        id: push
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          IMAGE: ${{ steps.name.outputs.image }}
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          args=()
+          while IFS= read -r tag; do args+=(--tag "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          while IFS= read -r note; do args+=(--annotation "$note"); done < <(jq -r '.annotations[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          refs=()
+          for digest in *; do refs+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}" "${refs[@]}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.name.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+      # Before the release names it: each platform has its SBOM and build provenance, and the
+      # signed provenance verifies as the release notes tell people to check it.
+      - name: The image carries its SBOM and provenance, and its signed provenance verifies
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ steps.name.outputs.image }}@${{ steps.push.outputs.digest }}
+        run: |
+          for kind in SBOM Provenance; do
+            platforms=$(docker buildx imagetools inspect "$REF" --format "{{json .$kind}}" | jq -c 'keys')
+            echo "$kind: $platforms"
+            if [ "$platforms" != '["linux/amd64","linux/arm64"]' ]; then
+              echo "::error::$REF does not carry the $kind of both platforms."
+              exit 1
+            fi
+          done
+          gh attestation verify "oci://$REF" --repo "$GITHUB_REPOSITORY"
+          echo "The signed build provenance of $REF verifies."
+      - name: Hand the digest to the release job
+        id: result
+        env:
+          ROLE: ${{ matrix.image }}
+          REF: ${{ steps.name.outputs.image }}@${{ steps.push.outputs.digest }}
+        run: echo "$ROLE=$ROLE=$REF" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: GitHub Release
+    needs: [check, publish]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # the release
+      pull-requests: write # the release pull request's labels
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: The notes from CHANGELOG.md and the images (scripts/release-notes.ts)
+        env:
+          VERSION: ${{ needs.check.outputs.version }}
+          SERVICE: ${{ needs.publish.outputs.service }}
+          WEB: ${{ needs.publish.outputs.web }}
+        run: node scripts/release-notes.ts "$VERSION" "$GITHUB_REPOSITORY" "$SERVICE" "$WEB" > "$RUNNER_TEMP/notes.md"
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+        # A re-run of this job finds the release made and writes its notes again.
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --title "Heed $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Heed $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+          fi
+      # release-please opens no new release pull request while a merged one is still pending.
+      - name: Mark the release pull request as tagged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.check.outputs.pr }}
+        run: |
+          labels="repos/$GITHUB_REPOSITORY/issues/$PR/labels"
+          gh api --method POST "$labels" -f 'labels[]=autorelease: tagged' --silent
+          if [ "$(gh api "$labels" --jq 'any(.[]; .name == "autorelease: pending")')" = true ]; then
+            gh api --method DELETE "$labels/autorelease:%20pending" --silent
+          fi

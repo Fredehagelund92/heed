@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Fastify from 'fastify'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
@@ -200,6 +201,14 @@ describe('the hosts the MCP server answers', () => {
 })
 
 describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
+  it("names Heed's one version, from package.json, in the server info", async () => {
+    const { version } = JSON.parse(
+      await readFile(new URL('../../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string }
+    const client = await (await server()).connect(mode)
+    expect(client.getServerVersion()).toMatchObject({ name: 'heed', version })
+  })
+
   it('discovers, delivers the short reply with sources, reads an item and takes a report', async () => {
     const s = await server(),
       client = await s.connect(mode)

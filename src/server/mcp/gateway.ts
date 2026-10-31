@@ -14,6 +14,7 @@ import {
 import type { FastifyInstance } from 'fastify'
 import { appFamilyOf, type AppFamily } from '../../domain/app-family.ts'
 import { productName } from '../brand.ts'
+import { heedVersion } from '../version.ts'
 import type { EditionSource, ServingBundle } from '../modules/editions/index.ts'
 import { personScopes, TokenError, type TokenVerifier } from './auth.ts'
 import {
@@ -402,7 +403,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
         const server = new McpServer(
           // The id stays `heed`, since AI agents register the server by it; the title follows
           // the product's name (docs/rename-checklist.md).
-          { name: 'heed', title: productName, version: '0.1.0' },
+          { name: 'heed', title: productName, version: heedVersion },
           {
             instructions,
             cacheHints: {
