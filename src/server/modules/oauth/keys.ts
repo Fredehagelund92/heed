@@ -34,7 +34,7 @@ async function activeKey(file: string, nodeEnv: string): Promise<KeyObject> {
     if (!missing(error)) throw error
     if (nodeEnv === 'production')
       throw new Error(
-        `CL_OAUTH_SIGNING_KEY_FILE (${file}) does not exist. Create it with: openssl genpkey -algorithm ed25519 -out ${file} && chmod 600 ${file}`,
+        `CL_OAUTH_SIGNING_KEY_FILE (${file}) does not exist. Create it with: openssl genpkey -algorithm ed25519 -out ${file} && chmod 600 ${file} (in the service image: node src/server/create-keys.ts)`,
         { cause: error },
       )
     const { privateKey } = generateKeyPairSync('ed25519')

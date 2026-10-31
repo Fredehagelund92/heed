@@ -178,6 +178,10 @@ of a review flag only the mock has (`?state=quiet`).
 http mode build against the service, on a database `npm run db:migrate` prepared with
 `SEED_DEMO=on`, named by `E2E_DATABASE_URL` (default: the local development database). CI runs it
 on a PostgreSQL 18 container.
+`bash tests/image/production-boot.sh`, after `docker compose build`, boots the service image as it
+ships, in production mode, behind the web image, against a stand-in OpenID Connect provider: a
+person signs in, makes an access key, and an agent calls the MCP server with it. CI's Docker job
+runs it, then starts the demo with `docker compose up`.
 
 ## Folder map
 
@@ -214,6 +218,7 @@ tests/
   web/            Vitest, the web app (src/web); its HeedApi suite (conformance/), its http run (integration/)
   e2e/            Playwright: the golden job specs and axe, on the mock build and in http mode (http/)
   e2e-seed/       Playwright: the web app on the demo install, as docker compose up gives it
+  image/          the built service image in production mode, behind the web image (production-boot.sh)
 docs/help/            the documentation, Markdown, shown at /docs and as the static docs site (npm run docs:build)
 db/              migrations, grants, prepare.ts (npm run db:migrate) and seed/ (npm run seed, the demo Cube model)
 compose.yaml      docker compose up: PostgreSQL 18, the service and the web app, from Dockerfile and docker/

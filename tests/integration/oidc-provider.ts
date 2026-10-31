@@ -29,7 +29,13 @@ export interface Tweaks {
   error?: string
 }
 
-export async function startOidcProvider(options: { clientSecret?: string | null } = {}) {
+export async function startOidcProvider(
+  options: {
+    clientSecret?: string | null
+    /** The port on 127.0.0.1: any free one unless the caller names one. */
+    port?: number
+  } = {},
+) {
   const clientId = 'heed-test'
   const clientSecret = options.clientSecret === undefined ? 'test-secret' : options.clientSecret
   const { privateKey, publicKey } = await generateKeyPair('RS256')
@@ -52,7 +58,7 @@ export async function startOidcProvider(options: { clientSecret?: string | null 
       response.end()
     })
   })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+  await new Promise<void>((resolve) => server.listen(options.port ?? 0, '127.0.0.1', resolve))
   const { port } = server.address() as { port: number }
   const issuer = `http://127.0.0.1:${port}`
 

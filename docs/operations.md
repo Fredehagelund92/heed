@@ -36,8 +36,13 @@ an entry written by a scheduled job has none.
 Every request under `/api` counts against a per-minute limit (FR-408): 600 for each signed-in
 person and 120 for each address before sign-in, the `limits.api_rate_per_minute` setting. Over
 it, the answer is 429 with `Retry-After` in seconds. The counts live in the process, so each
-instance counts on its own, and an address is the connection's peer, so behind a proxy everyone
-before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are not limited.
+instance counts on its own. An address is the connection's peer, unless the peer is a proxy named
+in `CL_TRUSTED_PROXIES` (addresses, ranges such as `10.0.0.0/8`, or `loopback`, `linklocal` and
+`uniquelocal`, comma-separated): then it is the address that proxy forwards in `X-Forwarded-For`.
+The web image's nginx forwards the address of each caller, and drops one a caller sends, and
+`compose.yaml` trusts it, so behind it each caller before sign-in has a count of its own. Unset,
+the service believes no forwarded address. `/health`, `/health/ready` and `/metrics` are not
+limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
 (the weekly counts Observability keeps without limit, and what Heed caught each week, see [Observability](reference.md#observability)),
@@ -91,6 +96,42 @@ is kept and a source that needs one cannot be added.
 
 Database setup, migration rules, the bulk demo seed and isolated test databases are documented
 in [db/README.md](../db/README.md).
+
+## Run the image in production mode
+
+Heed 0.1 is for trying out on one computer. The service image starts in production mode unless
+told otherwise (`NODE_ENV=production`): people sign in with your company's OpenID Connect
+provider; the demo's people picker, dev tokens and the demo data are refused; and dynamic client
+registration is off unless `CL_OAUTH_DYNAMIC_REGISTRATION=on`. With no sign-in set up it refuses
+to start, names the missing settings and says how to get the demo instead. `compose.yaml` sets `NODE_ENV=development`,
+the one setting the demo needs: the people picker, where anyone can sign in as anyone, an
+administrator included, and the service says so in its log when it starts.
+
+To run the image in production mode, beside a PostgreSQL 18 database (see `compose.yaml` for the
+database settings):
+
+1. Register Heed with your provider as a web app, with the redirect address
+   `<your address>/api/v1/auth/oidc/callback` (`CL_OIDC_REDIRECT_URL` to use another), and set
+   `CL_OIDC_ISSUER` and `CL_OIDC_CLIENT_ID`; a confidential client's secret goes in an owner-only
+   file named by `CL_OIDC_CLIENT_SECRET_FILE`. `CL_OIDC_ADMIN_GROUPS` and `CL_OIDC_MEMBER_GROUPS`
+   let the members of those groups in without an invite. [How AI sign-in works](ai-sign-in.md)
+   has every sign-in setting.
+2. Make the keys production never makes on its own, once, in the volume that keeps them:
+   `docker run --rm -v heed-keys:/var/lib/heed <image> node src/server/create-keys.ts` (on your
+   computer: `npm run keys:create`). It makes the login server's signing key and the key that
+   seals suggest_context's questions, owner-only, and keeps a key that exists.
+3. Set `MCP_RESOURCE_URL` to the MCP server's https address, such as
+   `https://heed.example.com/mcp`, and `CL_WEB_ORIGINS` to the web app's address on the same
+   host: the built-in login server for agents needs https in production. Put a TLS proxy in front
+   that sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly and
+   only the rest (the web app's files) to the web image, with the public host.
+4. Name that TLS proxy in `CL_TRUSTED_PROXIES`, so each caller has a request limit of its own.
+   The web image's nginx overwrites `X-Forwarded-For` with its own peer's address, so it gives
+   per-caller limits only where it is the first proxy, as in `compose.yaml`.
+
+The CI job "Docker images: build, and boot the service in production mode" does all of this
+against a stand-in provider (`tests/image/production-boot.sh`): it signs a person in through the
+web image, makes an access key and calls the MCP server with it.
 
 ## Administration, import and export
 

@@ -31,7 +31,6 @@ import { createAnonymousStore } from './store.ts'
  * an administrator lets each agent do (FR-420).
  */
 export async function createMcpDependencies(config: Config, logger: Logger, login?: LoginServer) {
-  const key = await devKey(config.mcpDevKeyFile, config.nodeEnv)
   const pool = new pg.Pool({
     connectionString: config.databaseServeUrl,
     application_name: 'heed-serve',
@@ -42,9 +41,12 @@ export async function createMcpDependencies(config: Config, logger: Logger, logi
   pool.on('error', () =>
     logger.error({ reason: 'connection_failed' }, 'serving database connection failed'),
   )
-  const verifiers = new Map<string, TokenVerifier>([
-    [devIssuer, createDevVerifier(key, config.mcpResourceUrl, config.nodeEnv)],
-  ])
+  const verifiers = new Map<string, TokenVerifier>()
+  // Production has no dev key: a dev token there names an issuer nobody configured.
+  if (config.nodeEnv !== 'production') {
+    const key = await devKey(config.mcpDevKeyFile, config.nodeEnv)
+    verifiers.set(devIssuer, createDevVerifier(key, config.mcpResourceUrl, config.nodeEnv))
+  }
   const servers: string[] = []
   if (config.loginServer.kind === 'builtin' && login) {
     verifiers.set(login.issuer, login.verifier)

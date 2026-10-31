@@ -60,7 +60,6 @@ async function main(): Promise<void> {
       database: describeDatabase(config.databaseUrl),
       auth: config.auth,
       oidcIssuer: config.oidc?.issuer ?? null,
-
       fixedToday: config.fixedToday ?? null,
       models: config.models,
       cubeModelDir: config.cubeModelDir ?? null,
@@ -68,9 +67,15 @@ async function main(): Promise<void> {
       metrics: config.metricsToken === undefined ? 'off' : 'on',
       webReadLoopback: config.webReadLoopback ? 'on' : 'off',
       loginServer: config.loginServer.kind,
+      trustedProxies: config.trustedProxies,
     },
     'configuration loaded',
   )
+  // The pickers let anyone who reaches the service in as anyone, administrators included.
+  if (config.auth !== 'oidc')
+    logger.warn(
+      `Sign-in is the people picker (CL_AUTH=${config.auth}): anyone who can reach this service can sign in as any person, an administrator included. Only for trying it out on this computer; for real people, set NODE_ENV=production and sign people in with your OpenID Connect provider (docs/operations.md).`,
+    )
 
   const clock = systemClock(config.fixedToday)
   const database = createDatabase(config.databaseUrl, logger)
@@ -209,6 +214,7 @@ async function main(): Promise<void> {
     models,
     signIn,
     origins: config.webOrigins,
+    trustedProxies: config.trustedProxies,
     nodeEnv: config.nodeEnv,
     metricsToken: config.metricsToken,
     // The end-to-end tests serve their web pages on this machine; elsewhere, the public web only.

@@ -46,7 +46,11 @@ COPY db db
 # connected agent stays connected when the container is made again.
 RUN mkdir -p /var/lib/heed && chown node:node /var/lib/heed
 USER node
-ENV HOST=0.0.0.0 \
+# Production unless told otherwise: people sign in with the company's OpenID Connect provider
+# (docs/operations.md, "Run the image in production mode"), and the image refuses to start until
+# that is set up. The demo's people picker needs NODE_ENV=development, which compose.yaml sets.
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
     PORT=3000 \
     MCP_DEV_KEY_FILE=/var/lib/heed/mcp-dev-key.pem \
     CL_MCP_STATE_KEY_FILE=/var/lib/heed/mcp-state.key \

@@ -35,6 +35,10 @@ server {
         proxy_pass ${HEED_API_URL};
         proxy_http_version 1.1;
         proxy_set_header Host $http_host;
+        # The caller's own address, which the service counts request limits by when it trusts this
+        # proxy (CL_TRUSTED_PROXIES). Set, never appended to: an address the caller sent is dropped.
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # File names carry their content's hash. One that is not there is missing, not a page.
