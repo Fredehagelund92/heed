@@ -5,8 +5,8 @@
 --   versioned setting, false by default). Switching it off again ends every policy there is, on
 --   whatever path the setting changes (settings_auto_publish_off).
 -- - A policy is one row in agent_policies: one app agent (an access key never suggests), one
---   domain, the kinds it covers, a daily cap, who set it, when and why. An owner of the domain or
---   an administrator sets it, as themselves, while the workspace switch is on. A row is never
+--   domain, a daily cap, who set it, when and why. An owner of the domain sets it, as themselves,
+--   while the workspace switch is on. A row is never
 --   changed or deleted, apart from its end: Turn off ends it, with who and why. A change is a new
 --   row. There is at most one open policy per agent and domain, and a policy never expires.
 -- - When the agent sends a suggestion that the policy covers, the service accepts it in the same
@@ -15,12 +15,11 @@
 --   serving guard (cl_item_version_problem, FR-205) is unchanged and still requires an accept by
 --   an owner of the domain or an administrator, with every required check passed.
 -- - cl_policy_decision_problem refuses a decision that names a policy unless every rule holds at
---   that moment: the policy is open and was set by the decider, who is still an owner of the domain
---   (or still an administrator, if they set it as one), decides in that capacity and is the person
---   deciding; the workspace
---   switch is on; it is a publish of a new item (never a change or an archive) the agent sent for
---   its person, in that domain, of a kind the policy covers, at low risk; the agent and the
---   workspace still have suggest_context on; and the policy has not reached its daily cap.
+--   that moment: the policy is open and was set by the decider, who is still an owner of the domain,
+--   decides as an owner and is the person deciding; the workspace switch is on; it is a publish of
+--   a new item (never a change or an archive) the agent sent for its person, in that domain, at
+--   low risk; the agent and the workspace still have suggest_context on; and the policy has not
+--   reached its daily cap.
 -- - Its owner, any owner of the domain or an administrator may undo such a publish later, while
 --   the item is unchanged: the suggestion waits for review again (FR-227).
 
@@ -31,19 +30,13 @@ create table public.agent_policies (
     id uuid default uuidv7() primary key,
     agent_id uuid not null references auth.agents(id),
     area_id text not null references public.areas(id),
-    kinds text[] not null,
     per_day integer not null,
     set_by uuid not null references public.people(id),
-    -- Whether they set it as an owner of the domain or as an administrator: it acts while they still are.
-    set_as text not null,
     set_at timestamp with time zone default now() not null,
     reason text not null,
     ended_at timestamp with time zone,
     ended_by uuid references public.people(id),
     ended_reason text,
-    constraint agent_policies_kinds_check check (
-        cardinality(kinds) between 1 and 5 and kinds <@ array['note', 'event', 'guide', 'example', 'issue']),
-    constraint agent_policies_set_as_check check (set_as in ('owner', 'administrator')),
     constraint agent_policies_per_day_check check (per_day between 1 and 50),
     constraint agent_policies_reason_check check (char_length(btrim(reason)) between 1 and 500),
     constraint agent_policies_ended_check check (
@@ -79,15 +72,14 @@ begin
     if not cl_auto_publish_on() then
       raise exception 'Publishing without review is off for the workspace' using errcode = 'check_violation';
     end if;
-    if not ((new.set_as = 'owner' and cl_has_area_role(new.set_by, new.area_id, 'owner', now()))
-            or (new.set_as = 'administrator' and cl_is_admin(new.set_by, now()))) then
-      raise exception 'Only an owner of the domain or an administrator sets a policy' using errcode = '42501';
+    if not cl_has_area_role(new.set_by, new.area_id, 'owner', now()) then
+      raise exception 'Only an owner of the domain sets a policy' using errcode = '42501';
     end if;
     return new;
   end if;
   if old.ended_at is not null
-     or (new.id, new.agent_id, new.area_id, new.kinds, new.per_day, new.set_by, new.set_as, new.set_at, new.reason)
-        is distinct from (old.id, old.agent_id, old.area_id, old.kinds, old.per_day, old.set_by, old.set_as, old.set_at, old.reason) then
+     or (new.id, new.agent_id, new.area_id, new.per_day, new.set_by, new.set_at, new.reason)
+        is distinct from (old.id, old.agent_id, old.area_id, old.per_day, old.set_by, old.set_at, old.reason) then
     raise exception 'A policy is never changed: turn it off and set a new one' using errcode = '42501';
   end if;
   return new;
@@ -105,10 +97,9 @@ alter table public.agent_policies enable row level security;
 create policy agent_policies_read on public.agent_policies for select
     using (public.cl_person() is not null);
 
--- An owner of the domain or an administrator sets one, as themselves.
+-- An owner of the domain sets one, as themselves.
 create policy agent_policies_insert on public.agent_policies for insert
-    with check (set_by = public.cl_person()
-           and (public.cl_is_owner_now(area_id) or public.cl_is_admin_now()));
+    with check (set_by = public.cl_person() and public.cl_is_owner_now(area_id));
 
 -- Turn off is open to whoever set it, an owner of the domain, an administrator, and the person the
 -- agent works for: it only ever narrows what publishes.
@@ -133,7 +124,6 @@ declare
   pol agent_policies;
   p proposals;
   v item_versions;
-  item_kind text;
   used integer;
 begin
   select * into pol from agent_policies where id = d.auto_policy_id for update;
@@ -146,9 +136,7 @@ begin
     return 'the decision is not by the person who set the policy';
   end if;
   if d.area_id is distinct from pol.area_id then return 'the policy is for another domain'; end if;
-  if d.capacity::text <> pol.set_as
-     or not ((pol.set_as = 'owner' and cl_has_area_role(d.decided_by, pol.area_id, 'owner', now()))
-             or (pol.set_as = 'administrator' and cl_is_admin(d.decided_by, now()))) then
+  if d.capacity::text <> 'owner' or not cl_has_area_role(d.decided_by, pol.area_id, 'owner', now()) then
     return 'the person who set the policy is no longer an owner of the domain';
   end if;
   select * into p from proposals where id = d.proposal_id;
@@ -157,12 +145,10 @@ begin
   end if;
   if p.action <> 'create' then return 'a policy only publishes new items'; end if;
   select * into v from item_versions where id = d.item_version_id;
-  select i.kind::text into item_kind from items i where i.id = v.item_id;
   if v.area_id <> pol.area_id or p.area_id is distinct from pol.area_id then
     return 'the policy is for another domain';
   end if;
   if v.risk <> 'low' then return 'a policy only publishes low-risk items'; end if;
-  if not item_kind = any (pol.kinds) then return 'the policy does not cover this kind'; end if;
   if not exists (select 1 from auth.agents a where a.id = pol.agent_id and a.kind = 'app'
                     and 'suggest_context' = any (a.tools)) then
     return 'suggest_context is off for the agent';
