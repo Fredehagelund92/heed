@@ -116,22 +116,23 @@ applied.
 2. Run `npm run db:migrate` to apply it, then `npm run test:integration`.
    `tests/server/migration-files.test.ts` refuses a shared or skipped number.
 3. If another pull request merges a migration first, rebase and renumber yours before you merge.
+   CI's **Migration numbers** job fails within seconds while your number is taken on `main`.
 
 [db/README.md](db/README.md) explains the roles, the grants and why enum additions need their own
 migration.
 
 ## The first-load budget
 
-The first load of the web app, the scripts and styles `index.html` loads, is held to **431 KB of
+The first load of the web app, the scripts and styles `index.html` loads, is held to **438 KB of
 script and 32 KB of CSS**, gzipped. Do not raise it. Load route code on demand instead: every page
 but the Inbox and Ask is a lazy route (`routes/**/*.lazy.tsx`), and so should heavy parts be.
 
 ```sh
-VITE_API_MODE=http npm run build      # the build that ships, which CI measures
-npm run size
+npm run size      # builds the web app as it ships (http mode), as CI does, and checks it
 ```
 
-CI counts about 1.5 KB more script than a local run, so leave a little room.
+It prints the bytes, the budget and the margin. CI counts 1.3 to 1.8 KB more script than a Mac
+for the same build, so go by the margin CI prints.
 
 ## How reviews work
 

@@ -1,0 +1,16 @@
+# Settings for no-mistakes (https://github.com/kunchenguid/no-mistakes), the pipeline that reviews,
+# tests and repairs a change before and after it is pushed. It reads protected_paths from main
+# only, never from the branch it checks, so a change cannot loosen the rule that checks it.
+
+# Files the pipeline's automatic commits (review, test, docs, lint and CI repairs) must leave to a
+# person. A repair that touches one is refused, nothing is committed, and the run stops to report
+# it. These are the fixes that turn one red pull request into a quiet change of a shared limit: a
+# higher first load budget, new dependency versions or overrides, or a renumbered migration. Each
+# belongs in a change of its own that says why (docs/development.md, "Continuous integration").
+# A name without a slash matches at any depth, so package.json and package-lock.json cover the
+# mockup's too. The rule covers the whole of package.json: it cannot single out its overrides.
+protected_paths:
+  - scripts/check-bundle-size.mjs
+  - package.json
+  - package-lock.json
+  - db/migrations/**

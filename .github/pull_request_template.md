@@ -29,6 +29,6 @@
 - [ ] No real access keys, passwords or personal data, in the code or in the examples
 - [ ] Shared components you reused, and any token you added, are named here: <!-- e.g. Button, Sheet; token `--mark-add` -->
 - [ ] A new migration takes the number after the latest on `main`, and generated files (`npm run api:generate`) are up to date
-- [ ] The first load stays within its budget (`VITE_API_MODE=http npm run build`, then `npm run size`; see CONTRIBUTING)
+- [ ] The first load stays within its budget (`npm run size`; see CONTRIBUTING)
 
 <!-- Contributions are licensed under Apache-2.0, as LICENSE says. -->

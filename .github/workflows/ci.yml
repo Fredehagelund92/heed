@@ -1,16 +1,20 @@
 name: CI
 
 # Which jobs run depends on what changed (docs/development.md, "Validation tiers"): the scope job
-# decides, and every job reports. Pushes to main, the nightly run and the full-ci label run
-# everything. "CI gate" passes only when every job passed or was skipped on purpose, so it is the
-# one check a branch rule needs. No workflow-level path filters: a required check that never
-# reports blocks the merge.
+# decides, and every job reports. Pushes to main, merge queue entries, the nightly run and the
+# full-ci label run everything. "CI gate" passes only when every job passed or was skipped on
+# purpose, so it is the one check a branch rule and the merge queue need. No workflow-level path
+# filters: a required check that never reports blocks the merge.
 on:
   push:
     branches: [main]
   pull_request:
     # labeled: adding the full-ci label runs everything again.
     types: [opened, synchronize, reopened, labeled]
+  # A pull request in the merge queue, tested on top of main and the entries ahead of it, so two
+  # changes that pass alone but fail together never reach main.
+  merge_group:
+    types: [checks_requested]
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -18,8 +22,8 @@ on:
 permissions:
   contents: read
 
-# A new push to a pull request cancels the run it replaces. Pushes to main and the nightly run each
-# get a group of their own, so every one of them finishes.
+# A new push to a pull request cancels the run it replaces. Pushes to main, merge queue entries and
+# the nightly run each get a group of their own, so every one of them finishes.
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -72,6 +76,25 @@ jobs:
           sed 's/^/  /' "$paths"
           bash .github/scripts/ci-scope.sh < "$paths" | tee -a "$GITHUB_OUTPUT"
 
+  migrations:
+    # Before any database starts: a change whose new migration takes a number its base already has
+    # (another pull request merged one first), or shares one, fails here within seconds. It needs
+    # only git and node: no install.
+    name: Migration numbers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The commit under test and its first parent: the base branch for a pull request, the
+          # queue ahead for a merge queue entry, the commit before for a push.
+          fetch-depth: 2
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Every migration has its own number, after the base branch's (scripts/check-migration-numbers.ts)
+        run: node scripts/check-migration-numbers.ts HEAD^1 HEAD
+
   # The checks run as two jobs side by side, so the slower half sets the wait, not their sum.
   check:
     name: Types, lint, plain words, format
@@ -110,11 +133,10 @@ jobs:
       - run: npm ci
       - name: Unit, service and guard rail tests
         run: npm test
-      # The measured sizes, the budget and the margin also go to the job's summary page.
+      # npm run size builds the web app as it ships (http mode), as it does locally. The measured
+      # sizes, the budget and the margin also go to the job's summary page.
       - name: Build the web app as it ships (http mode) and check the first load budget
-        run: |
-          VITE_API_MODE=http npm run build
-          npm run size
+        run: npm run size
       - name: Build the docs site (docs/help) and check its pages and index
         run: |
           npm run docs:build
@@ -127,13 +149,14 @@ jobs:
     # them outside the seal's own files (scripts/check-held-out-seal.ts). It needs only git. No
     # cases are sealed at present; the rules on the sealed file hold again once fresh ones are.
     name: Held-out seal
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The merge commit and its first parent, the base branch: their difference is the change.
+          # The commit under test and its first parent, the base branch (or the queue ahead): their
+          # difference is the change.
           fetch-depth: 2
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -152,7 +175,7 @@ jobs:
   service:
     # Split into parts by test file; each part has its own database.
     name: 'Service integration tests (PostgreSQL 18, part ${{ matrix.shard }} of 2)'
-    needs: scope
+    needs: [scope, migrations]
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -200,7 +223,7 @@ jobs:
     # service image prepares it (db/prepare.ts with SEED_DEMO=on: the demo library, its people,
     # quality history and gaps), the service, and an http mode build of the app.
     name: 'Web app on the demo install (PostgreSQL 18, Playwright)'
-    needs: scope
+    needs: [scope, migrations]
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -318,7 +341,7 @@ jobs:
     # container. Each journey copies the demo week from a template, so within a part they run one
     # at a time; the parts, each with its own database, run side by side.
     name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright, part ${{ matrix.shard }} of 3)'
-    needs: scope
+    needs: [scope, migrations]
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -423,14 +446,28 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, check, unit, seal, service, seed, docker, web, golden-http, mockup, security]
+    needs:
+      [
+        scope,
+        migrations,
+        check,
+        unit,
+        seal,
+        service,
+        seed,
+        docker,
+        web,
+        golden-http,
+        mockup,
+        security,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Every job passed or was skipped on purpose
         env:
           RESULTS: ${{ toJSON(needs) }}
-          IS_PR: ${{ github.event_name == 'pull_request' }}
+          IS_CHANGE: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
           CHECK: ${{ needs.scope.outputs.check }}
           CODE: ${{ needs.scope.outputs.code }}
           MOCKUP: ${{ needs.scope.outputs.mockup }}
@@ -443,8 +480,9 @@ jobs:
           }
           failed=false
           expect scope true
+          expect migrations true
           expect security true
-          expect seal "$IS_PR"
+          expect seal "$IS_CHANGE"
           expect check "$CHECK"
           expect unit "$CHECK"
           expect service "$CODE"

@@ -126,7 +126,7 @@
     "test:e2e:golden-http": "playwright test -c playwright.golden-http.config.ts",
     "test:e2e:seed": "playwright test -c playwright.seed.config.ts",
     "check": "npm run typecheck && npm run lint && npm run lint:words && npm run format:check && npm test",
-    "size": "node scripts/check-bundle-size.mjs",
+    "size": "VITE_API_MODE=http npm run build && node scripts/check-bundle-size.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local db/prepare.ts",
     "db:new-migration": "node scripts/migrations.ts new",
     "db:renumber": "node scripts/migrations.ts renumber",
