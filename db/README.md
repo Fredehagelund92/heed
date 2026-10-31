@@ -26,13 +26,17 @@ and records its SHA-256. Missing, reordered or edited applied files fail before 
 Add a migration to change an installed database; never edit or rename one that has been applied.
 
 A new migration takes the number after the last one on `main` when it merges: numbers run from
-0001 without a gap and no two files share one, so the first after the baseline is 0002. If `main`
-gains a migration while your branch waits, rebase and renumber yours before merging. Files run in
-name order, so two branches that took the same number would sort by the rest of the name, and a
+0001 without a gap and no two files share one, so the first after the baseline is 0002. Add one
+with `npm run db:new-migration -- <snake_case_name>`. `db/migrations/latest.txt` names the last
+file, so when `main` gains a migration while your branch waits, your pull request conflicts on that
+line: rebase and run `npm run db:renumber`
+([Generated files and rebasing](../docs/development.md#generated-files-and-rebasing)). Files run
+in name order, so two branches that took the same number would sort by the rest of the name, and a
 database migrated between their merges would be refused. A database that applied a migration
 from its branch before it was renumbered is refused too, naming both numbers; make it again. The
-runner and `tests/server/migration-files.test.ts` refuse a shared or skipped number. SQL enum
-additions that need to be used in another statement belong in their own migration transaction.
+runner and `tests/server/migration-files.test.ts` refuse a shared or skipped number, and the test
+checks `latest.txt`. SQL enum additions that need to be used in another statement belong in their
+own migration transaction.
 
 `db/bootstrap/grants.sql` is applied after migrations with identifier-quoted environment role
 names. Migrations do not create cluster roles. Functions have no PUBLIC execution privilege;

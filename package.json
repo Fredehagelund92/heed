@@ -128,6 +128,8 @@
     "check": "npm run typecheck && npm run lint && npm run lint:words && npm run format:check && npm test",
     "size": "node scripts/check-bundle-size.mjs",
     "db:migrate": "node --env-file-if-exists=.env.local db/prepare.ts",
+    "db:new-migration": "node scripts/migrations.ts new",
+    "db:renumber": "node scripts/migrations.ts renumber",
     "seed": "node --env-file-if-exists=.env.local db/seed/main.ts",
     "db:restore-drill": "node --env-file-if-exists=.env.local src/server/run-restore-drill.ts",
     "token:dev": "node --env-file-if-exists=.env.local src/server/mcp/token-dev.ts",

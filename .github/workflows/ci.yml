@@ -72,8 +72,9 @@ jobs:
           sed 's/^/  /' "$paths"
           bash .github/scripts/ci-scope.sh < "$paths" | tee -a "$GITHUB_OUTPUT"
 
+  # The checks run as two jobs side by side, so the slower half sets the wait, not their sum.
   check:
-    name: Types, lint, unit tests, build
+    name: Types, lint, plain words, format
     needs: scope
     if: needs.scope.outputs.check == 'true'
     runs-on: ubuntu-latest
@@ -93,8 +94,23 @@ jobs:
         run: npm run lint:words
       - name: Format
         run: npm run format:check
+
+  unit:
+    name: Unit tests, build, first load budget, docs site
+    needs: scope
+    if: needs.scope.outputs.check == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
       - name: Unit, service and guard rail tests
         run: npm test
+      # The measured sizes, the budget and the margin also go to the job's summary page.
       - name: Build the web app as it ships (http mode) and check the first load budget
         run: |
           VITE_API_MODE=http npm run build
@@ -134,11 +150,16 @@ jobs:
           node "$RUNNER_TEMP/check-held-out-seal.ts" HEAD^1 HEAD
 
   service:
-    name: Service integration tests (PostgreSQL 18)
+    # Split into parts by test file; each part has its own database.
+    name: 'Service integration tests (PostgreSQL 18, part ${{ matrix.shard }} of 2)'
     needs: scope
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     services:
       postgres:
         image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
@@ -172,7 +193,7 @@ jobs:
       - name: Integration tests (real database)
         run: |
           pg_dump --version
-          npm run test:integration
+          npm run test:integration -- --shard=${{ matrix.shard }}/2
 
   seed:
     # The web app on what `docker compose up` gives a new install: a database prepared as the
@@ -254,7 +275,7 @@ jobs:
     # The web app on its mock binding (tests/e2e): the golden job specs J1 to J30, with the
     # motion journey a second time under reduced motion, and axe on every place at 390 and 1440 in
     # light and dark. Split into parts that each take a share.
-    name: 'Web app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 2)'
+    name: 'Web app: golden job specs and axe on the mock build (part ${{ matrix.shard }} of 3)'
     needs: scope
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
@@ -262,7 +283,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -281,7 +302,7 @@ jobs:
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Golden job specs, the addresses and axe on the production build
-        run: npm run test:e2e -- --shard=${{ matrix.shard }}/2
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
@@ -294,12 +315,17 @@ jobs:
   golden-http:
     # The golden job specs whose screens are wired (tests/e2e), in http mode: an http mode
     # build of the web app against the service and the mockup's demo week, on a PostgreSQL 18
-    # container. Each journey copies the demo week from a template, so they run one at a time.
-    name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright)'
+    # container. Each journey copies the demo week from a template, so within a part they run one
+    # at a time; the parts, each with its own database, run side by side.
+    name: 'Web app: golden job specs in http mode (PostgreSQL 18, Playwright, part ${{ matrix.shard }} of 3)'
     needs: scope
     if: needs.scope.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     services:
       postgres:
         image: postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
@@ -336,11 +362,11 @@ jobs:
       - if: steps.browsers.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - name: Golden job specs in http mode
-        run: npm run test:e2e:golden-http
+        run: npm run test:e2e:golden-http -- --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
-          name: playwright-report-golden-http
+          name: playwright-report-golden-http-${{ matrix.shard }}
           path: |
             playwright-report/golden-http
             test-results/golden-http
@@ -397,7 +423,7 @@ jobs:
     # did not.
     name: CI gate
     if: always()
-    needs: [scope, check, seal, service, seed, docker, web, golden-http, mockup, security]
+    needs: [scope, check, unit, seal, service, seed, docker, web, golden-http, mockup, security]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -420,6 +446,7 @@ jobs:
           expect security true
           expect seal "$IS_PR"
           expect check "$CHECK"
+          expect unit "$CHECK"
           expect service "$CODE"
           expect seed "$CODE"
           expect docker "$CODE"

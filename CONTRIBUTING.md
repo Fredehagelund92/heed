@@ -15,6 +15,9 @@ open an issue: [SECURITY.md](SECURITY.md) says how to tell us privately.
 3. Run `npm run check`, then open a pull request. The [template](.github/pull_request_template.md)
    asks what changes, why, how you tested it (with screenshots when a screen changes), what you left
    out, and the issue it closes.
+4. When `main` moves on and your pull request conflicts, rebase it. Files generated from code are
+   regenerated, not merged, and a new migration is renumbered with `npm run db:renumber`:
+   [Generated files and rebasing](docs/development.md#generated-files-and-rebasing) says how.
 
 You send your contribution under the Apache License 2.0, as section 5 of [LICENSE](LICENSE)
 says. You keep the copyright in your work.

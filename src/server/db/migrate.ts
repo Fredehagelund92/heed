@@ -23,6 +23,34 @@ export function migrationFilesProblem(files: readonly string[]): string | undefi
   return undefined
 }
 
+/** The file that names the last migration (db/README.md, "Adding a migration"). */
+export const latestMigrationFile = new URL('latest.txt', migrationDirectory)
+
+/**
+ * The new names for a branch's own migrations after it is rebased onto `base`: the files `base`
+ * has keep their names, and the branch's files (the ones `base` lacks) follow its last one, in
+ * their current order. An error when the branch lacks a file `base` has, since it is not rebased
+ * yet.
+ */
+export function renumberedMigrations(
+  base: readonly string[],
+  local: readonly string[],
+): { renames: [from: string, to: string][]; files: string[] } {
+  const missing = base.find((name) => !local.includes(name))
+  if (missing) throw new Error(`${missing} is on the base branch but not here: rebase first`)
+  const own = local.filter((name) => !base.includes(name)).sort()
+  const last = base.reduce((highest, name) => Math.max(highest, Number(name.slice(0, 4))), 0)
+  const renames = own
+    .map((name, index): [string, string] => [
+      name,
+      `${String(last + 1 + index).padStart(4, '0')}${name.slice(4)}`,
+    ])
+    .filter(([from, to]) => from !== to)
+  const renamed = new Map(renames)
+  const files = [...base, ...own.map((name) => renamed.get(name) ?? name)].sort()
+  return { renames, files }
+}
+
 export async function migrate(client: pg.Client, directory: URL = migrationDirectory) {
   await client.query("select pg_advisory_lock(hashtextextended('heed.migrations', 0))")
   try {

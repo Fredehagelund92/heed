@@ -6,7 +6,7 @@ import { defineConfig } from '@playwright/test'
   preview server forwards /api/v1 to the Heed service on PostgreSQL 18. The global setup seeds the
   mockup's demo week into a template database (tests/e2e/http); each journey starts on its own
   copy with its own service, so they run one at a time. Only the journeys whose screens are wired
-  run here; each later pull request adds its own. GOLDEN_DATABASE_URL names a superuser's
+  run here (testIgnore lists the rest). GOLDEN_DATABASE_URL names a superuser's
   connection (default: TEST_DATABASE_URL, then the local server).
 */
 
@@ -20,15 +20,20 @@ process.env.GOLDEN_WEB_ORIGIN = `http://localhost:${webPort}`
 
 export default defineConfig({
   testDir: 'tests/e2e',
-  // The Inbox, its quick view, the review and the setup checklist (P6b); Context, Definitions, the
-  // editor and Related (P7c); Ask (P10); Help and the docs (P13); People, invites and owners (P8);
-  // Observability (P12); comments, reactions and mentions (P9b); domains and connecting an agent
-  // (P11a); a read's suggestions (P11b); figures in Ask (P11a, part 2); the Applies to picker's
-  // dimension values (J31); sorting both ways (J32); Observability's Summary; records answers in Ask
-  // (J33); Summary's monthly snapshots and the digest (J34); marked text (J35); and an agent's consent page, which the
-  // mockup leaves out (golden plan 2.3); and how many calls a page load makes.
-  testMatch:
-    /\/(j(1|2|3|4|5|6|7|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|30|31|32|33|34|35)-[a-z0-9-]+|consent|calls)\.spec\.ts$/,
+  // Every spec in tests/e2e runs here unless it is listed below as one that needs the mock
+  // binding. A new journey runs in http mode by default; one whose screen is not wired yet adds a
+  // line here with its reason. One spec per line, so two pull requests that each add one merge
+  // cleanly.
+  testIgnore: [
+    // Addresses, axe and the docs controls check the mock build's pages (playwright.config.ts).
+    /\/addresses\.spec\.ts$/,
+    /\/axe\.spec\.ts$/,
+    /\/docs-controls\.spec\.ts$/,
+    // J8 asks the mock for a loading, failed or offline state (?state=), which the service has not.
+    /\/j8-states\.spec\.ts$/,
+    // J29 times saves the mock delays on purpose (docs/design/motion.md).
+    /\/j29-motion\.spec\.ts$/,
+  ],
   outputDir: 'test-results/golden-http/output',
   globalSetup: './tests/e2e/http/global-setup.ts',
   // The demo week's fixtures live with the app (src/web), under its path aliases.

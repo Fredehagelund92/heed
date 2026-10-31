@@ -238,6 +238,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm run dev:server`                      | The service at http://127.0.0.1:3000, restarted on change. Loads `.env.local` if it exists.                                                                                                                                           |
 | `npm run api:generate`                    | Rewrites `docs/api/openapi.json` and `src/web/api/contract.json` from `src/contract`                                                                                                                                                  |
 | `npm run heed -- <command>`               | The command-line tool: validate, import and draft items, export editions and the history log (`--help`)                                                                                                                               |
+| `npm run db:new-migration -- <name>`      | Adds the next numbered migration in `db/migrations`, empty, and names it in `db/migrations/latest.txt`; `npm run db:renumber` moves your branch's migrations after `main`'s after a rebase                                            |
 | `npm run db:migrate`                      | Gets the database ready: roles and database when missing, migrations, grants, and the demo with `SEED_DEMO=on` (see [Run the service locally](operations.md#run-the-service-locally))                                                 |
 | `npm run seed`                            | Loads the demo into an empty local database by hand; `-- --items-only` and `--library golden` are the variants the tests use (see [db/README.md](../db/README.md))                                                                    |
 | `npm run eval -- --area <id>`             | Runs a domain's test questions on the live edition now, with the mock model; `--real` needs a key and `--max-cost-usd`; `--resume <run id>` makes what an incomplete run is missing                                                   |
@@ -253,7 +254,7 @@ belongs to both sides. The service lives in `src/server`, next to `src/web`, wit
 | `npm test`                                | Vitest: the app's units, the service's tests and the guard rail tests                                                                                                                                                                 |
 | `npm run test:integration`                | Vitest: the service against PostgreSQL 18 (`TEST_DATABASE_URL`)                                                                                                                                                                       |
 | `npm run test:e2e`                        | Playwright: the golden job specs (`tests/e2e`) against a production build on the mock binding, the motion journey also with reduced motion, and axe on every place at 390 and 1440 in light and dark                                  |
-| `npm run test:e2e:golden-http`            | Playwright: the golden job specs whose screens are wired, on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                                                    |
+| `npm run test:e2e:golden-http`            | Playwright: the golden job specs whose screens are wired (all but the list in its config), on an http mode build against the service and the demo week (needs PostgreSQL 18, `GOLDEN_DATABASE_URL`)                                   |
 | `npm run test:e2e:seed`                   | Playwright: the web app on the demo install (needs a database `npm run db:migrate` prepared with `SEED_DEMO=on`, `E2E_DATABASE_URL`)                                                                                                  |
 | `npm run check`                           | typecheck, lint, format check and unit tests                                                                                                                                                                                          |
 
@@ -283,14 +284,56 @@ history) and the held-out seal. A path no rule names counts as Medium, and an em
 everything, so a gap in the rules runs more, never less. Change the rules in
 `.github/scripts/ci-scope.sh`; a change there is itself Sensitive.
 
-The golden job specs on the mock build run in two parallel parts. Every job stops after 25 minutes
-at most, so a hung part fails instead of holding the run.
+The slow jobs run in parallel parts, each on its own runner (and its own database where it needs
+one): the checks in two jobs, the service tests in two parts, and the golden job specs in three
+parts on the mock build and three in http mode. Every job stops after 25 minutes at most, so a hung
+part fails instead of holding the run. The first load check writes the measured sizes, the budget
+and the margin to its job's summary page.
 
 ### On main and every night
 
 Every push to `main`, the nightly run and a manual run take the Sensitive tier: every job,
 whatever changed. The nightly run also catches a new advisory against an unchanged lockfile, and
 a flaky test that a single pull request run passed by luck.
+
+### Generated files and rebasing
+
+Some files are written by a command and checked by a test, so a stale one fails CI with the
+command to run. Never edit them by hand, and never pick a side in a conflict in them: take either
+side, then run the command again.
+
+| File                                                 | Written by                                        | Checked by                             |
+| ---------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
+| `docs/api/openapi.json`, `src/web/api/contract.json` | `npm run api:generate`                            | `tests/server/api-contract.test.ts`    |
+| `src/web/lib/cn-tables.gen.ts`                       | `npm run cn:generate`                             | `tests/web/cn-tables.test.ts`          |
+| `src/web/routeTree.gen.ts`                           | the router plugin, on every build                 | the type check                         |
+| `plain-words.baseline.json`                          | `npm run lint:words -- --update`                  | `npm run lint:words`                   |
+| `db/migrations/latest.txt`                           | `npm run db:new-migration`, `npm run db:renumber` | `tests/server/migration-files.test.ts` |
+
+The API's version, sent in the `x-heed-api` header, is the digest of the OpenAPI document. It is
+worked out when the service starts, so no file holds it.
+
+To add a migration, run `npm run db:new-migration -- <snake_case_name>`. It writes the next
+numbered file in `db/migrations` and names it in `db/migrations/latest.txt`. Numbers run from 0001
+without a gap ([db/README.md](../db/README.md)), so two pull requests that each add one take the
+same number, and both change the one line in `latest.txt`: the second to merge shows a conflict
+instead of leaving `main` with two files of one number. Then rebase and renumber:
+
+```sh
+git fetch origin
+git rebase origin/main         # a conflict in db/migrations/latest.txt is expected
+npm run db:renumber            # moves this branch's migrations after main's last one
+npm run api:generate           # when the contract changed on either side
+git rebase --continue
+```
+
+`npm run db:renumber` renames only the migrations `main` does not have yet, in their order, fixes
+the files that name them, and writes `latest.txt`. Never rename a migration once it is on `main`:
+a database that applied it would be refused.
+
+The golden job specs in http mode (`playwright.golden-http.config.ts`) run every spec in
+`tests/e2e` except a list of those that need the mock binding, one per line with its reason. A new
+journey runs in both modes by default; add it to that list only while its screen is not wired.
 
 ### Batching merges
 
