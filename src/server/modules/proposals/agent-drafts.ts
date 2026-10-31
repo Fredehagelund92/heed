@@ -39,6 +39,8 @@ export type AgentDraftRequest = {
    * saves one draft: a second save with it, a replayed request state, is refused.
    */
   answersRound?: string
+  /** The agent that sent it, for an MCP draft (FR-420): named on the proposal. */
+  agentId?: string
 }
 
 /** The drafts an agent may save for one person (`limits.agent_drafts`, FR-809). */
@@ -107,6 +109,7 @@ export async function saveAgentDraft(
       provenance: (draft) =>
         provenanceOf(by, request.marks, draft, request.external, request.datesUncertain),
       ...(request.answersRound ? { answersRound: request.answersRound } : {}),
+      ...(request.channel === 'mcp' && request.agentId ? { agentId: request.agentId } : {}),
     })
   return request.retryKey
     ? retryWrite(

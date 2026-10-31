@@ -52,8 +52,8 @@ export function Sender({ r, when }: { r: Review; when?: string }) {
       <span>
         {r.agent ? (
           <>
-            An agent, with <span className="font-medium text-foreground">{r.from}</span>'s OK,{' '}
-            {when ?? r.on}
+            <span className="font-medium text-foreground">{r.agent}</span>, with{' '}
+            <span className="font-medium text-foreground">{r.from}</span>'s OK, {when ?? r.on}
           </>
         ) : (
           <>

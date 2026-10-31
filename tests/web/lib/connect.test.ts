@@ -10,6 +10,7 @@ import {
   seenAt,
   STOP_MS,
   usedLine,
+  type Connected,
 } from '@/lib/connect'
 
 // The live line checks every 3 seconds, shows what usually helps after 2 minutes and stops at 10.
@@ -62,7 +63,7 @@ describe('the connected agents', () => {
   it('revokes one row', async () => {
     const { api } = createMockApi()
     const row = (await api.listAgentConnections())[0]!
-    await api.revokeAgentConnection({ agent: row.agent, who: row.who })
+    await api.revokeAgent({ id: row.id })
     expect(await api.listAgentConnections()).not.toContainEqual(row)
   })
 
@@ -77,49 +78,102 @@ describe('the connected agents', () => {
 })
 
 describe('access keys on Connected agents', () => {
-  const agent = { agent: 'Cursor', who: 'Jon Abara', since: '12 Sep 2026', used: 'Yesterday' }
-  const key = { agent: 'Access key', who: 'Jon Abara', since: '23 Oct 2026', used: 'Never' }
+  const base = {
+    since: '23 Oct 2026',
+    allowed: ['read', 'feedback'],
+    scopes: ['read', 'feedback'],
+    sent: 0,
+    recent: [],
+  } satisfies Partial<Connected>
+  const agent: Connected = {
+    ...base,
+    id: 'a1',
+    kind: 'app',
+    agent: 'Cursor',
+    who: 'Jon Abara',
+    since: '12 Sep 2026',
+    used: 'Yesterday',
+    permission: 'suggest',
+  }
+  const key = (id: string): Connected => ({
+    ...base,
+    id,
+    kind: 'key',
+    agent: 'Weekly sales digest',
+    who: 'Jon Abara',
+    used: 'Never',
+    permission: 'read',
+  })
 
   it('counts the keys beside Create an access key, and says where they are', () => {
     expect(keysHint([agent])).toBe('None yet.')
-    expect(keysHint([agent, { ...key, key: 'k1' }])).toBe('1 key, in Connected agents above.')
-    expect(keysHint([{ ...key, key: 'k1' }, agent, { ...key, key: 'k2' }])).toBe(
-      '2 keys, in Connected agents above.',
-    )
+    expect(keysHint([agent, key('k1')])).toBe('1 key, in Connected agents above.')
+    expect(keysHint([key('k1'), agent, key('k2')])).toBe('2 keys, in Connected agents above.')
   })
 
   it('says how many agents and keys the list holds, in one line', () => {
     expect(connectedLine([])).toBe('None yet.')
     expect(connectedLine([agent])).toBe('1 agent people have connected.')
-    expect(connectedLine([agent, agent, { ...key, key: 'k1' }])).toBe(
+    expect(connectedLine([agent, agent, key('k1')])).toBe(
       '2 agents people have connected, and 1 access key.',
     )
-    expect(
-      connectedLine([
-        { ...key, key: 'k1' },
-        { ...key, key: 'k2' },
-      ]),
-    ).toBe('2 access keys.')
+    expect(connectedLine([key('k1'), key('k2')])).toBe('2 access keys.')
   })
 
   it('says a key no agent used yet was never used', () => {
-    expect(usedLine(key)).toBe('never used')
+    expect(usedLine(key('k1'))).toBe('never used')
     expect(usedLine(agent)).toBe('used yesterday')
   })
 
-  it('lists a new key in the mock, revokes it alone, and keeps the agents', async () => {
+  it('lists named keys in the mock, renames one, revokes it alone, and keeps the agents', async () => {
     const { api } = createMockApi()
     await api.signIn({ name: 'Jon Abara', fresh: false })
     const before = await api.listAgentConnections()
-    await api.createAccessKey()
-    await api.createAccessKey()
+    await api.createAccessKey({ name: 'Weekly sales digest' })
+    await api.createAccessKey({ name: 'Nightly export' })
     const rows = await api.listAgentConnections()
-    const keys = rows.filter((r) => r.key)
+    const keys = rows.filter((r) => r.kind === 'key')
     expect(keys).toHaveLength(2)
-    expect(keys[0]).toMatchObject({ agent: 'Access key', who: 'Jon Abara', fresh: true })
-    await api.revokeAgentConnection({ agent: 'Access key', who: 'Jon Abara', key: keys[0]!.key! })
+    expect(keys[0]).toMatchObject({ agent: 'Nightly export', who: 'Jon Abara', fresh: true })
+    await api.renameAccessKey({ id: keys[1]!.id, name: 'Monday digest' })
+    expect((await api.listAgentConnections()).find((r) => r.id === keys[1]!.id)).toMatchObject({
+      agent: 'Monday digest',
+    })
+    await api.revokeAgent({ id: keys[0]!.id })
     const after = await api.listAgentConnections()
-    expect(after.filter((r) => r.key).map((r) => r.key)).toEqual([keys[1]!.key])
-    expect(after.filter((r) => !r.key)).toHaveLength(before.length)
+    expect(after.filter((r) => r.kind === 'key').map((r) => r.id)).toEqual([keys[1]!.id])
+    expect(after.filter((r) => r.kind === 'app')).toHaveLength(before.length)
+  })
+
+  it('sets what an agent may do, never wider than what it was allowed', async () => {
+    const { api } = createMockApi()
+    await api.signIn({ name: 'Jon Abara', fresh: false })
+    const kofi = (await api.listAgentConnections()).find((r) => r.who === 'Kofi Mensah')!
+    await api.setAgentPermission({ id: kofi.id, permission: 'read' })
+    let now = (await api.listAgentConnections()).find((r) => r.id === kofi.id)!
+    expect(now).toMatchObject({ permission: 'read', scopes: ['read', 'feedback'] })
+    expect(now.setBy?.name).toBe('Jon Abara')
+    await api.setAgentPermission({ id: kofi.id, permission: 'none' })
+    now = (await api.listAgentConnections()).find((r) => r.id === kofi.id)!
+    expect(now.scopes).toEqual([])
+    const jon = (await api.listAgentConnections()).find((r) => r.who === 'Jon Abara')!
+    await api.setAgentPermission({ id: jon.id, permission: 'suggest' })
+    now = (await api.listAgentConnections()).find((r) => r.id === jon.id)!
+    expect(now.scopes).not.toContain('propose')
+  })
+
+  it('lets only an admin change an agent, and shows anyone else only their own apps', async () => {
+    const { api } = createMockApi()
+    await api.signIn({ name: 'Ines Duarte', fresh: false })
+    const mine = await api.listAgentConnections()
+    expect(mine.map((r) => r.who)).toEqual(['Ines Duarte'])
+    await expect(
+      api.setAgentPermission({ id: mine[0]!.id, permission: 'none' }),
+    ).rejects.toMatchObject({ kind: 'forbidden' })
+    await expect(api.createAccessKey({ name: 'Mine' })).rejects.toMatchObject({
+      kind: 'forbidden',
+    })
+    await api.revokeAgent({ id: mine[0]!.id })
+    expect(await api.listAgentConnections()).toEqual([])
   })
 })

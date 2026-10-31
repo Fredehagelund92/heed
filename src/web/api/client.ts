@@ -12,6 +12,7 @@
  */
 import type { JSONContent } from '@tiptap/core'
 import type { ConnectRequest } from '@contract/connections'
+import type { AgentPermission } from '@domain/agents'
 import type { ScopeSearchResult } from '@contract/scope'
 import type { ReactionEmoji } from '@/components/templates/comment-box/types'
 import type { FactAction } from '@/lib/bulk'
@@ -540,11 +541,13 @@ export interface HeedApi {
    */
   setPause: (input: { all: boolean } | { domain: DomainId | null }) => Promise<void>
   /**
-   * A key for a bot or a scheduled job that can't sign in: shown this once, and kept only as its
-   * digest. It reads context and gives feedback, names no person, and is listed on Connected agents
-   * until it is revoked.
+   * A key with a name, for a bot or a scheduled job that can't sign in: shown this once, and kept
+   * only as its digest. It reads context and gives feedback, names no person, and is listed on
+   * Connected agents by its name until it is revoked. Admins only.
    */
-  createAccessKey: () => Promise<{ key: string }>
+  createAccessKey: (input: { name: string }) => Promise<{ key: string }>
+  /** Renames an access key; the history log keeps both names. Admins only. */
+  renameAccessKey: (input: { id: string; name: string }) => Promise<void>
   /** Settings, Advanced's own read. */
   advancedPage: () => Promise<Advanced>
   /**
@@ -623,10 +626,18 @@ export interface HeedApi {
    * on or off, so an admin sees the endpoint and its token work. Kept nowhere.
    */
   tryFigure: (input: { source: ConnectorId }) => Promise<FigureTry>
-  /** The agents connected, newest sign-in first. */
+  /**
+   * The agents, by name, the last used first (FR-420): an admin sees every agent, anyone else the
+   * apps they signed in with.
+   */
   listAgentConnections: () => Promise<Connected[]>
-  /** Ends every connection of that agent for that person, or one access key (`key`), at once. */
-  revokeAgentConnection: (input: { agent: string; who: string; key?: string }) => Promise<void>
+  /**
+   * What one agent may do: read and suggest, read only, or nothing. It acts at the agent's next
+   * request and never widens what a person allowed; an access key never suggests. Admins only.
+   */
+  setAgentPermission: (input: { id: string; permission: AgentPermission }) => Promise<void>
+  /** Ends an agent at once: every connection of an app, or an access key. Anyone their own apps. */
+  revokeAgent: (input: { id: string }) => Promise<void>
   /**
    * Whether an agent signed in since a wait began (`since`, ms): the live line asks every few
    * seconds. Connected names the agent as it reported itself.
@@ -763,6 +774,7 @@ export const heedApiMethods = [
   'setTool',
   'setPause',
   'createAccessKey',
+  'renameAccessKey',
   'advancedPage',
   'checkHistory',
   'exportHistory',
@@ -783,7 +795,8 @@ export const heedApiMethods = [
   'readFigure',
   'tryFigure',
   'listAgentConnections',
-  'revokeAgentConnection',
+  'setAgentPermission',
+  'revokeAgent',
   'checkConnect',
   'getConnectReview',
   'getConnectRequest',

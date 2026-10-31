@@ -7,6 +7,7 @@ import {
 } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { SignJWT, decodeJwt, errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose'
+import { scopesWith, type AgentKind, type AgentPermission } from '../../domain/agents.ts'
 
 export type Principal = {
   client: string
@@ -21,6 +22,17 @@ export type Principal = {
   subject?: string
   /** Audience groups from the verified identity (FR-405). Groups are parked: serving ignores them. */
   groups?: readonly string[]
+  /**
+   * The built-in login server's connection the token belongs to (`sid`), which names the agent.
+   * Like `subject`, it never enters a record or a log line.
+   */
+  connection?: string
+  /**
+   * The agent Heed knows the token as (FR-420): an app a person connected, or an access key, with
+   * what an admin lets it do now. `scopes` are already narrowed by it. Absent for a token Heed
+   * keeps no agent for: a dev token, or one from another login server.
+   */
+  agent?: { kind: AgentKind; id: string; permission: AgentPermission }
 }
 export interface TokenVerifier {
   verify(token: string): Promise<Principal>
@@ -136,9 +148,36 @@ export function createPersonVerifier(options: {
           canSelectEdition: false,
           subject: sub,
           groups: (groups as string[] | undefined) ?? [],
+          ...(typeof sid === 'string' ? { connection: sid } : {}),
         }
       } catch (error) {
         throw new TokenError(failureOf(error), signedInClient)
+      }
+    },
+  }
+}
+
+/** Which agent a connection signs in as, and what it may do; null when Heed keeps no agent for it. */
+export type AgentCheck = (
+  connection: string,
+) => Promise<{ agentId: string; permission: AgentPermission } | null>
+
+/**
+ * Names the agent behind a person's token (FR-420) and narrows its scopes to what an admin lets it
+ * do now, asked at every request so a change acts at the next one. A token that names no
+ * connection passes as it is.
+ */
+export function withAgents(tokens: TokenVerifier, check: AgentCheck): TokenVerifier {
+  return {
+    async verify(token) {
+      const principal = await tokens.verify(token)
+      if (!principal.connection) return principal
+      const agent = await check(principal.connection)
+      if (!agent) return principal
+      return {
+        ...principal,
+        scopes: scopesWith(principal.scopes, agent.permission),
+        agent: { kind: 'app', id: agent.agentId, permission: agent.permission },
       }
     },
   }

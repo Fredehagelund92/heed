@@ -8,6 +8,8 @@ export type LoadedProposal = ReviewProposal & {
   draft: Draft
   findings: FormatFinding[]
   provenance: Provenance | null
+  /** The agent that sent it for the person, by its name then (FR-420); null for anything else. */
+  agentName: string | null
 }
 export type Role = 'owner' | 'approver'
 
@@ -18,7 +20,8 @@ const fields = `p.id::text,p.number::float8 as number,p.subject::text as subject
   p.proposer_id::text as "proposerId",p.channel::text as channel,p.revision,p.reason,
   p.claimed_by::text as "claimedBy",p.due_at::text as "dueAt",p.submitted_at::text as "submittedAt",
   p.closed_at::text as "closedAt",p.created_at::text as "createdAt",
-  coalesce(p.draft,'{}'::jsonb) as draft,p.draft_findings as findings,p.provenance`
+  coalesce(p.draft,'{}'::jsonb) as draft,p.draft_findings as findings,p.provenance,
+  p.agent_name as "agentName"`
 const from = `from proposals p left join item_versions v on v.id=p.item_version_id
   left join vocab_term_versions tv on tv.id=p.vocab_version_id`
 
@@ -27,6 +30,7 @@ export function publicRecord({
   draft: _d,
   findings: _f,
   provenance: _p,
+  agentName: _a,
   ...record
 }: LoadedProposal): ReviewProposal {
   return record

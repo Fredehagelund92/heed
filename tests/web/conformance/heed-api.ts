@@ -1063,47 +1063,100 @@ export function describeHeedApi(
       },
     )
 
-    it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgentConnection'))(
-      'lists the agents people connected, one row each, and revokes one',
+    it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgent'))(
+      'lists every agent by name, one row each, with what it may do, and revokes one',
       async () => {
         const live = await signedIn()
         const rows = await live.listAgentConnections()
         expect(rows.length).toBeGreaterThan(1)
-        expect(new Set(rows.map((r) => r.key ?? `${r.agent}/${r.who}`)).size).toBe(rows.length)
+        expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length)
         for (const r of rows) {
           expect(r.agent).not.toBe('')
+          expect(['app', 'key']).toContain(r.kind)
+          expect(['suggest', 'read', 'none']).toContain(r.permission)
+          // What it may do now never goes past what it was allowed.
+          expect(r.scopes.every((s) => r.allowed.includes(s))).toBe(true)
           expect(r.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
           expect(r.used).not.toBe('')
         }
-        const gone = rows.find((r) => r.who !== person && !r.key) ?? rows[0]!
-        await live.revokeAgentConnection({ agent: gone.agent, who: gone.who })
+        // Kofi's Claude Code is named, and so is what it sent.
+        const kofi = rows.find((r) => r.agent === 'Claude Code' && r.who === 'Kofi Mensah')
+        expect(kofi).toMatchObject({ kind: 'app', permission: 'suggest' })
+        // Ines's is read only, as an admin set it, and so cannot suggest.
+        const ines = rows.find((r) => r.who === 'Ines Duarte')!
+        expect(ines).toMatchObject({ permission: 'read', setBy: { name: 'Jon Abara' } })
+        expect(ines.scopes).not.toContain('propose')
+        const gone = rows.find((r) => r.who !== person && r.kind === 'app') ?? rows[0]!
+        await live.revokeAgent({ id: gone.id })
         const after = await live.listAgentConnections()
-        expect(after.some((r) => r.agent === gone.agent && r.who === gone.who)).toBe(false)
+        expect(after.some((r) => r.id === gone.id)).toBe(false)
         expect(after.length).toBe(rows.length - 1)
+        await expect(live.revokeAgent({ id: gone.id })).rejects.toMatchObject({ kind: 'not-found' })
       },
     )
 
-    it.skipIf(lacks('signIn', 'createAccessKey', 'listAgentConnections', 'revokeAgentConnection'))(
-      'creates an access key that is shown once, lists it by who made it, and revokes it',
+    it.skipIf(lacks('signIn', 'listAgentConnections', 'setAgentPermission'))(
+      'sets what an agent may do, narrowing it and never widening what it was allowed',
       async () => {
         const live = await signedIn()
-        const before = await live.listAgentConnections()
-        const { key } = await live.createAccessKey()
-        expect(key.length).toBeGreaterThanOrEqual(32)
         const rows = await live.listAgentConnections()
-        const made = rows.filter((r) => r.key && !before.some((b) => b.key === r.key))
-        expect(made).toHaveLength(1)
-        expect(made[0]).toMatchObject({ agent: 'Access key', who: person, used: 'Never' })
-        expect(made[0]!.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
-        // Only the answer that made it holds the key: no read says it again.
-        expect(JSON.stringify(rows)).not.toContain(key)
-        expect(JSON.stringify(await live.getSettings())).not.toContain(key)
-        await live.revokeAgentConnection({ agent: 'Access key', who: person, key: made[0]!.key! })
-        const after = await live.listAgentConnections()
-        expect(after.some((r) => r.key === made[0]!.key)).toBe(false)
-        expect(after.length).toBe(rows.length - 1)
+        const app = rows.find((r) => r.kind === 'app' && r.allowed.includes('propose'))!
+        await live.setAgentPermission({ id: app.id, permission: 'none' })
+        let now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(now).toMatchObject({ permission: 'none', scopes: [], setBy: { name: person } })
+        await live.setAgentPermission({ id: app.id, permission: 'read' })
+        now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(now).toMatchObject({ permission: 'read', scopes: ['read', 'feedback'] })
+        await live.setAgentPermission({ id: app.id, permission: 'suggest' })
+        now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(now.scopes).toEqual(['read', 'feedback', 'propose'])
+        // An app allowed only to read stays so, whatever its permission says.
+        const reader = rows.find((r) => r.kind === 'app' && !r.allowed.includes('propose'))
+        if (reader) {
+          await live.setAgentPermission({ id: reader.id, permission: 'suggest' })
+          now = (await live.listAgentConnections()).find((r) => r.id === reader.id)!
+          expect(now.scopes).not.toContain('propose')
+        }
       },
     )
+
+    it.skipIf(
+      lacks('signIn', 'createAccessKey', 'renameAccessKey', 'listAgentConnections', 'revokeAgent'),
+    )('creates a named access key that is shown once, renames it, and revokes it', async () => {
+      const live = await signedIn()
+      const before = await live.listAgentConnections()
+      await expect(live.createAccessKey({ name: '   ' })).rejects.toMatchObject({
+        kind: 'invalid',
+      })
+      const { key } = await live.createAccessKey({ name: 'Weekly sales digest' })
+      expect(key.length).toBeGreaterThanOrEqual(32)
+      const rows = await live.listAgentConnections()
+      const made = rows.filter((r) => r.kind === 'key' && !before.some((b) => b.id === r.id))
+      expect(made).toHaveLength(1)
+      expect(made[0]).toMatchObject({
+        agent: 'Weekly sales digest',
+        who: person,
+        used: 'Never',
+        permission: 'read',
+        scopes: ['read', 'feedback'],
+      })
+      expect(made[0]!.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+      // Only the answer that made it holds the key: no read says it again.
+      expect(JSON.stringify(rows)).not.toContain(key)
+      expect(JSON.stringify(await live.getSettings())).not.toContain(key)
+      // An access key names no person, so it can never suggest.
+      await expect(
+        live.setAgentPermission({ id: made[0]!.id, permission: 'suggest' }),
+      ).rejects.toMatchObject({ kind: 'not-found' })
+      await live.renameAccessKey({ id: made[0]!.id, name: 'Monday sales digest' })
+      expect((await live.listAgentConnections()).find((r) => r.id === made[0]!.id)).toMatchObject({
+        agent: 'Monday sales digest',
+      })
+      await live.revokeAgent({ id: made[0]!.id })
+      const after = await live.listAgentConnections()
+      expect(after.some((r) => r.id === made[0]!.id)).toBe(false)
+      expect(after.length).toBe(rows.length - 1)
+    })
 
     it.skipIf(lacks('signIn', 'checkConnect'))(
       'waits while no agent signed in since the wait began',

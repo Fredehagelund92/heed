@@ -1873,7 +1873,7 @@ export function ReviewPage({ id }: { id: string }) {
                     owners={owners}
                     note={
                       r.agent
-                        ? `Sent by an agent, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`
+                        ? `Sent by ${r.agent}, with ${r.from}'s OK. ${r.from.split(' ')[0]} answers here; agents never read or write comments.`
                         : undefined
                     }
                     className="border-t pt-6"

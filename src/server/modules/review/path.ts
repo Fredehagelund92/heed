@@ -417,6 +417,7 @@ export function createReviewPath(
       mode: r.mode,
       from: p.proposerId === null ? null : { personId: p.proposerId, name: name?.name ?? null },
       writtenBy: writtenBy(p),
+      agent: p.agentName,
       synced: (await syncedOf(tx, [p.id])).get(p.id) ?? null,
       gapId: r.gapId,
       note: p.reason,

@@ -25,7 +25,7 @@ export type Suggestion = {
   /** The context item it changes; none for a new one. */
   factId?: string
   from: string
-  /** Set when an agent sent it, with the person's OK. */
+  /** Set when an agent sent it, with the person's OK: the agent's name (FR-420). */
   agent?: string
   via: string
   on: string

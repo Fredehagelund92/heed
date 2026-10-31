@@ -1,13 +1,8 @@
 import type { Settings } from '../client'
 import { AGENT_TOOLS } from '@/lib/agents'
 import { MCP_URL } from '@/lib/brand'
-import {
-  ACCESS_KEY,
-  LIVE_PHASES,
-  MOCK_SIGN_IN_MS,
-  type Connected,
-  type LivePhase,
-} from '@/lib/connect'
+import { permissionScopes, scopesWith, type AgentPermission } from '@domain/agents'
+import { LIVE_PHASES, MOCK_SIGN_IN_MS, type Connected, type LivePhase } from '@/lib/connect'
 import { connectorById, type ConnectorId, type FigureConnection } from '@/model/integrations'
 import type { ConnectRequest } from '@contract/connections'
 import { MOCK_CONNECT_REQUEST, mockConnectRequest, seedAgents } from './data/agents'
@@ -34,18 +29,36 @@ export function createSettings() {
   let connected: ConnectorId[] = ['cube', 'google-drive']
   let connections: Partial<Record<ConnectorId, FigureConnection>> = { ...figureConnections }
   let agents: Connected[] = [...seedAgents]
-  let keys = 0
+  let made = 0
   /** Whether the demo's waiting agent sign-in was answered on the consent page. */
   let answered = false
 
-  /** A sign-in adds the agent on top, marked new; the same agent for the same person replaces its row. */
+  /**
+   * A sign-in adds the agent on top, marked new, with every tool the person allowed; the same agent
+   * for the same person keeps its row and what an admin set, and moves up.
+   */
   const addAgent = (agent: string, who: string) => {
-    const row: Connected = { agent, who, since: '23 Oct 2026', used: 'Just now', fresh: true }
+    const was = agents.find((r) => r.kind === 'app' && r.agent === agent && r.who === who)
+    const allowed = [...permissionScopes.suggest]
+    const row: Connected = {
+      id: was?.id ?? `agent-${++made}`,
+      kind: 'app',
+      agent,
+      who,
+      host: 'claude.ai',
+      since: '23 Oct 2026',
+      used: 'Just now',
+      fresh: true,
+      permission: was?.permission ?? 'suggest',
+      ...(was?.setBy ? { setBy: was.setBy } : {}),
+      allowed,
+      scopes: scopesWith(allowed, was?.permission ?? 'suggest'),
+      sent: was?.sent ?? 0,
+      recent: was?.recent ?? [],
+    }
     agents = [
       row,
-      ...agents
-        .filter((r) => !(r.agent === agent && r.who === who))
-        .map((r) => (r.fresh ? { ...r, fresh: false } : r)),
+      ...agents.filter((r) => r !== was).map((r) => (r.fresh ? { ...r, fresh: false } : r)),
     ]
   }
 
@@ -125,23 +138,54 @@ export function createSettings() {
     disconnect(id: ConnectorId) {
       connected = connected.filter((c) => c !== id)
     },
-    agents: () => agents,
-    /** A new access key goes on top of Connected agents, by who made it, never used yet. */
-    addKey(who: string) {
+    /** Every agent for an admin; anyone else sees the apps they signed in with. */
+    agents: (me: string, admin: boolean) =>
+      admin ? agents : agents.filter((r) => r.kind === 'app' && r.who === me),
+    /** A new access key goes on top of Connected agents, by its name and who made it, never used yet. */
+    addKey(who: string, name: string) {
       const row: Connected = {
-        agent: ACCESS_KEY,
+        id: `key-${++made}`,
+        kind: 'key',
+        agent: name,
         who,
         since: '23 Oct 2026',
         used: 'Never',
         fresh: true,
-        key: `key-${++keys}`,
+        permission: 'read',
+        allowed: ['read', 'feedback'],
+        scopes: ['read', 'feedback'],
+        sent: 0,
+        recent: [],
       }
       agents = [row, ...agents.map((r) => (r.fresh ? { ...r, fresh: false } : r))]
     },
-    revoke(agent: string, who: string, key?: string) {
-      agents = agents.filter((r) =>
-        key ? r.key !== key : r.key !== undefined || !(r.agent === agent && r.who === who),
+    /** False when no access key has that id. */
+    renameKey(id: string, name: string) {
+      if (!agents.some((r) => r.id === id && r.kind === 'key')) return false
+      agents = agents.map((r) => (r.id === id ? { ...r, agent: name } : r))
+      return true
+    },
+    /** What an agent may do now: what it was allowed, narrowed by the permission. Null for no agent. */
+    setPermission(id: string, permission: AgentPermission, by: string) {
+      const row = agents.find((r) => r.id === id)
+      if (!row || (row.kind === 'key' && permission === 'suggest')) return null
+      if (row.permission === permission) return false
+      agents = agents.map((r) =>
+        r === row
+          ? {
+              ...r,
+              permission,
+              setBy: { name: by, on: '23 Oct 2026' },
+              scopes: scopesWith(r.allowed, permission),
+            }
+          : r,
       )
+      return true
+    },
+    /** The agent that has the id, or none. */
+    agent: (id: string) => agents.find((r) => r.id === id),
+    revoke(id: string) {
+      agents = agents.filter((r) => r.id !== id)
     },
     /** In the demo an agent signs in 8 seconds after a copy; ?connect=declined says it was declined. */
     check(address: Address, since: number, agent: string, me: string) {

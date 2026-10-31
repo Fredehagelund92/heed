@@ -361,7 +361,7 @@ const fixtures: Fixture[] = [
     id: 'sug-agent',
     title: 'Payment provider delays order data in Poland',
     from: 'Kofi Mensah',
-    agent: 'Cursor',
+    agent: 'Claude Code',
     via: 'a chat',
     on: '21 Oct 2026',
     mode: 'new',

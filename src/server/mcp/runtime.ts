@@ -6,6 +6,7 @@ import { calendarDateTypes } from '../db/database.ts'
 import { createEditionSource } from '../modules/editions/index.ts'
 import {
   createAccessKeyVerifier,
+  servingAgentCheck,
   servingKeyCheck,
   withAccessKeys,
 } from '../modules/access-keys/index.ts'
@@ -16,6 +17,7 @@ import {
   createPersonVerifier,
   devIssuer,
   devKey,
+  withAgents,
   type TokenVerifier,
 } from './auth.ts'
 import { loadStateKey } from './state-key.ts'
@@ -25,7 +27,8 @@ import { createAnonymousStore } from './store.ts'
  * The MCP server's dependencies. It verifies every token itself (FR-402), choosing by issuer: dev
  * tokens from `npm run token:dev`, and a person's tokens from the login server the settings name
  * (FR-404): the built-in one, whose keys it holds, or another one, whose key set it reads. An
- * access key an administrator made is checked with the database at every request.
+ * access key an administrator made is checked with the database at every request, and so is what
+ * an administrator lets each agent do (FR-420).
  */
 export async function createMcpDependencies(config: Config, logger: Logger, login?: LoginServer) {
   const key = await devKey(config.mcpDevKeyFile, config.nodeEnv)
@@ -61,6 +64,10 @@ export async function createMcpDependencies(config: Config, logger: Logger, logi
     )
     servers.push(issuer)
   }
+  const serving = {
+    query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
+      (await pool.query<Row>(sql, values)).rows,
+  }
   const stateKey = await loadStateKey(config.mcpStateKeyFile, config.nodeEnv)
   if (!stateKey)
     logger.warn(
@@ -71,13 +78,8 @@ export async function createMcpDependencies(config: Config, logger: Logger, logi
     source: createEditionSource(pool),
     store: createAnonymousStore(pool),
     verifier: withAccessKeys(
-      createIssuerVerifier(verifiers),
-      createAccessKeyVerifier(
-        servingKeyCheck({
-          query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
-            (await pool.query<Row>(sql, values)).rows,
-        }),
-      ),
+      withAgents(createIssuerVerifier(verifiers), servingAgentCheck(serving)),
+      createAccessKeyVerifier(servingKeyCheck(serving)),
     ),
     resource: config.mcpResourceUrl,
     authorizationServers: servers,
