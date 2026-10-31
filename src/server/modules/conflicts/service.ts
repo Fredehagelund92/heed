@@ -525,12 +525,31 @@ export function createConflictsService(
         JSON.stringify({ id: row!.id, other: other.id, outcome: input.outcome }),
       ],
     )
+    // A comment on one item is read by everyone who may read that item, not the other one: it
+    // names the other item and gives the reason only when neither item limits who reads it
+    // (FR-128). Otherwise it says what happened, and the reason stays in History, which only
+    // someone who may read both items sees.
+    const [audience] = await tx.query<{ open: boolean }>(
+      `select bool_and(i.audience_groups is null) and count(*) = 2 as open
+         from v_item_list i where i.id = any($1::text[])`,
+      [[holder.id, other.id]],
+    )
+    const titled = !!audience?.open
     const said = {
       kept_one: `I kept “${keep === 'holder' ? holder.title : other.title}” and archived “${keep === 'holder' ? other.title : holder.title}”.`,
       kept_both: `I kept both “${holder.title}” and “${other.title}”. Agents keep saying they disagree until one of them changes.`,
       not_conflict: `“${holder.title}” and “${other.title}” are not a conflict any more: agents now get both with no flag.`,
     }[input.outcome]
-    const told = `${said} Reason: ${reason}${quote ? ` “${quote}”` : ''}`
+    const plain = {
+      kept_one: 'I settled a conflict this item was in: one item stays and the other is archived.',
+      kept_both:
+        'I kept both items of a conflict this item is in. Agents keep saying they disagree.',
+      not_conflict:
+        'This item and another are not a conflict any more: agents get both with no flag.',
+    }[input.outcome]
+    const told = titled
+      ? `${said} Reason: ${reason}${quote ? ` “${quote}”` : ''}`
+      : `${plain} The reason is in the item's history.`
     if (keep) {
       const stays = keep === 'holder' ? holder : other
       await tell(stays, [...settled(holder).owners, ...settled(other).owners], mine, told)
