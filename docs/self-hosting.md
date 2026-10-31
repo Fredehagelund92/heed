@@ -56,6 +56,11 @@ it, it arrives empty, and the service refuses to start and says so in `docker co
 On a Mac, Docker Desktop shares only the folders under Settings, Resources, File sharing, and
 Colima shares your home folder unless told otherwise.
 
+If the demo's library loads but its present does not (the Norway story, which fills the Inbox and
+Observability), the start stops with `The demo is half loaded` and the cause, and a later start
+logs that the demo's present is missing. The demo is not retried: run `docker compose down
+--volumes`, then `docker compose up` again.
+
 ## What to back up
 
 | What                                  | Where                                        | Why                                                                                                                                                                                                                                                                                    |

@@ -5,7 +5,7 @@ import pg from 'pg'
 import { migrate } from '../src/server/db/migrate.ts'
 import { applyGrants, createLocalDatabase, createLocalRoles } from '../src/server/db/roles.ts'
 import { loadDemo, type DemoCounts } from './seed/demo.ts'
-import { loadStory, type StoryCounts } from './seed/story.ts'
+import { loadStory, norwayStop, type StoryCounts } from './seed/story.ts'
 
 /*
   Gets Heed's database ready for the service: `npm run db:migrate`, and the container's start
@@ -106,6 +106,18 @@ export async function isEmpty(client: pg.Client): Promise<boolean> {
   return result.rows[0]!.empty
 }
 
+/** Whether a database holds the demo library (it has a quality history) but not the demo's present. */
+export async function isMissingStory(client: pg.Client): Promise<boolean> {
+  const result = await client.query<{ missing: boolean }>(
+    `select exists (select 1 from golden_questions)
+      and not exists (select 1 from item_versions where title = $1) as missing`,
+    [norwayStop.title],
+  )
+  return result.rows[0]!.missing
+}
+
+export const composeRecovery = 'docker compose down --volumes, then docker compose up again'
+
 /**
  * Step 3: the demo into an empty database, as the superuser. Returns what it added, or why it
  * added nothing.
@@ -113,13 +125,23 @@ export async function isEmpty(client: pg.Client): Promise<boolean> {
 export async function seedDemoIfEmpty(options: {
   seedUrl: string
   cubeModelDir: string | undefined
-}): Promise<(DemoCounts & { story: StoryCounts }) | 'not-empty' | 'not-demo-model'> {
+}): Promise<
+  (DemoCounts & { story: StoryCounts }) | 'not-empty' | 'story-missing' | 'not-demo-model'
+> {
   if (!(await isDemoModel(options.cubeModelDir))) return 'not-demo-model'
-  const demo = await withClient(options.seedUrl, async (client) =>
-    (await isEmpty(client)) ? loadDemo(client) : 'not-empty',
-  )
-  if (demo === 'not-empty') return demo
-  return { ...demo, story: await loadStory(options.seedUrl) }
+  const demo = await withClient(options.seedUrl, async (client) => {
+    if (await isEmpty(client)) return loadDemo(client)
+    return (await isMissingStory(client)) ? 'story-missing' : 'not-empty'
+  })
+  if (demo === 'not-empty' || demo === 'story-missing') return demo
+  try {
+    return { ...demo, story: await loadStory(options.seedUrl) }
+  } catch (error) {
+    throw new PrepareError(
+      `The demo is half loaded: its library is in the database but its present (the Norway story, the Inbox and Observability) is not, because ${error instanceof Error ? error.message : String(error)}. ` +
+        `The demo is not retried on the next start. To load it whole, run ${composeRecovery}.`,
+    )
+  }
 }
 
 /** The settings, checked; every problem is named by its variable. */
@@ -183,6 +205,10 @@ export async function prepare(env: Record<string, string | undefined>): Promise<
   })
   if (seeded === 'not-empty')
     console.log('SEED_DEMO=on: the database holds data already, so the demo was not loaded')
+  else if (seeded === 'story-missing')
+    console.log(
+      `SEED_DEMO=on: the database holds the demo library but not its present (the Norway story), so the Inbox and Observability stay empty. To load the demo whole, run ${composeRecovery}.`,
+    )
   else if (seeded === 'not-demo-model')
     console.log(
       'SEED_DEMO=on: CUBE_MODEL_DIR is not the demo Cube model (db/seed/cube), so the demo, which is about that model, was not loaded',

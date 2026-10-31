@@ -107,7 +107,12 @@ async function main(args: string[], env: NodeJS.ProcessEnv) {
       )
       // The demo's present is about the demo library; the golden set's library has none.
       if (name === 'demo') {
-        const story = await loadStory(librarySeedUrl(env))
+        const story = await loadStory(librarySeedUrl(env)).catch((error: unknown) => {
+          throw new UsageError(
+            `The demo is half loaded: its library is in the database but its present is not, because ${error instanceof Error ? error.message : String(error)}. ` +
+              'Drop and create the database, run npm run db:migrate, then npm run seed again.',
+          )
+        })
         console.log(
           `Then ${story.items} items published today, ${story.suggestions} suggestions waiting and ${story.calls} calls from agents`,
         )

@@ -308,6 +308,12 @@ eight weeks before this one. The seed moves each call's records to the hour it s
 the conflict alert once, and marks the setup checklist's Ask step, so the owner of Sales opens on a
 full Inbox and Observability.
 
+If that present fails after the library committed, both `npm run seed` and the container's start
+stop with `The demo is half loaded` and the cause, and the demo is not retried on a database that
+holds data. Recover by dropping and creating the database, `npm run db:migrate`, then
+`npm run seed` again; for `docker compose`, `docker compose down --volumes` and `docker compose up`.
+A later start with `SEED_DEMO=on` that finds the library without the story says so in one log line.
+
 ### Demo bulk seed
 
 The bulk seed (`bulkSeed`, `db/seed/bulk.ts`) is the explicit superuser-only
