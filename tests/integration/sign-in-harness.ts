@@ -9,10 +9,16 @@ import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/cli
 import { afterAll, beforeAll, expect } from 'vitest'
 import { buildApp } from '../../src/server/app.ts'
 import type { LoginServerConfig } from '../../src/server/config/env.ts'
-import { createDevVerifier, createIssuerVerifier, devIssuer } from '../../src/server/mcp/auth.ts'
+import {
+  createDevVerifier,
+  createIssuerVerifier,
+  devIssuer,
+  withAgents,
+} from '../../src/server/mcp/auth.ts'
 import { createAnonymousStore } from '../../src/server/mcp/store.ts'
 import {
   createAccessKeyVerifier,
+  servingAgentCheck,
   servingKeyCheck,
   withAccessKeys,
 } from '../../src/server/modules/access-keys/index.ts'
@@ -100,6 +106,10 @@ export async function signInHarness(options: { dynamicRegistration?: boolean } =
       previousFiles: [],
       nodeEnv: 'test',
     })
+    const serving = {
+      query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
+        (await pool.query<Row>(sql, values)).rows,
+    }
     login = createLoginServer({ config, resource, keys, nodeEnv: 'test', fetchDocument, now })
     app = buildApp({
       database,
@@ -117,20 +127,19 @@ export async function signInHarness(options: { dynamicRegistration?: boolean } =
         now,
         // Seals draft_context's question rounds (tests/integration/draft-questions.test.ts).
         stateKey,
-        // Access keys are checked as the service checks them: on the serving role, at every request.
+        // Access keys, and what each agent may do, are checked as the service checks them: on the
+        // serving role, at every request.
         verifier: withAccessKeys(
-          createIssuerVerifier(
-            new Map([
-              [devIssuer, createDevVerifier(devKey, resource, 'test')],
-              [issuer, login.verifier],
-            ]),
+          withAgents(
+            createIssuerVerifier(
+              new Map([
+                [devIssuer, createDevVerifier(devKey, resource, 'test')],
+                [issuer, login.verifier],
+              ]),
+            ),
+            servingAgentCheck(serving),
           ),
-          createAccessKeyVerifier(
-            servingKeyCheck({
-              query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
-                (await pool.query<Row>(sql, values)).rows,
-            }),
-          ),
+          createAccessKeyVerifier(servingKeyCheck(serving)),
         ),
       },
     })

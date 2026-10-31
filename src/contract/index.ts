@@ -213,6 +213,10 @@ import {
   adminDisconnectedSchema,
   adminDisconnectSchema,
   agentConnectionSchema,
+  agentToolInputSchema,
+  agentRevokedSchema,
+  agentRevokeSchema,
+  agentSchema,
   connectDecisionResultSchema,
   connectDecisionSchema,
   connectionIdSchema,
@@ -221,7 +225,9 @@ import {
   connectPendingSchema,
   connectRequestIdSchema,
   connectRequestSchema,
+  createAccessKeySchema,
   createdAccessKeySchema,
+  renameAccessKeySchema,
 } from './connections.ts'
 import {
   auditChainSchema,
@@ -718,9 +724,60 @@ export const contract = {
         path: '/access-keys',
         tags: ['admin'],
         summary:
-          'Create an access key for a bot or a scheduled job that cannot sign in: it may read context and give feedback, names no person, and lasts until revoked. The key is in this answer only; it is kept as a digest and never shown again',
+          'Create an access key with a name, for a bot or a scheduled job that cannot sign in: it may read context and give feedback, names no person, and lasts until revoked. The key is in this answer only; it is kept as a digest and never shown again',
       })
+      .input(createAccessKeySchema)
       .output(createdAccessKeySchema),
+  },
+  // Every agent with its name, kind and what it may do (FR-420): everyone sees their own, an
+  // administrator every agent, and only an administrator changes what one may do.
+  agents: {
+    list: read
+      .route({
+        method: 'GET',
+        path: '/agents',
+        tags: ['session'],
+        summary:
+          'The agents that may reach context: the apps people signed in with and the access keys, each with its name, its kind, every tool with whether it is switched on for this agent and whether the agent may have it, and what it suggested lately. An administrator sees every agent; anyone else their own apps',
+      })
+      .output(z.array(agentSchema)),
+    rename: admin
+      .route({
+        method: 'POST',
+        path: '/agents/{id}/name',
+        tags: ['admin'],
+        summary:
+          'Rename an access key, by its agent; the history log keeps the name before and after. An app keeps the name it gives itself',
+      })
+      .input(renameAccessKeySchema)
+      .output(changed),
+    setTool: agentDisconnect
+      .route({
+        method: 'POST',
+        path: '/agents/{id}/tools',
+        tags: ['admin'],
+        summary:
+          "Switch one tool on or off for one agent. It acts at the agent's next request and never widens what a person allowed; an access key never gets suggest_context. The history log keeps the reason",
+      })
+      .input(agentToolInputSchema)
+      .output(changed),
+    revoke: read
+      .errors({
+        UNPROCESSABLE_CONTENT: {
+          status: 422,
+          message: 'Remove the email address, phone number or secret from the reason.',
+          data: z.optional(z.object({ findings: z.array(findingSchema) })),
+        },
+      })
+      .route({
+        method: 'POST',
+        path: '/agents/{id}/revoke',
+        tags: ['session'],
+        summary:
+          'End one agent at once: every connection of an app, or an access key. An administrator ends any agent with a reason the history log keeps; anyone else their own apps',
+      })
+      .input(agentRevokeSchema)
+      .output(agentRevokedSchema),
   },
   roles: {
     grant: admin

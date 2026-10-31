@@ -228,6 +228,8 @@ export const reviewSheetSchema = z.object({
    */
   from: z.nullable(z.object({ personId: z.string(), name: z.nullable(z.string()) })),
   writtenBy: z.nullable(z.enum(['agent', 'assistant', 'source'])),
+  /** The agent that sent it, by its name then (FR-420); null for anything an agent didn't send. */
+  agent: z.nullable(z.string()),
   synced: z.nullable(syncedSchema),
   /** Started from a Not found card, by the card's gap. */
   gapId: z.nullable(z.string()),

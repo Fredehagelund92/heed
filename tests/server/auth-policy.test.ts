@@ -83,6 +83,8 @@ const adminOperations = [
   'agentConnections.disconnect',
   // Access keys for a bot or a scheduled job: made by administrators only.
   'accessKeys.create',
+  'agents.rename',
+  'agents.setTool',
   // Sources an administrator adds: their settings, secrets, test reads and Read again and Disconnect.
   'sources.types',
   'sources.get',
@@ -107,6 +109,9 @@ const readOperations = [
   'connections.decide',
   'connections.list',
   'connections.disconnect',
+  // Every agent by name: an administrator sees and ends any, anyone else their own apps.
+  'agents.list',
+  'agents.revoke',
   // Connect an agent's live line: a person's own sign-ins and declines (FR-418).
   'connect.pending',
   'proposals.create',

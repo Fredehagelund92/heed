@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AuditEntry, Setting } from '@contract/admin'
+import type { Agent } from '@contract/connections'
+import { agentToolNames } from '@domain/agents'
 import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import { freeAreaId, summaryOf } from '@/api/http'
@@ -27,96 +29,107 @@ describe('the agents people connected', () => {
     expect(usedWords(at(2), now)).toBe('2 Oct')
   })
 
-  it('lists one row per agent and person, newest sign-in first, a sign-in of minutes ago new', () => {
+  const agent = (over: Partial<Agent> & Pick<Agent, 'id' | 'name'>): Agent => ({
+    kind: 'app',
+    host: 'claude.ai',
+    person: { id: 'p1', name: 'Jon Abara', initials: 'JA', email: null },
+    madeBy: null,
+    tools: agentToolNames.map((tool) => ({ tool, on: true, allowed: true })),
+    toolsSetBy: null,
+    since: at(12),
+    lastUsedAt: at(22),
+    suggestions: { lastDays: 0, recent: [] },
+    ...over,
+  })
+
+  it('lists each agent by its name, as the service orders them, one of minutes ago new', () => {
     const rows = connectedOf(
       [
-        {
-          clientName: 'Cursor',
-          person: { name: 'Jon Abara' },
-          connectedAt: at(12),
-          lastUsedAt: at(22),
-        },
-        {
-          clientName: 'Claude',
-          person: { name: 'Maria Lindqvist' },
-          connectedAt: at(2),
-          lastUsedAt: at(23),
-        },
-        // The same agent signed in again for the same person: one row, the newest sign-in.
-        {
-          clientName: 'Cursor',
-          person: { name: 'Jon Abara' },
-          connectedAt: at(20),
-          lastUsedAt: at(20),
-        },
-        {
-          clientName: 'Claude Code',
-          person: { name: 'Jon Abara' },
-          connectedAt: new Date(now.getTime() - 120_000).toISOString(),
+        agent({
+          id: 'a1',
+          name: 'Claude Code',
+          since: new Date(now.getTime() - 120_000).toISOString(),
           lastUsedAt: new Date(now.getTime() - 120_000).toISOString(),
-        },
+          suggestions: {
+            lastDays: 1,
+            recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', at: at(22) }],
+          },
+        }),
+        agent({
+          id: 'a2',
+          name: 'Claude',
+          person: { id: 'p2', name: 'Ines Duarte', initials: 'ID', email: null },
+          tools: agentToolNames.map((tool) => ({
+            tool,
+            on: tool !== 'suggest_context',
+            allowed: true,
+          })),
+          toolsSetBy: { name: 'Jon Abara', at: at(14) },
+          since: at(1),
+          lastUsedAt: at(23),
+        }),
       ],
-      'Jon Abara',
       now,
     )
     expect(rows).toEqual([
       {
+        id: 'a1',
+        kind: 'app',
         agent: 'Claude Code',
         who: 'Jon Abara',
+        host: 'claude.ai',
         since: '23 Oct 2026',
         used: 'Just now',
         fresh: true,
+        tools: agentToolNames.map((tool) => ({ tool, on: true, allowed: true })),
+        sent: 1,
+        recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', on: '22 Oct 2026' }],
       },
-      { agent: 'Cursor', who: 'Jon Abara', since: '20 Oct 2026', used: '3 days ago' },
-      { agent: 'Claude', who: 'Maria Lindqvist', since: '2 Oct 2026', used: 'Today' },
+      {
+        id: 'a2',
+        kind: 'app',
+        agent: 'Claude',
+        who: 'Ines Duarte',
+        host: 'claude.ai',
+        since: '1 Oct 2026',
+        used: 'Today',
+        tools: agentToolNames.map((tool) => ({
+          tool,
+          on: tool !== 'suggest_context',
+          allowed: true,
+        })),
+        setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
+        sent: 0,
+        recent: [],
+      },
     ])
   })
 
-  it('lists each access key as its own row, by who made it, a key no agent used yet as Never', () => {
-    const key = (id: string, createdAt: string, lastUsedAt: string | null) => ({
-      kind: 'access_key' as const,
-      id,
-      createdAt,
-      lastUsedAt,
-      madeBy: { name: 'Jon Abara' },
-    })
+  it('lists an access key by its name and who made it, one no agent used yet as Never', () => {
     expect(
       connectedOf(
         [
-          key('k1', at(21), at(23, 8)),
-          {
-            clientName: 'Cursor',
-            person: { name: 'Jon Abara' },
-            connectedAt: at(22),
-            lastUsedAt: at(22),
-          },
-          key('k2', new Date(now.getTime() - 60_000).toISOString(), null),
+          agent({
+            id: 'k1',
+            kind: 'key',
+            name: 'Weekly sales digest',
+            host: null,
+            person: null,
+            madeBy: { id: 'p1', name: 'Jon Abara', initials: 'JA' },
+            tools: agentToolNames.map((tool) => ({
+              tool,
+              on: tool !== 'suggest_context',
+              allowed: tool !== 'suggest_context',
+            })),
+            since: at(21),
+            lastUsedAt: null,
+          }),
         ],
-        'Jon Abara',
         now,
       ),
-    ).toEqual([
-      {
-        agent: 'Access key',
-        who: 'Jon Abara',
-        since: '23 Oct 2026',
-        used: 'Never',
-        key: 'k2',
-        fresh: true,
-      },
-      { agent: 'Cursor', who: 'Jon Abara', since: '22 Oct 2026', used: 'Yesterday' },
-      { agent: 'Access key', who: 'Jon Abara', since: '21 Oct 2026', used: 'Today', key: 'k1' },
+    ).toMatchObject([
+      { kind: 'key', agent: 'Weekly sales digest', who: 'Jon Abara', used: 'Never' },
     ])
-  })
-
-  it("names the person's own agents by the person, when the list names nobody", () => {
-    expect(
-      connectedOf(
-        [{ clientName: 'Codex', connectedAt: at(21), lastUsedAt: at(21) }],
-        'Ines Duarte',
-        now,
-      ),
-    ).toMatchObject([{ agent: 'Codex', who: 'Ines Duarte' }])
   })
 })
 
@@ -306,6 +319,51 @@ describe('Settings, Advanced', () => {
     reason: null,
     source: null,
     ...over,
+  })
+
+  it('names the agent: a tool switched for it, a key renamed, and what it did for a person', () => {
+    expect(
+      historyLine(
+        entry({
+          action: 'agent.tool_switched',
+          subjectType: 'agent',
+          details: { name: 'Claude Code', kind: 'app', tool: 'suggest_context', on: false },
+        }),
+      ),
+    ).toEqual({ what: 'Switched suggest_context off for “Claude Code”' })
+    expect(
+      historyLine(
+        entry({
+          action: 'access_key.renamed',
+          subjectType: 'access_key',
+          details: { from: 'Weekly digest', to: 'Monday digest' },
+        }),
+      ),
+    ).toEqual({ what: 'Renamed the access key “Weekly digest” to “Monday digest”' })
+    expect(
+      historyLine(
+        entry({
+          action: 'access_key.created',
+          subjectType: 'access_key',
+          details: { name: 'Weekly digest', scopes: ['read', 'feedback'] },
+        }),
+      ),
+    ).toEqual({ what: 'Created the access key “Weekly digest”' })
+    const [row] = historyOf(
+      [
+        entry({
+          action: 'proposal.submitted',
+          actorName: 'Kofi Mensah',
+          subjectType: 'proposal',
+          subjectId: 'p9',
+          details: { revision: 1, agent: { id: 'a1', name: 'Claude Code' } },
+        }),
+      ],
+      [],
+      now,
+      { person: (id) => id },
+    )
+    expect(row).toMatchObject({ who: 'Claude Code for Kofi Mensah' })
   })
 
   it('says each history entry as a line, with a link to what it names', () => {

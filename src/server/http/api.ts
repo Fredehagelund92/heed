@@ -52,8 +52,19 @@ import { itemJsonSchema } from '../../domain/item-version.ts'
 import { checkModelSetting, type ModelPort } from '../modules/models/index.ts'
 import { labelOperation } from '../observability/metrics.ts'
 import { createLimiter } from './rate-limit.ts'
-import { connectInfo, readTryItQuestion } from '../modules/agents/index.ts'
-import { createAccessKey, listAccessKeys, revokeAccessKey } from '../modules/access-keys/index.ts'
+import {
+  agentFor,
+  connectInfo,
+  listAgents,
+  readTryItQuestion,
+  setAgentTool,
+} from '../modules/agents/index.ts'
+import {
+  createAccessKey,
+  listAccessKeys,
+  renameAccessKey,
+  revokeAccessKey,
+} from '../modules/access-keys/index.ts'
 import {
   askedThisWeek,
   createBundleCache,
@@ -526,10 +537,62 @@ export function createRouter({
     },
     accessKeys: {
       // Never a retry write: an answer kept for a retry would keep the key.
-      create: authorized.accessKeys.create.handler(async ({ context }) => {
-        const created = await createAccessKey(context.tx)
+      create: authorized.accessKeys.create.handler(async ({ context, input }) => {
+        const created = await createAccessKey(context.tx, input.name)
         if (!created) throw new ORPCError('FORBIDDEN')
         return created
+      }),
+    },
+    agents: {
+      list: authorized.agents.list.handler(({ context }) => listAgents(context.tx, clock.now())),
+      rename: authorized.agents.rename.handler(async ({ context, input }) => {
+        const renamed = await renameAccessKey(context.tx, input.id, input.name)
+        if (renamed === null) throw new ORPCError('FORBIDDEN')
+        if (!renamed)
+          throw new ORPCError('NOT_FOUND', {
+            message: "We couldn't find this access key. It may be revoked already.",
+          })
+        return { changed: true }
+      }),
+      setTool: authorized.agents.setTool.handler(async ({ context, input }) => {
+        plainReason(input.reason)
+        const changed = await setAgentTool(context.tx, input.id, input.tool, input.on, input.reason)
+        if (changed === null) throw new ORPCError('FORBIDDEN')
+        if (changed === undefined)
+          throw new ORPCError('NOT_FOUND', {
+            message:
+              input.tool === 'suggest_context'
+                ? "We couldn't find this agent, or it is an access key, which can't have suggest_context: it names no person."
+                : "We couldn't find this agent.",
+          })
+        return { changed }
+      }),
+      // An app ends with every connection it has; an access key is revoked. An administrator
+      // gives a reason the history log keeps.
+      revoke: authorized.agents.revoke.handler(async ({ context, input }) => {
+        if (input.reason !== undefined) plainReason(input.reason)
+        const agent = await agentFor(context.tx, input.id)
+        const gone = () =>
+          new ORPCError('NOT_FOUND', {
+            message: "We couldn't find this agent. It may be revoked already.",
+          })
+        if (!agent) throw gone()
+        if (agent.kind === 'key') {
+          if (input.reason === undefined) throw new ORPCError('FORBIDDEN')
+          const revoked = await revokeAccessKey(context.tx, agent.keyId!, input.reason)
+          if (revoked === null) throw new ORPCError('FORBIDDEN')
+          if (!revoked) throw gone()
+          return { revoked: true }
+        }
+        const ended = await login?.disconnectAgent(
+          context.tx,
+          input.id,
+          input.reason ?? null,
+          context.request.log,
+        )
+        if (ended === null) throw new ORPCError('FORBIDDEN')
+        if (!ended) throw gone()
+        return { revoked: true }
       }),
     },
     roles: {

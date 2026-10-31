@@ -72,6 +72,7 @@ const suggestion = (patch: Partial<Extract<Card, { group: 'suggestion' }>> = {})
   itemId: 'itm_units01',
   from: { personId: 'p_ines', name: 'Ines Duarte' },
   writtenBy: null,
+  agent: null,
   synced: null,
   read: false,
   care: { claims: 0, clash: false },
@@ -106,9 +107,17 @@ describe('the Inbox', () => {
     expect(cards[0]?.suggestion?.agent).toBeUndefined()
   })
 
-  it('says when an agent wrote it, and when it is new or archives something', () => {
+  it('says which agent wrote it, and when it is new or archives something', () => {
     const lines = inboxOf(
       feed([
+        suggestion({
+          id: 'n',
+          writtenBy: 'agent',
+          agent: 'Claude Code',
+          action: 'create',
+          itemId: null,
+        }),
+        // One sent before agents had names is an agent.
         suggestion({ id: 'a', writtenBy: 'agent', action: 'create', itemId: null }),
         suggestion({ id: 'b', action: 'create', itemId: null }),
         suggestion({ id: 'c', action: 'retire' }),
@@ -118,6 +127,7 @@ describe('the Inbox', () => {
       now,
     ).cards.map((c) => [c.line, c.suggestion?.agent])
     expect(lines).toEqual([
+      ["New context from Claude Code, sent with Ines Duarte's OK.", 'Claude Code'],
       ["New context from an agent, sent with Ines Duarte's OK.", 'An agent'],
       ['New context from Ines Duarte.', undefined],
       ['Ines Duarte suggests archiving it.', undefined],
@@ -472,6 +482,7 @@ const sheet = (patch: Partial<ReviewSheet> = {}, diff: Partial<Diff> = {}): Revi
   mode: 'edit',
   from: { personId: 'p_ines', name: 'Ines Duarte' },
   writtenBy: null,
+  agent: null,
   synced: null,
   gapId: null,
   note: 'The returns team started its own test accounts in October.',

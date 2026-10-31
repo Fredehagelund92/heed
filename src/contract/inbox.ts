@@ -42,6 +42,8 @@ export const cardSchema = z.union([
     /** Who sent it; null when a content source's read made it, which `synced` names. */
     from: z.nullable(z.object({ personId: z.string(), name: z.nullable(z.string()) })),
     writtenBy: z.nullable(z.enum(['agent', 'assistant', 'source'])),
+    /** The agent that sent it, by its name then (FR-420); null for anything an agent didn't send. */
+    agent: z.nullable(z.string()),
     synced: z.nullable(syncedSchema),
     /** The person read the version under review: it may go out with the others they read (FR-226). */
     read: z.boolean(),

@@ -1,4 +1,5 @@
 import type { HeedApi, HeedApiMethod, Inbox } from '../client'
+import { agentNameProblem } from '@domain/agents'
 import { ApiError } from '../errors'
 import type { SavedView } from '@/lib/obs-views'
 import { mentionNotesOf, type Subject } from '@/model/comments'
@@ -659,10 +660,26 @@ export function createMockApi() {
     setLinks: ({ on }) => now(() => settings.setLinks(on)),
     setTool: ({ name, on }) => now(() => settings.setTool(name, on)),
     setPause: (change) => now(() => settings.setPause(change)),
-    createAccessKey: () =>
+    createAccessKey: ({ name }) =>
       now(() => {
-        settings.addKey(me())
+        if (!obsReader().admin)
+          throw new ApiError('forbidden', 'Only an admin makes an access key.')
+        const problem = agentNameProblem(name)
+        if (problem) throw new ApiError('invalid', problem)
+        settings.addKey(me(), name.trim())
         return { key: demoAccessKey() }
+      }),
+    renameAccessKey: ({ id, name }) =>
+      now(() => {
+        if (!obsReader().admin)
+          throw new ApiError('forbidden', 'Only an admin renames an access key.')
+        const problem = agentNameProblem(name)
+        if (problem) throw new ApiError('invalid', problem)
+        if (!settings.renameKey(id, name.trim()))
+          throw new ApiError(
+            'not-found',
+            "We couldn't find this access key. It may be revoked already.",
+          )
       }),
     advancedPage: () => read('advancedPage', '', () => advancedOf(state.log, state.about)),
     checkHistory: () => now(() => ({ whole: true, entries: 1284 })),
@@ -742,8 +759,24 @@ export function createMockApi() {
         return figureFor(asked, (id) => on[id] ?? false)
       }),
     tryFigure: ({ source }) => now(() => figureTryFor(source, settings.connections()[source])),
-    listAgentConnections: () => now(() => settings.agents()),
-    revokeAgentConnection: ({ agent, who, key }) => now(() => settings.revoke(agent, who, key)),
+    listAgentConnections: () => now(() => settings.agents(me(), obsReader().admin)),
+    setAgentTool: ({ id, tool, on }) =>
+      now(() => {
+        if (!obsReader().admin)
+          throw new ApiError('forbidden', 'Only an admin switches the tools of an agent.')
+        if (settings.setAgentTool(id, tool, on, me()) === null)
+          throw new ApiError('not-found', "We couldn't find this agent.")
+      }),
+    // An admin ends any agent; anyone else the apps they signed in with.
+    revokeAgent: ({ id }) =>
+      now(() => {
+        const agent = settings.agent(id)
+        if (!agent)
+          throw new ApiError('not-found', "We couldn't find this agent. It may be revoked already.")
+        if (!obsReader().admin && !(agent.kind === 'app' && agent.who === me()))
+          throw new ApiError('forbidden', 'Only an admin revokes the agents of others.')
+        settings.revoke(id)
+      }),
     checkConnect: ({ since, agent }) =>
       now(() => settings.check(scenario.address(), since, agent, me())),
     getConnectReview: () => now(() => settings.review(scenario.address(), me())),

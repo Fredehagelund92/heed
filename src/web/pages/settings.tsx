@@ -1,9 +1,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
-import { KeyRoundIcon, PlusIcon } from '@/components/icons'
+import { PlusIcon } from '@/components/icons'
 import { toast } from 'sonner'
-import { ConnectAgent } from '@/components/connect-agent'
-import { ToolLogo } from '@/components/heed/tool-logo'
 import { PersonAvatar } from '@/components/heed/bits'
 import { Page } from '@/components/site-header'
 import {
@@ -15,36 +13,14 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
-import { AGENT_TOOLS, logoFor } from '@/lib/agents'
 import { GuideLink } from '@/components/heed/guide-link'
-import { useSetLinksEnabled, useLinksEnabled } from '@/lib/links-switch'
-import { connectedLine, keysHint, usedLine, type Connected } from '@/lib/connect'
-import { arriveRef, leaveThen, useLeavingRows } from '@/lib/presence'
 import { servedToAgents } from '@/model/items'
 import { useQuery } from '@tanstack/react-query'
 import type { Advanced as AdvancedPage, Exported } from '@/api/client'
 import { toApiError } from '@/api/errors'
-import { advancedPageQuery, useAgentConnections, useSettings, useWrite } from '@/api/queries'
+import { advancedPageQuery, useWrite } from '@/api/queries'
 import { Loadable, RowsSkeleton } from '@/components/heed/load-state'
 import { useFacts, useMe } from '@/lib/workspace'
 import { useDomainList, useDomains } from '@/lib/workspace'
@@ -61,9 +37,8 @@ import {
   type FrameColumn,
 } from '@/components/heed/frame'
 import { SLUG } from '@/lib/brand'
-import { ShowMoreButton } from '@/components/heed/show-more'
-import { useShowMore } from '@/hooks/use-show-more'
 import { People } from '@/pages/people'
+import { Agents } from '@/pages/settings-agents'
 
 // Settings, for admins: five sections under the settings navigation (General, Domains and owners,
 // Agents and access, Integrations, Advanced). No tabs anywhere.
@@ -221,9 +196,6 @@ const AboutPage = React.lazy(() =>
   import('@/pages/about-editor').then((m) => ({ default: m.AboutPage })),
 )
 
-/** A connected agent's row, the same across a refresh: its key, or the agent and who connected it. */
-const rowKey = (r: Connected) => r.key ?? r.agent + r.who
-
 /** General's side help, in the aside (or under the frame on narrower screens). */
 function AboutHelp() {
   return (
@@ -236,284 +208,6 @@ function AboutHelp() {
       </ul>
       <GuideLink slug="write-context" className="mt-4" />
     </>
-  )
-}
-
-/* ---------- Agents ---------- */
-
-/** Revoking signs an agent out at once, so it asks first. */
-function RevokeDialog({
-  row,
-  onClose,
-  onRevoke,
-}: {
-  row?: Connected
-  onClose: () => void
-  onRevoke: () => void
-}) {
-  return (
-    <Dialog open={!!row} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        {row?.key ? (
-          <DialogHeader>
-            <DialogTitle>Revoke this access key?</DialogTitle>
-            <DialogDescription>
-              It stops working at once, and whatever uses it stops reading context. A job that still
-              needs one gets a new key.
-            </DialogDescription>
-          </DialogHeader>
-        ) : (
-          <DialogHeader>
-            <DialogTitle>
-              Revoke {row?.agent} for {row?.who}?
-            </DialogTitle>
-            <DialogDescription>
-              It signs out at once and stops reading context. {row?.who.split(' ')[0]} can connect
-              it again.
-            </DialogDescription>
-          </DialogHeader>
-        )}
-        <DialogFooter>
-          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-          <Button variant="destructive" onClick={onRevoke}>
-            Revoke
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-function Agents() {
-  const domains = useDomains()
-  const domainIds = useDomainList().map((d) => d.id)
-  const linksOn = useLinksEnabled()
-  const setLinksEnabled = useSetLinksEnabled()
-  const write = useWrite()
-  const { pause, tools } = useSettings()
-  const paused = pause.all
-  const setPaused = (all: boolean) =>
-    void write('setPause', { all }).catch((e: unknown) =>
-      toast(all ? "Couldn't pause sharing" : "Couldn't let sharing go on", {
-        description: toApiError(e).message,
-      }),
-    )
-  const pauseDomain = (domain: string | null) =>
-    void write('setPause', { domain }).catch((e: unknown) =>
-      toast("Couldn't change what is paused", { description: toApiError(e).message }),
-    )
-  const setTool = (name: string, on: boolean) =>
-    void write('setTool', { name, on }).catch((e: unknown) =>
-      toast(`Couldn't switch ${name} ${on ? 'on' : 'off'}`, { description: toApiError(e).message }),
-    )
-  const createKey = async () => {
-    try {
-      const { key } = await write('createAccessKey', undefined)
-      toast('Access key created', {
-        description: 'Copy it now: it is shown once.',
-        action: { label: 'Copy', onClick: () => void navigator.clipboard?.writeText(key) },
-      })
-    } catch (e) {
-      toast("Couldn't create an access key", { description: toApiError(e).message })
-    }
-  }
-  const rows = useAgentConnections()
-  const [revoking, setRevoking] = React.useState<Connected>()
-  const leaving = useLeavingRows()
-  const { shown, more, next, showMore } = useShowMore(rows, 5, 20)
-  return (
-    <Frame>
-      <FrameSection
-        title="Connect an agent"
-        description="Paste one prompt into your agent, or start from your agent below. You approve the connection once, in the browser."
-      >
-        <ConnectAgent />
-      </FrameSection>
-      <FrameSection title="Connected agents" description={connectedLine(rows)}>
-        {rows.length > 0 && (
-          <ul ref={arriveRef} className="border-t" aria-label="Connected agents">
-            {shown.map((r) => (
-              <li
-                key={rowKey(r)}
-                data-leaving={leaving.has(rowKey(r)) || undefined}
-                className="row-presence border-t first:border-t-0"
-              >
-                <div
-                  className={cn(
-                    'grid grid-cols-(--cols-around) items-center gap-x-3 px-4 py-3 md:px-5',
-                    r.fresh && 'bg-fresh',
-                  )}
-                >
-                  {r.key ? (
-                    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border bg-logo-plate text-muted-foreground">
-                      <KeyRoundIcon className="size-4" aria-hidden />
-                    </span>
-                  ) : (
-                    <ToolLogo c={{ logo: logoFor(r.agent) }} />
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">
-                      {r.agent}
-                      {r.fresh && (
-                        <span className="ml-2 text-xs font-normal text-primary">New</span>
-                      )}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {r.who}
-                      <span className="@max-xl/main:hidden">
-                        , since {r.since.replace(' 2026', '')}
-                      </span>
-                      <span className="@xl/main:hidden"> - {usedLine(r)}</span>
-                    </p>
-                  </div>
-                  <span className="flex items-center gap-4">
-                    <span className="hidden text-xs text-muted-foreground first-letter:uppercase @xl/main:inline">
-                      {usedLine(r)}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => setRevoking(r)}
-                    >
-                      Revoke
-                    </Button>
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-        {more > 0 && (
-          <div className="border-t px-4 py-2 md:px-5">
-            <ShowMoreButton more={more} next={next} onClick={showMore} />
-          </div>
-        )}
-      </FrameSection>
-      <RevokeDialog
-        row={revoking}
-        onClose={() => setRevoking(undefined)}
-        onRevoke={() => {
-          if (!revoking) return
-          const { agent, who, key } = revoking
-          // The row goes first, then the access is revoked.
-          void leaveThen(rowKey(revoking), () =>
-            write('revokeAgentConnection', { agent, who, ...(key ? { key } : {}) })
-              .then(() => toast(key ? 'Access key revoked' : `${agent} for ${who} revoked`))
-              .catch((e: unknown) =>
-                toast(key ? "Couldn't revoke the access key" : `Couldn't revoke ${agent}`, {
-                  description: toApiError(e).message,
-                }),
-              ),
-          )
-          setRevoking(undefined)
-        }}
-      />
-      <FrameSection
-        title="Pause sharing"
-        level={3}
-        description={
-          paused
-            ? 'Paused. Agents hear that context is paused, and get none.'
-            : 'For an emergency: stop agents getting context.'
-        }
-        collapsible
-        defaultOpen={false}
-      >
-        <FrameRows
-          rows={[
-            {
-              id: 'all',
-              label: <label htmlFor="pause-all">Pause everything</label>,
-              hint: 'For an emergency. It acts at once and is logged.',
-              value: <Switch id="pause-all" checked={paused} onCheckedChange={setPaused} />,
-            },
-            {
-              id: 'domain',
-              wide: true,
-              label: <label htmlFor="pause-domain">Pause one domain</label>,
-              hint: "Agents stop getting that domain's context; the rest goes on.",
-              value: (
-                <Select
-                  items={[
-                    { label: 'No domain paused', value: 'none' },
-                    ...domainIds.map((d) => ({ label: domains[d]?.name, value: d })),
-                  ]}
-                  value={pause.domain ?? 'none'}
-                  onValueChange={(v) => pauseDomain(v === 'none' || !v ? null : String(v))}
-                >
-                  <SelectTrigger id="pause-domain" className="w-full sm:w-52">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="none">No domain paused</SelectItem>
-                      {domainIds.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {domains[d]?.name}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              ),
-            },
-          ]}
-        />
-      </FrameSection>
-      <FrameSection
-        title="Tools and access keys"
-        level={3}
-        description={`The ${AGENT_TOOLS.length} tools agents can call, and keys for agents that can't sign in.`}
-        collapsible
-        defaultOpen={false}
-      >
-        <FrameRows
-          rows={[
-            ...AGENT_TOOLS.filter((t) => t.name !== 'get_related').map(({ name, what }) => ({
-              id: name,
-              label: (
-                <label htmlFor={`tool-${name}`} className="font-mono text-xs">
-                  {name}
-                </label>
-              ),
-              hint: what,
-              value: (
-                <Switch
-                  id={`tool-${name}`}
-                  checked={tools[name] ?? true}
-                  onCheckedChange={(on) => setTool(name, on)}
-                />
-              ),
-            })),
-            // Following links has its own switch: on in the demo, and it never changes what an answer includes.
-            {
-              id: 'get_related',
-              label: (
-                <label htmlFor="tool-get_related" className="flex flex-col gap-0.5">
-                  <span className="font-mono text-xs">get_related</span>
-                  <span className="text-sm">Let agents follow links</span>
-                </label>
-              ),
-              hint: 'Follows a link between context items, definitions and domains, one step at a time. It never changes what an answer includes, and never lets agents read comments.',
-              value: (
-                <Switch id="tool-get_related" checked={linksOn} onCheckedChange={setLinksEnabled} />
-              ),
-            },
-            {
-              id: 'keys',
-              label: 'Access keys',
-              hint: `For a bot or a scheduled job that can't sign in. ${keysHint(rows)}`,
-              value: (
-                <Button variant="outline" size="sm" onClick={() => void createKey()}>
-                  Create an access key
-                </Button>
-              ),
-            },
-          ]}
-        />
-      </FrameSection>
-    </Frame>
   )
 }
 

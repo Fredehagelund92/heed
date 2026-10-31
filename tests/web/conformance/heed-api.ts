@@ -7,6 +7,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import { settingKeys } from '@contract/admin'
+import { agentToolNames } from '@domain/agents'
+import { toolsOn } from '@/lib/connect'
 import { heedApiMethods, type HeedApi, type HeedApiMethod, type Related } from '@/api/client'
 import type { ObsData } from '@/model/observability'
 import { labelDay, whenLabel } from '@/model/validity'
@@ -1063,47 +1065,107 @@ export function describeHeedApi(
       },
     )
 
-    it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgentConnection'))(
-      'lists the agents people connected, one row each, and revokes one',
+    it.skipIf(lacks('signIn', 'listAgentConnections', 'revokeAgent'))(
+      'lists every agent by name, one row each, with what it may do, and revokes one',
       async () => {
         const live = await signedIn()
         const rows = await live.listAgentConnections()
         expect(rows.length).toBeGreaterThan(1)
-        expect(new Set(rows.map((r) => r.key ?? `${r.agent}/${r.who}`)).size).toBe(rows.length)
+        expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length)
         for (const r of rows) {
           expect(r.agent).not.toBe('')
+          expect(['app', 'key']).toContain(r.kind)
+          // Every tool, by the names agents know, each on or off and allowed or not.
+          expect(r.tools.map((t) => t.tool)).toEqual([...agentToolNames])
+          // An access key can never have suggest_context.
+          if (r.kind === 'key')
+            expect(r.tools.find((t) => t.tool === 'suggest_context')).toMatchObject({
+              on: false,
+              allowed: false,
+            })
           expect(r.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
           expect(r.used).not.toBe('')
         }
-        const gone = rows.find((r) => r.who !== person && !r.key) ?? rows[0]!
-        await live.revokeAgentConnection({ agent: gone.agent, who: gone.who })
+        // Kofi's Claude Code is named, and so is what it sent.
+        const kofi = rows.find((r) => r.agent === 'Claude Code' && r.who === 'Kofi Mensah')
+        expect(kofi).toMatchObject({ kind: 'app' })
+        expect(toolsOn(kofi!)).toEqual([...agentToolNames])
+        // An admin switched suggest_context off for Ines's, and only that.
+        const ines = rows.find((r) => r.who === 'Ines Duarte')!
+        expect(ines).toMatchObject({ setBy: { name: 'Jon Abara' } })
+        expect(toolsOn(ines)).toEqual(agentToolNames.filter((t) => t !== 'suggest_context'))
+        const gone = rows.find((r) => r.who !== person && r.kind === 'app') ?? rows[0]!
+        await live.revokeAgent({ id: gone.id })
         const after = await live.listAgentConnections()
-        expect(after.some((r) => r.agent === gone.agent && r.who === gone.who)).toBe(false)
+        expect(after.some((r) => r.id === gone.id)).toBe(false)
         expect(after.length).toBe(rows.length - 1)
+        await expect(live.revokeAgent({ id: gone.id })).rejects.toMatchObject({ kind: 'not-found' })
       },
     )
 
-    it.skipIf(lacks('signIn', 'createAccessKey', 'listAgentConnections', 'revokeAgentConnection'))(
-      'creates an access key that is shown once, lists it by who made it, and revokes it',
+    it.skipIf(lacks('signIn', 'listAgentConnections', 'setAgentTool'))(
+      'switches one tool per agent, never widening what it was allowed',
       async () => {
         const live = await signedIn()
-        const before = await live.listAgentConnections()
-        const { key } = await live.createAccessKey()
-        expect(key.length).toBeGreaterThanOrEqual(32)
         const rows = await live.listAgentConnections()
-        const made = rows.filter((r) => r.key && !before.some((b) => b.key === r.key))
-        expect(made).toHaveLength(1)
-        expect(made[0]).toMatchObject({ agent: 'Access key', who: person, used: 'Never' })
-        expect(made[0]!.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
-        // Only the answer that made it holds the key: no read says it again.
-        expect(JSON.stringify(rows)).not.toContain(key)
-        expect(JSON.stringify(await live.getSettings())).not.toContain(key)
-        await live.revokeAgentConnection({ agent: 'Access key', who: person, key: made[0]!.key! })
-        const after = await live.listAgentConnections()
-        expect(after.some((r) => r.key === made[0]!.key)).toBe(false)
-        expect(after.length).toBe(rows.length - 1)
+        const app = rows.find((r) => r.kind === 'app' && r.tools.every((t) => t.allowed && t.on))!
+        await live.setAgentTool({ id: app.id, tool: 'suggest_context', on: false })
+        let now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(toolsOn(now)).toEqual(agentToolNames.filter((t) => t !== 'suggest_context'))
+        expect(now.setBy?.name).toBe(person)
+        // Every tool off: the agent is off.
+        for (const tool of agentToolNames) await live.setAgentTool({ id: app.id, tool, on: false })
+        now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(toolsOn(now)).toEqual([])
+        for (const tool of agentToolNames) await live.setAgentTool({ id: app.id, tool, on: true })
+        now = (await live.listAgentConnections()).find((r) => r.id === app.id)!
+        expect(toolsOn(now)).toEqual([...agentToolNames])
+        // An app the person allowed only to read never suggests, whatever its switch says.
+        const reader = rows.find((r) => r.tools.some((t) => !t.allowed && r.kind === 'app'))
+        if (reader) {
+          await live.setAgentTool({ id: reader.id, tool: 'suggest_context', on: true })
+          now = (await live.listAgentConnections()).find((r) => r.id === reader.id)!
+          expect(toolsOn(now)).not.toContain('suggest_context')
+        }
       },
     )
+
+    it.skipIf(
+      lacks('signIn', 'createAccessKey', 'renameAccessKey', 'listAgentConnections', 'revokeAgent'),
+    )('creates a named access key that is shown once, renames it, and revokes it', async () => {
+      const live = await signedIn()
+      const before = await live.listAgentConnections()
+      await expect(live.createAccessKey({ name: '   ' })).rejects.toMatchObject({
+        kind: 'invalid',
+      })
+      const { key } = await live.createAccessKey({ name: 'Weekly sales digest' })
+      expect(key.length).toBeGreaterThanOrEqual(32)
+      const rows = await live.listAgentConnections()
+      const made = rows.filter((r) => r.kind === 'key' && !before.some((b) => b.id === r.id))
+      expect(made).toHaveLength(1)
+      expect(made[0]).toMatchObject({
+        agent: 'Weekly sales digest',
+        who: person,
+        used: 'Never',
+      })
+      expect(toolsOn(made[0]!)).toEqual(agentToolNames.filter((t) => t !== 'suggest_context'))
+      expect(made[0]!.since).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)
+      // Only the answer that made it holds the key: no read says it again.
+      expect(JSON.stringify(rows)).not.toContain(key)
+      expect(JSON.stringify(await live.getSettings())).not.toContain(key)
+      // An access key names no person, so it can never suggest.
+      await expect(
+        live.setAgentTool({ id: made[0]!.id, tool: 'suggest_context', on: true }),
+      ).rejects.toMatchObject({ kind: 'not-found' })
+      await live.renameAccessKey({ id: made[0]!.id, name: 'Monday sales digest' })
+      expect((await live.listAgentConnections()).find((r) => r.id === made[0]!.id)).toMatchObject({
+        agent: 'Monday sales digest',
+      })
+      await live.revokeAgent({ id: made[0]!.id })
+      const after = await live.listAgentConnections()
+      expect(after.some((r) => r.id === made[0]!.id)).toBe(false)
+      expect(after.length).toBe(rows.length - 1)
+    })
 
     it.skipIf(lacks('signIn', 'checkConnect'))(
       'waits while no agent signed in since the wait began',

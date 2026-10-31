@@ -28,7 +28,7 @@ async function signedIn(name: string) {
 }
 
 async function createKey(boss: Awaited<ReturnType<typeof signedIn>>) {
-  const response = await boss.api('/access-keys', {})
+  const response = await boss.api('/access-keys', { name: 'Nightly export' })
   expect(response.status).toBe(200)
   expect(response.headers.get('cache-control')).toBe('no-store')
   return (await response.json()) as { id: string; key: string; createdAt: string }
@@ -65,6 +65,7 @@ describe('access keys', () => {
     const row = listed.find((r) => r.id === created.id)
     expect(row).toMatchObject({
       kind: 'access_key',
+      name: 'Nightly export',
       scopes: ['read', 'feedback'],
       madeBy: { id: people.admin, name: 'admin' },
     })
@@ -95,7 +96,7 @@ describe('access keys', () => {
       {
         action: 'access_key.created',
         actor: people.admin,
-        details: { scopes: ['read', 'feedback'] },
+        details: { name: 'Nightly export', scopes: ['read', 'feedback'] },
       },
     ])
     expect(JSON.stringify(audit.rows)).not.toContain(stored.rows[0]!.key_hash)
@@ -182,13 +183,13 @@ describe('access keys', () => {
     const boss = await signedIn('admin')
     const { id, key } = await createKey(boss)
     const person = await signedIn('author')
-    expect((await person.api('/access-keys', {})).status).toBe(403)
+    expect((await person.api('/access-keys', { name: 'Mine' })).status).toBe(403)
     expect((await person.api('/agent-connections')).status).toBe(403)
     expect(
       (await person.api(`/agent-connections/${id}/disconnect`, { reason: 'Mine now' })).status,
     ).toBe(403)
     expect(await mcpStatus(key)).toBe(200)
-    expect((await browser().api('/access-keys', {})).status).toBe(401)
+    expect((await browser().api('/access-keys', { name: 'Mine' })).status).toBe(401)
     expect(
       (
         await admin.query('select count(*)::int as n from auth.access_keys where created_by=$1', [

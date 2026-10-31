@@ -7,6 +7,7 @@ import { ToolLogo } from "@/components/heed/tool-logo"
 import { PersonAvatar } from "@/components/heed/bits"
 import { Page } from "@/components/site-header"
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
@@ -213,9 +214,12 @@ function Agents() {
               >
                 <ToolLogo c={{ logo: logoFor(r.agent) }} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {r.agent}
-                    {r.fresh && <span className="ml-2 text-xs font-normal text-primary">New</span>}
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium">
+                    <span className="min-w-0 truncate">{r.agent}</span>
+                    {r.fresh && <span className="text-xs font-normal text-primary">New</span>}
+                    <Badge variant="outline" className="font-normal">
+                      {r.may ?? "All 6 tools"}
+                    </Badge>
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {r.who}

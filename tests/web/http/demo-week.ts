@@ -9,6 +9,7 @@ import { spainDraft } from '@/api/mock/data/drafts'
 import { reviews } from '@/api/mock/data/review'
 import { facts, people as worldPeople, WORKSPACE_NAME } from '@/api/mock/data/world'
 import { seedAgents } from '@/api/mock/data/agents'
+import { agentScopes, toolScopes } from '@domain/agents'
 import type { Subject } from '@/model/comments'
 import type { Fact } from '@/model/items'
 import { bulkSeed, seedPersonId } from '../../../db/seed/bulk.ts'
@@ -978,7 +979,7 @@ async function seedAgentConnections(client: pg.Client) {
     )
     await client.query(
       `insert into auth.oauth_grants (person_id, client_id, scopes, created_at, expires_at, last_used_at)
-       values ($1, $2, '{read,feedback,propose}', $3::timestamptz, now() + interval '30 days',
+       values ($1, $2, $6, $3::timestamptz, now() + interval '30 days',
                now() - $4::interval - make_interval(mins => $5))`,
       [
         seedPersonId(personId(row.who)),
@@ -986,6 +987,23 @@ async function seedAgentConnections(client: pg.Client) {
         `${isoDay(row.since, TODAY)}T09:00:00Z`,
         ago[row.used] ?? '3 days',
         index,
+        // What the person allowed: the scopes of the tools the agent may have.
+        agentScopes.filter((scope) =>
+          row.tools.some((t) => t.allowed && toolScopes[t.tool] === scope),
+        ),
+      ],
+    )
+    // Each is an agent by name, with the tools an admin left on for it, as the mock has it (FR-420).
+    await client.query(
+      `insert into auth.agents (kind, name, person_id, client_id, tools, tools_set_by, tools_set_at)
+       values ('app', $1, $2, $3, $4, $5, $6)`,
+      [
+        row.agent,
+        seedPersonId(personId(row.who)),
+        clientId,
+        row.tools.filter((t) => t.on).map((t) => t.tool),
+        row.setBy ? seedPersonId(personId(row.setBy.name)) : null,
+        row.setBy ? `${isoDay(row.setBy.on, TODAY)}T09:00:00Z` : null,
       ],
     )
   }
@@ -1018,7 +1036,7 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
   const after = new pg.Client({ connectionString: superuserUrl })
   await after.connect()
   try {
-    // An agent wrote Kofi's, sent with his OK.
+    // An agent wrote Kofi's, sent with his OK (named below, once the agents are in).
     await after.query(
       `update proposals set provenance='{"by":"agent","fields":{},"flags":[]}' where id=$1`,
       [ids['sug-agent']],
@@ -1077,6 +1095,19 @@ export async function seedDemoWeek(superuserUrl: string): Promise<DemoWeekIds> {
       [WORKSPACE_NAME],
     )
     await seedAgentConnections(after)
+    // An agent wrote Kofi's, sent with his OK: his Claude Code, named on the suggestion as
+    // suggest_context names it. Which agent sent a suggestion never changes once it is made, so the
+    // seed writes it past that guard.
+    await after.query('begin')
+    await after.query("set local session_replication_role = 'replica'")
+    await after.query(
+      `update proposals p set channel='mcp',
+              agent_id=a.id, agent_name=a.name
+         from auth.agents a
+        where p.id=$1 and a.kind='app' and a.person_id=p.proposer_id and a.name=$2`,
+      [ids['sug-agent'], reviews.find((r) => r.id === 'sug-agent')!.agent],
+    )
+    await after.query('commit')
     // What agents asked over the weeks Observability counts, and what they reported (P12).
     topics = await seedObservability(after)
     // Sent this morning, one minute apart, newest first in the mock's order.

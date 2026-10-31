@@ -28,6 +28,8 @@ export type Version = {
   field: string
   before: string
   after: string
+  /** The agent that sent the suggestion this version published, and for whom (FR-420). */
+  sentBy?: string
 }
 
 /** Whether a version changed the words, so it can be restored (a check or a return changed nothing). */

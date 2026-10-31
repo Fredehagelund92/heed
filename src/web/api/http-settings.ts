@@ -10,7 +10,8 @@ import type { OperationsOverviewView } from '@contract/index'
 import type { Edition } from '@contract/review'
 import type { DeletedTerm } from '@contract/terms'
 import { AGENT_TOOLS } from '@/lib/agents'
-import { ACCESS_KEY, type Connected } from '@/lib/connect'
+import type { Agent } from '@contract/connections'
+import type { Connected } from '@/lib/connect'
 import { logLine } from '@/model/history'
 import { settingGroups } from '@/model/settings'
 import type { Advanced, Settings } from './client'
@@ -35,73 +36,33 @@ export function usedWords(at: string, now: Date): string {
   return days < 7 ? `${days} days ago` : words
 }
 
-/** A connection the list shows: the person's own, or anyone's for an admin. */
-export type Listed = {
-  clientName: string
-  connectedAt: string
-  lastUsedAt: string
-  person?: { name: string }
-}
-/** An access key an admin made, which only an admin's list shows. */
-export type ListedKey = {
-  kind: 'access_key'
-  id: string
-  createdAt: string
-  lastUsedAt: string | null
-  madeBy: { name: string }
-}
-
 /** How long after it signed in an agent, or was made, a row reads as new on the list. */
 const NEW_MS = 15 * 60_000
 
-const newestFirst = (a: { at: string }, b: { at: string }) =>
-  a.at < b.at ? 1 : a.at > b.at ? -1 : 0
-
 /**
- * The agents connected, newest sign-in first, one row per agent and person: an agent that signed
- * in again keeps one row, with its newest sign-in. Each access key is a row of its own, by who made
- * it. `me` names the person's own.
+ * The agents by name, as the service lists them, the last used first (FR-420): an app a person
+ * signed in with by that person, an access key by who made it. A new one reads as new.
  */
-export function connectedOf(
-  rows: readonly (Listed | ListedKey)[],
-  me: string,
-  now: Date,
-): Connected[] {
-  const fresh = (at: string) =>
-    now.getTime() - new Date(at).getTime() < NEW_MS ? { fresh: true } : {}
-  const newest = new Map<string, Listed>()
-  const keys: (Connected & { at: string })[] = []
-  for (const r of rows) {
-    if ('kind' in r && r.kind === 'access_key') {
-      keys.push({
-        at: r.createdAt,
-        agent: ACCESS_KEY,
-        who: r.madeBy.name,
-        since: dayOf(r.createdAt),
-        used: r.lastUsedAt ? usedWords(r.lastUsedAt, now) : 'Never',
-        key: r.id,
-        ...fresh(r.createdAt),
-      })
-      continue
-    }
-    const listed = r as Listed
-    const key = `${listed.clientName}\n${listed.person?.name ?? me}`
-    const kept = newest.get(key)
-    if (!kept || kept.connectedAt < listed.connectedAt) newest.set(key, listed)
-  }
-  return [
-    ...keys,
-    ...[...newest.values()].map((r) => ({
-      at: r.connectedAt,
-      agent: r.clientName,
-      who: r.person?.name ?? me,
-      since: dayOf(r.connectedAt),
-      used: usedWords(r.lastUsedAt, now),
-      ...fresh(r.connectedAt),
+export function connectedOf(rows: readonly Agent[], now: Date): Connected[] {
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    agent: r.name,
+    who: r.person?.name ?? r.madeBy?.name ?? 'Someone',
+    ...(r.host ? { host: r.host } : {}),
+    since: dayOf(r.since),
+    used: r.lastUsedAt ? usedWords(r.lastUsedAt, now) : 'Never',
+    ...(now.getTime() - new Date(r.since).getTime() < NEW_MS ? { fresh: true } : {}),
+    tools: r.tools.map((t) => ({ ...t })),
+    ...(r.toolsSetBy ? { setBy: { name: r.toolsSetBy.name, on: dayOf(r.toolsSetBy.at) } } : {}),
+    sent: r.suggestions.lastDays,
+    recent: r.suggestions.recent.map((x) => ({
+      id: x.id,
+      title: x.title,
+      state: x.state,
+      on: dayOf(x.at),
     })),
-  ]
-    .sort(newestFirst)
-    .map(({ at: _at, ...row }) => row)
+  }))
 }
 
 /** The tools Settings switches, by the ids the service and agents know. */
@@ -205,6 +166,7 @@ const SUBJECTS: Record<string, string> = {
   source: 'an integration',
   figures: 'figures in Ask',
   access_key: 'an access key',
+  agent: 'an agent',
 }
 
 /** The verbs of the history log's actions, as a sentence starts. */
@@ -239,6 +201,19 @@ export function historyLine(
   domain: (id: string) => string = (id) => id,
 ): { what: string; href?: string } {
   const [noun = '', verb = ''] = e.action.split('.')
+  const named = (key: string) => {
+    const value = e.details[key]
+    return typeof value === 'string' ? `“${value}”` : null
+  }
+  // An agent's own changes name it (FR-420): a tool switched for it, or a key's new name.
+  if (e.action === 'agent.tool_switched' && typeof e.details.tool === 'string')
+    return {
+      what: `Switched ${e.details.tool} ${e.details.on === true ? 'on' : 'off'} for ${named('name') ?? 'an agent'}`,
+    }
+  if (e.action === 'access_key.renamed' && named('from') && named('to'))
+    return { what: `Renamed the access key ${named('from')} to ${named('to')}` }
+  if (noun === 'access_key' && named('name'))
+    return { what: `${VERBS[verb] ?? verb} the access key ${named('name')}` }
   const said = VERBS[verb] ?? verb.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
   const subject = e.subjectTitle
     ? `“${e.subjectTitle}”`
@@ -258,6 +233,13 @@ export function historyLine(
         ? `/settings/domains/${e.subjectId}`
         : undefined
   return { what: `${said} ${subject}${detail}`, ...(href ? { href } : {}) }
+}
+
+/** Who did it: the person, or the agent that did it for them ("Claude Code for Kofi Mensah"). */
+function whoOf(e: AuditEntry) {
+  const person = e.actorName ?? 'Someone'
+  const agent = e.details.agent as { name?: unknown } | undefined
+  return typeof agent?.name === 'string' ? `${agent.name} for ${person}` : person
 }
 
 /** How close an entry of the history log is to a change to many items for that change to cover it. */
@@ -288,7 +270,7 @@ export function historyOf(
         at: e.at,
         key: String(e.seq),
         when: whenWords(e.at, now),
-        who: e.actorKind === 'person' ? (e.actorName ?? 'Someone') : 'Automatic',
+        who: e.actorKind === 'person' ? whoOf(e) : 'Automatic',
         ...historyLine(e, names.domain),
       })),
     ...shown.map((c) => ({

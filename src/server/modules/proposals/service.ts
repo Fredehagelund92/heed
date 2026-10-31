@@ -28,7 +28,8 @@ const fields = `id::text,number::float8,subject,action,state,area_id as "areaId"
  item_version_id::text as "itemVersionId",proposer_id::text as "proposerId",channel,revision,
  case when subject='item' then coalesce(draft,'{}'::jsonb) else '{}'::jsonb end as draft,
  provenance,draft_findings as findings,claimed_by::text as "claimedBy",due_at::text as "dueAt",
- created_at::text as "createdAt",updated_at::text as "updatedAt"`
+ created_at::text as "createdAt",updated_at::text as "updatedAt",
+ case when agent_id is null then null else jsonb_build_object('id',agent_id::text,'name',agent_name) end as agent`
 /**
  * A proposal as the API returns it. A term proposed before a term could name several definitions
  * (0070) stored the one it named as `definitionRef`; it reads as `definitionRefs`.
@@ -216,7 +217,12 @@ function proposalsService(
         `proposal.${kind}`,
         p.areaId,
         p.id,
-        JSON.stringify({ revision: p.revision, ...(author ? { source: author.source } : {}) }),
+        // A suggestion an agent sent names the agent on every step of its history (FR-420).
+        JSON.stringify({
+          revision: p.revision,
+          ...(author ? { source: author.source } : {}),
+          ...(p.agent ? { agent: p.agent } : {}),
+        }),
         author ? 'service' : 'person',
       ],
     )
@@ -445,6 +451,11 @@ function proposalsService(
         provenance?: (draft: Draft) => Provenance
         /** The question round whose answers saved it (FR-121); only `saveAgentDraft` passes it. */
         answersRound?: string
+        /**
+         * The agent that sent it (FR-420), named on the proposal with its name now; only
+         * `saveAgentDraft` passes it, for an agent's suggestion.
+         */
+        agentId?: string
       } = {},
     ) {
       const { draft, itemId, checks } = await prepare(input)
@@ -453,8 +464,9 @@ function proposalsService(
       const action = itemId ? 'change' : 'create'
       const reason = changeReason(input.reason, action)
       const [p] = await tx.query<ProposalRecord>(
-        `insert into proposals(action,area_id,item_id,proposer_id,channel,draft,draft_saved_at,draft_findings,derived_from,import_batch_id,provenance,answers_round,reason,source_id,source_read_id,source_document_id)
-        values($1,$2,$3,cl_person(),$4,$5,now(),$6,$7,$8,$9,$10,$11,$12,$13,$14) returning ${fields}`,
+        `insert into proposals(action,area_id,item_id,proposer_id,channel,draft,draft_saved_at,draft_findings,derived_from,import_batch_id,provenance,answers_round,reason,source_id,source_read_id,source_document_id,agent_id,agent_name)
+        values($1,$2,$3,cl_person(),$4,$5,now(),$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,(select name from auth.agents where id=$15))
+        returning ${fields}`,
         [
           action,
           draft.areaId,
@@ -470,6 +482,7 @@ function proposalsService(
           author?.source ?? null,
           author?.read ?? null,
           author?.document ?? null,
+          options.agentId ?? null,
         ],
       )
       await event(

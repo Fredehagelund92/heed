@@ -67,13 +67,13 @@ export const cards: InboxCard[] = [
     for: 'Jon Abara',
     when: 'Yesterday, 16:40',
     title: 'Payment provider delays order data in Poland',
-    line: "New context from an agent, sent with Kofi Mensah's OK.",
+    line: "New context from Claude Code, sent with Kofi Mensah's OK.",
     detail: 'Poland orders arrive up to two days late from the payment provider since 14 October.',
     primary: 'Review',
     secondary: [],
     suggestion: {
       from: 'Kofi Mensah',
-      agent: 'Cursor',
+      agent: 'Claude Code',
       via: 'a chat',
       on: '21 Oct 2026',
       changes: [

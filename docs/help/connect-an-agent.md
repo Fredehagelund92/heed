@@ -61,12 +61,20 @@ The page checks every few seconds. After two minutes it shows what usually helps
 
 > **Revoking.** Revoke an agent from Connected agents. It signs out at once, and you can connect it again.
 
+## The tools each agent may call
+
+Connected agents lists every agent by its name, with who it works for and how many of its tools are on. Open Details on a row to see each tool the agent can call, such as get_context to read context, report to say what is missing or wrong, and suggest_context to send a suggestion that an owner checks before anything changes. No agent ever publishes. Details also lists the suggestions it sent lately.
+
+Admins switch each tool on or off for each agent in Details. A switch acts at the agent's next request, and it never lets an agent do more than the person allowed when they connected it: a tool they didn't allow can't be switched on. An agent with every tool off gets nothing. Every change is in the history log, with who made it.
+
+A suggestion an agent sends names it in the Inbox and the review, as "Claude Code, with Kofi's OK".
+
 ## A bot or a scheduled job
 
 A job that runs on its own, with nobody there to approve a sign-in, uses an access key. Admins make them.
 
 1. In Agents and access, open Tools and access keys.
-2. Press **Create an access key**, then Copy. The key is shown once: keep it where the job keeps its secrets.
+2. Press **Create an access key**, give it a name, such as what the job does, then Copy. The key is shown once: keep it where the job keeps its secrets.
 3. Give the job the MCP address, with the key as its bearer token.
 
-A key reads published context and sends feedback. It names no person, so it never sends a suggestion. It shows in Connected agents as Access key, with who made it and when it was last used, until you **Revoke** it, which ends it at once.
+A key reads published context and sends feedback. It names no person, so it never sends a suggestion. It shows in Connected agents by its name, with who made it and when it was last used, until you **Revoke** it, which ends it at once. Rename it, or switch its tools off for a while, in its Details. A key can never have suggest_context.

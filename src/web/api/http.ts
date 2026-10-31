@@ -98,15 +98,6 @@ import { peopleOf } from './http-people'
 import { savedCheckOf, savedQuestionOf } from './http-saved'
 import { alertsOf } from './http-alerts'
 import {
-  connectedOf,
-  deletedOf,
-  editionsOf,
-  historyOf,
-  jobsOf,
-  settingsOf,
-  switchesOf,
-} from './http-settings'
-import {
   emptyObs,
   familyOf,
   obsAgentsOf,
@@ -232,9 +223,11 @@ export const wiredMethods = [
   'setLinks',
   'setTool',
   'createAccessKey',
+  'renameAccessKey',
   'setPause',
   'listAgentConnections',
-  'revokeAgentConnection',
+  'setAgentTool',
+  'revokeAgent',
   'checkConnect',
   'advancedPage',
   'checkHistory',
@@ -367,6 +360,12 @@ export function freeAreaId(name: string, taken: ReadonlySet<string>): string {
 
 /** Why a setting changed, for the history log: said once, in Settings. */
 const BY_SETTINGS = 'Changed in Settings, Agents and access.'
+
+/**
+ * Settings' words for what the service says: loaded with the first Settings read, so the first
+ * load of the app carries none of them.
+ */
+const settingsWords = () => import('./http-settings')
 
 /** How long a read's answer serves the same read again, while nothing was changed since. */
 const READ_SHARED_MS = 3000
@@ -1662,7 +1661,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         : []
       return {
         mcpAddress: connect.address,
-        ...switchesOf(connect.tools, stops),
+        ...(await settingsWords()).switchesOf(connect.tools, stops),
         figures: Object.fromEntries(figured.map(({ id, source }) => [id, source.enabled])),
         contacts: Object.fromEntries(
           figured.flatMap(({ id, source }) =>
@@ -1863,53 +1862,29 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       if (change.domain && !paused.includes(change.domain))
         await stop({ scope: 'area', areaId: change.domain, on: true })
     },
-    // An admin sees everyone's agents; anyone else their own.
-    listAgentConnections: async () => {
-      const who = await signedIn()
-      const rows = who.admin
-        ? await read(() => client.agentConnections.list())
-        : await read(() => client.connections.list())
-      return connectedOf(rows, who.name, new Date())
+    // An admin sees every agent; anyone else their own apps. The service decides which.
+    listAgentConnections: async () =>
+      (await settingsWords()).connectedOf(await read(() => client.agents.list()), new Date()),
+    setAgentTool: async ({ id, tool, on }) => {
+      const input = { id, tool, on, reason: BY_SETTINGS }
+      await write('agents.setTool', input, (o) => client.agents.setTool(input, o))
     },
-    // Every connection of that agent for that person ends at once, or the one access key, with the
-    // reason the log keeps.
-    revokeAgentConnection: async ({ agent, who, key }) => {
+    // Every connection of an app ends at once, or the access key, with the reason an admin's log
+    // keeps; a person ends their own app with no reason.
+    revokeAgent: async ({ id }) => {
       const me = await signedIn()
-      if (key) {
-        if (!me.admin) throw new ApiError('forbidden', 'Only an admin revokes an access key.')
-        const input = { id: key, reason: 'Access key revoked in Settings, Agents and access.' }
-        await write('agentConnections.disconnect', input, (o) =>
-          client.agentConnections.disconnect(input, o),
-        )
-        return
-      }
-      if (me.admin) {
-        const ended = (await read(() => client.agentConnections.list())).filter(
-          (c) => c.kind === 'agent' && c.clientName === agent && c.person.name === who,
-        )
-        for (const c of ended) {
-          const input = { id: c.id, reason: 'Revoked in Settings, Agents and access.' }
-          await write('agentConnections.disconnect', input, (o) =>
-            client.agentConnections.disconnect(input, o),
-          )
-        }
-        return
-      }
-      if (who !== me.name)
-        throw new ApiError('forbidden', 'Only an admin revokes the agents of others.')
-      for (const c of (await read(() => client.connections.list())).filter(
-        (x) => x.clientName === agent,
-      ))
-        await write('connections.disconnect', { id: c.id }, (o) =>
-          client.connections.disconnect({ id: c.id }, o),
-        )
+      const input = me.admin ? { id, reason: 'Revoked in Settings, Agents and access.' } : { id }
+      await write('agents.revoke', input, (o) => client.agents.revoke(input, o))
     },
     // The key is in this answer only: the service keeps its digest, and this binding keeps nothing.
-    createAccessKey: async () => {
-      const { key } = await write('accessKeys.create', null, (o) =>
-        client.accessKeys.create(undefined, o),
+    createAccessKey: async ({ name }) => {
+      const { key } = await write('accessKeys.create', { name }, (o) =>
+        client.accessKeys.create({ name }, o),
       )
       return { key }
+    },
+    renameAccessKey: async ({ id, name }) => {
+      await write('agents.rename', { id, name }, (o) => client.agents.rename({ id, name }, o))
     },
     checkConnect: async ({ since }) => {
       const answer = await read(() =>
@@ -1922,6 +1897,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     // the editions, as the service has them.
     advancedPage: async () => {
       const now = new Date()
+      const words = await settingsWords()
       const [settings, drafts, terms, history, changes, operations, editions, people, areas] =
         await Promise.all([
           read(() => client.settings.list()),
@@ -1937,14 +1913,14 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
         ])
       const domainName = (id: string) => areas.find((a) => a.id === id)?.name ?? id
       return {
-        settings: settingsOf(settings, (id) => people.name(id), now),
-        deleted: deletedOf(drafts, terms, (id) => (id ? people.name(id) : 'Someone'), now),
-        history: historyOf(history.entries, changes, now, {
+        settings: words.settingsOf(settings, (id) => people.name(id), now),
+        deleted: words.deletedOf(drafts, terms, (id) => (id ? people.name(id) : 'Someone'), now),
+        history: words.historyOf(history.entries, changes, now, {
           domain: domainName,
           person: (id) => people.name(id),
         }),
-        jobs: operations ? jobsOf(operations, now) : null,
-        editions: editionsOf(editions, now),
+        jobs: operations ? words.jobsOf(operations, now) : null,
+        editions: words.editionsOf(editions, now),
       }
     },
     checkHistory: async () => {

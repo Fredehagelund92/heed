@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { agentKinds, agentNameProblem, agentToolNames } from '../domain/agents.ts'
 
 /**
  * A person's own agents (FR-403, docs/ai-sign-in.md): the consent screen for a sign-in in
@@ -60,6 +61,8 @@ export const personConnectionSchema = z.extend(connectionSchema, {
 export const accessKeyConnectionSchema = z.object({
   kind: z.literal('access_key'),
   id: z.string(),
+  /** The name an administrator gave it. */
+  name: z.string(),
   scopes: z.array(connectionScopeSchema),
   createdAt: z.string(),
   /** Null until an agent first uses it. */
@@ -74,9 +77,80 @@ export const agentConnectionSchema = z.discriminatedUnion('kind', [
 /** A new access key: shown in this answer once, and kept only as its digest. */
 export const createdAccessKeySchema = z.object({
   id: z.string(),
+  name: z.string(),
   key: z.string(),
   createdAt: z.string(),
 })
+/** An agent's name as an administrator gives an access key one: trimmed plain text, 1 to 100 characters. */
+export const agentNameSchema = z.string().check(
+  z.trim(),
+  z.refine((name) => agentNameProblem(name) === null, {
+    message: 'Give it a name of 1 to 100 characters of plain text.',
+  }),
+)
+export const createAccessKeySchema = z.strictObject({ name: agentNameSchema })
+export const renameAccessKeySchema = z.strictObject({ id: z.uuid(), name: agentNameSchema })
+
+/**
+ * One agent (FR-420): an app a person signed in with, acting for them, or an access key, which
+ * names no person. Its name, its kind and every MCP tool with whether an administrator switched it
+ * on for this agent and whether the agent may have it at all. Never a key, a token or a digest.
+ */
+export const agentSchema = z.object({
+  id: z.string(),
+  kind: z.enum(agentKinds),
+  /** An app's name for itself, shown as it says it; an access key's, as an administrator gave it. */
+  name: z.string(),
+  /** Where an app came from, as a host; null for an access key. */
+  host: z.nullable(z.string()),
+  /** The person an app acts for; null for an access key. */
+  person: z.nullable(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      initials: z.string(),
+      /** Null for an erased person: the address is gone with them. */
+      email: z.nullable(z.string()),
+    }),
+  ),
+  /** Who made an access key; null for an app. */
+  madeBy: z.nullable(z.object({ id: z.string(), name: z.string(), initials: z.string() })),
+  /**
+   * Every tool, in the order agents read them: whether an administrator switched it on for this
+   * agent, and whether the agent may have it at all, which the person decided when an app
+   * connected and which an access key never has for suggest_context. It works only when both hold.
+   */
+  tools: z.array(z.object({ tool: z.enum(agentToolNames), on: z.boolean(), allowed: z.boolean() })),
+  /** Who last switched a tool, and when; null while every switch is as it started. */
+  toolsSetBy: z.nullable(z.object({ name: z.string(), at: z.string() })),
+  /** Since when: an app's oldest open connection, or when the key was made. */
+  since: z.string(),
+  /** Null until an agent first used it. */
+  lastUsedAt: z.nullable(z.string()),
+  /** What it sent: its suggestions in the last 30 days, and the latest few. */
+  suggestions: z.object({
+    lastDays: z.number(),
+    recent: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        state: z.string(),
+        at: z.string(),
+      }),
+    ),
+  }),
+})
+/** Kept in the history log for good, so it is trimmed, required and checked for sensitive text. */
+const agentReason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
+export const agentToolInputSchema = z.strictObject({
+  id: z.uuid(),
+  tool: z.enum(agentToolNames),
+  on: z.boolean(),
+  reason: agentReason,
+})
+/** An administrator gives a reason the log keeps; a person ending their own app needs none. */
+export const agentRevokeSchema = z.strictObject({ id: z.uuid(), reason: z.optional(agentReason) })
+export const agentRevokedSchema = z.object({ revoked: z.boolean() })
 /** Kept in the history log for good, so it is required, trimmed and checked for sensitive text. */
 const reason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
 export const adminDisconnectSchema = z.strictObject({ id: z.uuid(), reason })
@@ -103,4 +177,6 @@ export type PersonConnection = z.infer<typeof personConnectionSchema>
 export type AccessKeyConnection = z.infer<typeof accessKeyConnectionSchema>
 export type AgentConnection = z.infer<typeof agentConnectionSchema>
 export type CreatedAccessKey = z.infer<typeof createdAccessKeySchema>
+export type Agent = z.infer<typeof agentSchema>
+export type AgentToolInput = z.infer<typeof agentToolInputSchema>
 export type AdminDisconnect = z.infer<typeof adminDisconnectSchema>

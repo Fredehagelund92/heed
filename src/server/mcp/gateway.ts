@@ -261,6 +261,14 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
         },
       })
     }
+    // An agent with every tool switched off gets nothing (FR-420). Said plainly, without a scope
+    // challenge, so its app does not ask the person to sign in again for what an admin took away.
+    if (principal.agent && !principal.agent.tools.length)
+      return deny(
+        403,
+        `An admin switched off every tool for this agent in ${productName}. It gets nothing until an admin switches one on.`,
+        'forbidden',
+      )
     const required = name ? tools[name].scope : 'read feedback'
     if (!required.split(' ').some((scope) => principal.scopes.includes(scope))) {
       reply.header(
@@ -274,6 +282,13 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
       return deny(
         403,
         `${name} needs a person signed in to ${productName} through an AI agent. A dev token or an access key names no person.`,
+        'forbidden',
+      )
+    // A tool an admin switched off for this agent is refused as plainly (FR-420).
+    if (name && principal.agent && !principal.agent.tools.includes(name))
+      return deny(
+        403,
+        `An admin switched ${name} off for this agent in ${productName}.${name === 'suggest_context' ? ` The person can suggest in ${productName} instead.` : ''}`,
         'forbidden',
       )
     if (request.method !== 'POST') {
@@ -292,6 +307,7 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     const allowed = toolNames.filter(
       (n) =>
         principal.scopes.includes(tools[n].scope) &&
+        (!principal.agent || principal.agent.tools.includes(n)) &&
         (!personOnly(n) || (principal.subject !== undefined && deps.drafts !== undefined)) &&
         policy.tools.includes(n) &&
         (policy.client!.tools_allowed === null || policy.client!.tools_allowed.includes(n)),
