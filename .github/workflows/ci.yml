@@ -314,6 +314,7 @@ jobs:
           echo "user id: $user"
           [ "$user" != 0 ]
           node scripts/check-web-image.ts http://127.0.0.1:8080
+          docker rm -f heed-web-check
       - name: Boot the service image in production mode, sign a person in and call the MCP server
         run: bash tests/image/production-boot.sh
       - name: Start the demo with docker compose up, in development mode with the people picker
