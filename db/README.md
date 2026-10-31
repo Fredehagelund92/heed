@@ -29,9 +29,10 @@ A new migration takes the number after the last one on `main` when it merges: nu
 0001 without a gap and no two files share one, so the first after the baseline is 0002. If `main`
 gains a migration while your branch waits, rebase and renumber yours before merging. Files run in
 name order, so two branches that took the same number would sort by the rest of the name, and a
-database migrated between their merges would be refused. The runner and
-`tests/server/migration-files.test.ts` refuse a shared or skipped number. SQL enum additions that
-need to be used in another statement belong in their own migration transaction.
+database migrated between their merges would be refused. A database that applied a migration
+from its branch before it was renumbered is refused too, naming both numbers; make it again. The
+runner and `tests/server/migration-files.test.ts` refuse a shared or skipped number. SQL enum
+additions that need to be used in another statement belong in their own migration transaction.
 
 `db/bootstrap/grants.sql` is applied after migrations with identifier-quoted environment role
 names. Migrations do not create cluster roles. Functions have no PUBLIC execution privilege;

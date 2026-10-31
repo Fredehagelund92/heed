@@ -51,6 +51,16 @@ export async function migrate(client: pg.Client, directory: URL = migrationDirec
     // The applied files must be the first files, in order and unchanged.
     for (const [index, row] of applied.rows.entries()) {
       const file = migrations[index]
+      // A migration renumbered after another took its number on main, applied from its branch
+      // under the old number: its order differs from main's, so no file here can repair it.
+      const renumbered = migrations.find(
+        (other) => other.name !== row.name && other.name.slice(4) === row.name.slice(4),
+      )
+      if (file?.name !== row.name && renumbered) {
+        throw new Error(
+          `Migration ${row.name} is now ${renumbered.name}: the database applied it under its old number and cannot be upgraded; make a new one (db/README.md)`,
+        )
+      }
       if (file?.name !== row.name || file.checksum !== row.checksum) {
         throw new Error(
           `Migration history differs at ${row.name}; restore the applied file and add a new migration`,

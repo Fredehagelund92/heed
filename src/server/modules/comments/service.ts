@@ -31,7 +31,7 @@ import { proposalEvent } from '../proposals/index.ts'
 
   On a suggestion, a thread may hang on a line of its text or on a field, read against the two
   versions the review compared; anyone who may read it resolves or reopens it, and the database
-  keeps who and when (db/migrations/0031_anchored_comments.sql).
+  keeps who and when (db/migrations/0032_anchored_comments.sql).
 
   Agents never read any of this: the MCP read path has no grant on these tables, and nothing an
   edition holds is built from them.
