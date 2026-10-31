@@ -1,4 +1,4 @@
--- 0034_conflict_decisions: settling a conflict between two context items (FR-220, the conflict view).
+-- 0035_conflict_decisions: settling a conflict between two context items (FR-220, the conflict view).
 --
 -- - A conflict is two live items where one's version names the other as disagreeing; agents get both
 --   with the Conflict state. An owner settles it here with a reason, and a line from a source if they

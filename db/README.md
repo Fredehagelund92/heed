@@ -500,7 +500,7 @@ items rely on a source's definitions; each runs as the owner. Administrators rea
 an owner those about their domains. The serving and analytics roles have no grant on these
 tables.
 
-Conflicts (migration 0034). `conflict_decisions` keeps each decision on a conflict between two
+Conflicts (migration 0035). `conflict_decisions` keeps each decision on a conflict between two
 items (FR-220): who settled it and when, the outcome (one kept and the other archived, both kept,
 or not a conflict), the reason and an optional quoted line, the versions both items had, and the
 retire and accept decisions it made, so Undo, by the person who decided, takes back exactly those.
