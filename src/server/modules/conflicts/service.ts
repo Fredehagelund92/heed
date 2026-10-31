@@ -392,8 +392,7 @@ export function createConflictsService(
 
   /**
    * Publishes the item without the flag on `withoutId`, as its owner in one step; the decision it
-   * made. With the flag gone the two overlap as any two live items do, so the review's question
-   * (FR-225) is answered for the pair: unrelated, which is what not a conflict means.
+   * made. Its words do not change, so the review asks nothing about the items it overlaps (FR-225).
    */
   async function unflag(item: ServingItem, withoutId: string): Promise<string> {
     const created = await proposals.create({
@@ -403,11 +402,7 @@ export function createConflictsService(
     const submitted = await proposals.submit(created.id, created.revision)
     await review.checkSubmitted(submitted.id)
     const current = await proposals.get(submitted.id)
-    const published = await path.publish({
-      id: current.id,
-      revision: current.revision,
-      relations: [{ itemId: withoutId, relation: 'unrelated' }],
-    })
+    const published = await path.publish({ id: current.id, revision: current.revision })
     return published.undo.slice('decision:'.length)
   }
 

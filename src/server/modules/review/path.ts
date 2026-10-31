@@ -235,13 +235,18 @@ export function createReviewPath(
     // A clash: a live item agents would get in the same answer, that the suggestion neither
     // changes nor already names as replaced or conflicting (FR-225, decided 26 October 2026). An
     // edit whose difference is only formatting, only order or only dates is no clash and has no
-    // clash check; an edit that changes anything else besides still has one.
+    // clash check, nor has one that changes no words; an edit that changes anything else besides
+    // still has one.
     const named = new Set([after.itemId, ...after.version.replaces, ...after.version.conflicts])
-    const only = before
-      ? docDiff(sideOf(before.version, candidate), sideOf(after.version, candidate)).only
+    const diff = before
+      ? docDiff(sideOf(before.version, candidate), sideOf(after.version, candidate))
       : null
+    const only = diff?.only ?? null
+    // A version whose words do not change at all, only which items it names as replaced or
+    // disagreeing (as removing a Conflict flag does), changes nothing a clash asks about.
+    const wordsSame = !!diff && diff.counts.length === 0
     const clashes =
-      scope && only !== 'formatting' && only !== 'order' && only !== 'dates'
+      scope && !wordsSame && only !== 'formatting' && only !== 'order' && only !== 'dates'
         ? answer(candidate as AnswerBundle, { scope }, { today: clock.today() })
             .items.map((item) => item.id)
             .filter((id) => !named.has(id))

@@ -329,6 +329,50 @@ describe('settling a conflict', () => {
     expect(part.said).toBeNull()
   })
 
+  it('settles a pair that other live items overlap, without asking how they relate again', async () => {
+    const { first, second } = await pair()
+    const market = markets[nextMarket - 1]!
+    // A third item about the same thing, that its owner said is unrelated to both.
+    await ok<PublishItemResult>(
+      call('POST', '/items/publish', 'owner', {
+        draft: draft(market, {
+          title: `Orders in ${market} lag by a day`,
+          summary: `Orders in ${market} arrive a day late.`,
+        }),
+        relations: [
+          { itemId: first, relation: 'unrelated' },
+          { itemId: second, relation: 'unrelated' },
+        ],
+      }),
+    )
+    // Removing the flag publishes a version with the same words: no clash to answer.
+    const r = await ok<SettledConflict>(
+      settle('owner', {
+        holderId: second,
+        otherId: first,
+        outcome: 'not_conflict',
+        reason: 'They apply to different weeks.',
+        versions: { holder: 1, other: 1 },
+      }),
+    )
+    expect((await call('POST', '/decisions/undo', 'owner', { token: r.undo })).statusCode).toBe(200)
+    // Keeping the item that holds the flag drops its flag on the archived one, the same way.
+    const kept = await ok<SettledConflict>(
+      settle('owner', {
+        holderId: second,
+        otherId: first,
+        outcome: 'kept_one',
+        keepId: second,
+        reason: 'The finance memo replaced it.',
+        versions: { holder: 1, other: 1 },
+      }),
+    )
+    expect(await status(first)).toBe('retired')
+    expect((await call('POST', '/decisions/undo', 'owner', { token: kept.undo })).statusCode).toBe(
+      200,
+    )
+  })
+
   it('holds a decision when either item changed since it was read', async () => {
     const { first, second } = await pair()
     const stale = await settle('owner', {
