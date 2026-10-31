@@ -1,1 +1,1 @@
-0033_my_table.sql
+0032_anchored_comments.sql
