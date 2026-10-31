@@ -175,7 +175,7 @@ function meta(row: InboxRow, reviews: Review[], care?: React.ReactNode): React.R
         </React.Fragment>
       ))
   if (card.gap)
-    return `Asked ${card.gap.times} times this week, found nothing${card.gap.acrossMonths ? ', across a month edge' : ''}`
+    return `${card.gap.times === 0 ? 'Found nothing, not asked this week' : `Asked ${card.gap.times} times this week, found nothing`}${card.gap.acrossMonths ? ', across a month edge' : ''}`
   if (card.flag) return `Reported as ${card.flag.reason}: “${card.flag.note}”`
   if (card.look) return 'Raised by an alert: saved questions answer worse'
   if (card.alert) return `Raised by an alert: ${card.alert.name}`
@@ -665,7 +665,9 @@ function CardDetail({
             {card.gap && (
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground">
-                  Agents asked about {card.gap.scope.join(', ')}, {card.gap.times} times this week.
+                  {card.gap.times === 0
+                    ? `Agents asked about ${card.gap.scope.join(', ')} before this week, not since.`
+                    : `Agents asked about ${card.gap.scope.join(', ')}, ${card.gap.times} times this week.`}
                 </p>
                 <p>
                   <span className="font-medium">Where the fix probably belongs:</span>{' '}

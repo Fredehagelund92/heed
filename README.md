@@ -22,10 +22,7 @@ and agents get only what was published, each item with its source.
 
 <br>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero-dark.png">
-  <img alt="Heed's Ask page. Asked why Germany's orders are low for yesterday, it answers Checked: Germany's payment files reach Cube the morning after, so yesterday's orders are always short, with its one source." src="docs/images/hero.png" width="760">
-</picture>
+<img alt="Heed's Ask page on the demo. Asked how orders in Norway changed in October 2026, it answers Checked: a new customs rule stopped all online sales to Norway from 4 August 2026, so orders there fell to almost nothing, then the other context items that apply, each with its number." src="docs/images/hero.png" width="760">
 
 </div>
 
@@ -70,8 +67,9 @@ npm ci && npm run dev    # or the app on mock data, no database: http://localhos
 ```
 
 Both open on the demo of an invented outdoor-gear retailer: people, domains and context items, with their
-history. Sign in as any demo person. Nothing leaves your computer, and no AI service is called. Stop with
-Ctrl+C; `docker compose down --volumes` also removes the data.
+history, suggestions waiting for review and what agents asked over the past weeks. Sign in as any demo
+person: Jon Abara owns Sales, Ravi Kapoor is the admin. Nothing leaves your computer, and no AI service is
+called. Stop with Ctrl+C; `docker compose down --volumes` also removes the data.
 
 To keep it running, back it up, upgrade it or roll an upgrade back, see
 [Self-host Heed on one computer](docs/self-hosting.md). It is for local evaluation, not for production use.
@@ -92,10 +90,7 @@ Then run `/mcp` in Claude Code, choose **heed**, and choose **Authenticate**. Yo
 demo person and **Allow**. Ask _"How did orders in Norway change in October 2026?"_
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/claude-code-dark.png">
-    <img alt="Claude Code asked how orders in Norway changed in October 2026. It calls Heed and answers with the checked context that online sales to Norway stopped on 4 August 2026, who checked it, its source and what not to conclude." src="docs/images/claude-code.png" width="760">
-  </picture>
+  <img alt="Claude Code asked how orders in Norway changed in October 2026, on the demo. It calls Heed and answers with the checked context that online sales to Norway stopped on 4 August 2026 under a customs rule, who checked it, and that fewer orders there do not mean fewer customers." src="docs/images/claude-code.png" width="760">
 </p>
 
 [Connect an agent](docs/help/connect-an-agent.md) has the details for Claude Code and other agents, and
@@ -109,16 +104,17 @@ Heed reads metric and dimension names from a [Cube](https://cube.dev) model, as 
 CUBE_MODEL_DIR=/path/to/your/cube/model docker compose up
 ```
 
-With your own model Heed starts empty, with no demo data. Sign in as the administrator in
-`db/seed/people.local.yml` and add your domains in Settings, under Domains and owners. See
+With your own model Heed starts empty, with no demo data. Sign in as Ravi Kapoor, the administrator in
+`db/seed/people.local.yml`, and add your domains in Settings, under Domains and owners. On a Mac the
+folder must be one Docker shares, or Heed refuses to start and says so. See
 [the Cube connector](docs/connectors/cube.md).
 
 ## What you get
 
 <table>
   <tr>
-    <td width="33%"><img alt="The Inbox of the owner of Sales: what needs them, by kind, with a draft for a question agents asked and found nothing for open beside it" src="docs/images/inbox.png"></td>
-    <td width="33%"><img alt="A review: a suggestion to change a context item, every change by kind, and what agents will say after it is published" src="docs/images/review.png"></td>
+    <td width="33%"><img alt="The Inbox of the owner of Sales: what agents asked this week and what needs them, by kind, with a conflict agents met about United Kingdom orders open beside it, both items side by side" src="docs/images/inbox.png"></td>
+    <td width="33%"><img alt="A review: a suggestion to change a context item, what it changes, how it relates to the live items it overlaps, and what agents will say after it is published" src="docs/images/review.png"></td>
     <td width="33%"><img alt="Observability: what agents asked this week and how it was answered, in counts only, with the top topics" src="docs/images/observability.png"></td>
   </tr>
   <tr>

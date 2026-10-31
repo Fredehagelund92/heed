@@ -328,7 +328,12 @@ its place in its list and its number of `more` and `quotes` lines.
 |        | `The customs notice lists every product group it covers.`                                                        |
 | quotes | `Parcels from webshops outside ${market} are held at the border from ${date} until further notice.`              |
 |        | `Carriers must stop accepting webshop parcels for ${market} from ${date}. Parcels already in transit may enter.` |
-| source | `https://customs.example/${marketId}/notices/${day}`                                                             |
+
+Norway's online sales stopped once, on 4 August 2026 (section 15). A stop the generator draws for
+Norway is a marketplace pause instead, with as many lines: "Marketplace sales in Norway paused on
+${date}", "A marketplace partner paused all of our listings in Norway on ${date} while it checked
+product labels.", and a source on `marketplace.example`.
+| source | `https://customs.example/${marketId}/notices/${day}` |
 
 **2. New VAT rate.**
 
@@ -392,7 +397,10 @@ weekend started that week."
 
 ### 9.4 Examples (3)
 
-Their text is in `db/seed/fixtures/items.ts`, as is every template's.
+Their text is in `db/seed/fixtures/items.ts`, as is every template's. An example opens with the
+question it answers, which is what makes it an example to the draft rules, and its second sentence
+says what a good answer does in full words ("A good answer compares Returns in France with the month
+before and a year earlier."), since Ask's answer says that sentence for it.
 
 ## 10. The demo issues and the facts about any value
 
@@ -584,3 +592,30 @@ This was the in-app assistant's example of a real page to look up. It left with 
    `.example` addresses are invented. No other real country, and no real law, company or brand.
 6. **Keep the random draws.** A template's lists keep their length, and a hand-written fact
    replaces words by id, as `story-facts.ts` does.
+
+## 15. The demo's present
+
+`db/seed/story.ts` runs after the library and its quality history, with the real clock, through
+the service's own API and MCP server, so a new install opens as the README shows it:
+
+- **The Norway story.** Maria Lindqvist suggests "Online sales to Norway stopped on 4 August 2026"
+  (Sales, Orders, Units sold and Gross sales in Norway, from 4 August 2026, the customs notice as
+  its source) and Jon Abara publishes it. It answers the gap agents raised about orders in Norway in
+  October 2026, which Jon resolves. "How did orders in Norway change in October 2026?" is then
+  Checked, with this item first.
+- **A conflict.** Jon publishes "United Kingdom orders count store credit", Sofia Brandt publishes
+  "United Kingdom orders are card and cash payments only", which says it disagrees with his. Agents
+  get both with the Conflict line, and the conflict alert opens the conflict view.
+- **Suggestions that wait for the owners of Sales.** Ines Duarte's change to "Units sold excludes
+  test accounts" (340 accounts, and the returns team's 28 from 1 October 2026), Maria's "Card
+  payments in Spain failed from 14 to 16 October 2026", and Lars Dahl's suggestion to archive
+  "Payment provider switched in Norway on 9 July 2025".
+- **Saved questions.** Jon saves the Norway question and "Why are Germany's orders low for
+  yesterday?".
+- **What agents asked.** About 160 calls a week over the eight whole weeks before this one, and
+  this week so far, from Claude Code, the Claude app, Cursor and ChatGPT: the Norway, Germany,
+  United Kingdom and Spain orders questions most, and two about 2023, before the library starts,
+  which find nothing.
+
+The sign-in page offers the people in `db/seed/people.local.yml`, the administrator Ravi Kapoor
+first.

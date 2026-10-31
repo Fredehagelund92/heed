@@ -64,11 +64,16 @@ export function namesOf(vocabulary: Vocabulary): Names & {
 const datesOf = (window: { start: string; end: string | null }) =>
   windowWords(window).replace(/^(\d+)-/, '$1 to ')
 
-/** An item's first sentence, as the answer says it. */
-const sentenceOf = (summary: string) =>
-  plainText(summary)
-    .split(/(?<=[.!?])\s/)[0]!
-    .trim()
+/**
+ * An item's first sentence, as the answer says it. An example opens with the question it answers
+ * ("How did Orders change in France in September 2024?"), so the answer says what follows it.
+ */
+const sentenceOf = (summary: string) => {
+  const [first = '', ...rest] = plainText(summary)
+    .split(/(?<=[.!?])\s/)
+    .map((sentence) => sentence.trim())
+  return first.endsWith('?') && rest[0] ? rest[0] : first
+}
 
 const items = (n: number) => (n === 1 ? '1 context item' : `${n} context items`)
 

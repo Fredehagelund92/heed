@@ -1,18 +1,14 @@
 # Local demo personas: who the sign-in page's picker offers (the dev identity connector, which the
-# service refuses when NODE_ENV=production). Area roles (owner, high-risk approver) come
-# from the demo seed for the same email (db/seed/bulk.ts, the reference people), so the picker shows
-# them once the database is seeded. Global roles below are imported once per email.
+# service refuses when NODE_ENV=production), in this order. Area roles (owner, high-risk approver)
+# come from the demo seed for the same email (db/seed/bulk.ts, the reference people), so the picker
+# shows them once the database is seeded. Global roles below are imported once per email, so the
+# administrator and the auditor hold their roles beside your own Cube model too, with no demo data.
+# Every name is invented.
 
-# An administrator, who sets things up.
-- email: frederik@example.test
-  name: Frederik Hagelund
+# The administrator, who sets things up (README, "Use your own data").
+- email: per_ravi@example.test
+  name: Ravi Kapoor
   roles: [administrator]
-
-# Contributors.
-- email: per_maria@example.test
-  name: Maria Lindqvist
-- email: per_ines@example.test
-  name: Ines Duarte
 
 # Owners, by domain.
 - email: per_jon@example.test
@@ -28,18 +24,15 @@
 - email: per_priya@example.test
   name: Priya Nair # owner of Paid media
 
-# The high-risk approver of Sales, the administrator and the auditor of the seed.
+# Contributors.
+- email: per_maria@example.test
+  name: Maria Lindqvist
+- email: per_ines@example.test
+  name: Ines Duarte
+
+# The high-risk approver of Sales, and the auditor, who reads the history log.
 - email: per_lars@example.test
   name: Lars Dahl
-- email: per_ravi@example.test
-  name: Ravi Kapoor
 - email: per_ella@example.test
   name: Ella Voss
-
-# Role-only identities the API browser tests sign in as.
-- email: administrator@example.test
-  name: Demo Administrator
-  roles: [administrator]
-- email: auditor@example.test
-  name: Demo Auditor
   roles: [auditor]

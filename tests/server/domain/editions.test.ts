@@ -63,12 +63,12 @@ describe('the sentence of an edition', () => {
           restores: '2026-10-07.2',
           counts: counts({ added: 1, changed: 4, retired: 2 }),
           areas: ['Commercial', 'Finance', 'Payments'],
-          actor: 'Demo Administrator',
+          actor: 'Ravi Kapoor',
           why: 'Wrong caveat went out.',
         }),
       ),
     ).toBe(
-      '7 facts in Commercial, Finance and Payments: 1 added, 4 changed, 2 archived. Demo Administrator went back to edition 2026-10-07.2. Why: Wrong caveat went out.',
+      '7 facts in Commercial, Finance and Payments: 1 added, 4 changed, 2 archived. Ravi Kapoor went back to edition 2026-10-07.2. Why: Wrong caveat went out.',
     )
     expect(
       changeSentence(

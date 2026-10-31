@@ -33,6 +33,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useRoute } from '@/lib/router'
 import { PRODUCT } from '@/lib/brand'
+import { cn } from '@/lib/utils'
 
 /** Why a company sign-in came back without signing in, as the screen says it. */
 const refusalWords = (reason: string, provider: string): string | null =>
@@ -108,12 +109,17 @@ export function SignInPage() {
   )
 }
 
-// The demo person picker.
+/** More people than this, and the picker lays them out in two columns on a wide screen. */
+const ONE_COLUMN = 6
+
+// The demo person picker. A long list of people takes two columns on a wide screen, so the switch
+// to start as a new install stays in view without scrolling.
 function PickerSignIn({ token }: { token: string | null }) {
   const [fresh, setFresh] = React.useState(false)
+  const wide = (useQuery(signInPeopleQuery()).data?.length ?? 0) > ONE_COLUMN
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-4 md:p-10">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+      <div className={cn('flex w-full max-w-sm flex-col gap-6', wide && 'sm:max-w-2xl')}>
         <Logo className="h-8 self-center" />
         <Card>
           <CardHeader className="text-center">
@@ -123,7 +129,7 @@ function PickerSignIn({ token }: { token: string | null }) {
           <CardContent>
             <FieldGroup>
               {token && <InviteLine token={token} />}
-              <PeoplePicker fresh={fresh} />
+              <PeoplePicker fresh={fresh} columns={wide ? 2 : 1} />
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
                 Or
               </FieldSeparator>
@@ -148,13 +154,13 @@ function PickerSignIn({ token }: { token: string | null }) {
 }
 
 /** The demo's people, one button each: a press signs in as them. */
-function PeoplePicker({ fresh = false }: { fresh?: boolean }) {
+function PeoplePicker({ fresh = false, columns = 1 }: { fresh?: boolean; columns?: 1 | 2 }) {
   const signIn = useApiWrite('signIn')
   const offered = useQuery(signInPeopleQuery()).data ?? []
   // Signed out on the service, nobody's workspace can be read: the picker shows names alone.
   const people = useQuery(workspaceQuery()).data?.people ?? []
   return (
-    <ItemGroup className="gap-2">
+    <ItemGroup className={cn('gap-2', columns === 2 && 'sm:grid sm:grid-cols-2')}>
       {offered.map((name) => {
         const role = people.find((x) => x.name === name)?.role
         return (

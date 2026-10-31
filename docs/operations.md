@@ -89,7 +89,8 @@ from the `models.*` settings and the provider's key from `.env.local` (for examp
 setting names a provider or model the registry does not have, or a provider whose key is missing,
 and the message names the setting. `MODEL_PROVIDER` is refused with a note on what replaced it. `CL_METRICS_TOKEN` (at least 32 characters, for example
 `openssl rand -hex 32`) turns `/metrics` on. `CUBE_MODEL_DIR` names a folder of Cube model files (unset: invented demo
-definitions), with `CL_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `CL_SECRETS_DIR` names
+definitions; the service image reads its own copy of the demo model `db/seed/cube` outside
+production, and `db/prepare.ts` refuses a folder that is missing or empty), with `CL_DOMAIN_OVERRIDES` and `CUBE_RENAMES_FILE` beside it. `CL_SECRETS_DIR` names
 the local secret store, a folder outside the repository that only the server's user may open
 (mode 0700), where sources added in Administration › Sources keep their tokens; unset, no secret
 is kept and a source that needs one cannot be added.
@@ -209,7 +210,7 @@ npm run heed -- draft item.yaml --as per_maria@example.test               # one 
 npm run heed -- import-tests questions.yaml --as per_maria@example.test   # test questions, dry run
 npm run heed -- export --out edition.json --as per_maria@example.test     # the live edition
 npm run heed -- verify edition.json                    # recompute the digests
-npm run heed -- audit --format csv --as administrator@example.test
+npm run heed -- audit --format csv --as per_ravi@example.test
 ```
 
 `heed import-tests` sends a test question file to `POST /evals/import` (a dry run unless

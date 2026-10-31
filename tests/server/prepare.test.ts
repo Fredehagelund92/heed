@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
+  checkModelFolder,
   databaseName,
   demoModelDir,
   isDemoModel,
@@ -83,5 +84,26 @@ describe('the demo model', () => {
     expect(await isDemoModel(added)).toBe(false)
     expect(await isDemoModel(join(tmpdir(), 'heed-no-such-model'))).toBe(false)
     expect(await isDemoModel(undefined)).toBe(false)
+  })
+})
+
+describe('the model folder', () => {
+  it('is refused when it is missing or empty, as a folder Docker does not share arrives', async () => {
+    const empty = await mkdtemp(join(tmpdir(), 'heed-empty-model-'))
+    try {
+      for (const folder of [empty, join(tmpdir(), 'heed-no-such-model')])
+        await expect(checkModelFolder(folder)).rejects.toThrow(
+          new PrepareError(
+            `CUBE_MODEL_DIR: the folder ${folder} is missing or holds no files, so there is no Cube model to read. When it is a folder on this computer shared into a container, check that Docker may read it: on a Mac, Docker Desktop shares only the folders under Settings, Resources, File sharing, and Colima shares your home folder unless told otherwise. To run the demo, leave CUBE_MODEL_DIR unset.`,
+          ),
+        )
+    } finally {
+      await rm(empty, { recursive: true })
+    }
+  })
+
+  it('is fine when it holds files, or when none is named', async () => {
+    await expect(checkModelFolder(demoModelDir)).resolves.toBeUndefined()
+    await expect(checkModelFolder(undefined)).resolves.toBeUndefined()
   })
 })
