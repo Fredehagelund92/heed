@@ -38,7 +38,8 @@ test("a person's sheet says what they checked lately, newest first", async ({ pa
   const days: string[] = []
   for (const line of await lines.all()) {
     await expect(line).toContainText(/^Checked .+\d{1,2} [A-Z][a-z]{2} \d{4}$/)
-    days.push(dayOf((await line.textContent())!.match(/\d{1,2} [A-Z][a-z]{2} \d{4}$/)![0]))
+    const date = (await line.locator(':scope > :last-child').textContent())!
+    days.push(dayOf(date.match(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/)![0]))
   }
   expect(days).toEqual([...days].sort().reverse())
 })

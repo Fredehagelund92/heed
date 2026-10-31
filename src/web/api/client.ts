@@ -22,6 +22,7 @@ import type { Answer, AskedWeek, AskInput, Example, SentReport, Thread } from '@
 import type { CommentAnchor, Comments, MentionNote, Subject } from '@/model/comments'
 import type { DomainId, Fact, Kind, LogEntry, Metric, Sent } from '@/model/items'
 import type { Version } from '@/model/history'
+import type { Conflict, ConflictDecision, ConflictRow, SettleConflict } from '@/model/conflicts'
 import type { InboxCard, Outcome, Waiting } from '@/model/inbox'
 import type { Alerts, RuleId } from '@/model/alerts'
 import type { FigureAsk, FigureReport, FigureTry, FigureView } from '@/model/figures'
@@ -373,6 +374,16 @@ export interface HeedApi {
   /** Takes back exactly what one write changed, and nothing done since. */
   undo: (input: { token: string }) => Promise<void>
 
+  // Conflicts (FR-220): two items an owner said disagree, read side by side and settled with a reason.
+  /** The pairs the person may read, most asked first; `mine`: one of the two is in a domain they own. */
+  conflicts: (input: { whose: 'mine' | 'all' }) => Promise<ConflictRow[]>
+  /** One pair, holder first, in either order of ids; null when the two no longer disagree. */
+  conflict: (input: { holderId: string; otherId: string }) => Promise<Conflict | null>
+  /** Keeps one (the other is archived), keeps both, or removes the flag, with a reason. */
+  settleConflict: (input: SettleConflict) => Promise<Undoable & { decision: ConflictDecision }>
+  /** Suggests to an item's owners that it is archived, with a reason; it waits in their Inbox (FR-112). */
+  suggestArchiving: (input: { id: string; reason: string }) => Promise<void>
+
   // Comments and reactions, by what they hang on. Agents never read any of it.
   getComments: () => Promise<Comments>
   postComment: (input: {
@@ -715,6 +726,10 @@ export const heedApiMethods = [
   'sendSuggestion',
   'withdrawSuggestion',
   'undo',
+  'conflicts',
+  'conflict',
+  'settleConflict',
+  'suggestArchiving',
   'getComments',
   'postComment',
   'reactToComment',
@@ -824,6 +839,8 @@ export type HeedApiMethod = (typeof heedApiMethods)[number]
 export const pageReads = [
   'contextPage',
   'itemPage',
+  'conflicts',
+  'conflict',
   'definitionsPage',
   'definitionPage',
   'getDefinitionHistory',

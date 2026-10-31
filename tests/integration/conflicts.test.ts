@@ -292,19 +292,9 @@ describe('settling a conflict', () => {
     expect(await listed()).toBe(true)
   })
 
-  it('keeps the decision and the hidden side back from a reader who may read only one item', async () => {
+  it('answers a reader who may read only one item as if the pair did not exist', async () => {
     const { first, second } = await pair()
-    await ok<SettledConflict>(
-      settle('owner', {
-        holderId: second,
-        otherId: first,
-        outcome: 'kept_both',
-        reason: 'Both hold until Finance rules on it.',
-        versions: { holder: 1, other: 1 },
-      }),
-    )
-    const whole = await view('owner', second, first)
-    expect(whole.keptBoth?.reason).toBe('Both hold until Finance rules on it.')
+    expect((await view('owner', second, first)).holder.readable).toBe(true)
     await transaction(client, async () => {
       await client.query('alter table item_versions disable trigger user')
       await client.query(
@@ -313,20 +303,14 @@ describe('settling a conflict', () => {
       )
       await client.query('alter table item_versions enable trigger user')
     })
-    const part = await view('owner', second, first)
-    expect(part.holder.readable).toBe(true)
-    expect(part.other).toMatchObject({
-      readable: false,
-      title: null,
-      summary: null,
-      source: null,
-      checked: null,
-      from: null,
-      version: 0,
-    })
-    expect(part.other.area.id).toBe('finance')
-    expect(part.keptBoth).toBeNull()
-    expect(part.said).toBeNull()
+    const read = await call('GET', `/conflicts/${second}/${first}`, 'owner')
+    expect(read.statusCode).toBe(404)
+    expect(read.body).not.toContain(first)
+    const list = await ok<ConflictList>(call('GET', '/conflicts?whose=all', 'owner'))
+    expect(list.rows.some((r) => r.key === `${second}.${first}`)).toBe(false)
+    expect((await ok<ItemPage>(call('GET', `/items/${second}/page`, 'owner'))).conflicts).toEqual(
+      [],
+    )
   })
 
   it('keeps the id of an item the reader may not read out of the history of the flag', async () => {

@@ -2,7 +2,7 @@
 title: Definitions and synonyms
 line: Metrics and terms, other names for them, and why some are read-only.
 group: Write and review
-order: 3
+order: 4
 minutes: 3
 reviewed: 2026-10-27
 ---

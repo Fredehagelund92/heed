@@ -49,9 +49,10 @@ describe('the shared help lists', () => {
     expect(mail).not.toContain('+')
   })
 
+  // Seventeen with the Conflict scope's row: its other keys are in the view's own hints and Help.
   it('keep the shortcut sheet to about fifteen rows', () => {
     const rows = SHORTCUTS.flatMap((g) => g.rows)
     expect(rows.length).toBeGreaterThanOrEqual(12)
-    expect(rows.length).toBeLessThanOrEqual(16)
+    expect(rows.length).toBeLessThanOrEqual(17)
   })
 })

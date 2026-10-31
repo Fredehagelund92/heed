@@ -115,6 +115,7 @@ const LOGGED: Record<LogEntry['what'], VersionKind> = {
   kind: 'retyped',
   owners: 'owners',
   checked: 'checked',
+  settled: 'conflict',
 }
 const FIELD: Record<LogEntry['what'], string> = {
   archived: 'Status',
@@ -123,6 +124,7 @@ const FIELD: Record<LogEntry['what'], string> = {
   kind: 'Kind',
   owners: 'Owners',
   checked: 'Checked',
+  settled: 'Conflict',
 }
 
 /**

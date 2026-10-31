@@ -10,6 +10,7 @@ These Markdown files are the documentation of the web app (`src/web`). The same 
 | [Connect an agent](connect-an-agent.md)                 | Start            |
 | [Write context](write-context.md)                       | Write and review |
 | [Review a suggestion](review-a-suggestion.md)           | Write and review |
+| [Settle a conflict](settle-a-conflict.md)               | Write and review |
 | [Definitions and synonyms](definitions-and-synonyms.md) | Write and review |
 | [Domains and owners](domains-and-owners.md)             | Set up           |
 | [Integrations](integrations.md)                         | Set up           |

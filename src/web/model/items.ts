@@ -128,7 +128,7 @@ export type LogEntry = {
   /** ISO date. */
   on: string
   who: string
-  what: 'archived' | 'deleted' | 'moved' | 'kind' | 'owners' | 'checked'
+  what: 'archived' | 'deleted' | 'moved' | 'kind' | 'owners' | 'checked' | 'settled'
   /** One sentence: "Moved to Marketing." */
   summary: string
   items: { id: string; title: string; domain?: DomainId }[]

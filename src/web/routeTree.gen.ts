@@ -29,6 +29,8 @@ import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.ind
 import { Route as AppContextIdIndexRouteImport } from './routes/_app/context.$id.index'
 import { Route as AppContextIdEditRouteImport } from './routes/_app/context.$id.edit'
 import { Route as AppContextIdSuggestRouteImport } from './routes/_app/context.$id.suggest'
+import { Route as AppContextConflictsIndexRouteImport } from './routes/_app/context.conflicts.index'
+import { Route as AppContextConflictsKeyRouteImport } from './routes/_app/context.conflicts.$key'
 import { Route as AppDefinitionsNameIndexRouteImport } from './routes/_app/definitions.$name.index'
 import { Route as AppDefinitionsNameEditRouteImport } from './routes/_app/definitions.$name.edit'
 import { Route as AppInboxIdReviewRouteImport } from './routes/_app/inbox.$id.review'
@@ -156,6 +158,21 @@ const AppContextIdSuggestRoute = AppContextIdSuggestRouteImport.update({
 } as any).lazy(() =>
   import('./routes/_app/context.$id.suggest.lazy').then((d) => d.Route),
 )
+const AppContextConflictsIndexRoute =
+  AppContextConflictsIndexRouteImport.update({
+    id: '/context/conflicts/',
+    path: '/context/conflicts/',
+    getParentRoute: () => AppRoute,
+  } as any).lazy(() =>
+    import('./routes/_app/context.conflicts.index.lazy').then((d) => d.Route),
+  )
+const AppContextConflictsKeyRoute = AppContextConflictsKeyRouteImport.update({
+  id: '/context/conflicts/$key',
+  path: '/context/conflicts/$key',
+  getParentRoute: () => AppRoute,
+} as any).lazy(() =>
+  import('./routes/_app/context.conflicts.$key.lazy').then((d) => d.Route),
+)
 const AppDefinitionsNameIndexRoute = AppDefinitionsNameIndexRouteImport.update({
   id: '/definitions/$name/',
   path: '/definitions/$name/',
@@ -232,10 +249,12 @@ export interface FileRoutesByFullPath {
   '/settings/': typeof AppSettingsIndexRoute
   '/context/$id/edit': typeof AppContextIdEditRoute
   '/context/$id/suggest': typeof AppContextIdSuggestRoute
+  '/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id/': typeof AppContextIdIndexRoute
+  '/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/settings/$section/': typeof AppSettingsSectionIndexRoute
   '/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -260,10 +279,12 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsIndexRoute
   '/context/$id/edit': typeof AppContextIdEditRoute
   '/context/$id/suggest': typeof AppContextIdSuggestRoute
+  '/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/context/$id': typeof AppContextIdIndexRoute
+  '/context/conflicts': typeof AppContextConflictsIndexRoute
   '/definitions/$name': typeof AppDefinitionsNameIndexRoute
   '/settings/$section': typeof AppSettingsSectionIndexRoute
   '/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -290,10 +311,12 @@ export interface FileRoutesById {
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/context/$id/edit': typeof AppContextIdEditRoute
   '/_app/context/$id/suggest': typeof AppContextIdSuggestRoute
+  '/_app/context/conflicts/$key': typeof AppContextConflictsKeyRoute
   '/_app/definitions/$name/edit': typeof AppDefinitionsNameEditRoute
   '/_app/inbox/$id/review': typeof AppInboxIdReviewRoute
   '/_app/observability/summary/$id': typeof AppObservabilitySummaryIdRoute
   '/_app/context/$id/': typeof AppContextIdIndexRoute
+  '/_app/context/conflicts/': typeof AppContextConflictsIndexRoute
   '/_app/definitions/$name/': typeof AppDefinitionsNameIndexRoute
   '/_app/settings/$section/': typeof AppSettingsSectionIndexRoute
   '/_app/settings/$section/$sub/$step': typeof AppSettingsSectionSubStepRoute
@@ -320,10 +343,12 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/context/$id/edit'
     | '/context/$id/suggest'
+    | '/context/conflicts/$key'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
     | '/observability/summary/$id'
     | '/context/$id/'
+    | '/context/conflicts/'
     | '/definitions/$name/'
     | '/settings/$section/'
     | '/settings/$section/$sub/$step'
@@ -348,10 +373,12 @@ export interface FileRouteTypes {
     | '/settings'
     | '/context/$id/edit'
     | '/context/$id/suggest'
+    | '/context/conflicts/$key'
     | '/definitions/$name/edit'
     | '/inbox/$id/review'
     | '/observability/summary/$id'
     | '/context/$id'
+    | '/context/conflicts'
     | '/definitions/$name'
     | '/settings/$section'
     | '/settings/$section/$sub/$step'
@@ -377,10 +404,12 @@ export interface FileRouteTypes {
     | '/_app/settings/'
     | '/_app/context/$id/edit'
     | '/_app/context/$id/suggest'
+    | '/_app/context/conflicts/$key'
     | '/_app/definitions/$name/edit'
     | '/_app/inbox/$id/review'
     | '/_app/observability/summary/$id'
     | '/_app/context/$id/'
+    | '/_app/context/conflicts/'
     | '/_app/definitions/$name/'
     | '/_app/settings/$section/'
     | '/_app/settings/$section/$sub/$step'
@@ -538,6 +567,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppContextIdSuggestRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/context/conflicts/': {
+      id: '/_app/context/conflicts/'
+      path: '/context/conflicts'
+      fullPath: '/context/conflicts/'
+      preLoaderRoute: typeof AppContextConflictsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/context/conflicts/$key': {
+      id: '/_app/context/conflicts/$key'
+      path: '/context/conflicts/$key'
+      fullPath: '/context/conflicts/$key'
+      preLoaderRoute: typeof AppContextConflictsKeyRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/definitions/$name/': {
       id: '/_app/definitions/$name/'
       path: '/definitions/$name'
@@ -604,10 +647,12 @@ interface AppRouteChildren {
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
   AppContextIdEditRoute: typeof AppContextIdEditRoute
   AppContextIdSuggestRoute: typeof AppContextIdSuggestRoute
+  AppContextConflictsKeyRoute: typeof AppContextConflictsKeyRoute
   AppDefinitionsNameEditRoute: typeof AppDefinitionsNameEditRoute
   AppInboxIdReviewRoute: typeof AppInboxIdReviewRoute
   AppObservabilitySummaryIdRoute: typeof AppObservabilitySummaryIdRoute
   AppContextIdIndexRoute: typeof AppContextIdIndexRoute
+  AppContextConflictsIndexRoute: typeof AppContextConflictsIndexRoute
   AppDefinitionsNameIndexRoute: typeof AppDefinitionsNameIndexRoute
   AppSettingsSectionIndexRoute: typeof AppSettingsSectionIndexRoute
   AppSettingsSectionSubStepRoute: typeof AppSettingsSectionSubStepRoute
@@ -628,10 +673,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsIndexRoute: AppSettingsIndexRoute,
   AppContextIdEditRoute: AppContextIdEditRoute,
   AppContextIdSuggestRoute: AppContextIdSuggestRoute,
+  AppContextConflictsKeyRoute: AppContextConflictsKeyRoute,
   AppDefinitionsNameEditRoute: AppDefinitionsNameEditRoute,
   AppInboxIdReviewRoute: AppInboxIdReviewRoute,
   AppObservabilitySummaryIdRoute: AppObservabilitySummaryIdRoute,
   AppContextIdIndexRoute: AppContextIdIndexRoute,
+  AppContextConflictsIndexRoute: AppContextConflictsIndexRoute,
   AppDefinitionsNameIndexRoute: AppDefinitionsNameIndexRoute,
   AppSettingsSectionIndexRoute: AppSettingsSectionIndexRoute,
   AppSettingsSectionSubStepRoute: AppSettingsSectionSubStepRoute,

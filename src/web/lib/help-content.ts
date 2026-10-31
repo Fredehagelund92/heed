@@ -169,6 +169,10 @@ export const SHORTCUTS: { group: string; rows: Keys[] }[] = [
     ],
   },
   {
+    group: 'Conflict',
+    rows: [{ keys: ['1'], or: ['2', 'B', 'N'], label: 'Keep one, keep both, or Not a conflict' }],
+  },
+  {
     group: 'Ask',
     rows: [
       { keys: ['/'], label: 'Start typing a question' },

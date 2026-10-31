@@ -605,8 +605,8 @@ is in `src/contract/conflicts.ts`, the rules in `src/domain/conflicts.ts`.
   line; what agents say to the holder's own question now, with only the holder, with only the
   other, and with the flag removed (the answer engine on the live edition, no model); who may
   settle it how; and the decision that kept it as both, if it still holds and the person may read
-  both items. A side the person may not read comes back with its domain and owners only, and with
-  no answers (FR-128).
+  both items. A pair is read only when the person may read both items; otherwise it is not found,
+  as in the list (FR-128).
 - `POST /conflicts/settle` takes the pair, the outcome (`kept_one` with `keepId`, `kept_both` or
   `not_conflict`), a reason in plain words, an optional quoted line, and the versions the person
   saw. A newer version of either answers 409 and changes nothing. Each outcome is checked against
