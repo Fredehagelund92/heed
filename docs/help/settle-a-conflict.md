@@ -27,7 +27,7 @@ Conflicts in Context lists every pair, most asked first, with yours first under 
 Each way asks why first, and can take a line from a source that settles it. Before you confirm, you see what agents will then say.
 
 - **Keep this one** archives the other. It needs an owner of the other item, or an admin.
-- **Edit this one** opens the editor with the other item beside it, to narrow it to where it applies.
+- **Edit this one** opens the editor with the other item beside it, to narrow it to where it applies. Saving it leaves the flag in place and takes you back to the conflict, at the Not a conflict step: give a reason to settle it, or cancel to leave it flagged.
 - **Keep both** records why. Agents keep saying Conflict, and the pair leaves the conflict lists until either item changes.
 - **Not a conflict** removes the flag. It needs an owner of the item that holds it, or an admin. Agents then give both and say nothing about a difference.
 - **Ask the owner** mentions them in a comment on the item, and it reaches their Inbox.

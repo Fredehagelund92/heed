@@ -455,7 +455,7 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await page.getByRole('button', { name: 'Open in Quality' }).click()
   await expect(page).toHaveURL(new RegExp(`/observability/quality\\?domain=${domainId('sales')}`))
   // A rule with a card of its own raises an Alert card, with one action to where the rule points:
-  // the mock's Conflict about Net revenue, the demo week's source that has not synced yet.
+  // the mock's Conflict about Orders in Norway, the demo week's source that has not synced yet.
   const alert =
     mode === 'http'
       ? {
@@ -465,7 +465,7 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
           to: /\/settings\/integrations\//,
         }
       : {
-          title: 'Net revenue in Norway: conflict, 3 times',
+          title: 'Orders in Norway: conflict, 3 times',
           rule: 'Conflict',
           open: 'Open the topic',
           to: /\/observability\/questions\?dock=topic\./,

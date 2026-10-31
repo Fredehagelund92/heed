@@ -14,9 +14,14 @@ import {
   Undo2Icon,
 } from '@/components/icons'
 import { toast } from 'sonner'
-import { cn, midSentence } from '@/lib/utils'
+import { and, cn, midSentence } from '@/lib/utils'
+import { Statement } from '@/components/heed/conflict-pair'
+import { comparePair, sharedWords, type Compared } from '@/lib/differing-words'
+import { SIDE_BY_SIDE } from '@/lib/conflict'
+import { ownersOf } from '@/model/people'
+import type { Fact } from '@/model/items'
 import { PersonAvatar, StateLine } from '@/components/heed/bits'
-import { ChangeBlock, KindLabel, Marked } from '@/components/heed/review-parts'
+import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
 import { ClaimCheck, Rewrite } from '@/components/heed/review-page-parts'
 import { Mark } from '@/components/heed/mark'
 import { ToolLogo } from '@/components/heed/tool-logo'
@@ -748,37 +753,58 @@ const RelationContext = React.createContext<
  */
 function Clash({ r }: { r: Review }) {
   const [answers, answer] = React.useContext(RelationContext)
+  const facts = useFacts()
+  const [unfold, setUnfold] = React.useState(false)
   const c = r.clash!
-  const many = c.items.length > 1
+  const plain = (text: string) =>
+    marks(text)
+      .map((x) => x.text)
+      .join('')
+  const mine = plain(c.mine)
+  // Ordered by the words each shares with the suggestion; the ones that share none overlap only by
+  // where they apply, and fold into one line with one answer (FR-225 still asks for each).
+  const items = c.items
+    .map((item) => {
+      const theirs = plain(item.theirs)
+      return { item, theirs, pair: comparePair(mine, theirs), shared: sharedWords(mine, theirs) }
+    })
+    .sort((x, y) => y.shared - x.shared)
+  const words = items.filter((x) => x.pair[0].how !== 'plain')
+  const folded = unfold ? [] : items.filter((x) => x.pair[0].how === 'plain')
+  const shown = unfold ? items : words
   return (
     <section className="flex flex-col gap-4 py-2">
-      <header className="flex items-center gap-2">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-caution-icon" />
         <Mark role="needs" icon={false} className="text-sm">
-          {many
-            ? `It overlaps ${c.items.length} live context items. Say how it relates to each.`
-            : 'It overlaps live context that says something else'}
+          Overlaps live context
         </Mark>
+        <span className="text-sm text-muted-foreground">
+          {items.length > 1
+            ? `${words.length} of ${items.length} say something about the same thing. Answer for each.`
+            : 'Publish waits for your answer.'}
+        </span>
       </header>
-      <div className="flex flex-col gap-2 rounded-frame border p-4">
-        <p className="text-xs font-medium text-muted-foreground">This suggestion</p>
-        <Marked segs={marks(c.mine)} className="text-reading leading-7" />
-      </div>
-      {c.items.map((item, i) => {
+      {shown.map(({ item, pair }, i) => {
         const relation = answers[item.factId]
+        const live = facts.find((f) => f.id === item.factId)
         return (
-          <div key={item.factId} className="flex flex-col gap-4 rounded-frame border p-4">
-            <div className="flex flex-col gap-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                {many ? `Live, ${i + 1} of ${c.items.length}: ` : 'Live: '}
-                {item.title}
+          <div key={item.factId} className="flex flex-col gap-3">
+            {items.length > 1 && (
+              <p className="text-sm">
+                <span className="font-medium">
+                  {i + 1} of {items.length}
+                </span>{' '}
+                <span className="text-xs text-muted-foreground">
+                  {pair[0].how === 'plain'
+                    ? 'Overlaps only by where it applies'
+                    : 'Says about the same thing'}
+                </span>
               </p>
-              <Marked segs={marks(item.theirs)} className="text-reading leading-7" />
-            </div>
+            )}
+            <ClashPair r={r} title={item.title} live={live} pair={pair} />
             <fieldset className="flex flex-col gap-2">
-              <legend className="mb-2 text-sm font-medium">
-                How do they relate?{many ? '' : ' Publish waits for your answer.'}
-              </legend>
+              <legend className="mb-2 text-xs text-muted-foreground">How do they relate?</legend>
               <ChoiceGroup
                 label={`How this relates to ${item.title}`}
                 options={relations.map((x) => ({ value: x.id, label: x.label }))}
@@ -792,7 +818,111 @@ function Clash({ r }: { r: Review }) {
           </div>
         )
       })}
+      {folded.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-frame border p-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              {folded.length} more {folded.length === 1 ? 'overlaps' : 'overlap'} only by where{' '}
+              {folded.length === 1 ? 'it applies' : 'they apply'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {folded.map((x) => x.item.title).join('; ')}. No shared words.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setUnfold(true)}>
+              Show
+            </Button>
+            {folded.every((x) => answers[x.item.factId] === 'unrelated') ? (
+              <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CheckIcon aria-hidden className="size-4" />
+                Marked unrelated
+              </span>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => folded.forEach((x) => answer(x.item.factId, 'unrelated'))}
+              >
+                Mark it unrelated
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
+  )
+}
+
+/** One overlap in the conflict view's split rows: this suggestion against the live item, with where it comes from. */
+function ClashPair({
+  r,
+  title,
+  live,
+  pair,
+}: {
+  r: Review
+  title: string
+  live: Fact | undefined
+  pair: [Compared, Compared]
+}) {
+  const domains = useDomains()
+  const [ref, wide] = useWide<HTMLDivElement>(SIDE_BY_SIDE)
+  const side = (
+    label: string,
+    heading: string,
+    stmt: Compared,
+    meta: React.ReactNode,
+    second?: boolean,
+  ) => (
+    <div
+      role="group"
+      aria-label={`${label}: ${heading}`}
+      className={cn('flex min-w-0 flex-col', second && (wide ? 'border-l' : 'border-t'))}
+    >
+      <div className="flex flex-col gap-0.5 border-b bg-muted/40 p-3">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <span className="text-sm font-medium">{heading}</span>
+      </div>
+      <div className="border-b p-3">
+        <Statement c={stmt} />
+      </div>
+      <div className="p-3 text-sm text-muted-foreground">{meta}</div>
+    </div>
+  )
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        'grid overflow-hidden rounded-frame border',
+        wide ? 'grid-cols-2' : 'grid-cols-1',
+      )}
+    >
+      {side('This suggestion', r.mode === 'new' ? 'New context' : r.title, pair[0], r.from)}
+      {side(
+        'Live now',
+        title,
+        pair[1],
+        live ? (
+          <>
+            {domains[live.domain]?.name ?? live.domain}, owned by {and(ownersOf(live, domains))}.
+            {live.checkedOn && ` Checked ${live.checkedOn}.`}{' '}
+            {live.source && (
+              <a
+                href={live.source}
+                target="_blank"
+                rel="noreferrer"
+                className="break-all text-primary underline underline-offset-4"
+              >
+                {live.source.replace(/^https?:\/\//, '')}
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            )}
+          </>
+        ) : null,
+        true,
+      )}
+    </div>
   )
 }
 

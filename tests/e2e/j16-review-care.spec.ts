@@ -40,12 +40,18 @@ test('an overlap with several live items asks about each, and archives only the 
       .getByRole('radio', { name: answer })
       .click()
   await go(page, '/inbox/sug-sofia-clash/review')
-  await expect(page.getByText('It overlaps 3 live context items.')).toBeVisible()
+  // The two that say something about the same thing side by side; the stop, which shares no
+  // words with it, folded into one line with one answer.
+  await expect(
+    page.getByText('2 of 3 say something about the same thing. Answer for each.'),
+  ).toBeVisible()
   for (const title of [stop, cardOnly, credit])
-    await expect(page.getByText(`: ${title}`, { exact: false }).first()).toBeVisible()
+    await expect(page.getByText(title, { exact: false }).first()).toBeVisible()
+  await expect(page.getByText('1 more overlaps only by where it applies')).toBeVisible()
   // One answer is not an answer for the others: Publish waits until each has its own.
   await relate(credit, 'This replaces it')
-  await relate(stop, 'Unrelated')
+  await page.getByRole('button', { name: 'Mark it unrelated' }).click()
+  await expect(page.getByText('Marked unrelated')).toBeVisible()
   await expect(decide.getByText('Not ready: choose how they relate.')).toBeVisible()
   await expect(decide.getByRole('button', { name: 'Publish' })).toBeDisabled()
   await relate(cardOnly, 'These disagree')

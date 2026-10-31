@@ -37,7 +37,7 @@ import { closeDock, openDock } from '@/lib/dock'
 import { useComments } from '@/lib/comments'
 import { href, navigate, useRoute } from '@/lib/router'
 import { useQuery } from '@tanstack/react-query'
-import { itemPageQuery, useInbox, useWrite } from '@/api/queries'
+import { conflictQuery, itemPageQuery, useInbox, useWrite } from '@/api/queries'
 import { useDomains, useFact, useFacts, useMe } from '@/lib/workspace'
 import { MentionText } from '@/components/heed/mention-chip'
 import { ScopeChips } from '@/components/heed/scope-chips'
@@ -69,6 +69,19 @@ export function FactPeek({ id }: { id: string }) {
     // Once per item opened.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found, id])
+  // The item it is in a conflict with, whichever of the two holds the flag.
+  const overlap = fact
+    ? facts.find(
+        (f) =>
+          f.id !== fact.id &&
+          (f.id === fact.disagreesWith || f.disagreesWith === fact.id) &&
+          (f.status === 'Live' || f.status === 'Needs checking'),
+      )
+    : undefined
+  const pair = useQuery({
+    ...conflictQuery(`${id}.${overlap?.id ?? ''}`),
+    enabled: !!overlap,
+  }).data
   if (!fact)
     return (
       <DockFrame title="Context">
@@ -80,7 +93,6 @@ export function FactPeek({ id }: { id: string }) {
   const owner = me.owns.includes(fact.domain) || me.admin
   const owners = ownersOf(fact, domains)
   const page = `/context/${fact.id}`
-  const overlap = fact.disagreesWith ? facts.find((f) => f.id === fact.disagreesWith) : undefined
   const flag = flagCard?.flag && !done[flagCard.id] ? flagCard : undefined
   const stale = fact.status === 'Needs checking' || !!fact.outOfDate
   const question = `What should I know about ${fact.where[0]?.toLowerCase() ?? 'this'}${fact.where[1] ? ` in ${fact.where[1]}` : ''}?`
@@ -112,12 +124,19 @@ export function FactPeek({ id }: { id: string }) {
     <PeekAttention
       icon={ArrowLeftRightIcon}
       action={
-        <Button variant="outline" size="sm" onClick={() => navigate(page)}>
-          Compare
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => openDock('conflict', pair?.key ?? `${fact.id}.${overlap.id}`)}
+        >
+          {pair && Object.values(pair.rights).some(Boolean)
+            ? 'Compare and decide'
+            : 'Compare the two'}
         </Button>
       }
     >
       Disagrees with “{overlap.title}”.
+      {pair && ` Agents say Conflict for ${pair.asked} questions this week.`}
     </PeekAttention>
   ) : stale && fact.status !== 'Archived' ? (
     <PeekAttention

@@ -196,7 +196,10 @@ export const spendReached = (spentMicros: number, capMicros: number, percent: nu
  * to be drawn, the page it is about.
  */
 export type RaiseSubject =
-  { card: string } | { topic: string } | { page: 'overview' | 'usage' } | { connector: string }
+  | { card: string }
+  | { topic: string; pair?: string }
+  | { page: 'overview' | 'usage' }
+  | { connector: string }
 
 /** Who a raise reached, as the page says it: "A card went to Jon Abara and Sofia Brandt." */
 export function raisedLine(rule: AlertRuleId, names: readonly string[]): string {

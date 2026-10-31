@@ -30,6 +30,7 @@ import { useSend } from '@/lib/send'
 import '@/components/editor/style.css'
 import { docExtensions } from '@/lib/doc-extensions'
 import { noteEmoji } from '@/lib/emoji-note'
+import { conflictPath } from '@/model/conflicts'
 import { type Validity } from '@/model/validity'
 import {
   missingDates,
@@ -521,6 +522,12 @@ function Editor({
         description: 'Your first context item. Agents get it from the next question.',
       })
       navigate('/inbox')
+      return
+    }
+    // Edited from a conflict: it stays flagged until its owner settles it, with a reason.
+    if (original && beside) {
+      toast('Saved', { description: 'Agents get it from the next question.' })
+      navigate(conflictPath(`${original.id}.${beside.id}`), { settle: 'not_conflict' })
       return
     }
     toast(original ? 'Saved' : 'Published', {

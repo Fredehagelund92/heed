@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { expect, go, onMockOnly, signInAs, test } from './go.ts'
+import { card, expect, go, onMockOnly, signInAs, test } from './go.ts'
 
 // J36, the conflict view (FR-220): two items an owner said disagree, side by side with where each
 // comes from and what agents would say with only that one, and ways to settle it. Every choice asks
@@ -114,6 +114,86 @@ test('a near copy is underlined where the two differ', async ({ page }) => {
     await go(page, '/context/conflicts/itm_france_switch_12.itm_france_switch_21')
     await expect(page.getByText('are where the two differ.')).toBeVisible()
     await expect(page.locator('mark[data-mark="differs"]').first()).toHaveText('[differs: 12]')
+  })
+})
+
+test('the item page and its peek say what it disagrees with, and lead to the comparison', async ({
+  page,
+}) => {
+  await go(page, '/context/conflicts?whose=all')
+  const row = page.getByRole('link', { name: 'Orders in Norway' })
+  const pairPath = await row.getAttribute('href')
+  const holder = pairPath!.split('/').pop()!.split('.')[0]!
+  await go(page, `/context/${holder}`)
+  await expect(page.getByRole('heading', { name: 'Disagrees with' })).toBeVisible()
+  await expect(
+    page.getByText(/Agents say Conflict for \d+ questions this week\./).first(),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Compare and decide' }).first().click()
+  await expect(page).toHaveURL(/dock=conflict\./)
+  await go(page, `/context?dock=context.${holder}`)
+  await expect(page.getByText(/^Disagrees with “/)).toBeVisible()
+})
+
+test('Ask groups the two that disagree and leads to the comparison', async ({ page }) => {
+  await onMockOnly('example answer', async () => {
+    await go(page, '/ask?example=conflict')
+    await expect(page.getByText('These two disagree').first()).toBeVisible()
+    await expect(page.getByRole('group', { name: 'The two items' })).toBeVisible()
+    await page.getByRole('button', { name: 'Compare and decide' }).click()
+    await expect(page).toHaveURL(/dock=conflict\./)
+  })
+})
+
+test('the Conflict alert card shows the pair and leads to the comparison', async ({ page }) => {
+  await onMockOnly('Conflict alert card', async () => {
+    await go(page, `/inbox?card=${card('alert-orders-norway')}`)
+    await expect(page.getByRole('group', { name: 'The two items' })).toBeVisible()
+    await page.getByRole('button', { name: 'Compare and decide' }).click()
+    await expect(page).toHaveURL(/dock=conflict\./)
+  })
+})
+
+async function saveNarrowedFromFrance(page: Page, title: string) {
+  await go(page, '/context/conflicts/itm_france_switch_12.itm_france_switch_21')
+  await page.getByRole('button', { name: 'Edit this one' }).first().click()
+  await expect(page).toHaveURL(/beside=itm_france_switch_21/)
+  const beside = page.getByRole('complementary', { name: 'The item it disagrees with' })
+  await expect(beside).toContainText('Payment provider switched in France on 21 May 2026.')
+  await page.getByRole('textbox', { name: 'Title' }).fill(title)
+  await page.getByRole('button', { name: /^Save/ }).first().click()
+}
+
+test('edit this one: saving returns to the conflict at Not a conflict, and it is settled only with a reason', async ({
+  page,
+}) => {
+  await onMockOnly('editor publish', async () => {
+    await saveNarrowedFromFrance(
+      page,
+      'Payment provider switched in France for cards on 12 May 2026',
+    )
+    const box = page.getByRole('dialog', { name: 'Not a conflict' })
+    await expect(box.getByText('Agents will then say')).toBeVisible()
+    await expect(box.getByRole('button', { name: 'Not a conflict' })).toBeDisabled()
+    await box.getByLabel('Why is this not a conflict?').fill('Narrowed to cards.')
+    await box.getByRole('button', { name: 'Not a conflict' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Narrowed to cards.' })).toBeVisible()
+    await go(page, '/context/conflicts?whose=all')
+    await expect(page.getByRole('link', { name: 'Orders in France' })).toHaveCount(0)
+  })
+})
+
+test('a typo fix saved from a conflict settles nothing, and cancelling leaves it flagged', async ({
+  page,
+}) => {
+  await onMockOnly('editor publish', async () => {
+    await saveNarrowedFromFrance(page, 'Payment provider switched in France on 12 May 2026.')
+    const box = page.getByRole('dialog', { name: 'Not a conflict' })
+    await expect(box).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(box).toBeHidden()
+    await go(page, '/context/conflicts?whose=all')
+    await expect(page.getByRole('cell', { name: 'Orders in France', exact: true })).toBeVisible()
   })
 })
 

@@ -1,4 +1,4 @@
-import { expect, go, onMockOnly, test } from './go.ts'
+import { expect, go, test } from './go.ts'
 
 // J3: someone asks, gets an answer that says how sure it is, and reports a part that is wrong.
 test('someone asks, then reports a wrong part', async ({ page }) => {
@@ -25,20 +25,20 @@ test('an owner chooses which one stays among the items that disagree', async ({ 
   await box.pressSequentially('Do Norway orders include gift-card money?')
   await box.press('Enter')
   await expect(page.getByText('Conflict', { exact: true }).first()).toBeVisible()
-  // The answer gives the customs stop too, but it disagrees with nothing: the choice opens one of
-  // the two that do.
-  await page.getByRole('button', { name: 'Choose which one stays' }).click()
+  // The answer gives the customs stop too, but it disagrees with nothing: the pair shown, and the
+  // comparison it opens, are the two that do (FR-220).
+  const pair = page.getByRole('group', { name: 'The two items' })
+  await expect(pair).toContainText('Norway orders count store credit')
+  await expect(pair).toContainText('Norway orders are card and cash payments only')
+  await expect(pair).not.toContainText('Online sales to Norway stopped')
+  await page.getByRole('button', { name: 'Compare and decide' }).click()
+  const dock = page.getByRole('region', { name: 'Conflict', exact: true })
   await expect(
-    page.getByRole('heading', {
-      level: 1,
-      name: /^(Norway orders count store credit|Norway orders are card and cash payments only)$/,
-    }),
+    dock.getByRole('heading', { name: 'Two items say different things about Orders in Norway.' }),
   ).toBeVisible()
-  // No button says it archived the other while doing nothing.
-  await onMockOnly('choices beside a disagreement on the item page', async () => {
-    await expect(page.getByRole('heading', { name: 'Disagrees with' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Keep this one' })).toHaveCount(0)
-  })
+  // Every choice there asks why before it acts: nothing is archived by one click.
+  await dock.getByRole('button', { name: 'Keep this one' }).first().click()
+  await expect(page.getByRole('dialog', { name: /^Keep “/ })).toBeVisible()
 })
 
 test('a question that names nothing says nothing was looked up, never Not found', async ({
