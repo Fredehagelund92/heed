@@ -311,12 +311,12 @@ export function createConflictsService(
       kind: item.kind,
       area: { id: item.areaId, name: area[0]?.name ?? item.areaId },
       owners: settled.owners.map((id) => ({ id, name: people.get(id) ?? '' })),
-      version: item.version,
-      checked: row?.lastChecked
+      version: open ? item.version : 0,
+      checked: open && row?.lastChecked
         ? { on: row.lastChecked.on, personId: row.lastChecked.personId }
         : null,
       source: open && source ? { url: source.url, quote: source.quote } : null,
-      from: item.validity.start || null,
+      from: open ? item.validity.start || null : null,
     }
   }
 
@@ -382,7 +382,8 @@ export function createConflictsService(
               keepBoth: false,
               notConflict: false,
             },
-      keptBoth: kept.has(`${holder.id}.${other.id}`)
+      keptBoth:
+        open.size === 2 && kept.has(`${holder.id}.${other.id}`)
         ? publicDecision(kept.get(`${holder.id}.${other.id}`)!)
         : null,
     }

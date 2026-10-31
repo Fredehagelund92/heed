@@ -292,6 +292,43 @@ describe('settling a conflict', () => {
     expect(await listed()).toBe(true)
   })
 
+  it('keeps the decision and the hidden side back from a reader who may read only one item', async () => {
+    const { first, second } = await pair()
+    await ok<SettledConflict>(
+      settle('owner', {
+        holderId: second,
+        otherId: first,
+        outcome: 'kept_both',
+        reason: 'Both hold until Finance rules on it.',
+        versions: { holder: 1, other: 1 },
+      }),
+    )
+    const whole = await view('owner', second, first)
+    expect(whole.keptBoth?.reason).toBe('Both hold until Finance rules on it.')
+    await transaction(client, async () => {
+      await client.query('alter table item_versions disable trigger user')
+      await client.query(
+        "update item_versions set audience_groups = '{finance_team}' where item_id = $1",
+        [first],
+      )
+      await client.query('alter table item_versions enable trigger user')
+    })
+    const part = await view('owner', second, first)
+    expect(part.holder.readable).toBe(true)
+    expect(part.other).toMatchObject({
+      readable: false,
+      title: null,
+      summary: null,
+      source: null,
+      checked: null,
+      from: null,
+      version: 0,
+    })
+    expect(part.other.area.id).toBe('finance')
+    expect(part.keptBoth).toBeNull()
+    expect(part.said).toBeNull()
+  })
+
   it('holds a decision when either item changed since it was read', async () => {
     const { first, second } = await pair()
     const stale = await settle('owner', {
