@@ -13,7 +13,7 @@ it('prepares a database again, as the owner, after the demo and its story were l
   await client.query('reset role')
 
   const loaded = await seedDemoIfEmpty({ seedUrl: url, cubeModelDir: demoModelDir })
-  expect(loaded).toMatchObject({ story: { calls: expect.any(Number) } })
+  expect(loaded).toMatchObject({ story: { calls: expect.any(Number) as number } })
 
   await expect(migrateDatabase({ migrateUrl: owner.href })).resolves.toMatchObject({ applied: 0 })
   expect(await seedDemoIfEmpty({ seedUrl: url, cubeModelDir: demoModelDir })).toBe('not-empty')

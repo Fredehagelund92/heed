@@ -1,10 +1,11 @@
 import { expect, it, vi } from 'vitest'
+import type * as Story from '../../db/seed/story.ts'
 import { demoModelDir, migrateDatabase, PrepareError, seedDemoIfEmpty } from '../../db/prepare.ts'
 import { localRoles } from '../../src/server/db/roles.ts'
 import { testDatabase } from './support.ts'
 
 vi.mock('../../db/seed/story.ts', async (original) => ({
-  ...(await original<typeof import('../../db/seed/story.ts')>()),
+  ...(await original<typeof Story>()),
   loadStory: () => Promise.reject(new Error('the MCP gateway refused the call')),
 }))
 
