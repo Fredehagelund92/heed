@@ -860,6 +860,10 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
 - `GET /agent-connections` and `POST /agent-connections/{id}/disconnect` (administrators, formerly
   `/ai-connections`): every person's agents, and ending one, with a reason the history log keeps
   (docs/ai-sign-in.md).
+- `GET /agents`, `POST /agents/{id}/name`, `POST /agents/{id}/permission` and
+  `POST /agents/{id}/revoke`: every agent by name, with its kind and what it may do (an
+  administrator sees all, anyone else their own apps), renaming an access key, setting what an
+  agent may do, and ending it (FR-420, docs/ai-sign-in.md).
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the
   Agents and access page; the tools agents call are switched with `POST /tools/{tool}`, and the
   page reads both from `GET /connect` and `GET /serving/stops`, which everyone signed in may read.
