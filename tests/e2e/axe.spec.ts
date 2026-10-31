@@ -159,7 +159,7 @@ for (const { name, width, height } of widths) {
         await page.goto(withTheme('/settings/domains/sales?autopublish=on', theme))
         await page.getByRole('button', { name: 'Let an agent publish without review' }).click()
         const dialog = page.getByRole('dialog')
-        await expect(dialog.getByRole('checkbox', { name: 'Rule' })).toBeChecked()
+        await expect(dialog.getByRole('textbox', { name: 'Why' })).toBeVisible()
         expect(await violations(page)).toEqual([])
         await dialog.getByRole('textbox', { name: 'Why' }).fill('Its rules were right for weeks')
         await dialog.getByRole('button', { name: 'Let it publish' }).click()
