@@ -627,10 +627,14 @@ async function askAgents(pool: pg.Pool, client: pg.Client, norway: string, now: 
       const next = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 1))
         .toISOString()
         .slice(0, 10)
+      const partition = `${table}_${month.replace('-', '_')}`
       await client.query(
-        `create table if not exists ${table}_${month.replace('-', '_')} partition of ${table}
+        `create table if not exists ${partition} partition of ${table}
            for values from ('${start} 00:00Z') to ('${next} 00:00Z')`,
       )
+      // Owned by the owner role, as the nightly job's are: the next start grants on every table
+      // as that role, and a partition left to the superuser would stop it.
+      await client.query(`alter table ${partition} owner to ${localRoles.owner}`)
     }
   await writeRecords(client, records)
   // The weekly counts the nightly job keeps, for every whole week the calls reach.

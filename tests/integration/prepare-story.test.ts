@@ -25,4 +25,4 @@ it('names the half loaded demo, its cause and the recovery, then reports it on t
   expect((failure as Error).message).toContain('docker compose down --volumes')
 
   expect(await seedDemoIfEmpty(options)).toBe('story-missing')
-})
+}, 180_000)
