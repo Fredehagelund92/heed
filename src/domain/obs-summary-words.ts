@@ -5,6 +5,7 @@
  * counts, so a digest printed from the snapshot later reads as it did that day. Pure: the counts
  * come already through the disclosure pass (src/domain/obs-summary.ts), a hidden one as null.
  */
+import { ACT_DAYS, caughtTriggers, type CaughtTrigger, type CaughtView } from './obs-summary.ts'
 import { COMPARE_FROM, countChange, shareChange, type Change, type Shown } from './observability.ts'
 
 /** Days from `start` up to, not including, `end`, as UTC timestamps. */
@@ -21,6 +22,8 @@ export type SummaryFacts = {
   notCompared: 'started' | 'not_kept' | null
   open: { total: number }
   changes: { total: Shown }
+  /** What was caught besides the answers with a warning; none in a snapshot taken before it was counted. */
+  caught?: CaughtView | undefined
 }
 
 /** A count under this reads "Fewer than 5" (FR-614). */
@@ -154,6 +157,55 @@ export function summaryNumbers(data: SummaryFacts) {
 /** A line of "What we caught": a sentence over a count, or a thing not measured yet. */
 export type CaughtLine = { key: string; title: string; text: string; measured: boolean }
 
+/** A change after which Heed checks the saved questions again, as a line says it. */
+const TRIGGER_WORDS: Record<CaughtTrigger, string> = {
+  publish: 'a publish',
+  archive: 'an archive',
+  restore: 'a restore',
+  sync: 'a sync',
+  check_date: 'a check date passed',
+}
+
+/** "a, b and c". */
+const listWords = (parts: readonly string[]) =>
+  parts.length < 2 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)!}`
+
+/**
+ * A saved question's line: how many times its answer changed after a change, and after which ones,
+ * as far as they are shown. The count is hidden only when it is small itself, so null reads
+ * "Fewer than 5"; a kind of change that is hidden joins "other changes", which is then at least 5.
+ */
+function savedText(saved: CaughtView['saved']): string {
+  const { total, triggers } = saved
+  if (total === 0) return 'No saved question gave a different answer after a change.'
+  if (total === null)
+    return 'Fewer than 5 times, a saved question gave a different answer after a change.'
+  const shown = caughtTriggers.filter((t) => (triggers[t] ?? 0) > 0)
+  const rest = total - shown.reduce((n, t) => n + triggers[t]!, 0)
+  const parts = shown.map((t) => `${countWords(triggers[t]!)} after ${TRIGGER_WORDS[t]}`)
+  if (parts.length && rest > 0) parts.push(`${countWords(rest)} after other changes`)
+  return `${countWords(total)} times, a saved question gave a different answer after a change${
+    parts.length ? `: ${listWords(parts)}` : ''
+  }.`
+}
+
+/**
+ * The alerts' line: how many asked an owner for a decision, and how many an owner acted on. Both
+ * stand alone, so a hidden one is under 5.
+ */
+function alertsText(alerts: CaughtView['alerts']): string {
+  const { raised, acted } = alerts
+  if (raised === 0) return 'No alert asked an owner for a decision.'
+  const was = raised === null ? 'Fewer than 5' : countWords(raised)
+  const them =
+    acted === 0
+      ? 'none was acted on'
+      : acted !== null && acted === raised
+        ? 'owners acted on all of them'
+        : `owners acted on ${acted === null ? 'fewer than 5' : countWords(acted)} of them`
+  return `${was} ${raised === 1 ? 'alert' : 'alerts'} asked an owner for a decision; ${them} within ${ACT_DAYS} days.`
+}
+
 /**
  * What the period comes to, in three to five plain sentences from fixed templates: what was
  * asked, how much of it was checked, what found nothing and is still open, and what changed. A
@@ -195,12 +247,16 @@ export function summarySentences(data: SummaryFacts): string[] {
       ? `No change was approved and published in ${name}.`
       : `${changes === null ? 'Fewer than 5' : n(changes)} changes were approved by an owner and published.`,
   )
+  const caught = caughtSentence(data)
+  if (caught) out.push(caught)
   return out
 }
 
 /**
  * What was caught, as three separate lines that are never added up, and never "prevented": what
- * went out with a warning, which is counted today, and two that are not measured yet.
+ * went out with a warning, the saved questions that changed after a change, and the alerts that
+ * asked an owner for a decision and were acted on. A Summary counted before the last two were has
+ * them as not measured.
  */
 export function caughtLines(data: SummaryFacts): CaughtLine[] {
   const { warned } = data.numbers
@@ -216,19 +272,62 @@ export function caughtLines(data: SummaryFacts): CaughtLine[] {
             ? 'No answer went out with a warning.'
             : `${countWords(warned)} answers went out with a warning: only part of the question was covered, two items disagreed, or an item was past its check date. The agent was told each time.`,
     },
-    {
-      key: 'saved',
-      title: 'Saved questions that changed after a publish',
-      measured: false,
-      text: 'Not measured yet. Quality shows what each saved question says now.',
-    },
-    {
-      key: 'alerts',
-      title: 'Alerts that owners acted on',
-      measured: false,
-      text: 'Not measured yet. Alerts shows what raises a card in the Inbox.',
-    },
+    data.caught
+      ? {
+          key: 'saved',
+          title: 'Saved questions that changed',
+          measured: true,
+          text: savedText(data.caught.saved),
+        }
+      : {
+          key: 'saved',
+          title: 'Saved questions that changed after a publish',
+          measured: false,
+          text: 'Not measured yet. Quality shows what each saved question says now.',
+        },
+    data.caught
+      ? {
+          key: 'alerts',
+          title: 'Alerts that owners acted on',
+          measured: true,
+          text: alertsText(data.caught.alerts),
+        }
+      : {
+          key: 'alerts',
+          title: 'Alerts that owners acted on',
+          measured: false,
+          text: 'Not measured yet. Alerts shows what raises a card in the Inbox.',
+        },
   ]
+}
+
+/**
+ * One sentence on what was caught, for the sentences at the top: the saved questions when one
+ * changed, else the alerts acted on, else the answers with a warning; "Nothing was caught" only
+ * when all three are shown and none. A hidden saved or alert count stands alone, so it is under 5.
+ * Never a total, never "prevented".
+ */
+export function caughtSentence(data: SummaryFacts): string | null {
+  const caught = data.caught
+  if (!caught) return null
+  const { total, triggers } = caught.saved
+  const { raised, acted } = caught.alerts
+  const { warned } = data.numbers
+  if (total !== 0) {
+    const most =
+      total === null ? undefined : caughtTriggers.find((t) => (triggers[t] ?? 0) * 2 > total)
+    return `Saved questions caught a different answer ${
+      total === null
+        ? 'fewer than 5 times'
+        : `${countWords(total)} ${total === 1 ? 'time' : 'times'}`
+    } after a change${most ? `, most of them after ${TRIGGER_WORDS[most]}` : ''}.`
+  }
+  if (acted !== 0)
+    return `Owners acted on ${acted === null ? 'fewer than 5' : countWords(acted)} of the alerts that asked them for a decision.`
+  if (warned !== null && warned > 0)
+    return `${countWords(warned)} answers went out with a warning, and the agent was told each time.`
+  if (raised === 0 && warned === 0) return `Nothing was caught in ${periodName(data.now)}.`
+  return null
 }
 
 /** Why there is no comparison with the period before, in a line. */

@@ -177,6 +177,30 @@ export function kpiChange(
 export const moreOrFewer = (c: Change) =>
   `${Math.abs(c.by).toLocaleString('en-GB')} ${c.by > 0 ? 'more' : 'fewer'}`
 
+/** What a number counts, exactly, a click away: an info button beside its label. */
+export function Definition({ label, definition }: { label: string; definition: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="-my-1 text-muted-foreground max-sm:size-9 print:hidden"
+            aria-label={`What ${label} counts`}
+          />
+        }
+      >
+        <InfoIcon />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="text-pretty">
+        <p className="font-medium">{label}</p>
+        <p className="text-muted-foreground">{definition}</p>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 /**
  * One number in a row of cells: a label with its icon, the number, and a line on what it compares
  * with. A link goes to its rows; a cell with no link may say exactly what it counts, a click away.
@@ -206,26 +230,7 @@ export function Kpi({
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
         {icon}
         {label}
-        {definition && !href && (
-          <Popover>
-            <PopoverTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  className="-my-1 text-muted-foreground max-sm:size-9 print:hidden"
-                  aria-label={`What ${label} counts`}
-                />
-              }
-            >
-              <InfoIcon />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="text-pretty">
-              <p className="font-medium">{label}</p>
-              <p className="text-muted-foreground">{definition}</p>
-            </PopoverContent>
-          </Popover>
-        )}
+        {definition && !href && <Definition label={label} definition={definition} />}
       </span>
       <span className="mt-1 flex items-baseline gap-1.5">
         <Changed

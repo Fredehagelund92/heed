@@ -40,12 +40,27 @@ test('Summary comes first in Observability and sums up last month', async ({ pag
   )
   await expect(main).toContainText('335 (63%) had an answer fully based on checked context.')
 
-  // What was caught: what went out with a warning, and two lines not measured yet.
+  // What was caught, as three separate lines, never added up and never "prevented": what went
+  // out with a warning; the saved questions whose answer changed after a change (once in
+  // September, after a publish: under 5); and the alerts that asked an owner for a decision
+  // (none: the demo's came in October).
   const caught = page.locator('section', {
     has: page.getByRole('heading', { name: 'What we caught' }),
   })
-  await expect(caught).toContainText('answers went out with a warning')
-  await expect(caught.getByText(/^Not measured yet\./)).toHaveCount(2)
+  await expect(caught).toContainText('82 answers went out with a warning')
+  await expect(caught).toContainText(
+    'Fewer than 5 times, a saved question gave a different answer after a change.',
+  )
+  await expect(caught).toContainText('No alert asked an owner for a decision.')
+  await expect(caught.getByText(/^Not measured yet\./)).toHaveCount(0)
+  await expect(caught).not.toContainText(/prevent/i)
+  await expect(main).toContainText(
+    'Saved questions caught a different answer fewer than 5 times after a change.',
+  )
+  // Each line says exactly what it counts, one click away.
+  await caught.getByRole('button', { name: 'What Alerts that owners acted on counts' }).click()
+  await expect(page.getByRole('dialog')).toContainText('an owner or admin decided within 14 days')
+  await page.keyboard.press('Escape')
 
   // The trend: 13 weeks of checked answers, up to the last week September ends by.
   await expect(page.getByRole('table', { name: /Checked answers each week/ })).toBeAttached()
@@ -63,6 +78,28 @@ test('Summary comes first in Observability and sums up last month', async ({ pag
   await expect(
     page.getByText(/Counts only: never the words of a question or who asked\./).last(),
   ).toBeVisible()
+})
+
+test('a busy workspace says what it caught on each line, with the count', async ({ page }) => {
+  await onMockOnly('the review flag for a busy workspace', async () => {
+    await go(page, '/observability/summary?state=busy')
+    const caught = page.locator('section', {
+      has: page.getByRole('heading', { name: 'What we caught' }),
+    })
+    // 7 after a publish, 6 after a sync, and one each after an archive and a check date: the ones
+    // are hidden, and the 6 with them, so a reader cannot work them out.
+    await expect(caught).toContainText(
+      '15 times, a saved question gave a different answer after a change: 7 after a publish and 8 after other changes.',
+    )
+    await expect(caught).toContainText(
+      '9 alerts asked an owner for a decision; owners acted on 7 of them within 14 days.',
+    )
+    await expect(page.getByRole('main')).toContainText(
+      'Saved questions caught a different answer 15 times after a change.',
+    )
+    // Printed with the page, what each line counts.
+    await expect(page.getByText('Saved questions that changed:')).toBeAttached()
+  })
 })
 
 test('last quarter compares only from when agents first asked', async ({ page }) => {

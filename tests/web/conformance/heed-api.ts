@@ -2343,6 +2343,31 @@ export function describeHeedApi(
     )
 
     it.skipIf(lacks('signIn', 'observabilitySummary', 'getWorkspace'))(
+      'says what was caught as separate lines, each count disclosed, never added up',
+      async () => {
+        await api().signIn({ name: person, fresh: false })
+        const month = await api().observabilitySummary({ period: 'month' })
+        // The demo's saved questions changed once in September after a publish, on 16 September:
+        // under 5, so hidden. Its alerts were all raised in the demo week, in October.
+        expect(month.caught).toEqual({
+          saved: {
+            total: null,
+            triggers: { publish: null, archive: 0, restore: 0, sync: 0, check_date: 0 },
+          },
+          alerts: { raised: 0, acted: 0 },
+        })
+        // A domain whose saved questions did not change: nothing caught there.
+        const owned = (await api().getWorkspace()).domains.find(
+          (d) => d.id === 'marketing' && d.owners.includes(person),
+        )
+        if (owned) {
+          const one = await api().observabilitySummary({ period: 'month', domain: owned.id })
+          expect(one.caught?.saved.total).toBe(0)
+        }
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'observabilitySummary', 'getWorkspace'))(
       'narrows the Summary to a domain the person owns',
       async () => {
         await api().signIn({ name: person, fresh: false })

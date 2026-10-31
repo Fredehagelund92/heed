@@ -121,6 +121,23 @@ role may insert and read, never update or delete, and retention never touches it
 `cl_obs_changes(areas, from, to)` counts the changes published after review and runs as the owner,
 so the count is the same for any reader and for the job.
 
+`obs_caught_weekly` (migration 0033) keeps what Heed caught each completed week, without limit,
+the same exception: per domain (or none), how many times a saved question's answer came out
+Changed or Needs a look where it was Same before, in a check run started by a publish, an archive,
+a restore, a sync or a check date passing (`line` `saved`, `kind` the trigger); and how many
+alerts each rule raised, with how many an owner or administrator acted on within 14 days by a
+decision Heed keeps (`line` `alert`, `kind` the rule, `acted`): a Not found gap's state changed or
+a draft started for it, a saved question's new answer kept or one removed, a due item checked,
+changed or archived by a decision not undone. The other rules raise nothing an owner decides in
+Heed, so their `acted` is 0 by constraint. An alert about one domain counts in it, one about none
+or several with none. It holds no question, no item, no words and no person; check constraints
+refuse anything but the fixed lists, a Monday and a count over 0. `cl_obs_caught(from, to)` counts
+any days from the records, which retention never deletes, and runs as the owner, so the counts are
+the same whoever reads; `cl_obs_caught_rollup_due(today)`, which the `observability.rollup` job
+runs after the weekly counts, counts every week after the latest kept and again the last four.
+The API role reads the table and runs those two functions; the serving and analytics roles reach
+neither.
+
 Every way of seeing a gap goes through `cl_gap_touch`: an open gap for the topic and type is
 updated; a `wont_fix` gap keeps its status and only counts (FR-609); a resolved gap ignores
 evidence from before its `status_since` hour, and newer evidence opens a new gap. `report_gap`

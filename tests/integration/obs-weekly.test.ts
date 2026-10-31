@@ -129,6 +129,9 @@ describe('the roll-up (observability.rollup)', () => {
         '2026-10-19',
       ],
       rows: 8,
+      // No saved question was checked and no alert raised: nothing was caught.
+      caughtWeeks: [],
+      caughtRows: 0,
     })
     expect(await kept()).toEqual([
       { week: '2026-09-07', area: 'finance', state: 'grounded', calls: 12 },
@@ -145,7 +148,12 @@ describe('the roll-up (observability.rollup)', () => {
   it('keeps the same counts when it runs again, and when a week is counted again', async () => {
     const before = await kept()
     // From the latest week kept: a call that comes in late still counts.
-    expect(await job.run(context)).toEqual({ weeks: ['2026-10-19'], rows: 2 })
+    expect(await job.run(context)).toEqual({
+      weeks: ['2026-10-19'],
+      rows: 2,
+      caughtWeeks: [],
+      caughtRows: 0,
+    })
     for (const week of ['2026-09-07', '2026-10-05', '2026-10-05'])
       await client.query('select cl_obs_weekly_rollup($1)', [week])
     expect(await kept()).toEqual(before)

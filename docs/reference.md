@@ -799,7 +799,11 @@ over its months) found nothing at least the minimum times.
   by default), so the `observability.rollup` job keeps, each night before retention, every
   completed week (Monday to Sunday, UTC) in `obs_weekly`: the agent calls of each domain in each
   answer state, and nothing else (FR-612, [db/README.md](../db/README.md#gaps-counts-and-privacy)).
-  Summary's trend is their reader.
+  Summary's trend is their reader. The same job keeps what Heed caught in `obs_caught_weekly`: for
+  each week and domain, how many times a saved question's answer changed after a change, by the
+  change (a publish, an archive, a restore, a sync, a check date passing), and the alerts each rule
+  raised with how many an owner or administrator acted on within 14 days. Counts only, no words and
+  no person; it counts the last four weeks again each night, as an alert may still be acted on.
 - `GET /observability/summary` (Summary, the first page): `period` (`month` by default, or
   `quarter`), and `areaId` to narrow every number to one domain. It reads the last whole calendar
   month or quarter, ending yesterday at the latest, and the same length before it. It answers with
@@ -808,19 +812,30 @@ over its months) found nothing at least the minimum times.
   the same for the period before (`previous`, or null with `notCompared` saying why), a weekly
   trend of checked answers (13 weeks, read from `obs_weekly` where it keeps a whole week and from
   the delivery records for the rest), what is still open (topics that found nothing, with what
-  waits for each in the Inbox), and the changes published after review, with who approved each.
+  waits for each in the Inbox), the changes published after review, with who approved each, and
+  what was caught besides the answers with a warning (`caught`): `saved.total` and
+  `saved.triggers`, the times a saved question's answer came out Changed or Needs a look where it
+  was Same before, in a check Heed ran on its own after a change; and `alerts.raised` and
+  `alerts.acted`, the alerts that asked an owner for a decision (Not found, a saved question needs
+  a look, a check is due) and those an owner or administrator acted on within 14 days, by a
+  decision Heed keeps. Each is its own line on the page, never added to another and never called
+  prevented. A whole week is read from `obs_caught_weekly`, any other day from the records through
+  `cl_obs_caught`, which runs as the owner. An alert about several domains counts only for every
+  domain together.
   Every number goes through one disclosure pass in `src/domain/obs-summary.ts`, so none can be
   worked out from the others (FR-614); `hidden` counts the ones kept back. The change counts
   (`changes.total`, `changes.before`) go through it too, and the latest list is dropped when its
-  total is hidden. Days up to the first day agents asked (`since`) count as a known zero, and the
-  open-spot counts are left out of the pass while the period is not `complete`.
+  total is hidden. So do the caught counts: a saved question's total is hidden only when it is
+  under 5 itself, a kind of change first; the alert counts stand alone. Days up to the first day
+  agents asked (`since`) count as a known zero, and the open-spot counts are left out of the pass while the period is not `complete`.
 - `GET /observability/snapshots` (`areaId` to read one domain's), `GET /observability/snapshots/{id}`
   and `POST /observability/snapshots` (administrators): Summary's monthly snapshots
   (`obs_snapshots`), kept without limit as FR-612 allows. A snapshot is the last whole month's
   Summary, for every domain together and for each domain, as the page showed it on the day it was
   taken: the counts after the disclosure pass (a hidden count is kept as hidden, never as its
   value), what is still open and what changed as counts alone (no topic, no item, nobody who
-  approved), and the sentences, what was caught and the notes said over them then
+  approved), what was caught (`caught`, absent in a snapshot taken before it was counted), and the
+  sentences, what was caught and the notes said over them then
   (`src/domain/obs-summary-words.ts`), so a digest printed later reads the same after the delivery
   records are gone. Administrators read every snapshot, an owner those of the domains they own;
   without `areaId` the list is every domain's together for an administrator. The

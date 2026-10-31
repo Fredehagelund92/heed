@@ -72,8 +72,13 @@ function gapOf(gap: ObsTopic['gap']): Topic['gap'] {
   return { label: 'No draft yet', href: `/inbox?card=gap:${gap.id}` }
 }
 
-/** Summary's page from the service's read: days as UTC timestamps, where an open spot waits. */
-export function obsSummaryOf(s: ObsSummary): SummaryData {
+/**
+ * Summary's page from the service's read: days as UTC timestamps, where an open spot waits. A
+ * snapshot taken before what was caught was counted has none.
+ */
+export function obsSummaryOf(
+  s: Omit<ObsSummary, 'caught'> & { caught?: ObsSummary['caught'] | undefined },
+): SummaryData {
   const period = (p: ObsSummary['now']) => ({ start: atOf(p.start), end: atOf(p.end) })
   return {
     state: s.state,
@@ -117,6 +122,7 @@ export function obsSummaryOf(s: ObsSummary): SummaryData {
         href: `/context/${c.itemId}`,
       })),
     },
+    ...(s.caught ? { caught: s.caught } : {}),
     hidden: s.hidden,
   }
 }

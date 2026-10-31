@@ -12,6 +12,7 @@
  * number on the page is a sum of pieces, which is what the disclosure pass reasons about. Pure:
  * callers pass today and the minimum (`privacy.min_count`).
  */
+import type { AlertRuleId } from './alerts.ts'
 import { disclose, type Quantity, type Shown, type StateCounts } from './observability.ts'
 import { shiftDate } from './validity.ts'
 
@@ -96,6 +97,56 @@ export function piecesOf(spans: readonly Span[]): Piece[] {
 
 const inside = (p: Span, s: Span) => p.start >= s.start && p.end <= s.end
 
+/* ---------- what was caught ---------- */
+
+/**
+ * The changes after which Heed checks the saved questions again on its own (a check run's
+ * trigger): a publish, an archive, a restore, a sync and a check date passing, in the order a
+ * line names them. Check now, a question saved and a new answer kept are not changes.
+ */
+export const caughtTriggers = ['publish', 'archive', 'restore', 'sync', 'check_date'] as const
+export type CaughtTrigger = (typeof caughtTriggers)[number]
+
+/**
+ * The alert rules whose raise asks an owner for a decision Heed keeps, so that it can be acted on:
+ * a Not found card (its gap), a saved question that needs a look, and a check that is due. The
+ * other rules raise something no owner decides in Heed (db/migrations/0033_obs_caught.sql).
+ */
+export const decidedRules = ['gap', 'saved', 'due'] as const satisfies readonly AlertRuleId[]
+
+/** How long after its raise an alert may be acted on and count as acted on. */
+export const ACT_DAYS = 14
+
+/**
+ * What was caught in the period besides the answers with a warning: how many times a saved
+ * question's answer changed after each kind of change, and the alerts that asked an owner for a
+ * decision and how many an owner acted on.
+ */
+export type CaughtCounts = {
+  saved: Record<CaughtTrigger, number>
+  alerts: { raised: number; acted: number }
+}
+
+export const noCaught = (): CaughtCounts => ({
+  saved: { publish: 0, archive: 0, restore: 0, sync: 0, check_date: 0 },
+  alerts: { raised: 0, acted: 0 },
+})
+
+/** What may be shown of it: each count, or null when it is hidden. */
+export type CaughtView = {
+  saved: { total: Shown; triggers: Record<CaughtTrigger, Shown> }
+  alerts: { raised: Shown; acted: Shown }
+}
+
+/** Nothing shown: a Summary with nothing asked, or too little to count. */
+export const noCaughtView = (): CaughtView => ({
+  saved: {
+    total: null,
+    triggers: { publish: null, archive: null, restore: null, sync: null, check_date: null },
+  },
+  alerts: { raised: null, acted: null },
+})
+
 /* ---------- what may be shown ---------- */
 
 export type SummaryCounts = {
@@ -112,6 +163,8 @@ export type SummaryCounts = {
   since: string | null
   /** Changes published after review in the period, and in the one before. */
   changes: { now: number; before: number }
+  /** What was caught in the period, besides the answers with a warning. */
+  caught: CaughtCounts
 }
 
 export type SummaryView = {
@@ -120,6 +173,7 @@ export type SummaryView = {
   weeks: { start: string; checked: Shown }[]
   open: Shown[]
   changes: { now: Shown; before: Shown }
+  caught: CaughtView
   /** How many numbers the page would show are hidden: under the minimum, or keeping one safe. */
   hidden: number
 }
@@ -215,6 +269,20 @@ export function summaryView(input: SummaryCounts, minimum: number): SummaryView 
   add({ id: 'c:n', value: input.changes.now, parts: [] })
   add({ id: 'c:b', value: input.changes.before, parts: [] })
 
+  // What was caught stands apart from what was asked, and its lines are never added up. A saved
+  // question's count is kept and hidden only when it is small itself: one of its kinds of change
+  // is hidden first. The alerts acted on are never more than those raised, and stand alone.
+  const saved = input.caught.saved
+  for (const t of caughtTriggers) add({ id: `k:s:${t}`, value: saved[t], parts: [] })
+  add({
+    id: 'k:s',
+    value: caughtTriggers.reduce((n, t) => n + saved[t], 0),
+    anchor: true,
+    parts: [caughtTriggers.map((t) => `k:s:${t}`)],
+  })
+  add({ id: 'k:a', value: input.caught.alerts.raised, anchor: true, parts: [] })
+  add({ id: 'k:a:acted', value: input.caught.alerts.acted, parts: [] })
+
   const shown = disclose(quantities, minimum)
   const byId = new Map(quantities.map((q) => [q.id, q]))
   const value = (id: string): Shown => (shown.has(id) ? byId.get(id)!.value : null)
@@ -232,6 +300,16 @@ export function summaryView(input: SummaryCounts, minimum: number): SummaryView 
     weeks: weeks.map((w) => ({ start: w.monday, checked: value(`${w.id}:checked`) })),
     open: input.open.map((_, i) => value(`o:${i}`)),
     changes: { now: value('c:n'), before: value('c:b') },
+    caught: {
+      saved: {
+        total: value('k:s'),
+        triggers: Object.fromEntries(caughtTriggers.map((t) => [t, value(`k:s:${t}`)])) as Record<
+          CaughtTrigger,
+          Shown
+        >,
+      },
+      alerts: { raised: value('k:a'), acted: value('k:a:acted') },
+    },
     hidden: published.filter((q) => !shown.has(q.id)).length,
   }
 }

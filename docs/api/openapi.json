@@ -88318,6 +88318,125 @@
                         "latest"
                       ]
                     },
+                    "caught": {
+                      "type": "object",
+                      "properties": {
+                        "saved": {
+                          "type": "object",
+                          "properties": {
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "triggers": {
+                              "type": "object",
+                              "properties": {
+                                "publish": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "archive": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "restore": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "sync": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "check_date": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "publish",
+                                "archive",
+                                "restore",
+                                "sync",
+                                "check_date"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "total",
+                            "triggers"
+                          ]
+                        },
+                        "alerts": {
+                          "type": "object",
+                          "properties": {
+                            "raised": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "acted": {
+                              "anyOf": [
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "raised",
+                            "acted"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "saved",
+                        "alerts"
+                      ]
+                    },
                     "hidden": {
                       "type": "number"
                     }
@@ -88337,6 +88456,7 @@
                     "weeks",
                     "open",
                     "changes",
+                    "caught",
                     "hidden"
                   ]
                 }
@@ -89537,6 +89657,125 @@
                           "required": [
                             "total",
                             "before"
+                          ]
+                        },
+                        "caught": {
+                          "type": "object",
+                          "properties": {
+                            "saved": {
+                              "type": "object",
+                              "properties": {
+                                "total": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "triggers": {
+                                  "type": "object",
+                                  "properties": {
+                                    "publish": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "archive": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "restore": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "sync": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    },
+                                    "check_date": {
+                                      "anyOf": [
+                                        {
+                                          "type": "number"
+                                        },
+                                        {
+                                          "type": "null"
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "required": [
+                                    "publish",
+                                    "archive",
+                                    "restore",
+                                    "sync",
+                                    "check_date"
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "total",
+                                "triggers"
+                              ]
+                            },
+                            "alerts": {
+                              "type": "object",
+                              "properties": {
+                                "raised": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "acted": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "raised",
+                                "acted"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "saved",
+                            "alerts"
                           ]
                         }
                       },

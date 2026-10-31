@@ -1,18 +1,24 @@
 import {
   coarseOf,
   coarseTotal,
+  decidedRules,
   mondayOf,
+  noCaught,
   piecesOf,
   summaryPeriod,
   summaryView,
   trendWeeks,
   weekSpan,
+  type CaughtCounts,
+  type CaughtTrigger,
+  type Span,
 } from '@domain/obs-summary'
 import { zeroCounts } from '@domain/observability'
 import type { ObsSummaryInput } from '@/api/client'
 import { HIDE_UNDER, SHOWN } from '@/model/observability'
 import type { SummaryData } from '@/model/obs-summary'
-import { openSince } from './data/observability'
+import { busyCaught, openSince, type Caught } from './data/observability'
+import { SAVED_TREND, savedSeed } from './data/saved-questions'
 import { observability as engineOf, type ObsData as Fixture } from './obs-engine'
 import type { Reader } from './obs-page'
 
@@ -24,6 +30,47 @@ import type { Reader } from './obs-page'
 const DAY = 86_400_000
 const iso = (at: number) => new Date(at).toISOString().slice(0, 10)
 const atOf = (day: string) => Date.parse(`${day}T00:00:00Z`)
+
+/**
+ * What the demo world's saved questions caught, as the service counts it from their checks
+ * (tests/web/http/demo-saved.ts seeds the same runs): each week before the demo week, a publish
+ * on Wednesday at 09:00 checked the twelve again, and the first of them in the list were Changed,
+ * as many as the Quality chart has not Same; one counts when it was Same in the run before. The
+ * demo world's alerts were all raised in the demo week, after the periods a Summary reads.
+ */
+function savedCaught(today: string): Caught[] {
+  const monday = mondayOf(today)
+  const out: Caught[] = []
+  let before: boolean[] | null = null
+  const weeks = SAVED_TREND.same.slice(0, -1)
+  for (const [w, same] of weeks.entries()) {
+    const day = iso(atOf(monday) - ((weeks.length - w) * 7 - 2) * DAY)
+    const changed = savedSeed.map((_, n) => n < savedSeed.length - same)
+    savedSeed.forEach((q, n) => {
+      if (changed[n] && before && !before[n])
+        out.push({ day, domain: q.domain, line: 'saved', kind: 'publish', count: 1 })
+    })
+    before = changed
+  }
+  return out
+}
+
+/**
+ * What was caught in a period, in one domain or every one: the saved questions that changed after
+ * a change, by the change, and the alerts that asked an owner for a decision.
+ */
+function caughtIn(lines: readonly Caught[], now: Span, domain: string | undefined): CaughtCounts {
+  const caught = noCaught()
+  for (const c of lines) {
+    if (c.day < now.start || c.day >= now.end || (domain && c.domain !== domain)) continue
+    if (c.line === 'saved') caught.saved[c.kind as CaughtTrigger] += c.count
+    else if ((decidedRules as readonly string[]).includes(c.kind)) {
+      caught.alerts.raised += c.count
+      caught.alerts.acted += c.acted ?? 0
+    }
+  }
+  return caught
+}
 
 /** Summary as of the demo's today, or as of an earlier day, which a monthly snapshot was taken on. */
 export function obsSummary(
@@ -107,6 +154,11 @@ export function obsSummary(
       open: spots.map((s) => s.missing),
       since: first,
       changes: { now: publishes(now).length, before: publishes(before).length },
+      caught: caughtIn(
+        fixture.state === 'busy' ? busyCaught : savedCaught(iso(fixture.last + DAY)),
+        now,
+        domain,
+      ),
     },
     HIDE_UNDER,
   )
@@ -145,6 +197,7 @@ export function obsSummary(
               .slice(0, 5)
               .map((p) => ({ at: p.at, title: p.title, domain: p.domain, by: p.by })),
     },
+    caught: view.caught,
     hidden: view.hidden,
   }
 }

@@ -225,6 +225,27 @@ export const obsSummaryInputSchema = z.strictObject({
 /** Days from `start` up to, not including, `end`. */
 const span = z.object({ start: day, end: day })
 
+/**
+ * What was caught in the period besides the answers with a warning (`numbers.warned`), each a line
+ * of its own and never added up (db/migrations/0033_obs_caught.sql): how many times a saved
+ * question's answer changed after a change, in all and by kind of change; and the alerts that
+ * asked an owner for a decision, and how many an owner acted on within 14 days.
+ */
+const caughtSchema = z.object({
+  saved: z.object({
+    total: shown,
+    /** By the change it came after: the check run's trigger (`caughtTriggers`). */
+    triggers: z.object({
+      publish: shown,
+      archive: shown,
+      restore: shown,
+      sync: shown,
+      check_date: shown,
+    }),
+  }),
+  alerts: z.object({ raised: shown, acted: shown }),
+})
+
 export const obsSummarySchema = z.object({
   /** Nothing asked yet; fewer than the minimum in the period (no counts at all); or counted. */
   state: z.enum(['empty', 'quiet', 'normal']),
@@ -285,6 +306,7 @@ export const obsSummarySchema = z.object({
       }),
     ),
   }),
+  caught: caughtSchema,
   /** How many numbers on the page are hidden: under the minimum, or keeping one under it safe. */
   hidden: z.number(),
 })
@@ -295,10 +317,12 @@ export const obsSummarySchema = z.object({
  * is still open and what changed are kept as counts: no topic, no item and nobody who approved.
  */
 export const obsSnapshotSummarySchema = z.extend(
-  z.omit(obsSummarySchema, { open: true, changes: true }),
+  z.omit(obsSummarySchema, { open: true, changes: true, caught: true }),
   {
     open: z.object({ total: z.number() }),
     changes: z.object({ total: shown, before: shown }),
+    /** What was caught; a snapshot taken before it was counted has none. */
+    caught: z.optional(caughtSchema),
   },
 )
 
