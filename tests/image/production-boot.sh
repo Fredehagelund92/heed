@@ -11,7 +11,9 @@
 #   2. With OpenID Connect settings and the keys made by node src/server/create-keys.ts, it
 #      starts, signs a person in and serves an agent's MCP call (tests/image/production-check.ts).
 #   3. Behind nginx, each caller before sign-in has a request limit of its own, and an address a
-#      caller makes up is dropped (tests/image/limit-probe.ts).
+#      caller makes up is dropped (tests/image/limit-probe.ts). The service trusts every private
+#      address (CL_TRUSTED_PROXIES=uniquelocal, as compose.yaml does), so a made-up address that
+#      nginx passed on would win and fail the probe.
 #
 # Everything it makes is named heed-boot-<pid> and removed at the end. HEED_SERVICE_IMAGE and
 # HEED_WEB_IMAGE name other images; HEED_BOOT_SUBNET (three octets) moves its private network.
@@ -28,13 +30,13 @@ public_origin=https://heed.example.test
 passed=false
 cleanup() {
   if [ "$passed" != true ]; then
-    for name in service web; do
+    for name in refuse service web; do
       echo "::group::$name log"
       docker logs "$run-$name" 2>&1 | tail -n 200 || true
       echo "::endgroup::"
     done
   fi
-  docker rm -f "$run-service" "$run-web" "$run-db" > /dev/null 2>&1 || true
+  docker rm -f "$run-refuse" "$run-service" "$run-web" "$run-db" > /dev/null 2>&1 || true
   docker volume rm "$run-keys" > /dev/null 2>&1 || true
   docker network rm "$run" > /dev/null 2>&1 || true
 }
@@ -44,7 +46,8 @@ fail() {
   exit 1
 }
 
-docker network create --subnet "$subnet.0/24" "$run" > /dev/null
+docker network create --subnet "$subnet.0/24" "$run" > /dev/null ||
+  fail "the private network $subnet.0/24 is made (HEED_BOOT_SUBNET moves it)"
 docker run -d --name "$run-db" --network "$run" -e POSTGRES_HOST_AUTH_METHOD=trust \
   postgres:18.6@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336 > /dev/null
 for _ in $(seq 60); do
@@ -62,7 +65,16 @@ database=(
 )
 
 # 1. No setting but the database: production mode, which refuses to start without sign-in.
-if output=$(docker run --rm --network "$run" "${database[@]}" "$service_image" 2>&1); then
+docker run -d --name "$run-refuse" --network "$run" "${database[@]}" "$service_image" > /dev/null
+for _ in $(seq 120); do
+  if [ "$(docker inspect -f '{{.State.Running}}' "$run-refuse")" != true ]; then break; fi
+  sleep 1
+done
+output=$(docker logs "$run-refuse" 2>&1)
+if [ "$(docker inspect -f '{{.State.Running}}' "$run-refuse")" = true ]; then
+  fail "the image refuses to start without company sign-in (still running after 120 seconds)"$'\n'"$output"
+fi
+if [ "$(docker inspect -f '{{.State.ExitCode}}' "$run-refuse")" = 0 ]; then
   fail "the image refuses to start without company sign-in"$'\n'"$output"
 fi
 grep -q 'CL_OIDC_ISSUER: Required when CL_AUTH=oidc' <<< "$output" ||
@@ -81,7 +93,7 @@ docker run -d --name "$run-service" --network "$run" "${database[@]}" \
   -e CL_OIDC_ISSUER=http://127.0.0.1:9400 \
   -e CL_OIDC_CLIENT_ID=heed-test \
   -e CL_OIDC_ADMIN_GROUPS=heed-admins \
-  -e "CL_TRUSTED_PROXIES=$web_ip" \
+  -e CL_TRUSTED_PROXIES=uniquelocal \
   "$service_image" > /dev/null
 docker run -d --name "$run-web" --network "$run" --ip "$web_ip" \
   -e "HEED_API_URL=http://$run-service:3000" "$web_image" > /dev/null

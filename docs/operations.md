@@ -123,10 +123,11 @@ database settings):
 3. Set `MCP_RESOURCE_URL` to the MCP server's https address, such as
    `https://heed.example.com/mcp`, and `CL_WEB_ORIGINS` to the web app's address on the same
    host: the built-in login server for agents needs https in production. Put a TLS proxy in front
-   that sends `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service and everything else to
-   the web image, with the public host.
-4. Name the proxies in front of the service in `CL_TRUSTED_PROXIES`, so each caller has a request
-   limit of its own.
+   that sends `/api/v1/`, `/mcp`, `/oauth/` and `/.well-known/oauth-*` to the service directly and
+   only the rest (the web app's files) to the web image, with the public host.
+4. Name that TLS proxy in `CL_TRUSTED_PROXIES`, so each caller has a request limit of its own.
+   The web image's nginx overwrites `X-Forwarded-For` with its own peer's address, so it gives
+   per-caller limits only where it is the first proxy, as in `compose.yaml`.
 
 The CI job "Docker images: build, and boot the service in production mode" does all of this
 against a stand-in provider (`tests/image/production-boot.sh`): it signs a person in through the
