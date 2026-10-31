@@ -439,7 +439,8 @@ export function createContextService(
     after: ItemVersion,
     recheck: boolean,
     names: (id: string) => string,
-  ): Pick<ItemVersionEntry, 'kind' | 'field' | 'before' | 'after'> {
+    readable: Set<string>,
+  ): Pick<ItemVersionEntry, 'kind' | 'field' | 'before' | 'after'> | null {
     const none = { field: '', before: '', after: '' }
     if (!before) return { kind: 'published', ...none }
     if (recheck) return { kind: 'checked', ...none }
@@ -469,14 +470,20 @@ export function createContextService(
     if (source(before) !== source(after))
       return { kind: 'link', field: 'Source', before: source(before), after: source(after) }
     // A version that only set or removed the Conflict flag says so, not a wording change.
-    const flags = (v: ItemVersion) => [...v.conflicts].sort().join('\n')
-    if (flags(before) !== flags(after))
+    const flags = (v: ItemVersion) =>
+      v.conflicts
+        .filter((c) => readable.has(c))
+        .sort()
+        .join('\n')
+    if ([...before.conflicts].sort().join('\n') !== [...after.conflicts].sort().join('\n')) {
+      if (flags(before) === flags(after)) return null
       return {
         kind: 'conflict',
         field: 'Disagrees with',
         before: flags(before),
         after: flags(after),
       }
+    }
     return {
       kind: 'wording',
       field: "Don't conclude",
@@ -518,12 +525,25 @@ export function createContextService(
       ).map((v) => [v.id, v]),
     )
     const names = await domainNames()
+    const flagged = [...new Set([...contents.values()].flatMap((v) => v.version.conflicts))]
+    const readable = new Set(
+      flagged.length
+        ? (
+            await tx.query<{ id: string }>(
+              'select i.id from v_item_list i where i.id = any($1::text[]) and cl_audience_allows(i.audience_groups)',
+              [flagged],
+            )
+          ).map((r) => r.id)
+        : [],
+    )
     const dated: (ItemVersionEntry & { at: string })[] = []
     let previous: ItemVersion | null = null
     for (const s of served) {
       const stored = contents.get(s.id)
       if (!stored) continue
-      const entry = entryOf(previous, stored.version, s.recheck, names)
+      const entry = entryOf(previous, stored.version, s.recheck, names, readable)
+      previous = stored.version
+      if (!entry) continue
       dated.push({
         version: stored.versionNo,
         personId: s.by,
@@ -533,7 +553,6 @@ export function createContextService(
         restorable: ['published', 'wording', 'link', 'dates'].includes(entry.kind),
         ...(s.agent ? { agent: s.agent } : {}),
       })
-      previous = stored.version
     }
     const others = await tx.query<{
       kind: 'archived' | 'owners' | 'conflict'

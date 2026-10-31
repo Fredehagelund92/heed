@@ -329,6 +329,35 @@ describe('settling a conflict', () => {
     expect(part.said).toBeNull()
   })
 
+  it('keeps the id of an item the reader may not read out of the history of the flag', async () => {
+    const { first, second } = await pair()
+    const historyOf = async () =>
+      (await ok<ItemPage>(call('GET', `/items/${second}/page`, 'owner'))).history.filter(
+        (h) => h.kind === 'conflict' && h.field === 'Disagrees with',
+      )
+    await ok<SettledConflict>(
+      settle('owner', {
+        holderId: second,
+        otherId: first,
+        outcome: 'not_conflict',
+        reason: 'They apply to different weeks.',
+        versions: { holder: 1, other: 1 },
+      }),
+    )
+    const open = await historyOf()
+    expect(open.some((h) => h.before.includes(first))).toBe(true)
+    await transaction(client, async () => {
+      await client.query('alter table item_versions disable trigger user')
+      await client.query(
+        "update item_versions set audience_groups = '{finance_team}' where item_id = $1",
+        [first],
+      )
+      await client.query('alter table item_versions enable trigger user')
+    })
+    const history = await ok<ItemPage>(call('GET', `/items/${second}/page`, 'owner'))
+    expect(JSON.stringify(history.history)).not.toContain(first)
+  })
+
   it('settles a pair that other live items overlap, without asking how they relate again', async () => {
     const { first, second } = await pair()
     const market = markets[nextMarket - 1]!
