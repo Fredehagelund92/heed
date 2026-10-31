@@ -47,7 +47,7 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
   await expect(panel.getByRole('heading', { level: 2, name: title })).toBeVisible()
   await panel.getByRole('button', { name: 'Open the page' }).click()
   await expect(page).toHaveURL(/\/context\/itm_/)
-  await expect(page.getByRole('main').getByRole('heading', { level: 2, name: title })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('heading', { level: 1, name: title })).toBeVisible()
 
   await page.goto('/definitions')
   await drawn(page, 'Definitions')
