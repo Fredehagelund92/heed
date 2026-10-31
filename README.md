@@ -76,6 +76,10 @@ Ctrl+C; `docker compose down --volumes` also removes the data.
 To keep it running, back it up, upgrade it or roll an upgrade back, see
 [Self-host Heed on one computer](docs/self-hosting.md). It is for local evaluation, not for production use.
 
+`compose.yaml` runs the service in development mode (`NODE_ENV=development`) for the demo's people picker,
+where anyone can sign in as anyone. The service image on its own starts in production mode, with company
+sign-in: see [Run the image in production mode](docs/operations.md#run-the-image-in-production-mode).
+
 ### Connect Claude Code
 
 With the service running (`docker compose up`):
@@ -187,6 +191,7 @@ Heed is **pre-1.0**. Expect rough edges and breaking changes.
 
 - It runs on one computer, or on one container host. `docker compose up` uses the demo sign-in: anyone can be an
   admin, so keep it off the internet. Company sign-in with OpenID Connect is in
+  [Run the image in production mode](docs/operations.md#run-the-image-in-production-mode) and
   [How AI sign-in works](docs/ai-sign-in.md).
 - Agents on your computer connect today. Agents that run in the cloud need Heed at an address on the internet;
   see [Connect an agent](docs/help/connect-an-agent.md).

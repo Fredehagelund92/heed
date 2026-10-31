@@ -34,6 +34,13 @@ services:
       db:
         condition: service_healthy
     environment:
+      # The demo: the people picker, the demo data and agents that sign in on this computer. The
+      # image alone starts in production mode, which needs company sign-in (docs/operations.md).
+      NODE_ENV: development
+      # The web container's nginx forwards the address of each browser that calls /api/v1, so the
+      # request limits count each caller on its own. Believed only from this network's private
+      # addresses, where that nginx is.
+      CL_TRUSTED_PROXIES: uniquelocal
       # The superuser makes Heed's roles and database and loads the demo; each part of the service
       # then connects as its own role (db/README.md).
       DATABASE_URL_BOOTSTRAP: postgres://postgres@db:5432/postgres

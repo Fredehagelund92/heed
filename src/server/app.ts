@@ -72,6 +72,12 @@ export interface AppDependencies {
   login?: LoginServer
   /** Opens a web page for the assistant's read_source. Defaults to the public web only. */
   readPage?: PageReader
+  /**
+   * The proxies whose X-Forwarded-For and X-Forwarded-Proto the service believes
+   * (CL_TRUSTED_PROXIES): a caller's address, which limits count by, is then the one they
+   * forward. Defaults to none: the connection's peer.
+   */
+  trustedProxies?: readonly string[]
 }
 
 /** Builds the HTTP app without listening, so tests can drive it with `app.inject`. */
@@ -95,9 +101,11 @@ export function buildApp({
   metricsToken,
   login,
   readPage,
+  trustedProxies = [],
 }: AppDependencies): FastifyInstance {
   const app = Fastify({
     loggerInstance: logger,
+    trustProxy: trustedProxies.length ? [...trustedProxies] : false,
     // Every log line of a request carries its id (NFR-071). The id is always ours: a client's
     // own X-Request-Id is never trusted, so it cannot forge or inject log content.
     genReqId: () => randomUUID(),

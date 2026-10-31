@@ -4,6 +4,7 @@ import {
   describeDatabase,
   dynamicRegistrationEnabled,
   loadConfig,
+  productionSignInHint,
 } from '../../src/server/config/env.ts'
 
 const databaseUrl = 'postgres://localhost:5432/context_layer_dev'
@@ -35,6 +36,7 @@ describe('loadConfig', () => {
       sessions: { idleHours: 12, maxDays: 7 },
       devPeopleFile: 'db/seed/people.local.yml',
       webOrigins: ['http://localhost:5173', 'http://localhost:4173'],
+      trustedProxies: [],
       fixedToday: undefined,
       models: 'mock',
       modelEnv: {},
@@ -149,6 +151,13 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production' })).toThrow(
       /CL_OIDC_ISSUER: Required when CL_AUTH=oidc[\s\S]*CL_OIDC_CLIENT_ID: Required when CL_AUTH=oidc/,
     )
+    // Someone who started the image to look around is told how to get the demo's picker.
+    expect(() => loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production' })).toThrow(
+      productionSignInHint,
+    )
+    expect(() =>
+      loadConfig({ DATABASE_URL: databaseUrl, NODE_ENV: 'production', CL_AUTH: 'oidc' }),
+    ).not.toThrow(productionSignInHint)
     const production = loadConfig({
       DATABASE_URL: databaseUrl,
       NODE_ENV: 'production',
@@ -253,6 +262,33 @@ describe('loadConfig', () => {
         MCP_RESOURCE_URL: 'https://heed.example.test/mcp',
       }).webOrigins,
     ).toEqual(['https://heed.example.test'])
+  })
+
+  it('believes forwarded addresses only from the proxies it names', () => {
+    const load = (value: string) =>
+      loadConfig({ DATABASE_URL: databaseUrl, CL_TRUSTED_PROXIES: value }).trustedProxies
+    expect(load('')).toEqual([])
+    expect(load('uniquelocal')).toEqual(['uniquelocal'])
+    expect(load(' 127.0.0.1, 10.0.0.0/8 ,fd00::/8,loopback,linklocal ')).toEqual([
+      '127.0.0.1',
+      '10.0.0.0/8',
+      'fd00::/8',
+      'loopback',
+      'linklocal',
+    ])
+    // Believing every caller, or a hop count, would let anyone choose their own address.
+    for (const value of [
+      'true',
+      '*',
+      '1',
+      '0.0.0.0/33',
+      '10.0.0.0/8/8',
+      'proxy.internal',
+      '::1/129',
+    ])
+      expect(() => load(value), value).toThrow(
+        'CL_TRUSTED_PROXIES: Expected addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
+      )
   })
 
   it('refuses a fixed day in production', () => {

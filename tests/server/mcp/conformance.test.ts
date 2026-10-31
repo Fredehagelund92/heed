@@ -45,7 +45,8 @@ async function server(
     reads = true,
     wallClock,
     web,
-  }: { reads?: boolean; wallClock?: { now: Date }; web?: string } = {},
+    resource = 'http://localhost:3000/mcp',
+  }: { reads?: boolean; wallClock?: { now: Date }; web?: string; resource?: string } = {},
 ) {
   const { privateKey } = generateKeyPairSync('ed25519')
   const memory = memoryStore(),
@@ -73,7 +74,6 @@ async function server(
   }
   const app = Fastify({ logger: false })
   // Resource binding is independent of the ephemeral listening port, just as behind a proxy.
-  const resource = 'http://localhost:3000/mcp'
   const gateway = registerMcpRoutes(app, {
     source,
     store: memory.store,
@@ -148,6 +148,56 @@ const offeredToDev = [
   'give_feedback',
   'get_related',
 ]
+
+describe('the hosts the MCP server answers', () => {
+  const initialize = {
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2025-11-25',
+      capabilities: {},
+      clientInfo: { name: 'hosts', version: '1.0.0' },
+    },
+  }
+  const ask = async (s: Awaited<ReturnType<typeof server>>, headers: Record<string, string>) =>
+    s.app.inject({
+      method: 'POST',
+      url: '/mcp',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json, text/event-stream',
+        authorization: `Bearer ${s.token}`,
+        ...headers,
+      },
+      payload: initialize,
+    })
+
+  it("answers its own address's host and this computer, and refuses another host or origin", async () => {
+    const s = await server(undefined, { resource: 'https://heed.example.test/mcp' })
+    for (const host of [
+      'heed.example.test',
+      'heed.example.test:3000',
+      'localhost:3000',
+      '127.0.0.1',
+    ])
+      expect((await ask(s, { host })).statusCode, host).toBe(200)
+    expect(
+      (await ask(s, { host: 'heed.example.test', origin: 'https://heed.example.test' })).statusCode,
+    ).toBe(200)
+    for (const host of ['rebound.example', 'heed.example.test.evil.example'])
+      expect((await ask(s, { host })).json(), host).toEqual({ error: 'Invalid host' })
+    expect(
+      (await ask(s, { host: 'heed.example.test', origin: 'https://evil.example' })).json(),
+    ).toEqual({ error: 'Invalid origin' })
+  })
+
+  it('answers only this computer while its address is on this computer', async () => {
+    const s = await server()
+    expect((await ask(s, { host: 'localhost:3000' })).statusCode).toBe(200)
+    expect((await ask(s, { host: 'heed.example.test' })).statusCode).toBe(403)
+  })
+})
 
 describe.each(['legacy', 'auto'] as const)('%s MCP protocol', (mode) => {
   it('discovers, delivers the short reply with sources, reads an item and takes a report', async () => {

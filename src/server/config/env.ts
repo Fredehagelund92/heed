@@ -1,3 +1,4 @@
+import { isIP } from 'node:net'
 import * as z from 'zod'
 import { DEFAULT_WEB_ORIGINS } from '../../contract/limits.ts'
 import { productNameProblem } from '../../domain/brand.ts'
@@ -95,6 +96,22 @@ const envSchema = z
             ),
         ),
       ),
+    // The proxies in front of this service whose X-Forwarded-For and X-Forwarded-Proto it believes:
+    // addresses, ranges (10.0.0.0/8) or loopback, linklocal and uniquelocal, comma-separated.
+    // Unset believes none, and a caller's address is the connection's peer.
+    CL_TRUSTED_PROXIES: z
+      .string()
+      .transform((value) =>
+        value
+          .split(',')
+          .map((entry) => entry.trim())
+          .filter(Boolean),
+      )
+      .refine(
+        (entries) => entries.every(isProxyAddress),
+        'Expected addresses or ranges such as 10.0.0.0/8, or loopback, linklocal or uniquelocal',
+      )
+      .optional(),
     // Pins the service's "today" (a UTC day) so demo data and end-to-end screenshots stay stable.
     CL_FIXED_TODAY: z.iso.date().optional(),
     // Language models for the assistant, judges and evals. `get_facts` never calls a model.
@@ -211,6 +228,18 @@ const envSchema = z
 
 export type LogLevel = (typeof logLevels)[number]
 
+const proxyNames = new Set(['loopback', 'linklocal', 'uniquelocal'])
+
+/** An address, a range with its prefix length, or one of the names Fastify's trustProxy knows. */
+function isProxyAddress(entry: string): boolean {
+  if (proxyNames.has(entry)) return true
+  const [address = '', prefix, ...rest] = entry.split('/')
+  const version = isIP(address)
+  if (!version || rest.length) return false
+  if (prefix === undefined) return true
+  return /^\d{1,3}$/.test(prefix) && Number(prefix) <= (version === 4 ? 32 : 128)
+}
+
 const loopbackHosts = new Set(['localhost', '127.0.0.1', '[::1]'])
 
 /** Which login server issues the tokens the MCP server accepts (FR-404). */
@@ -245,6 +274,8 @@ export interface Config {
   sessions: SessionLifetime
   devPeopleFile: string
   webOrigins: string[]
+  /** CL_TRUSTED_PROXIES: the proxies whose forwarded address the service believes; empty for none. */
+  trustedProxies: string[]
   fixedToday: string | undefined
   models: 'mock' | 'live'
   /** The registry's key and base URL variables that are set, by name. Never logged. */
@@ -261,6 +292,10 @@ export interface Config {
   webReadLoopback: boolean
 }
 
+/** What a refusal adds when production has no sign-in configured. */
+export const productionSignInHint =
+  'NODE_ENV=production signs people in with your OpenID Connect provider (docs/operations.md, "Run the image in production mode"). To try it out on this computer with the demo\'s people picker instead, set NODE_ENV=development, as compose.yaml does.'
+
 export class ConfigError extends Error {
   override name = 'ConfigError'
 }
@@ -273,6 +308,13 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
   const result = envSchema.safeParse(present)
   if (!result.success) {
     const lines = result.error.issues.map((issue) => `  ${issue.path.join('.')}: ${issue.message}`)
+    // Production signs people in with the company's provider. Someone who only wants to look
+    // around is told how to get the demo's picker instead.
+    const noSignIn =
+      present.NODE_ENV === 'production' &&
+      present.CL_AUTH === undefined &&
+      result.error.issues.some((issue) => issue.message === 'Required when CL_AUTH=oidc')
+    if (noSignIn) lines.push('', productionSignInHint)
     throw new ConfigError(`Invalid configuration:\n${lines.join('\n')}`)
   }
   const env = result.data
@@ -294,6 +336,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     sessions: { idleHours: env.CL_SESSION_IDLE_HOURS, maxDays: env.CL_SESSION_MAX_DAYS },
     devPeopleFile: env.CL_DEV_PEOPLE_FILE,
     webOrigins: env.CL_WEB_ORIGINS,
+    trustedProxies: env.CL_TRUSTED_PROXIES ?? [],
     fixedToday: env.CL_FIXED_TODAY,
     models: env.MODELS,
     modelEnv: Object.fromEntries(

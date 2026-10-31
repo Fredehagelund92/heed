@@ -133,6 +133,7 @@
     "seed": "node --env-file-if-exists=.env.local db/seed/main.ts",
     "db:restore-drill": "node --env-file-if-exists=.env.local src/server/run-restore-drill.ts",
     "token:dev": "node --env-file-if-exists=.env.local src/server/mcp/token-dev.ts",
+    "keys:create": "node --env-file-if-exists=.env.local src/server/create-keys.ts",
     "connectors:sync": "node --env-file-if-exists=.env.local src/server/sync-definitions.ts",
     "eval": "node --env-file-if-exists=.env.local src/server/run-evals.ts",
     "eval:ask-words": "node --env-file-if-exists=.env.local src/server/run-ask-words-cases.ts",

@@ -150,6 +150,9 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
   const limit = createLimiter(deps.wallClock ?? now)
   const resource = new URL(deps.resource)
   const metadata = new URL('/.well-known/oauth-protected-resource/mcp', resource).href
+  // Against DNS rebinding, a request names this computer or the MCP address's own host, as its
+  // host and as its origin when it has one.
+  const hosts = ['localhost', '127.0.0.1', '[::1]', resource.hostname]
   const servers = deps.authorizationServers ?? []
   app.get('/.well-known/oauth-protected-resource/mcp', { logLevel: 'silent' }, (request, reply) => {
     reply.header('cache-control', 'no-store')
@@ -213,11 +216,10 @@ export function registerMcpRoutes(app: FastifyInstance, deps: McpDependencies, m
     }
     if (!['POST', 'GET', 'DELETE'].includes(request.method))
       return deny(405, 'Method not allowed', 'error')
-    const localHosts = ['localhost', '127.0.0.1', '[::1]']
     try {
-      if (!localHosts.includes(new URL(`http://${request.headers.host}`).hostname))
+      if (!hosts.includes(new URL(`http://${request.headers.host}`).hostname))
         return deny(403, 'Invalid host', 'forbidden')
-      if (request.headers.origin && !localHosts.includes(new URL(request.headers.origin).hostname))
+      if (request.headers.origin && !hosts.includes(new URL(request.headers.origin).hostname))
         return deny(403, 'Invalid origin', 'forbidden')
     } catch {
       return deny(403, 'Invalid origin or host', 'forbidden')

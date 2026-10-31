@@ -71,7 +71,10 @@ afterEach(async () => {
   close = undefined
 })
 
-function limitedApp(limits: unknown = { person: 3, ip: 2 }) {
+function limitedApp(
+  limits: unknown = { person: 3, ip: 2 },
+  options: { trustedProxies?: string[] } = {},
+) {
   const state: { limits: unknown; down?: boolean } = { limits }
   const clock = { time: start }
   const fixed: Clock = { now: () => new Date(clock.time), today: () => '2026-10-08' }
@@ -80,13 +83,19 @@ function limitedApp(limits: unknown = { person: 3, ip: 2 }) {
     jobs: idleJobs(),
     logger: createLogger({ level: 'silent' }),
     clock: fixed,
+    ...options,
   })
   close = () => app.close()
-  const get = (url: string, headers: Record<string, string> = {}) =>
-    app.inject({ method: 'GET', url, headers })
-  const statuses = async (n: number, url: string, headers?: Record<string, string>) => {
+  const get = (url: string, headers: Record<string, string> = {}, remoteAddress?: string) =>
+    app.inject({ method: 'GET', url, headers, ...(remoteAddress ? { remoteAddress } : {}) })
+  const statuses = async (
+    n: number,
+    url: string,
+    headers?: Record<string, string>,
+    remoteAddress?: string,
+  ) => {
     const codes: number[] = []
-    for (let i = 0; i < n; i++) codes.push((await get(url, headers)).statusCode)
+    for (let i = 0; i < n; i++) codes.push((await get(url, headers, remoteAddress)).statusCode)
     return codes
   }
   return { app, state, clock, get, statuses }
@@ -162,6 +171,35 @@ describe('the web API request limit', () => {
     const codes = await statuses(121, '/api/v1/auth/people')
     expect(codes.slice(0, 120).every((code) => code === 200)).toBe(true)
     expect(codes[120]).toBe(429)
+  })
+
+  it('counts each address a trusted proxy forwards on its own', async () => {
+    const { statuses } = limitedApp(undefined, { trustedProxies: ['10.0.0.0/8'] })
+    const proxy = '10.1.2.3'
+    const from = (address: string) => ({ 'x-forwarded-for': address })
+    expect(await statuses(3, '/api/v1/auth/people', from('192.0.2.10'), proxy)).toEqual([
+      200, 200, 429,
+    ])
+    // Another caller behind the same proxy is not locked out with the first.
+    expect(await statuses(2, '/api/v1/auth/people', from('192.0.2.20'), proxy)).toEqual([200, 200])
+    // A chain counts by the last address the trusted proxies did not add.
+    expect(
+      await statuses(1, '/api/v1/auth/people', from('192.0.2.30, 192.0.2.10, 10.9.9.9'), proxy),
+    ).toEqual([429])
+  })
+
+  it('ignores a forwarded address from a caller it does not trust', async () => {
+    for (const trustedProxies of [[], ['10.0.0.0/8']]) {
+      const { statuses } = limitedApp(undefined, { trustedProxies })
+      const caller = '192.0.2.99'
+      expect(
+        await statuses(2, '/api/v1/auth/people', { 'x-forwarded-for': '198.51.100.1' }, caller),
+      ).toEqual([200, 200])
+      // Naming another address does not open a new count.
+      expect(
+        await statuses(1, '/api/v1/auth/people', { 'x-forwarded-for': '198.51.100.2' }, caller),
+      ).toEqual([429])
+    }
   })
 
   it('lets a request through when the database cannot say who is asking', async () => {
