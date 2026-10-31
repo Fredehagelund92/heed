@@ -26,3 +26,6 @@ prints the times and a verdict (`--json` for the full report), drops the scratch
 `--keep`, and exits 1 on any difference. It needs `pg_dump` and `pg_restore` from PostgreSQL 18 on
 `PATH`. `tests/integration/restore-drill.test.ts` runs it through the script and shows that a
 changed row, version, edition digest or history entry is each reported.
+
+The drill is the proof step of backing up an install: [Self-host Heed on one computer](self-hosting.md#back-up)
+says how to back up, restore, upgrade and roll back, and how to run the drill in the `heed` container.

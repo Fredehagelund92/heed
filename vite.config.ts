@@ -4,7 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
-import { helpDocs } from './scripts/docs-plugin.ts'
+import { docFiles, helpDocs, loadDocs } from './scripts/docs-plugin.ts'
+import { llmsFullTxt, llmsTxt } from './src/domain/docs.ts'
 import { storageKey } from './src/web/lib/brand.ts'
 import { productNameFrom } from './src/domain/brand.ts'
 
@@ -69,6 +70,33 @@ export function themeBootstrap(): Plugin {
   }
 }
 
+/**
+ * The plain-text files a crawler or an agent asks the app's address for, which would otherwise get
+ * the app's page: robots.txt, which keeps search engines out of a company's own workspace, and the
+ * docs for agents (llmstxt.org) as the docs site writes them (scripts/docs-build.ts): llms.txt at
+ * the top, where an agent looks first, and at /docs/llms.txt, where the Docs page links to it,
+ * with every page in one file at /docs/llms-full.txt. Not in public/, which the docs site shares:
+ * hosted on its own, it is meant to be found.
+ */
+export function crawlerFiles(): Plugin {
+  // Where the docs open in the app (src/web/lib/doc-links.ts).
+  const base = '/docs'
+  return {
+    name: 'heed-web:crawler-files',
+    apply: 'build',
+    generateBundle() {
+      const files = docFiles()
+      const docs = loadDocs(files)
+      const emit = (fileName: string, source: string) =>
+        this.emitFile({ type: 'asset', fileName, source })
+      emit('robots.txt', 'User-agent: *\nDisallow: /\n')
+      emit('llms.txt', llmsTxt(docs, base))
+      emit('docs/llms.txt', llmsTxt(docs, base))
+      emit('docs/llms-full.txt', llmsFullTxt(docs, files, base))
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
   root: webRoot,
   envDir: root,
@@ -101,6 +129,7 @@ export default defineConfig(({ mode }) => ({
     helpDocs(),
     themeBootstrap(),
     productTitle(),
+    crawlerFiles(),
   ],
   // With VITE_API_MODE=http the app calls the Heed service at /api/v1 on its own origin; these
   // forward it there (`npm run dev:server`).

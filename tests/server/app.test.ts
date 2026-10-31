@@ -102,6 +102,31 @@ describe('health', () => {
   })
 })
 
+describe('security headers', () => {
+  it('are on every answer, a missing address included', async () => {
+    const { instance } = app(reachable)
+    for (const url of ['/health', '/api/v1/no-such-thing']) {
+      const response = await instance.inject({ method: 'GET', url })
+      expect(response.headers).toMatchObject({
+        'content-security-policy': "default-src 'none'; frame-ancestors 'none'",
+        'x-content-type-options': 'nosniff',
+        'x-frame-options': 'DENY',
+        'referrer-policy': 'no-referrer',
+      })
+    }
+  })
+
+  it("leave a route's own policy alone", async () => {
+    const { instance } = app(reachable)
+    instance.get('/page', (_request, reply) =>
+      reply.header('content-security-policy', "default-src 'self'").send('ok'),
+    )
+    const response = await instance.inject({ method: 'GET', url: '/page' })
+    expect(response.headers['content-security-policy']).toBe("default-src 'self'")
+    expect(response.headers['x-frame-options']).toBe('DENY')
+  })
+})
+
 describe('request logs', () => {
   it('carry method, path and status, never headers or query strings', async () => {
     const { instance, lines } = app(reachable)

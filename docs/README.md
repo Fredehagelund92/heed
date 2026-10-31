@@ -38,18 +38,19 @@ Older design pages that still apply:
 
 ## Run and build Heed
 
-| Page                                                       | What it says                                                |
-| ---------------------------------------------------------- | ----------------------------------------------------------- |
-| [Run and operate the service](operations.md)               | Setup and settings                                          |
-| [MCP and API reference](reference.md)                      | The tools and the API                                       |
-| [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                           |
-| [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md) |
-| [Evaluations and the golden set](evaluations.md)           | How answers are tested                                      |
-| [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                  |
-| [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                          |
-| [The rename checklist](rename-checklist.md)                | Everything that follows the product name                    |
-| [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents   |
-| [Working with coding agents](agents.md)                    | Where an agent reads first, and what it may and may not do  |
+| Page                                                       | What it says                                                           |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Self-host Heed on one computer](self-hosting.md)          | Install, back up, restore, upgrade and roll back, for local evaluation |
+| [Run and operate the service](operations.md)               | Setup and settings                                                     |
+| [MCP and API reference](reference.md)                      | The tools and the API                                                  |
+| [How AI sign-in works](ai-sign-in.md)                      | Agents signing in                                                      |
+| [Connectors](connectors.md)                                | What a connector is. [Writing one](connectors/authoring.md)            |
+| [Evaluations and the golden set](evaluations.md)           | How answers are tested                                                 |
+| [Develop Heed](development.md) and [its tests](testing.md) | The repository, the commands and the tests                             |
+| [Security, scanning and the restore drill](security.md)    | What is scanned and how to restore                                     |
+| [The rename checklist](rename-checklist.md)                | Everything that follows the product name                               |
+| [Contributing](../CONTRIBUTING.md)                         | How to send a change, and the rules for people and agents              |
+| [Working with coding agents](agents.md)                    | Where an agent reads first, and what it may and may not do             |
 
 ## The order of authority
 
