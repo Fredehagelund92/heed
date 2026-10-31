@@ -292,12 +292,8 @@ export function createConflictsService(
     return { bundle, pair, holder, other }
   }
 
-  async function sideOf(
-    item: ServingItem,
-    open: boolean,
-    settled: SettledItem,
-  ): Promise<ConflictSide> {
-    const row = open ? await library.getIndexRow(item.id) : null
+  async function sideOf(item: ServingItem, settled: SettledItem): Promise<ConflictSide> {
+    const row = await library.getIndexRow(item.id)
     const area = await tx.query<{ name: string }>('select name from areas where id = $1', [
       item.areaId,
     ])
@@ -305,19 +301,18 @@ export function createConflictsService(
     const source = item.evidence[0]
     return {
       id: item.id,
-      readable: open,
-      title: open ? item.title : null,
-      summary: open ? item.summary : null,
+      readable: true,
+      title: item.title,
+      summary: item.summary,
       kind: item.kind,
       area: { id: item.areaId, name: area[0]?.name ?? item.areaId },
       owners: settled.owners.map((id) => ({ id, name: people.get(id) ?? '' })),
-      version: open ? item.version : 0,
-      checked:
-        open && row?.lastChecked
-          ? { on: row.lastChecked.on, personId: row.lastChecked.personId }
-          : null,
-      source: open && source ? { url: source.url, quote: source.quote } : null,
-      from: open ? item.validity.start || null : null,
+      version: item.version,
+      checked: row?.lastChecked
+        ? { on: row.lastChecked.on, personId: row.lastChecked.personId }
+        : null,
+      source: source ? { url: source.url, quote: source.quote } : null,
+      from: item.validity.start || null,
     }
   }
 
@@ -326,8 +321,8 @@ export function createConflictsService(
     if (!found) throw new ORPCError('NOT_FOUND', { message: 'These two no longer disagree.' })
     const { bundle, pair, holder, other } = found
     const open = await readable([holder.id, other.id])
-    // A pair the person can read neither side of is not theirs to see.
-    if (!open.size) throw new ORPCError('NOT_FOUND')
+    // A pair is shown whole or not at all, as the list does.
+    if (open.size !== 2) throw new ORPCError('NOT_FOUND')
     const mine = await me()
     const settled = await answering([holder, other])
     const rights = settleRights(
@@ -336,7 +331,7 @@ export function createConflictsService(
       settled(other),
       other.conflicts.includes(holder.id),
     )
-    const scope = open.size === 2 ? questionOf(bundle, holder) : null
+    const scope = questionOf(bundle, holder)
     const today = clock.today()
     const ask = scope ? { scope } : null
     const without = (id: string): ServingBundle => ({
@@ -355,13 +350,10 @@ export function createConflictsService(
     const asked = await askedOf([pair])
     return {
       key: `${holder.id}.${other.id}`,
-      holder: await sideOf(holder, open.has(holder.id), settled(holder)),
-      other: await sideOf(other, open.has(other.id), settled(other)),
-      topic: open.size === 2 ? topicOf(bundle, holder) : '',
-      where:
-        open.size === 2
-          ? [...holder.scope.metrics, ...holder.scope.dimensionValues.map((v) => v.value)]
-          : [],
+      holder: await sideOf(holder, settled(holder)),
+      other: await sideOf(other, settled(other)),
+      topic: topicOf(bundle, holder),
+      where: [...holder.scope.metrics, ...holder.scope.dimensionValues.map((v) => v.value)],
       asked: asked.get(`${holder.id}.${other.id}`) ?? 0,
       since: await sinceOf(pair),
       said: ask
@@ -372,21 +364,10 @@ export function createConflictsService(
             withoutFlag: brief(answer(unflagged, ask, { today })),
           }
         : null,
-      rights:
-        open.size === 2
-          ? rights
-          : {
-              keepHolder: false,
-              keepOther: false,
-              editHolder: false,
-              editOther: false,
-              keepBoth: false,
-              notConflict: false,
-            },
-      keptBoth:
-        open.size === 2 && kept.has(`${holder.id}.${other.id}`)
-          ? publicDecision(kept.get(`${holder.id}.${other.id}`)!)
-          : null,
+      rights,
+      keptBoth: kept.has(`${holder.id}.${other.id}`)
+        ? publicDecision(kept.get(`${holder.id}.${other.id}`)!)
+        : null,
     }
   }
 
