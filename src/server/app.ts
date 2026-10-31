@@ -29,6 +29,14 @@ import { registerLoginRoutes, type LoginServer } from './modules/oauth/index.ts'
 import type { PageReader } from './modules/web/index.ts'
 import { createMetrics, operationOf, type Metrics } from './observability/metrics.ts'
 
+/** The security headers on every answer that does not set its own (docs/self-hosting.md). */
+export const SECURITY_HEADERS: readonly (readonly [string, string])[] = [
+  ['content-security-policy', "default-src 'none'; frame-ancestors 'none'"],
+  ['x-content-type-options', 'nosniff'],
+  ['x-frame-options', 'DENY'],
+  ['referrer-policy', 'no-referrer'],
+]
+
 export interface AppDependencies {
   database: Database
   mcp?: McpDependencies & { close?: () => Promise<void> }
@@ -97,6 +105,10 @@ export function buildApp({
   })
   app.addHook('onSend', async (request, reply, payload) => {
     reply.header('x-request-id', request.id)
+    // What the service answers is data, never a page to show or frame. A route that serves a
+    // page (the login server's) sets its own policy, which these leave alone.
+    for (const [name, value] of SECURITY_HEADERS)
+      if (!reply.hasHeader(name)) reply.header(name, value)
     return payload
   })
   app.addHook('onResponse', async (request, reply) => {

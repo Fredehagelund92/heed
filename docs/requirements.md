@@ -1,15 +1,15 @@
-# Context Layer: Requirements Specification
+# Heed: Requirements Specification
 
 | | |
 | --- | --- |
-| Status | Draft 0.3 for review. A status column and the requirements of Heed v1 were added on 2026-10-25 |
+| Status | Kept up to date with the product: each requirement's status says whether Heed v1 kept, changed, withdrew or added it. The status column and the requirements of Heed v1 were added on 2026-10-25 |
 | Date | 2026-10-14 |
-| Product | Context Layer (working name) |
+| Product | Heed |
 | Who reads it | Owners, managers, engineers, and anyone who wants to know what this product is for |
 
 ## Overview for non-technical readers
 
-**What is it?** The Context Layer is a shared place for business context. AI (artificial intelligence) agents read it before they answer a question about company data. An AI agent is a program that uses a language model to answer questions and to use tools.
+**What is it?** Heed is a shared place for business context. AI (artificial intelligence) agents read it before they answer a question about company data. An AI agent is a program that uses a language model to answer questions and to use tools.
 
 **What problem does it solve?** Company data shows numbers. It does not always show why a number looks strange. A market could have closed. A tool could have changed how it counts. People know these facts. The facts live in chats, documents and memories. AI agents cannot see them. So an agent can give a confident answer that misses the real reason.
 
@@ -126,13 +126,13 @@ Today these facts sit in chats, files and people's memories. An agent cannot rea
 
 A company sells outdoor gear in its own stores and online, in several markets. In August, orders in the market Norway fall by 70 percent compared with July.
 
-**Without the Context Layer**, an agent answers:
+**Without Heed**, an agent answers:
 
 > Orders in Norway fell 70 percent in August compared with July. This might come from weaker marketing or fewer new customers. I suggest checking the campaign budget.
 
 The agent guessed. It did not know that a new customs rule stopped all online sales to Norway on 4 August.
 
-**With the Context Layer**, the same question gives this answer:
+**With Heed**, the same question gives this answer:
 
 > Orders in Norway fell 70 percent in August compared with July.
 > A context note says that online sales to Norway stopped on 4 August 2026. The source is the link in the note.
@@ -146,7 +146,7 @@ How the note got there:
 3. The system tests the change. It finds three test questions that the note affects. It checks that agents answer better with the note than without it.
 4. Jon is the owner for the domain. He sees the proposal, the differences and the test results. He accepts it.
 5. The system saves a new numbered edition of all accepted context.
-6. An analyst asks an agent about Norway orders. The agent asks the Context Layer first. It receives the note and answers as shown above.
+6. An analyst asks an agent about Norway orders. The agent asks Heed first. It receives the note and answers as shown above.
 7. A different analyst asks about orders in another market, Spain. The system finds no note that applies. It tells the agent so. It also tells the agent that finding nothing does not prove that no caveat exists. The system adds one to the count of questions without context for that topic. It does not record who asked.
 
 ### 1.3 Who uses it
@@ -168,7 +168,7 @@ How the note got there:
 
 ### 1.5 What it is not
 
-- It is not a store of metric definitions. Those stay in the tool that owns them. The Context Layer only points to them.
+- It is not a store of metric definitions. Those stay in the tool that owns them. Heed only points to them.
 - It is not a data tool. It stores no data rows and runs no data queries of its own. (Amended 25 Oct 2026: when an administrator switches figures on for an integration, it reads one figure when someone asks in Ask and keeps it nowhere. See FR-716 and CON-612. Figures are off by default.)
 - It is not a wiki or a document library.
 - It is not a knowledge graph. An item can mention other things, but the system never infers a link between them.
@@ -1150,10 +1150,10 @@ Each question has plain options. The first option is the recommended one. "Neede
 - A. Through the same system: a command-line tool, and an MCP tool with which an agent drafts for the person it acts for (FR-121), both in the first build. Proposals go to the same review queue. *Recommended.*
 - B. Through pull requests in a Git repository.
 
-**OQ-2. Can the data platform later add one pointer line to the files of the source tool?** The line would say: "For launches, regulations and period caveats, call the Context Layer." It would also add a check of source changes before they merge. (Needed before Phase 4.)
+**OQ-2. Can the data platform later add one pointer line to the files of the source tool?** The line would say: "For launches, regulations and period caveats, call Heed." It would also add a check of source changes before they merge. (Needed before Phase 4.)
 
 - A. Yes, as changes that the data platform owns and reviews. *Decided* (13 October 2026): the two servers stay separate, and the data platform team adds the pointer, in each view's agent hints and in its own data tool servers, later and outside this project. The system's side is the handoff: it accepts the member names an agent just queried (CON-517) and its server instructions name the data tool (FR-343).
-- B. No. Agents learn about the Context Layer only from its tool descriptions.
+- B. No. Agents learn about Heed only from its tool descriptions.
 
 **OQ-3. Who are the owners, how fast is review, and who approves high-risk items?** (Needed before Phase 1.)
 

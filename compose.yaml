@@ -48,19 +48,6 @@ services:
       - keys:/var/lib/heed
     ports:
       - 127.0.0.1:${HEED_PORT:-3000}:3000
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
-      # Every 2 seconds while it starts (the first start loads the demo, a minute or two), then
-      # every 30.
-      start_period: 5m
-      start_interval: 2s
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
   web:
     build:
@@ -70,7 +57,7 @@ services:
       heed:
         condition: service_healthy
     ports:
-      - 127.0.0.1:${HEED_WEB_PORT:-8080}:80
+      - 127.0.0.1:${HEED_WEB_PORT:-8080}:8080
 
 volumes:
   db:

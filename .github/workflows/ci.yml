@@ -283,7 +283,8 @@ jobs:
 
   docker:
     # The images docker compose up runs (Dockerfile, compose.yaml): the service, and the web app's
-    # http build behind nginx. Built only, not started: the seed job runs the same app and service.
+    # http build behind nginx. The web image is started on its own and checked as a browser meets
+    # it (scripts/check-web-image.ts); the seed job runs the same app and service.
     name: 'Docker images build'
     needs: scope
     if: needs.scope.outputs.code == 'true'
@@ -291,8 +292,26 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
       - name: Build the service and web images
         run: docker compose build
+      - name: The web image is healthy, not root, and serves gzip, its headers and real 404s
+        run: |
+          # No service behind it: "heed" only has to resolve for nginx to start.
+          docker run -d --name heed-web-check --add-host heed:127.0.0.1 -p 127.0.0.1:8080:8080 heed-web
+          for _ in $(seq 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' heed-web-check)
+            [ "$status" = healthy ] && break
+            sleep 1
+          done
+          echo "health: $status"
+          [ "$status" = healthy ]
+          user=$(docker exec heed-web-check id -u)
+          echo "user id: $user"
+          [ "$user" != 0 ]
+          node scripts/check-web-image.ts http://127.0.0.1:8080
 
   web:
     # The web app on its mock binding (tests/e2e): the golden job specs J1 to J30, with the

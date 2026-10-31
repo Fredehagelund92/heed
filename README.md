@@ -73,6 +73,9 @@ Both open on the demo of an invented outdoor-gear retailer: people, domains and 
 history. Sign in as any demo person. Nothing leaves your computer, and no AI service is called. Stop with
 Ctrl+C; `docker compose down --volumes` also removes the data.
 
+To keep it running, back it up, upgrade it or roll an upgrade back, see
+[Self-host Heed on one computer](docs/self-hosting.md). It is for local evaluation, not for production use.
+
 ### Connect Claude Code
 
 With the service running (`docker compose up`):
@@ -159,14 +162,15 @@ source, and its owner checks it. It doesn't watch people: it counts questions by
 
 ## Docs
 
-| Use it                                                  | Run and build it                                                      |
-| ------------------------------------------------------- | --------------------------------------------------------------------- |
-| [Get started](docs/help/get-started.md)                 | [Run and operate the service](docs/operations.md): setup and settings |
-| [Write context](docs/help/write-context.md)             | [MCP and API reference](docs/reference.md)                            |
-| [Review a suggestion](docs/help/review-a-suggestion.md) | [How AI sign-in works](docs/ai-sign-in.md)                            |
-| [Connect an agent](docs/help/connect-an-agent.md)       | [Evaluations and the golden set](docs/evaluations.md)                 |
-| [Privacy](docs/help/privacy.md)                         | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)  |
-| [All help pages](docs/help/README.md)                   | [Security, scanning and the restore drill](docs/security.md)          |
+| Use it                                                  | Run and build it                                                                             |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| [Get started](docs/help/get-started.md)                 | [Self-host Heed on one computer](docs/self-hosting.md): install, back up, upgrade, roll back |
+| [Write context](docs/help/write-context.md)             | [Run and operate the service](docs/operations.md): setup and settings                        |
+| [Review a suggestion](docs/help/review-a-suggestion.md) | [MCP and API reference](docs/reference.md)                                                   |
+| [Connect an agent](docs/help/connect-an-agent.md)       | [How AI sign-in works](docs/ai-sign-in.md)                                                   |
+| [Privacy](docs/help/privacy.md)                         | [Evaluations and the golden set](docs/evaluations.md)                                        |
+| [All help pages](docs/help/README.md)                   | [Develop Heed](docs/development.md) and [its tests](docs/testing.md)                         |
+|                                                         | [Security, scanning and the restore drill](docs/security.md)                                 |
 
 The help pages are also the app's own Docs, at `/docs`, and a static site (`npm run docs:build`).
 [Requirements](docs/requirements.md) says what Heed must do, and [Writing a connector](docs/connectors/authoring.md)
