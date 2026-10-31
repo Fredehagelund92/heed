@@ -452,6 +452,50 @@ export function describeHeedApi(
       },
     )
 
+    it.skipIf(lacks('signIn', 'conflicts', 'conflict', 'settleConflict', 'undo'))(
+      'lists the pairs that disagree, reads one side by side, keeps both with a reason, and Undo puts it back',
+      async () => {
+        const live = await signedIn()
+        const listed = async () => live.conflicts({ whose: 'all' })
+        const norway = (await listed()).find(
+          (r) =>
+            /^Norway orders/.test(r.holder.title ?? '') &&
+            /^Norway orders/.test(r.other.title ?? ''),
+        )
+        expect(norway).toBeTruthy()
+        const [holderId = '', otherId = ''] = norway!.key.split('.')
+        const pair = (await live.conflict({ holderId, otherId }))!
+        expect(pair.key).toBe(norway!.key)
+        // Either order of the address reads the same pair, holder first.
+        expect((await live.conflict({ holderId: otherId, otherId: holderId }))?.key).toBe(
+          norway!.key,
+        )
+        expect(pair.holder.readable && pair.other.readable).toBe(true)
+        expect(pair.said?.now.state).toBe('conflict')
+        expect(pair.said?.onlyHolder.state).toBe('grounded')
+        expect(pair.rights.keepBoth).toBe(true)
+        const done = await live.settleConflict({
+          holderId,
+          otherId,
+          outcome: 'kept_both',
+          reason: 'Both hold until Finance rules on it.',
+          versions: { holder: pair.holder.version, other: pair.other.version },
+        })
+        expect(done.decision).toMatchObject({
+          outcome: 'kept_both',
+          reason: 'Both hold until Finance rules on it.',
+        })
+        // Kept both: agents keep saying Conflict, and the pair leaves the list until either changes.
+        expect((await listed()).some((r) => r.key === norway!.key)).toBe(false)
+        const kept = (await live.conflict({ holderId, otherId }))!
+        expect(kept.said?.now.state).toBe('conflict')
+        expect(kept.keptBoth?.reason).toBe('Both hold until Finance rules on it.')
+        await live.undo({ token: done.undo })
+        expect((await listed()).some((r) => r.key === norway!.key)).toBe(true)
+        expect((await live.conflict({ holderId, otherId }))?.keptBoth).toBeNull()
+      },
+    )
+
     it.skipIf(lacks('signIn', 'getLibrary', 'markViewed'))(
       'keeps an item the person opened as opened, so it can be marked as checked with others',
       async () => {

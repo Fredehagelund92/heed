@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { ContextViews } from '@/components/heed/context-views'
 import {
   EyeIcon,
   ListChecksIcon,
@@ -388,6 +389,8 @@ export function ContextPage() {
           ) : (
             <>
               <ListBar>
+                <ContextViews value="items" />
+                <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={

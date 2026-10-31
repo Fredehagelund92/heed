@@ -50,7 +50,9 @@ export const shellSearch = lenient(
   z.object({
     // An old peek's `fact` stays until the root route renames it to `context` (lib/router.ts).
     dock: z.optional(
-      z.string().check(z.regex(/^(review|context|fact|def|ask|try|topic|share|where)(\..+)?$/)),
+      z
+        .string()
+        .check(z.regex(/^(review|context|fact|def|ask|try|topic|share|where|conflict)(\..+)?$/)),
     ),
     flag: text,
     ptab: oneOf(['overview', 'steps', 'warnings']),
@@ -85,9 +87,21 @@ export const contextSearch = lenient(
   z.object({ domain: text, due: text, status: oneOf(['archived']) }),
 )
 
+/** The Conflicts view: mine, or every pair the person may read. */
+export const conflictsSearch = lenient(z.object({ whose: oneOf(['all']) }))
+
 /** A new context item starts from a draft, a gap or a metric and market; setup leads back to the Inbox. */
 export const contextEditorSearch = lenient(
-  z.object({ draft: text, gap: text, metric: text, market: text, dates: text, setup: text }),
+  z.object({
+    draft: text,
+    gap: text,
+    metric: text,
+    market: text,
+    dates: text,
+    setup: text,
+    // Opened from a conflict: the item it disagrees with stays in view.
+    beside: text,
+  }),
 )
 
 export const definitionsSearch = lenient(z.object({ domain: text, setup: text }))

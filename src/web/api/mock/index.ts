@@ -61,6 +61,18 @@ import { searchWorld } from './search'
 import { createScopeSearch, withScope } from './scope'
 import { factsOf, reduce, start, type Action, type State } from './store'
 import { createWorkspace } from './workspace'
+import {
+  conflictOf,
+  pairsOf,
+  rightsOf,
+  rowOf,
+  stampOf,
+  stillKept,
+  type KeptPair,
+} from './conflicts'
+import type { Fact } from '@/model/items'
+import { maySettle } from '@domain/conflicts'
+import { TODAY } from '@/model/history'
 
 /**
  * The mock binding: `HeedApi` over the demo world, in memory. Every answer is a copy, as if it came
@@ -91,6 +103,16 @@ export function createMockApi() {
   const dispatch = (action: Action) => {
     state = reduce(state, action)
   }
+
+  /** Conflicts kept as both, by pair: off the lists while both items are as the decision saw them. */
+  const keptPairs = new Map<string, KeptPair>()
+  /** The person signed in, as the rules read them. */
+  const meAsPerson = () => workspace.person(me())!
+  /** The live pair two ids name, holder first, in either order. */
+  const pairAt = (a: string, b: string) =>
+    pairsOf(factsOf(state)).find(
+      ([h, o]) => (h.id === a && o.id === b) || (h.id === b && o.id === a),
+    )
 
   /** What Undo needs, by token: the state before, and what the write touched. */
   const undos = new Map<string, () => void>()
@@ -348,6 +370,122 @@ export function createMockApi() {
       read('itemPage', id, () => {
         const item = factsOf(state).find((f) => f.id === id)
         return item ? { item: withScope(item), history: historyOf(item, state.log) } : null
+      }),
+    conflicts: ({ whose }) =>
+      read('conflicts', whose, () => {
+        const person = meAsPerson()
+        const domains = workspace.domainMap()
+        return pairsOf(factsOf(state))
+          .filter(([h, o]) => !stillKept(keptPairs.get(`${h.id}.${o.id}`), h, o))
+          .map(([h, o]) => rowOf(h, o, person, domains))
+          .filter((r) => whose === 'all' || r.mine)
+          .sort((a, b) => b.asked - a.asked || a.topic.localeCompare(b.topic))
+      }),
+    conflict: ({ holderId, otherId }) =>
+      read('conflict', `${holderId}.${otherId}`, () => {
+        const pair = pairAt(holderId, otherId)
+        if (!pair) return null
+        const [h, o] = pair
+        return conflictOf(
+          h,
+          o,
+          meAsPerson(),
+          workspace.domainMap(),
+          keptPairs.get(`${h.id}.${o.id}`),
+        )
+      }),
+    settleConflict: (input) =>
+      scenario.send('settleConflict', () => {
+        const pair = pairAt(input.holderId, input.otherId)
+        if (!pair)
+          throw new ApiError(
+            'conflict',
+            'Someone settled this already, or one of the two changed. There is nothing left to decide here.',
+          )
+        const [holder, other] = pair
+        const person = meAsPerson()
+        const rights = rightsOf(person, holder, other, workspace.domainMap())
+        const keep =
+          input.outcome === 'kept_one'
+            ? input.keepId === holder.id
+              ? 'holder'
+              : input.keepId === other.id
+                ? 'other'
+                : null
+            : null
+        if (!input.reason.trim()) throw new ApiError('invalid', 'Say why, in a few words.')
+        if (!maySettle(rights, input.outcome, keep))
+          throw new ApiError(
+            'forbidden',
+            'Only an owner of the item it changes, or an admin, can do that.',
+          )
+        const key = `${holder.id}.${other.id}`
+        const decision = {
+          outcome: input.outcome,
+          keptId: keep === 'holder' ? holder.id : keep === 'other' ? other.id : null,
+          reason: input.reason.trim(),
+          quote: input.quote?.trim() || null,
+          by: me(),
+          at: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+        }
+        const patches: Record<string, Partial<Fact>> = {}
+        if (keep) {
+          const [stays, goes] = keep === 'holder' ? [holder, other] : [other, holder]
+          patches[goes.id] = { status: 'Archived' }
+          if (stays.disagreesWith === goes.id) patches[stays.id] = { disagreesWith: undefined }
+        }
+        if (input.outcome === 'not_conflict')
+          for (const f of [holder, other])
+            if (f.disagreesWith) patches[f.id] = { disagreesWith: undefined }
+        const summary =
+          input.outcome === 'kept_one'
+            ? `Settled a conflict: kept one, archived the other. Reason: ${decision.reason}`
+            : input.outcome === 'kept_both'
+              ? `Kept both items of a conflict. Reason: ${decision.reason}`
+              : `Not a conflict: the flag was removed. Reason: ${decision.reason}`
+        const entry = {
+          id: `log-settled-${key}-${Date.now()}`,
+          on: TODAY,
+          who: me(),
+          what: 'settled' as const,
+          summary,
+          items: [holder, other].map((f) => ({ id: f.id, title: f.title, domain: f.domain })),
+        }
+        const before = state
+        const keptBefore = keptPairs.get(key)
+        dispatch({ type: 'bulk', patches, remove: [], entry })
+        if (input.outcome === 'kept_both')
+          keptPairs.set(key, {
+            decision,
+            stamps: { [holder.id]: stampOf(holder), [other.id]: stampOf(other) },
+          })
+        const undo = revertTo(before, { facts: [holder.id, other.id], entry: entry.id })
+        const token = undo.undo
+        const revert = undos.get(token)!
+        undos.set(token, () => {
+          revert()
+          if (keptBefore) keptPairs.set(key, keptBefore)
+          else keptPairs.delete(key)
+        })
+        return { undo: token, decision }
+      }),
+    suggestArchiving: ({ id }) =>
+      scenario.send('suggestArchiving', () => {
+        const item = factsOf(state).find((f) => f.id === id)
+        if (!item) throw new ApiError('not-found', "This context item isn't in Context any more.")
+        const owners = workspace.domainMap()[item.domain]?.owners ?? []
+        dispatch({
+          type: 'send',
+          sent: {
+            id: `sent_${Date.now().toString(36)}`,
+            factId: id,
+            title: `Archive “${item.title}”`,
+            by: me(),
+            to: owners[0] ?? 'the owners',
+            domain: item.domain,
+            at: 'just now',
+          },
+        })
       }),
     getItemHistory: ({ id }) =>
       now(() => {

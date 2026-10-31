@@ -20,6 +20,7 @@
  * a retry key, kept until the service answers; the session cookie is HttpOnly, so the token is
  * read from `auth.session`.
  */
+import { conflictOf, conflictRowOf, decisionOf } from './http-conflicts'
 import { createORPCClient } from '@orpc/client'
 import type { AnyContractRouter, ContractRouterClient } from '@orpc/contract'
 import { OpenAPILink } from '@orpc/openapi-client/fetch'
@@ -201,6 +202,10 @@ export const wiredMethods = [
   'returnReview',
   'closeReview',
   'undo',
+  'conflicts',
+  'conflict',
+  'settleConflict',
+  'suggestArchiving',
   'getConnectReview',
   'getConnectRequest',
   'answerConnectRequest',
@@ -1271,6 +1276,32 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     },
     contextPage: async () => (await contextRows()).items,
     itemPage: ({ id }) => itemPage(id),
+    conflicts: async ({ whose }) =>
+      (await read(() => client.conflicts.list({ whose }))).rows.map(conflictRowOf),
+    conflict: async ({ holderId, otherId }) => {
+      const [view, people, vocabulary] = await Promise.all([
+        orNull(() => read(() => client.conflicts.read({ holderId, otherId }))),
+        readPeople(),
+        readVocabulary(),
+      ])
+      if (!view) return null
+      const words = namesOf(vocabulary)
+      const where = view.where.map((k) =>
+        k.startsWith('metric:') ? words.metric(k) : words.value(k),
+      )
+      return conflictOf(view, { person: people.name }, where)
+    },
+    settleConflict: async (input) => {
+      const done = await write('conflicts.settle', input, (o) => client.conflicts.settle(input, o))
+      const people = await readPeople()
+      return { undo: done.undo, decision: decisionOf(done.decision, { person: people.name }) }
+    },
+    suggestArchiving: async ({ id, reason }) => {
+      const input = { id, reason }
+      await write('review.proposeRetirement', input, (o) =>
+        client.review.proposeRetirement(input, o),
+      )
+    },
     getItemHistory: async ({ id }) => (await itemPage(id))?.history ?? [],
     // From an item or a synced definition. A draft is not served, so it has nothing to follow; a
     // term written here has no links on the service yet.

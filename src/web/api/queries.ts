@@ -34,6 +34,10 @@ export const queryKeys = {
   scopeSearches: ['searchScope'] as const,
   contextPage: ['contextPage'] as const,
   itemPage: (id: string) => ['itemPage', id] as const,
+  conflicts: (whose: 'mine' | 'all') => ['conflicts', whose] as const,
+  conflictLists: ['conflicts'] as const,
+  conflict: (key: string) => ['conflict', key] as const,
+  conflictPairs: ['conflict'] as const,
   itemPages: ['itemPage'] as const,
   itemHistory: (id: string) => ['getItemHistory', id] as const,
   itemHistories: ['getItemHistory'] as const,
@@ -157,6 +161,19 @@ export const contextPageQuery = () =>
 
 export const itemPageQuery = (id: string) =>
   queryOptions({ queryKey: queryKeys.itemPage(id), queryFn: () => api.itemPage({ id }) })
+
+/** The Conflicts list, mine or all. */
+export const conflictsQuery = (whose: 'mine' | 'all') =>
+  queryOptions({ queryKey: queryKeys.conflicts(whose), queryFn: () => api.conflicts({ whose }) })
+
+/** One pair, by its address `holderId.otherId`. */
+export const conflictQuery = (key: string) => {
+  const [holderId = '', otherId = ''] = key.split('.')
+  return queryOptions({
+    queryKey: queryKeys.conflict(key),
+    queryFn: () => api.conflict({ holderId, otherId }),
+  })
+}
 
 export const itemHistoryQuery = (id: string) =>
   queryOptions({ queryKey: queryKeys.itemHistory(id), queryFn: () => api.getItemHistory({ id }) })
@@ -399,6 +416,8 @@ type Read =
   | 'searchScope'
   | 'contextPage'
   | 'itemPage'
+  | 'conflicts'
+  | 'conflict'
   | 'getItemHistory'
   | 'getRelated'
   | 'draftFromText'
@@ -459,6 +478,9 @@ const items: QueryKey[] = [
   queryKeys.askedWeek,
   // What an owner did to an item is a report's outcome.
   queryKeys.myReports,
+  // A change to an item may start or end a conflict, or bring a kept pair back.
+  queryKeys.conflictLists,
+  queryKeys.conflictPairs,
 ]
 /** What a change to comments makes stale: the threads, and the Inbox's mentions. */
 const comments: QueryKey[] = [queryKeys.comments, queryKeys.inbox, queryKeys.inboxPage]
@@ -514,6 +536,10 @@ export const invalidations: {
   sendSuggestion: () => [...inbox, queryKeys.scopeSearches],
   withdrawSuggestion: () => inbox,
   undo: () => everything,
+  // Settling archives an item, publishes a version or keeps both: the items, the Inbox's alert and
+  // the comment that tells the other owners all move.
+  settleConflict: () => [...items, ...inbox, ...comments, queryKeys.savedQuestions],
+  suggestArchiving: () => inbox,
   postComment: () => comments,
   reactToComment: () => [queryKeys.comments],
   reactToSubject: () => [queryKeys.comments],

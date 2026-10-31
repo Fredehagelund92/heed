@@ -204,6 +204,11 @@ const AnswerPanel = React.lazy(() =>
   import('@/pages/observability').then((m) => ({ default: m.AnswerPanel })),
 )
 
+// The conflict dock opens from a list, an answer or a card; its view comes with its own code.
+const ConflictDock = React.lazy(() =>
+  import('@/pages/conflicts').then((m) => ({ default: m.ConflictDock })),
+)
+
 // Connect an agent is asked for now and then, so its dialog is not on the first load: its code is
 // fetched with Settings, which shows the same body, once the browser is idle (main.tsx), and the
 // dialog mounts the first time it is asked for.
@@ -266,6 +271,12 @@ function DockContent() {
       return <SharePanel id={dock.id!} />
     case 'where':
       return <WherePanel id={dock.id!} />
+    case 'conflict':
+      return (
+        <React.Suspense fallback={null}>
+          <ConflictDock pairKey={dock.id ?? ''} />
+        </React.Suspense>
+      )
   }
 }
 

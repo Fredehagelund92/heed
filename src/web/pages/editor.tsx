@@ -333,6 +333,8 @@ function Editor({
   const write = useWrite()
   const queryClient = useQueryClient()
   const { query } = useRoute()
+  // Opened from a conflict (Edit this one): the other item stays in view while this one is narrowed.
+  const beside = facts.find((f) => f.id === query.get('beside') && f.id !== original?.id)
   // What the page opened with, so an edit or a suggestion that changes nothing can't be sent.
   const [initial] = React.useState<Form>(() =>
     initialForm(original, query, homeDomain(me, domainList)?.id ?? '', {
@@ -885,6 +887,22 @@ function Editor({
       }
     >
       <Paper>
+        {beside && original && (
+          <aside
+            aria-label="The item it disagrees with"
+            className="mb-5 flex flex-col gap-1.5 rounded-frame border px-3 py-2 text-sm"
+          >
+            <p className="text-xs text-muted-foreground">
+              Disagrees with “{beside.title}”, {domains[beside.domain]?.name ?? beside.domain}
+              {beside.checkedOn && `, checked ${beside.checkedOn}`}
+            </p>
+            <p>{beside.summary}</p>
+            <p className="text-xs text-muted-foreground">
+              Narrow this one to where it applies, so the two no longer say different things about
+              the same thing.
+            </p>
+          </aside>
+        )}
         {mode === 'suggest' && original && (
           <p className="mb-5 rounded-frame bg-muted px-3 py-2 text-sm text-muted-foreground">
             You're suggesting a change. {ownerName}, owner of {domains[original.domain]?.name},

@@ -37,6 +37,12 @@ const places = [
   // Marked text: the sentences that disagree, an item that disagrees, a failed read, a refused key.
   '/ask?example=conflict',
   '/context/itm_gift_store_credit',
+  // The conflict view: the list, a pair's page, the dock, a pair across two domains, a near copy.
+  '/context/conflicts?whose=all',
+  '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+  '/context/conflicts?whose=all&dock=conflict.itm_gift_card_only.itm_gift_store_credit',
+  '/context/conflicts/itm_spain_vat_in.itm_spain_vat_out',
+  '/context/conflicts/itm_france_switch_12.itm_france_switch_21',
   '/settings/integrations?state=failed',
   '/settings/integrations?state=reauth',
   '/observability/summary',
@@ -77,7 +83,7 @@ const withTheme = (place: string, theme: string) =>
   `${place}${place.includes('?') ? '&' : '?'}theme=${theme}`
 
 /**
-  Wait until the fonts are in and nothing moves, so axe reads the colours a person sees. Still
+  Wait until the fonts are in, nothing is loading and nothing moves, so axe reads the colours a person sees. Still
   means still for ten frames in a row: a page's content can fade in a frame or two after its
   header shows, and one still frame before that would let axe read the text half faded. An
   animation tied to scrolling (the editor toolbar's edge fade) runs as long as the page is open and
@@ -88,6 +94,9 @@ async function settle(page: Page) {
     await document.fonts.ready
     delete (window as Window & { stillFrames?: number }).stillFrames
   })
+  // A load under 150ms shows a busy placeholder and no skeleton, so nothing moves while it waits:
+  // wait for it to end, or axe could read the content as it starts to fade in.
+  await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'))
   await page.waitForFunction(() => {
     const still = document
       .getAnimations()

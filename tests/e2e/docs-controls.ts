@@ -104,4 +104,34 @@ export const docControls: DocControl[] = [
     at: '/settings/integrations/cube',
     drawn: 'text',
   },
+  {
+    phrase: 'Keep this one',
+    page: 'settle-a-conflict',
+    at: '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Edit this one',
+    page: 'settle-a-conflict',
+    at: '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Keep both',
+    page: 'settle-a-conflict',
+    at: '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Not a conflict',
+    page: 'settle-a-conflict',
+    at: '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+    drawn: 'button',
+  },
+  {
+    phrase: 'Ask the owner',
+    page: 'settle-a-conflict',
+    at: '/context/conflicts/itm_gift_card_only.itm_gift_store_credit',
+    drawn: 'button',
+  },
 ]
