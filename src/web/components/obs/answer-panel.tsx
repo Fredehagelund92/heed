@@ -20,7 +20,7 @@ import { useQuery } from '@tanstack/react-query'
 import { conflictsQuery } from '@/api/queries'
 import { DockFrame, DockMissing } from '@/components/dock'
 import { StateLine } from '@/components/heed/bits'
-import { pairOfTopic } from '@/model/conflicts'
+import { pairOfItems } from '@/model/conflicts'
 import { countedState } from '@/model/ask'
 import { ReadingCard } from '@/components/heed/reading'
 import { DockStepper } from '@/components/heed/list'
@@ -176,7 +176,9 @@ export function AnswerPanel({ id }: { id: string }) {
         >
           {tab === 'overview' && <OverviewTab t={t} />}
           {tab === 'steps' && <StepsTab t={t} when={when} />}
-          {tab === 'warnings' && <WarningsTab t={t} counts={counts} />}
+          {tab === 'warnings' && (
+            <WarningsTab t={t} counts={counts} conflict={now.answer.conflict} />
+          )}
         </div>
       </ReadingCard>
     </DockFrame>
@@ -381,10 +383,18 @@ function StepsTab({ t, when }: { t: Topic; when: When }) {
   )
 }
 
-function WarningsTab({ t, counts }: { t: Topic; counts: Counts }) {
+function WarningsTab({
+  t,
+  counts,
+  conflict,
+}: {
+  t: Topic
+  counts: Counts
+  conflict: string[] | undefined
+}) {
   const obs = useObservability()
   // The pair agents got for this topic, named, with the way to the comparison (FR-220).
-  const pair = pairOfTopic(useQuery(conflictsQuery('all')).data ?? [], obs.topicName(t))
+  const pair = pairOfItems(useQuery(conflictsQuery('all')).data ?? [], conflict)
   const kinds = (['missing', 'partial', 'conflict', 'stale'] as Shown[]).filter(
     (s) => t.in.answers.includes(s) || (s === 'missing' && t.in.notFound),
   )

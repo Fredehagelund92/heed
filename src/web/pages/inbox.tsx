@@ -28,7 +28,7 @@ import { DomainBadge, FieldDiff } from '@/components/heed/bits'
 import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
-import { pairOfAlert } from '@/model/conflicts'
+import { pairOfKey } from '@/model/conflicts'
 import { connectorById } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
 import { QuickReview, Sender } from '@/pages/review'
@@ -661,7 +661,7 @@ function CardDetail({
               </div>
             )}
             {card.look && <LookList ids={card.look.questions} />}
-            {card.alert?.rule === 'disagree' && <AlertPair title={card.title} />}
+            {card.alert?.rule === 'disagree' && <AlertPair pair={card.alert.pair} />}
             {card.gap && (
               <div className="flex flex-col gap-3">
                 <p className="text-muted-foreground">
@@ -1371,11 +1371,11 @@ export function InboxPage() {
 
 /**
  * A Conflict alert's pair (FR-220): the two items its topic gets, compact, and the way to the
- * comparison. The alert names its topic; the pair is the one whose topic its title names before the colon.
+ * comparison. The alert carries the pair its topic gave when it was raised; its items find the row.
  */
-function AlertPair({ title }: { title: string }) {
+function AlertPair({ pair: key }: { pair: string | undefined }) {
   const rows = useQuery(conflictsQuery('all')).data ?? []
-  const row = pairOfAlert(rows, title)
+  const row = pairOfKey(rows, key)
   const pair = useQuery({ ...conflictQuery(row?.key ?? ''), enabled: !!row }).data
   if (!row || !pair) return null
   return (

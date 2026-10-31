@@ -74,13 +74,8 @@ async function keptPairs(tx: Queryable, bundle: ServingBundle): Promise<Set<stri
   )
 }
 
-/** Whether every pair the topic's answer gives was kept as both: then the topic raises nothing. */
-function allKept(
-  bundle: ServingBundle,
-  t: Topic,
-  kept: ReadonlySet<string>,
-  today: string,
-): boolean {
+/** The pairs of items the topic's answer gives as disagreeing, by key. */
+function givenPairs(bundle: ServingBundle, t: Topic, today: string): Set<string> {
   const scope = topicScope({
     metrics: t.metrics,
     values: t.values,
@@ -88,13 +83,29 @@ function allKept(
     month: t.month!,
   })
   const given = answer(bundle, { scope }, { today }).items
-  const pairs = new Set(given.flatMap((i) => i.conflictsWith.map((c) => pairKey(i.id, c))))
+  return new Set(given.flatMap((i) => i.conflictsWith.map((c) => pairKey(i.id, c))))
+}
+
+/** Whether every pair the topic's answer gives was kept as both: then the topic raises nothing. */
+function allKept(
+  bundle: ServingBundle,
+  t: Topic,
+  kept: ReadonlySet<string>,
+  today: string,
+): boolean {
+  const pairs = givenPairs(bundle, t, today)
   return pairs.size > 0 && [...pairs].every((p) => kept.has(p))
 }
 
 const topicFields = `t.area_id as area, cl_topic_domains(t.area_id, t.metric_keys) as areas,
   t.metric_keys as metrics, t.value_keys as values, t.dimension_keys as dimensions,
   t.month::text as month`
+
+/** The topic, and its pair when its answer gives exactly one, so the card can show it. */
+function pairSubject(bundle: ServingBundle | null, t: Topic, today: string): RaiseSubject {
+  const pairs = bundle && t.month ? [...givenPairs(bundle, t, today)] : []
+  return pairs.length === 1 ? { topic: t.id, pair: pairs[0]! } : { topic: t.id }
+}
 
 /** The Monday of a day's week, as the week a raise belongs to. */
 function mondayOf(day: string) {
@@ -166,7 +177,7 @@ const rules: Record<AlertRuleId, (c: Context) => Raise[] | Promise<Raise[]>> = {
         key: `${t.id}:${week}`,
         areas: t.area ? [t.area] : t.areas,
         title: `${topicTitle(bundle, t, 'A topic')}: conflict, ${timesWords(t.calls, minimum)}`,
-        subject: { topic: t.id },
+        subject: pairSubject(bundle, t, clock.today()),
       }))
   },
 

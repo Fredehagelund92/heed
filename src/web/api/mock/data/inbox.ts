@@ -204,6 +204,7 @@ export const cards: InboxCard[] = [
       rule: 'disagree',
       name: 'Conflict',
       href: '/observability/questions?dock=topic.orders-norway',
+      pair: 'itm_gift_store_credit.itm_gift_card_only',
     },
   },
   {

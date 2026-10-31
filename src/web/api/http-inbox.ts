@@ -231,7 +231,12 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
         detail: words.detail,
         primary: words.open,
         secondary: [],
-        alert: { rule: card.rule, name: alertRule(card.rule).name, href: hrefOf(card.subject) },
+        alert: {
+          rule: card.rule,
+          name: alertRule(card.rule).name,
+          href: hrefOf(card.subject),
+          ...('pair' in card.subject && card.subject.pair ? { pair: card.subject.pair } : {}),
+        },
       }
     }
     // Raised by the saved-question alert: the domain's saved questions that answer worse now.

@@ -61,7 +61,7 @@ export type InboxCard = {
    * Raised by an alert rule with a card of its own: the rule, its name, and where its one action
    * goes (a topic's answer panel, Overview, Usage, or an integration).
    */
-  alert?: { rule: AlertCardRule; name: string; href: string }
+  alert?: { rule: AlertCardRule; name: string; href: string; pair?: string }
   /** Created by a sync from a document, never by a person. */
   source?: { tool: string; folder: string; doc: string; read: string }
 }
