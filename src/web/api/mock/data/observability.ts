@@ -172,6 +172,47 @@ const TOPICS: Topic[] = [
 ]
 
 /** The day each open topic's questions first found nothing, by the topic that has its gap. */
+/**
+ * What a busy workspace caught, besides the answers with a warning, for the review flag
+ * ?state=busy: each line a day, a domain and how many. A saved question whose answer changed after
+ * a change (`kind` is the change), or an alert that asked an owner for a decision (`kind` is its
+ * rule) and how many of them an owner acted on within 14 days. Invented, like the rest. The demo
+ * world's own come from its saved questions' checks (mock/obs-summary.ts).
+ */
+type Caught = {
+  day: string
+  domain: DomainId
+  line: 'saved' | 'alert'
+  kind: string
+  count: number
+  acted?: number
+}
+const BUSY_CAUGHT: Caught[] = [
+  { day: '2026-07-08', domain: 'sales', line: 'saved', kind: 'publish', count: 3 },
+  { day: '2026-07-21', domain: 'sales', line: 'saved', kind: 'sync', count: 2 },
+  { day: '2026-07-14', domain: 'sales', line: 'alert', kind: 'gap', count: 2, acted: 2 },
+  { day: '2026-08-05', domain: 'sales', line: 'saved', kind: 'publish', count: 4 },
+  { day: '2026-08-19', domain: 'sales', line: 'saved', kind: 'sync', count: 2 },
+  { day: '2026-08-11', domain: 'sales', line: 'alert', kind: 'gap', count: 3, acted: 2 },
+  { day: '2026-08-26', domain: 'marketing', line: 'alert', kind: 'due', count: 2, acted: 2 },
+  { day: '2026-09-03', domain: 'sales', line: 'saved', kind: 'publish', count: 3 },
+  { day: '2026-09-10', domain: 'sales', line: 'saved', kind: 'sync', count: 3 },
+  { day: '2026-09-15', domain: 'sales', line: 'saved', kind: 'publish', count: 2 },
+  { day: '2026-09-18', domain: 'marketing', line: 'saved', kind: 'check_date', count: 1 },
+  { day: '2026-09-22', domain: 'marketing', line: 'saved', kind: 'publish', count: 2 },
+  { day: '2026-09-24', domain: 'sales', line: 'saved', kind: 'sync', count: 3 },
+  { day: '2026-09-28', domain: 'sales', line: 'saved', kind: 'archive', count: 1 },
+  { day: '2026-09-07', domain: 'sales', line: 'alert', kind: 'gap', count: 2, acted: 2 },
+  { day: '2026-09-21', domain: 'sales', line: 'alert', kind: 'gap', count: 2, acted: 1 },
+  { day: '2026-09-15', domain: 'sales', line: 'alert', kind: 'saved', count: 3, acted: 3 },
+  { day: '2026-09-18', domain: 'marketing', line: 'alert', kind: 'due', count: 2, acted: 1 },
+  { day: '2026-09-29', domain: 'sales', line: 'alert', kind: 'disagree', count: 2 },
+  { day: '2026-10-06', domain: 'sales', line: 'saved', kind: 'publish', count: 1 },
+  { day: '2026-10-20', domain: 'sales', line: 'saved', kind: 'publish', count: 1 },
+  { day: '2026-10-20', domain: 'sales', line: 'alert', kind: 'disagree', count: 1 },
+  { day: '2026-10-22', domain: 'sales', line: 'alert', kind: 'saved', count: 1 },
+]
+
 const OPEN_SINCE: Record<string, string> = {
   'orders-poland': '2026-08-24',
   'orders-spain': '2026-09-07',
@@ -394,5 +435,5 @@ export function obsData(state: ObsState): ObsData {
   }
 }
 
-export { TOPICS as topicSeed, DAYS as daySeed, OPEN_SINCE as openSince }
-export type { DomainId, Publish, Report, Topic, Day }
+export { TOPICS as topicSeed, DAYS as daySeed, OPEN_SINCE as openSince, BUSY_CAUGHT as busyCaught }
+export type { DomainId, Publish, Report, Topic, Day, Caught }

@@ -9,6 +9,8 @@ import {
 } from '@/api/queries'
 import {
   ArrowUpRightIcon,
+  BellIcon,
+  BookmarkIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CircleSlashIcon,
@@ -26,7 +28,7 @@ import { Frame, FrameSection } from '@/components/heed/frame'
 import { Loadable } from '@/components/heed/load-state'
 import { DomainDot } from '@/components/heed/tag-chip'
 import { LineChart, niceMax } from '@/components/obs/charts'
-import { DomainFilter, Kpi, type KpiChange } from '@/components/obs/controls'
+import { Definition, DomainFilter, Kpi, type KpiChange } from '@/components/obs/controls'
 import { ObsSkeleton } from '@/components/obs/obs-skeleton'
 import { dateLabel } from '@/model/observability'
 import {
@@ -62,6 +64,19 @@ import { ObsCrumbs, ObsPage } from '@/pages/observability'
 // made to print on one A4 sheet or to save as a PDF and pass on.
 
 const DAY = 86_400_000
+
+/** Each line of what was caught: its icon, and what it counts, a click away. */
+const CAUGHT_ICONS: Record<string, typeof TriangleAlertIcon> = {
+  warned: TriangleAlertIcon,
+  saved: BookmarkIcon,
+  alerts: BellIcon,
+}
+const CAUGHT_DEFINITIONS: Record<string, string> = {
+  warned: DEFINITIONS.warned,
+  saved: DEFINITIONS.saved,
+  alerts: DEFINITIONS.alerts,
+}
+
 /** What a hidden headline count says: true whether it is small itself or keeps a small one safe. */
 const HIDDEN = 'hidden: under 5, or it would give one under 5 away'
 
@@ -347,24 +362,25 @@ function Counted({
       </div>
       <FrameSection
         title="What we caught"
-        description="Separate lines, never added up: what was caught, never what was prevented."
+        description="Three separate lines, never added up. Each counts something that was noticed and shown to an agent or an owner."
       >
         <ul className="grid grid-cols-1 gap-px border-t bg-border @3xl/main:grid-cols-3 print:grid-cols-3">
-          {caught.map((c) => (
-            <li key={c.key} className="flex flex-col gap-1 bg-background px-4 py-3 md:px-5">
-              <span className="flex items-center gap-1.5 text-xs font-medium">
-                {c.measured ? (
-                  <TriangleAlertIcon className="size-3.5 text-muted-foreground" aria-hidden />
-                ) : (
-                  <CircleSlashIcon className="size-3.5 text-muted-foreground" aria-hidden />
-                )}
-                {c.title}
-              </span>
-              <span className={cn('text-sm text-pretty', !c.measured && 'text-muted-foreground')}>
-                {c.text}
-              </span>
-            </li>
-          ))}
+          {caught.map((c) => {
+            const Icon = c.measured ? (CAUGHT_ICONS[c.key] ?? TriangleAlertIcon) : CircleSlashIcon
+            const definition = c.measured ? CAUGHT_DEFINITIONS[c.key] : undefined
+            return (
+              <li key={c.key} className="flex flex-col gap-1 bg-background px-4 py-3 md:px-5">
+                <span className="flex items-center gap-1.5 text-xs font-medium">
+                  <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                  {c.title}
+                  {definition && <Definition label={c.title} definition={definition} />}
+                </span>
+                <span className={cn('text-sm text-pretty', !c.measured && 'text-muted-foreground')}>
+                  {c.text}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       </FrameSection>
       <div className="grid grid-cols-1 border-t @4xl/main:grid-cols-2 print:grid-cols-2">
@@ -489,6 +505,12 @@ function Counted({
               ['Answered with a warning', DEFINITIONS.warned],
               ['Not found', DEFINITIONS.missing],
               ['Changes approved', DEFINITIONS.changes],
+              ...(caught.some((c) => c.key === 'saved' && c.measured)
+                ? ([['Saved questions that changed', DEFINITIONS.saved]] as const)
+                : []),
+              ...(caught.some((c) => c.key === 'alerts' && c.measured)
+                ? ([['Alerts that owners acted on', DEFINITIONS.alerts]] as const)
+                : []),
             ] as const
           ).map(([term, text]) => (
             <div key={term}>

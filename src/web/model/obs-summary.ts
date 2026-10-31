@@ -1,4 +1,4 @@
-import type { SummaryPeriod } from '@domain/obs-summary'
+import type { CaughtView, SummaryPeriod } from '@domain/obs-summary'
 import type { Period, SummaryWords } from '@domain/obs-summary-words'
 import type { DomainId } from './items'
 import type { Count } from './observability'
@@ -75,6 +75,12 @@ export type SummaryData = {
     before: Count
     latest: { at: number; title: string; domain?: DomainId; by: string; href?: string }[]
   }
+  /**
+   * What was caught besides the answers with a warning: saved questions that changed after a
+   * change, by the change, and alerts that asked an owner for a decision and were acted on. A
+   * snapshot taken before it was counted has none.
+   */
+  caught?: CaughtView
   /** How many numbers on the page are hidden. */
   hidden: number
 }
@@ -93,6 +99,10 @@ export const DEFINITIONS = {
     'Questions with nothing written down for them. The agent was told so, and the topic waits for an owner to write it.',
   changes:
     'Changes to context items that an owner approved in review and published, so agents get them from then on.',
+  saved:
+    'Times a saved question was checked again on its own after a publish, an archive, a restore, a sync or a check date passing, and its answer was no longer the same. Check now, saving and keeping an answer are not counted.',
+  alerts:
+    'Alerts that asked an owner for a decision: Not found, a saved question needs a look, and a check is due. Acted on: an owner or admin decided within 14 days, such as a draft, a kept answer or the item checked. Not measured for the other five rules, which ask for no decision that is kept.',
 } as const
 
 /* ---------- snapshots ---------- */

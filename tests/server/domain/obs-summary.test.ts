@@ -1,13 +1,16 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
+  caughtTriggers,
   coarseStates,
   mondayOf,
+  noCaught,
   piecesOf,
   summaryPeriod,
   summaryView,
   trendWeeks,
   weekSpan,
+  type CaughtCounts,
   type Coarse,
   type Span,
   type SummaryCounts,
@@ -39,7 +42,16 @@ function countsOf(
       for (const k of coarseStates) counts[k] += day(d)[k]
     return { ...p, counts }
   })
-  return { pieces, now, before, weeks, open, since, changes: { now: 0, before: 0 } }
+  return {
+    pieces,
+    now,
+    before,
+    weeks,
+    open,
+    since,
+    changes: { now: 0, before: 0 },
+    caught: noCaught(),
+  }
 }
 
 const fine = (n: number) => n === 0 || n >= min
@@ -267,6 +279,91 @@ describe('summaryView', () => {
     })
     const view = summaryView({ ...input, changes: { now: 2, before: 4 } }, min)
     expect(view.hidden).toBe(2)
+  })
+
+  it('shows what was caught as its own lines, apart from what was asked', () => {
+    const input = countsOf('month', '2026-10-23', () => ({ checked: 6, warned: 1, missing: 1 }))
+    const caught: CaughtCounts = {
+      saved: { publish: 7, archive: 0, restore: 0, sync: 5, check_date: 0 },
+      alerts: { raised: 9, acted: 6 },
+    }
+    const view = summaryView({ ...input, caught }, min)
+    expect(view.caught).toEqual({
+      saved: {
+        total: 12,
+        triggers: { publish: 7, archive: 0, restore: 0, sync: 5, check_date: 0 },
+      },
+      alerts: { raised: 9, acted: 6 },
+    })
+    // The rest of the page is as it was without them.
+    expect(view.now).toEqual(summaryView(input, min).now)
+    expect(view.hidden).toBe(summaryView(input, min).hidden)
+  })
+
+  it("keeps a saved question's count and hides its kinds of change first", () => {
+    const input = countsOf('month', '2026-10-23', () => ({ checked: 6, warned: 0, missing: 0 }))
+    const saved = { publish: 7, archive: 1, restore: 0, sync: 6, check_date: 1 }
+    const view = summaryView({ ...input, caught: { ...noCaught(), saved } }, min)
+    // 1 and 1 are hidden; their 2 would come out of 15 less 7 and 6, so 6 is hidden too.
+    expect(view.caught.saved).toEqual({
+      total: 15,
+      triggers: { publish: 7, archive: null, restore: 0, sync: null, check_date: null },
+    })
+    const small = summaryView(
+      { ...input, caught: { ...noCaught(), saved: { ...noCaught().saved, publish: 3 } } },
+      min,
+    )
+    expect(small.caught.saved.total).toBeNull()
+    expect(small.caught.saved.triggers.publish).toBeNull()
+  })
+
+  it('hides an alert count under the minimum, each on its own', () => {
+    const input = countsOf('month', '2026-10-23', () => ({ checked: 6, warned: 0, missing: 0 }))
+    const view = summaryView(
+      { ...input, caught: { ...noCaught(), alerts: { raised: 8, acted: 3 } } },
+      min,
+    )
+    expect(view.caught.alerts).toEqual({ raised: 8, acted: null })
+    const none = summaryView(
+      { ...input, caught: { ...noCaught(), alerts: { raised: 3, acted: 0 } } },
+      min,
+    )
+    expect(none.caught.alerts).toEqual({ raised: null, acted: 0 })
+    expect(none.hidden).toBe(summaryView(input, min).hidden + 1)
+  })
+
+  it('never lets the kinds of change give a small one away', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 0, max: 12 }), { minLength: 5, maxLength: 5 }),
+        (values) => {
+          const input = countsOf('month', '2026-10-23', () => ({
+            checked: 6,
+            warned: 0,
+            missing: 0,
+          }))
+          const saved = Object.fromEntries(
+            caughtTriggers.map((t, i) => [t, values[i]!]),
+          ) as CaughtCounts['saved']
+          const view = summaryView({ ...input, caught: { ...noCaught(), saved } }, min).caught.saved
+          const total = values.reduce((a, b) => a + b, 0)
+          if (fine(total)) expect(view.total).toBe(total)
+          else expect(view.total).toBeNull()
+          const shown = caughtTriggers.filter((t) => view.triggers[t] !== null)
+          for (const t of shown) expect(fine(view.triggers[t]!)).toBe(true)
+          // What the hidden kinds add up to, from the total less those shown, is never small.
+          if (view.total !== null) {
+            const rest = view.total - shown.reduce((n, t) => n + view.triggers[t]!, 0)
+            expect(fine(rest)).toBe(true)
+            const hidden = caughtTriggers.filter((t) => view.triggers[t] === null)
+            expect(hidden.length === 1 && values[caughtTriggers.indexOf(hidden[0]!)]! > 0).toBe(
+              false,
+            )
+          }
+        },
+      ),
+      { numRuns: 200 },
+    )
   })
 
   it('hides a small count in the period, and what would give it away', () => {

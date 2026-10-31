@@ -13,7 +13,7 @@ What is kept about the questions agents ask, what is never kept, and who can see
 
 Only what a question was about, and how often. Never the words, and never who asked.
 
-What each question was about is cleared after 180 days by default. How many questions each domain had each week, and how they were answered, is kept for good, so trends can go back further. Those counts hold no words and no names, and a count under 5 reads "Fewer than 5".
+What each question was about is cleared after 180 days by default. How many questions each domain had each week, and how they were answered, is kept for good, so trends can go back further. So is how many times each week a saved question gave a different answer after a change, and how many alerts were raised and acted on. Those counts hold no words and no names, and a count under 5 reads "Fewer than 5".
 
 ## What is kept with a name
 

@@ -196,6 +196,12 @@ grant execute on function cl_obs_weekly_rollup_due(date) to :api;
 -- same whoever reads.
 grant insert on obs_snapshots to :api;
 grant execute on function cl_obs_changes(text[], date, date) to :api;
+-- What Heed caught, kept without limit (obs_caught_weekly): counts by week, domain and a trigger or
+-- alert rule from fixed lists, never a question, an item or a person. The API role reads them and
+-- counts a piece of a week from the records; only the roll-up job writes them. Both functions run
+-- as the owner, so the counts are the same whoever reads.
+grant execute on function cl_obs_caught(date, date) to :api;
+grant execute on function cl_obs_caught_rollup_due(date) to :api;
 -- Content sources (CON-601 to CON-611): a read keeps what it knew about each document, never its text, and
 -- counts on its read what it did; its own transaction names the source it reads for (cl_source), which row
 -- security lets write that source's suggestions and nothing else.

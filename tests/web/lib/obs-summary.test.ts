@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { noCaughtView, type CaughtView } from '@domain/obs-summary'
+import { caughtSentence } from '@domain/obs-summary-words'
 import {
   caughtLines,
   changesWords,
@@ -144,8 +146,95 @@ describe('changes under the minimum', () => {
   })
 })
 
+/** What was caught: 12 saved questions changed (7 after a publish, 5 after a sync), 9 alerts, 6 acted on. */
+function caught(over: Partial<CaughtView> = {}): CaughtView {
+  return {
+    saved: {
+      total: 12,
+      triggers: { publish: 7, archive: 0, restore: 0, sync: 5, check_date: 0 },
+    },
+    alerts: { raised: 9, acted: 6 },
+    ...over,
+  }
+}
+
 describe('caughtLines', () => {
-  it('keeps three separate lines, two of them not measured yet, and never a total', () => {
+  it('says each of the three lines on its own, never a total and never prevented', () => {
+    const lines = caughtLines(data({ caught: caught() }))
+    expect(lines.map((l) => [l.key, l.title, l.measured])).toEqual([
+      ['warned', 'Answered with a warning', true],
+      ['saved', 'Saved questions that changed', true],
+      ['alerts', 'Alerts that owners acted on', true],
+    ])
+    expect(lines[1]!.text).toBe(
+      '12 times, a saved question gave a different answer after a change: 7 after a publish and 5 after a sync.',
+    )
+    expect(lines[2]!.text).toBe(
+      '9 alerts asked an owner for a decision; owners acted on 6 of them within 14 days.',
+    )
+    // 82 + 12 + 9 = 103: no line says what they add up to.
+    for (const l of lines) {
+      expect(l.text).not.toMatch(/prevent/i)
+      expect(l.text).not.toContain('103')
+    }
+  })
+
+  it('says a hidden kind of change as other changes, and a small count as Fewer than 5', () => {
+    const lines = caughtLines(
+      data({
+        caught: caught({
+          saved: {
+            total: 15,
+            triggers: { publish: 7, archive: null, restore: 0, sync: null, check_date: null },
+          },
+          alerts: { raised: 8, acted: null },
+        }),
+      }),
+    )
+    expect(lines[1]!.text).toBe(
+      '15 times, a saved question gave a different answer after a change: 7 after a publish and 8 after other changes.',
+    )
+    expect(lines[2]!.text).toBe(
+      '8 alerts asked an owner for a decision; owners acted on fewer than 5 of them within 14 days.',
+    )
+    const small = caughtLines(
+      data({
+        caught: caught({
+          saved: { total: null, triggers: noCaughtView().saved.triggers },
+          alerts: { raised: null, acted: 0 },
+        }),
+      }),
+    )
+    expect(small[1]!.text).toBe(
+      'Fewer than 5 times, a saved question gave a different answer after a change.',
+    )
+    expect(small[2]!.text).toBe(
+      'Fewer than 5 alerts asked an owner for a decision; none was acted on within 14 days.',
+    )
+  })
+
+  it('says when nothing was caught on a line, and when every alert was acted on', () => {
+    const lines = caughtLines(
+      data({
+        caught: caught({
+          saved: {
+            total: 0,
+            triggers: { publish: 0, archive: 0, restore: 0, sync: 0, check_date: 0 },
+          },
+          alerts: { raised: 6, acted: 6 },
+        }),
+      }),
+    )
+    expect(lines[1]!.text).toBe('No saved question gave a different answer after a change.')
+    expect(lines[2]!.text).toBe(
+      '6 alerts asked an owner for a decision; owners acted on all of them within 14 days.',
+    )
+    expect(
+      caughtLines(data({ caught: caught({ alerts: { raised: 0, acted: 0 } }) }))[2]!.text,
+    ).toBe('No alert asked an owner for a decision.')
+  })
+
+  it('keeps two lines not measured yet in a snapshot taken before they were counted', () => {
     const lines = caughtLines(data())
     expect(lines.map((l) => [l.key, l.measured])).toEqual([
       ['warned', true],
@@ -158,6 +247,50 @@ describe('caughtLines', () => {
     expect(
       caughtLines(data({ numbers: { asked: 9, checked: 9, warned: 0, missing: 0 } }))[0]!.text,
     ).toBe('No answer went out with a warning.')
+  })
+})
+
+describe('caughtSentence', () => {
+  it('tells one thing that was caught, from a fixed template', () => {
+    expect(caughtSentence(data({ caught: caught() }))).toBe(
+      'Saved questions caught a different answer 12 times after a change, most of them after a publish.',
+    )
+    expect(summarySentences(data({ caught: caught() })).at(-1)).toBe(
+      'Saved questions caught a different answer 12 times after a change, most of them after a publish.',
+    )
+    // No saved question changed: the alerts acted on, else the answers with a warning.
+    const none = { total: 0, triggers: noCaughtView().saved.triggers }
+    expect(caughtSentence(data({ caught: caught({ saved: none }) }))).toBe(
+      'Owners acted on 6 of the alerts that asked them for a decision.',
+    )
+    expect(
+      caughtSentence(data({ caught: caught({ saved: none, alerts: { raised: 7, acted: 0 } }) })),
+    ).toBe('82 answers went out with a warning, and the agent was told each time.')
+    // A hidden count on these lines is under 5, and says so.
+    expect(
+      caughtSentence(
+        data({
+          caught: caught({ saved: { total: null, triggers: noCaughtView().saved.triggers } }),
+        }),
+      ),
+    ).toBe('Saved questions caught a different answer fewer than 5 times after a change.')
+    expect(
+      caughtSentence(data({ caught: caught({ saved: none, alerts: { raised: 7, acted: null } }) })),
+    ).toBe('Owners acted on fewer than 5 of the alerts that asked them for a decision.')
+  })
+
+  it('says nothing was caught only when every line is shown and none', () => {
+    const none = {
+      saved: { total: 0, triggers: { publish: 0, archive: 0, restore: 0, sync: 0, check_date: 0 } },
+      alerts: { raised: 0, acted: 0 },
+    }
+    const quiet = { asked: 40, checked: 40, warned: 0, missing: 0 }
+    expect(caughtSentence(data({ numbers: quiet, caught: none }))).toBe(
+      'Nothing was caught in September 2026.',
+    )
+    expect(caughtSentence(data({ numbers: { ...quiet, warned: null }, caught: none }))).toBeNull()
+    // A snapshot taken before what was caught was counted says nothing of it.
+    expect(caughtSentence(data())).toBeNull()
   })
 })
 

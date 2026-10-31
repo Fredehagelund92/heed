@@ -40,7 +40,7 @@ instance counts on its own, and an address is the connection's peer, so behind a
 before sign-in shares one count. `/health`, `/health/ready` and `/metrics` are not limited.
 
 The service also runs its scheduled jobs (pg-boss on the same database): `observability.rollup`
-(the weekly counts Observability keeps without limit, see [Observability](reference.md#observability)),
+(the weekly counts Observability keeps without limit, and what Heed caught each week, see [Observability](reference.md#observability)),
 `partitions.ensure`, `observability.snapshot` (Summary's monthly snapshot, kept without limit) and
 `retention.run` each night (UTC), in that order, `outbox.relay` every minute (a backstop for the relay, see
 [The outbox](reference.md#the-outbox-and-inbox-items)), `gaps.detect` every 15 minutes, `alerts.raise` every 15 minutes (the

@@ -32,13 +32,19 @@ import {
 import {
   coarseOf,
   coarseTotal,
+  decidedRules,
   mondayOf,
+  noCaught,
+  noCaughtView,
   piecesOf,
   summaryPeriod,
   summaryView,
   trendWeeks,
   weekSpan,
+  type CaughtCounts,
+  type CaughtTrigger,
   type Piece,
+  type Span,
   type SummaryPeriod,
 } from '../../../domain/obs-summary.ts'
 import { summaryWords } from '../../../domain/obs-summary-words.ts'
@@ -275,6 +281,45 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
   }
 
   /**
+   * What was caught in a period besides the answers with a warning, in the domains read: how many
+   * times a saved question's answer changed after a change, by the change, and the alerts that
+   * asked an owner for a decision and how many an owner acted on. A whole week comes from the
+   * weekly counts (`obs_caught_weekly`) when they keep it, and any other day from the records
+   * (cl_obs_caught), which run as the owner, so the counts are the same whoever reads.
+   */
+  async function caughtOf(areas: string[] | null, admin: boolean, now: Span) {
+    const [kept] = await tx.query<{ from: string | null; to: string | null }>(
+      'select min(week)::text as from, max(week)::text as to from obs_caught_weekly',
+    )
+    const pieces = piecesOf([now])
+    const rolled = (p: Piece) =>
+      p.whole && !!kept?.from && !!kept.to && p.week >= kept.from && p.week <= kept.to
+    type Row = { line: 'saved' | 'alert'; kind: string; count: number; acted: number }
+    const scope = '(case when $1::text[] is null then $2 else c.area_id = any($1) end)'
+    const rows: Row[] = await tx.query<Row>(
+      `select c.line, c.kind, sum(c.count)::int as count, sum(c.acted)::int as acted
+         from obs_caught_weekly c where c.week = any($3::date[]) and ${scope} group by 1, 2`,
+      [areas, admin, pieces.filter(rolled).map((p) => p.week)],
+    )
+    for (const p of pieces.filter((p) => !rolled(p)))
+      rows.push(
+        ...(await tx.query<Row>(
+          `select c.line, c.kind, sum(c.count)::int as count, sum(c.acted)::int as acted
+             from cl_obs_caught($3::date, $4::date) c where ${scope} group by 1, 2`,
+          [areas, admin, p.start, p.end],
+        )),
+      )
+    const caught: CaughtCounts = noCaught()
+    for (const r of rows)
+      if (r.line === 'saved') caught.saved[r.kind as CaughtTrigger] += r.count
+      else if ((decidedRules as readonly string[]).includes(r.kind)) {
+        caught.alerts.raised += r.count
+        caught.alerts.acted += r.acted
+      }
+    return caught
+  }
+
+  /**
    * Summary (FR-620) over the domains read: every one (null) for an administrator, with the calls
    * that have none, or some. What was asked and how it was answered, against the period before;
    * what was asked and checked each of the trend's 13 weeks; what is still open; and what
@@ -306,6 +351,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
       weeks: weeks.map((start) => ({ start, counted: false, checked: null })),
       open: { total: 0, spots: [] },
       changes: { total: null, before: null, latest: [] },
+      caught: noCaughtView(),
       hidden: 0,
     }
     const pieces = piecesOf([now, before, ...weeks.map(weekSpan)])
@@ -464,6 +510,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         open: complete ? spots.map((g) => g.missing) : [],
         since,
         changes: { now: changed?.now ?? 0, before: changed?.before ?? 0 },
+        caught: await caughtOf(areas, admin, now),
       },
       least,
     )
@@ -501,6 +548,7 @@ export function createObservabilityService(tx: Queryable, clock: Clock) {
         before: view.changes.before,
         latest: view.changes.now === null ? [] : latest,
       },
+      caught: view.caught,
       hidden: view.hidden,
     }
   }

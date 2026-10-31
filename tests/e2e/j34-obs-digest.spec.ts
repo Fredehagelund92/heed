@@ -52,7 +52,12 @@ test('a snapshot opens as a digest: the month as it was, counts and sentences on
   const caught = page.locator('section', {
     has: page.getByRole('heading', { name: 'What we caught' }),
   })
-  await expect(caught.getByText(/^Not measured yet\./)).toHaveCount(2)
+  // The three lines as they were said: the saved questions' one change is under 5.
+  await expect(caught).toContainText(
+    'Fewer than 5 times, a saved question gave a different answer after a change.',
+  )
+  await expect(caught).toContainText('No alert asked an owner for a decision.')
+  await expect(caught.getByText(/^Not measured yet\./)).toHaveCount(0)
   // What is open and what changed are kept as counts: no topic, no item, nobody who approved.
   const open = page.locator('section', { has: page.getByRole('heading', { name: 'Still open' }) })
   await expect(open).toContainText('A snapshot keeps the count, not the topics')
