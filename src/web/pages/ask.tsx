@@ -333,7 +333,9 @@ export function AskChat({
 
   return (
     <div data-touch-targets className="@container flex h-full min-h-0 flex-col">
-      <div ref={viewport} className="min-h-0 flex-1 scrollbar-stable overflow-y-auto">
+      {/* Positioned, so what is placed inside a turn (a citation's screen-reader words) stays in
+          this scroll box and never makes the page around it taller. */}
+      <div ref={viewport} className="relative min-h-0 flex-1 scrollbar-stable overflow-y-auto">
         <div ref={content} className={cn('mx-auto flex min-h-full w-full flex-col', width)}>
           {turns.length === 0 ? (
             <div className="flex flex-1 flex-col justify-center gap-5 py-10">
