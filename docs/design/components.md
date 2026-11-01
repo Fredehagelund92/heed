@@ -198,11 +198,11 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### Help and documentation
 
-| Part          | File                                                         | Job                                                           |
-| ------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
-| Help page     | `pages/help.tsx`, `lib/help-content.ts`, `lib/help-aside.ts` | The answer lines, ten words, how agents use it                |
-| Documentation | `pages/docs.tsx`                                             | Its own site: twelve pages and What's new, search, `llms.txt` |
-| Sign-in       | `pages/signin.tsx`                                           | The demo person picker (demo mode only in the app)            |
+| Part          | File                                                         | Job                                                             |
+| ------------- | ------------------------------------------------------------ | --------------------------------------------------------------- |
+| Help page     | `pages/help.tsx`, `lib/help-content.ts`, `lib/help-aside.ts` | The answer lines, ten words, how agents use it                  |
+| Documentation | `pages/docs.tsx`                                             | Its own site: thirteen pages and What's new, search, `llms.txt` |
+| Sign-in       | `pages/signin.tsx`                                           | The demo person picker (demo mode only in the app)              |
 
 ## 4. Fixtures and rules in code
 

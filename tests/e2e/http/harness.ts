@@ -6,6 +6,8 @@ import { identifier, localRoles } from '../../../src/server/db/roles.ts'
 import { createLogger } from '../../../src/server/observability/logger.ts'
 import { createEditionSource } from '../../../src/server/modules/editions/index.ts'
 import { createAnonymousStore } from '../../../src/server/mcp/store.ts'
+import { withAgents } from '../../../src/server/mcp/auth.ts'
+import { servingAgentCheck } from '../../../src/server/modules/access-keys/index.ts'
 import { idleJobs } from '../../server/idle-jobs.ts'
 import { devPeople, TODAY } from '../../web/http/demo-week.ts'
 import { demoLoginServer } from '../../web/http/login.ts'
@@ -115,7 +117,15 @@ export async function freshService(
     mcp: {
       source: createEditionSource(serving),
       store: createAnonymousStore(serving),
-      verifier: login.verifier,
+      // Each connection signs in as its agent, with the tools it has on, as the service checks it
+      // (src/server/mcp/runtime.ts): a suggestion names the agent that sent it.
+      verifier: withAgents(
+        login.verifier,
+        servingAgentCheck({
+          query: async <Row extends pg.QueryResultRow>(sql: string, values?: unknown[]) =>
+            (await serving.query<Row>(sql, values)).rows,
+        }),
+      ),
       resource: `${issuer}/mcp`,
       authorizationServers: [issuer],
       close: () => serving.end(),

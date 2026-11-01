@@ -28,8 +28,10 @@ import { Switch } from '@/components/ui/switch'
 import { Frame, FrameRows, FrameSection } from '@/components/heed/frame'
 import { ShowMoreButton } from '@/components/heed/show-more'
 import { useShowMore } from '@/hooks/use-show-more'
+import { useQuery } from '@tanstack/react-query'
 import { toApiError } from '@/api/errors'
-import { useAgentConnections, useSettings, useWrite } from '@/api/queries'
+import { autoPublishQuery, useAgentConnections, useSettings, useWrite } from '@/api/queries'
+import { PolicyCard } from '@/pages/agent-policies'
 import { AGENT_TOOLS, logoFor } from '@/lib/agents'
 import {
   connectedLine,
@@ -47,8 +49,9 @@ import { agentNameProblem, type AgentToolName } from '@domain/agents'
 
 /*
   Settings, Agents and access: connect an agent, every agent by its name with what it may do
-  (FR-420), Pause sharing, and the tools agents call. An admin sees every agent and sets what each
-  may do; anyone else sees the apps they signed in with, and may revoke them.
+  (FR-420) and where it publishes without review (FR-421), Pause sharing, publishing without review
+  for the workspace, and the tools agents call. An admin sees every agent and sets what each may
+  do; anyone else sees the apps they signed in with, and may revoke them or turn a policy off.
 */
 
 /** What a suggestion's state reads as on an agent's list of what it sent. */
@@ -219,85 +222,202 @@ function AgentDetails({
   onRename: () => void
 }) {
   return (
-    <div className="grid gap-4 border-t bg-muted/40 px-4 py-4 text-sm md:px-5 @2xl/main:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        <h4 className="text-xs font-medium text-muted-foreground">Tools it may call</h4>
-        <ul className="flex flex-col gap-2" aria-label={`Tools ${r.agent} may call`}>
-          {r.tools.map(({ tool, on, allowed }) => {
-            const id = `agent-${r.id}-${tool}`
-            const hint = !allowed
-              ? notAllowedLine(r)
-              : workspaceOff(tool)
-                ? 'Off for every agent, in Tools and access keys.'
-                : AGENT_TOOLS.find((t) => t.name === tool)?.what
-            return (
-              <li key={tool} className="flex items-start justify-between gap-3">
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <label htmlFor={id} className="font-mono text-xs">
-                    {tool}
-                  </label>
-                  <span className="text-xs text-muted-foreground">{hint}</span>
-                </span>
-                {admin ? (
-                  <Switch
-                    id={id}
-                    checked={on && allowed}
-                    disabled={!allowed}
-                    onCheckedChange={(next) => onTool(tool, next)}
-                  />
-                ) : (
-                  <span id={id} className="shrink-0 text-xs text-muted-foreground">
-                    {on && allowed ? 'On' : 'Off'}
-                  </span>
-                )}
-              </li>
-            )
-          })}
-        </ul>
-        <p className="text-muted-foreground">
-          {toolsOn(r).length
-            ? 'It never publishes, never reads comments and never sees who asked.'
-            : 'Every tool is off: it gets nothing until an admin switches one on. Revoke ends it for good.'}
-        </p>
-        {r.setBy && (
-          <p className="text-xs text-muted-foreground">
-            Changed by {r.setBy.name} on {r.setBy.on}.
+    <>
+      {r.policies.length > 0 && (
+        <div className="flex flex-col gap-2 border-t bg-muted/40 px-4 pt-4 text-sm md:px-5">
+          <h4 className="text-xs font-medium text-muted-foreground">Publishes without review</h4>
+          <ul
+            className="flex flex-col gap-2"
+            aria-label={`Where ${r.agent} publishes without review`}
+          >
+            {r.policies.map((p) => (
+              <PolicyCard key={p.id} policy={p} title={`In ${p.domainName}`} from="agents" />
+            ))}
+          </ul>
+          <p className="text-muted-foreground">
+            There, its suggestions for new, low-risk items publish at once, as the owner's decision.
+            Everything else waits for an owner.
           </p>
+        </div>
+      )}
+      <div
+        className={cn(
+          'grid gap-4 bg-muted/40 px-4 py-4 text-sm md:px-5 @2xl/main:grid-cols-2',
+          !r.policies.length && 'border-t',
         )}
-        {admin && r.kind === 'key' && (
-          <div>
-            <Button variant="outline" size="sm" onClick={onRename}>
-              Rename
-            </Button>
-          </div>
-        )}
-      </div>
-      <div className="flex flex-col gap-2">
-        <h4 className="text-xs font-medium text-muted-foreground">What it sent</h4>
-        {r.kind === 'key' ? (
-          <p className="text-muted-foreground">Nothing: an access key only reads and reports.</p>
-        ) : r.recent.length ? (
-          <>
-            <p className="text-muted-foreground">
-              {r.sent === 1 ? '1 suggestion' : `${r.sent} suggestions`} in the last 30 days, each
-              with {r.who.split(' ')[0]}'s OK.
-            </p>
-            <ul className="flex flex-col gap-1.5">
-              {r.recent.map((s) => (
-                <li key={s.id} className="flex min-w-0 flex-col">
-                  <span className="truncate">{s.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {s.on}, {SENT_STATES[s.state] ?? s.state}
+      >
+        <div className="flex flex-col gap-2">
+          <h4 className="text-xs font-medium text-muted-foreground">Tools it may call</h4>
+          <ul className="flex flex-col gap-2" aria-label={`Tools ${r.agent} may call`}>
+            {r.tools.map(({ tool, on, allowed }) => {
+              const id = `agent-${r.id}-${tool}`
+              const hint = !allowed
+                ? notAllowedLine(r)
+                : workspaceOff(tool)
+                  ? 'Off for every agent, in Tools and access keys.'
+                  : AGENT_TOOLS.find((t) => t.name === tool)?.what
+              return (
+                <li key={tool} className="flex items-start justify-between gap-3">
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <label htmlFor={id} className="font-mono text-xs">
+                      {tool}
+                    </label>
+                    <span className="text-xs text-muted-foreground">{hint}</span>
                   </span>
+                  {admin ? (
+                    <Switch
+                      id={id}
+                      checked={on && allowed}
+                      disabled={!allowed}
+                      onCheckedChange={(next) => onTool(tool, next)}
+                    />
+                  ) : (
+                    <span id={id} className="shrink-0 text-xs text-muted-foreground">
+                      {on && allowed ? 'On' : 'Off'}
+                    </span>
+                  )}
                 </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <p className="text-muted-foreground">No suggestions yet.</p>
-        )}
+              )
+            })}
+          </ul>
+          <p className="text-muted-foreground">
+            {!toolsOn(r).length
+              ? 'Every tool is off: it gets nothing until an admin switches one on. Revoke ends it for good.'
+              : r.policies.length
+                ? 'It never reads comments and never sees who asked.'
+                : 'It never publishes, never reads comments and never sees who asked.'}
+          </p>
+          {r.setBy && (
+            <p className="text-xs text-muted-foreground">
+              Changed by {r.setBy.name} on {r.setBy.on}.
+            </p>
+          )}
+          {admin && r.kind === 'key' && (
+            <div>
+              <Button variant="outline" size="sm" onClick={onRename}>
+                Rename
+              </Button>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-2">
+          <h4 className="text-xs font-medium text-muted-foreground">What it sent</h4>
+          {r.kind === 'key' ? (
+            <p className="text-muted-foreground">Nothing: an access key only reads and reports.</p>
+          ) : r.recent.length ? (
+            <>
+              <p className="text-muted-foreground">
+                {r.sent === 1 ? '1 suggestion' : `${r.sent} suggestions`} in the last 30 days, each
+                with {r.who.split(' ')[0]}'s OK.
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {r.recent.map((s) => (
+                  <li key={s.id} className="flex min-w-0 flex-col">
+                    <span className="truncate">{s.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {s.on}, {SENT_STATES[s.state] ?? s.state}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="text-muted-foreground">No suggestions yet.</p>
+          )}
+        </div>
       </div>
-    </div>
+    </>
+  )
+}
+
+/**
+ * Publishing without review, for the workspace (FR-421): off until an admin switches it on; then
+ * owners choose, per domain and per agent, which agent's low-risk new items publish without a
+ * review round. Off again ends every policy at once, so it asks first while any is on.
+ */
+function AutoPublishSection() {
+  const write = useWrite()
+  const load = useQuery(autoPublishQuery())
+  const [asking, setAsking] = React.useState(false)
+  const state = load.data
+  const setOn = (on: boolean) =>
+    void write('setAutoPublish', { on }).then(
+      ({ ended }) =>
+        toast(
+          on
+            ? 'Owners can let an agent publish without review'
+            : 'Publishing without review is off',
+          ended
+            ? {
+                description: `${ended === 1 ? '1 policy' : `${ended} policies`} turned off. Those suggestions wait for review again.`,
+              }
+            : undefined,
+        ),
+      (e: unknown) =>
+        toast(on ? "Couldn't switch it on" : "Couldn't switch it off", {
+          description: toApiError(e).message,
+        }),
+    )
+  return (
+    <FrameSection
+      title="Publish without review"
+      level={3}
+      description={
+        !state?.on
+          ? 'Off. Every suggestion waits for an owner.'
+          : state.open
+            ? `On, with ${state.open === 1 ? '1 policy' : `${state.open} policies`}. Each is in its agent's Details.`
+            : 'On. No owner has let an agent publish without review yet.'
+      }
+      collapsible
+      defaultOpen={false}
+    >
+      <FrameRows
+        rows={[
+          {
+            id: 'auto-publish',
+            label: (
+              <label htmlFor="auto-publish">
+                Let owners choose agents that publish without review
+              </label>
+            ),
+            hint: "Low-risk new items only, as the owner's decision. Off ends every policy.",
+            value: (
+              <Switch
+                id="auto-publish"
+                checked={state?.on ?? false}
+                disabled={!state}
+                onCheckedChange={(on) => (!on && state?.open ? setAsking(true) : setOn(on))}
+              />
+            ),
+          },
+        ]}
+      />
+      <Dialog open={asking} onOpenChange={setAsking}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Turn off publishing without review?</DialogTitle>
+            <DialogDescription>
+              {state?.open === 1 ? 'The 1 policy' : `All ${state?.open ?? 0} policies`} end at once.
+              Their agents' suggestions wait for review again, and owners set them again once it is
+              back on.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setAsking(false)
+                setOn(false)
+              }}
+            >
+              Turn off
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </FrameSection>
   )
 }
 
@@ -346,6 +466,11 @@ function AgentRow({
               <Badge variant={off ? 'destructive' : 'outline'} className="font-normal">
                 {toolsLine(r)}
               </Badge>
+              {r.policies.length > 0 && (
+                <Badge variant="secondary" className="font-normal">
+                  Publishes without review
+                </Badge>
+              )}
             </p>
             <p className="truncate text-xs text-muted-foreground">
               {who}
@@ -571,6 +696,7 @@ export function Agents() {
           ]}
         />
       </FrameSection>
+      {admin && <AutoPublishSection />}
       <FrameSection
         title="Tools and access keys"
         level={3}

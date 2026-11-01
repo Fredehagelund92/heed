@@ -11,12 +11,17 @@ import { fieldValue, markedFields, type MarkedField } from '../../domain/provena
 import type { Term } from '../../domain/vocabulary.ts'
 import type { Clock } from '../clock.ts'
 import type { Database, Queryable } from '../db/database.ts'
+import { publishUnderPolicy, type PolicyOutcome } from '../modules/agents/index.ts'
+import { createBundleCache, type BundleCache } from '../modules/answer/index.ts'
 import { principalFor } from '../modules/auth/index.ts'
+import { createCommentsService } from '../modules/comments/index.ts'
+import { adoptPublished } from '../modules/saved-questions/index.ts'
 import { createProposalsService, saveAgentDraft } from '../modules/proposals/index.ts'
 import type { Principal } from './auth.ts'
 import { draftInput, type DraftInput } from './schemas.ts'
 import { resultFor, type ToolResult } from './service.ts'
 import { ownerRole } from '../../domain/served-review.ts'
+import { policySkipWords } from '../../domain/agent-policies.ts'
 import { productName } from '../brand.ts'
 
 /*
@@ -27,7 +32,9 @@ import { productName } from '../brand.ts'
   assistant's drafts (saveAgentDraft), and then sends it for review through the same path as the
   person's own Send for review (proposals.submit), so it waits in the owner's queue with every
   field marked. If the review checks refuse it, it stays the person's draft and the reply says why.
-  Nothing here accepts or publishes: only the owner does (docs/product.md, section 10).
+  Nothing here accepts or publishes on its own: an owner does, in the review, or in advance with a
+  policy for this agent and domain (FR-421, agents/policies.ts). Under a policy that covers it, the
+  suggestion is published in the same transaction, as that owner's decision; otherwise it waits.
 
   `draft_context`, its deprecated id, keeps what it did for one release: it saves the draft and
   never sends it; the person checks and sends it in Heed.
@@ -93,6 +100,8 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const instructions = `Show the person the questions and the link. They check every field marked prefilled and send the draft for review in ${productName} themselves. Don't send it for them, and don't save the same draft twice.`
 const sentInstructions =
   "Tell the person the suggestion waits for the owner, who checks it and publishes it, and give them the link. Don't send the same suggestion twice."
+const publishedInstructions =
+  "Tell the person it was published at once under the owner's policy for you, and give them the link. An owner of the domain can undo it from its history. Don't send it again."
 const keptInstructions = `Tell the person why it was kept as their draft, and give them the link: they can fix it and send it for review in ${productName}. Don't send it again as it is.`
 
 /** The open questions as the result lists them: what to ask, and the choices when closed. */
@@ -172,12 +181,21 @@ export function createDraftTool(options: {
   clock: Clock
   /** The web app's address, for the link to the draft. */
   web: string | null
+  /** The editions a publish under a policy reads; the service's own when it has one. */
+  cache?: BundleCache
 }): DraftTool {
   const { database, clock, web } = options
+  const cache = options.cache ?? createBundleCache()
   // A draft opens in the editor at its own address, new or a change to an item alike: finished
   // there, it is sent or published as itself. A sent suggestion waits in the person's Inbox.
   const linkTo = (p: { id: string }) => (web ? `${web}/context/${p.id}/edit` : null)
   const waitingAt = (id: string) => (web ? `${web}/inbox?tab=all&card=waiting:${id}` : null)
+  const itemAt = (id: string) => (web ? `${web}/context/${id}` : null)
+  /** Saved questions take what a publish under a policy changed, as after any publish (FR-526). */
+  const adopt = async (outcome: PolicyOutcome | null) => {
+    if (!outcome?.published || !outcome.itemId) return
+    await adoptPublished(database, clock, cache, outcome.setBy.id, [outcome.itemId]).catch(() => 0)
+  }
   return async (input, principal, round = firstCall, mode = 'suggest') => {
     const tool = mode === 'suggest' ? 'suggest_context' : 'draft_context'
     // A dev token or an access key names no person, so there is nobody to own or submit the draft.
@@ -213,8 +231,9 @@ export function createDraftTool(options: {
         )
       answering = payload.data
     }
+    let underPolicy: PolicyOutcome | null = null
     try {
-      return await database.transaction(personId, async (tx) => {
+      const result = await database.transaction(personId, async (tx) => {
         if (!(await principalFor(tx, personId)))
           return refusal("Your account isn't active, so no draft was saved.")
         const context = await draftVocabulary(tx)
@@ -324,6 +343,20 @@ export function createDraftTool(options: {
             }
           }
         }
+        // An owner may have let this agent publish without review in this domain (FR-421).
+        underPolicy = sent
+          ? await publishUnderPolicy(
+              tx,
+              {
+                clock,
+                cache,
+                comments: createCommentsService(tx),
+                proposalRecord: (id) => proposals.get(id),
+              },
+              saved.id,
+            )
+          : null
+        const published = underPolicy?.published ? underPolicy : null
         const domainName = context.areas.find((area) => area.id === saved.draft.areaId)?.name
         const fields = Object.fromEntries(
           markedFields
@@ -348,20 +381,24 @@ export function createDraftTool(options: {
             }),
         )
         return resultFor({
-          status: sent ? 'suggestion_sent' : 'draft_saved',
+          status: published ? 'suggestion_published' : sent ? 'suggestion_sent' : 'draft_saved',
           saved: true,
           submitted: sent,
-          ...(sent
+          ...(published
             ? {
-                message: `Sent to ${domainName ? ownerRole(domainName) : 'the owner of its domain'}. It waits for their check, and nothing changes until they publish it.`,
+                message: `Published under ${published.setBy.name}'s policy for ${published.areaName}: agents get it now. An owner of ${published.areaName} can undo it from its history.`,
               }
-            : kept
-              ? { message: kept.message }
-              : {}),
+            : sent
+              ? {
+                  message: `Sent to ${domainName ? ownerRole(domainName) : 'the owner of its domain'}. It waits for their check, and nothing changes until they publish it.`,
+                }
+              : kept
+                ? { message: kept.message }
+                : {}),
           draft_id: saved.id,
           number: saved.number,
           title: saved.draft.title ?? saved.title,
-          url: sent ? waitingAt(saved.id) : linkTo(saved),
+          url: published ? itemAt(published.itemId) : sent ? waitingAt(saved.id) : linkTo(saved),
           fields,
           questions: listed(derived.questions),
           ...(answering ? { answered } : {}),
@@ -377,9 +414,29 @@ export function createDraftTool(options: {
             .filter((finding) => finding.severity === 'warning' || finding.code !== 'format')
             .map(({ code, field, message, severity }) => ({ code, field, message, severity })),
           ...(kept?.findings ? { blocking: kept.findings } : {}),
-          instructions: sent ? sentInstructions : kept ? keptInstructions : instructions,
+          ...(underPolicy
+            ? {
+                policy: {
+                  published: underPolicy.published,
+                  set_by: underPolicy.setBy.name,
+                  domain: underPolicy.areaName,
+                  ...(underPolicy.published
+                    ? {}
+                    : { waits_because: policySkipWords[underPolicy.skip] }),
+                },
+              }
+            : {}),
+          instructions: published
+            ? publishedInstructions
+            : sent
+              ? sentInstructions
+              : kept
+                ? keptInstructions
+                : instructions,
         })
       })
+      await adopt(underPolicy)
+      return result
     } catch (error) {
       if (error instanceof ORPCError) {
         const data = error.data as { findings?: { code: string; field: string }[] } | undefined

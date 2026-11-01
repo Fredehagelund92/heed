@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { POLICY_MAX_PER_DAY, policyPauses } from '../domain/agent-policies.ts'
 import { agentKinds, agentNameProblem, agentToolNames } from '../domain/agents.ts'
 
 /**
@@ -92,6 +93,31 @@ export const createAccessKeySchema = z.strictObject({ name: agentNameSchema })
 export const renameAccessKeySchema = z.strictObject({ id: z.uuid(), name: agentNameSchema })
 
 /**
+ * A policy that lets one app agent publish without review in one domain (FR-421): its daily
+ * cap, who set it and why, and whether it publishes now. It stays on until someone
+ * turns it off. `pause` says why it waits for review although it is on; `canEnd` whether the
+ * signed-in person may turn it off: whoever set it, an owner of the domain, an admin, or the person
+ * the agent works for.
+ */
+export const agentPolicySchema = z.object({
+  id: z.string(),
+  agentId: z.string(),
+  agentName: z.string(),
+  /** The person the agent works for. */
+  person: z.object({ id: z.string(), name: z.string() }),
+  areaId: z.string(),
+  areaName: z.string(),
+  perDay: z.number(),
+  setBy: z.object({ id: z.string(), name: z.string() }),
+  setAt: z.string(),
+  reason: z.string(),
+  /** How many it published in the last 24 hours. */
+  today: z.number(),
+  pause: z.nullable(z.enum(policyPauses)),
+  canEnd: z.boolean(),
+})
+
+/**
  * One agent (FR-420): an app a person signed in with, acting for them, or an access key, which
  * names no person. Its name, its kind and every MCP tool with whether an administrator switched it
  * on for this agent and whether the agent may have it at all. Never a key, a token or a digest.
@@ -127,6 +153,8 @@ export const agentSchema = z.object({
   since: z.string(),
   /** Null until an agent first used it. */
   lastUsedAt: z.nullable(z.string()),
+  /** Where it publishes without review: its policies that are on (FR-421). Never for an access key. */
+  policies: z.array(agentPolicySchema),
   /** What it sent: its suggestions in the last 30 days, and the latest few. */
   suggestions: z.object({
     lastDays: z.number(),
@@ -151,6 +179,51 @@ export const agentToolInputSchema = z.strictObject({
 /** An administrator gives a reason the log keeps; a person ending their own app needs none. */
 export const agentRevokeSchema = z.strictObject({ id: z.uuid(), reason: z.optional(agentReason) })
 export const agentRevokedSchema = z.object({ revoked: z.boolean() })
+/** One domain's policies, with whether the workspace allows them and who may set one there. */
+export const domainPoliciesInputSchema = z.strictObject({
+  areaId: z.string().check(z.minLength(1)),
+})
+export const domainPoliciesSchema = z.object({
+  /** Whether an admin switched publishing without review on for the workspace. */
+  on: z.boolean(),
+  /** Whether the signed-in person may set a policy here: an owner of the domain. */
+  canSet: z.boolean(),
+  policies: z.array(agentPolicySchema),
+  /**
+   * The apps that sent a suggestion to this domain in the last 90 days and may still send one,
+   * with how many they sent and how many were published: the agents a policy may be for. Empty for
+   * anyone who may not set one.
+   */
+  agents: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      person: z.object({ id: z.string(), name: z.string() }),
+      sent: z.number(),
+      published: z.number(),
+    }),
+  ),
+})
+export const setAgentPolicySchema = z.strictObject({
+  agentId: z.uuid(),
+  areaId: z.string().check(z.minLength(1)),
+  perDay: z.int().check(z.minimum(1), z.maximum(POLICY_MAX_PER_DAY)),
+  reason: agentReason,
+})
+export const endAgentPolicySchema = z.strictObject({ id: z.uuid(), reason: agentReason })
+/** An admin switches publishing without review on or off for the workspace; off ends every policy. */
+export const autoPublishSwitchSchema = z.strictObject({ on: z.boolean(), reason: agentReason })
+export const autoPublishStateSchema = z.object({
+  on: z.boolean(),
+  /** How many policies are on. */
+  open: z.number(),
+})
+export const autoPublishSwitchedSchema = z.object({
+  on: z.boolean(),
+  /** How many policies the switch ended. */
+  ended: z.number(),
+})
+
 /** Kept in the history log for good, so it is required, trimmed and checked for sensitive text. */
 const reason = z.string().check(z.trim(), z.minLength(1), z.maxLength(500))
 export const adminDisconnectSchema = z.strictObject({ id: z.uuid(), reason })
@@ -178,5 +251,9 @@ export type AccessKeyConnection = z.infer<typeof accessKeyConnectionSchema>
 export type AgentConnection = z.infer<typeof agentConnectionSchema>
 export type CreatedAccessKey = z.infer<typeof createdAccessKeySchema>
 export type Agent = z.infer<typeof agentSchema>
+export type AgentPolicy = z.infer<typeof agentPolicySchema>
+export type DomainPolicies = z.infer<typeof domainPoliciesSchema>
+export type SetAgentPolicy = z.infer<typeof setAgentPolicySchema>
+export type AutoPublishState = z.infer<typeof autoPublishStateSchema>
 export type AgentToolInput = z.infer<typeof agentToolInputSchema>
 export type AdminDisconnect = z.infer<typeof adminDisconnectSchema>

@@ -111,6 +111,18 @@ beforeAll(async () => {
     await accept(client, due.id)
     await publish(client, due.id)
     await client.query('select cl_ensure_delivery_partitions(2), cl_ensure_request_partitions(2)')
+    // The privacy test writes calls from yesterday, which on the 1st is last month: a month the
+    // job's partitions (this month and ahead) do not cover.
+    await client.query(`
+      do $$
+      declare m date := (date_trunc('month', now() at time zone 'UTC') - interval '1 month')::date;
+      begin
+        execute format(
+          'create table if not exists %I partition of mcp_requests for values from (%L) to (%L)',
+          'mcp_requests_' || to_char(m, 'YYYY_MM'),
+          m::timestamp at time zone 'UTC',
+          (m + interval '1 month')::timestamp at time zone 'UTC');
+      end $$`)
     // Agents asked 9 times this week about a topic in finance and found nothing: a Not found card.
     const [topic] = (
       await client.query<{ id: string }>(

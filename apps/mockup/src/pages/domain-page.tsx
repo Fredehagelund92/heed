@@ -8,6 +8,7 @@ import {
   LockIcon,
   NotebookTextIcon,
   PanelRightIcon,
+  ShieldCheckIcon,
   Trash2Icon,
   UserIcon,
   UserPlusIcon,
@@ -314,6 +315,12 @@ export function DomainPage({ id, crumbs }: { id: string; crumbs: (name: string) 
             {!isNew && !sandbox && (
               <PropertyRow id={fieldId("reach")} label="Reaches agents" icon={<CircleCheckIcon />}>
                 <StaticField>Yes, with every answer about this domain</StaticField>
+              </PropertyRow>
+            )}
+            {/* Publishing without review (FR-421): off for the workspace until an admin switches it on. */}
+            {!isNew && !sandbox && (
+              <PropertyRow id={fieldId("policies")} label="Without review" icon={<ShieldCheckIcon />}>
+                <StaticField>Off for the workspace. An admin turns it on in Agents and access.</StaticField>
               </PropertyRow>
             )}
           </PropertyGroup>

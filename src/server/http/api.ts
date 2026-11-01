@@ -55,9 +55,14 @@ import { createLimiter } from './rate-limit.ts'
 import {
   agentFor,
   connectInfo,
+  autoPublishState,
+  domainPolicies,
+  endPolicy,
   listAgents,
   readTryItQuestion,
   setAgentTool,
+  setPolicy,
+  switchAutoPublish,
 } from '../modules/agents/index.ts'
 import {
   createAccessKey,
@@ -603,6 +608,21 @@ export function createRouter({
         if (!ended) throw gone()
         return { revoked: true }
       }),
+    },
+    agentPolicies: {
+      forDomain: authorized.agentPolicies.forDomain.handler(({ context, input }) =>
+        domainPolicies(context.tx, input.areaId),
+      ),
+      set: authorized.agentPolicies.set.handler(({ context, input }) =>
+        setPolicy(context.tx, input),
+      ),
+      end: authorized.agentPolicies.end.handler(async ({ context, input }) => ({
+        changed: await endPolicy(context.tx, input.id, input.reason),
+      })),
+      state: authorized.agentPolicies.state.handler(({ context }) => autoPublishState(context.tx)),
+      switch: authorized.agentPolicies.switch.handler(({ context, input }) =>
+        switchAutoPublish(context.tx, input.on, input.reason),
+      ),
     },
     roles: {
       grant: authorized.roles.grant.handler(({ context, input }) =>

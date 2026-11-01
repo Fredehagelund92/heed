@@ -180,7 +180,11 @@ saving, accepted items whose scope and dates overlap and whose words read alike 
 `saveAgentDraft` and sends it for review through
 the same path as the person's own Send for review (`proposals.submit`), so it waits in the owner's
 queue (`status: "suggestion_sent"`, with a link to it waiting in the person's Inbox). Nothing is
-accepted or published: only the owner does that. If the review checks refuse it (a blocking finding), it stays
+accepted or published by the tool: only the owner does that, in the review or in advance with a
+policy for the agent and domain (FR-421). Under a policy that covers it, a new low-risk item is
+published in the same transaction, as that owner's decision (`status: "suggestion_published"`, with
+`policy` and a link to the item); when a policy is on but does not cover it, `policy.waits_because`
+says why it waits. If the review checks refuse it (a blocking finding), it stays
 the person's draft and the reply says why (`status: "draft_saved"`, `blocking`, and a
 link that opens the draft in the editor). It names the person on the proposal and its history only: the MCP request log keeps the
 shared `signed-in` label. The setting `limits.agent_drafts` caps one person's agent drafts at 10 in
@@ -908,10 +912,18 @@ Heed v1's Settings (FR-815, FR-418, FR-818, golden plan P11a). Every read and ch
 - `GET /agent-connections` and `POST /agent-connections/{id}/disconnect` (administrators, formerly
   `/ai-connections`): every person's agents, and ending one, with a reason the history log keeps
   (docs/ai-sign-in.md).
-- `GET /agents`, `POST /agents/{id}/name`, `POST /agents/{id}/permission` and
-  `POST /agents/{id}/revoke`: every agent by name, with its kind and what it may do (an
-  administrator sees all, anyone else their own apps), renaming an access key, setting what an
-  agent may do, and ending it (FR-420, docs/ai-sign-in.md).
+- `GET /agents`, `POST /agents/{id}/name`, `POST /agents/{id}/tools` and
+  `POST /agents/{id}/revoke`: every agent by name, with its kind, each tool it may call and where it
+  publishes without review (an administrator sees all, anyone else their own apps), renaming an
+  access key, switching one tool on or off for one agent, and ending it (FR-420, FR-421,
+  docs/ai-sign-in.md).
+- Publishing without review (FR-421, docs/ai-sign-in.md): `GET /agent-policies/switch` and
+  `POST /agent-policies/switch` (administrators) read and switch it for the workspace, and switching
+  it off ends every policy; `GET /areas/{areaId}/agent-policies` lists one domain's policies, whether
+  the workspace allows them, whether the signed-in person may set one, and the apps that suggested
+  there lately; `POST /agent-policies` sets one (an owner of the domain) and
+  `POST /agent-policies/{id}/end` turns one off (whoever set it, an owner of the domain, an
+  administrator or the person the agent works for), each with a reason the history log keeps.
 - Pause sharing is `POST /serving/stops` (FR-805): everything, or one domain at a time, on the
   Agents and access page; the tools agents call are switched with `POST /tools/{tool}`, and the
   page reads both from `GET /connect` and `GET /serving/stops`, which everyone signed in may read.

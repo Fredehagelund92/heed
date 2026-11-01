@@ -39,6 +39,7 @@ describe('the agents people connected', () => {
     since: at(12),
     lastUsedAt: at(22),
     suggestions: { lastDays: 0, recent: [] },
+    policies: [],
     ...over,
   })
 
@@ -84,6 +85,7 @@ describe('the agents people connected', () => {
         tools: agentToolNames.map((tool) => ({ tool, on: true, allowed: true })),
         sent: 1,
         recent: [{ id: 'p1', title: 'Returns spike', state: 'submitted', on: '22 Oct 2026' }],
+        policies: [],
       },
       {
         id: 'a2',
@@ -101,6 +103,53 @@ describe('the agents people connected', () => {
         setBy: { name: 'Jon Abara', on: '14 Oct 2026' },
         sent: 0,
         recent: [],
+        policies: [],
+      },
+    ])
+  })
+
+  it('names where an agent publishes without review, by domain, in the screens words', () => {
+    const [row] = connectedOf(
+      [
+        agent({
+          id: 'a1',
+          name: 'Claude Code',
+          policies: [
+            {
+              id: 'pol1',
+              agentId: 'a1',
+              agentName: 'Claude Code',
+              person: { id: 'p1', name: 'Kofi Mensah' },
+              areaId: 'area_sales',
+              areaName: 'Sales',
+              perDay: 10,
+              setBy: { id: 'p2', name: 'Jon Abara' },
+              setAt: at(20),
+              reason: 'Its rules have been right for weeks',
+              today: 2,
+              pause: null,
+              canEnd: true,
+            },
+          ],
+        }),
+      ],
+      now,
+    )
+    expect(row!.policies).toEqual([
+      {
+        id: 'pol1',
+        agentId: 'a1',
+        agent: 'Claude Code',
+        who: 'Kofi Mensah',
+        domain: 'area_sales',
+        domainName: 'Sales',
+        perDay: 10,
+        setBy: 'Jon Abara',
+        setOn: '20 Oct 2026',
+        reason: 'Its rules have been right for weeks',
+        today: 2,
+        pause: null,
+        canEnd: true,
       },
     ])
   })
@@ -364,6 +413,62 @@ describe('Settings, Advanced', () => {
       { person: (id) => id },
     )
     expect(row).toMatchObject({ who: 'Claude Code for Kofi Mensah' })
+  })
+
+  it('says publishing without review: the switch, a policy set or ended, and a publish under one', () => {
+    expect(
+      historyLine(
+        entry({
+          action: 'setting.changed',
+          subjectId: 'agents.auto_publish',
+          details: { from: 1, to: 2, value: true },
+        }),
+      ),
+    ).toEqual({ what: 'Switched publishing without review on for the workspace' })
+    expect(
+      historyLine(
+        entry({
+          action: 'agent.policy_set',
+          subjectType: 'agent',
+          areaId: 'area_sales',
+          details: { name: 'Claude Code', area: 'Sales', perDay: 10 },
+        }),
+      ),
+    ).toEqual({ what: 'Let “Claude Code” publish without review in Sales' })
+    expect(
+      historyLine(
+        entry({
+          action: 'agent.policy_ended',
+          subjectType: 'agent',
+          areaId: 'area_sales',
+          details: { name: 'Claude Code' },
+        }),
+        () => 'Sales',
+      ),
+    ).toEqual({ what: 'Turned off publishing without review for “Claude Code” in Sales' })
+    // The owner who set the policy decided; the agent sent it for its own person.
+    const [row] = historyOf(
+      [
+        entry({
+          action: 'decision.accept',
+          actorName: 'Jon Abara',
+          subjectType: 'proposal',
+          subjectId: 'p9',
+          subjectTitle: 'Gift cards are not orders',
+          details: {
+            policy: { id: 'pol1', setBy: 'p2', setByName: 'Jon Abara' },
+            agent: { name: 'Claude Code', personId: 'p1' },
+          },
+        }),
+      ],
+      [],
+      now,
+      { person: (id) => (id === 'p1' ? 'Kofi Mensah' : id) },
+    )
+    expect(row).toMatchObject({
+      who: 'Claude Code for Kofi Mensah',
+      what: "Published “Gift cards are not orders” under Jon Abara's policy",
+    })
   })
 
   it('says each history entry as a line, with a link to what it names', () => {

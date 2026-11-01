@@ -44,6 +44,12 @@ export const policies = {
   'agents.rename': 'admin',
   'agents.setTool': 'admin',
   'agents.revoke': 'read',
+  // Publishing without review (FR-421): the service checks who owns the domain.
+  'agentPolicies.forDomain': 'read',
+  'agentPolicies.set': 'read',
+  'agentPolicies.end': 'read',
+  'agentPolicies.state': 'admin',
+  'agentPolicies.switch': 'admin',
   'me.get': 'read',
   // People as Heed v1 has them: anyone signed in reads them and the open invites; the service and
   // row security let an owner invite a member to their own domains, and set its owners.

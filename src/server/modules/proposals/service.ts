@@ -8,7 +8,7 @@ import type {
   ProposalListResult,
 } from '../../../contract/proposals.ts'
 import { type Draft, formatOutcome, textFindings } from '../../../domain/draft.ts'
-import type { ItemKind } from '../../../domain/item.ts'
+import { defaultRiskFor, type ItemKind } from '../../../domain/item.ts'
 import { parseMentions } from '../../../domain/mentions.ts'
 import { keepMarks, type Provenance } from '../../../domain/provenance.ts'
 import { addWorkingDays, vocabularyChangeOf } from '../../../domain/review.ts'
@@ -316,7 +316,7 @@ function proposalsService(
       scope: { metrics: [], dimensions: [], dimensionValues: [] },
       evidence: [],
       claimLevel: 'fact_only',
-      riskLevel: input.kind && input.kind !== 'note' ? 'normal' : 'low',
+      riskLevel: defaultRiskFor(input.kind),
       audience: { kind: 'everyone' },
       notToConclude: 'cause not proven',
       replaces: [],

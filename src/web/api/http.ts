@@ -233,6 +233,11 @@ export const wiredMethods = [
   'listAgentConnections',
   'setAgentTool',
   'revokeAgent',
+  'getAutoPublish',
+  'setAutoPublish',
+  'getDomainPolicies',
+  'setAgentPolicy',
+  'endAgentPolicy',
   'checkConnect',
   'advancedPage',
   'checkHistory',
@@ -1906,6 +1911,36 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       const me = await signedIn()
       const input = me.admin ? { id, reason: 'Revoked in Settings, Agents and access.' } : { id }
       await write('agents.revoke', input, (o) => client.agents.revoke(input, o))
+    },
+    // Publishing without review (FR-421): the workspace switch, one domain's policies, and setting
+    // or turning off one. The service decides who may.
+    getAutoPublish: () => read(() => client.agentPolicies.state()),
+    setAutoPublish: async ({ on }) => {
+      const input = { on, reason: BY_SETTINGS }
+      const done = await write('agentPolicies.switch', input, (o) =>
+        client.agentPolicies.switch(input, o),
+      )
+      return { ended: done.ended }
+    },
+    getDomainPolicies: async ({ domain }) =>
+      (await settingsWords()).domainPoliciesOf(
+        await read(() => client.agentPolicies.forDomain({ areaId: domain })),
+      ),
+    setAgentPolicy: async ({ agentId, domain, perDay, reason }) => {
+      const input = { agentId, areaId: domain, perDay, reason }
+      return (await settingsWords()).policyOf(
+        await write('agentPolicies.set', input, (o) => client.agentPolicies.set(input, o)),
+      )
+    },
+    endAgentPolicy: async ({ id, from }) => {
+      const input = {
+        id,
+        reason:
+          from === 'agents'
+            ? 'Turned off in Settings, Agents and access.'
+            : 'Turned off on the domain page.',
+      }
+      await write('agentPolicies.end', input, (o) => client.agentPolicies.end(input, o))
     },
     // The key is in this answer only: the service keeps its digest, and this binding keeps nothing.
     createAccessKey: async ({ name }) => {

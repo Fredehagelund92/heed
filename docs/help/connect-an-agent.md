@@ -63,7 +63,7 @@ The page checks every few seconds. After two minutes it shows what usually helps
 
 ## The tools each agent may call
 
-Connected agents lists every agent by its name, with who it works for and how many of its tools are on. Open Details on a row to see each tool the agent can call, such as get_context to read context, report to say what is missing or wrong, and suggest_context to send a suggestion that an owner checks before anything changes. No agent ever publishes. Details also lists the suggestions it sent lately.
+Connected agents lists every agent by its name, with who it works for and how many of its tools are on. Open Details on a row to see each tool the agent can call, such as get_context to read context, report to say what is missing or wrong, and suggest_context to send a suggestion that an owner checks before anything changes. An agent publishes only where an owner lets it [publish without review](publish-without-review.md), and Details shows where, with Turn off. Details also lists the suggestions it sent lately.
 
 Admins switch each tool on or off for each agent in Details. A switch acts at the agent's next request, and it never lets an agent do more than the person allowed when they connected it: a tool they didn't allow can't be switched on. An agent with every tool off gets nothing. Every change is in the history log, with who made it.
 

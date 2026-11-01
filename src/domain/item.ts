@@ -39,6 +39,9 @@ export function reviewQuestion(item: {
 
 export const riskLevels = ['low', 'normal', 'high'] as const
 export type RiskLevel = (typeof riskLevels)[number]
+/** A new item's risk level until an owner changes it: low for a rule, normal for every other kind. */
+export const defaultRiskFor = (kind: ItemKind | undefined): RiskLevel =>
+  kind && kind !== 'note' ? 'normal' : 'low'
 
 /** `fact_only`: a fact is documented, no cause is proven. `effect_stated`: a named authority states the effect. */
 export const claimLevels = ['fact_only', 'effect_stated'] as const

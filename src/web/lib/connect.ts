@@ -4,6 +4,7 @@
 // copy (the mock binding plays it), and its review flag ?connect= shows each state.
 
 import type { AgentKind, AgentToolName } from '@domain/agents'
+import type { Policy } from './policies'
 
 export const CHECK_MS = 3_000
 export const HINT_MS = 120_000
@@ -58,6 +59,8 @@ export type Connected = {
   /** Its suggestions in the last 30 days, and the latest few. */
   sent: number
   recent: { id: string; title: string; state: string; on: string }[]
+  /** Where it publishes without review: its policies that are on (FR-421). Never for a key. */
+  policies: Policy[]
 }
 
 /** What an access key is called when it has no name of its own. */

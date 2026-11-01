@@ -52,6 +52,7 @@ export function createSettings() {
       ...(was?.setBy ? { setBy: was.setBy } : {}),
       sent: was?.sent ?? 0,
       recent: was?.recent ?? [],
+      policies: [],
     }
     agents = [
       row,
@@ -151,6 +152,7 @@ export function createSettings() {
         tools: toolRows('key', ['read', 'feedback']),
         sent: 0,
         recent: [],
+        policies: [],
       }
       agents = [row, ...agents.map((r) => (r.fresh ? { ...r, fresh: false } : r))]
     },

@@ -224,6 +224,14 @@ import {
   agentToolInputSchema,
   agentRevokedSchema,
   agentRevokeSchema,
+  agentPolicySchema,
+  autoPublishStateSchema,
+  autoPublishSwitchSchema,
+  autoPublishSwitchedSchema,
+  domainPoliciesInputSchema,
+  domainPoliciesSchema,
+  endAgentPolicySchema,
+  setAgentPolicySchema,
   agentSchema,
   connectDecisionResultSchema,
   connectDecisionSchema,
@@ -400,6 +408,14 @@ const settings = admin.errors({
 const auditor = read.meta({ scope: 'audit' })
 /** An administrator ends a person's agent connection: the reason must hold no sensitive text. */
 const agentDisconnect = admin.errors({
+  UNPROCESSABLE_CONTENT: {
+    status: 422,
+    message: 'Remove the email address, phone number or secret from the reason.',
+    data: z.optional(z.object({ findings: z.array(findingSchema) })),
+  },
+})
+/** A policy set or turned off: its reason must hold no sensitive text. */
+const policyWrite = read.errors({
   UNPROCESSABLE_CONTENT: {
     status: 422,
     message: 'Remove the email address, phone number or secret from the reason.',
@@ -797,6 +813,60 @@ export const contract = {
       })
       .input(agentRevokeSchema)
       .output(agentRevokedSchema),
+  },
+  // Publishing without review (FR-421): an admin switches it on for the workspace, then an owner of
+  // a domain lets one app agent publish low-risk new items there. Whoever set it, an
+  // owner of the domain, an admin and the person the agent works for may turn one off.
+  agentPolicies: {
+    forDomain: read
+      .route({
+        method: 'GET',
+        path: '/areas/{areaId}/agent-policies',
+        tags: ['session'],
+        summary:
+          "One domain's policies that let an agent publish without review, whether the workspace allows them, whether the signed-in person may set one, and the apps that suggested to the domain lately",
+      })
+      .input(domainPoliciesInputSchema)
+      .output(domainPoliciesSchema),
+    set: policyWrite
+      .route({
+        method: 'POST',
+        path: '/agent-policies',
+        tags: ['session'],
+        summary:
+          "Let one app agent publish low-risk new items in one domain without review, as the signed-in owner's own decision, up to a daily cap. It replaces the agent's policy there, if it has one, and stays on until someone turns it off. An owner of the domain sets it, while the workspace allows it",
+      })
+      .input(setAgentPolicySchema)
+      .output(agentPolicySchema),
+    end: policyWrite
+      .route({
+        method: 'POST',
+        path: '/agent-policies/{id}/end',
+        tags: ['session'],
+        summary:
+          "Turn a policy off at once: the agent's next suggestions wait for review. Whoever set it, an owner of the domain, an admin or the person the agent works for may. The history log keeps the reason",
+      })
+      .input(endAgentPolicySchema)
+      .output(changed),
+    state: admin
+      .route({
+        method: 'GET',
+        path: '/agent-policies/switch',
+        tags: ['admin'],
+        summary:
+          'Whether publishing without review is on for the workspace, and how many policies are on',
+      })
+      .output(autoPublishStateSchema),
+    switch: agentDisconnect
+      .route({
+        method: 'POST',
+        path: '/agent-policies/switch',
+        tags: ['admin'],
+        summary:
+          'Switch publishing without review on or off for the workspace. Off ends every policy at once. The history log keeps the reason',
+      })
+      .input(autoPublishSwitchSchema)
+      .output(autoPublishSwitchedSchema),
   },
   roles: {
     grant: admin

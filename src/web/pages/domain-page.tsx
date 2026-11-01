@@ -8,6 +8,7 @@ import {
   LockIcon,
   NotebookTextIcon,
   PanelRightIcon,
+  ShieldCheckIcon,
   Trash2Icon,
   UserIcon,
   UserPlusIcon,
@@ -56,6 +57,7 @@ import { href, navigate } from '@/lib/router'
 import { useSideChoice } from '@/lib/side-panel'
 import { useDomains, useFacts, useMe, usePeople } from '@/lib/workspace'
 import { InviteDialog } from '@/pages/people'
+import { DomainPoliciesField } from '@/pages/agent-policies'
 
 // A domain as its own document, the way a context item and About our business are written: the name
 // as the large title, its owners and quiet counts as properties, then its text in the shared editor
@@ -427,6 +429,16 @@ export function DomainPage({
             {!isNew && !sandbox && (
               <PropertyRow id={fieldId('reach')} label="Reaches agents" icon={<CircleCheckIcon />}>
                 <StaticField>Yes, with every answer about this domain</StaticField>
+              </PropertyRow>
+            )}
+            {/* Publishing without review (FR-421): which agents publish here without a review round. */}
+            {!isNew && !sandbox && (
+              <PropertyRow
+                id={fieldId('policies')}
+                label="Without review"
+                icon={<ShieldCheckIcon />}
+              >
+                <DomainPoliciesField domain={id} domainName={d!.name} admin={me.admin} />
               </PropertyRow>
             )}
           </PropertyGroup>

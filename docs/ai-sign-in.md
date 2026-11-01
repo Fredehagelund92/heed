@@ -67,6 +67,48 @@ administrator gives it.
 Agents signed in through another login server, and dev tokens, keep no agent here: they are not
 listed, and what they may do is their token's scopes.
 
+## Publishing without review
+
+An owner of a domain may let one named app publish some of its suggestions there without a review
+round, as the owner's own decision (FR-421, `agent_policies`, migration 0036; the page for people is
+[Publish without review](help/publish-without-review.md)). It is off for the workspace until an
+administrator switches it on (`agentPolicies.switch`, the versioned setting `agents.auto_publish`,
+false on a new install). Switching it off again ends every policy at once.
+
+- **The policy.** One row per agent and domain (`agentPolicies.set`, by an owner of the domain, as
+  themselves, while the switch is on; an administrator who does not own the domain cannot): the
+  most it publishes in 24 hours (1 to 50, 10 unless the owner chooses otherwise), who set it, when
+  and why. Only an app a
+  person signed in with can have one; an access key names no person and never suggests. A row is
+  never changed: setting it again ends the old one and adds a new one, and **Turn off**
+  (`agentPolicies.end`) ends it, with who and why. Whoever set it, an owner of the domain, an
+  administrator and the person the agent works for may turn it off. It never expires. When the last
+  open connection of the app is revoked, on any path, the database ends its policies too.
+- **What it publishes.** After `suggest_context` sends a suggestion for review, in the same
+  transaction, the service publishes it when the open policy for its agent and domain covers it:
+  a new item (never a change to a live item or an archive), at low
+  risk as the server derived it (an agent never sets the risk level, so its suggestion keeps the
+  default for its kind: low for a Rule, normal for every other kind), with no provenance flag, no
+  claim to check and no clash with live context (FR-225), under the daily cap, while the person who
+  set it is still an owner of the domain and `suggest_context` is on for the agent and the
+  workspace. It goes through the owner's own publish path, run as the owner who set the policy:
+  every required check runs again, the decision names that owner as decider with a link to the
+  policy (`decisions.auto_policy_id`), and the edition and the history log name them. Anything else
+  waits for review as before, and the tool's reply says why (`status: "suggestion_sent"` with
+  `policy.waits_because`); a publish says `status: "suggestion_published"`.
+- **The database checks it again.** A decision that names a policy is refused unless every rule
+  holds at that moment (`cl_policy_decision_problem`): the policy is open and the workspace switch
+  is on, the decider is the person who set it, deciding as themselves and still an owner of the
+  domain, and the suggestion is a new, low-risk item from the policy's agent in its domain, under
+  the daily cap, with
+  `suggest_context` on. The serving guard (FR-205) is unchanged: it still requires an accept by an
+  owner of the domain or an administrator, and every required check passed.
+- **Named and undone.** The item's history says "Published by Claude Code for Kofi under Jon's
+  policy", and its sheet has **Undo this publish**. Nobody read it before agents got it, so an owner
+  of the domain or an administrator may undo it at any time while the item is as it was published,
+  through the decision's own undo (FR-227); the suggestion then waits for review. The owner's Inbox
+  lists it under Done as "Published under your policy".
+
 While Connect an agent waits for the person's own agent, its live line asks the service every 3
 seconds (`connect.pending`, FR-418) for the newest of two things since the wait began: the agent
 collected its tokens (connected), or the person chose **Deny** on the consent screen (declined).

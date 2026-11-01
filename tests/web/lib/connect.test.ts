@@ -86,6 +86,7 @@ describe('access keys on Connected agents', () => {
     tools: toolRows('app', ['read', 'feedback']),
     sent: 0,
     recent: [],
+    policies: [],
   } satisfies Partial<Connected>
   const agent: Connected = {
     ...base,

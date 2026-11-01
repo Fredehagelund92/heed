@@ -61,6 +61,8 @@ const doneDays = 14
 /** The outcome of a decision, in a word the Inbox shows beside a done card. */
 const outcomeWords: Record<string, string> = {
   accept: 'Published',
+  // Published without a review round, under the policy the owner set for the agent (FR-421).
+  policy: 'Published under your policy',
   request_changes: 'Returned',
   reject: 'Rejected',
   retire: 'Archived',
@@ -373,8 +375,10 @@ export function createInboxFeedService(
       outcome: string
       action: string
       at: string
+      policy: boolean
     }>(
-      `select d.id::text, d.proposal_id::text as proposal, d.outcome::text, p.action::text, d.decided_at::text as at
+      `select d.id::text, d.proposal_id::text as proposal, d.outcome::text, p.action::text, d.decided_at::text as at,
+              d.auto_policy_id is not null as policy
          from decisions d join proposals p on p.id=d.proposal_id
         where d.decided_by=cl_person() and p.subject='item'
           and d.decided_at > now() - make_interval(days => $1)
@@ -393,7 +397,9 @@ export function createInboxFeedService(
               ? 'recheck'
               : row.action === 'retire' && row.outcome === 'reject'
                 ? 'close'
-                : row.outcome
+                : row.policy
+                  ? 'policy'
+                  : row.outcome
           ] ?? 'Decided',
         at: row.at,
       }

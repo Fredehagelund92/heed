@@ -501,6 +501,7 @@ export function createContextService(
       by: string | null
       at: string
       agent: { name: string; personId: string } | null
+      policy: { decisionId: string; undone: boolean; undoable: boolean } | null
     }>(
       `select v.id::text, v.is_recheck as recheck,
               (select d.decided_by::text from decisions d where d.item_version_id = v.id
@@ -508,6 +509,15 @@ export function createContextService(
               (select jsonb_build_object('name', p.agent_name, 'personId', p.proposer_id::text)
                  from proposals p where p.item_version_id = v.id and p.agent_name is not null
                 order by p.created_at limit 1) as agent,
+              (select jsonb_build_object(
+                        'decisionId', d.id::text,
+                        'undone', exists (select 1 from decision_undos u where u.decision_id = d.id),
+                        'undoable', not exists (select 1 from decision_undos u where u.decision_id = d.id)
+                          and (cl_is_owner_now(d.area_id) or cl_is_admin_now())
+                          and exists (select 1 from item_version_service s where s.version_id = v.id
+                                         and s.editions @> (select seq from live_edition)))
+                 from decisions d where d.item_version_id = v.id and d.outcome = 'accept'
+                  and d.auto_policy_id is not null order by d.decided_at limit 1) as policy,
               coalesce((select min(e.created_at) from item_version_service s
                           join editions e on e.seq = lower(s.editions) where s.version_id = v.id),
                        v.created_at)::text as at
@@ -552,6 +562,7 @@ export function createContextService(
         ...entry,
         restorable: ['published', 'wording', 'link', 'dates'].includes(entry.kind),
         ...(s.agent ? { agent: s.agent } : {}),
+        ...(s.policy ? { policy: s.policy } : {}),
       })
     }
     const others = await tx.query<{

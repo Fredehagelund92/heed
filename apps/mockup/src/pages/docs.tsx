@@ -168,6 +168,32 @@ const ARTICLES: Record<string, { lead: string; blocks: Block[] }> = {
       { t: "note", title: "Keys", text: "J and K move through the queue, N and P through the changes, Command and Enter publishes, and ? lists them all." },
     ],
   },
+  "publish-without-review": {
+    lead: "An owner can let one named agent publish some of its suggestions in their domain without a review round, as the owner's own decision. It is off until an admin switches it on.",
+    blocks: [
+      { t: "h2", text: "What it publishes, and what it never does" },
+      {
+        t: "list",
+        items: [
+          "Only a new context item: a change to a live item, or archiving one, always waits for an owner.",
+          "Only low-risk items: today that means Rules.",
+          "Nothing that clashes with live context, has a claim to check, or needs care.",
+          "No more than the most it may publish in a day: 10 unless the owner chooses another number from 1 to 50.",
+        ],
+      },
+      { t: "p", text: "Anything else waits in the owners' Inbox as usual. It never expires: it stays on until someone turns it off." },
+      { t: "h2", text: "Turn it off" },
+      {
+        t: "p",
+        text: "Turn off is beside it on the domain page, and in the agent's Details in Agents and access. Whoever set it, any owner of the domain, an admin and the person the agent works for can turn it off.",
+      },
+      { t: "h2", text: "Who decided, and how to undo it" },
+      {
+        t: "p",
+        text: "The item's history says \"Published by Claude Code for Kofi under Jon's policy\". An owner of the domain or an admin can undo it from there at any time while the item is unchanged.",
+      },
+    ],
+  },
   "definitions-and-synonyms": {
     lead: "Metrics and dimensions, the business's own terms, and other names for them.",
     blocks: [

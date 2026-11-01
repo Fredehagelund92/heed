@@ -1,4 +1,9 @@
-export { createReviewService, sourceToolQuestion, type ReviewService } from './service.ts'
+export {
+  createReviewService,
+  sourceToolQuestion,
+  type ReviewService,
+  type UnderPolicy,
+} from './service.ts'
 export { draftOf } from './checks.ts'
 export { waitingMembers, type WaitingMember } from './vocabulary.ts'
 export { createReviewPath, type ReviewPath } from './path.ts'

@@ -205,6 +205,7 @@ export function FactPage({ id }: { id: string }) {
           versions={history}
           canRestore={owner}
           onRestore={(version) => write('restoreAsDraft', { id: fact.id, v: version.v })}
+          onUndo={(token) => write('undo', { token })}
         />
       </SideSection>
     </Loadable>

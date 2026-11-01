@@ -45,7 +45,7 @@ import {
   type LoadedProposal,
 } from './records.ts'
 import type { CommentsService } from '../comments/index.ts'
-import type { ReviewService } from './service.ts'
+import type { ReviewService, UnderPolicy } from './service.ts'
 
 /*
   The review of Heed v1 (FR-224 to FR-227): the sheet a review page reads, and its decisions.
@@ -543,7 +543,14 @@ export function createReviewPath(
    */
   async function publish(
     input: z.infer<typeof publishInputSchema>,
-    { clashesOnly = false }: { clashesOnly?: boolean } = {},
+    {
+      clashesOnly = false,
+      policy,
+    }: {
+      clashesOnly?: boolean
+      /** Published under an owner's policy (FR-421), as that owner: see agents/policies.ts. */
+      policy?: UnderPolicy
+    } = {},
   ) {
     let p = await loadProposal(tx, input.id, true)
     if (p.revision !== input.revision)
@@ -586,12 +593,15 @@ export function createReviewPath(
           [...given].map(([itemId, relation]) => ({ itemId, relation })),
         )
       ).p
-    const decided = await review.decide({
-      id: p.id,
-      revision: p.revision,
-      outcome: 'accept',
-      reason: input.reason ?? publishedReason,
-    })
+    const decided = await review.decide(
+      {
+        id: p.id,
+        revision: p.revision,
+        outcome: 'accept',
+        reason: input.reason ?? publishedReason,
+      },
+      policy,
+    )
     const decision = await lastDecision(p.id, p.action === 'retire' ? ['retire'] : ['accept'])
     return { proposal: decided.proposal, edition: decided.edition, undo: `decision:${decision}` }
   }
@@ -718,6 +728,8 @@ export function createReviewPath(
       action: string | null
       fresh: boolean
       mine: boolean
+      /** Published under a policy, and the signed-in person is an owner of its domain or an admin. */
+      policyUndo: boolean
       undone: boolean
       servedAt: string | null
     }>(
@@ -725,6 +737,7 @@ export function createReviewPath(
               d.area_id as "areaId",d.proposal_id::text as "proposalId",p.action::text as action,
               d.decided_at > now() - make_interval(secs => $2) as fresh,
               d.decided_by = cl_person() as mine,
+              d.auto_policy_id is not null and (cl_is_owner_now(d.area_id) or cl_is_admin_now()) as "policyUndo",
               exists(select 1 from decision_undos u where u.decision_id=d.id) as undone,
               (select lower(s.editions)::text from item_version_service s where s.version_id=d.item_version_id
                 order by lower(s.editions) desc limit 1) as "servedAt"
@@ -735,6 +748,13 @@ export function createReviewPath(
     )
     if (rows.length !== new Set(ids).size) throw new ORPCError('NOT_FOUND')
     for (const d of rows) {
+      // Nobody read a suggestion published under a policy (FR-421): an owner of its domain or an
+      // admin undoes that publish later, while the item is as it published it.
+      if (d.policyUndo) {
+        if (d.undone)
+          throw new ORPCError('CONFLICT', { message: 'This decision is already undone.' })
+        continue
+      }
       if (!d.mine)
         throw new ORPCError('FORBIDDEN', { message: 'Only the person who decided can undo it.' })
       if (d.undone) throw new ORPCError('CONFLICT', { message: 'This decision is already undone.' })
@@ -790,7 +810,14 @@ export function createReviewPath(
     if (serve.length || close.length) {
       const published = await publishEdition(
         tx,
-        { reason: 'decision_undone', serve, close, note: 'Undone by the person who decided.' },
+        {
+          reason: 'decision_undone',
+          serve,
+          close,
+          note: rows.every((d) => d.mine)
+            ? 'Undone by the person who decided.'
+            : 'Undone by an owner of the domain.',
+        },
         rows[0]!.areaId,
       )
       edition = { seq: String(published.seq), label: published.label }

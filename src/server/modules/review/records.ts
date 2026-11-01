@@ -131,6 +131,8 @@ type NewDecision = {
   capacity: Role | 'administrator'
   outcome: 'accept' | 'request_changes' | 'reject' | 'retire'
   reason: string
+  /** The policy an accept is made under, without a review round (FR-421). */
+  autoPolicyId?: string | null
 }
 
 /**
@@ -152,8 +154,8 @@ const forbiddenDecision = (error: unknown) =>
 export async function insertDecision(tx: Queryable, decision: NewDecision) {
   try {
     const rows = await tx.query<{ id: string }>(
-      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason,round)
-       values($1,$2,$3,$4,cl_person(),$5,$6,$7,${undoneBefore('$2::uuid', '$6::decision_outcome')})
+      `insert into decisions(proposal_id,item_version_id,vocab_version_id,area_id,decided_by,capacity,outcome,reason,round,auto_policy_id)
+       values($1,$2,$3,$4,cl_person(),$5,$6,$7,${undoneBefore('$2::uuid', '$6::decision_outcome')},$8)
        on conflict do nothing returning id::text`,
       [
         decision.proposalId,
@@ -163,6 +165,7 @@ export async function insertDecision(tx: Queryable, decision: NewDecision) {
         decision.capacity,
         decision.outcome,
         decision.reason,
+        decision.autoPolicyId ?? null,
       ],
     )
     return rows[0]?.id ?? null
