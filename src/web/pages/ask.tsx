@@ -1,6 +1,5 @@
 import * as React from 'react'
 import {
-  ArrowRightIcon,
   EllipsisIcon,
   HistoryIcon,
   MessageSquareIcon,
@@ -13,6 +12,7 @@ import {
   XIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
+import { toApiError } from '@/api/errors'
 import { cn } from '@/lib/utils'
 import { DockFrame } from '@/components/dock'
 import { AnswerBody, DraftBanner, Question, type Phase } from '@/components/heed/answer'
@@ -30,7 +30,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   askedWeekQuery,
   askQuery,
@@ -51,8 +51,7 @@ import { findThread, useThreadActions, useThreads, type Day, type Thread } from 
 import { TruncatedText } from '@/components/heed/truncated'
 import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
-import { StateLine } from '@/components/heed/bits'
-import { Suggestions } from '@/components/heed/suggestions'
+import { Answering, Suggestions } from '@/components/heed/suggestions'
 import { arriveRef, leaveThen, useLeaving } from '@/lib/presence'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
@@ -79,61 +78,6 @@ function ComposerPlaceholder({ placeholder }: { placeholder: string }) {
         {placeholder}
       </div>
       <div className="h-10 border-t" />
-    </div>
-  )
-}
-
-/**
- * Chips that know: what to ask next under an answer, each with the state it would get, from the same
- * function that answers it, so a dead end shows before you reach it.
- */
-function AskNext({ items, onPick }: { items: string[]; onPick: (q: string) => void }) {
-  const week = useQuery(askedWeekQuery()).data
-  const answers = useQueries({ queries: items.map((question) => askQuery({ question })) })
-  if (!items.length || answers.some((q) => !q.data)) return null
-  return (
-    <div role="group" aria-labelledby="ask-next" className="-mt-2 flex flex-col gap-2 pl-10">
-      <p id="ask-next" className="text-xs font-medium text-muted-foreground">
-        Ask next, and what you would get
-      </p>
-      {items.map((q, i) => {
-        const a = answers[i]!.data!
-        // How often agents asked about it this week, from Asked this week's own counts.
-        const row = week?.rows.find(
-          (r) => r.topic.metric === a.metric && r.topic.where === a.markets[0],
-        )
-        const detail = a.sources.length
-          ? `${a.sources.length} ${a.sources.length === 1 ? 'item' : 'items'}`
-          : a.state === 'missing' && row
-            ? `asked ${row.count} times this week`
-            : ''
-        return (
-          <button
-            key={q}
-            type="button"
-            onClick={() => onPick(q)}
-            className="group/next flex min-h-11 w-full items-center gap-3 rounded-surface border bg-background px-3 py-2 text-left transition-colors outline-none hover:border-foreground/25 hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/40"
-          >
-            <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
-              <span className="text-dense">{q}</span>
-              <span className="flex flex-wrap items-center gap-1.5">
-                {a.state && (
-                  <StateLine
-                    state={a.state}
-                    tip={false}
-                    className="gap-1.5 px-1.5 py-0 text-2xs [&_svg]:size-3"
-                  />
-                )}
-                {detail && <span className="text-xs text-muted-foreground">{detail}</span>}
-              </span>
-            </span>
-            <ArrowRightIcon
-              className="size-4 shrink-0 text-muted-foreground transition-transform group-hover/next:translate-x-0.5"
-              aria-hidden
-            />
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -173,6 +117,24 @@ export function AskChat({
   const viewport = React.useRef<HTMLDivElement>(null)
 
   const busy = turns.some((t) => t.phase === 'live')
+  // One question at a time, as in any chat: from the moment one is sent until its answer is in (or
+  // has failed), nothing else is asked. The ref holds it at once, before React shows it: a second
+  // click in the same moment finds it held.
+  const [waiting, setWaiting] = React.useState(false)
+  const sending = React.useRef(false)
+  const answering = waiting || busy
+  /** Runs one send, unless another is under way or an answer is still being written. */
+  const one = async (send: () => Promise<void>) => {
+    if (sending.current || busy) return
+    sending.current = true
+    setWaiting(true)
+    try {
+      await send()
+    } finally {
+      sending.current = false
+      setWaiting(false)
+    }
+  }
   // While an answer is written the view follows it down, until the asker scrolls up to read.
   const follow = React.useRef(true)
 
@@ -210,47 +172,71 @@ export function AskChat({
   const week = useQuery(askedWeekQuery()).data
   const starters = examples.filter((e) => e.starter).map((e) => e.question)
   const queryClient = useQueryClient()
-  const add = async (asked: string | AskQuestion) => {
-    const {
-      text: q,
-      parts,
-      scope,
-    } = typeof asked === 'string' ? { text: asked, parts: undefined, scope: [] } : asked
-    const answer =
-      draft && initial?.[0]
-        ? { ...initial[0], question: q, parts }
-        : await queryClient.fetchQuery(askQuery({ question: q, parts, scope }))
-    const index = turns.length
-    // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
-    if (index === 0 && onStarter?.(q)) return
-    if (index === 0) onFirstAsk?.(q)
-    follow.current = true
-    // With reduced motion the answer is there at once, finished.
-    const phase: Phase = reducedMotion() ? 'done' : 'live'
-    setTurns((ts) => [...ts, { answer: { ...answer, id: `t${index}` }, phase }])
-    if (phase === 'done') window.setTimeout(() => reveal(index), 0)
-  }
+  const add = (asked: string | AskQuestion) =>
+    one(async () => {
+      const {
+        text: q,
+        parts,
+        scope,
+      } = typeof asked === 'string' ? { text: asked, parts: undefined, scope: [] } : asked
+      let answer: Answer
+      try {
+        answer =
+          draft && initial?.[0]
+            ? { ...initial[0], question: q, parts }
+            : await queryClient.fetchQuery(askQuery({ question: q, parts, scope }))
+      } catch (e) {
+        // Nothing came back: the question goes back in an empty box, to send again.
+        composer.current?.refill(parts ?? [q])
+        toast("Couldn't ask that", { description: toApiError(e).message })
+        return
+      }
+      const index = turns.length
+      // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
+      if (index === 0 && onStarter?.(q)) return
+      if (index === 0) {
+        // The chat this starts opens again on its question alone: a question with no mentions gets
+        // the same answer, so it is kept for that, and opening the chat again looks nothing up.
+        if (!scope.length && (parts ?? []).every((p) => typeof p === 'string'))
+          queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
+        onFirstAsk?.(q)
+      }
+      follow.current = true
+      // With reduced motion the answer is there at once, finished.
+      const phase: Phase = reducedMotion() ? 'done' : 'live'
+      setTurns((ts) => [...ts, { answer: { ...answer, id: `t${index}` }, phase }])
+      if (phase === 'done') window.setTimeout(() => reveal(index), 0)
+    })
 
   // "Change it" under a misread question: the question goes back in the box with what it was read as, as chips to keep or swap.
   const rescope = (parts: QuestionPart[]) => composer.current?.set(parts)
 
   // Ask again asks the same question again; a check that failed reads it afresh, since the failure was the check's.
   const retry = (i: number) => () => void askAgain(i)
-  const askAgain = async (i: number) => {
-    const { question, parts, scope, id, state, dates } = turns[i]!.answer
-    const fresh = await queryClient.fetchQuery(
-      askQuery(state === 'failed' ? { question, reread: { dates } } : { question, parts, scope }),
-    )
-    setTurns((ts) =>
-      ts.map((t, j) =>
-        j === i
-          ? { answer: { ...fresh, id, parts, scope }, phase: reducedMotion() ? 'done' : 'live' }
-          : t,
-      ),
-    )
-    follow.current = true
-    if (reducedMotion()) window.setTimeout(() => reveal(i), 0)
-  }
+  const askAgain = (i: number) =>
+    one(async () => {
+      const { question, parts, scope, id, state, dates } = turns[i]!.answer
+      let fresh: Answer
+      try {
+        fresh = await queryClient.fetchQuery(
+          askQuery(
+            state === 'failed' ? { question, reread: { dates } } : { question, parts, scope },
+          ),
+        )
+      } catch (e) {
+        toast("Couldn't ask that again", { description: toApiError(e).message })
+        return
+      }
+      setTurns((ts) =>
+        ts.map((t, j) =>
+          j === i
+            ? { answer: { ...fresh, id, parts, scope }, phase: reducedMotion() ? 'done' : 'live' }
+            : t,
+        ),
+      )
+      follow.current = true
+      if (reducedMotion()) window.setTimeout(() => reveal(i), 0)
+    })
 
   // "/" puts the cursor in the box from anywhere on the page that isn't a text field.
   React.useEffect(() => {
@@ -311,13 +297,6 @@ export function AskChat({
   const said = turns.map((t) => `${t.answer.question} ${t.answer.text}`).join(' ')
   React.useEffect(() => onTurns?.(said), [said, onTurns])
 
-  // Two quiet questions to ask next, once an answer is finished: ones this chat hasn't asked.
-  const asked = new Set(turns.map((t) => t.answer.question.toLowerCase()))
-  const next = examples
-    .filter((e) => !asked.has(e.question.toLowerCase()))
-    .slice(0, 2)
-    .map((e) => e.question)
-
   // A new question scrolls to the top of the view, so the answer arrives under it.
   const count = turns.length
   React.useEffect(() => {
@@ -332,85 +311,90 @@ export function AskChat({
     : 'Ask about a metric, a market or the records'
 
   return (
-    <div data-touch-targets className="@container flex h-full min-h-0 flex-col">
-      <div ref={viewport} className="min-h-0 flex-1 scrollbar-stable overflow-y-auto">
-        <div ref={content} className={cn('mx-auto flex min-h-full w-full flex-col', width)}>
-          {turns.length === 0 ? (
-            <div className="flex flex-1 flex-col justify-center gap-5 py-10">
-              <div className="px-2 text-center">
-                <h2 className="text-2xl font-medium tracking-tight text-balance">
-                  What do you want to know about the numbers?
-                </h2>
-                <p className="mt-2 text-sm text-balance text-muted-foreground">
-                  Answers come from checked context, the way an agent gets it, and say how sure they
-                  are.
-                </p>
-              </div>
-              {/* What agents asked this week; a new workspace, with nothing asked yet, gets its starters instead. */}
-              {!draft &&
-                (fresh || (week && !week.rows.length) ? (
-                  <Suggestions
-                    grid
-                    items={starters.slice(0, 4)}
-                    onPick={(q) => onStarter?.(q) || void add(q)}
-                  />
-                ) : (
-                  <AskedThisWeek onPick={(q) => onStarter?.(q) || void add(q)} />
-                ))}
-            </div>
-          ) : (
-            // A log, so a screen reader hears each answer arrive.
-            <div
-              role="log"
-              aria-label="Questions and answers"
-              className="flex flex-col gap-y-8 pt-6 pb-10"
-            >
-              {draft && <DraftBanner />}
-              {turns.map((t, i) => (
-                <div key={t.answer.id} data-turn={i} className="flex scroll-mt-4 flex-col gap-y-6">
-                  <Question
-                    answer={t.answer}
-                    onRescope={draft ? undefined : rescope}
-                    onEdit={draft ? undefined : (parts) => composer.current?.set(parts)}
-                  />
-                  <AnswerBody
-                    answer={t.answer}
-                    draft={draft}
-                    docked={compact}
-                    phase={t.phase}
-                    onRetry={retry(i)}
-                    onSettled={settle(i)}
-                    onAsk={draft ? undefined : (q) => void add(q)}
-                  />
+    <Answering value={answering}>
+      <div data-touch-targets className="@container flex h-full min-h-0 flex-col">
+        {/* Positioned, so what is placed inside a turn (a citation's screen-reader words) stays in
+            this scroll box and never makes the page around it taller. */}
+        <div ref={viewport} className="relative min-h-0 flex-1 scrollbar-stable overflow-y-auto">
+          <div ref={content} className={cn('mx-auto flex min-h-full w-full flex-col', width)}>
+            {turns.length === 0 ? (
+              <div className="flex flex-1 flex-col justify-center gap-5 py-10">
+                <div className="px-2 text-center">
+                  <h2 className="text-2xl font-medium tracking-tight text-balance">
+                    What do you want to know about the numbers?
+                  </h2>
+                  <p className="mt-2 text-sm text-balance text-muted-foreground">
+                    Answers come from checked context, the way an agent gets it, and say how sure
+                    they are.
+                  </p>
                 </div>
-              ))}
-              {/* An answer that looked nothing up offers its own questions instead. */}
-              {!draft && !busy && turns.at(-1)?.phase === 'done' && turns.at(-1)?.answer.state && (
-                <AskNext items={next} onPick={(q) => void add(q)} />
-              )}
-            </div>
-          )}
+                {/* What agents asked this week; a new workspace, with nothing asked yet, gets its starters instead. */}
+                {!draft &&
+                  (fresh || (week && !week.rows.length) ? (
+                    <Suggestions
+                      grid
+                      items={starters.slice(0, 4)}
+                      onPick={(q) => onStarter?.(q) || void add(q)}
+                    />
+                  ) : (
+                    <AskedThisWeek onPick={(q) => onStarter?.(q) || void add(q)} />
+                  ))}
+              </div>
+            ) : (
+              // A log, so a screen reader hears each answer arrive.
+              <div
+                role="log"
+                aria-label="Questions and answers"
+                className="flex flex-col gap-y-8 pt-6 pb-10"
+              >
+                {draft && <DraftBanner />}
+                {turns.map((t, i) => (
+                  <div
+                    key={t.answer.id}
+                    data-turn={i}
+                    className="flex scroll-mt-4 flex-col gap-y-6"
+                  >
+                    <Question
+                      answer={t.answer}
+                      onRescope={draft ? undefined : rescope}
+                      onEdit={draft ? undefined : (parts) => composer.current?.set(parts)}
+                    />
+                    <AnswerBody
+                      answer={t.answer}
+                      draft={draft}
+                      docked={compact}
+                      phase={t.phase}
+                      onRetry={retry(i)}
+                      onSettled={settle(i)}
+                      onAsk={draft ? undefined : (q) => void add(q)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-      {/* Docked to the bottom edge, part of the frame: a hairline above, the box at reading width. */}
-      <div className="shrink-0 border-t bg-background">
-        {/* Under the box, the bar height less its control row (40) and edge (1): the hairline over the
+        {/* Docked to the bottom edge, part of the frame: a hairline above, the box at reading width. */}
+        <div className="shrink-0 border-t bg-background">
+          {/* Under the box, the bar height less its control row (40) and edge (1): the hairline over the
             controls then sits one bar from the bottom, in line with the sidebar's user block and the other bars. */}
-        <div className={cn('mx-auto flex w-full flex-col gap-2 pt-3 pb-ask-foot', width)}>
-          <React.Suspense fallback={<ComposerPlaceholder placeholder={placeholder} />}>
-            <AskComposer
-              ref={composer}
-              onSubmit={(q) => void add(q)}
-              onStop={stop}
-              busy={busy}
-              placeholder={placeholder}
-              prefill={prefill}
-              autoFocus={(turns.length === 0 || !!prefill) && !touch}
-            />
-          </React.Suspense>
+          <div className={cn('mx-auto flex w-full flex-col gap-2 pt-3 pb-ask-foot', width)}>
+            <React.Suspense fallback={<ComposerPlaceholder placeholder={placeholder} />}>
+              <AskComposer
+                ref={composer}
+                onSubmit={(q) => void add(q)}
+                onStop={stop}
+                busy={busy}
+                waiting={waiting}
+                placeholder={placeholder}
+                prefill={prefill}
+                autoFocus={(turns.length === 0 || !!prefill) && !touch}
+              />
+            </React.Suspense>
+          </div>
         </div>
       </div>
-    </div>
+    </Answering>
   )
 }
 
@@ -892,10 +876,16 @@ export function AskPage() {
   const n = query.get('n')
   const threads = useThreads()
   const asked = findThread(threads, chat)?.question
-  // An example or a chat opens on its first answer, which is read before the thread shows.
+  // The chat a first question in this thread started: the thread already shows it. Opening it from
+  // the history changes `n`, and then its first answer is read like any other chat's.
+  const [started, setStarted] = React.useState<{ chat: string; n: string | null }>()
+  const showing = !!chat && started?.chat === chat && started.n === n
+  // An example or a chat opens on its first answer, which is read before the thread shows. Each read
+  // is a look-up, so the chat on show is not read again, nor when the window regains focus.
   const first = useQuery({
     ...askQuery(example ? { example } : { question: asked ?? '' }),
-    enabled: !!example || !!asked,
+    enabled: !!example || (!!asked && !showing),
+    refetchOnWindowFocus: false,
   })
   const initial = React.useMemo(() => (first.data ? [first.data] : []), [first.data])
   const [sheet, setSheet] = React.useState(false)
@@ -944,11 +934,9 @@ export function AskPage() {
     return true
   }
   const setup = query.get('setup')
-  // The chat a first question here started: the thread already shows it.
-  const [started, setStarted] = React.useState<string>()
   const onFirstAsk = (q: string) => {
     const id = `chat-${n ?? Date.now()}`
-    setStarted(id)
+    setStarted({ chat: id, n })
     threadActions.add(id, q)
     setQuery({ chat: id, setup: undefined, q: undefined })
     // The setup step "Ask a question about it" is done by asking one.
@@ -1026,7 +1014,7 @@ export function AskPage() {
         <div className="min-h-0 min-w-0 flex-1">
           {/* An example or a chat opens on its first answer, so the thread waits for it; a chat
               started here by asking is already showing it. */}
-          {(first.data || (!example && (!asked || chat === started))) && (
+          {(first.data || (!example && (!asked || showing))) && (
             <AskChat
               key={example ? `e-${example}` : `c-${n ?? ''}`}
               initial={initial}

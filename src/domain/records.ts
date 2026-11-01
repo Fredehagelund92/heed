@@ -541,7 +541,6 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     shown: null,
     more: null,
     note: null,
-    offers: offersFor(ask.intent, world),
   }
   const where = domain ? ` in ${domain.name}` : ''
   const things = kind ? kindWords[kind].many : 'context items'
@@ -1042,41 +1041,6 @@ function catalogueAnswer(
         },
     note: 'Counted from Definitions, as it shows them to you.',
   }
-}
-
-/** Two records questions to ask next, each one Records reads as its intent. */
-function offersFor(intent: RecordsIntent, world: RecordsWorld): string[] {
-  const first = world.areas[0]?.name
-  // A dimension whose values fit in one answer, to offer them.
-  const dimensions = world.terms
-    .filter((t) => t.kind === 'dimension')
-    .sort((a, b) => a.name.localeCompare(b.name, 'en'))
-  const valuesIn = (key: string) =>
-    world.terms.filter((t) => t.kind === 'dimension_value' && t.parentKey === key).length
-  const dimension = (
-    dimensions.find((d) => valuesIn(d.key) > 1 && valuesIn(d.key) <= NAMED) ?? dimensions[0]
-  )?.name
-  const all: Record<RecordsIntent, string> = {
-    created: 'What was created in the last 7 days?',
-    changed: 'What changed this week?',
-    due: 'What is due for a check?',
-    archived: 'What is archived?',
-    owner: first ? `Who owns ${first}?` : 'Which domains have no owner?',
-    count: first
-      ? `How many context items does ${first} have?`
-      : 'How many context items are there?',
-    asked_nothing: 'What did agents ask that found nothing?',
-    terms: 'How many metrics are there?',
-    values: dimension ? `What values does ${dimension} have?` : 'What dimensions are there?',
-  }
-  const order: RecordsIntent[] =
-    intent === 'terms' || intent === 'values'
-      ? ['terms', 'values', 'changed']
-      : ['changed', 'due', 'owner', 'count', 'created', 'archived']
-  return order
-    .filter((i) => i !== intent)
-    .slice(0, 2)
-    .map((i) => all[i])
 }
 
 /** A question about one person's work, refused with what Ask can say instead. */

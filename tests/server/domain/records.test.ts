@@ -585,20 +585,13 @@ describe('a records answer', () => {
     })
   })
 
-  it('offers questions to ask next that it reads as records questions', () => {
+  it('offers questions instead only when it refuses, each one it reads as a records question', () => {
     const w = world([item({ id: 'a' })])
-    const intents = [
-      'created',
-      'changed',
-      'due',
-      'archived',
-      'owner',
-      'count',
-      'asked_nothing',
-    ] as const
-    for (const intent of intents)
-      for (const offer of answer(ask({ intent }), w).offers)
-        expect(intentOf(offer), offer).not.toBeNull()
+    expect(answer(ask({ intent: 'changed' }), w)).not.toHaveProperty('offers')
+    const refused = refusedAnswer(w)
+    expect(refused.refused).toBe(true)
+    for (const offer of refused.refused ? refused.offers : [])
+      expect(intentOf(offer), offer).not.toBeNull()
   })
 
   it('writes plain sentences: no dash for a pause, short enough to read at once', () => {

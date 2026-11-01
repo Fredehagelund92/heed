@@ -1144,6 +1144,7 @@ export function createRouter({
                         { error: error instanceof Error ? error.name : 'unknown' },
                         'ask words not written',
                       ),
+                    onMiss: (miss) => log.warn(miss, 'ask words not written'),
                   },
                   wordsInputOf(input.question, answer),
                 )

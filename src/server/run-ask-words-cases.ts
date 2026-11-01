@@ -104,11 +104,17 @@ async function main() {
 async function report(cases: typeof wordsCases, choice: ModelChoice): Promise<number> {
   let failed = 0
   for (const c of cases) {
-    const text = await askForWords(choice, c.input).catch((error: unknown) => {
+    const reply = await askForWords(choice, c.input).catch((error: unknown) => {
       console.error(`${c.id}: the model failed (${error instanceof Error ? error.name : 'error'})`)
       return null
     })
-    const problems = wordsProblems(c, text)
+    const text = reply?.text ?? null
+    const problems = [
+      ...(reply && reply.finishReason !== 'stop'
+        ? [`did not finish (${reply.finishReason}, ${reply.reasoningTokens} reasoning tokens)`]
+        : []),
+      ...wordsProblems(c, text),
+    ]
     if (problems.length) failed++
     console.log(`${problems.length ? 'FAIL' : 'pass'}\t${c.id}\t${problems.join('; ') || text}`)
   }

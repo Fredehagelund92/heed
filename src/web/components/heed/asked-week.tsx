@@ -3,6 +3,7 @@ import { ArrowUpRightIcon, ChevronDownIcon, EyeOffIcon } from '@/components/icon
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { StateLine } from '@/components/heed/bits'
+import { Answering } from '@/components/heed/suggestions'
 import { useQuery } from '@tanstack/react-query'
 import { askedWeekQuery } from '@/api/queries'
 import { ASKED_ROWS } from '@/model/ask'
@@ -15,6 +16,7 @@ import { useMe } from '@/lib/workspace'
 
 export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }) {
   const me = useMe()
+  const answering = React.use(Answering)
   const w = useQuery(askedWeekQuery()).data
   // The four most asked; the rest open in place, so the empty page stays calm.
   const [all, setAll] = React.useState(false)
@@ -50,8 +52,9 @@ export function AskedThisWeek({ onPick }: { onPick: (question: string) => void }
             >
               <button
                 type="button"
-                onClick={() => onPick(r.question)}
-                className="flex min-h-14 min-w-0 flex-1 flex-col items-start justify-center gap-1 rounded-md px-1.5 py-1.5 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+                aria-disabled={answering || undefined}
+                onClick={() => !answering && onPick(r.question)}
+                className="flex min-h-14 min-w-0 flex-1 flex-col items-start justify-center gap-1 rounded-md px-1.5 py-1.5 text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 aria-disabled:hover:bg-transparent"
               >
                 <span className="text-sm font-medium">{r.title}</span>
                 <StateLine state={r.state} tip={false} className="px-1.5 py-0.5 text-xs" />

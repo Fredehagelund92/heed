@@ -20,7 +20,7 @@ import { TypeGlyph } from '@/components/heed/definition'
 import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
-import { Suggestions, suggestionClass } from '@/components/heed/suggestions'
+import { Answering, Suggestions, suggestionClass } from '@/components/heed/suggestions'
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
@@ -826,6 +826,15 @@ function SomethingWrong({
   )
 }
 
+/** Questions from the workspace to try instead, other than the one asked. */
+function useInsteadExamples(answer: Answer) {
+  const asked = answer.question.toLowerCase()
+  return useAskExamples()
+    .map((e) => e.question)
+    .filter((q) => q.toLowerCase() !== asked)
+    .slice(0, 2)
+}
+
 /**
  * A question that looked nothing up: the three kinds of question Ask answers, each with one to
  * try, the one about a metric or a market made from the names closest to the words (else from the
@@ -833,10 +842,8 @@ function SomethingWrong({
  * down.
  */
 function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
-  const asked = answer.question.toLowerCase()
-  const workspace = useAskExamples()
-    .map((e) => e.question)
-    .find((q) => q.toLowerCase() !== asked)
+  const answering = React.use(Answering)
+  const workspace = useInsteadExamples(answer)[0]
   const close = answer.closest?.[0]
   const kinds = [
     {
@@ -862,7 +869,12 @@ function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) =
           {kinds.map((k) => (
             <li key={k.kind} className="flex flex-col items-start gap-1">
               <span className="text-xs text-muted-foreground">{k.kind}</span>
-              <button type="button" onClick={() => onAsk(k.question)} className={suggestionClass}>
+              <button
+                type="button"
+                aria-disabled={answering || undefined}
+                onClick={() => !answering && onAsk(k.question)}
+                className={suggestionClass}
+              >
                 {k.question}
               </button>
             </li>
@@ -915,6 +927,17 @@ function AnswerDefinitions({ definitions }: { definitions: AskedDefinition[] }) 
       ))}
     </div>
   )
+}
+
+/**
+ * Questions to try after a Not found answer: for a market on its own, the same market with the
+ * metrics its context is written for; otherwise two from the workspace.
+ */
+function TryInstead({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
+  const workspace = useInsteadExamples(answer)
+  const examples = answer.instead?.length ? answer.instead : workspace
+  if (!onAsk || examples.length === 0) return null
+  return <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />
 }
 
 /** The next step that fits the state: for the owner, or for everyone else. */
@@ -1298,13 +1321,13 @@ function ContextAnswerBody({
             {answer.alias && <AliasChip alias={answer.alias} />}
             {facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
             {answer.related?.length ? <Related ids={answer.related} /> : null}
-            {answer.instead && onAsk && (
-              <Suggestions items={answer.instead} onPick={onAsk} label="Ask with a metric" />
-            )}
             {answer.state === null ? (
               <AskableKinds answer={answer} onAsk={onAsk} />
             ) : (
-              !draft && <NextStep answer={answer} facts={facts} />
+              <>
+                {!draft && <NextStep answer={answer} facts={facts} />}
+                {answer.state === 'missing' && <TryInstead answer={answer} onAsk={onAsk} />}
+              </>
             )}
             {!draft && report && <ReportLine report={report} />}
             {!draft && wrong && !report && facts.length > 0 && (
