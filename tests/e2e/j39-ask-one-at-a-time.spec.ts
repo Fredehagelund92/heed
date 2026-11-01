@@ -54,20 +54,15 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
     .getByRole('region', { name: 'Asked this week' })
     .getByRole('button', { name: /^Net revenue in Norway/ })
   await row.dblclick()
-  // On the service, while it is answered the questions on offer say they wait, and a click on one
-  // asks nothing. The mock's answer is at once there, and the chat shows it being written.
-  if (mode === 'http') {
-    await expect(row).toHaveAttribute('aria-disabled', 'true')
-    await row.click({ force: true })
-  } else await until(page, page.getByRole('button', { name: 'Stop', exact: true }))
-  // A typed question waits too: Enter and Send say so and send nothing.
+  // The question is in the chat at once, on its way, and the second click asked nothing.
+  await until(page, page.getByRole('button', { name: 'Stop', exact: true }))
+  await expect(turns).toHaveCount(1)
+  // A typed question waits too: Stop has Ask's place, and Enter says so and sends nothing.
   await box(page).click()
   await box(page).pressSequentially('Why did orders in Norway drop in August?')
-  const ask = page.getByRole('button', { name: 'Ask', exact: true })
-  if (mode === 'http') await expect(ask).toHaveAttribute('aria-disabled', 'true')
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toHaveCount(0)
   await box(page).press('Enter')
   await expect(page.getByRole('status').filter({ hasText: 'Still answering' })).toBeVisible()
-  if (mode === 'http') await ask.click({ force: true })
 
   release()
   await ready(page)
@@ -148,7 +143,8 @@ test('offline, a chat in the history still opens, in Ask and in the assistant pa
     await box(page).click()
     await box(page).pressSequentially('Why did orders in Norway drop in August?')
     await box(page).press('Enter')
-    await expect(page.locator('[data-turn]')).toHaveCount(1)
+    // The chat joins the history once its answer is in.
+    await expect(page.getByRole('button', { name: 'Good answer' })).toBeVisible()
   }
   await go(page, '/ask?n=offline&state=offline')
   const rows = page.getByRole('navigation', { name: 'Chats' }).locator('[data-open]')

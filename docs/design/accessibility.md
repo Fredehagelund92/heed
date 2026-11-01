@@ -58,7 +58,7 @@ Every mark has an icon, a shape or a word as well.
 - Selecting rows says "3 selected" on each change and "Selection cleared" at the end.
 - A new suggestion in the review is announced when it opens. After the last decision the review says everything is handled.
 - Adding a synonym says "Added synonym GMV".
-- The Ask thread is `role="log"`. A finished answer is read out. A stopped answer ends in "..." and is read out as stopped.
+- The Ask thread is `role="log"`. An answer's words are read out a sentence at a time as they arrive (`aria-live="polite"`), never word by word, and the finished words are not read again. A status line that is always there says "Looking up the answer.", "Writing the answer.", "Answer written." or "Stopped. The answer is not finished." Focus stays in the box after Ask and after Stop.
 - A pending button is `aria-busy` and ignores more presses. With reduced motion its spinner stands still and its label changes ("Publishing...") so it still says it is working.
 - The "read" progress in the review is also text: the hint says what counts as read.
 

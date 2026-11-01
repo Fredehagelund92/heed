@@ -842,21 +842,33 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  /** The engine's answer to a question: its steps run on the service, the answer is the last event. */
-  async function lookUp(input: { question: string } & Partial<ReturnType<typeof lookupFields>>) {
-    const events = await readPosted((o) => client.ask.lookup(input, o))
+  /**
+   * The engine's answer to a question: its steps run on the service, then the answer, then a real
+   * model's words a checked sentence at a time. Each is passed on to `seen` as it arrives, and
+   * `signal` stops the look-up, the model's call with it.
+   */
+  async function lookUp(
+    input: { question: string } & Partial<ReturnType<typeof lookupFields>>,
+    seen: (event: LookupEvent) => void,
+    signal?: AbortSignal,
+  ) {
+    const events = await readPosted((o) =>
+      client.ask.lookup(input, { ...o, ...(signal ? { signal } : {}) }),
+    )
     let answer: Extract<LookupEvent, { type: 'answer' }>['answer'] | undefined
     // The words a real model wrote from the answer's items, when the service has one.
-    let written: string | undefined
+    const written: string[] = []
     // A question about the context's own records: its one event, and nothing looked up.
     let records: Extract<LookupEvent, { type: 'records' }>['records'] | undefined
-    for await (const event of events)
+    for await (const event of events) {
       if (event.type === 'answer') answer = event.answer
-      else if (event.type === 'words') written = event.text
+      else if (event.type === 'sentence') written.push(event.text)
       else if (event.type === 'records') records = event.records
+      seen(event)
+    }
     if (records) return { records }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
-    return { answer, written }
+    return { answer, written: written.join(' ') || undefined }
   }
 
   /** The look-up's fields from the @ chips: the metrics and the markets they name. */
@@ -880,7 +892,7 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     }
   }
 
-  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example }) => {
+  const ask: HeedApi['ask'] = async ({ question = '', parts, scope, example }, live) => {
     let words = question
     let offered = offeredScopes.get(question.toLowerCase())
     if (example) {
@@ -895,13 +907,25 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
       ...(parts?.some((p) => typeof p !== 'string') ? { parts } : {}),
       ...(scope?.length ? { scope } : {}),
     }
+    // What the chat is told as the look-up runs: what it found, the engine's answer, each sentence.
+    const seen = (event: LookupEvent) => {
+      const tell = live?.onEvent
+      if (!tell) return
+      if (event.type === 'step' && event.step.step === 'looked_up')
+        tell({ type: 'found', items: event.step.items.length })
+      else if (event.type === 'answer')
+        tell({ type: 'answer', answer: answerOf(event.answer, words, names, extra) })
+      else if (event.type === 'sentence') tell({ type: 'sentence', text: event.text })
+    }
     try {
-      const looked = await lookUp({ question: words, ...fields })
+      const looked = await lookUp({ question: words, ...fields }, seen, live?.signal)
       if (looked.records) return { ...recordsAnswer(words, looked.records), ...extra }
       const answer = answerOf(looked.answer, words, names, extra, looked.written)
       said.set(words.toLowerCase(), answer.text.replace(/\[\d+\]/g, ''))
       return answer
     } catch (error) {
+      // Stopped: the chat keeps what it showed.
+      if (live?.signal?.aborted) throw error
       const failure = toApiError(error)
       // Nothing is shared with agents yet: no context, so nothing applies.
       if (failure.status === 412) return { ...nothingLiveAnswer(words), ...extra }

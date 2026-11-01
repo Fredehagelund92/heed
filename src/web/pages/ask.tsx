@@ -12,10 +12,11 @@ import {
   XIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
+import { api } from '@/api'
 import { toApiError } from '@/api/errors'
 import { cn } from '@/lib/utils'
 import { DockFrame } from '@/components/dock'
-import { AnswerBody, DraftBanner, Question, type Phase } from '@/components/heed/answer'
+import { AnswerBody, DraftBanner, Question } from '@/components/heed/answer'
 import { ResizableAside } from '@/components/resizable-aside'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,14 @@ import {
   useWrite,
 } from '@/api/queries'
 import type { Answer, AskInput, QuestionPart } from '@/model/ask'
+import {
+  askedTurn,
+  doneTurn,
+  isLive,
+  turnReducer,
+  type Turn,
+  type TurnAction,
+} from '@/model/ask-turn'
 import type { AskQuestion, ComposerHandle } from '@/pages/ask-composer'
 import type { Fact } from '@/model/items'
 import { useDraft } from '@/lib/draft'
@@ -49,22 +58,22 @@ import { navigate, setQuery, useRoute } from '@/lib/router'
 import { inputSurface } from '@/lib/surfaces'
 import { findThread, useThreadActions, useThreads, type Day, type Thread } from '@/lib/threads'
 import { TruncatedText } from '@/components/heed/truncated'
-import { markRead, wasRead } from '@/lib/stages'
 import { AskedThisWeek } from '@/components/heed/asked-week'
 import { Answering, Suggestions } from '@/components/heed/suggestions'
 import { arriveRef, leaveThen, useLeaving } from '@/lib/presence'
 
 // Ask, drawn like assistant-ui's thread inside the Efferd shell: a thread history on the left, a
-// calm centred thread at reading width, and a composer docked to the bottom edge. Mock answers only:
-// each one "looks up" for a moment, then streams in.
-
-type Turn = { answer: Answer; phase: Phase }
+// calm centred thread at reading width, and a composer docked to the bottom edge. A question shows
+// the moment it is sent; its answer follows the look-up as it runs, the words a sentence at a time.
 
 /** What Ask is asked for a chat's first answer: its example, or its question. */
 const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
   t.example ? { example: t.example } : { question: t.question }
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+/** How near the bottom, in pixels, the reader counts as at the bottom: the view follows the answer. */
+const FOLLOW_SLACK = 24
 
 const AskComposer = React.lazy(() =>
   import('@/pages/ask-composer').then((m) => ({ default: m.AskComposer })),
@@ -90,10 +99,7 @@ export function AskChat({
   onFirstAsk,
   onStarter,
   onTurns,
-  stageFirst,
 }: {
-  /** The first answer plays its stages the first time this key is shown (Try it), then opens at once. */
-  stageFirst?: string
   initial?: Answer[]
   draft?: Fact
   compact?: boolean
@@ -105,21 +111,16 @@ export function AskChat({
   /** Everything this chat has asked and answered so far, so the history search finds it. */
   onTurns?: (text: string) => void
 }) {
-  const [turns, setTurns] = React.useState<Turn[]>(() =>
-    (initial ?? []).map((answer, i) => ({
-      answer,
-      phase: i === 0 && stageFirst && !wasRead(stageFirst) && !reducedMotion() ? 'live' : 'done',
-    })),
-  )
-  React.useEffect(() => {
-    if (stageFirst) markRead(stageFirst)
-  }, [stageFirst])
+  const [turns, setTurns] = React.useState<Turn[]>(() => (initial ?? []).map(doneTurn))
+  /** One more event for the turn `id`. */
+  const update = (id: string, action: TurnAction) =>
+    setTurns((ts) => ts.map((t) => (t.answer.id === id ? turnReducer(t, action) : t)))
   const viewport = React.useRef<HTMLDivElement>(null)
 
-  const busy = turns.some((t) => t.phase === 'live')
+  const busy = turns.some(isLive)
   // One question at a time, as in any chat: from the moment one is sent until its answer is in (or
-  // has failed), nothing else is asked. The ref holds it at once, before React shows it: a second
-  // click in the same moment finds it held.
+  // has failed, or was stopped), nothing else is asked. The ref holds it at once, before React shows
+  // it: a second click in the same moment finds it held.
   const [waiting, setWaiting] = React.useState(false)
   const sending = React.useRef(false)
   const answering = waiting || busy
@@ -135,37 +136,70 @@ export function AskChat({
       setWaiting(false)
     }
   }
-  // While an answer is written the view follows it down, until the asker scrolls up to read.
+  // While an answer is written the view follows it down, only while the reader is at the bottom.
   const follow = React.useRef(true)
 
   /** Brings a finished answer fully into view, down to its action row, above the composer. */
-  const reveal = (i: number) =>
+  const reveal = (id: string) =>
     requestAnimationFrame(() => {
       const box = viewport.current
-      const el = box?.querySelector<HTMLElement>(`[data-turn="${i}"]`)
-      if (!box || !el) return
+      const el = box?.querySelector<HTMLElement>(`[data-turn-id="${id}"]`)
+      if (!box || !el || !follow.current) return
       const below = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 16
       if (below > 0) box.scrollBy({ top: below, behavior: reducedMotion() ? 'auto' : 'smooth' })
     })
 
-  // Stop cancels: the answer freezes where it got to, says it isn't finished, and that comes into view.
+  // The answer being written, which Stop ends: the look-up's request, and the model's call with it.
+  const live = React.useRef<AbortController | null>(null)
+  // The turn asked last, which the status line speaks for.
+  const [current, setCurrent] = React.useState<string | null>(null)
+  React.useEffect(() => () => live.current?.abort(), [])
+
+  // Stop cancels: the answer keeps what it showed, says it isn't finished, and that comes into view.
   const stop = () => {
-    const i = turns.findIndex((t) => t.phase === 'live')
-    if (i < 0) return
-    setTurns((ts) => ts.map((t) => (t.phase === 'live' ? { ...t, phase: 'stopped' } : t)))
-    reveal(i)
+    const turn = turns.find(isLive)
+    if (!turn) return
+    live.current?.abort()
+    update(turn.answer.id, { type: 'stop' })
+    follow.current = true
+    reveal(turn.answer.id)
+    keepFocus()
   }
 
-  const settle = (i: number) => () => {
-    setTurns((ts) =>
-      ts.map((t, j) => (j === i && t.phase === 'live' ? { ...t, phase: 'done' } : t)),
-    )
-    reveal(i)
+  /**
+   * The answer to one turn, its events going to the turn as they come: the answer once it is in,
+   * or null when it was stopped. `onAnswered` is told when the engine's answer is in.
+   */
+  const answerTurn = async (id: string, input: AskInput, onAnswered?: () => void) => {
+    setCurrent(id)
+    const controller = new AbortController()
+    live.current = controller
+    try {
+      const answer = await api.ask(input, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (event.type === 'answer') onAnswered?.()
+          update(id, event)
+        },
+      })
+      update(id, { type: 'done', answer })
+      reveal(id)
+      return answer
+    } catch (error) {
+      if (controller.signal.aborted) return null
+      throw error
+    } finally {
+      if (live.current === controller) live.current = null
+    }
   }
 
   const composer = React.useRef<ComposerHandle>(null)
   // A touch screen gets no automatic focus: the keyboard would cover the page before anyone asked for it.
   const [touch] = React.useState(() => window.matchMedia('(pointer: coarse)').matches)
+  // Ask and Stop take each other's place: focus stays in the box rather than leaving with them.
+  function keepFocus() {
+    if (!touch) composer.current?.focus()
+  }
   const { fresh } = useSession()
   const examples = useAskExamples()
   // What agents asked this week; with nothing asked yet (a new workspace), its starters instead.
@@ -179,33 +213,41 @@ export function AskChat({
         parts,
         scope,
       } = typeof asked === 'string' ? { text: asked, parts: undefined, scope: [] } : asked
-      let answer: Answer
-      try {
-        answer =
-          draft && initial?.[0]
-            ? { ...initial[0], question: q, parts }
-            : await queryClient.fetchQuery(askQuery({ question: q, parts, scope }))
-      } catch (e) {
-        // Nothing came back: the question goes back in an empty box, to send again.
-        composer.current?.refill(parts ?? [q])
-        toast("Couldn't ask that", { description: toApiError(e).message })
+      const index = turns.length
+      const id = `t${index}`
+      follow.current = true
+      // A draft's answer is the draft's own, written here: it is there at once.
+      if (draft && initial?.[0]) {
+        setTurns((ts) => [...ts, doneTurn({ ...initial[0]!, id, question: q, parts })])
+        reveal(id)
         return
       }
-      const index = turns.length
       // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
       if (index === 0 && onStarter?.(q)) return
-      if (index === 0) {
-        // The chat this starts opens again on its question alone: a question with no mentions gets
-        // the same answer, so it is kept for that, and opening the chat again looks nothing up.
-        if (!scope.length && (parts ?? []).every((p) => typeof p === 'string'))
-          queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
+      // The question is in the chat at once; its answer follows as the look-up runs.
+      setTurns((ts) => [...ts, askedTurn(id, q, { parts, scope })])
+      keepFocus()
+      // The chat this starts joins the history once its answer is in.
+      let joined = index !== 0
+      const join = () => {
+        if (joined) return
+        joined = true
         onFirstAsk?.(q)
       }
-      follow.current = true
-      // With reduced motion the answer is there at once, finished.
-      const phase: Phase = reducedMotion() ? 'done' : 'live'
-      setTurns((ts) => [...ts, { answer: { ...answer, id: `t${index}` }, phase }])
-      if (phase === 'done') window.setTimeout(() => reveal(index), 0)
+      try {
+        const answer = await answerTurn(id, { question: q, parts, scope }, join)
+        if (!answer) return
+        join()
+        // It opens again on its question alone: a question with no mentions gets the same answer, so
+        // it is kept for that, and opening the chat again looks nothing up.
+        if (index === 0 && !scope.length && (parts ?? []).every((p) => typeof p === 'string'))
+          queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
+      } catch (e) {
+        // Nothing came back: the question leaves the chat and goes back in an empty box, to send again.
+        setTurns((ts) => ts.filter((t) => t.answer.id !== id))
+        composer.current?.refill(parts ?? [q])
+        toast("Couldn't ask that", { description: toApiError(e).message })
+      }
     })
 
   // "Change it" under a misread question: the question goes back in the box with what it was read as, as chips to keep or swap.
@@ -215,27 +257,20 @@ export function AskChat({
   const retry = (i: number) => () => void askAgain(i)
   const askAgain = (i: number) =>
     one(async () => {
-      const { question, parts, scope, id, state, dates } = turns[i]!.answer
-      let fresh: Answer
+      const before = turns[i]!
+      const { question, parts, scope, id, state, dates } = before.answer
+      follow.current = true
+      setTurns((ts) => ts.map((t, j) => (j === i ? askedTurn(id, question, { parts, scope }) : t)))
       try {
-        fresh = await queryClient.fetchQuery(
-          askQuery(
-            state === 'failed' ? { question, reread: { dates } } : { question, parts, scope },
-          ),
+        await answerTurn(
+          id,
+          state === 'failed' ? { question, reread: { dates } } : { question, parts, scope },
         )
       } catch (e) {
+        // The answer it had stays.
+        setTurns((ts) => ts.map((t, j) => (j === i ? before : t)))
         toast("Couldn't ask that again", { description: toApiError(e).message })
-        return
       }
-      setTurns((ts) =>
-        ts.map((t, j) =>
-          j === i
-            ? { answer: { ...fresh, id, parts, scope }, phase: reducedMotion() ? 'done' : 'live' }
-            : t,
-        ),
-      )
-      follow.current = true
-      if (reducedMotion()) window.setTimeout(() => reveal(i), 0)
     })
 
   // "/" puts the cursor in the box from anywhere on the page that isn't a text field.
@@ -267,31 +302,48 @@ export function AskChat({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // A long answer stays in view as it is written: its last line follows the bottom edge.
+  // A long answer stays in view as it is written: its last line follows the bottom edge, while the
+  // reader is at the bottom. Scrolling up to read stops that; scrolling back down starts it again.
   const content = React.useRef<HTMLDivElement>(null)
   React.useEffect(() => {
     const box = viewport.current
     const inner = content.current
     if (!box || !inner || !busy) return
-    const away = (e: WheelEvent | TouchEvent) => {
-      if (!('deltaY' in e) || e.deltaY < 0) follow.current = false
+    let last = box.scrollTop
+    const onScroll = () => {
+      const bottom = box.scrollHeight - box.scrollTop - box.clientHeight <= FOLLOW_SLACK
+      // Following only ever scrolls down: a scroll up is the reader's.
+      if (bottom) follow.current = true
+      else if (box.scrollTop < last) follow.current = false
+      last = box.scrollTop
     }
     const ro = new ResizeObserver(() => {
-      const i = turns.findIndex((t) => t.phase === 'live')
-      const el = box.querySelector<HTMLElement>(`[data-turn="${i}"]`)
+      const turn = turns.find(isLive)
+      const el = turn && box.querySelector<HTMLElement>(`[data-turn-id="${turn.answer.id}"]`)
       if (!follow.current || !el) return
       const below = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom + 16
       if (below > 0) box.scrollBy({ top: below })
     })
     ro.observe(inner)
-    box.addEventListener('wheel', away, { passive: true })
-    box.addEventListener('touchmove', away, { passive: true })
+    box.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       ro.disconnect()
-      box.removeEventListener('wheel', away)
-      box.removeEventListener('touchmove', away)
+      box.removeEventListener('scroll', onScroll)
     }
   }, [busy, turns])
+
+  // What a screen reader hears of the answer asked last: that it started, finished or stopped. The
+  // words themselves arrive in the log a sentence at a time.
+  const asked = turns.find((t) => t.answer.id === current)
+  const status = !asked
+    ? ''
+    : asked.stopped
+      ? 'Stopped. The answer is not finished.'
+      : asked.stage === 'done'
+        ? 'Answer written.'
+        : asked.answered
+          ? 'Writing the answer.'
+          : 'Looking up the answer.'
 
   // What the chat holds, for the history search.
   const said = turns.map((t) => `${t.answer.question} ${t.answer.text}`).join(' ')
@@ -352,6 +404,7 @@ export function AskChat({
                   <div
                     key={t.answer.id}
                     data-turn={i}
+                    data-turn-id={t.answer.id}
                     className="flex scroll-mt-4 flex-col gap-y-6"
                   >
                     <Question
@@ -360,12 +413,10 @@ export function AskChat({
                       onEdit={draft ? undefined : (parts) => composer.current?.set(parts)}
                     />
                     <AnswerBody
-                      answer={t.answer}
+                      turn={t}
                       draft={draft}
                       docked={compact}
-                      phase={t.phase}
                       onRetry={retry(i)}
-                      onSettled={settle(i)}
                       onAsk={draft ? undefined : (q) => void add(q)}
                     />
                   </div>
@@ -374,6 +425,10 @@ export function AskChat({
             )}
           </div>
         </div>
+        {/* Always there, so a screen reader hears it change: started, written, stopped. */}
+        <p role="status" className="sr-only">
+          {status}
+        </p>
         {/* Docked to the bottom edge, part of the frame: a hairline above, the box at reading width. */}
         <div className="shrink-0 border-t bg-background">
           {/* Under the box, the bar height less its control row (40) and edge (1): the hairline over the
@@ -1145,15 +1200,7 @@ export function TryIt({ cardId, embedded }: { cardId?: string; embedded?: boolea
     // The draft is read once it exists, when Try it opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId, hasDraft])
-  const chat = (
-    <AskChat
-      key={`${cardId}-${!!draft}`}
-      initial={initial}
-      draft={draft}
-      compact
-      stageFirst={`try:${cardId}:${!!draft}`}
-    />
-  )
+  const chat = <AskChat key={`${cardId}-${!!draft}`} initial={initial} draft={draft} compact />
   if (embedded) return chat
   return <DockFrame title="Try it">{chat}</DockFrame>
 }

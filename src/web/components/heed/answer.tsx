@@ -43,6 +43,7 @@ import {
   type AskedDefinition,
   type QuestionPart,
 } from '@/model/ask'
+import { isLive, shownText, type Turn } from '@/model/ask-turn'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
@@ -71,9 +72,6 @@ import { relLabel } from '@/lib/links'
 // One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
 // bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
 // collapsible tool card, sources as small cards, and an action bar under the answer.
-
-/** A turn's life: still answering, finished, or stopped by the asker before it finished. */
-export type Phase = 'live' | 'done' | 'stopped'
 
 function IconButton({
   label,
@@ -236,20 +234,13 @@ function ScopeLine({ answer }: { answer: Answer }) {
 /** An answer that says nothing of links follows none. */
 const NO_LINKS: AnswerLinks = { on: true, followed: [], notFollowed: [] }
 
-function LookupCard({
-  answer,
-  facts,
-  stage,
-  stopped,
-}: {
-  answer: Answer
-  facts: Fact[]
-  stage: Stage
-  stopped: boolean
-}) {
+function LookupCard({ answer, facts, turn }: { answer: Answer; facts: Fact[]; turn: Turn }) {
+  const { stage, stopped, answered } = turn
   const scope = scopeText(answer) || 'Nothing matched'
   const raw = agentReply(answer, facts)
-  const running = !stopped && (stage === 'looking' || stage === 'reading')
+  // Looking up and reading come from the look-up's own steps, until its answer is in.
+  const running = !stopped && !answered
+  const found = turn.found ?? 0
   // What the agent followed with get_related, as the answer says: one step each, never a retired target.
   const { followed, notFollowed, on: enabled } = answer.links ?? NO_LINKS
   const n = followed.length
@@ -261,20 +252,19 @@ function LookupCard({
         ? `, followed ${n} ${n === 1 ? 'link' : 'links'}`
         : ''
   // One quiet line that says what the look-up is doing; opened, the card in the chat's soft surface.
-  const line = stopped
-    ? stage === 'looking'
-      ? 'Stopped while looking up'
-      : stage === 'reading'
-        ? 'Stopped while reading'
-        : 'Stopped while writing'
-    : running && stage === 'looking'
-      ? 'Looking up context…'
-      : answer.state === null
-        ? 'Nothing was looked up'
-        : running
-          ? facts.length
-            ? `Reading ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}…`
+  const line =
+    stopped && !answered
+      ? stage === 'looking'
+        ? 'Stopped while looking up'
+        : 'Stopped while reading'
+      : running
+        ? stage === 'looking'
+          ? 'Looking up context…'
+          : found
+            ? `Reading ${found} context ${found === 1 ? 'item' : 'items'}…`
             : 'Found no context items'
+        : answer.state === null
+          ? 'Nothing was looked up'
           : answer.state === 'failed'
             ? 'The look-up failed'
             : facts.length
@@ -283,11 +273,11 @@ function LookupCard({
   return (
     <Collapsible className="text-sm">
       <CollapsibleTrigger
-        disabled={running}
+        disabled={!answered}
         className="group/lookup -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <ReadingLine running={running}>{line}</ReadingLine>
-        {!running && (
+        {answered && (
           <ChevronDownIcon
             className="size-3.5 shrink-0 transition-transform group-aria-expanded/lookup:rotate-180"
             aria-hidden
@@ -466,30 +456,56 @@ function SourceLinks({ fact }: { fact: Fact }) {
   )
 }
 
-/** Sentences with [n] turned into citation markers with a hover card. */
-function Cited({
-  text,
-  facts,
-  draft,
-  caret,
-}: {
-  text: string
-  facts: Fact[]
-  draft?: boolean
-  caret?: boolean
-}) {
+/** Words with [n] turned into citation markers with a hover card. */
+function CitedParts({ text, facts, draft }: { text: string; facts: Fact[]; draft?: boolean }) {
   // A marker sits against its sentence, after the full stop: "nothing.1 Orders", never "nothing 1 .".
   const parts = text
     .replace(/\s+(\[\d+\])/g, '$1')
     .replace(/(\[\d+\])([.,;:])/g, '$2$1')
     .split(/(\[\d+\])/)
+  return parts.map((p, i) => {
+    const m = p.match(/^\[(\d+)\]$/)
+    if (!m) return <React.Fragment key={i}>{p}</React.Fragment>
+    return <Citation key={i} n={Number(m[1])} fact={facts[Number(m[1]) - 1]} draft={draft} />
+  })
+}
+
+/** Sentences with [n] turned into citation markers with a hover card. */
+function Cited({ text, facts, draft }: { text: string; facts: Fact[]; draft?: boolean }) {
   return (
     <p className="text-reading leading-relaxed">
-      {parts.map((p, i) => {
-        const m = p.match(/^\[(\d+)\]$/)
-        if (!m) return <React.Fragment key={i}>{p}</React.Fragment>
-        return <Citation key={i} n={Number(m[1])} fact={facts[Number(m[1]) - 1]} draft={draft} />
-      })}
+      <CitedParts text={text} facts={facts} draft={draft} />
+    </p>
+  )
+}
+
+/**
+ * How a sentence comes in as a model writes it: a short fade (`--dur-sentence`), and with reduced
+ * motion none, as the tokens set it. Never word by word.
+ */
+const sentenceIn = 'animate-in fade-in-0 duration-(--dur-sentence)'
+
+/** A model's words as they are written: each sentence on its own, fading in as it arrives. */
+function Written({
+  sentences,
+  facts,
+  draft,
+  caret,
+}: {
+  sentences: string[]
+  facts: Fact[]
+  draft?: boolean
+  /** Still writing: a quiet mark where the next sentence goes. */
+  caret?: boolean
+}) {
+  return (
+    <p className="text-reading leading-relaxed">
+      {sentences.map((sentence, i) => (
+        <span key={i} className={sentenceIn}>
+          {i > 0 && ' '}
+          <CitedParts text={sentence} facts={facts} draft={draft} />
+        </span>
+      ))}
       {caret && (
         <span
           aria-hidden
@@ -1072,8 +1088,6 @@ function AssistantAvatar() {
   )
 }
 
-type Stage = 'looking' | 'reading' | 'writing' | 'done'
-
 /** The note says what the answer shows of the numbers: shown, a link to them, or not shown here. */
 function noteFor(note: string | undefined, view: FigureView | null) {
   if (!note) return note
@@ -1088,24 +1102,15 @@ function noteFor(note: string | undefined, view: FigureView | null) {
   return note
 }
 
-// The answer's timing, so it reads like an answer being written: the look-up (450ms), reading
-// what it found (650ms, long enough to be read), then the words, about 50ms each, between 0.6 and
-// 2.2 seconds; what backs them settles in last. The asker can stop it at any point.
-const LOOK = 450
-const READ = 1100
-const writingTime = (words: number) => Math.min(2200, Math.max(600, words * 50))
-
 type AnswerBodyProps = {
-  answer: Answer
+  /** The question and its answer, as far as the look-up has got. */
+  turn: Turn
   draft?: Fact
-  phase?: Phase
   /** Ask another question in this chat: one of those an answer that looked nothing up offers. */
   onAsk?: (question: string) => void
   /** Ask is itself in the right panel: what would open there opens in place. */
   docked?: boolean
   onRetry?: () => void
-  /** Told when a live answer has finished writing. */
-  onSettled?: () => void
 }
 
 /** A records answer's own body, loaded with the first one: most chats never need it. */
@@ -1118,7 +1123,7 @@ const RecordsAnswerBody = React.lazy(() =>
  * the context's own records, the records answer (FR-718), which has no state and no sources.
  */
 export function AnswerBody(props: AnswerBodyProps) {
-  const { records } = props.answer
+  const { records } = props.turn.answer
   if (!records) return <ContextAnswerBody {...props} />
   return (
     <div className="flex gap-3">
@@ -1126,26 +1131,14 @@ export function AnswerBody(props: AnswerBodyProps) {
       <React.Suspense
         fallback={<ReadingLine running>Counting from the workspace&apos;s records…</ReadingLine>}
       >
-        <RecordsAnswerBody
-          parts={recordsParts}
-          records={records}
-          onAsk={props.onAsk}
-          onSettled={props.onSettled}
-        />
+        <RecordsAnswerBody parts={recordsParts} records={records} onAsk={props.onAsk} />
       </React.Suspense>
     </div>
   )
 }
 
-function ContextAnswerBody({
-  answer,
-  draft,
-  phase = 'done',
-  onRetry,
-  onSettled,
-  onAsk,
-  docked,
-}: AnswerBodyProps) {
+function ContextAnswerBody({ turn, draft, onRetry, onAsk, docked }: AnswerBodyProps) {
+  const { answer, answered, stopped } = turn
   // A Conflict's pair is read while the answer is still being written, so it shows with the rest
   // of the finished answer and nothing below it moves once it is in view.
   const queryClient = useQueryClient()
@@ -1183,44 +1176,10 @@ function ContextAnswerBody({
   const saveDomain = facts[0]?.domain ?? me.owns.find((d) => !domainsById[d]?.sandbox) ?? 'sales'
   const canSave = me.admin || me.owns.includes(saveDomain)
 
-  // How far a live answer has got, in milliseconds; stages and words follow from it.
-  const tokens = React.useMemo(() => answer.text.match(/\S+\s*/g) ?? [], [answer.text])
-  const total = READ + writingTime(tokens.length)
-  const [elapsed, setElapsed] = React.useState(phase === 'live' ? 0 : Infinity)
-  const settled = React.useRef(onSettled)
-  React.useEffect(() => {
-    settled.current = onSettled
-  })
-  React.useEffect(() => {
-    if (phase !== 'live') return
-    const start = performance.now() - (Number.isFinite(elapsed) ? elapsed : 0)
-    const id = window.setInterval(() => {
-      const now = performance.now() - start
-      setElapsed(now)
-      if (now >= total) {
-        window.clearInterval(id)
-        settled.current?.()
-      }
-    }, 30)
-    return () => window.clearInterval(id)
-    // Restarted only when the phase changes; a stop freezes it where it is.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, total])
-
-  const stopped = phase === 'stopped' && elapsed < total
-  const stage: Stage =
-    elapsed < LOOK ? 'looking' : elapsed < READ ? 'reading' : elapsed < total ? 'writing' : 'done'
-  const shown =
-    stage === 'done'
-      ? tokens.length
-      : stage === 'writing'
-        ? Math.ceil(((elapsed - READ) / writingTime(tokens.length)) * tokens.length)
-        : 0
-  const cut = tokens.slice(0, shown).join('').trimEnd()
-  // Where Stop cut a sentence, it says so: "…".
-  const partial = stopped && cut && !/[.!?:)\]”"]$/.test(cut) ? `${cut}…` : cut
-  const writing = stage === 'writing' && !stopped
-  const finished = stage === 'done'
+  // Where the answer has got to: from the look-up's events, not a clock.
+  const finished = turn.stage === 'done'
+  const writing = turn.stage === 'writing' && !stopped
+  const text = shownText(turn)
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
   const asked = {
     metric: answer.metric,
@@ -1240,12 +1199,12 @@ function ContextAnswerBody({
   }, [finished, draft, key, answer, facts])
 
   return (
-    <div className="group/msg flex gap-3" aria-busy={phase === 'live' && !finished}>
+    // Busy only until the engine's answer is in: from then on its words are read as they come.
+    <div className="group/msg flex gap-3" aria-busy={isLive(turn) && !answered}>
       <AssistantAvatar />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <LookupCard answer={answer} facts={facts} stage={stage} stopped={stopped} />
-        {phase === 'live' && !finished && <span className="sr-only">Writing the answer</span>}
-        {(writing || finished) && (answer.state !== null || note || !!answer.scope?.length) && (
+        <LookupCard answer={answer} facts={facts} turn={turn} />
+        {answered && (answer.state !== null || note || !!answer.scope?.length) && (
           <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
             <ScopeLine answer={answer} />
             {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
@@ -1254,14 +1213,19 @@ function ContextAnswerBody({
           </div>
         )}
         {/* What the metric means, from its source: first, since that is what was asked. */}
-        {(writing || finished) && answer.definitions && (
+        {answered && answer.definitions && (
           <div className="animate-in duration-(--dur-3) fade-in-0">
             <AnswerDefinitions definitions={answer.definitions} />
           </div>
         )}
-        {/* The words arrive as they are written; a screen reader hears them once, when they are done or stopped. */}
-        {answer.text && (writing || finished || (stopped && shown > 0)) && (
-          <div aria-hidden={phase === 'live' && !finished}>
+        {/* The words grow a sentence at a time as they pass the check, each fading in; a screen
+            reader hears each sentence as it comes, and the finished words are not read again. */}
+        {writing && !text && <ReadingLine running>Writing…</ReadingLine>}
+        {text && (
+          <div
+            aria-live={writing ? 'polite' : 'off'}
+            className={cn(finished && !turn.sentences.length && sentenceIn)}
+          >
             {finished && !draft && !docked && facts.length > 0 ? (
               <WhereSentences
                 text={answer.text}
@@ -1269,16 +1233,15 @@ function ContextAnswerBody({
                 conflict={answer.state === 'conflict' ? answer.conflict : undefined}
                 answerId={key}
               />
+            ) : finished ? (
+              <Cited text={answer.text} facts={facts} draft={!!draft} />
             ) : (
-              <Cited
-                text={finished ? answer.text : partial}
-                facts={facts}
-                draft={!!draft}
-                caret={writing}
-              />
+              <Written sentences={turn.sentences} facts={facts} draft={!!draft} caret={writing} />
             )}
           </div>
         )}
+        {/* The sources are the engine's, in with its answer; a model's words never change them. */}
+        {answered && facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
         {finished && !draft && !docked && facts.length > 0 && (
           <p className="-mt-1.5 text-xs text-muted-foreground">
             {answer.state === 'conflict' &&
@@ -1287,14 +1250,12 @@ function ContextAnswerBody({
             Select a sentence to see where it says that.
           </p>
         )}
+        {/* The chat's own status line says it was stopped (src/web/pages/ask.tsx). */}
         {stopped && (
-          <div
-            role="status"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground"
-          >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <CircleStopIcon className="size-4 shrink-0" aria-hidden />
-              Stopped{shown > 0 ? '. This is not a finished answer.' : ' before an answer.'}
+              Stopped{answered ? '. This is not a finished answer.' : ' before an answer.'}
             </span>
             {onRetry && (
               <Button variant="outline" size="sm" onClick={onRetry}>
@@ -1319,7 +1280,6 @@ function ContextAnswerBody({
             {view?.kind === 'none' && <NoFigure view={view} />}
             {view?.kind === 'link' && <FigureLink view={view} />}
             {answer.alias && <AliasChip alias={answer.alias} />}
-            {facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
             {answer.related?.length ? <Related ids={answer.related} /> : null}
             {answer.state === null ? (
               <AskableKinds answer={answer} onAsk={onAsk} />
