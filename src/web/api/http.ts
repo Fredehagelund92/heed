@@ -860,11 +860,16 @@ export function createHttpApi({ baseUrl, fetch, shelf }: HttpApiOptions): HeedAp
     const written: string[] = []
     // A question about the context's own records: its one event, and nothing looked up.
     let records: Extract<LookupEvent, { type: 'records' }>['records'] | undefined
-    for await (const event of events) {
-      if (event.type === 'answer') answer = event.answer
-      else if (event.type === 'sentence') written.push(event.text)
-      else if (event.type === 'records') records = event.records
-      seen(event)
+    try {
+      for await (const event of events) {
+        if (event.type === 'answer') answer = event.answer
+        else if (event.type === 'sentence') written.push(event.text)
+        else if (event.type === 'records') records = event.records
+        seen(event)
+      }
+    } catch (error) {
+      // Once the engine's answer is in, a stream that breaks ends the words there; the answer stays.
+      if (!answer || signal?.aborted) throw error
     }
     if (records) return { records }
     if (!answer) throw new ApiError('unanswered', 'The answer stopped before it was finished.')
