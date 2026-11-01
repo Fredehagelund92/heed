@@ -126,6 +126,14 @@ test('a question that fails leaves Ask ready to ask, the question back in the bo
 test('offline, a chat in the history still opens, in Ask and in the assistant panel', async ({
   page,
 }) => {
+  if (mode === 'http') {
+    // The service starts without chats: one is asked while online, so the history has it.
+    await go(page, '/ask?n=offline')
+    await box(page).click()
+    await box(page).pressSequentially('Why did orders in Norway drop in August?')
+    await box(page).press('Enter')
+    await expect(page.locator('[data-turn]')).toHaveCount(1)
+  }
   await go(page, '/ask?n=offline&state=offline')
   const rows = page.getByRole('navigation', { name: 'Chats' }).locator('[data-open]')
   await rows.first().click()
