@@ -103,14 +103,14 @@ describe('the model port (plan section 3.1)', () => {
   it("gives Ask's words (the assistant role) its own model object and effort", () => {
     expect(createModelPort({ mode: 'mock' }).choose('assistant')).toMatchObject({
       id: 'mock/scripted-answer',
-      effort: 'high',
+      effort: 'low',
     })
     const port = createModelPort({ mode: 'live', env })
     const assistant = port.choose('assistant', anthropic('claude-sonnet-5-5'))
     expect(assistant.model.provider).toBe('anthropic.messages')
     expect(assistant).toMatchObject({
       id: 'anthropic/claude-sonnet-5-5',
-      options: { anthropic: { effort: 'high' } },
+      options: { anthropic: { effort: 'low' } },
     })
   })
   it('prices usage in micros, cache reads at their own rate', () => {

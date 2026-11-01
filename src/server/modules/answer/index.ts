@@ -10,7 +10,9 @@ export {
   readWordsModel,
   writeWords,
   wordsInputOf,
+  type WordsMiss,
   type WordsPlan,
+  type WordsReply,
 } from './words.ts'
 export { wordsCases, wordsProblems, type WordsCase } from './words-cases.ts'
 export {

@@ -1,4 +1,4 @@
-import { generateText } from 'ai'
+import { generateText, type FinishReason } from 'ai'
 import type { AnswerResult } from '../../../contract/answer.ts'
 import {
   checkWords,
@@ -36,14 +36,17 @@ const WORDS_TIMEOUT_MS = 12_000
 const WORDS_MAX_TOKENS = 400
 const tokens = (text: string) => Math.ceil(text.length / 4)
 
+/** The model's words as it wrote them, unchecked, with why it stopped and how much it reasoned. */
+export type WordsReply = { text: string; finishReason: FinishReason; reasoningTokens: number }
+
 /**
- * The model's words as it wrote them, unchecked: one call with Ask's instructions and prompt, the
- * same for the look-up and the words cases.
+ * The model's words: one call with Ask's instructions and prompt, the same for the look-up and the
+ * words cases.
  */
 export async function askForWords(
   choice: Pick<ModelChoice, 'model' | 'options'>,
   input: WordsInput,
-): Promise<string> {
+): Promise<WordsReply> {
   const result = await generateText({
     model: choice.model,
     providerOptions: choice.options,
@@ -52,7 +55,11 @@ export async function askForWords(
     maxOutputTokens: WORDS_MAX_TOKENS,
     abortSignal: AbortSignal.timeout(WORDS_TIMEOUT_MS),
   })
-  return result.text
+  return {
+    text: result.text,
+    finishReason: result.finishReason,
+    reasoningTokens: result.usage.outputTokenDetails.reasoningTokens ?? 0,
+  }
 }
 
 /** What one person's look-up needs to ask the model, read inside the request. */
@@ -93,12 +100,29 @@ export const wordsInputOf = (question: string, answer: AnswerResult): WordsInput
 })
 
 /**
+ * Why the model's words were not used, for the service log: the step that refused them, and for a
+ * call that ended, why the model stopped and how much it reasoned. Never the words or the question.
+ */
+export type WordsMiss = {
+  reason: 'spending limit' | 'not finished' | 'failed the check'
+  why?: string
+  finishReason?: FinishReason
+  reasoningTokens?: number
+}
+
+/**
  * The model's words for an answer, checked, or null: for an answer with no items, when the
- * spending limits leave no room, when the provider is slow or fails, or when the words fail the
- * check. The model never decides anything the engine decided.
+ * spending limits leave no room, when the provider is slow or fails, when the model stops before
+ * it is done, or when the words fail the check. The model never decides anything the engine
+ * decided. A refusal goes to `onMiss`, an error to `onError`.
  */
 export async function writeWords(
-  deps: { database: Database; plan: WordsPlan; onError?: (error: unknown) => void },
+  deps: {
+    database: Database
+    plan: WordsPlan
+    onError?: (error: unknown) => void
+    onMiss?: (miss: WordsMiss) => void
+  },
   input: WordsInput,
 ): Promise<string | null> {
   if (!wordsStates.includes(input.state) || !input.items.length) return null
@@ -113,7 +137,10 @@ export async function writeWords(
     const stop = await database.transaction(plan.person, (tx) =>
       spendLimitReached(tx, 'assistant', plan.limits, next, plan.person),
     )
-    if (stop) return null
+    if (stop) {
+      deps.onMiss?.({ reason: 'spending limit' })
+      return null
+    }
     const meter = createCallMeter({
       database,
       feature: 'assistant',
@@ -122,10 +149,20 @@ export async function writeWords(
       retry: conversationRetry,
       ...(deps.onError ? { onRecordError: deps.onError } : {}),
     })
-    const text = await askForWords(meter.wrap(plan.choice, { role: 'assistant' }), input)
+    const reply = await askForWords(meter.wrap(plan.choice, { role: 'assistant' }), input)
     await meter.settled()
-    const checked = checkWords(text, input.items.length, prompt)
-    return checked.ok ? checked.text : null
+    const { finishReason, reasoningTokens } = reply
+    // Words cut off at the output limit, or stopped for any other reason, are not the model's.
+    if (finishReason !== 'stop') {
+      deps.onMiss?.({ reason: 'not finished', finishReason, reasoningTokens })
+      return null
+    }
+    const checked = checkWords(reply.text, input.items.length, prompt)
+    if (checked.ok) return checked.text
+    // The check's reason without the number it quotes, which comes from the words.
+    const why = checked.why.replace(/ \(.*\)$/, '')
+    deps.onMiss?.({ reason: 'failed the check', why, finishReason, reasoningTokens })
+    return null
   } catch (error) {
     deps.onError?.(error)
     return null

@@ -84,7 +84,9 @@ export type ModelPortOptions = {
 const defaultEffort: Record<ModelRole, Effort> = {
   eval_answer: 'medium',
   judge: 'low',
-  assistant: 'high',
+  // Ask's words only phrase what the engine found, in a few sentences: at a higher effort the
+  // model spent the words' whole output limit on reasoning and wrote nothing.
+  assistant: 'low',
   test_authoring: 'medium',
 }
 
