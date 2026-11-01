@@ -37,8 +37,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=service-deps /app/node_modules node_modules
-# What the service runs: its code, the migrations, the seed and the demo model. Not the tests,
-# the docs or the build scripts.
+# What the service runs: its code, the migrations, the seed and the demo model, which the demo
+# reads from here (CMD). Not the tests, the docs or the build scripts.
 COPY package.json ./
 COPY src src
 COPY db db
@@ -61,7 +61,9 @@ EXPOSE 3000
 HEALTHCHECK --start-period=5m --start-interval=2s --interval=30s --timeout=5s --retries=3 \
     CMD ["node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 # Gets the database ready (db/prepare.ts: migrations, and the demo when SEED_DEMO=on), then serves.
-CMD ["sh", "-c", "node db/prepare.ts && exec node src/server/main.ts"]
+# Outside production the image reads its own copy of the demo Cube model (db/seed/cube) unless
+# CUBE_MODEL_DIR names another folder, so the demo needs no folder shared from the host.
+CMD ["sh", "-c", "[ \"$NODE_ENV\" = production ] || export CUBE_MODEL_DIR=\"${CUBE_MODEL_DIR:-/app/db/seed/cube}\"; node db/prepare.ts && exec node src/server/main.ts"]
 
 FROM nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de AS web
 # nginx as its own user, not root: no `user` line (that needs root), its pid file and the

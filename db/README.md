@@ -280,7 +280,7 @@ It reads `.env.local`: a library goes into `DATABASE_URL_SEED`, an empty local
 `context_layer_dev` or `context_layer_test` database, as a superuser.
 
 ```sh
-npm run seed                          # the demo: the bulk seed below, then its quality history
+npm run seed                          # the demo: the bulk seed below, its quality history, its present
 npm run seed -- --items-only          # the bulk seed alone
 npm run seed -- --items-only --count 50000   # a larger generated library, for performance
 npm run seed -- --library golden      # the golden set's library (below), with the history
@@ -293,7 +293,26 @@ into a database that holds no item, person or edition yet, as the superuser in
 `DATABASE_URL_BOOTSTRAP`. The demo is about the demo Cube model, so it loads only while
 `CUBE_MODEL_DIR` holds exactly that model (`db/seed/cube`); beside another model it loads nothing
 and says why. `SEED_DEMO` is off unless set and refused when `NODE_ENV=production`; `.env.example`
-and `compose.yaml` turn it on.
+and `compose.yaml` turn it on. A `CUBE_MODEL_DIR` that is missing or empty is refused, with or
+without the demo: in a container it is most often a host folder Docker does not share. The service
+image reads its own copy of the demo model outside production, so `docker compose up` needs no
+shared folder for the demo.
+
+After the demo's library and quality history, the demo's present (`loadStory`,
+`db/seed/story.ts`) is made through the service's own API and MCP server with the real clock, as
+the people and agents who do it would: Maria Lindqvist suggests "Online sales to Norway stopped on
+4 August 2026" and Jon Abara publishes it (which resolves the gap agents raised about it), Jon and
+Sofia Brandt publish two United Kingdom items that disagree, three suggestions wait for the owners
+of Sales, Jon saves two questions, and agents call the MCP server about 160 times a week over the
+eight weeks before this one. The seed moves each call's records to the hour it stands for, raises
+the conflict alert once, and marks the setup checklist's Ask step, so the owner of Sales opens on a
+full Inbox and Observability.
+
+If that present fails after the library committed, both `npm run seed` and the container's start
+stop with `The demo is half loaded` and the cause, and the demo is not retried on a database that
+holds data. Recover by dropping and creating the database, `npm run db:migrate`, then
+`npm run seed` again; for `docker compose`, `docker compose down --volumes` and `docker compose up`.
+A later start with `SEED_DEMO=on` that finds the library without the story says so in one log line.
 
 ### Demo bulk seed
 

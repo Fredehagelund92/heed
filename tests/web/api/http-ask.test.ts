@@ -117,6 +117,27 @@ describe("Ask's answer from the engine", () => {
     ).toBe('Online sales stopped. [1]')
   })
 
+  it('says what an example answers, not the question it opens with, so the answer reads as sentences', () => {
+    const a = answerOf(
+      result({
+        items: [
+          item(
+            'itm_a',
+            'How did Returns change in France in September 2024? A good answer compares Returns in France with the month before and a year earlier.',
+            { kind: 'example' },
+          ),
+          item('itm_b', 'Cube gets Returns a day late. Leave out the last day.', { kind: 'note' }),
+          item('itm_c', 'Which markets moved most against France?', { kind: 'example' }),
+        ],
+      }),
+      'What should I know about Returns in France?',
+      names,
+    )
+    expect(a.text).toBe(
+      'A good answer compares Returns in France with the month before and a year earlier. [1] Cube gets Returns a day late. [2] Which markets moved most against France? [3]',
+    )
+  })
+
   it("takes a real model's words when the service sent them, and keeps the engine's state, note and sources", () => {
     const stale = result({
       state: 'stale',

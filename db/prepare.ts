@@ -5,6 +5,7 @@ import pg from 'pg'
 import { migrate } from '../src/server/db/migrate.ts'
 import { applyGrants, createLocalDatabase, createLocalRoles } from '../src/server/db/roles.ts'
 import { loadDemo, type DemoCounts } from './seed/demo.ts'
+import { loadStory, norwayStop, type StoryCounts } from './seed/story.ts'
 
 /*
   Gets Heed's database ready for the service: `npm run db:migrate`, and the container's start
@@ -14,7 +15,8 @@ import { loadDemo, type DemoCounts } from './seed/demo.ts'
      DATABASE_URL_MIGRATE names when they are missing. Without it, both must exist (db/README.md).
   2. As the owner, DATABASE_URL_MIGRATE, it applies the migrations not applied yet, then the grants.
   3. With SEED_DEMO=on it loads the demo into a database that holds nothing yet: the demo library
-     with its quality history and gaps (db/seed/demo.ts), as the superuser. The demo is about the
+     with its quality history and gaps (db/seed/demo.ts), then its present: the Norway story, a
+     conflict, suggestions that wait and what agents asked (db/seed/story.ts), as the superuser. The demo is about the
      demo Cube model, so it loads only while CUBE_MODEL_DIR holds that model (db/seed/cube); beside
      your own model it loads nothing and says so. SEED_DEMO is off unless set, and refused when
      NODE_ENV=production, so a real install never gets demo data by accident.
@@ -104,6 +106,19 @@ export async function isEmpty(client: pg.Client): Promise<boolean> {
   return result.rows[0]!.empty
 }
 
+/** Whether a database holds the demo library (its Sandbox domain, which only the demo seed creates) but not the demo's present. */
+export async function isMissingStory(client: pg.Client): Promise<boolean> {
+  const result = await client.query<{ missing: boolean }>(
+    `select exists (select 1 from areas where id = 'area_sandbox' and is_demo)
+      and not exists (select 1 from item_versions where title = $1) as missing`,
+    [norwayStop.title],
+  )
+  return result.rows[0]!.missing
+}
+
+export const composeRecovery =
+  'docker compose down --volumes, which deletes the whole database of this demo install, then docker compose up again'
+
 /**
  * Step 3: the demo into an empty database, as the superuser. Returns what it added, or why it
  * added nothing.
@@ -111,11 +126,23 @@ export async function isEmpty(client: pg.Client): Promise<boolean> {
 export async function seedDemoIfEmpty(options: {
   seedUrl: string
   cubeModelDir: string | undefined
-}): Promise<DemoCounts | 'not-empty' | 'not-demo-model'> {
+}): Promise<
+  (DemoCounts & { story: StoryCounts }) | 'not-empty' | 'story-missing' | 'not-demo-model'
+> {
   if (!(await isDemoModel(options.cubeModelDir))) return 'not-demo-model'
-  return withClient(options.seedUrl, async (client) =>
-    (await isEmpty(client)) ? loadDemo(client) : 'not-empty',
-  )
+  const demo = await withClient(options.seedUrl, async (client) => {
+    if (await isEmpty(client)) return loadDemo(client)
+    return (await isMissingStory(client)) ? 'story-missing' : 'not-empty'
+  })
+  if (demo === 'not-empty' || demo === 'story-missing') return demo
+  try {
+    return { ...demo, story: await loadStory(options.seedUrl) }
+  } catch (error) {
+    throw new PrepareError(
+      `The demo is half loaded: its library is in the database but its present (the Norway story, the Inbox and Observability) is not, because ${error instanceof Error ? error.message : String(error)}. ` +
+        `The demo is not retried on the next start. To load it whole, run ${composeRecovery}.`,
+    )
+  }
 }
 
 /** The settings, checked; every problem is named by its variable. */
@@ -146,9 +173,27 @@ export function prepareSettings(env: Record<string, string | undefined>) {
   }
 }
 
+/**
+ * Refuses a Cube model folder that is missing or holds no files: the service would read no
+ * definitions, and the demo would quietly not load. In a container this is most often a folder on
+ * the host that Docker does not share, which arrives empty.
+ */
+export async function checkModelFolder(folder: string | undefined): Promise<void> {
+  if (!folder) return
+  const files = await folderFiles(resolve(folder) + '/').catch(() => new Map<string, Buffer>())
+  if (files.size) return
+  throw new PrepareError(
+    `CUBE_MODEL_DIR: the folder ${folder} is missing or holds no files, so there is no Cube model to read. ` +
+      'When it is a folder on this computer shared into a container, check that Docker may read it: on a Mac, ' +
+      'Docker Desktop shares only the folders under Settings, Resources, File sharing, and Colima shares your ' +
+      'home folder unless told otherwise. To run the demo, leave CUBE_MODEL_DIR unset.',
+  )
+}
+
 /** Steps 1 to 3 with the settings from the environment, saying what each did. */
 export async function prepare(env: Record<string, string | undefined>): Promise<void> {
   const settings = prepareSettings(env)
+  await checkModelFolder(settings.cubeModelDir)
   const database = databaseName(settings.migrateUrl)
   const { created, applied } = await migrateDatabase(settings)
   console.log(
@@ -161,13 +206,17 @@ export async function prepare(env: Record<string, string | undefined>): Promise<
   })
   if (seeded === 'not-empty')
     console.log('SEED_DEMO=on: the database holds data already, so the demo was not loaded')
+  else if (seeded === 'story-missing')
+    console.log(
+      `SEED_DEMO=on: the database holds the demo library but not its present (the Norway story), so the Inbox and Observability stay empty. To load the demo whole, run ${composeRecovery}.`,
+    )
   else if (seeded === 'not-demo-model')
     console.log(
       'SEED_DEMO=on: CUBE_MODEL_DIR is not the demo Cube model (db/seed/cube), so the demo, which is about that model, was not loaded',
     )
   else
     console.log(
-      `Loaded the demo: ${seeded.items.toLocaleString('en')} items, ${seeded.questions} test questions, ${seeded.runs} weekly runs, ${seeded.passes} retrieval passes and ${seeded.gaps} gaps`,
+      `Loaded the demo: ${seeded.items.toLocaleString('en')} items, ${seeded.questions} test questions, ${seeded.runs} weekly runs, ${seeded.passes} retrieval passes and ${seeded.gaps} gaps; then ${seeded.story.items} items published today, ${seeded.story.suggestions} suggestions waiting and ${seeded.story.calls} calls from agents`,
     )
 }
 

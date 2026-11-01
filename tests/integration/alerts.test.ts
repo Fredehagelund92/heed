@@ -475,3 +475,29 @@ describe('the Inbox', () => {
     )
   })
 })
+
+describe('after a raise', () => {
+  it('takes a source that did not sync out of the Inbox once it reads well again', async () => {
+    const syncCards = async () =>
+      (await ok<Feed>('admin', 'GET', '/inbox/feed?tab=needs')).cards.filter(
+        (c) => c.group === 'alert' && c.title === 'Demo did not sync',
+      )
+    // Each raise of the source that did not sync, earlier in this file.
+    expect(await syncCards()).toHaveLength(2)
+    // As on a first start: the alert job looked at the old reads a moment before the sync read.
+    await client.query(
+      "insert into connector_snapshots (connector_id, status, fetched_at) values ('demo', 'ok', clock_timestamp())",
+    )
+    expect(await syncCards()).toEqual([])
+  })
+
+  it('raises only the rules it is asked for, as the demo seed raises its conflict', async () => {
+    await client.query(
+      `insert into connector_snapshots (connector_id, status, fetched_at, error)
+       values ('demo', 'failed', clock_timestamp(), 'Definition source could not be read')`,
+    )
+    expect(await raiseAlerts(database, clock, createBundleCache(), ['disagree'])).toEqual({
+      disagree: 0,
+    })
+  })
+})

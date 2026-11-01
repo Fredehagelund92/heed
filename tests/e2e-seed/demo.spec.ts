@@ -29,11 +29,20 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
 }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/signin$/)
+  // The invented administrator first, and the way to an empty workspace in view at 1440 by 900.
+  await expect(page.getByRole('listitem').first()).toContainText('Ravi Kapoor')
+  await expect(page.getByRole('switch', { name: 'Start as a new install' })).toBeInViewport()
   await page.getByRole('button', { name: /Jon Abara/ }).click()
   await expect(page).toHaveURL(/\/inbox$/)
   // Signed out, the sign-in page's reads are refused as they should be; from here none may be.
   const failed = watchCalls(page)
   await drawn(page, 'Inbox')
+  // The demo's present (db/seed/story.ts): what agents asked this week, the suggestions waiting
+  // for the owner of Sales and the conflict, not the setup checklist of a new install.
+  await expect(page.getByText(/This week agents asked \d+ times/)).toBeVisible()
+  const inbox = page.getByRole('main')
+  await expect(inbox.getByText('Units sold excludes test accounts').first()).toBeVisible()
+  await expect(inbox.getByText(/Orders in United Kingdom, October 2026: conflict/)).toBeVisible()
 
   await page.goto('/context')
   await drawn(page, 'Context')
@@ -60,11 +69,15 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
   await box.click()
   await box.pressSequentially('How did orders in Norway change in October 2026?')
   await box.press('Enter')
+  // The README's answer: Checked, with the stop on 4 August 2026 first.
   await expect(
     page
       .getByRole('main')
-      .getByText(/^(Checked|Partial|Not found|Conflict|Outdated|Not checked)$/)
+      .getByText(/^Checked$/)
       .first(),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('main').getByText(/A new customs rule stopped all online sales to Norway/),
   ).toBeVisible()
 
   // Jon owns Sales: what an owner reads of Observability and Settings.
@@ -74,6 +87,8 @@ test('a new install of the demo: sign in, and every main screen draws on its dat
   ] as const) {
     await page.goto(address)
     await drawn(page, heading)
+    if (address === '/observability/overview')
+      await expect(page.getByText('No agent has asked anything yet')).toHaveCount(0)
   }
   expect(failed).toEqual([])
 })

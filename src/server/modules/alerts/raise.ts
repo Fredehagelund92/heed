@@ -320,6 +320,8 @@ export async function raiseAlerts(
   database: Database,
   clock: Clock,
   cache: BundleCache,
+  /** Only these rules, as the demo seed raises its conflict (db/seed/story.ts); every rule if left out. */
+  only: readonly AlertRuleId[] = alertRuleIds,
 ): Promise<Partial<Record<AlertRuleId, number>>> {
   const raised: Partial<Record<AlertRuleId, number>> = {}
   const failed: { rule: AlertRuleId; error: unknown }[] = []
@@ -329,6 +331,7 @@ export async function raiseAlerts(
     ),
   )
   for (const rule of alertRuleIds) {
+    if (!only.includes(rule)) continue
     const set = settings.find((s) => s.rule === rule)
     if (!set?.enabled) continue
     try {

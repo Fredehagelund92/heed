@@ -75,6 +75,9 @@ const CHECKED = "Checked answers"
 const questionsHref = (v: View, extra: Record<string, string | undefined> = {}) =>
   href("/observability/questions", { range: v.range === 7 ? undefined : String(v.range), domain: v.domain, agent: v.agent, ...extra })
 
+/** A count's words inside a sentence: "asked fewer than 5 times", not "asked Fewer than 5 times". */
+const midSentence = (count: string) => count.charAt(0).toLowerCase() + count.slice(1)
+
 export function OverviewPage() {
   const view = useObsView()
   return (
@@ -232,7 +235,7 @@ function Overview({ view }: { view: ReturnType<typeof useObsView> }) {
                     <span className="flex items-start gap-x-1.5 text-xs text-muted-foreground">
                       {t.domain && <DomainDot id={t.domain} className="mt-0.75" />}
                       <span className="min-w-0">
-                        {t.domain ? domains[t.domain].name : "No domain"} - asked {groupCount(t)} times, not found {shownCount(t.counts.missing)}
+                        {t.domain ? domains[t.domain].name : "No domain"} - asked {midSentence(groupCount(t))} times, not found {midSentence(shownCount(t.counts.missing))}
                         {t.months.length > 1 ? `, across ${monthsLabel(t.months)}, counted together` : ""}
                       </span>
                     </span>

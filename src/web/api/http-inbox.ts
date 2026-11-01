@@ -178,7 +178,9 @@ function cardOf(card: NeedCard, me: string, now: Date, person: (id: string) => s
         line:
           card.times === null
             ? 'Agents found nothing written down for this, fewer than 5 times this week.'
-            : `Agents found nothing written down for this, ${times} times this week.`,
+            : times === 0
+              ? 'Agents found nothing written down for this. Nobody asked about it again this week.'
+              : `Agents found nothing written down for this, ${times} times this week.`,
         detail: card.draft
           ? 'A draft is ready. Check every part before you publish.'
           : `Nothing is drafted yet: write what agents should know about ${card.title}.`,

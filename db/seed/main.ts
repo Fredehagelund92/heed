@@ -5,6 +5,7 @@ import { generateItems } from './fixtures/items.ts'
 import { isEmpty } from '../prepare.ts'
 import { bulkSeed, type LibraryExtras } from './bulk.ts'
 import { loadDemo } from './demo.ts'
+import { loadStory } from './story.ts'
 import { goldenExtras, goldenLibrary } from './golden-fixtures.ts'
 
 /*
@@ -12,7 +13,8 @@ import { goldenExtras, goldenLibrary } from './golden-fixtures.ts'
   A new database gets the demo on its own when SEED_DEMO=on (db/prepare.ts); this is the same
   data, and the variants the tests need.
 
-    npm run seed                          the demo: 1,500 items with their quality history and gaps
+    npm run seed                          the demo: 1,500 items with their quality history and gaps,
+                                          then its present (story.ts)
     npm run seed -- --library golden      the golden set's library (golden-fixtures.ts), same history
     npm run seed -- --items-only          the library alone, with no quality history or gaps,
                                           as tests on the service may want
@@ -103,6 +105,18 @@ async function main(args: string[], env: NodeJS.ProcessEnv) {
       console.log(
         `Loaded ${added.items.toLocaleString('en')} items (${name} library), ${added.questions} test questions, ${added.runs} weekly runs, ${added.passes} retrieval passes and ${added.gaps} gaps`,
       )
+      // The demo's present is about the demo library; the golden set's library has none.
+      if (name === 'demo') {
+        const story = await loadStory(librarySeedUrl(env)).catch((error: unknown) => {
+          throw new UsageError(
+            `The demo is half loaded: its library is in the database but its present is not, because ${error instanceof Error ? error.message : String(error)}. ` +
+              'Drop and create the database, run npm run db:migrate, then npm run seed again.',
+          )
+        })
+        console.log(
+          `Then ${story.items} items published today, ${story.suggestions} suggestions waiting and ${story.calls} calls from agents`,
+        )
+      }
     }
   } finally {
     await client.end()

@@ -88,24 +88,53 @@ type Template = {
   body?: Line
 }
 
+/**
+ * Norway's online sales stopped once, on 4 August 2026: that is the story (db/seed/story.ts). A
+ * generated stop that lands on Norway is a marketplace pause instead, with as many lines, so the
+ * random stream stays the same and no other day reads as the stop.
+ */
+const norway = (s: Subject) => s.marketId === 'norway'
+
 const eventTemplates: readonly Template[] = [
   {
-    title: (s) => `Online sales to ${s.place} stopped on ${s.date}`,
-    lead: (s) => `A new customs rule stopped all online sales to ${s.place} on ${s.date}.`,
+    title: (s) =>
+      norway(s)
+        ? `Marketplace sales in ${s.place} paused on ${s.date}`
+        : `Online sales to ${s.place} stopped on ${s.date}`,
+    lead: (s) =>
+      norway(s)
+        ? `A marketplace partner paused all of our listings in ${s.place} on ${s.date} while it checked product labels.`
+        : `A new customs rule stopped all online sales to ${s.place} on ${s.date}.`,
     more: [
       (s) => `${s.metric} in ${s.place} from that day doesn't compare with the weeks before.`,
-      () => 'Parcels already on their way still arrived.',
+      (s) =>
+        norway(s)
+          ? 'Orders placed in our own webshop went on as before.'
+          : 'Parcels already on their way still arrived.',
       (s) => `Leave ${s.place} out when you add markets together for these weeks.`,
-      (s) => `Compare ${s.place} with itself before or after the stop, never across it.`,
-      () => 'The customs notice lists every product group it covers.',
+      (s) =>
+        norway(s)
+          ? `Compare ${s.place} with itself before or after the pause, never across it.`
+          : `Compare ${s.place} with itself before or after the stop, never across it.`,
+      (s) =>
+        norway(s)
+          ? 'The partner lists every product group the pause covered.'
+          : 'The customs notice lists every product group it covers.',
     ],
     quotes: [
       (s) =>
-        `Parcels from webshops outside ${s.place} are held at the border from ${s.date} until further notice.`,
+        norway(s)
+          ? `Listings by the seller in ${s.place} are paused from ${s.date} pending a label review.`
+          : `Parcels from webshops outside ${s.place} are held at the border from ${s.date} until further notice.`,
       (s) =>
-        `Carriers must stop accepting webshop parcels for ${s.place} from ${s.date}. Parcels already in transit may enter.`,
+        norway(s)
+          ? `From ${s.date}, the seller's offers in ${s.place} are hidden from customers.`
+          : `Carriers must stop accepting webshop parcels for ${s.place} from ${s.date}. Parcels already in transit may enter.`,
     ],
-    source: (s) => `https://customs.example/${s.marketSlug}/notices/${s.day}`,
+    source: (s) =>
+      norway(s)
+        ? `https://marketplace.example/${s.marketSlug}/notices/${s.day}`
+        : `https://customs.example/${s.marketSlug}/notices/${s.day}`,
   },
   {
     title: (s) => `New VAT rate applied in ${s.place} from ${s.date}`,
@@ -383,7 +412,7 @@ const exampleTemplates: readonly Template[] = [
   {
     title: (s) => `How did ${s.metric} change in ${s.place} in ${s.month}?`,
     lead: (s) =>
-      `How did ${s.metric} change in ${s.place} in ${s.month}? A good answer compares it with the month before and a year earlier.`,
+      `How did ${s.metric} change in ${s.place} in ${s.month}? A good answer compares ${s.metric} in ${s.place} with the month before and a year earlier.`,
     more: [
       () => 'It names each fact it used, with its dates.',
       () => 'It gives the size of the change in numbers before any explanation.',
@@ -400,7 +429,7 @@ const exampleTemplates: readonly Template[] = [
   {
     title: (s) => `Which markets drove the change in ${s.metric}, with ${s.place} as the baseline?`,
     lead: (s) =>
-      `Which markets moved most against ${s.place}? A good answer ranks them over the same weeks.`,
+      `Which markets moved most against ${s.place}? A good answer ranks the markets by their change in ${s.metric} against ${s.place} over the same weeks.`,
     more: [
       () => 'It uses euros for every market.',
       () => 'It leaves out markets that were closed in those weeks, and says which.',
@@ -416,7 +445,7 @@ const exampleTemplates: readonly Template[] = [
   {
     title: (s) => `What explains the movement of ${s.metric} in ${s.month}?`,
     lead: (s) =>
-      `What happened to ${s.metric} in ${s.month}? A good answer starts with the closures, outages, new rules and campaigns written down.`,
+      `What happened to ${s.metric} in ${s.month}? A good answer about ${s.metric} in ${s.month} starts with the closures, outages, new rules and campaigns written down.`,
     more: [
       () => 'It says which markets moved most.',
       () => 'It says when a movement has no fact to explain it.',

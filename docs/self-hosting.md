@@ -12,7 +12,7 @@ an upgrade back.
 ## What runs
 
 `docker compose up` ([compose.yaml](../compose.yaml), [Dockerfile](../Dockerfile)) starts three
-containers and keeps two volumes:
+containers and keeps two volumes of data:
 
 | Part   | What it is                                                                                                 | Address                  |
 | ------ | ---------------------------------------------------------------------------------------------------------- | ------------------------ |
@@ -21,7 +21,9 @@ containers and keeps two volumes:
 | `web`  | The web app, served by nginx, which forwards `/api/v1` to the service                                      | http://localhost:8080    |
 
 Compose names the volumes after the project, which is the folder's name unless you set one:
-`heed_db` and `heed_keys` for a clone in a folder called `heed` (`docker volume ls` lists them).
+`heed_db` and `heed_keys` for a clone in a folder called `heed` (`docker volume ls` lists them). A
+third, `heed_no-model`, stays empty: it stands where your own Cube model's folder goes when you
+name none.
 
 Both containers run as unprivileged users (`node` and `nginx`), and each has a health check, so
 `docker compose ps` says when it is ready. The base images are pinned by digest.
@@ -38,15 +40,26 @@ docker compose up -d --wait   # builds the images, prepares the database, waits 
 Then open http://localhost:8080. The first start takes a few minutes: it builds both images and
 loads the demo. Settings for `docker compose up`:
 
-| Variable         | Default          | What it does                                                                                  |
-| ---------------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `HEED_WEB_PORT`  | `8080`           | The web app's port on this computer                                                           |
-| `HEED_PORT`      | `3000`           | The service's port on this computer, where agents connect (`/mcp`)                            |
-| `SEED_DEMO`      | `on`             | Loads the demo into a new, empty database                                                     |
-| `CUBE_MODEL_DIR` | `./db/seed/cube` | Your own Cube model's folder, read only ([Use your own data](../README.md#use-your-own-data)) |
+| Variable         | Default | What it does                                                                                  |
+| ---------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `HEED_WEB_PORT`  | `8080`  | The web app's port on this computer                                                           |
+| `HEED_PORT`      | `3000`  | The service's port on this computer, where agents connect (`/mcp`)                            |
+| `SEED_DEMO`      | `on`    | Loads the demo into a new, empty database                                                     |
+| `CUBE_MODEL_DIR` | unset   | Your own Cube model's folder, read only ([Use your own data](../README.md#use-your-own-data)) |
 
 Check it: `docker compose ps` shows each part `healthy`, and `docker compose logs heed` shows what
-the start did, such as `applied 33 migrations`.
+the start did, such as `applied 33 migrations` and `Loaded the demo`.
+
+The demo's Cube model comes inside the service image, so the demo needs no folder shared from this
+computer. Your own model's folder is shared into the container read only: when Docker cannot read
+it, it arrives empty, and the service refuses to start and says so in `docker compose logs heed`.
+On a Mac, Docker Desktop shares only the folders under Settings, Resources, File sharing, and
+Colima shares your home folder unless told otherwise.
+
+If the demo's library loads but its present does not (the Norway story, which fills the Inbox and
+Observability), the start stops with `The demo is half loaded` and the cause, and a later start
+logs that the demo's present is missing. The demo is not retried: run `docker compose down
+--volumes`, then `docker compose up` again.
 
 ## What to back up
 
