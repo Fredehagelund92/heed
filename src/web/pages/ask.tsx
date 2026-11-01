@@ -194,7 +194,13 @@ export function AskChat({
       const index = turns.length
       // A question that is already a chat, typed or picked, opens that chat: the history never has it twice.
       if (index === 0 && onStarter?.(q)) return
-      if (index === 0) onFirstAsk?.(q)
+      if (index === 0) {
+        // The chat this starts opens again on its question alone: a question with no mentions gets
+        // the same answer, so it is kept for that, and opening the chat again looks nothing up.
+        if (!scope.length && (parts ?? []).every((p) => typeof p === 'string'))
+          queryClient.setQueryData(askQuery({ question: q }).queryKey, answer)
+        onFirstAsk?.(q)
+      }
       follow.current = true
       // With reduced motion the answer is there at once, finished.
       const phase: Phase = reducedMotion() ? 'done' : 'live'
