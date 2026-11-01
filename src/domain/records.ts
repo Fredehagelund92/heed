@@ -16,11 +16,13 @@ import { normalizeName, type Term } from './vocabulary.ts'
   Ask answers them from what the workspace keeps about its context items, domains and owners, and
   from what agents asked this week, never from what an item says, and agents never read them.
 
-  The list of questions is closed: seven intents, read by fixed word patterns, each answered by a
-  fixed read and a sentence template. No model chooses or writes anything. A question none of them
-  fits is left to the answer engine, which says when it looked nothing up. A model may later fill
-  the same `RecordsAsk` for words the patterns miss; the reads, the permissions and the screen would
-  not change.
+  The list of questions is closed: nine intents, read by fixed word patterns, each answered by a
+  fixed read and a sentence template. Two of them are about the vocabulary itself, as Definitions
+  shows it: its metrics and dimensions ("list 10 dimensions", "how many metrics are in Sales"),
+  and the values of a dimension ("what markets are there"). No model chooses or writes anything. A
+  question none of them fits is left to the answer engine, which says when it looked nothing up. A
+  model may later fill the same `RecordsAsk` for words the patterns miss; the reads, the
+  permissions and the screen would not change.
 
   Pure, so the service and the mock binding read a question and answer it alike: the caller gives
   the records the person may see (only what the Context list shows them), the names the engine's
@@ -63,7 +65,24 @@ export type RecordsAsk = {
   period: RecordsPeriod | null
   /** Which domains and context items have no owner, instead of who owns one. */
   noOwner: boolean
+  /** For `terms` and `values`: what of the vocabulary is asked. */
+  catalogue?: CatalogueAsk
 }
+
+/** A question about the vocabulary itself: its metrics and dimensions, or a dimension's values. */
+export type CatalogueAsk = {
+  /** Metrics, dimensions, both (`definition`), or the values of `dimension`. */
+  of: 'metric' | 'dimension' | 'definition' | 'value'
+  /** The dimension whose values are asked, by key. */
+  dimension: string | null
+  /** How many the words asked for ("list 10 dimensions"); null when they named no number. */
+  limit: number | null
+  /** How many there are ("how many metrics"), rather than which. */
+  count: boolean
+}
+
+/** A term of the vocabulary, as a records answer names and counts it. */
+type RecordsTerm = Pick<Term, 'key' | 'kind' | 'name' | 'aliases' | 'parentKey' | 'areaId'>
 
 /* ---------- reading the question ---------- */
 
@@ -72,7 +91,7 @@ export type RecordsReading = {
   /** The names the reader found, by where they are in the question (UTF-16 offsets, end exclusive). */
   spans: readonly { start: number; end: number; keys?: readonly string[]; dates?: boolean }[]
   /** The vocabulary the keys are from. */
-  terms: readonly Pick<Term, 'key' | 'kind' | 'name' | 'areaId'>[]
+  terms: readonly RecordsTerm[]
   /** The domains, by id and name. */
   domains: readonly { id: string; name: string }[]
   /** The moment it is now, as an ISO instant. */
@@ -244,6 +263,91 @@ const assumedPeriod = (nowIso: string): RecordsPeriod => {
   return period(now - 7 * DAY, now, 'in the last 7 days', now, true)
 }
 
+/** A word's plural, as people write a dimension's name for its values: Markets, Countries. */
+const pluralOf = (word: string) =>
+  /[^aeiou]y$/.test(word)
+    ? `${word.slice(0, -1)}ies`
+    : /(?:s|x|z|ch|sh)$/.test(word)
+      ? `${word}es`
+      : `${word}s`
+
+/**
+ * Words that make a question one of the other records questions, one about what a name means, or
+ * one about how the business did ("which products sold best", "why did campaigns drop").
+ */
+const NOT_CATALOGUE =
+  /\b(?:why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
+
+/**
+ * Whether a dimension's plural is asked for as a list: after list, show, name or give me; in
+ * "what or which ... are there / exist / do we have"; after "how many"; or as the whole question.
+ * "Which products sold last week" is about the business, not the vocabulary.
+ */
+const listing = (t: string, word: string) => {
+  const w = escape(word)
+  return (
+    new RegExp(`^(?:the )?${w}$`).test(t) ||
+    new RegExp(`^(?:please )?(?:list|show|name|give me)\\b.*\\b${w}\\b`).test(t) ||
+    new RegExp(`\\b(?:what|which) (?:[a-z]+ )?${w}\\b.* (?:are there|exist|do we have)\\b`).test(
+      t,
+    ) ||
+    new RegExp(`\\bhow many (?:[a-z]+ )?${w}\\b`).test(t)
+  )
+}
+
+const COUNT = /\bhow many\b|\b(?:count|number) of\b|\bin total\b/
+
+/**
+ * A question about the vocabulary itself, or null: a plural that names what Definitions lists
+ * (metrics, dimensions, definitions, or a dimension's values by its name, "markets") in words
+ * that name no metric and no value. "List orders in Norway" names a metric, so it stays with the
+ * answer engine.
+ */
+function catalogueAsk(
+  t: string,
+  named: RecordsReading['spans'],
+  terms: ReadonlyMap<string, RecordsTerm>,
+): CatalogueAsk | null {
+  const kinds = named.flatMap((s) => (s.keys ?? []).map((k) => terms.get(k)?.kind))
+  if (kinds.some((k) => k !== 'dimension') || NOT_CATALOGUE.test(t)) return null
+  const count = COUNT.test(t)
+  const numbers = Object.keys(NUMBERS).filter((n) => NUMBERS[n]! > 1)
+  const limitBefore = (noun: string) => {
+    const found = new RegExp(`\\b(\\d+|${numbers.join('|')}) (?:[a-z]+ )?${noun}\\b`).exec(t)
+    if (!found) return null
+    const n = /^\d+$/.test(found[1]!) ? Number(found[1]) : NUMBERS[found[1]!]!
+    return n > 0 ? n : null
+  }
+  // A dimension's values: its name in the plural ("markets", "countries"), or its name as the
+  // reader found it with the word "values" ("the values of Market").
+  const dimensions = [...terms.values()].filter((d) => d.kind === 'dimension')
+  const plural = dimensions
+    .flatMap((d) => [d.name, ...d.aliases].map((name) => ({ d, word: pluralOf(plain(name)) })))
+    .sort((a, b) => b.word.length - a.word.length)
+    .find(({ word }) => listing(t, word))
+  const read = named
+    .flatMap((s) => (s.keys ?? []).map((k) => terms.get(k)))
+    .find((d) => d?.kind === 'dimension')
+  const valuesOf = plural?.d ?? (read && /\bvalues?\b/.test(t) ? read : undefined)
+  if (valuesOf)
+    return {
+      of: 'value',
+      dimension: valuesOf.key,
+      limit: plural ? limitBefore(escape(plural.word)) : limitBefore('values?'),
+      count,
+    }
+  if (named.length) return null
+  const noun = /\b(metrics|dimensions|definitions)\b/.exec(t)?.[1]
+  // "How many definitions" is the count of definitions Records already answers.
+  if (!noun || (noun === 'definitions' && count)) return null
+  return {
+    of: noun === 'metrics' ? 'metric' : noun === 'dimensions' ? 'dimension' : 'definition',
+    dimension: null,
+    limit: limitBefore(noun),
+    count,
+  }
+}
+
 /** The kind a word names, or definitions. */
 function kindIn(t: string): RecordsKind | 'definition' | null {
   if (/\bdefinitions?\b/.test(t)) return 'definition'
@@ -255,8 +359,8 @@ function kindIn(t: string): RecordsKind | 'definition' | null {
 }
 
 /**
- * Reads a question as one of the seven records questions, or as a question about one person's
- * work, which is refused; null for anything else, which the answer engine reads as before.
+ * Reads a question as one of the records questions, or as a question about one person's work,
+ * which is refused; null for anything else, which the answer engine reads as before.
  *
  * A domain is found by its name. The names of metrics and markets the engine's reader found are
  * taken out of the words first, so "What is new customers?" is not "what is new". A question that
@@ -323,6 +427,13 @@ export function recogniseRecords(
     )
   )
     return ask('owner', { metric: domain ? null : (metric?.key ?? null) })
+  const catalogue = catalogueAsk(t, named, terms)
+  if (catalogue)
+    return ask(catalogue.of === 'value' ? 'values' : 'terms', {
+      // A dimension's values are the same in every domain.
+      domain: catalogue.of === 'value' ? null : (domain?.d.id ?? null),
+      catalogue,
+    })
   if (scoped && !noun) return null
   if (
     /\b(?:archived|retired|taken down|withdrawn|no longer (?:in use|active|used|served))\b/.test(t)
@@ -386,7 +497,8 @@ export type RecordsWorld = {
   areas: readonly { id: string; name: string; ownerIds: readonly string[] }[]
   /** People's names, by id, as Context names them. */
   people: Readonly<Record<string, string>>
-  terms: readonly Pick<Term, 'key' | 'kind' | 'name' | 'areaId'>[]
+  /** The vocabulary as Definitions shows it to the person: a term it leaves out is not here. */
+  terms: readonly RecordsTerm[]
   /**
    * What agents asked this week, as Asked this week counts it: each topic's count, null under the
    * minimum, and the state Ask gives it now. Null when the question does not need it.
@@ -606,6 +718,9 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     }
     case 'owner':
       return ownerAnswer(ask, world, base, area)
+    case 'terms':
+    case 'values':
+      return catalogueAnswer(ask, world, base, domain)
     case 'count': {
       if (ask.kind === 'definition') {
         const terms = world.terms.filter(
@@ -791,6 +906,157 @@ function ownerAnswer(
       cells: [names(a).length ? list(names(a)) : 'No owner'],
     })),
     total: world.areas.length,
+  }
+}
+
+/** How many names a sentence lists before it only counts them. */
+const NAMED = 10
+
+/**
+ * The vocabulary as Definitions lists it: the metrics, the dimensions or both, by name, or one
+ * dimension's values, each counted exactly from what the person may see there. The sentence names
+ * them when there are few; the rows list at most five, and Definitions lists the rest.
+ */
+function catalogueAnswer(
+  ask: RecordsAsk,
+  world: RecordsWorld,
+  base: Omit<RecordsFound, 'understood' | 'sentence'>,
+  domain: { id: string; name: string } | null,
+): RecordsFound {
+  const c = ask.catalogue ?? { of: 'definition', dimension: null, limit: null, count: false }
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'en')
+  const valuesOf = (key: string) =>
+    world.terms.filter((t) => t.kind === 'dimension_value' && t.parentKey === key)
+  const areaName = (id: string | null) =>
+    (id && world.areas.find((a) => a.id === id)?.name) || 'No domain'
+  const dimension =
+    c.of === 'value'
+      ? world.terms.find((t) => t.key === c.dimension && t.kind === 'dimension')
+      : null
+  const where = domain ? ` in ${domain.name}` : ''
+  const owner = domain ? domain.name : 'The workspace'
+  const noun = (n: number, one: string, many: string) => `${count(n)} ${n === 1 ? one : many}`
+
+  if (c.of === 'value' && !dimension)
+    return {
+      ...base,
+      domain: null,
+      understood: 'Values of a dimension',
+      read: 'Read the dimensions in Definitions',
+      sentence: 'That dimension is not in Definitions.',
+    }
+
+  const listed = (
+    dimension
+      ? valuesOf(dimension.key)
+      : world.terms.filter(
+          (t) =>
+            (c.of === 'definition'
+              ? t.kind === 'metric' || t.kind === 'dimension'
+              : t.kind === c.of) &&
+            (!domain || t.areaId === domain.id),
+        )
+  ).sort((a, b) => (a.kind === b.kind ? byName(a, b) : a.kind === 'metric' ? -1 : 1))
+  const n = listed.length
+  const metrics = listed.filter((t) => t.kind === 'metric').length
+  const what = dimension
+    ? noun(n, 'value', 'values')
+    : c.of === 'metric'
+      ? noun(n, 'metric', 'metrics')
+      : c.of === 'dimension'
+        ? noun(n, 'dimension', 'dimensions')
+        : `${noun(n, 'definition', 'definitions')}: ${noun(metrics, 'metric', 'metrics')} and ${noun(n - metrics, 'dimension', 'dimensions')}`
+  const names = listed.map((t) => t.name)
+  const kindWord = dimension
+    ? 'Value'
+    : c.of === 'metric'
+      ? 'Metric'
+      : c.of === 'dimension'
+        ? 'Dimension'
+        : 'Definition'
+  const subject = dimension ? dimension.name : owner
+  // How many the words asked for, against how many there are and how many an answer lists.
+  const asked = c.limit
+  const rows = Math.min(n, RECORDS_ROWS, asked ?? RECORDS_ROWS)
+  // A list of a few names says them all, when no fewer were asked for; a count, a long list and
+  // both kinds together only count.
+  const named =
+    !c.count && n > 0 && n <= NAMED && c.of !== 'definition' && (asked === null || asked >= n)
+  const sentence = n
+    ? `${subject} has ${what}${named ? `: ${list(names)}` : ''}.`
+    : `${subject} has no ${dimension ? 'values' : `${kindWord.toLowerCase()}s`}.`
+  const detail =
+    asked === null
+      ? null
+      : asked > n
+        ? `You asked for ${count(asked)}; there ${is(n)} ${count(n)}.`
+        : asked > RECORDS_ROWS && !named
+          ? `You asked for ${count(asked)}; an answer lists ${RECORDS_ROWS}, and Definitions lists all ${count(n)}.`
+          : null
+  // A value's other names get a column when any of those shown has one.
+  const aliased = listed.slice(0, rows).some((t) => t.aliases.length > 0)
+  const row = (t: RecordsTerm): RecordsRow => ({
+    type: 'term',
+    key: t.key,
+    kind: t.kind === 'metric' ? 'metric' : t.kind === 'dimension' ? 'dimension' : 'value',
+    name: t.name,
+    page: dimension ? dimension.name : t.name,
+    cells: dimension
+      ? aliased
+        ? [t.aliases.length ? list(t.aliases) : 'None']
+        : []
+      : c.of === 'definition'
+        ? [t.kind === 'metric' ? 'Metric' : 'Dimension']
+        : t.kind === 'metric'
+          ? domain
+            ? []
+            : [areaName(t.areaId)]
+          : [count(valuesOf(t.key).length)],
+  })
+  return {
+    ...base,
+    domain: dimension ? null : domain,
+    understood: dimension
+      ? `${c.count ? 'Count of the values' : 'Values'} of ${dimension.name}`
+      : `${c.count ? 'Count of ' : ''}${c.count ? kindWord.toLowerCase() : kindWord}s${where}${asked ? `, ${count(asked)} asked for` : ''}`,
+    read: dimension
+      ? `Read ${dimension.name} and its ${noun(n, 'value', 'values')} in Definitions`
+      : `Read ${noun(n, kindWord.toLowerCase(), `${kindWord.toLowerCase()}s`)}${where} in Definitions`,
+    sentence,
+    detail,
+    columns: !n
+      ? []
+      : dimension
+        ? ['Value', ...(aliased ? ['Other names'] : [])]
+        : c.of === 'metric'
+          ? // Every metric of a domain named is in it: no column says so again.
+            ['Metric', ...(domain ? [] : ['Domain'])]
+          : [kindWord, c.of === 'definition' ? 'Kind' : 'Values'],
+    rows: listed.slice(0, rows).map(row),
+    total: n,
+    shown: n > rows ? `Showing ${count(rows)} of ${count(n)}, by name` : null,
+    more: dimension
+      ? n > rows
+        ? {
+            label: `Show all ${count(n)} in Definitions`,
+            to: 'definitions',
+            domain: null,
+            status: null,
+            page: dimension.name,
+          }
+        : null
+      : {
+          label:
+            n > rows
+              ? `Show all ${count(n)} in Definitions`
+              : domain
+                ? `Open ${domain.name} in Definitions`
+                : 'Open Definitions',
+          to: 'definitions',
+          domain: domain?.id ?? null,
+          status: null,
+        },
+    note: 'Counted from Definitions, as it shows them to you.',
   }
 }
 

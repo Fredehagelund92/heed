@@ -3,12 +3,16 @@ import { servedToAgents, type DomainId, type Fact } from '@/model/items'
 import { facts, markets, metrics } from './world'
 import { definitionSeed } from '../definitions'
 import { unreadSaid } from '@domain/say'
+import { asksDefinition } from '@domain/scope'
+import type { Term } from '@domain/vocabulary'
 import { parseMentionId, plainText, type MentionRef } from '@/lib/mentions'
 import {
+  closestNames,
+  NAMES_NOTHING,
   scopeText,
   stateLabel,
-  unreadReason,
   type Answer,
+  type AskedDefinition,
   type Example,
   type QuestionPart,
 } from '@/model/ask'
@@ -275,6 +279,23 @@ const metricTerms = metrics
   .map((m) => ({ key: `metric:${m.name.toLowerCase().replace(/\W+/g, '_')}`, name: m.name }))
   .sort((a, b) => (a.key < b.key ? -1 : 1))
 
+/** The metrics and markets as terms, for the names closest to a question's words. */
+const closeTerms = (): Term[] => {
+  const term = (key: string, kind: Term['kind'], name: string, aliases: string[]): Term => ({
+    key,
+    kind,
+    name,
+    aliases,
+    parentKey: null,
+    areaId: null,
+    definitionRefs: [],
+  })
+  return [
+    ...metrics.map((m) => term(`metric:${m.name}`, 'metric', m.name, m.otherNames ?? [])),
+    ...markets.map((m) => term(`val:market/${m}`, 'dimension_value', m, [])),
+  ]
+}
+
 /**
  * Reads a metric and markets from plain words, the way get_context does, with no model. Either may
  * be missing: a question that names neither is not looked up, and gets no answer state.
@@ -406,14 +427,22 @@ function answerCore(
   const scope = scopeText({ metric, markets: ms, dates }) || 'this question'
   const base = { id: 'custom', question, metric, markets: ms, dates, related }
 
-  // Nothing was looked up: no answer state, and the engine's own sentence about why.
+  // Nothing was looked up: no answer state. Agents get the engine's own sentence about why; the
+  // person what Ask can answer, with the names closest to their words.
   if (!matched) {
     const said = unreadSaid(
       { terms: metricTerms },
       [{ field: 'scope', input: question, options: metricTerms.map((t) => t.key) }],
       question,
     ).say
-    return { ...base, state: null, text: unreadReason(said), sources: [], said }
+    return {
+      ...base,
+      state: null,
+      text: NAMES_NOTHING,
+      closest: closestNames(question, closeTerms()),
+      sources: [],
+      said,
+    }
   }
 
   if (all.length === 0) {
@@ -517,8 +546,25 @@ export function askQuestion(question: string, pool?: Fact[]): Answer {
   const ex = exampleFor(question)
   if (ex) return { ...exampleAnswer(ex.id), question }
   const read = readQuestion(question)
+  const defined = definitionOf(question, read.metric)
   return {
     ...answerFor(question, read.metric, read.markets, undefined, { pool }),
     alias: read.alias,
+    ...(defined ? { definitions: [defined] } : {}),
+  }
+}
+
+/**
+ * For a question about what a metric means: what its definition source says about it, as the
+ * service gives it (FR-703). A metric the source does not describe has none.
+ */
+function definitionOf(question: string, metric: string): AskedDefinition | null {
+  if (!metric || !asksDefinition(question)) return null
+  const d = findDefinition(definitionsNow(), metric)
+  if (!d?.synced || !d.tool) return null
+  return {
+    name: d.name,
+    words: d.definition && !/^No description/.test(d.definition) ? d.definition : null,
+    tool: d.tool,
   }
 }

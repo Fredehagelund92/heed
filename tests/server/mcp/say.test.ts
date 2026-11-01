@@ -149,6 +149,17 @@ describe('get_facts says, for each status', () => {
     )
   })
 
+  it('no_match for a dimension on its own: names it, never "for by market"', async () => {
+    const reply = await setup()('get_facts', {
+      question: 'what market',
+      window: { from: '2026-07-01', to: '2026-07-31' },
+    })
+    expect(reply.structuredContent.status).toBe('no_match')
+    expect(said(reply)).toBe(
+      'Nothing is written down for Market in July 2026. Only that was checked.',
+    )
+  })
+
   it('withheld: that a fact applies but AI agents do not get it, never that nothing is written down', async () => {
     const reply = await setup((data) => {
       data.items[0]!.riskLevel = 'high'

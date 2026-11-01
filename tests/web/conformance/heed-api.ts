@@ -2203,15 +2203,40 @@ export function describeHeedApi(
         // No answer state: Not found would say nobody wrote anything down.
         expect(answer.state).toBeNull()
         expect(answer.sources).toEqual([])
-        // The engine's own words, the same in the mock and on the service.
+        // Agents are told the engine's own words, the same in the mock and on the service.
         expect(answer.said).toMatch(
           /^Nothing was looked up yet\. The question needs a metric or a market, such as \w/,
         )
-        expect(answer.text).toMatch(/^The question needs a metric or a market, such as \w/)
+        // The person is told what the question lacks, and offered no name close to a joke.
+        expect(answer.text).toBe("The question doesn't name a metric or a market.")
+        expect(answer.closest).toEqual([])
       },
     )
 
-    /** A records answer (FR-718): one of the seven questions about the context's own records. */
+    it.skipIf(lacks('signIn', 'ask'))(
+      'offers the names closest to the words of a question it did not look up, never reading them as asked',
+      async () => {
+        const answer = await (await signedIn()).ask({ question: 'what about chrun rate' })
+        expect(answer.state).toBeNull()
+        expect(answer.closest?.[0]).toBe('Churn rate')
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask'))(
+      'gives a metric’s definition from its source beside the answer, and keeps the state',
+      async () => {
+        const a = await signedIn()
+        const answer = await a.ask({ question: 'What does Churn rate mean?' })
+        expect(answer.state).not.toBeNull()
+        expect(answer.definitions?.map((d) => [d.name, d.tool])).toEqual([['Churn rate', 'Cube']])
+        expect(answer.definitions?.[0]?.words).toMatch(/\w/)
+        // A question about the data, not what it means, gets none.
+        const data = await a.ask({ question: 'Why did Churn rate rise in Norway?' })
+        expect(data.definitions).toBeUndefined()
+      },
+    )
+
+    /** A records answer (FR-718): one of the questions about the context's own records. */
     const records = async (question: string) => {
       const answer = await (await signedIn()).ask({ question })
       // Never an answer state and never a source: agents never read it.
@@ -2276,6 +2301,37 @@ export function describeHeedApi(
         expect(orders.detail).toBe(
           'Orders is a definition in Sales. A domain has owners, not a single metric.',
         )
+      },
+    )
+
+    it.skipIf(lacks('signIn', 'ask', 'definitionsPage'))(
+      'lists the metrics, dimensions and values Definitions shows, with exact counts',
+      async () => {
+        const shown = (await (await signedIn()).definitionsPage()).filter((d) => !d.sameAs)
+        const dimensions = shown.filter((d) => d.type === 'dimension').map((d) => d.name)
+        const metrics = shown.filter((d) => d.type === 'metric')
+        const dims = await records('list 10 dimensions')
+        expect(dims.intent).toBe('terms')
+        expect(dims.total).toBe(dimensions.length)
+        expect(dims.sentence).toBe(
+          `The workspace has ${dimensions.length} dimensions: ${[...dimensions]
+            .sort()
+            .join(', ')
+            .replace(/, ([^,]+)$/, ' and $1')}.`,
+        )
+        expect(dims.detail).toBe(`You asked for 10; there are ${dimensions.length}.`)
+        const count = await records('how many metrics are there?')
+        expect(count.total).toBe(metrics.length)
+        expect(count.sentence).toBe(`The workspace has ${metrics.length} metrics.`)
+        expect(count.more).toMatchObject({ to: 'definitions' })
+        // "Sales" is a domain and a synonym of Net revenue: beside "metrics" it is the domain.
+        const sales = await records('list 10 metrics in Sales')
+        expect(sales.domain?.name).toBe('Sales')
+        expect(sales.sentence).toMatch(/^Sales has \d+ metrics/)
+        const markets = await records('what markets are there')
+        expect(markets.intent).toBe('values')
+        expect(markets.sentence).toMatch(/^Market has \d+ values/)
+        expect(markets.rows[0]).toMatchObject({ type: 'term', kind: 'value', page: 'Market' })
       },
     )
 

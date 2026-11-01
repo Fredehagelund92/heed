@@ -5,7 +5,10 @@ import { expect, go, test } from './go.ts'
 // the last 24 hours" is counted from the workspace's records, with no answer state: a Records chip,
 // one source sentence, the answer in one plain sentence with its period in UTC, and at most five
 // rows that open in the right panel, with the full list in Context. A question about one person's
-// work is refused. The counts differ between the mock and the demo week; the shape does not.
+// work is refused. Ask also answers what Definitions lists ("list 10 dimensions", "what markets
+// are there"), counted from the vocabulary with no model, and a question about what a metric
+// means gets its definition from the source beside the answer. The counts differ between the
+// mock and the demo week; the shape does not.
 
 async function ask(page: Page, question: string) {
   const box = page.getByRole('textbox', { name: 'Ask a question' })
@@ -73,4 +76,42 @@ test("a question about one person's work is refused, with what Ask can say inste
   const domain = /^Who owns (.+)\?$/.exec((await owns.textContent())!)![1]!
   await owns.click()
   await expect(log.getByText(new RegExp(`^.+ owns? ${domain}\\.$`))).toBeVisible()
+})
+
+test('a question about what Definitions lists gets the names and exact counts, never Not found', async ({
+  page,
+}) => {
+  await go(page, '/ask?n=j33c')
+  await ask(page, 'list 10 dimensions')
+  const log = page.getByRole('log')
+  // Fewer than asked for: it says how many there are, and names them all.
+  await expect(log.getByText(/^The workspace has \d+ dimensions: .+ and .+\.$/)).toBeVisible()
+  await expect(log.getByText(/^You asked for 10; there are \d+\.$/)).toBeVisible()
+  await expect(log.getByText('Records', { exact: true })).toBeVisible()
+  await expect(log.getByText('Not found', { exact: true })).toHaveCount(0)
+  await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toHaveCount(0)
+  // Each row opens its page in Definitions.
+  const market = log.getByRole('table').getByRole('link', { name: 'Market', exact: true })
+  await expect(market).toHaveAttribute('href', '/definitions/Market')
+
+  // A dimension's values by its name in the plural; the full list is the dimension's page.
+  await ask(page, 'what markets are there')
+  await expect(log.getByText(/^Market has \d+ values\.$/)).toBeVisible()
+  await expect(log.getByText(/^Values of Market$/)).toBeVisible()
+  await log.getByRole('link', { name: /^Show all \d+ in Definitions$/ }).click()
+  await expect(page).toHaveURL(/\/definitions\/Market$/)
+})
+
+test('a question about what a metric means gets its definition from the source, and keeps its state', async ({
+  page,
+}) => {
+  await go(page, '/ask?n=j33d')
+  await ask(page, 'What does Churn rate mean?')
+  const log = page.getByRole('log')
+  const definition = log.getByRole('figure')
+  await expect(definition).toContainText('Churn rate, as Cube defines it')
+  await expect(definition.getByRole('blockquote')).toHaveText(/\w/)
+  // The state is the context's own, looked up as agents get it.
+  await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toHaveCount(0)
+  await expect(log.getByRole('button', { name: /^Looked up/ })).toBeVisible()
 })

@@ -1,1 +1,1 @@
-export { createCatalogueService, type CatalogueService } from './service.ts'
+export { createCatalogueService, hiddenDefinitions, type CatalogueService } from './service.ts'

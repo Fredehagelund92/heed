@@ -32,7 +32,18 @@ const instant = (label: string) => {
 /** When each item of the demo world was first published: its first check, before any change since. */
 const firstPublished = new Map(seedFacts.map((f) => [f.id, instant(f.checkedOn)]))
 
-/** The vocabulary as the engine names it: the metrics and dimensions with their domains, and the markets. */
+/**
+ * A dimension's values as the demo world lists them: the markets, or the names its definition
+ * gives ("Footwear, Clothing, Camping, Climbing"). One it only counts ("2,400 campaigns") lists none.
+ */
+const valuesOf = (d: Definition) =>
+  d.name === 'Market'
+    ? markets
+    : /,\s/.test(d.values ?? '')
+      ? d.values!.split(/,\s+/).map((v) => v.trim())
+      : []
+
+/** The vocabulary as the engine names it: the metrics and dimensions with their domains, and their values. */
 function termsOf(definitions: readonly Definition[]): Term[] {
   const term = (
     key: string,
@@ -54,17 +65,24 @@ function termsOf(definitions: readonly Definition[]): Term[] {
     ...definitions
       .filter((d) => d.type === 'dimension' && !d.sameAs)
       .map((d) => term(`dim:${slug(d.name)}`, 'dimension', d.name, d.domain ?? null)),
-    ...markets.map((m) => ({
-      ...term(`val:market/${slug(m)}`, 'dimension_value', m, null),
-      parentKey: 'dim:market',
-    })),
+    ...definitions
+      .filter((d) => d.type === 'dimension' && !d.sameAs)
+      .flatMap((d) =>
+        valuesOf(d).map((v) => ({
+          ...term(`val:${slug(d.name)}/${slug(v)}`, 'dimension_value', v, null),
+          parentKey: `dim:${slug(d.name)}`,
+        })),
+      ),
   ]
 }
 
-/** Where the words name a metric or a market, as the engine's reader finds names: whole words, longest first. */
+/**
+ * Where the words name a metric, a dimension or a market, as the engine's reader finds names: whole
+ * words, longest first.
+ */
 function spansOf(question: string, terms: readonly Term[]) {
   const names = terms
-    .filter((t) => t.kind === 'metric' || t.kind === 'dimension_value')
+    .filter((t) => t.kind !== 'metric_group')
     .flatMap((t) => [t.name, ...t.aliases].map((name) => ({ name, key: t.key })))
     .sort((a, b) => b.name.length - a.name.length)
   const spans: { start: number; end: number; keys: string[] }[] = []

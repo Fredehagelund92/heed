@@ -197,15 +197,31 @@ for (const { name, width, height } of widths) {
         await box.click()
         await box.pressSequentially('tell me a joke')
         await box.press('Enter')
-        await expect(page.getByRole('group', { name: 'Questions Ask can answer' })).toBeVisible()
+        await expect(page.getByRole('list', { name: 'Questions Ask can answer' })).toBeVisible()
+        await expect(
+          page.getByRole('log').getByRole('link', { name: 'Definitions', exact: true }),
+        ).toBeVisible()
         expect(await violations(page)).toEqual([])
       })
 
-      // Records answers (FR-718): a list with links, a table of counts, and a refused question.
+      test('an answer with the definition of the metric it asks about', async ({ page }) => {
+        await page.goto(withTheme('/ask?n=axe-definition', theme))
+        const box = page.getByRole('textbox', { name: 'Ask a question' })
+        await box.click()
+        await box.pressSequentially('What does Churn rate mean?')
+        await box.press('Enter')
+        await expect(page.getByRole('figure')).toContainText('as Cube defines it')
+        expect(await violations(page)).toEqual([])
+      })
+
+      // Records answers (FR-718): a list with links, a table of counts, a refused question, and
+      // what Definitions lists.
       for (const question of [
         'what is due for a check in Sales?',
         'how many context items does Sales have?',
         'what did Tomas Eriksen write this week?',
+        'list 10 dimensions',
+        'what markets are there',
       ])
         test(`a records answer: ${question}`, async ({ page }) => {
           await page.goto(withTheme(`/ask?n=axe-records-${question.length}`, theme))

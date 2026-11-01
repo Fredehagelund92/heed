@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bulkSeed } from '../../db/seed/bulk.ts'
+import type { LookupEvent } from '../../src/contract/answer.ts'
 import type { Catalogue } from '../../src/contract/index.ts'
 import { buildApp } from '../../src/server/app.ts'
 import { systemClock } from '../../src/server/clock.ts'
@@ -30,6 +31,7 @@ const app = buildApp({
   devPeople: [{ email: 'per_maria@example.test', name: 'Maria Lindqvist', roles: [] }],
 })
 let cookie = ''
+let csrf = ''
 
 beforeAll(async () => {
   await client.query('reset role')
@@ -42,6 +44,7 @@ beforeAll(async () => {
   })
   expect(response.statusCode).toBe(200)
   cookie = response.cookies.map((c) => `${c.name}=${c.value}`).join('; ')
+  csrf = response.json<{ csrfToken: string }>().csrfToken
 }, 120_000)
 afterAll(() => app.close())
 
@@ -162,6 +165,63 @@ describe('the catalogue on PostgreSQL', () => {
       "update definitions set visible_groups = null where ref = 'cube:orders.returns'",
     )
     expect((await term('metric:returns'))?.definition?.ref).toBe('cube:orders.returns')
+  })
+
+  it('answers Ask from the catalogue as the person sees it, and counts only which question it was (CON-509, FR-718)', async () => {
+    const records = async (question: string) => {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/ask/lookup',
+        headers: { cookie, 'x-heed-csrf': csrf, host: 'localhost', origin: 'http://localhost' },
+        payload: { question },
+      })
+      expect(response.statusCode, response.body).toBe(200)
+      const event = response.body
+        .split('\n')
+        .filter((line) => line.startsWith('data: '))
+        .map((line) => JSON.parse(line.slice(6)) as LookupEvent)
+        .find((e) => e.type === 'records')
+      if (!event || event.type !== 'records' || event.records.refused)
+        throw new Error(`"${question}" got no records answer`)
+      return event.records
+    }
+    await client.query('delete from records_asked_weekly')
+    const shown = await catalogue()
+    const metrics = shown.terms.filter((t) => t.kind === 'metric').length
+    expect((await records('how many metrics are there?')).total).toBe(metrics)
+    expect((await records('list 10 dimensions')).total).toBe(
+      shown.terms.filter((t) => t.kind === 'dimension').length,
+    )
+    expect((await records('what markets are there')).intent).toBe('values')
+    const salesBefore = (await records('list metrics in Sales')).total
+    // A term whose definition only some groups may see is counted for nobody without them.
+    await client.query(
+      "update definitions set visible_groups = '{finance}' where ref = 'cube:orders.returns'",
+    )
+    try {
+      const hidden = await records('how many metrics are there?')
+      expect(hidden.total).toBe(metrics - 1)
+      expect(hidden.sentence).toBe(`The workspace has ${metrics - 1} metrics.`)
+      const sales = await records('list metrics in Sales')
+      expect(sales.total).toBe(salesBefore - 1)
+      expect(sales.sentence).toContain(String(salesBefore - 1))
+      expect((await records('how many definitions are there?')).sentence).toMatch(
+        new RegExp(`: ${metrics - 1} metrics and`),
+      )
+    } finally {
+      await client.query(
+        "update definitions set visible_groups = null where ref = 'cube:orders.returns'",
+      )
+    }
+    // Only the question's id is counted, by week: never the words.
+    const { rows } = await client.query<{ intent: string; asks: number }>(
+      'select intent, asks from records_asked_weekly order by intent',
+    )
+    expect(rows).toEqual([
+      { intent: 'count', asks: 1 },
+      { intent: 'terms', asks: 5 },
+      { intent: 'values', asks: 1 },
+    ])
   })
 
   it('shows a term that names no definition as not linked, with no domain from a source', async () => {
