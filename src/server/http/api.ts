@@ -1120,7 +1120,7 @@ export function createRouter({
       mine: authorized.reports.mine.handler(({ context }) => context.reports.mine()),
     },
     ask: {
-      lookup: authorized.ask.lookup.handler(async ({ context, input }) => {
+      lookup: authorized.ask.lookup.handler(async ({ context, input, signal }) => {
         // The setup checklist's Ask step (FR-816): only that Ask was used, never what or by whom.
         await context.cards.askedOnce()
         // With a real model, the assistant's model writes the words after the answer; like the
@@ -1138,6 +1138,8 @@ export function createRouter({
                   {
                     database: forRequest(database, context.request.id),
                     plan,
+                    // Stop, or leaving, ends the model's call too.
+                    ...(signal ? { signal } : {}),
                     // Names the failure only, never the question or the words.
                     onError: (error) =>
                       log.warn(
