@@ -817,12 +817,16 @@ function SomethingWrong({
  * A question that looked nothing up: what Ask answers today, with two questions from the workspace
  * to try, and what comes later. Nothing here says whether anything is written down.
  */
-function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
+function useInsteadExamples(answer: Answer) {
   const asked = answer.question.toLowerCase()
-  const examples = useAskExamples()
+  return useAskExamples()
     .map((e) => e.question)
     .filter((q) => q.toLowerCase() !== asked)
     .slice(0, 2)
+}
+
+function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
+  const examples = useInsteadExamples(answer)
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
@@ -836,6 +840,13 @@ function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) =
       </p>
     </div>
   )
+}
+
+/** Two questions from the workspace to try after a Not found answer. */
+function TryInstead({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
+  const examples = useInsteadExamples(answer)
+  if (!onAsk || examples.length === 0) return null
+  return <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />
 }
 
 /** The next step that fits the state: for the owner, or for everyone else. */
@@ -1216,7 +1227,10 @@ function ContextAnswerBody({
             {answer.state === null ? (
               <AskableKinds answer={answer} onAsk={onAsk} />
             ) : (
-              !draft && <NextStep answer={answer} facts={facts} />
+              <>
+                {!draft && <NextStep answer={answer} facts={facts} />}
+                {answer.state === 'missing' && <TryInstead answer={answer} onAsk={onAsk} />}
+              </>
             )}
             {!draft && report && <ReportLine report={report} />}
             {!draft && wrong && !report && facts.length > 0 && (

@@ -92008,12 +92008,6 @@
                                               "type": "null"
                                             }
                                           ]
-                                        },
-                                        "offers": {
-                                          "type": "array",
-                                          "items": {
-                                            "type": "string"
-                                          }
                                         }
                                       },
                                       "required": [
@@ -92031,8 +92025,7 @@
                                         "total",
                                         "shown",
                                         "more",
-                                        "note",
-                                        "offers"
+                                        "note"
                                       ]
                                     },
                                     {

@@ -139,13 +139,47 @@ test('Asked this week: topics with the state Ask gives now and a count; an owner
   await rows.first().getByRole('button').click()
   const log = page.getByRole('log')
   await expect(log.getByText(shown, { exact: true }).first()).toBeVisible()
+})
 
-  // Under the answer, what to ask next says what it would get.
-  const next = page.getByRole('group', { name: 'Ask next, and what you would get' })
-  await expect(next.getByRole('button')).toHaveCount(2)
-  await expect(next.getByRole('button').first()).toContainText(
-    /Checked|Partial|Not found|Conflict|Outdated|Not checked/,
+test('an answer suggests nothing to ask next; a question Ask could not read offers two to try instead', async ({
+  page,
+}) => {
+  await ask(page, world.share)
+  const log = page.getByRole('log')
+  await expect(log.getByText('Checked', { exact: true }).first()).toBeVisible()
+  await expect(log.getByRole('button', { name: 'Good answer' })).toBeVisible()
+  // Like other chats, nothing under an ordinary answer: no questions, so nothing is looked up for them.
+  await expect(page.getByRole('group', { name: /Ask next|Questions Ask can answer/ })).toHaveCount(
+    0,
   )
+  await expect(page.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0)
+
+  // A dead end, a question that names nothing to look up, offers two questions to try instead.
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('tell me a joke')
+  await box.press('Enter')
+  await expect(log.getByText('Nothing was looked up').last()).toBeVisible()
+  const instead = log.getByRole('group', { name: 'Questions Ask can answer' })
+  await expect(instead.getByRole('button')).toHaveCount(2)
+  // Trying one asks it in the same chat.
+  const pick = (await instead.getByRole('button').first().textContent())!
+  await instead.getByRole('button').first().click()
+  await expect(log.locator('[data-turn="2"]')).toContainText(pick)
+})
+
+test('a Not found answer offers two questions to try instead, beside its next step', async ({
+  page,
+}) => {
+  await ask(page, 'How did orders in Spain change in October 2026?')
+  const log = page.getByRole('log')
+  await expect(log.getByText('Not found', { exact: true }).first()).toBeVisible()
+  const instead = log.getByRole('group', { name: 'Questions Ask can answer' })
+  await expect(instead.getByRole('button')).toHaveCount(2)
+  await expect(log.getByText(/Write context for|Tell the owner/).first()).toBeVisible()
+  const pick = (await instead.getByRole('button').first().textContent())!
+  await instead.getByRole('button').first().click()
+  await expect(log.locator('[data-turn="1"]')).toContainText(pick)
 })
 
 test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({

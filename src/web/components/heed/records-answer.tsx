@@ -229,7 +229,7 @@ function RecordsBody({
   onSettled,
 }: {
   records: RecordsAnswer
-  /** Ask one of the questions it offers next, in this chat. */
+  /** Ask one of the questions a refused question offers instead, in this chat. */
   onAsk?: (question: string) => void
   /** Told once it is shown: a records answer is written at once, never word by word. */
   onSettled?: () => void
@@ -295,12 +295,6 @@ function RecordsBody({
         {records.note && <p>{records.note}</p>}
         <p>Agents did not read this answer. It says nothing about what they get.</p>
       </div>
-      {onAsk && records.offers.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs text-muted-foreground">Ask next</p>
-          <Suggestions items={records.offers} onPick={onAsk} label="Ask next" />
-        </div>
-      )}
     </div>
   )
 }

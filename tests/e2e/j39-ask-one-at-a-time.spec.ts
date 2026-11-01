@@ -29,6 +29,14 @@ async function until(page: Page, what: Locator) {
   while (!(await what.isVisible())) await page.clock.runFor(50)
 }
 
+/** Time moves until the answer is written and Ask can ask again. */
+async function ready(page: Page) {
+  const stop = page.getByRole('button', { name: 'Stop', exact: true })
+  const ask = page.getByRole('button', { name: 'Ask', exact: true })
+  while ((await stop.isVisible()) || (await ask.getAttribute('aria-disabled')) === 'true')
+    await page.clock.runFor(50)
+}
+
 const box = (page: Page) => page.getByRole('textbox', { name: 'Ask a question' })
 
 test('a question on its way asks nothing more: not a second click, Enter or Send', async ({
@@ -62,8 +70,7 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   if (mode === 'http') await ask.click({ force: true })
 
   release()
-  const next = page.getByRole('group', { name: 'Ask next, and what you would get' })
-  await until(page, next.getByRole('button').first())
+  await ready(page)
   await expect(turns).toHaveCount(1)
   await expect(
     page.getByRole('log').getByText('What should I know about Net revenue in Norway?'),
@@ -73,20 +80,29 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   // The typed question was kept, to send once the answer is in.
   await expect(box(page)).toContainText('Why did orders in Norway drop in August?')
 
-  // Once the answer is written Ask is itself again, and a double click on what to ask next asks once.
-  await expect(next.getByRole('button').first()).not.toHaveAttribute('aria-disabled')
-  await next.getByRole('button').first().dblclick()
+  // Once the answer is written Ask is itself again: the kept question goes, once.
+  await box(page).press('Enter')
   await until(page, page.getByRole('button', { name: 'Stop', exact: true }))
   await expect(turns).toHaveCount(2)
   // While that one is written, Enter says so instead of asking.
+  await box(page).pressSequentially('tell me a joke')
   await box(page).press('Enter')
   await expect(page.getByText('Still answering. Stop it to ask now.')).toBeVisible()
-  await until(page, ask)
+  await ready(page)
   await expect(turns).toHaveCount(2)
-  // Then the kept question goes, once.
+  // Then it goes, once: a dead end, with questions to try instead.
   await box(page).press('Enter')
   await until(page, turns.nth(2))
+  await ready(page)
   await expect(turns).toHaveCount(3)
+
+  // A double click on a question to try instead asks it once.
+  const instead = page.getByRole('log').getByRole('group', { name: 'Questions Ask can answer' })
+  await expect(instead.getByRole('button').first()).not.toHaveAttribute('aria-disabled')
+  await instead.getByRole('button').first().dblclick()
+  await until(page, turns.nth(3))
+  await ready(page)
+  await expect(turns).toHaveCount(4)
 })
 
 test('a question that fails leaves Ask ready to ask, the question back in the box', async ({

@@ -51,3 +51,26 @@ test('the Inbox loads with each read once, and every review in one call', async 
   // choice.
   expect(calls.length, calls.join('\n')).toBeLessThanOrEqual(31)
 })
+
+test('a question in Ask is one look-up: the chat does not read it again or look anything up for later', async ({
+  page,
+}) => {
+  await callsWhileLoading(page, '/ask?n=calls')
+  const lookups: string[] = []
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/v1/ask/lookup')
+      lookups.push(request.postData() ?? '')
+  })
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('What should I know about Orders in Germany?')
+  await box.press('Enter')
+  // Each look-up can call the model for the answer's words once (src/server/modules/answer/words.ts),
+  // so one look-up is at most one model call.
+  await expect(page).toHaveURL(/chat=/)
+  await expect(page.getByRole('button', { name: 'Good answer' })).toBeVisible()
+  // A read the chat's new address started, or one for a question shown under the answer, has gone
+  // out by now.
+  await page.waitForTimeout(1000)
+  expect(lookups, lookups.join('\n')).toHaveLength(1)
+})

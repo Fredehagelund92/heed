@@ -107,8 +107,6 @@ export const recordsAnswerSchema = z.union([
     ),
     /** What a word in the answer means, when it needs saying: "Created means first published." */
     note: z.nullable(z.string()),
-    /** Records questions to ask next. */
-    offers: z.array(z.string()),
   }),
   z.object({
     refused: z.literal(true),

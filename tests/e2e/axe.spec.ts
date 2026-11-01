@@ -214,7 +214,7 @@ for (const { name, width, height } of widths) {
           await box.pressSequentially(question)
           await box.press('Enter')
           await expect(
-            page.getByRole('group', { name: /^(Ask next|Questions Ask can answer)$/ }),
+            page.getByText(/^Agents did not read this answer\.|^Ask does not answer questions/),
           ).toBeVisible()
           expect(await violations(page)).toEqual([])
         })

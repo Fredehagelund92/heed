@@ -446,7 +446,6 @@ export function answerRecords(ask: RecordsAsk, world: RecordsWorld, nowIso: stri
     shown: null,
     more: null,
     note: null,
-    offers: offersFor(ask.intent, world),
   }
   const where = domain ? ` in ${domain.name}` : ''
   const things = kind ? kindWords[kind].many : 'context items'
@@ -793,27 +792,6 @@ function ownerAnswer(
     })),
     total: world.areas.length,
   }
-}
-
-/** Two records questions to ask next, each one Records reads as its intent. */
-function offersFor(intent: RecordsIntent, world: RecordsWorld): string[] {
-  const first = world.areas[0]?.name
-  const all: Record<RecordsIntent, string> = {
-    created: 'What was created in the last 7 days?',
-    changed: 'What changed this week?',
-    due: 'What is due for a check?',
-    archived: 'What is archived?',
-    owner: first ? `Who owns ${first}?` : 'Which domains have no owner?',
-    count: first
-      ? `How many context items does ${first} have?`
-      : 'How many context items are there?',
-    asked_nothing: 'What did agents ask that found nothing?',
-  }
-  const order: RecordsIntent[] = ['changed', 'due', 'owner', 'count', 'created', 'archived']
-  return order
-    .filter((i) => i !== intent)
-    .slice(0, 2)
-    .map((i) => all[i])
 }
 
 /** A question about one person's work, refused with what Ask can say instead. */
