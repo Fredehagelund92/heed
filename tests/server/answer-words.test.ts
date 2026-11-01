@@ -90,8 +90,9 @@ describe('what the model is given', () => {
 
 describe('the words cases (FR-710), on the scripted mock model', () => {
   it.each(wordsCases.map((c) => [c.id, c] as const))('%s', async (_id, c) => {
-    const text = await askForWords(scriptedWordsModel(), c.input)
-    expect(wordsProblems(c, text)).toEqual([])
+    const reply = await askForWords(scriptedWordsModel(), c.input)
+    expect(reply.finishReason).toBe('stop')
+    expect(wordsProblems(c, reply.text)).toEqual([])
   })
 
   it('find words that follow an instruction in an item, or leave a side out', () => {
@@ -122,5 +123,80 @@ describe('the call Ask makes', () => {
     for (const state of ['missing', 'failed'] as const)
       expect(await writeWords({ database: noDatabase, plan }, { ...input, state })).toBeNull()
     expect(await writeWords({ database: noDatabase, plan }, { ...input, items: [] })).toBeNull()
+  })
+
+  /** A model that writes `text` and stops for `finishReason`, having reasoned `reasoning` tokens. */
+  const replying = (
+    text: string,
+    finishReason: 'stop' | 'length',
+    reasoning: number,
+  ): ModelChoice => ({
+    ...scriptedWordsModel(),
+    model: new MockLanguageModelV4({
+      doGenerate: () =>
+        Promise.resolve({
+          content: text ? [{ type: 'text', text }] : [],
+          finishReason: { unified: finishReason, raw: finishReason },
+          usage: {
+            inputTokens: { total: 400, noCache: 400, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 400, text: 400 - reasoning, reasoning },
+          },
+          warnings: [],
+        }),
+    }),
+  })
+  // Room under the spending limits, and a ledger whose writes go nowhere.
+  const roomy = { transaction: () => Promise.resolve(false) } as unknown as Database
+
+  it('says why words cut off at the output limit were not used, and how much the model reasoned', async () => {
+    const plan = { choice: replying('', 'length', 400), limits: {} as never, person: 'per_jon' }
+    const misses: unknown[] = []
+    const errors: unknown[] = []
+    const words = await writeWords(
+      {
+        database: roomy,
+        plan,
+        onMiss: (miss) => misses.push(miss),
+        onError: (e) => errors.push(e),
+      },
+      input,
+    )
+    expect(words).toBeNull()
+    expect(misses).toEqual([
+      { reason: 'not finished', finishReason: 'length', reasoningTokens: 400 },
+    ])
+    expect(errors).toEqual([])
+  })
+
+  it('names the check that refused the words, without the words', async () => {
+    const plan = {
+      choice: replying('Gift cards add 12 percent [1].', 'stop', 0),
+      limits: {} as never,
+      person: 'per_jon',
+    }
+    const misses: unknown[] = []
+    const words = await writeWords(
+      { database: roomy, plan, onMiss: (miss) => misses.push(miss) },
+      input,
+    )
+    expect(words).toBeNull()
+    expect(misses).toEqual([
+      {
+        reason: 'failed the check',
+        why: 'a number it was not given',
+        finishReason: 'stop',
+        reasoningTokens: 0,
+      },
+    ])
+  })
+
+  it('keeps words that finished and pass the check, and reports nothing', async () => {
+    const text = 'One side counts store credit [1]. The other counts card and cash only [2].'
+    const plan = { choice: replying(text, 'stop', 0), limits: {} as never, person: 'per_jon' }
+    const misses: unknown[] = []
+    expect(
+      await writeWords({ database: roomy, plan, onMiss: (miss) => misses.push(miss) }, input),
+    ).toBe(text)
+    expect(misses).toEqual([])
   })
 })
