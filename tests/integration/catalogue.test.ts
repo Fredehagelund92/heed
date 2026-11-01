@@ -197,12 +197,14 @@ describe('the catalogue on PostgreSQL', () => {
     await client.query(
       "update definitions set visible_groups = '{finance}' where ref = 'cube:orders.returns'",
     )
+    const salesBefore = (await records('list metrics in Sales')).total
     try {
       const hidden = await records('how many metrics are there?')
       expect(hidden.total).toBe(metrics - 1)
       expect(hidden.sentence).toBe(`The workspace has ${metrics - 1} metrics.`)
       const sales = await records('list metrics in Sales')
-      expect(sales.rows.some((r) => r.type === 'term' && r.key === 'metric:returns')).toBe(false)
+      expect(sales.total).toBe(salesBefore - 1)
+      expect(sales.sentence).toContain(String(salesBefore - 1))
       expect((await records('how many definitions are there?')).sentence).toMatch(
         new RegExp(`: ${metrics - 1} metrics and`),
       )

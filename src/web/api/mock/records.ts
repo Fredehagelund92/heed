@@ -39,8 +39,8 @@ const firstPublished = new Map(seedFacts.map((f) => [f.id, instant(f.checkedOn)]
 const valuesOf = (d: Definition) =>
   d.name === 'Market'
     ? markets
-    : (d.values ?? '').includes(',')
-      ? d.values!.split(',').map((v) => v.trim())
+    : /,\s/.test(d.values ?? '')
+      ? d.values!.split(/,\s+/).map((v) => v.trim())
       : []
 
 /** The vocabulary as the engine names it: the metrics and dimensions with their domains, and their values. */

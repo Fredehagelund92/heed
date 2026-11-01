@@ -562,5 +562,9 @@ function definitionOf(question: string, metric: string): AskedDefinition | null 
   if (!metric || !asksDefinition(question)) return null
   const d = findDefinition(definitionsNow(), metric)
   if (!d?.synced || !d.tool) return null
-  return { name: d.name, words: d.definition || null, tool: d.tool }
+  return {
+    name: d.name,
+    words: d.definition && !/^No description/.test(d.definition) ? d.definition : null,
+    tool: d.tool,
+  }
 }
