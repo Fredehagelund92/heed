@@ -179,7 +179,7 @@ test('a Not found answer offers two questions to try instead, beside its next st
   await expect(log.getByText(/Write context for|Tell the owner/).first()).toBeVisible()
   const pick = (await instead.getByRole('button').first().textContent())!
   await instead.getByRole('button').first().click()
-  await expect(log.locator('[data-turn="2"]')).toContainText(pick)
+  await expect(log.locator('[data-turn="1"]')).toContainText(pick)
 })
 
 test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({
