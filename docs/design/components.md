@@ -102,21 +102,21 @@ Unused primitives in the mockup (about seven) are not imported.
 
 ### The state line and Ask
 
-| Part            | File                                                      | Job                                                                                                         |
-| --------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Answer          | `components/heed/answer.tsx`                              | One turn: the state line, the words with citation markers, sources, What agents get, Something wrong?       |
-| State help      | `components/heed/state-help.tsx`                          | The answer line's card: what it means and what to do                                                        |
-| Answer lines    | `lib/help-content.ts` (`ANSWER_LINES`)                    | The six labels, sentences and long forms, from one list                                                     |
-| Reading         | `components/heed/reading.tsx`, `lib/stages.ts`            | The staged look-up where an agent works                                                                     |
-| Figure          | `components/heed/answer-figure.tsx`                       | One figure, apart from the context, never changing the state                                                |
-| Asked this week | `components/heed/asked-week.tsx`, `data/asked-week.ts`    | Topics with their state now and a count                                                                     |
-| Suggestions     | `components/heed/suggestions.tsx`                         | Questions to ask as soft chips: the empty page's starters, and what an answer that looked nothing up offers |
-| Records answer  | `components/heed/records-answer.tsx`, `domain/records.ts` | A question about the records: the Records chip, one sentence, five rows or a table of counts                |
-| Where           | `components/heed/where-panel.tsx`, `lib/where.ts`         | "Show me where it says that"                                                                                |
-| Share           | `components/heed/share-answer.tsx`, `lib/share.ts`        | A Slack message or a card, with state and sources                                                           |
-| Composer        | `pages/ask-composer.tsx`, `lib/surfaces.ts`               | The soft input surface shared with the comment box                                                          |
-| Ask page        | `pages/ask.tsx`, `lib/threads.ts`                         | The thread, history, search, the empty page                                                                 |
-| Agent reply     | `lib/agent-reply.ts`                                      | The reply an agent gets, built from published context only                                                  |
+| Part            | File                                                      | Job                                                                                                   |
+| --------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Answer          | `components/heed/answer.tsx`                              | One turn: the state line, the words with citation markers, sources, What agents get, Something wrong? |
+| State help      | `components/heed/state-help.tsx`                          | The answer line's card: what it means and what to do                                                  |
+| Answer lines    | `lib/help-content.ts` (`ANSWER_LINES`)                    | The six labels, sentences and long forms, from one list                                               |
+| Reading         | `components/heed/reading.tsx`, `lib/stages.ts`            | The staged look-up where an agent works                                                               |
+| Figure          | `components/heed/answer-figure.tsx`                       | One figure, apart from the context, never changing the state                                          |
+| Asked this week | `components/heed/asked-week.tsx`, `data/asked-week.ts`    | Topics with their state now and a count                                                               |
+| Suggestions     | `components/heed/suggestions.tsx`                         | Questions to ask as soft chips: the empty page's starters, and what a dead-end answer offers          |
+| Records answer  | `components/heed/records-answer.tsx`, `domain/records.ts` | A question about the records: the Records chip, one sentence, five rows or a table of counts          |
+| Where           | `components/heed/where-panel.tsx`, `lib/where.ts`         | "Show me where it says that"                                                                          |
+| Share           | `components/heed/share-answer.tsx`, `lib/share.ts`        | A Slack message or a card, with state and sources                                                     |
+| Composer        | `pages/ask-composer.tsx`, `lib/surfaces.ts`               | The soft input surface shared with the comment box                                                    |
+| Ask page        | `pages/ask.tsx`, `lib/threads.ts`                         | The thread, history, search, the empty page                                                           |
+| Agent reply     | `lib/agent-reply.ts`                                      | The reply an agent gets, built from published context only                                            |
 
 ### Editor, properties and documents
 
