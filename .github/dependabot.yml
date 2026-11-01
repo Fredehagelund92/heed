@@ -4,17 +4,32 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     commit-message:
       prefix: 'chore(deps)'
     groups:
-      minor-and-patch:
+      types:
+        patterns:
+          - '@types/*'
+        update-types:
+          - minor
+          - patch
+      dev-tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      runtime:
+        dependency-type: production
         update-types:
           - minor
           - patch
     ignore:
       # The Cube compiler major upgrade changes every change mark and needs its own plan.
       - dependency-name: '@cubejs-backend/*'
+        update-types: ['version-update:semver-major']
+      # Majors are upgraded deliberately, not by Dependabot.
+      - dependency-name: '*'
         update-types: ['version-update:semver-major']
 
   - package-ecosystem: docker
@@ -29,6 +44,10 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Majors are upgraded deliberately, not by Dependabot.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
@@ -42,3 +61,7 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Majors are upgraded deliberately, not by Dependabot.
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
