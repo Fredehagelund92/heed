@@ -169,7 +169,6 @@ describe('reading a records question', () => {
     ['what markets are there', 'values'],
     ['markets', 'values'],
     ['how many markets are there?', 'values'],
-    ['which countries do we sell in', 'values'],
     ['list the channels', 'values'],
     ['what are the values of Market?', 'values'],
     ['What values does Channel have?', 'values'],
@@ -181,6 +180,8 @@ describe('reading a records question', () => {
   // Questions about the business: they stay with the answer engine, records nouns or not.
   const negatives = [
     'Why did orders in Norway drop in August?',
+    // Not a listing frame: it is left to the answer engine, which refuses it with what Ask can do.
+    'which countries do we sell in',
     'What should I know about Orders in Norway?',
     'What changed in returns in the United Kingdom this week?',
     'What is missing from our revenue figures in the United Kingdom?',
@@ -281,13 +282,12 @@ describe('reading a records question', () => {
     })
   })
 
-  it.each([
-    'which products sold last week',
-    'what campaigns ran',
-    'which channels drove traffic',
-  ])('leaves "%s", a question about the business, to the answer engine', (question) => {
-    expect(recognise(question)).toBeNull()
-  })
+  it.each(['which products sold last week', 'what campaigns ran', 'which channels drove traffic'])(
+    'leaves "%s", a question about the business, to the answer engine',
+    (question) => {
+      expect(recognise(question)).toBeNull()
+    },
+  )
 
   it('takes the metric a question asks the owner of', () => {
     expect(recognise('who owns Orders?')).toMatchObject({
