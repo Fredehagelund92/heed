@@ -57,7 +57,7 @@ import { createDefinitions } from './definitions'
 import { publishEffects, touchedBy } from './publish'
 import { SAVED_TREND } from './data/saved-questions'
 import { createSaved } from './saved'
-import { createScenario, type Address } from './scenario'
+import { createScenario, sendTime, type Address } from './scenario'
 import { searchWorld } from './search'
 import { createScopeSearch, withScope } from './scope'
 import { factsOf, reduce, start, type Action, type State } from './store'
@@ -733,8 +733,11 @@ export function createMockApi() {
         const read = readQuestion(question)
         return { metric: read.metric, markets: read.markets }
       }),
-    ask: (input) =>
-      now(() => {
+    // An answer comes as a send does: refused offline, and slower with Slow network on.
+    ask: async (input) => {
+      if (scenario.offline()) throw new ApiError('unanswered', "You're offline.")
+      if (scenario.slow()) await new Promise((resolve) => setTimeout(resolve, sendTime(true)))
+      return now(() => {
         const a = answer(input)
         // What an agent follows from the answer's items, with the switch as it is now.
         const links = answerLinks(
@@ -747,7 +750,8 @@ export function createMockApi() {
           settings.read(scenario.address()).links,
         )
         return { ...a, links }
-      }),
+      })
+    },
     askedThisWeek: () => now(() => askedThisWeek(factsOf(state))),
     getAskExamples: () => now(() => examples),
     listChats: () =>

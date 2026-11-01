@@ -11,7 +11,7 @@ import type { ObsState } from '@/model/observability'
 //   of send (Publish, Save, a decision) fail on its first try too.
 // - ?state=offline takes the app offline: nothing is sent. The browser going offline counts too.
 // - ?slow=1, or the Slow network switch in Help, makes each page's first load wait 900ms and every
-//   send take 1.5s instead of 0.6s.
+//   send take 1.5s instead of 0.6s. An answer in Ask takes 1.5s too, and offline is refused.
 // - ?decide=fail fails each Inbox card's first save, ?bulk=fail the first change to many rows.
 //
 // Integrations keep their own ?state for a sync, and Observability its own for its data, so only
