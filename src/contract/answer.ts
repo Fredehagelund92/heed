@@ -149,6 +149,28 @@ export const followedLinksSchema = z.object({
 })
 export type FollowedLinks = z.infer<typeof followedLinksSchema>
 
+/**
+ * What a definition source says a metric means, and where that comes from, as get_context gives
+ * an agent for a question about what it means (FR-338): the source's own words, never a
+ * calculation (CON-207).
+ */
+export const askDefinitionSchema = z.object({
+  /** The metric's key: `metric:churn_rate`. */
+  key: z.string(),
+  name: z.string(),
+  /** The source's description, at most 500 characters; null when it gives none. */
+  words: z.nullable(z.string()),
+  /** The words were shortened to fit. */
+  shortened: z.boolean(),
+  /** The tool the source reads, as people say it: "Cube". */
+  tool: z.string(),
+  /** The source's name in Sources. */
+  source: z.string(),
+  /** The definition's id in the source: `cube:customers.churn_rate`. */
+  ref: z.string(),
+})
+export type AskDefinition = z.infer<typeof askDefinitionSchema>
+
 export const answerSchema = z.object({
   target: answerTargetSchema,
   /** The edition's label, such as 2026-10-20.3. */
@@ -178,6 +200,17 @@ export const answerSchema = z.object({
   ms: z.number(),
   /** What get_related follows from the items, in Ask's look-up only. */
   links: z.optional(followedLinksSchema),
+  /**
+   * In Ask's look-up only, for a question about what a metric means ("What is churn rate?"): its
+   * definition, from the definition source. It changes neither the state nor the items.
+   */
+  definitions: z.optional(z.array(askDefinitionSchema)),
+  /**
+   * In Ask's look-up only, for a question that names values, such as a market, and no metric, and
+   * found nothing: the metrics that context about all those values is written for, by key, most
+   * items first, at most three. Context about a market is mostly about a metric in it.
+   */
+  valueMetrics: z.optional(z.array(z.string())),
 })
 export type AnswerResult = z.infer<typeof answerSchema>
 

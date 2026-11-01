@@ -91597,6 +91597,57 @@
                                         "followed",
                                         "notFollowed"
                                       ]
+                                    },
+                                    "definitions": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "key": {
+                                            "type": "string"
+                                          },
+                                          "name": {
+                                            "type": "string"
+                                          },
+                                          "words": {
+                                            "anyOf": [
+                                              {
+                                                "type": "string"
+                                              },
+                                              {
+                                                "type": "null"
+                                              }
+                                            ]
+                                          },
+                                          "shortened": {
+                                            "type": "boolean"
+                                          },
+                                          "tool": {
+                                            "type": "string"
+                                          },
+                                          "source": {
+                                            "type": "string"
+                                          },
+                                          "ref": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "required": [
+                                          "key",
+                                          "name",
+                                          "words",
+                                          "shortened",
+                                          "tool",
+                                          "source",
+                                          "ref"
+                                        ]
+                                      }
+                                    },
+                                    "valueMetrics": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
                                     }
                                   },
                                   "required": [
@@ -91662,7 +91713,9 @@
                                             "archived",
                                             "owner",
                                             "count",
-                                            "asked_nothing"
+                                            "asked_nothing",
+                                            "terms",
+                                            "values"
                                           ],
                                           "type": "string"
                                         },
@@ -91895,6 +91948,45 @@
                                                 "type": "object",
                                                 "properties": {
                                                   "type": {
+                                                    "const": "term"
+                                                  },
+                                                  "key": {
+                                                    "type": "string"
+                                                  },
+                                                  "kind": {
+                                                    "enum": [
+                                                      "metric",
+                                                      "dimension",
+                                                      "value"
+                                                    ],
+                                                    "type": "string"
+                                                  },
+                                                  "name": {
+                                                    "type": "string"
+                                                  },
+                                                  "page": {
+                                                    "type": "string"
+                                                  },
+                                                  "cells": {
+                                                    "type": "array",
+                                                    "items": {
+                                                      "type": "string"
+                                                    }
+                                                  }
+                                                },
+                                                "required": [
+                                                  "type",
+                                                  "key",
+                                                  "kind",
+                                                  "name",
+                                                  "page",
+                                                  "cells"
+                                                ]
+                                              },
+                                              {
+                                                "type": "object",
+                                                "properties": {
+                                                  "type": {
                                                     "const": "kind"
                                                   },
                                                   "kind": {
@@ -91985,6 +92077,9 @@
                                                       "type": "null"
                                                     }
                                                   ]
+                                                },
+                                                "page": {
+                                                  "type": "string"
                                                 }
                                               },
                                               "required": [
@@ -99616,6 +99711,57 @@
                             "followed",
                             "notFollowed"
                           ]
+                        },
+                        "definitions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "key": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "words": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "shortened": {
+                                "type": "boolean"
+                              },
+                              "tool": {
+                                "type": "string"
+                              },
+                              "source": {
+                                "type": "string"
+                              },
+                              "ref": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name",
+                              "words",
+                              "shortened",
+                              "tool",
+                              "source",
+                              "ref"
+                            ]
+                          }
+                        },
+                        "valueMetrics": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
                         }
                       },
                       "required": [

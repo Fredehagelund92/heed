@@ -1,5 +1,6 @@
 import { notLookedUp } from '@domain/say'
 import type { RecordsAnswer } from '@domain/records-answer'
+import { nameSimilarity, normalizeName, suggestTerms, type Term } from '@domain/vocabulary'
 import type { MentionRef } from '@/lib/mentions'
 import { ANSWER_LINES } from '@/lib/help-content'
 import type { DomainId } from './items'
@@ -40,6 +41,49 @@ export const DRAFT_LABEL = 'Based on this draft'
  */
 export const unreadReason = (say: string) =>
   say.startsWith(notLookedUp) ? say.slice(notLookedUp.length).trim() : say
+
+/**
+ * Why a question that names no metric and no market was not looked up, as Ask says it. Agents are
+ * told the engine's own words, with its first choices (`said`); a person gets what Ask can answer
+ * and the names closest to their words instead.
+ */
+export const NAMES_NOTHING = "The question doesn't name a metric or a market."
+
+/** Whether the engine read nothing because the question named no name at all. */
+export const namesNothing = (
+  issues: readonly { field: string; input: string }[],
+  question: string,
+) =>
+  issues.length === 1 && issues[0]!.field === 'scope' && issues[0]!.input.trim() === question.trim()
+
+/**
+ * The metrics and markets whose names are closest to a question's words, at most two, closest
+ * first: a typo ("chrun rate") or a near name. Each run of one to three words is compared the way
+ * the engine compares a name it does not know (`suggestTerms`), and only a close one is kept. A
+ * name is offered as a question to ask, never read as the one asked.
+ */
+export function closestNames(question: string, terms: readonly Term[]): string[] {
+  const words = normalizeName(question)
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+  const best = new Map<string, number>()
+  for (let size = 1; size <= 3; size++)
+    for (let at = 0; at + size <= words.length; at++) {
+      const run = words.slice(at, at + size).join(' ')
+      if (run.length < 4) continue
+      for (const key of suggestTerms(run, terms).slice(0, 2)) {
+        const term = terms.find((t) => t.key === key)!
+        const score = Math.max(...[term.name, ...term.aliases].map((n) => nameSimilarity(run, n)))
+        if (score >= CLOSE && score > (best.get(term.name) ?? 0)) best.set(term.name, score)
+      }
+    }
+  return [...best]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'en'))
+    .slice(0, 2)
+    .map(([name]) => name)
+}
+/** How alike a run of words and a name must read to be offered (see `nameSimilarity`). */
+const CLOSE = 0.5
 
 /** What a question was read as, in words: "Orders in Norway, 1 to 31 Aug 2026". Empty when nothing matched. */
 export function scopeText(a: Pick<Answer, 'metric' | 'markets' | 'dates'>) {
@@ -83,6 +127,21 @@ export type Answer = {
   related?: string[]
   /** The question as typed, with its mentions, when it had any. */
   parts?: QuestionPart[]
+  /**
+   * For a question about what a metric means: what its definition source says, and where that
+   * comes from, as agents get it (FR-703). It changes neither the state nor the sources.
+   */
+  definitions?: AskedDefinition[]
+  /**
+   * A question that looked nothing up because it named no metric and no market: the metrics and
+   * markets closest to its words (`closestNames`), offered as questions to ask.
+   */
+  closest?: string[]
+  /**
+   * A question about a market alone that found nothing, while context about that market is
+   * written for metrics: those questions, each naming one of the metrics, to ask instead.
+   */
+  instead?: string[]
   /** What the asker scoped it to with '@'. */
   scope?: MentionRef[]
   /** What the agent followed from the answer's items with get_related, one step. */
@@ -106,6 +165,15 @@ export const recordsAnswer = (question: string, records: RecordsAnswer): Answer 
   said: '',
   records,
 })
+
+/** A metric's definition, as the definition source gives it. */
+export type AskedDefinition = {
+  name: string
+  /** The source's own words; null when it gives none. */
+  words: string | null
+  /** The tool the source reads, as people say it: "Cube". */
+  tool: string
+}
 
 /** A link on one of the answer's items: the item it is on, and where it points. */
 export type AnswerLink = {

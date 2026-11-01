@@ -1,5 +1,9 @@
 import { cn } from '@/lib/utils'
 
+/** One question to ask, as a soft chip. */
+export const suggestionClass =
+  'rounded-surface border bg-background px-3 py-2 text-left text-sm text-muted-foreground transition-colors outline-none hover:border-foreground/25 hover:bg-muted/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40'
+
 /**
  * Questions to ask, as soft chips: conversational, like the box they fill. A grid of starters on a
  * new workspace's empty Ask, a row under an answer that looked nothing up.
@@ -31,10 +35,7 @@ export function Suggestions({
           key={q}
           type="button"
           onClick={() => onPick(q)}
-          className={cn(
-            'rounded-surface border bg-background px-3 py-2 text-left text-sm text-muted-foreground transition-colors outline-none hover:border-foreground/25 hover:bg-muted/40 hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40',
-            grid ? '@lg:min-h-16' : '',
-          )}
+          className={cn(suggestionClass, grid ? '@lg:min-h-16' : '')}
         >
           {q}
         </button>

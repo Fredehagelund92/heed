@@ -53,8 +53,26 @@ const terms: Term[] = [
     key: 'dim:market',
     kind: 'dimension',
     name: 'Market',
+    aliases: ['Country'],
+    parentKey: null,
+    areaId: null,
+    definitionRefs: [],
+  },
+  {
+    key: 'dim:channel',
+    kind: 'dimension',
+    name: 'Channel',
     aliases: [],
     parentKey: null,
+    areaId: 'marketing',
+    definitionRefs: [],
+  },
+  {
+    key: 'val:channel/email',
+    kind: 'dimension_value',
+    name: 'Email',
+    aliases: ['Newsletter'],
+    parentKey: 'dim:channel',
     areaId: null,
     definitionRefs: [],
   },
@@ -136,6 +154,25 @@ describe('reading a records question', () => {
     ['what questions did agents not find an answer to', 'asked_nothing'],
     ['what is missing from the context?', 'asked_nothing'],
     ['which questions went unanswered this week', 'asked_nothing'],
+    ['list 10 dimensions', 'terms'],
+    ['list dimensions', 'terms'],
+    ['what dimensions are there', 'terms'],
+    ['how many dimensions', 'terms'],
+    ['how many metrics', 'terms'],
+    ['list metrics', 'terms'],
+    ['metrics in Sales', 'terms'],
+    ['list 10 metrics in Sales', 'terms'],
+    ['which metrics does Sales have?', 'terms'],
+    ['list definitions', 'terms'],
+    ['what definitions are there', 'terms'],
+    ['show me all the metrics', 'terms'],
+    ['what markets are there', 'values'],
+    ['markets', 'values'],
+    ['how many markets are there?', 'values'],
+    ['which countries do we sell in', 'values'],
+    ['list the channels', 'values'],
+    ['what are the values of Market?', 'values'],
+    ['What values does Channel have?', 'values'],
   ]
   it.each(positives)('reads "%s" as %s', (question, intent) => {
     expect(intentOf(question)).toBe(intent)
@@ -162,6 +199,17 @@ describe('reading a records question', () => {
     'hello',
     'tell me a joke',
     'what is a context item?',
+    'list orders in Norway',
+    'what changed in returns this week',
+    'list 10 orders in Norway',
+    'what is Churn rate',
+    'what does churn rate mean',
+    'what market',
+    'Orders by market',
+    'which metrics are missing in Norway',
+    'which products sold best last month',
+    'why did campaigns drop in October?',
+    'which channels performed worst',
   ]
   it.each(negatives)('leaves "%s" to the answer engine', (question) => {
     expect(intentOf(question)).toBeNull()
@@ -186,6 +234,43 @@ describe('reading a records question', () => {
     expect(r).toMatchObject({
       type: 'records',
       ask: { intent: 'count', domain: 'sales', kind: 'definition' },
+    })
+  })
+
+  it('reads what of the vocabulary is asked, how many, and the domain before a synonym', () => {
+    expect(recognise('list 10 dimensions')).toMatchObject({
+      ask: {
+        intent: 'terms',
+        domain: null,
+        catalogue: { of: 'dimension', dimension: null, limit: 10, count: false },
+      },
+    })
+    expect(recognise('how many metrics')).toMatchObject({
+      ask: { catalogue: { of: 'metric', limit: null, count: true } },
+    })
+    // "Sales" is a domain and a synonym of Net revenue: with a catalogue noun it is the domain.
+    expect(recognise('list 10 metrics in Sales')).toMatchObject({
+      ask: { intent: 'terms', domain: 'sales', catalogue: { of: 'metric', limit: 10 } },
+    })
+    expect(recognise('list definitions')).toMatchObject({
+      ask: { catalogue: { of: 'definition' } },
+    })
+    // A dimension's values, by its name or another name in the plural, or with "values".
+    expect(recognise('what markets are there')).toMatchObject({
+      ask: { intent: 'values', domain: null, catalogue: { of: 'value', dimension: 'dim:market' } },
+    })
+    expect(recognise('which countries do we sell in')).toMatchObject({
+      ask: { catalogue: { dimension: 'dim:market' } },
+    })
+    expect(recognise('list three channels')).toMatchObject({
+      ask: { catalogue: { dimension: 'dim:channel', limit: 3 } },
+    })
+    expect(recognise('what are the values of Market?')).toMatchObject({
+      ask: { catalogue: { dimension: 'dim:market', count: false } },
+    })
+    // "How many definitions" stays the count of definitions it was.
+    expect(recognise('how many definitions are there?')).toMatchObject({
+      ask: { intent: 'count', kind: 'definition' },
     })
   })
 
@@ -536,5 +621,147 @@ describe('a records answer', () => {
         expect(text.split(/\s+/).length, text).toBeLessThanOrEqual(25)
       }
     }
+  })
+})
+
+describe('a catalogue answer', () => {
+  const dims = ['Campaign', 'Channel', 'Market', 'Platform', 'Product'].map((name): Term => ({
+    key: `dim:${name.toLowerCase()}`,
+    kind: 'dimension',
+    name,
+    aliases: [],
+    parentKey: null,
+    areaId: null,
+    definitionRefs: [],
+  }))
+  const vocabulary = [...terms.filter((t) => t.kind !== 'dimension'), ...dims]
+  const catalogue = (
+    question: string,
+    over: Partial<RecordsWorld> = {
+      terms: [...vocabulary, ...terms.filter((t) => t.key === 'dim:channel')],
+    },
+  ) => {
+    const r = recogniseRecords(question, {
+      spans: readQuestion(question, vocabulary, today).spans,
+      terms: vocabulary,
+      domains,
+      now,
+    })
+    if (r?.type !== 'records') throw new Error(`"${question}" is no records question`)
+    return answer(r.ask, world([], over))
+  }
+
+  it('lists the dimensions there are, and says when fewer than asked for', () => {
+    const a = catalogue('list 10 dimensions', { terms: vocabulary })
+    expect(a.sentence).toBe(
+      'The workspace has 5 dimensions: Campaign, Channel, Market, Platform and Product.',
+    )
+    expect(a.detail).toBe('You asked for 10; there are 5.')
+    expect(a.understood).toBe('Dimensions, 10 asked for')
+    expect(a.read).toBe('Read 5 dimensions in Definitions')
+    expect(a.rows.map((r) => (r.type === 'term' ? r.name : ''))).toEqual([
+      'Campaign',
+      'Channel',
+      'Market',
+      'Platform',
+      'Product',
+    ])
+    expect(a.columns).toEqual(['Dimension', 'Values'])
+    expect(a.shown).toBeNull()
+    expect(a.more).toEqual({
+      label: 'Open Definitions',
+      to: 'definitions',
+      domain: null,
+      status: null,
+    })
+  })
+
+  it('counts metrics exactly, five rows at most, and Definitions lists the rest', () => {
+    const a = catalogue('how many metrics', {
+      terms: vocabulary,
+      areas: [{ id: 'customer_value', name: 'Customer value', ownerIds: [] }],
+    })
+    expect(a.sentence).toBe('The workspace has 10 metrics.')
+    expect(a.understood).toBe('Count of metrics')
+    expect(a.total).toBe(10)
+    expect(a.rows).toHaveLength(5)
+    expect(a.rows[0]).toEqual({
+      type: 'term',
+      key: 'metric:churn_rate',
+      kind: 'metric',
+      name: 'Churn rate',
+      page: 'Churn rate',
+      cells: ['Customer value'],
+    })
+    expect(a.shown).toBe('Showing 5 of 10, by name')
+    expect(a.more?.label).toBe('Show all 10 in Definitions')
+  })
+
+  it('reads the domain, not the synonym, and names a few metrics', () => {
+    const a = catalogue('list 10 metrics in Sales', { terms: vocabulary })
+    expect(a.sentence).toBe(
+      'Sales has 5 metrics: Gross sales, Net revenue, Orders, Returns and Units sold.',
+    )
+    expect(a.detail).toBe('You asked for 10; there are 5.')
+    expect(a.domain).toEqual({ id: 'sales', name: 'Sales' })
+    expect(a.more).toMatchObject({ label: 'Open Sales in Definitions', domain: 'sales' })
+  })
+
+  it('says when more were asked for than an answer lists', () => {
+    const a = catalogue('list 7 metrics', { terms: vocabulary })
+    expect(a.detail).toBe('You asked for 7; an answer lists 5, and Definitions lists all 10.')
+    expect(a.rows).toHaveLength(5)
+    expect(catalogue('list 2 metrics', { terms: vocabulary }).rows).toHaveLength(2)
+    // Fewer asked for than there are: the sentence counts them, and the rows are those asked for.
+    const three = catalogue('list 3 dimensions', { terms: vocabulary })
+    expect(three.sentence).toBe('The workspace has 5 dimensions.')
+    expect(three.detail).toBeNull()
+    expect(three.shown).toBe('Showing 3 of 5, by name')
+    // As many asked for as the sentence names: nothing more to say.
+    expect(catalogue('list 5 dimensions', { terms: vocabulary }).detail).toBeNull()
+  })
+
+  it('counts both kinds of definition together', () => {
+    const a = catalogue('list definitions', { terms: vocabulary })
+    expect(a.sentence).toBe('The workspace has 15 definitions: 10 metrics and 5 dimensions.')
+    expect(a.columns).toEqual(['Definition', 'Kind'])
+  })
+
+  it('lists the values of a dimension, with their other names, and links to its page', () => {
+    const market = catalogue('what markets are there', { terms })
+    expect(market.sentence).toBe(
+      'Market has 8 values: France, Germany, Italy, Norway, Poland, Spain, Sweden and United Kingdom.',
+    )
+    expect(market.understood).toBe('Values of Market')
+    expect(market.read).toBe('Read Market and its 8 values in Definitions')
+    expect(market.more).toEqual({
+      label: 'Show all 8 in Definitions',
+      to: 'definitions',
+      domain: null,
+      status: null,
+      page: 'Market',
+    })
+    const channel = catalogue('how many channels are there?', { terms })
+    expect(channel.sentence).toBe('Channel has 1 value.')
+    expect(channel.rows).toEqual([
+      {
+        type: 'term',
+        key: 'val:channel/email',
+        kind: 'value',
+        name: 'Email',
+        page: 'Channel',
+        cells: ['Newsletter'],
+      },
+    ])
+  })
+
+  it('counts only what Definitions shows the person: a term left out is not there', () => {
+    const shown = vocabulary.filter((t) => t.key !== 'dim:campaign')
+    expect(catalogue('how many dimensions', { terms: shown }).sentence).toBe(
+      'The workspace has 4 dimensions.',
+    )
+    expect(catalogue('metrics in Sandbox', { terms: vocabulary }).sentence).toBe(
+      'Sandbox has no metrics.',
+    )
   })
 })

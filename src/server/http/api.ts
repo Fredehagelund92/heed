@@ -113,7 +113,7 @@ import {
   type SignIn,
 } from '../modules/auth/index.ts'
 import { createAlertsService } from '../modules/alerts/index.ts'
-import { createCatalogueService } from '../modules/catalogue/index.ts'
+import { createCatalogueService, hiddenDefinitions } from '../modules/catalogue/index.ts'
 import {
   createWorkspaceSources,
   noSecretStore,
@@ -1157,6 +1157,7 @@ export function createRouter({
               asked: await askedThisWeek(context.tx, clock, answerBundles),
               minimum: await minimumCount(context.tx),
             }),
+            hidden: () => hiddenDefinitions(context.tx),
           },
         )
       }),
