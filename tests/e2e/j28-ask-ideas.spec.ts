@@ -168,6 +168,20 @@ test('an answer suggests nothing to ask next; a question Ask could not read offe
   await expect(log.locator('[data-turn="2"]')).toContainText(pick)
 })
 
+test('a Not found answer offers two questions to try instead, beside its next step', async ({
+  page,
+}) => {
+  await ask(page, 'How did orders in Spain change in October 2026?')
+  const log = page.getByRole('log')
+  await expect(log.getByText('Not found', { exact: true }).first()).toBeVisible()
+  const instead = log.getByRole('group', { name: 'Questions Ask can answer' })
+  await expect(instead.getByRole('button')).toHaveCount(2)
+  await expect(log.getByText(/Write context for|Tell the owner/).first()).toBeVisible()
+  const pick = (await instead.getByRole('button').first().textContent())!
+  await instead.getByRole('button').first().click()
+  await expect(log.locator('[data-turn="2"]')).toContainText(pick)
+})
+
 test('someone who does not own the domain sees that telling its owner from Ask is not built yet', async ({
   page,
 }) => {
