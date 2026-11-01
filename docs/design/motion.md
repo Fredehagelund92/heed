@@ -99,6 +99,6 @@ Inbox decisions, review publishes and bulk changes show their result at once (`u
 
 ## Testing slow networks
 
-The app has a **Slow network** switch (in Help, or `?slow=1` in the mock build) that adds a wait to each page's first visit, to every save and to each answer in Ask, so loading and optimistic states can be seen and tested. It belongs to the mock binding and never reaches a production build.
+The app has a **Slow network** switch (in Help, or `?slow=1` in the mock build) that adds a wait to each page's first visit and to every save, so loading and optimistic states can be seen and tested. It belongs to the mock binding and never reaches a production build.
 
 The job spec J29 keeps these rules, and runs both with and without reduced motion.

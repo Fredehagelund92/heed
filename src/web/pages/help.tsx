@@ -238,8 +238,8 @@ function SlowNetwork() {
             Slow network
           </label>
           <p className="mt-0.5 text-sm text-pretty text-muted-foreground">
-            Each page waits the first time you open it, and saving and answers in Ask take longer,
-            as on a slow connection, so you can see how loading looks. Off by default.
+            Each page waits the first time you open it, and saving takes longer, as on a slow
+            connection, so you can see how loading looks. Off by default.
           </p>
         </div>
         <Switch

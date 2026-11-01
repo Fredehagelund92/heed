@@ -5,8 +5,8 @@ import { expect, go, mode, test } from './go.ts'
 // or Send asks nothing, and Ask is ready again once the answer is in or has failed.
 
 /**
- * Answers stay on their way until the test lets them come: time stands still (the mock's Slow
- * network answer waits on it), and on the service each request is held as well.
+ * Answers stay on their way until the test lets them come: time stands still, so the mock's answer
+ * stays being written, and on the service each request is held as well.
  */
 async function heldAnswers(page: Page, route: string) {
   let open = false
@@ -17,7 +17,7 @@ async function heldAnswers(page: Page, route: string) {
     })
   await page.clock.install()
   await page.clock.pauseAt(Date.now() + 1000)
-  await go(page, mode === 'http' ? route : `${route}&slow=1`)
+  await go(page, route)
   await until(page, box(page))
   return () => {
     open = true
@@ -46,17 +46,20 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
     .getByRole('region', { name: 'Asked this week' })
     .getByRole('button', { name: /^Net revenue in Norway/ })
   await row.dblclick()
-  // While it is answered the questions on offer say they wait, and a click on one asks nothing.
-  await expect(row).toHaveAttribute('aria-disabled', 'true')
-  await row.click({ force: true })
+  // On the service, while it is answered the questions on offer say they wait, and a click on one
+  // asks nothing. The mock's answer is at once there, and the chat shows it being written.
+  if (mode === 'http') {
+    await expect(row).toHaveAttribute('aria-disabled', 'true')
+    await row.click({ force: true })
+  } else await until(page, page.getByRole('button', { name: 'Stop', exact: true }))
   // A typed question waits too: Enter and Send say so and send nothing.
   await box(page).click()
   await box(page).pressSequentially('Why did orders in Norway drop in August?')
   const ask = page.getByRole('button', { name: 'Ask', exact: true })
-  await expect(ask).toHaveAttribute('aria-disabled', 'true')
+  if (mode === 'http') await expect(ask).toHaveAttribute('aria-disabled', 'true')
   await box(page).press('Enter')
   await expect(page.getByRole('status').filter({ hasText: 'Still answering' })).toBeVisible()
-  await ask.click({ force: true })
+  if (mode === 'http') await ask.click({ force: true })
 
   release()
   const next = page.getByRole('group', { name: 'Ask next, and what you would get' })
@@ -89,16 +92,16 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
 test('a question that fails leaves Ask ready to ask, the question back in the box', async ({
   page,
 }) => {
-  // The mock refuses a question offline; the service here refuses it outright.
-  if (mode === 'http')
-    await page.route('**/api/v1/ask/lookup', (r) =>
-      r.fulfill({
-        status: 403,
-        contentType: 'application/json',
-        body: JSON.stringify({ code: 'FORBIDDEN', status: 403, message: 'Not allowed.' }),
-      }),
-    )
-  await go(page, mode === 'http' ? '/ask?n=fails' : '/ask?n=fails&state=offline')
+  // The mock answers every question; a refusal is the service's.
+  test.skip(mode === 'mock', 'the mock never refuses a question')
+  await page.route('**/api/v1/ask/lookup', (r) =>
+    r.fulfill({
+      status: 403,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'FORBIDDEN', status: 403, message: 'Not allowed.' }),
+    }),
+  )
+  await go(page, '/ask?n=fails')
   const question = 'Why did orders in Norway drop in August?'
   await box(page).click()
   await box(page).pressSequentially(question)
@@ -118,4 +121,20 @@ test('a question that fails leaves Ask ready to ask, the question back in the bo
   // Asked again, it is tried again rather than held.
   await page.getByRole('button', { name: 'Ask', exact: true }).click()
   await expect(page.getByText("Couldn't ask that")).toHaveCount(2)
+})
+
+test('offline, a chat in the history still opens, in Ask and in the assistant panel', async ({
+  page,
+}) => {
+  await go(page, '/ask?n=offline&state=offline')
+  const rows = page.getByRole('navigation', { name: 'Chats' }).locator('[data-open]')
+  await rows.first().click()
+  await expect(page.locator('[data-turn]')).toHaveCount(1)
+
+  await go(page, '/context?n=offline&state=offline&dock=ask')
+  await page.getByRole('button', { name: 'History' }).click()
+  const history = page.getByRole('dialog', { name: 'History' })
+  await history.locator('[data-open]').first().click()
+  await expect(history).toHaveCount(0)
+  await expect(page.locator('[data-turn]')).toHaveCount(1)
 })
