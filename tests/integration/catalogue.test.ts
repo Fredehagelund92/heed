@@ -193,11 +193,11 @@ describe('the catalogue on PostgreSQL', () => {
       shown.terms.filter((t) => t.kind === 'dimension').length,
     )
     expect((await records('what markets are there')).intent).toBe('values')
+    const salesBefore = (await records('list metrics in Sales')).total
     // A term whose definition only some groups may see is counted for nobody without them.
     await client.query(
       "update definitions set visible_groups = '{finance}' where ref = 'cube:orders.returns'",
     )
-    const salesBefore = (await records('list metrics in Sales')).total
     try {
       const hidden = await records('how many metrics are there?')
       expect(hidden.total).toBe(metrics - 1)
@@ -219,7 +219,7 @@ describe('the catalogue on PostgreSQL', () => {
     )
     expect(rows).toEqual([
       { intent: 'count', asks: 1 },
-      { intent: 'terms', asks: 4 },
+      { intent: 'terms', asks: 5 },
       { intent: 'values', asks: 1 },
     ])
   })
