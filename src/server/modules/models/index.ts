@@ -34,7 +34,7 @@ export {
   type ModelSettings,
 } from './settings.ts'
 export { gradingTag, mentions, type GradingInput } from './mock.ts'
-export { scriptedWordsModel } from './words-mock.ts'
+export { fixedWordsModel, scriptedWordsModel } from './words-mock.ts'
 export {
   formatUsd,
   readSpendLimits,

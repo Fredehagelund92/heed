@@ -153,6 +153,7 @@ describe('the motion tokens (docs/design/motion.md)', () => {
     expect(
       ['0', '1', '2', '3', '4', 'highlight', 'fade'].map((step) => light[`--dur-${step}`]),
     ).toEqual(['0ms', '90ms', '150ms', '220ms', '320ms', '600ms', '150ms'])
+    expect(light['--ask-word-fade']).toBe('var(--dur-fade)')
     expect([light['--stagger'], light['--dist-1'], light['--dist-2'], light['--dist-3']]).toEqual([
       '30ms',
       '4px',
@@ -175,6 +176,7 @@ describe('the motion tokens (docs/design/motion.md)', () => {
       '--dur-4': '0ms',
       '--dur-highlight': '0ms',
       '--dur-fade': '90ms',
+      '--ask-word-fade': '0ms',
       '--stagger': '0ms',
       '--dist-1': '0px',
       '--dist-2': '0px',

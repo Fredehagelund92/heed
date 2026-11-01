@@ -1,7 +1,7 @@
-import { generateText, type FinishReason } from 'ai'
+import { generateText, streamText, type FinishReason } from 'ai'
 import type { AnswerResult } from '../../../contract/answer.ts'
 import {
-  checkWords,
+  wordsGate,
   wordsPrompt,
   wordsStates,
   wordsSystem,
@@ -24,13 +24,16 @@ import {
   Ask's words from the assistant's model (FR-701): when the service runs with real models
   (MODELS=live, the provider's key set), the model of `models.assistant` puts the items the engine
   gave into a few plain sentences; the engine still decides the state, the sources and what agents
-  are told. The words are checked (src/domain/answer-words.ts) and any failure, a refusal by the
-  spending limits, a slow provider or an error, leaves the engine's own words. Each call is metered
-  into the spend ledger as the assistant's, for the person who asked. The question goes to the
-  model's provider for the call and is kept nowhere: not in a table, not in a log (FR-602).
+  are told. The words stream, and each sentence is checked as it is complete
+  (src/domain/answer-words.ts) before it is sent: a sentence that fails ends the words there. With
+  no sentence sent, a refusal by the spending limits, a slow provider or an error, the engine's own
+  words stand. Each call is metered into the spend ledger as the assistant's, for the person who
+  asked; a call stopped part way (the person pressed Stop, a sentence failed) is metered as
+  aborted. The question goes to the model's provider for the call and is kept nowhere: not in a
+  table, not in a log (FR-602).
 */
 
-/** The longest a model may take before the engine's words stand. */
+/** The longest a model may take, all its words together; what it sent by then stands. */
 const WORDS_TIMEOUT_MS = 12_000
 /** Enough for a few short sentences. */
 const WORDS_MAX_TOKENS = 400
@@ -40,8 +43,8 @@ const tokens = (text: string) => Math.ceil(text.length / 4)
 export type WordsReply = { text: string; finishReason: FinishReason; reasoningTokens: number }
 
 /**
- * The model's words: one call with Ask's instructions and prompt, the same for the look-up and the
- * words cases.
+ * The model's words whole, for the words cases: one call with the instructions and prompt the
+ * look-up streams its words with (`writeWords`).
  */
 export async function askForWords(
   choice: Pick<ModelChoice, 'model' | 'options'>,
@@ -61,6 +64,9 @@ export async function askForWords(
     reasoningTokens: result.usage.outputTokenDetails.reasoningTokens ?? 0,
   }
 }
+
+/** Why the gate let nothing through when the words simply ended, as cut-off words do. */
+const endedEmpty = ['no words', 'cites no item']
 
 /** What one person's look-up needs to ask the model, read inside the request. */
 export type WordsPlan = { choice: ModelChoice; limits: SpendLimits; person: string }
@@ -111,21 +117,33 @@ export type WordsMiss = {
 }
 
 /**
- * The model's words for an answer, checked, or null: for an answer with no items, when the
- * spending limits leave no room, when the provider is slow or fails, when the model stops before
- * it is done, or when the words fail the check. The model never decides anything the engine
- * decided. A refusal goes to `onMiss`, an error to `onError`.
+ * The model's words for an answer, a checked sentence at a time as the model writes them, or null
+ * for an answer the model writes nothing for (no items, or a state that keeps the engine's words).
+ * Nothing comes when the spending limits leave no room, the provider fails, or the first sentence
+ * fails the check; the words end at the first sentence that fails, when the model is cut off (its
+ * unfinished sentence is left out), after `WORDS_TIMEOUT_MS`, and when `signal` aborts (the
+ * person pressed Stop). The model never decides anything the engine decided. Why words ended
+ * early goes to `onMiss`, an error to `onError`; a Stop is neither.
  */
-export async function writeWords(
+export function writeWords(
   deps: {
     database: Database
     plan: WordsPlan
+    /** The request's: aborted when the person stops the answer or leaves. */
+    signal?: AbortSignal
     onError?: (error: unknown) => void
     onMiss?: (miss: WordsMiss) => void
   },
   input: WordsInput,
-): Promise<string | null> {
+): AsyncGenerator<string> | null {
   if (!wordsStates.includes(input.state) || !input.items.length) return null
+  return sentencesOf(deps, input)
+}
+
+async function* sentencesOf(
+  deps: Parameters<typeof writeWords>[0],
+  input: WordsInput,
+): AsyncGenerator<string> {
   const { database, plan } = deps
   const prompt = wordsPrompt(input)
   const next = costMicros(plan.choice.prices, {
@@ -133,13 +151,15 @@ export async function writeWords(
     outputTokens: WORDS_MAX_TOKENS,
     cacheReadTokens: 0,
   })
+  // Ends the call when a sentence fails: nothing after it is shown, so nothing more is paid for.
+  const done = new AbortController()
   try {
     const stop = await database.transaction(plan.person, (tx) =>
       spendLimitReached(tx, 'assistant', plan.limits, next, plan.person),
     )
     if (stop) {
       deps.onMiss?.({ reason: 'spending limit' })
-      return null
+      return
     }
     const meter = createCallMeter({
       database,
@@ -149,22 +169,61 @@ export async function writeWords(
       retry: conversationRetry,
       ...(deps.onError ? { onRecordError: deps.onError } : {}),
     })
-    const reply = await askForWords(meter.wrap(plan.choice, { role: 'assistant' }), input)
-    await meter.settled()
-    const { finishReason, reasoningTokens } = reply
-    // Words cut off at the output limit, or stopped for any other reason, are not the model's.
-    if (finishReason !== 'stop') {
-      deps.onMiss?.({ reason: 'not finished', finishReason, reasoningTokens })
-      return null
+    const choice = meter.wrap(plan.choice, { role: 'assistant' })
+    const gate = wordsGate(input.items.length, prompt)
+    let finishReason: FinishReason | undefined
+    let reasoningTokens = 0
+    try {
+      const result = streamText({
+        model: choice.model,
+        providerOptions: choice.options,
+        system: wordsSystem,
+        prompt,
+        maxOutputTokens: WORDS_MAX_TOKENS,
+        abortSignal: AbortSignal.any([
+          AbortSignal.timeout(WORDS_TIMEOUT_MS),
+          done.signal,
+          ...(deps.signal ? [deps.signal] : []),
+        ]),
+        // An error arrives in the stream below; the default would print it, words and all.
+        onError: () => undefined,
+      })
+      for await (const part of result.stream) {
+        if (part.type === 'text-delta') {
+          yield* gate.push(part.text)
+          if (gate.failed) break
+        } else if (part.type === 'finish') {
+          finishReason = part.finishReason
+          reasoningTokens = part.totalUsage.outputTokenDetails.reasoningTokens ?? 0
+        } else if (part.type === 'error') throw part.error
+      }
+      if (!gate.failed) yield* gate.end(finishReason === 'stop')
+    } finally {
+      done.abort()
+      // A call still open (stopped, or ended at a failing sentence) is recorded as aborted.
+      await meter.close()
     }
-    const checked = checkWords(reply.text, input.items.length, prompt)
-    if (checked.ok) return checked.text
-    // The check's reason without the number it quotes, which comes from the words.
-    const why = checked.why.replace(/ \(.*\)$/, '')
-    deps.onMiss?.({ reason: 'failed the check', why, finishReason, reasoningTokens })
-    return null
+    // A Stop is the person's, not a miss.
+    if (deps.signal?.aborted) return
+    // Cut off (the output limit, the time limit) before anything passed: that is why, not the check.
+    const cut = finishReason !== 'stop'
+    if (gate.failed && !(cut && !gate.passed.length && endedEmpty.includes(gate.failed))) {
+      // The check's reason without the number it quotes, which comes from the words.
+      const why = gate.failed.replace(/ \(.*\)$/, '')
+      deps.onMiss?.({
+        reason: 'failed the check',
+        why,
+        ...(finishReason ? { finishReason } : {}),
+        reasoningTokens,
+      })
+    } else if (cut)
+      // Cut off at the output limit or the time limit: what passed before it stands.
+      deps.onMiss?.({
+        reason: 'not finished',
+        ...(finishReason ? { finishReason } : {}),
+        reasoningTokens,
+      })
   } catch (error) {
-    deps.onError?.(error)
-    return null
+    if (!deps.signal?.aborted) deps.onError?.(error)
   }
 }

@@ -10,7 +10,8 @@ const servedByAnthropic = (entry: ProviderEntry, name: string, provider: string)
 
 /**
  * The Anthropic Messages API, with Claude's effort setting and a prompt cache breakpoint:
- * Anthropic itself, or a gateway that serves the Messages API at its base URL.
+ * Anthropic itself, or a gateway that serves the Messages API at its base URL. Claude thinks only
+ * when asked to, which no role does here, so effort `none` is sent as Claude's lowest, `low`.
  */
 export const anthropicAdapter: ProviderAdapter = {
   connect(entry, { apiKey, baseUrl }) {
@@ -20,7 +21,7 @@ export const anthropicAdapter: ProviderAdapter = {
       servedByAnthropic(entry, name, model.provider)
       return {
         model,
-        options: { anthropic: { effort } },
+        options: { anthropic: { effort: effort === 'none' ? 'low' : effort } },
         cacheBreakpoint: { anthropic: { cacheControl: { type: 'ephemeral' } } },
       }
     }

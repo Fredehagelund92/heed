@@ -24,7 +24,15 @@ import { Answering, Suggestions, suggestionClass } from '@/components/heed/sugge
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
-import { sentencesOf } from '@/lib/where'
+import { sentencesOf, type Sentence } from '@/lib/where'
+import {
+  ASK_CADENCE,
+  useReveal,
+  useShownStage,
+  useStillLooking,
+  type ShownStage,
+} from '@/lib/ask-motion'
+import { useReducedMotion } from '@/hooks/use-reduced-motion'
 import { LogoSymbol } from '@/components/heed/logo'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -43,6 +51,7 @@ import {
   type AskedDefinition,
   type QuestionPart,
 } from '@/model/ask'
+import { isLive, type Turn } from '@/model/ask-turn'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
@@ -71,9 +80,6 @@ import { relLabel } from '@/lib/links'
 // One turn of Ask, drawn the way assistant-ui draws a thread: the question as a quiet muted
 // bubble on the right, the answer as plain text beside a small avatar, what Heed looked up as a
 // collapsible tool card, sources as small cards, and an action bar under the answer.
-
-/** A turn's life: still answering, finished, or stopped by the asker before it finished. */
-export type Phase = 'live' | 'done' | 'stopped'
 
 function IconButton({
   label,
@@ -239,17 +245,23 @@ const NO_LINKS: AnswerLinks = { on: true, followed: [], notFollowed: [] }
 function LookupCard({
   answer,
   facts,
-  stage,
-  stopped,
+  turn,
+  shown,
 }: {
   answer: Answer
   facts: Fact[]
-  stage: Stage
-  stopped: boolean
+  turn: Turn
+  /** The stage on screen: the look-up's own steps, each label held long enough to read. */
+  shown: ShownStage
 }) {
+  const { stage, stopped } = turn
+  const answered = shown === 'answered'
   const scope = scopeText(answer) || 'Nothing matched'
   const raw = agentReply(answer, facts)
-  const running = !stopped && (stage === 'looking' || stage === 'reading')
+  // Looking up and reading come from the look-up's own steps, until its answer is in.
+  const running = !stopped && !answered
+  const still = useStillLooking(running && shown === 'looking')
+  const found = turn.found ?? 0
   // What the agent followed with get_related, as the answer says: one step each, never a retired target.
   const { followed, notFollowed, on: enabled } = answer.links ?? NO_LINKS
   const n = followed.length
@@ -261,20 +273,23 @@ function LookupCard({
         ? `, followed ${n} ${n === 1 ? 'link' : 'links'}`
         : ''
   // One quiet line that says what the look-up is doing; opened, the card in the chat's soft surface.
-  const line = stopped
-    ? stage === 'looking'
-      ? 'Stopped while looking up'
-      : stage === 'reading'
-        ? 'Stopped while reading'
-        : 'Stopped while writing'
-    : running && stage === 'looking'
-      ? 'Looking up context…'
-      : answer.state === null
-        ? 'Nothing was looked up'
-        : running
-          ? facts.length
-            ? `Reading ${facts.length} context ${facts.length === 1 ? 'item' : 'items'}…`
+  // A look-up that answers within moments shows none: the answer comes instead.
+  if (shown === 'quiet' && !stopped) return null
+  const line =
+    stopped && !answered
+      ? stage === 'looking'
+        ? 'Stopped while looking up'
+        : 'Stopped while reading'
+      : running
+        ? shown === 'looking'
+          ? still
+            ? 'Still looking up…'
+            : 'Looking up context…'
+          : found
+            ? `Reading ${found} context ${found === 1 ? 'item' : 'items'}…`
             : 'Found no context items'
+        : answer.state === null
+          ? 'Nothing was looked up'
           : answer.state === 'failed'
             ? 'The look-up failed'
             : facts.length
@@ -283,11 +298,11 @@ function LookupCard({
   return (
     <Collapsible className="text-sm">
       <CollapsibleTrigger
-        disabled={running}
+        disabled={!answered}
         className="group/lookup -ml-1 inline-flex h-7 items-center gap-1.5 rounded-md px-1 text-left text-xs text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         <ReadingLine running={running}>{line}</ReadingLine>
-        {!running && (
+        {answered && (
           <ChevronDownIcon
             className="size-3.5 shrink-0 transition-transform group-aria-expanded/lookup:rotate-180"
             aria-hidden
@@ -466,40 +481,6 @@ function SourceLinks({ fact }: { fact: Fact }) {
   )
 }
 
-/** Sentences with [n] turned into citation markers with a hover card. */
-function Cited({
-  text,
-  facts,
-  draft,
-  caret,
-}: {
-  text: string
-  facts: Fact[]
-  draft?: boolean
-  caret?: boolean
-}) {
-  // A marker sits against its sentence, after the full stop: "nothing.1 Orders", never "nothing 1 .".
-  const parts = text
-    .replace(/\s+(\[\d+\])/g, '$1')
-    .replace(/(\[\d+\])([.,;:])/g, '$2$1')
-    .split(/(\[\d+\])/)
-  return (
-    <p className="text-reading leading-relaxed">
-      {parts.map((p, i) => {
-        const m = p.match(/^\[(\d+)\]$/)
-        if (!m) return <React.Fragment key={i}>{p}</React.Fragment>
-        return <Citation key={i} n={Number(m[1])} fact={facts[Number(m[1]) - 1]} draft={draft} />
-      })}
-      {caret && (
-        <span
-          aria-hidden
-          className="ml-0.5 inline-block h-4 w-0.5 translate-y-0.5 animate-pulse bg-foreground/60"
-        />
-      )}
-    </p>
-  )
-}
-
 /**
  * Which sentences come from the items that disagree (`conflict`, their ids): each is marked as
  * words that differ, unless every sentence would be, when none is.
@@ -521,76 +502,149 @@ function differingSentences(
  * In a conflict, the sentences from the items that disagree (`conflict`, their ids) are marked as
  * the ones that differ, unless every sentence is.
  */
-function WhereSentences({
-  text,
+/** How a word comes in as it is revealed: a fade, none with reduced motion (the tokens). */
+const wordIn = 'animate-in fade-in-0 duration-(--ask-word-fade)'
+/** How a sentence comes in whole (`ASK_CADENCE` sentences): a fade, none with reduced motion. */
+const sentenceIn = 'animate-in fade-in-0 duration-(--dur-3)'
+
+/**
+ * An answer's words, the same from its first revealed word to the finished answer, so nothing is
+ * drawn again when it ends. Only the first `revealed` characters show, word by word; a sentence's
+ * citation markers come with its last word. With `where`, once finished, each sentence opens where
+ * it says that in the right panel; and the sentences from two items that disagree sit together
+ * under a line that says so, as they arrive.
+ */
+function AnswerWords({
+  sentences,
+  revealed,
   facts,
   conflict,
   answerId,
+  where,
+  live,
+  draft,
 }: {
-  text: string
+  sentences: Sentence[]
+  revealed: number
   facts: Fact[]
   conflict?: string[]
   answerId: string
+  /** Each sentence opens where it says that (not in a draft, or Ask in the right panel). */
+  where: boolean
+  /** Still being revealed: words fade in, and nothing opens yet. */
+  live: boolean
+  draft?: boolean
 }) {
   const dock = useDock()
   const { query } = useRoute()
   const open = dock?.kind === 'where' && dock.id === answerId ? Number(query.get('wn')) || 1 : 0
-  const sentences = sentencesOf(text)
   const show = (n: number) => openDock('where', answerId, { wn: String(n) })
-  const marked = differingSentences(sentences, facts, conflict)
-  // The sentences from the two items that disagree sit together under a line that says so, so the
-  // pair reads as a pair and a sentence from another item stays outside it.
+  // Where each sentence's words end, counted over the sentences joined by spaces.
+  const placed = sentences.reduce<
+    (Sentence & { start: number; words: { word: string; end: number }[] })[]
+  >((all, s) => {
+    const prev = all.at(-1)
+    const start = prev ? prev.start + prev.text.length + 1 : 0
+    const words = [...s.text.matchAll(/\S+/g)].map((m) => ({
+      word: m[0],
+      end: start + m.index + m[0].length,
+    }))
+    return [...all, { ...s, start, words }]
+  }, [])
+  const shown = placed.filter((s) => s.words.length && s.words[0]!.end <= revealed)
+  const marked = differingSentences(shown, facts, conflict)
   const first = marked.indexOf(true)
   const last = marked.lastIndexOf(true)
-  const run = (from: number, to: number) => (
-    <p className="text-reading leading-relaxed">
-      {sentences.slice(from, to).map((s, j) => {
-        const i = from + j
-        return (
-          <React.Fragment key={i}>
-            {j > 0 && ' '}
+  const fade = ASK_CADENCE === 'words' ? wordIn : undefined
+  const sentence = (s: (typeof placed)[number], i: number) => {
+    const done = s.words.at(-1)!.end <= revealed
+    const words = s.words.map((w, k) =>
+      w.end <= revealed ? (
+        <React.Fragment key={k}>
+          {k > 0 && ' '}
+          <span className={live ? fade : undefined}>{w.word}</span>
+        </React.Fragment>
+      ) : null,
+    )
+    const cites = done
+      ? s.cites.map((n) =>
+          where ? (
             <span
-              role="button"
-              tabIndex={0}
-              aria-pressed={open === i + 1}
-              onClick={() => show(i + 1)}
-              onKeyDown={(e) => {
+              key={n}
+              aria-hidden
+              className={cn(
+                'ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums',
+                live && fade,
+              )}
+            >
+              {n}
+            </span>
+          ) : (
+            <Citation key={n} n={n} fact={facts[n - 1]} draft={draft} />
+          ),
+        )
+      : null
+    const sentenceClass = live && ASK_CADENCE === 'sentences' ? sentenceIn : undefined
+    if (!where)
+      return (
+        <span key={i} className={sentenceClass}>
+          {words}
+          {cites}
+        </span>
+      )
+    const opens = !live && done
+    return (
+      <span
+        key={i}
+        role={opens ? 'button' : undefined}
+        tabIndex={opens ? 0 : undefined}
+        aria-pressed={opens ? open === i + 1 : undefined}
+        onClick={opens ? () => show(i + 1) : undefined}
+        onKeyDown={
+          opens
+            ? (e) => {
                 if (e.key !== 'Enter' && e.key !== ' ') return
                 e.preventDefault()
                 show(i + 1)
-              }}
-              data-mark={marked[i] ? 'differs' : undefined}
-              className={cn(
-                'cursor-pointer rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
-                marked[i] && [
-                  markText('differs'),
-                  'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
-                ],
-              )}
-            >
-              {s.text}
-              {s.cites.map((n) => (
-                <span
-                  key={n}
-                  aria-hidden
-                  className="ml-1 inline-flex h-5 min-w-5 -translate-y-px items-center justify-center rounded-md bg-muted px-1 align-middle text-2xs font-medium text-foreground tabular-nums"
-                >
-                  {n}
-                </span>
-              ))}
-              <span className="sr-only">
-                {s.cites.length
-                  ? `, from ${s.cites.map((n) => facts[n - 1]?.title ?? `source ${n}`).join(' and ')}`
-                  : ", Ask's own wording"}
-                {marked[i] && ', which says something different from another item'}
-              </span>
-            </span>
-          </React.Fragment>
-        )
-      })}
+              }
+            : undefined
+        }
+        data-mark={marked[i] ? 'differs' : undefined}
+        className={cn(
+          sentenceClass,
+          'rounded-mark box-decoration-clone underline decoration-foreground/25 decoration-dotted underline-offset-5 transition-colors outline-none',
+          opens &&
+            'cursor-pointer hover:bg-muted hover:decoration-transparent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-primary/12 aria-pressed:decoration-transparent dark:aria-pressed:bg-primary/25',
+          marked[i] && [
+            markText('differs'),
+            'decoration-solid hover:decoration-caution-icon aria-pressed:decoration-caution-icon',
+          ],
+        )}
+      >
+        {words}
+        {cites}
+        {done && (
+          <span className="sr-only">
+            {s.cites.length
+              ? `, from ${s.cites.map((n) => facts[n - 1]?.title ?? `source ${n}`).join(' and ')}`
+              : ", Ask's own wording"}
+            {marked[i] && ', which says something different from another item'}
+          </span>
+        )}
+      </span>
+    )
+  }
+  const run = (from: number, to: number) => (
+    <p className="text-reading leading-relaxed">
+      {shown.slice(from, to).map((s, j) => (
+        <React.Fragment key={from + j}>
+          {j > 0 && ' '}
+          {sentence(s, from + j)}
+        </React.Fragment>
+      ))}
     </p>
   )
-  if (first < 0) return run(0, sentences.length)
+  if (first < 0) return run(0, shown.length)
   return (
     <div className="flex flex-col gap-3">
       {first > 0 && run(0, first)}
@@ -598,7 +652,7 @@ function WhereSentences({
         <p className="text-xs font-medium text-caution-text">These two disagree</p>
         {run(first, last + 1)}
       </div>
-      {last < sentences.length - 1 && run(last + 1, sentences.length)}
+      {last < shown.length - 1 && run(last + 1, shown.length)}
     </div>
   )
 }
@@ -1072,8 +1126,6 @@ function AssistantAvatar() {
   )
 }
 
-type Stage = 'looking' | 'reading' | 'writing' | 'done'
-
 /** The note says what the answer shows of the numbers: shown, a link to them, or not shown here. */
 function noteFor(note: string | undefined, view: FigureView | null) {
   if (!note) return note
@@ -1088,24 +1140,15 @@ function noteFor(note: string | undefined, view: FigureView | null) {
   return note
 }
 
-// The answer's timing, so it reads like an answer being written: the look-up (450ms), reading
-// what it found (650ms, long enough to be read), then the words, about 50ms each, between 0.6 and
-// 2.2 seconds; what backs them settles in last. The asker can stop it at any point.
-const LOOK = 450
-const READ = 1100
-const writingTime = (words: number) => Math.min(2200, Math.max(600, words * 50))
-
 type AnswerBodyProps = {
-  answer: Answer
+  /** The question and its answer, as far as the look-up has got. */
+  turn: Turn
   draft?: Fact
-  phase?: Phase
   /** Ask another question in this chat: one of those an answer that looked nothing up offers. */
   onAsk?: (question: string) => void
   /** Ask is itself in the right panel: what would open there opens in place. */
   docked?: boolean
   onRetry?: () => void
-  /** Told when a live answer has finished writing. */
-  onSettled?: () => void
 }
 
 /** A records answer's own body, loaded with the first one: most chats never need it. */
@@ -1118,7 +1161,7 @@ const RecordsAnswerBody = React.lazy(() =>
  * the context's own records, the records answer (FR-718), which has no state and no sources.
  */
 export function AnswerBody(props: AnswerBodyProps) {
-  const { records } = props.answer
+  const { records } = props.turn.answer
   if (!records) return <ContextAnswerBody {...props} />
   return (
     <div className="flex gap-3">
@@ -1126,26 +1169,14 @@ export function AnswerBody(props: AnswerBodyProps) {
       <React.Suspense
         fallback={<ReadingLine running>Counting from the workspace&apos;s records…</ReadingLine>}
       >
-        <RecordsAnswerBody
-          parts={recordsParts}
-          records={records}
-          onAsk={props.onAsk}
-          onSettled={props.onSettled}
-        />
+        <RecordsAnswerBody parts={recordsParts} records={records} onAsk={props.onAsk} />
       </React.Suspense>
     </div>
   )
 }
 
-function ContextAnswerBody({
-  answer,
-  draft,
-  phase = 'done',
-  onRetry,
-  onSettled,
-  onAsk,
-  docked,
-}: AnswerBodyProps) {
+function ContextAnswerBody({ turn, draft, onRetry, onAsk, docked }: AnswerBodyProps) {
+  const { answer, stopped } = turn
   // A Conflict's pair is read while the answer is still being written, so it shows with the rest
   // of the finished answer and nothing below it moves once it is in view.
   const queryClient = useQueryClient()
@@ -1183,44 +1214,35 @@ function ContextAnswerBody({
   const saveDomain = facts[0]?.domain ?? me.owns.find((d) => !domainsById[d]?.sandbox) ?? 'sales'
   const canSave = me.admin || me.owns.includes(saveDomain)
 
-  // How far a live answer has got, in milliseconds; stages and words follow from it.
-  const tokens = React.useMemo(() => answer.text.match(/\S+\s*/g) ?? [], [answer.text])
-  const total = READ + writingTime(tokens.length)
-  const [elapsed, setElapsed] = React.useState(phase === 'live' ? 0 : Infinity)
-  const settled = React.useRef(onSettled)
-  React.useEffect(() => {
-    settled.current = onSettled
-  })
-  React.useEffect(() => {
-    if (phase !== 'live') return
-    const start = performance.now() - (Number.isFinite(elapsed) ? elapsed : 0)
-    const id = window.setInterval(() => {
-      const now = performance.now() - start
-      setElapsed(now)
-      if (now >= total) {
-        window.clearInterval(id)
-        settled.current?.()
-      }
-    }, 30)
-    return () => window.clearInterval(id)
-    // Restarted only when the phase changes; a stop freezes it where it is.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, total])
-
-  const stopped = phase === 'stopped' && elapsed < total
-  const stage: Stage =
-    elapsed < LOOK ? 'looking' : elapsed < READ ? 'reading' : elapsed < total ? 'writing' : 'done'
-  const shown =
-    stage === 'done'
-      ? tokens.length
-      : stage === 'writing'
-        ? Math.ceil(((elapsed - READ) / writingTime(tokens.length)) * tokens.length)
-        : 0
-  const cut = tokens.slice(0, shown).join('').trimEnd()
-  // Where Stop cut a sentence, it says so: "…".
-  const partial = stopped && cut && !/[.!?:)\]”"]$/.test(cut) ? `${cut}…` : cut
-  const writing = stage === 'writing' && !stopped
-  const finished = stage === 'done'
+  // Where the answer has got to, from the look-up's events: its labels held long enough to read,
+  // then the engine's answer, then a model's checked sentences revealed as `ASK_CADENCE` says.
+  const shownStage = useShownStage(turn)
+  const answered = shownStage === 'answered'
+  const reduced = useReducedMotion()
+  const streamed = turn.sentences.length > 0
+  const sentences = React.useMemo(
+    () =>
+      sentencesOf(streamed ? turn.sentences.join(' ') : turn.stage === 'done' ? answer.text : ''),
+    [streamed, turn.sentences, turn.stage, answer.text],
+  )
+  // Where each sentence ends, in the characters the reveal counts (the sentences joined by spaces).
+  const ends = sentences.reduce<number[]>(
+    (all, sentence) => [...all, (all.at(-1) ?? -1) + 1 + sentence.text.length],
+    [],
+  )
+  const total = answered ? (ends.at(-1) ?? 0) : 0
+  // The engine's own words, and an answer already in, show whole; a model's are revealed.
+  const instant = reduced || ASK_CADENCE !== 'words' || !streamed
+  const [limit, setLimit] = React.useState(total)
+  const revealed = useReveal(limit, { flowing: isLive(turn), instant })
+  // Stopped, it finishes the sentence on screen, which was checked, and shows no more.
+  const started = ends.findIndex((_, i) => (i ? ends[i - 1]! + 1 : 0) >= revealed)
+  const upTo = stopped ? (started < 0 ? total : started ? ends[started - 1]! : 0) : total
+  if (upTo !== limit) setLimit(upTo)
+  const revealing = isLive(turn) || revealed < limit
+  const finished = turn.stage === 'done' && answered && !revealing
+  const writing = answered && isLive(turn) && !revealed
+  const where = !draft && !docked && facts.length > 0
   // The data, when an answer asks about a figure: one line, a link into the tool, or why there is none.
   const asked = {
     metric: answer.metric,
@@ -1238,14 +1260,17 @@ function ContextAnswerBody({
   React.useEffect(() => {
     if (finished && !draft) keepShown(key, { answer, facts })
   }, [finished, draft, key, answer, facts])
+  // While the words are revealed a screen reader hears each sentence once it is whole, never word
+  // by word; the words on screen are read once finished.
+  const whole = sentences.filter((_, i) => ends[i]! <= revealed)
 
   return (
-    <div className="group/msg flex gap-3" aria-busy={phase === 'live' && !finished}>
+    // Busy only until the engine's answer is in: from then on its words are read as they come.
+    <div className="group/msg flex gap-3" aria-busy={isLive(turn) && !answered}>
       <AssistantAvatar />
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <LookupCard answer={answer} facts={facts} stage={stage} stopped={stopped} />
-        {phase === 'live' && !finished && <span className="sr-only">Writing the answer</span>}
-        {(writing || finished) && (answer.state !== null || note || !!answer.scope?.length) && (
+        <LookupCard answer={answer} facts={facts} turn={turn} shown={shownStage} />
+        {answered && (answer.state !== null || note || !!answer.scope?.length) && (
           <div className="flex animate-in flex-col gap-3 duration-(--dur-3) fade-in-0">
             <ScopeLine answer={answer} />
             {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
@@ -1254,47 +1279,56 @@ function ContextAnswerBody({
           </div>
         )}
         {/* What the metric means, from its source: first, since that is what was asked. */}
-        {(writing || finished) && answer.definitions && (
+        {answered && answer.definitions && (
           <div className="animate-in duration-(--dur-3) fade-in-0">
             <AnswerDefinitions definitions={answer.definitions} />
           </div>
         )}
-        {/* The words arrive as they are written; a screen reader hears them once, when they are done or stopped. */}
-        {answer.text && (writing || finished || (stopped && shown > 0)) && (
-          <div aria-hidden={phase === 'live' && !finished}>
-            {finished && !draft && !docked && facts.length > 0 ? (
-              <WhereSentences
-                text={answer.text}
-                facts={facts}
-                conflict={answer.state === 'conflict' ? answer.conflict : undefined}
-                answerId={key}
-              />
-            ) : (
-              <Cited
-                text={finished ? answer.text : partial}
-                facts={facts}
-                draft={!!draft}
-                caret={writing}
-              />
-            )}
+        {/* The words: a model's checked sentences as they come, revealed word by word, or the
+            engine's own whole; drawn the same way from the first word to the end. */}
+        {writing && <ReadingLine running>Writing the answer…</ReadingLine>}
+        {revealed > 0 && (
+          <div
+            data-answer-words
+            aria-hidden={revealing || undefined}
+            aria-live="off"
+            className={cn(!streamed && turn.asked > 0 && sentenceIn)}
+          >
+            <AnswerWords
+              sentences={sentences}
+              revealed={revealed}
+              facts={facts}
+              conflict={answer.state === 'conflict' ? answer.conflict : undefined}
+              answerId={key}
+              where={where}
+              live={revealing}
+              draft={!!draft}
+            />
           </div>
         )}
-        {finished && !draft && !docked && facts.length > 0 && (
+        {revealing && (
+          <p className="sr-only" aria-live="polite">
+            {whole.map((sentence, i) => (
+              <span key={i}>{sentence.text} </span>
+            ))}
+          </p>
+        )}
+        {/* The sources are the engine's, in with its answer; a model's words never change them. */}
+        {answered && facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
+        {finished && where && (
           <p className="-mt-1.5 text-xs text-muted-foreground">
             {answer.state === 'conflict' &&
-              differingSentences(sentencesOf(answer.text), facts, answer.conflict).some(Boolean) &&
+              differingSentences(sentences, facts, answer.conflict).some(Boolean) &&
               'The sentences in bold say different things. '}
             Select a sentence to see where it says that.
           </p>
         )}
+        {/* The chat's own status line says it was stopped (src/web/pages/ask.tsx). */}
         {stopped && (
-          <div
-            role="status"
-            className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground"
-          >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <CircleStopIcon className="size-4 shrink-0" aria-hidden />
-              Stopped{shown > 0 ? '. This is not a finished answer.' : ' before an answer.'}
+              Stopped{answered ? '. This is not a finished answer.' : ' before an answer.'}
             </span>
             {onRetry && (
               <Button variant="outline" size="sm" onClick={onRetry}>
@@ -1319,7 +1353,6 @@ function ContextAnswerBody({
             {view?.kind === 'none' && <NoFigure view={view} />}
             {view?.kind === 'link' && <FigureLink view={view} />}
             {answer.alias && <AliasChip alias={answer.alias} />}
-            {facts.length > 0 && <SourceList facts={facts} draft={!!draft} />}
             {answer.related?.length ? <Related ids={answer.related} /> : null}
             {answer.state === null ? (
               <AskableKinds answer={answer} onAsk={onAsk} />
