@@ -278,6 +278,23 @@ const pluralOf = (word: string) =>
 const NOT_CATALOGUE =
   /\b(?:why|drop|dropped|fall|fell|rise|rose|jump|jumped|spike|increase|increased|decrease|decreased|decline|declined|best|worst|most|least|highest|lowest|biggest|perform|performed|performing|created|added|add|new|newest|latest|recent|recently|lately|published|written|wrote|changed|change|changes|updated|edited|modified|archived|retired|due|overdue|stale|outdated|owns?|owners?|owned|mean|means|meaning|meant|defined|define|stand for|stands for|missing|unanswered)\b/
 
+/**
+ * Whether a dimension's plural is asked for as a list: after list, show, name or give me; in
+ * "what or which ... are there / exist / do we have"; after "how many"; or as the whole question.
+ * "Which products sold last week" is about the business, not the vocabulary.
+ */
+const listing = (t: string, word: string) => {
+  const w = escape(word)
+  return (
+    new RegExp(`^(?:the )?${w}$`).test(t) ||
+    new RegExp(`^(?:please )?(?:list|show|name|give me)\\b.*\\b${w}\\b`).test(t) ||
+    new RegExp(`\\b(?:what|which) (?:[a-z]+ )?${w}\\b.* (?:are there|exist|do we have)\\b`).test(
+      t,
+    ) ||
+    new RegExp(`\\bhow many (?:[a-z]+ )?${w}\\b`).test(t)
+  )
+}
+
 const COUNT = /\bhow many\b|\b(?:count|number) of\b|\bin total\b/
 
 /**
@@ -307,7 +324,7 @@ function catalogueAsk(
   const plural = dimensions
     .flatMap((d) => [d.name, ...d.aliases].map((name) => ({ d, word: pluralOf(plain(name)) })))
     .sort((a, b) => b.word.length - a.word.length)
-    .find(({ word }) => new RegExp(`\\b${escape(word)}\\b`).test(t))
+    .find(({ word }) => listing(t, word))
   const read = named
     .flatMap((s) => (s.keys ?? []).map((k) => terms.get(k)))
     .find((d) => d?.kind === 'dimension')

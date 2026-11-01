@@ -259,7 +259,14 @@ describe('reading a records question', () => {
     expect(recognise('what markets are there')).toMatchObject({
       ask: { intent: 'values', domain: null, catalogue: { of: 'value', dimension: 'dim:market' } },
     })
-    expect(recognise('which countries do we sell in')).toMatchObject({
+    expect(recognise('which countries do we have')).toMatchObject({
+      ask: { catalogue: { dimension: 'dim:market' } },
+    })
+    expect(recognise('how many markets are there')).toMatchObject({
+      ask: { catalogue: { dimension: 'dim:market', count: true } },
+    })
+    expect(recognise('markets?')).toMatchObject({ ask: { catalogue: { dimension: 'dim:market' } } })
+    expect(recognise('what values does Market have')).toMatchObject({
       ask: { catalogue: { dimension: 'dim:market' } },
     })
     expect(recognise('list three channels')).toMatchObject({
@@ -272,6 +279,14 @@ describe('reading a records question', () => {
     expect(recognise('how many definitions are there?')).toMatchObject({
       ask: { intent: 'count', kind: 'definition' },
     })
+  })
+
+  it.each([
+    'which products sold last week',
+    'what campaigns ran',
+    'which channels drove traffic',
+  ])('leaves "%s", a question about the business, to the answer engine', (question) => {
+    expect(recognise(question)).toBeNull()
   })
 
   it('takes the metric a question asks the owner of', () => {
