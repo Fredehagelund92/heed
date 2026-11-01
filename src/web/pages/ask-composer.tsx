@@ -22,7 +22,12 @@ import { inputSurface } from '@/lib/surfaces'
 export type AskQuestion = { text: string; parts: QuestionPart[]; scope: MentionRef[] }
 
 /** What the box can be told to hold: words and mentions, as a question would be asked again. */
-export type ComposerHandle = { set: (parts: QuestionPart[]) => void; focus: () => void }
+export type ComposerHandle = {
+  set: (parts: QuestionPart[]) => void
+  /** Puts a question back in the box, unless something new has been typed there since. */
+  refill: (parts: QuestionPart[]) => void
+  focus: () => void
+}
 
 const toContent = (parts: QuestionPart[]): JSONContent => ({
   type: 'doc',
@@ -73,6 +78,7 @@ export function AskComposer({
   onSubmit,
   onStop,
   busy,
+  waiting,
   placeholder,
   prefill,
   autoFocus,
@@ -80,7 +86,10 @@ export function AskComposer({
 }: {
   onSubmit: (q: AskQuestion) => void
   onStop: () => void
+  /** An answer is being written: Stop takes the place of Ask. */
   busy: boolean
+  /** A question is sent and its answer not in yet: nothing else is sent until it is. */
+  waiting?: boolean
   placeholder: string
   prefill?: string
   autoFocus?: boolean
@@ -147,13 +156,13 @@ export function AskComposer({
     useEditorState({ editor, selector: ({ editor: e }) => !e || e.isDestroyed || e.isEmpty }) ??
     true
 
-  // Enter while an answer is still being written says so, instead of doing nothing.
+  // Enter while a question is still being answered says so, instead of sending another.
   const [held, setHeld] = React.useState(false)
   const holdTimer = React.useRef(0)
   React.useEffect(() => () => window.clearTimeout(holdTimer.current), [])
   const submit = React.useCallback(() => {
     if (!editor) return
-    if (busy) {
+    if (busy || waiting) {
       setHeld(true)
       window.clearTimeout(holdTimer.current)
       holdTimer.current = window.setTimeout(() => setHeld(false), 2500)
@@ -163,7 +172,7 @@ export function AskComposer({
     if (!q.text) return
     onSubmit(q)
     editor.commands.clearContent()
-  }, [editor, busy, onSubmit])
+  }, [editor, busy, waiting, onSubmit])
   React.useEffect(() => {
     escape.current = () => {
       if (busy) onStop()
@@ -178,6 +187,9 @@ export function AskComposer({
     ref,
     () => ({
       set: (parts) => editor?.chain().setContent(toContent(parts)).focus('end').run(),
+      refill: (parts) => {
+        if (editor?.isEmpty) editor.chain().setContent(toContent(parts)).focus('end').run()
+      },
       focus: () => editor?.commands.focus('end'),
     }),
     [editor],
@@ -222,12 +234,16 @@ export function AskComposer({
           <TooltipContent>Scope it with @</TooltipContent>
         </Tooltip>
         <span role="status" className="min-w-0 truncate text-xs text-muted-foreground">
-          {held && busy ? 'Still answering. Stop it to ask now.' : ''}
+          {held && busy
+            ? 'Still answering. Stop it to ask now.'
+            : held && waiting
+              ? 'Still answering.'
+              : ''}
         </span>
         <span
           className={cn(
             'ml-auto hidden shrink-0 items-center gap-1 text-xs whitespace-nowrap text-muted-foreground @xl:flex',
-            held && busy && '@xl:hidden',
+            held && (busy || waiting) && '@xl:hidden',
           )}
         >
           <Kbd>@</Kbd> to scope - <Kbd>Enter</Kbd> to send - <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> for a
@@ -250,6 +266,8 @@ export function AskComposer({
             size="icon-sm"
             aria-label="Ask"
             disabled={empty}
+            // Still focusable while the answer comes, said as unavailable: a click sends nothing.
+            aria-disabled={waiting || undefined}
             className="shrink-0 @max-xl:ml-auto"
           >
             <ArrowUpIcon />
