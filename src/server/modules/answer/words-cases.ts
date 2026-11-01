@@ -49,8 +49,7 @@ export const wordsCases: WordsCase[] = [
     },
     cites: [1],
     says: [/4 August 2026/],
-    // Concluding fewer customers is wrong; saying the drop does not mean fewer customers is not.
-    never: [...machinery, /(?<!\bnot\b[^.]*)fewer customers/i],
+    never: [...machinery, /fewer customers/i],
   },
   {
     id: 'conflict-both-sides',
