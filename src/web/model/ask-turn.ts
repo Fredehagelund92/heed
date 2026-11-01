@@ -24,6 +24,8 @@ export type AskLive = { signal?: AbortSignal; onEvent?: (event: AskEvent) => voi
 export type Turn = {
   /** The question, and once it is in, the engine's answer to it. */
   answer: Answer
+  /** When it was asked, in this page's time (0 for an answer already in): asked again, it starts over. */
+  asked: number
   /** Whether `answer` is the engine's answer yet, or only the question. */
   answered: boolean
   stage: Stage
@@ -52,6 +54,7 @@ export const askedTurn = (
     said: '',
     ...extra,
   },
+  asked: performance.now(),
   answered: false,
   stage: 'looking',
   stopped: false,
@@ -62,6 +65,7 @@ export const askedTurn = (
 /** An answer that is already in, shown finished: a chat opened again, or a draft's. */
 export const doneTurn = (answer: Answer): Turn => ({
   answer,
+  asked: 0,
   answered: true,
   stage: 'done',
   stopped: false,

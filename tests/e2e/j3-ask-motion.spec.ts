@@ -14,6 +14,10 @@ const QUESTION = 'Why did orders in Norway really drop in August?'
 const FIRST = /A new customs rule stopped all online sales to Norway/
 const SECOND = "The context doesn't say what caused it."
 
+/** An answer's words on screen, not a screen reader's copy of the sentences being written. */
+const words = (log: Locator, text: string | RegExp) =>
+  log.locator('[data-answer-words]').getByText(text)
+
 async function ask(page: Page, question: string) {
   const box = page.getByRole('textbox', { name: 'Ask a question' })
   await box.click()
@@ -26,10 +30,10 @@ async function ask(page: Page, question: string) {
  * on screen, so an answer stops at "Reading" until the test moves on: on a loaded machine a real
  * clock carried it past that step before the check could see it.
  */
-async function held(page: Page, route: string) {
+async function held(page: Page, route: string, holdLookUp = true) {
   // On the service the look-up answers at once: the first is held, so its answer stays on its way.
   let looked = 0
-  if (mode === 'http')
+  if (mode === 'http' && holdLookUp)
     await page.route('**/api/v1/ask/lookup', (r) => (looked++ ? r.continue() : undefined))
   await page.clock.install()
   await page.clock.pauseAt(Date.now() + 1000)
@@ -96,10 +100,12 @@ test('the question shows the moment it is sent, and the words before the answer 
   await held(page, '/ask?n=stream')
   await ask(page, QUESTION)
   const log = page.getByRole('log')
-  // No time has passed: the question is in the chat, looking up, and Stop takes Ask's place.
+  // No time has passed: the question is in the chat and Stop takes Ask's place.
   await expect(log.getByText(QUESTION)).toBeVisible()
-  await expect(log.getByText('Looking up context…')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
+  // A look-up that is not done within moments says so.
+  await expect(log.getByText('Looking up context…')).toHaveCount(0)
+  await until(page, log.getByText('Looking up context…'))
   await expect(
     page.getByRole('status').filter({ hasText: 'Looking up the answer.' }),
   ).toBeAttached()
@@ -107,30 +113,33 @@ test('the question shows the moment it is sent, and the words before the answer 
   await until(page, log.getByText(/Reading 1 context item…/))
   await until(page, log.getByText(STATE).first())
   await expect(log.getByText(/^1 source$/)).toBeVisible()
-  await expect(log.getByText(FIRST)).toHaveCount(0)
+  await expect(words(log, FIRST)).toHaveCount(0)
   // The first sentence while the answer is still being written: the rest has not come yet.
-  await until(page, log.getByText(FIRST))
-  await expect(log.getByText(SECOND)).toHaveCount(0)
+  await until(page, words(log, FIRST))
+  await expect(words(log, SECOND)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible()
   await expect(log.getByRole('button', { name: 'Good answer' })).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: 'Writing the answer.' })).toBeAttached()
   // Then the next, and the answer is done.
-  await until(page, log.getByText(SECOND))
+  await until(page, words(log, SECOND))
   await until(page, log.getByRole('button', { name: 'Good answer' }))
   await expect(page.getByRole('button', { name: 'Stop', exact: true })).toHaveCount(0)
   await expect(page.getByRole('status').filter({ hasText: 'Answer written.' })).toBeAttached()
 })
 
-test('Stop while the words are written keeps them, with the state and sources, and ends there', async ({
+test('Stop while the words are written finishes the sentence on screen, keeps the state and sources, and ends there', async ({
   page,
 }) => {
   test.skip(mode === 'http', 'the service in the journeys has no model to write words')
   await held(page, '/ask?n=stop-writing')
   await ask(page, QUESTION)
   const log = page.getByRole('log')
-  await until(page, log.getByText(FIRST))
+  // Stopped part way through the first sentence, which was checked before any of it showed.
+  await until(page, words(log, 'customs'))
+  await expect(words(log, FIRST)).toHaveCount(0)
   await page.getByRole('button', { name: 'Stop', exact: true }).click()
   await expect(log.getByText('Stopped. This is not a finished answer.')).toBeVisible()
+  await until(page, words(log, FIRST))
   // Focus stays in the box, where the next question goes (the editor focuses on its next frame).
   await page.clock.runFor(50)
   await expect(page.getByRole('textbox', { name: 'Ask a question' })).toBeFocused()
@@ -140,8 +149,8 @@ test('Stop while the words are written keeps them, with the state and sources, a
   await expect(log.getByText(/^1 source$/)).toBeVisible()
   // Nothing more comes, however long it waits, and Ask is ready.
   await page.clock.runFor(5000)
-  await expect(log.getByText(FIRST)).toBeVisible()
-  await expect(log.getByText(SECOND)).toHaveCount(0)
+  await expect(words(log, FIRST)).toBeVisible()
+  await expect(words(log, SECOND)).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeVisible()
   // Stopped part way, the chat passes axe (which needs the page's clock running).
   await page.clock.resume()
@@ -180,41 +189,55 @@ test('scrolled up to read, the view stays put while an answer is written', async
   expect(await view.evaluate((el) => el.scrollTop)).toBe(0)
 })
 
-test('with reduced motion the sentences come in without a fade, and the answer is whole', async ({
+test('with reduced motion each sentence comes in whole, with no fade, and the answer is whole', async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
-  await go(page, '/ask?n=reduced')
+  await held(page, '/ask?n=reduced', false)
   await ask(page, QUESTION)
   const log = page.getByRole('log')
-  await expect(log.locator('[data-turn]')).toHaveCount(1)
-  await expect(log.getByText(/^\d+ sources?$/)).toBeVisible()
-  await expect(log.getByRole('button', { name: 'Good answer' })).toBeVisible()
-  // On the mock a model's words come a sentence at a time: each is there at once, with no fade.
+  // On the mock a model's words come a sentence at a time: each is there whole as it comes, and
+  // nothing fades in.
   if (mode === 'mock') {
+    await until(page, log.getByText('customs', { exact: true }))
+    await expect(words(log, FIRST)).toBeVisible()
+    await expect(words(log, SECOND)).toHaveCount(0)
     const fade = await log
-      .getByText(FIRST)
-      .evaluate(
-        (el) => getComputedStyle(el.closest('[class*="animate-in"]') ?? el).animationDuration,
-      )
+      .getByText('customs', { exact: true })
+      .evaluate((el) => getComputedStyle(el).animationDuration)
     expect(fade).toBe('0s')
-    await expect(log.getByText(SECOND)).toBeVisible()
   }
+  await until(page, log.getByRole('button', { name: 'Good answer' }))
+  await expect(log.getByText(/^\d+ sources?$/)).toBeVisible()
+  if (mode === 'mock') await expect(words(log, SECOND)).toBeVisible()
 })
 
-test('the newest answer is fully in view, down to its actions', async ({ page }) => {
+test('a new question goes to the top of the view, and the view stays put as its answer ends', async ({
+  page,
+}) => {
   await go(page, '/ask?n=view')
+  const view = page
+    .locator('[role=log]')
+    .locator('xpath=ancestor::*[contains(@class,"overflow-y-auto")][1]')
   for (const q of [
     'Why did orders in Norway really drop in August?',
     'Do Norway orders include gift-card money?',
   ]) {
     await ask(page, q)
-    await expect(
-      page
-        .getByRole('log')
-        .locator('[data-turn]')
-        .last()
-        .getByRole('button', { name: 'Good answer' }),
-    ).toBeInViewport({ ratio: 1, timeout: 6000 })
+    const turn = page.getByRole('log').locator('[data-turn]').last()
+    await expect(turn.getByRole('button', { name: 'Good answer' })).toBeVisible({ timeout: 6000 })
+    // Its question is at the top of the view, with the answer under it.
+    const offset = async () => (await turn.boundingBox())!.y - (await view.boundingBox())!.y
+    await expect.poll(offset).toBeGreaterThanOrEqual(0)
+    await expect.poll(offset).toBeLessThan(40)
+    // Once the scroll to it has come to rest, the answer stays where it is: nothing scrolls it.
+    const top = () => view.evaluate((el) => el.scrollTop)
+    let at = await top()
+    for (let was = -1; was !== at; at = await top()) {
+      was = at
+      await page.waitForTimeout(150)
+    }
+    await page.waitForTimeout(500)
+    expect(await view.evaluate((el) => el.scrollTop)).toBe(at)
   }
 })

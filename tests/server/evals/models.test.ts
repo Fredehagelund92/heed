@@ -103,7 +103,7 @@ describe('the model port (plan section 3.1)', () => {
   it("gives Ask's words (the assistant role) its own model object and effort", () => {
     expect(createModelPort({ mode: 'mock' }).choose('assistant')).toMatchObject({
       id: 'mock/scripted-answer',
-      effort: 'low',
+      effort: 'none',
     })
     const port = createModelPort({ mode: 'live', env })
     const assistant = port.choose('assistant', anthropic('claude-sonnet-5-5'))

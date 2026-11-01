@@ -27,7 +27,7 @@ All durations and curves are tokens. A component never writes a raw time.
 | `--dur-4`              | 320 ms                            | Arrival only: chart bars, the settle after a staged answer       |
 | `--dur-highlight`      | 600 ms                            | A changed value's tint fading out (it comes in at once)          |
 | `--dur-fade`           | 150 ms                            | The fade that explains a change: content arriving after a wait   |
-| `--dur-sentence`       | 200 ms                            | A sentence of an Ask answer coming in as it is written           |
+| `--ask-word-fade`      | `--dur-fade`, 150 ms              | A word of an Ask answer coming in as it is revealed              |
 | `--stagger`            | 30 ms                             | Arrival after a wait, at most 6 items                            |
 | `--dist-1`, `-2`, `-3` | 4, 8, 16 px                       | How far something travels                                        |
 | `ease-out`             | `cubic-bezier(0.23, 1, 0.32, 1)`  | Entering and leaving. The default                                |
@@ -38,7 +38,7 @@ In a class: `duration-(--dur-3) ease-panel`. A `transition-*` class with no dura
 
 ## Reduced motion
 
-One block in the token file does all of it. It sets every duration token to 0 (so an Ask answer's sentences come in without a fade), keeps `--dur-fade` at 90 ms (content arriving still fades), stops staggering, sets the distances to 0 and stops loading loops (a spinner stands still and its words say it is still working). A component adds no `motion-reduce:` override of its own. The one exception is a component's own keyframes (the countdown and the read fill).
+One block in the token file does all of it. It sets every duration token to 0 (and `--ask-word-fade`, so an Ask answer's sentences come in whole, without a fade), keeps `--dur-fade` at 90 ms (content arriving still fades), stops staggering, sets the distances to 0 and stops loading loops (a spinner stands still and its words say it is still working). A component adds no `motion-reduce:` override of its own. The one exception is a component's own keyframes (the countdown and the read fill).
 
 ## Banned
 
@@ -92,9 +92,9 @@ Rules:
 - Content arrives through React's `<ViewTransition>`: the skeleton leaves in 90 ms and the content fades in over `--dur-fade`. With reduced motion the skeleton goes at once and the content still fades, in 90 ms.
 - A button in a pending state is `aria-busy`, ignores more presses, and keeps its label and width. With reduced motion `loadingLabel` ("Publishing...") says it is still working.
 - **Staged work** (Ask's look-up, Try it, the answer panel, Quality's check) is one quiet line with a spinner and a shimmer on the words while it works, then what it found. Shimmer is only ever on these words. The steps and their times come from the real work, not from a timer.
-- **An Ask answer** follows its look-up as it runs. The question shows the moment it is sent. "Looking up context..." and "Reading 3 context items..." come from the look-up's own steps. The answer line, its state and the sources come in with the engine's answer, and stay. The words then grow a sentence at a time, as each passes the check, each fading in over `--dur-sentence`: never word by word, and no shimmer on the words. Until the first sentence, "Writing..." says so. What backs the answer (its figure, next step and actions) settles in once the words are done, over `--dur-4`. With reduced motion the sentences come in without a fade.
-- **Stop** takes the place of Ask while an answer is on its way. It ends the look-up and the model's words, and the answer keeps what it showed and says it was stopped. Stopped before the engine's answer came, it names no state and no source count.
-- **Scrolling**: a new question goes to the top of the view, and the view follows a growing answer down only while the reader is at the bottom. Scrolling up to read stops that, and the view never jumps back; scrolling back to the bottom picks it up again.
+- **An Ask answer** follows its look-up as it runs. Its values are named in `src/web/lib/ask-motion.ts`, to be tuned there. The question shows the moment it is sent. A look-up that takes longer than 150 ms says what it is doing, from its own steps: "Looking up context...", then "Reading 3 context items...", each label held at least 300 ms so it can be read, and "Still looking up..." after 9 seconds. The answer line, its state and the sources come in with the engine's answer, and stay. "Writing the answer..." then holds the place of the words until the first sentence passes the check. Only checked sentences are shown, revealed word by word at 360 characters a second (faster when they pile up: within 600 ms while the model writes, within 400 ms once it is done), each word fading in over `--ask-word-fade`. No caret, and no shimmer on the words. The words are drawn the same way from the first word to the end, so nothing is drawn again when the answer is done; then what backs it (its figure, next step and actions) settles in over `--dur-4`. The engine's own words, when no sentence passed, come in whole. With reduced motion each sentence comes in whole as it passes, with no fade.
+- **Stop** takes the place of Ask from the moment a question is sent, and Escape does the same. It ends the look-up and the model's words. The answer finishes the sentence on screen (it was checked), shows no more, keeps its state and sources, and says it was stopped. Stopped before the engine's answer came, it names no state and no source count.
+- **Scrolling**: a new question goes to the top of the view, with room kept under it (the view's height less 56 px) so it can get there while its answer is short. The view then stays where the reader put it, while the answer grows and when it ends. (`ASK_ANCHOR` keeps the other choice: follow a growing answer down while the reader is at the bottom.)
 
 ## Decisions are optimistic
 

@@ -19,8 +19,13 @@ async function heldAnswers(page: Page, route: string) {
   await page.clock.pauseAt(Date.now() + 1000)
   await go(page, route)
   await until(page, box(page))
-  return () => {
-    open = true
+  return {
+    release: () => {
+      open = true
+    },
+    hold: () => {
+      open = false
+    },
   }
 }
 
@@ -35,6 +40,8 @@ async function ready(page: Page) {
   const ask = page.getByRole('button', { name: 'Ask', exact: true })
   while ((await stop.isVisible()) || (await ask.getAttribute('aria-disabled')) === 'true')
     await page.clock.runFor(50)
+  // The answer settles in on screen: its last label held, its words shown.
+  await page.clock.runFor(1000)
 }
 
 const box = (page: Page) => page.getByRole('textbox', { name: 'Ask a question' })
@@ -42,7 +49,7 @@ const box = (page: Page) => page.getByRole('textbox', { name: 'Ask a question' }
 test('a question on its way asks nothing more: not a second click, Enter or Send', async ({
   page,
 }) => {
-  const release = await heldAnswers(page, '/ask?n=once')
+  const answers = await heldAnswers(page, '/ask?n=once')
   const asked = page
     .getByRole('navigation', { name: 'Chats' })
     .locator('[data-open]')
@@ -64,7 +71,7 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   await box(page).press('Enter')
   await expect(page.getByRole('status').filter({ hasText: 'Still answering' })).toBeVisible()
 
-  release()
+  answers.release()
   await ready(page)
   await expect(turns).toHaveCount(1)
   await expect(
@@ -76,6 +83,7 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   await expect(box(page)).toContainText('Why did orders in Norway drop in August?')
 
   // Once the answer is written Ask is itself again: the kept question goes, once.
+  answers.hold()
   await box(page).press('Enter')
   await until(page, page.getByRole('button', { name: 'Stop', exact: true }))
   await expect(turns).toHaveCount(2)
@@ -83,6 +91,7 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   await box(page).pressSequentially('tell me a joke')
   await box(page).press('Enter')
   await expect(page.getByText('Still answering. Stop it to ask now.')).toBeVisible()
+  answers.release()
   await ready(page)
   await expect(turns).toHaveCount(2)
   // Then it goes, once: a dead end, with questions to try instead.

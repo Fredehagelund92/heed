@@ -13,6 +13,7 @@ import {
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { api } from '@/api'
+import { ASK_ANCHOR, ASK_ROOM_GAP_PX } from '@/lib/ask-motion'
 import { toApiError } from '@/api/errors'
 import { cn } from '@/lib/utils'
 import { DockFrame } from '@/components/dock'
@@ -72,7 +73,7 @@ const firstAsk = (t: Pick<Thread, 'example' | 'question'>): AskInput =>
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** How near the bottom, in pixels, the reader counts as at the bottom: the view follows the answer. */
+/** How near the bottom, in pixels, the reader counts as at the bottom: the view follows the answer (`ASK_ANCHOR` follow). */
 const FOLLOW_SLACK = 24
 
 const AskComposer = React.lazy(() =>
@@ -136,11 +137,13 @@ export function AskChat({
       setWaiting(false)
     }
   }
-  // While an answer is written the view follows it down, only while the reader is at the bottom.
+  // While an answer is written the view follows it down, only while the reader is at the bottom
+  // (`ASK_ANCHOR` follow). Anchored at the top, the view stays where the reader put it.
   const follow = React.useRef(true)
 
   /** Brings a finished answer fully into view, down to its action row, above the composer. */
   const reveal = (id: string) =>
+    ASK_ANCHOR === 'follow' &&
     requestAnimationFrame(() => {
       const box = viewport.current
       const el = box?.querySelector<HTMLElement>(`[data-turn-id="${id}"]`)
@@ -308,7 +311,7 @@ export function AskChat({
   React.useEffect(() => {
     const box = viewport.current
     const inner = content.current
-    if (!box || !inner || !busy) return
+    if (ASK_ANCHOR !== 'follow' || !box || !inner || !busy) return
     let last = box.scrollTop
     const onScroll = () => {
       const bottom = box.scrollHeight - box.scrollTop - box.clientHeight <= FOLLOW_SLACK
@@ -344,6 +347,17 @@ export function AskChat({
         : asked.answered
           ? 'Writing the answer.'
           : 'Looking up the answer.'
+
+  // Anchored at the top, the newest question keeps room under it, the view's height less a little,
+  // so it can reach the top while its answer is still short.
+  const [room, setRoom] = React.useState(0)
+  React.useEffect(() => {
+    const box = viewport.current
+    if (ASK_ANCHOR !== 'top' || !box) return
+    const ro = new ResizeObserver(() => setRoom(box.clientHeight))
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [])
 
   // What the chat holds, for the history search.
   const said = turns.map((t) => `${t.answer.question} ${t.answer.text}`).join(' ')
@@ -406,6 +420,11 @@ export function AskChat({
                     data-turn={i}
                     data-turn-id={t.answer.id}
                     className="flex scroll-mt-4 flex-col gap-y-6"
+                    style={
+                      i === turns.length - 1 && room
+                        ? { minHeight: room - ASK_ROOM_GAP_PX }
+                        : undefined
+                    }
                   >
                     <Question
                       answer={t.answer}
@@ -413,6 +432,7 @@ export function AskChat({
                       onEdit={draft ? undefined : (parts) => composer.current?.set(parts)}
                     />
                     <AnswerBody
+                      key={t.asked}
                       turn={t}
                       draft={draft}
                       docked={compact}
