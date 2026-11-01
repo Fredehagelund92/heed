@@ -59,6 +59,25 @@ const iso = (column: string) =>
 
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'en')
 
+/** Whether the groups in `$1` may see a definition `d` (CON-509): it names none, or one of them. */
+const visibleTo = '(d.visible_groups is null or d.visible_groups && $1::text[])'
+
+/**
+ * The definitions the person's groups may not see, by ref (CON-509): a term that names one is
+ * left out of the catalogue, and out of what Ask counts from it. Groups are parked (FR-128), so
+ * today that is every definition the source limits to groups.
+ */
+export async function hiddenDefinitions(
+  database: Queryable,
+  groups: readonly string[] = [],
+): Promise<string[]> {
+  const rows = await database.query<{ ref: string }>(
+    `select d.ref from definitions d where not ${visibleTo}`,
+    [groups],
+  )
+  return rows.map((row) => row.ref)
+}
+
 export function createCatalogueService(
   database: Queryable,
   clock: Clock,
@@ -100,7 +119,7 @@ export function createCatalogueService(
          select d.ref, d.connector_id as "sourceId", d.name, d.title,
                 d.description_copy as "descriptionCopy", d.value_type as "valueType",
                 d.renamed_to as "renamedTo",
-                (d.visible_groups is null or d.visible_groups && $1::text[]) as visible,
+                ${visibleTo} as visible,
                 d.missing_since_snapshot is not null as missing,
                 ${iso('seen.fetched_at')} as "readAt",
                 ${iso('changed.at')} as "changedAt",

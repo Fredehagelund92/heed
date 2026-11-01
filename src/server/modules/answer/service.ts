@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/client'
 import type {
   AnswerResult,
+  AskDefinition,
   Asked,
   FollowedLinks,
   LookupEvent,
@@ -20,12 +21,14 @@ import {
   type Answer,
   type TopicCount,
 } from '../../../domain/answer.ts'
-import { followedFrom } from '../../../domain/links.ts'
+import { canRead, followedFrom, termShown } from '../../../domain/links.ts'
+import { asksDefinition } from '../../../domain/scope.ts'
 import { compareIds } from '../../../domain/resolver.ts'
 import { visibleTotal } from '../../../domain/gaps.ts'
 import type { Clock } from '../../clock.ts'
 import type { Queryable } from '../../db/database.ts'
 import { enabledTools, loadServingBundle, type ServingBundle } from '../editions/index.ts'
+import { quoted } from '../../mcp/outcomes.ts'
 import { draftBundle } from '../proposals/index.ts'
 import { recordsAnswerOf, type RecordsReads } from './records.ts'
 
@@ -125,9 +128,16 @@ export async function lookupQuestion(
       const next = steps.next()
       if (next.done) {
         const answer = result(next.value, { kind: 'live' })
+        const definitions = definitionsOf(bundle, answer, input.question)
+        const valueMetrics = valueMetricsOf(bundle, answer, today)
         yield {
           type: 'answer',
-          answer: { ...answer, links: linksOf(bundle, answer, tools, today) },
+          answer: {
+            ...answer,
+            links: linksOf(bundle, answer, tools, today),
+            ...(definitions.length ? { definitions } : {}),
+            ...(valueMetrics.length ? { valueMetrics } : {}),
+          },
         }
         return
       }
@@ -145,6 +155,58 @@ export async function lookupQuestion(
       }
     }
   })()
+}
+
+/**
+ * For a question about what a metric means ("What is churn rate?", "What does net revenue
+ * mean?"): what the definition source says about each metric asked, and where that comes from, as
+ * get_context gives an agent beside the items (FR-338). A term an agent may not see, or one whose
+ * definition the source limits to groups (CON-509), has none.
+ */
+function definitionsOf(
+  bundle: ServingBundle,
+  answer: AnswerResult,
+  question: string,
+): AskDefinition[] {
+  if (!answer.scope?.metrics.length || !asksDefinition(question)) return []
+  return answer.scope.metrics.slice(0, 5).flatMap((key) => {
+    const term = bundle.terms.find((t) => t.key === key)
+    const described = term && termShown(bundle, term) ? term.described : null
+    if (!term || !described) return []
+    const words = described.description ? quoted(described.description) : null
+    return [
+      {
+        key,
+        name: term.name,
+        words: words?.text ?? null,
+        shortened: words?.shortened ?? false,
+        tool: described.tool,
+        source: described.source,
+        ref: described.ref,
+      },
+    ]
+  })
+}
+
+/**
+ * For a question that names values (a market) and no metric, and found nothing: the metrics that
+ * the context agents get about all those values is written for, most items first, at most three.
+ * Such a question only gets items that name no metric, so Ask can say where the rest is.
+ */
+function valueMetricsOf(bundle: ServingBundle, answer: AnswerResult, today: string): string[] {
+  const values = Object.values(answer.scope?.filters ?? {}).flat()
+  if (answer.status !== 'no_match' || answer.scope?.metrics.length || !values.length) return []
+  const counts = new Map<string, number>()
+  for (const item of bundle.items) {
+    const named = new Set(item.scope.dimensionValues.map((row) => row.value))
+    if (item.status !== 'accepted' || !values.every((value) => named.has(value))) continue
+    if (!canRead(bundle, item, today)) continue
+    for (const metric of item.scope.metrics) counts.set(metric, (counts.get(metric) ?? 0) + 1)
+  }
+  return [...counts]
+    .sort((a, b) => b[1] - a[1] || compareIds(a[0], b[0]))
+    .slice(0, 3)
+    .map(([metric]) => metric)
 }
 
 /**

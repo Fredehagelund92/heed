@@ -22,10 +22,11 @@ import type { ServingBundle } from '../editions/index.ts'
   so row security and the audience rule apply to every count and every title. The items are the
   Context list's (`library.index`: published and archived, never a draft, a suggestion or a
   deleted item, and never one an audience rule hides). Their times come from the editions that
-  served them, for those items only. Owners are named as Context names them; nothing is read by
+  served them, for those items only. The vocabulary is the live edition's, as Definitions shows it
+  to the person: a term whose definition their groups may not see is left out (CON-509). Owners are named as Context names them; nothing is read by
   person, no comment is read, and what agents asked comes from Asked this week, as counts only,
-  small ones hidden. The question itself is never stored: only which of the seven it was, by
-  week, as a count.
+  small ones hidden. The question itself is never stored: only which of the records questions it
+  was, by week, as a count.
 */
 
 const DAY = 86_400_000
@@ -40,6 +41,8 @@ export type RecordsReads = {
   people: () => Promise<{ id: string; name: string }[]>
   /** Asked this week, with its minimum. */
   asked: () => Promise<{ asked: Asked; minimum: number }>
+  /** The definitions the person's groups may not see, by ref, as the catalogue leaves them out. */
+  hidden: () => Promise<readonly string[]>
 }
 
 /** A question is read as a records question only as words: a scope picked with @ is the engine's. */
@@ -132,9 +135,13 @@ async function itemsOf(tx: Queryable, index: LibraryIndex, shift: number): Promi
 }
 
 /** What one intent needs read; the rest is left empty. */
-const needs = (intent: RecordsIntent) => ({
-  items: intent !== 'asked_nothing',
-  asked: intent === 'asked_nothing',
+const needs = (ask: RecordsAsk) => ({
+  items: ask.intent !== 'asked_nothing' && ask.intent !== 'terms' && ask.intent !== 'values',
+  asked: ask.intent === 'asked_nothing',
+  terms:
+    ask.intent === 'terms' ||
+    ask.intent === 'values' ||
+    (ask.intent === 'count' && ask.kind === 'definition'),
 })
 
 /** Counts that a records question of this intent was asked this week: the id only, never the words. */
@@ -148,7 +155,7 @@ async function countIntent(tx: Queryable, intent: RecordsIntent | 'refused', tod
 }
 
 /**
- * The records answer to a question, or null when it is not one of the seven and not about one
+ * The records answer to a question, or null when it is not a records question and not about one
  * person's work: the answer engine reads it then, as before.
  */
 export async function recordsAnswerOf(
@@ -183,20 +190,26 @@ async function worldFor(
   bundle: ServingBundle,
   shift: number,
 ): Promise<RecordsWorld> {
-  const need = needs(ask.intent)
-  const [items, people, asked] = await Promise.all([
+  const need = needs(ask)
+  const [items, people, asked, hidden] = await Promise.all([
     need.items ? reads.index().then((index) => itemsOf(tx, index, shift)) : [],
     reads.people(),
     need.asked ? reads.asked() : null,
+    need.terms ? reads.hidden().then((refs) => new Set(refs)) : new Set<string>(),
   ])
+  // A term is left out when its groups may not see one of its definitions, as the catalogue
+  // leaves it out, and a value with its dimension.
+  const shown = new Set(
+    bundle.terms.filter((t) => !t.definitionRefs.some((ref) => hidden.has(ref))).map((t) => t.key),
+  )
   return {
     items,
     areas,
     people: Object.fromEntries(people.map((p) => [p.id, p.name])),
     // A metric's domain by the one domain rule (FR-136): the vocabulary's, else its source's.
-    terms: bundle.terms.map((t) =>
-      t.kind === 'metric' ? { ...t, areaId: bundle.metricArea[t.key] ?? null } : t,
-    ),
+    terms: bundle.terms
+      .filter((t) => shown.has(t.key) && (!t.parentKey || shown.has(t.parentKey)))
+      .map((t) => (t.kind === 'metric' ? { ...t, areaId: bundle.metricArea[t.key] ?? null } : t)),
     asked: asked && {
       minimum: asked.minimum,
       rows: asked.asked.rows.map((r) => ({

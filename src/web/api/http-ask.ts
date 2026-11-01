@@ -7,12 +7,13 @@
  */
 import type { Asked, AnswerResult } from '@contract/answer'
 import type { Vocabulary } from '@domain/item'
+import type { Term } from '@domain/vocabulary'
 import { plainText as wordsOfMarkdown } from '@domain/doc-diff'
 import { shiftDate } from '@domain/validity'
 import { windowWords } from '@domain/dates'
 import { plainText } from '@/lib/mentions'
 import type { Answer, AnswerLinks, AskedRow, AskedWeek, Example, Thread } from '@/model/ask'
-import { scopeText, unreadReason } from '@/model/ask'
+import { closestNames, NAMES_NOTHING, namesNothing, scopeText, unreadReason } from '@/model/ask'
 
 /** A scope as the engine reads it: metric keys, each dimension's value keys, and its days. */
 export type ReadScope = Asked['rows'][number]['scope']
@@ -31,8 +32,15 @@ export function lookupFields(scope: ReadScope) {
   }
 }
 
-/** The names of the vocabulary's keys: `metric:orders` is Orders, `val:market/norway` is Norway. */
-export type Names = { metric: (key: string) => string; value: (key: string) => string }
+/**
+ * The names of the vocabulary's keys: `metric:orders` is Orders, `val:market/norway` is Norway;
+ * and the metrics and markets as terms, for the names closest to a question's words.
+ */
+export type Names = {
+  metric: (key: string) => string
+  value: (key: string) => string
+  terms?: readonly Term[]
+}
 
 export function namesOf(vocabulary: Vocabulary): Names & {
   /** A metric's key by its name, any case. */
@@ -46,7 +54,22 @@ export function namesOf(vocabulary: Vocabulary): Names & {
   )
   const market = vocabulary.dimensions.find((d) => d.id === 'market')
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+  const term = (key: string, kind: Term['kind'], name: string, aliases: string[] = []): Term => ({
+    key,
+    kind,
+    name,
+    aliases,
+    parentKey: null,
+    areaId: null,
+    definitionRefs: [],
+  })
   return {
+    terms: [
+      ...vocabulary.metrics.map((m) => term(`metric:${m.id}`, 'metric', m.name)),
+      ...(market?.values ?? []).map((v) =>
+        term(`val:${market!.id}/${v.id}`, 'dimension_value', v.name, v.aliases),
+      ),
+    ],
     metric: (key) => metrics.get(key) ?? key.replace(/^[a-z]+:/, ''),
     value: (key) => values.get(key) ?? key.replace(/^.*\//, ''),
     metricKey: (name) => {
@@ -76,6 +99,9 @@ const sentenceOf = (summary: string) => {
 }
 
 const items = (n: number) => (n === 1 ? '1 context item' : `${n} context items`)
+/** "Orders, Returns and Net revenue". */
+const list = (names: readonly string[], and = 'and') =>
+  names.length < 2 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} ${and} ${names.at(-1)}`
 
 /** Why items that are about the question were left out, in words. */
 const leftOutWords: Record<AnswerResult['leftOut'][number]['reason'], string> = {
@@ -189,18 +215,46 @@ function engineAnswerOf(
     leftOut: leftOutOf(a),
     ...(a.items.length ? { cited } : {}),
     ...(links ? { links } : {}),
+    ...(a.definitions?.length
+      ? {
+          definitions: a.definitions.map((d) => ({ name: d.name, words: d.words, tool: d.tool })),
+        }
+      : {}),
     ...extra,
   }
   const what = scopeText({ metric, markets, dates }) || 'this question'
   // The engine read nothing: no answer state, only its reason (never Not found, which says that
-  // nothing is written down).
-  if (a.status === 'need_more_detail') return { ...base, state: null, text: unreadReason(a.say) }
+  // nothing is written down). A question that names nothing at all is offered the names closest
+  // to its words instead of the engine's first choices.
+  if (a.status === 'need_more_detail')
+    return namesNothing(a.issues, question)
+      ? {
+          ...base,
+          state: null,
+          text: NAMES_NOTHING,
+          closest: closestNames(question, names.terms ?? []),
+        }
+      : { ...base, state: null, text: unreadReason(a.say) }
   if (a.state === 'failed')
     return {
       ...base,
       note: "The check couldn't run just now. That is not the same as nothing written down: ask again in a minute.",
       text: '',
     }
+  // A market on its own: what it has is written for a metric, so say so and offer those.
+  if (a.state === 'missing' && a.valueMetrics?.length) {
+    const where = list(
+      Object.values(scope?.filters ?? {})
+        .flat()
+        .map(names.value),
+    )
+    const metrics = a.valueMetrics.map(names.metric)
+    return {
+      ...base,
+      text: `Nothing applies to ${where} on its own. Context about ${where} is written for a metric, such as ${list(metrics, 'or')}.`,
+      instead: metrics.map((m) => `What should I know about ${m} in ${where}?`),
+    }
+  }
   if (a.state === 'missing')
     return {
       ...base,

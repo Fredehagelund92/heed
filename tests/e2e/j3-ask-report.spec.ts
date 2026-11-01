@@ -51,19 +51,40 @@ test('a question that names nothing says nothing was looked up, never Not found'
   await box.press('Enter')
   const log = page.getByRole('log')
   await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toBeVisible()
-  // The engine's own reason, and no state: Not found would say nobody wrote anything down.
-  await expect(log.getByText(/^The question needs a metric or a market, such as \w/)).toBeVisible()
+  // What the question lacks, and no state: Not found would say nobody wrote anything down.
+  await expect(log.getByText("The question doesn't name a metric or a market.")).toBeVisible()
   await expect(log.getByText('Not found', { exact: true })).toHaveCount(0)
   await expect(log.getByText('Nothing is written about this yet.')).toHaveCount(0)
-  await expect(log.getByText(/Ask also answers questions about the records/)).toBeVisible()
-  // What Ask can answer today, from the workspace: picking one asks it in the same chat.
-  const kinds = log.getByRole('group', { name: 'Questions Ask can answer' })
+  // The three kinds of question Ask answers, one to try each, and where every definition is.
+  const kinds = log.getByRole('list', { name: 'Questions Ask can answer' })
+  await expect(kinds.getByRole('listitem')).toHaveCount(3)
+  await expect(kinds).toContainText('About the records')
+  await expect(kinds.getByRole('button', { name: 'What dimensions are there?' })).toBeVisible()
+  await expect(
+    log.getByText(/^Definitions lists \d+ definitions: \d+ metrics and \d+ dimensions\.$/),
+  ).toBeVisible()
+  await expect(log.getByRole('link', { name: 'Definitions', exact: true })).toBeVisible()
+  // The one about a metric or a market comes from the workspace: picking it asks it in the same chat.
   const example = kinds.getByRole('button').first()
   const question = (await example.textContent())!
-  await expect(kinds.getByRole('button')).toHaveCount(2)
   await example.click()
   await expect(log.getByText(question, { exact: true }).last()).toBeVisible()
   await expect(log.getByRole('button', { name: /^Looked up \d+ context items?/ })).toBeVisible()
+})
+
+test('a typo in a name is offered the closest name, never read as it', async ({ page }) => {
+  await go(page, '/ask?n=j3t')
+  const box = page.getByRole('textbox', { name: 'Ask a question' })
+  await box.click()
+  await box.pressSequentially('what about chrun rate')
+  await box.press('Enter')
+  const log = page.getByRole('log')
+  await expect(log.getByRole('button', { name: 'Nothing was looked up' })).toBeVisible()
+  await expect(
+    log
+      .getByRole('list', { name: 'Questions Ask can answer' })
+      .getByRole('button', { name: 'What should I know about Churn rate?' }),
+  ).toBeVisible()
 })
 
 test('a question that was looked up and found nothing still gets Not found', async ({ page }) => {

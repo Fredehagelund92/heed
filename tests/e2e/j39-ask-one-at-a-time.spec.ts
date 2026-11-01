@@ -97,7 +97,7 @@ test('a question on its way asks nothing more: not a second click, Enter or Send
   await expect(turns).toHaveCount(3)
 
   // A double click on a question to try instead asks it once.
-  const instead = page.getByRole('log').getByRole('group', { name: 'Questions Ask can answer' })
+  const instead = page.getByRole('log').getByRole('list', { name: 'Questions Ask can answer' })
   await expect(instead.getByRole('button').first()).not.toHaveAttribute('aria-disabled')
   await instead.getByRole('button').first().dblclick()
   await until(page, turns.nth(3))

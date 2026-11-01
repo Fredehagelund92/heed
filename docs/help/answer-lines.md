@@ -24,7 +24,7 @@ Every answer, in the app and in your own agent, starts with one of six lines. Ea
 
 <!-- /include -->
 
-A question that names no metric and no market is not looked up, so its answer has none of the six lines. Ask says "Nothing was looked up", says why, and offers two questions it can answer. Not found is only for a question that was looked up and found nothing.
+A question that names no metric and no market is not looked up, so its answer has none of the six lines. Ask says "Nothing was looked up", says why, and offers one question to try for each kind it answers: about a metric or a market, about the records, and about what Definitions lists. Not found is only for a question that was looked up and found nothing.
 
 A question about the context itself, such as "what was created in the last 24 hours?", "what is due for a check in Sales?" or "who owns Orders?", gets an answer from the records instead. It starts with a Records chip, not one of the six lines: it counts what you can see in Context, and agents never read it.
 

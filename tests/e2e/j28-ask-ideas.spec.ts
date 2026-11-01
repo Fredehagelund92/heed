@@ -141,7 +141,7 @@ test('Asked this week: topics with the state Ask gives now and a count; an owner
   await expect(log.getByText(shown, { exact: true }).first()).toBeVisible()
 })
 
-test('an answer suggests nothing to ask next; a question Ask could not read offers two to try instead', async ({
+test('an answer suggests nothing to ask next; a question Ask could not read offers questions to try instead', async ({
   page,
 }) => {
   await ask(page, world.share)
@@ -154,14 +154,15 @@ test('an answer suggests nothing to ask next; a question Ask could not read offe
   )
   await expect(page.getByRole('group', { name: 'Suggested questions' })).toHaveCount(0)
 
-  // A dead end, a question that names nothing to look up, offers two questions to try instead.
+  // A dead end, a question that names nothing to look up, offers one question to try of each kind
+  // Ask answers.
   const box = page.getByRole('textbox', { name: 'Ask a question' })
   await box.click()
   await box.pressSequentially('tell me a joke')
   await box.press('Enter')
   await expect(log.getByText('Nothing was looked up').last()).toBeVisible()
-  const instead = log.getByRole('group', { name: 'Questions Ask can answer' })
-  await expect(instead.getByRole('button')).toHaveCount(2)
+  const instead = log.getByRole('list', { name: 'Questions Ask can answer' })
+  await expect(instead.getByRole('button')).toHaveCount(3)
   // Trying one asks it in the same chat.
   const pick = (await instead.getByRole('button').first().textContent())!
   await instead.getByRole('button').first().click()

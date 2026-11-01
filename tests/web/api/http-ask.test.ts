@@ -250,6 +250,72 @@ describe("Ask's answer from the engine", () => {
     )
   })
 
+  it('tells a question that names nothing what it lacks, with the names closest to its words', () => {
+    const named = (question: string) =>
+      answerOf(
+        result({
+          state: 'missing',
+          status: 'need_more_detail',
+          scope: null,
+          say: 'Nothing was looked up yet. The question needs a metric or a market, such as Orders.',
+          issues: [{ field: 'scope', input: question, options: ['metric:orders'] }],
+        }),
+        question,
+        names,
+      )
+    const typo = named('what about ordrs in Norwy')
+    expect(typo.state).toBeNull()
+    expect(typo.text).toBe("The question doesn't name a metric or a market.")
+    // Offered, never read as asked: the answer still looked nothing up.
+    expect(typo.closest).toEqual(['Norway', 'Orders'])
+    expect(typo.said).toMatch(/such as Orders\.$/)
+    expect(named('list 10 dimensions').closest).toEqual([])
+  })
+
+  it('gives the definition the source wrote beside the answer, and keeps its state', () => {
+    const a = answerOf(
+      result({
+        state: 'missing',
+        status: 'no_match',
+        definitions: [
+          {
+            key: 'metric:orders',
+            name: 'Orders',
+            words: 'Orders placed and paid for.',
+            shortened: false,
+            tool: 'Cube',
+            source: 'Cube local model',
+            ref: 'cube:orders.count',
+          },
+        ],
+      }),
+      'What are Orders?',
+      names,
+    )
+    expect(a.state).toBe('missing')
+    expect(a.definitions).toEqual([
+      { name: 'Orders', words: 'Orders placed and paid for.', tool: 'Cube' },
+    ])
+  })
+
+  it('says where context about a market is when the market alone found nothing', () => {
+    const a = answerOf(
+      result({
+        state: 'missing',
+        status: 'no_match',
+        scope: { ...norway, metrics: [] },
+        valueMetrics: ['metric:orders'],
+      }),
+      'What is written about Norway?',
+      names,
+    )
+    expect(a.state).toBe('missing')
+    expect(a.text).toBe(
+      'Nothing applies to Norway on its own. Context about Norway is written for a metric, such as Orders.',
+    )
+    expect(a.instead).toEqual(['What should I know about Orders in Norway?'])
+  })
+
   it('says what nothing is written for, and gives Not checked no words', () => {
     const missing = answerOf(result({ state: 'missing', status: 'no_match' }), 'Orders?', names)
     expect(missing.state).toBe('missing')

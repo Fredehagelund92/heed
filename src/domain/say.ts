@@ -101,8 +101,9 @@ function readNote(readsAs: string | null | undefined): string | null {
 
 /**
  * A resolved scope as a phrase people say: "Orders in the United Kingdom from 1 to 7 October 2026",
- * "Net revenue by market in September 2026". The metrics, then each dimension's values ("in" the
- * first, "for" the next) or "by" the dimension for every value, then the dates, with what the
+ * "Net revenue by market in September 2026", "Market in September 2026". The metrics, then each
+ * dimension's values ("in" the first, "for" the next) or "by" the dimension for every value (the
+ * dimension's name when nothing comes before it), then the dates, with what the
  * question's words named ("this year so far"). A reply that says the day it assumed leaves the
  * dates out.
  */
@@ -113,9 +114,13 @@ export function scopeWords(
 ): string {
   const parts = scope.metrics.length ? [list(scope.metrics.map((key) => nameOf(bundle, key)))] : []
   for (const [dimension, values] of Object.entries(scope.filters)) {
+    // A dimension with no values is "by market" after what it splits, and its own name alone:
+    // "Nothing is written down for Market", never "for by market".
     const names = values.length
       ? list(values.map((key) => nameOf(bundle, key)))
-      : `by ${midSentence(nameOf(bundle, dimension))}`
+      : parts.length
+        ? `by ${midSentence(nameOf(bundle, dimension))}`
+        : nameOf(bundle, dimension)
     parts.push(
       values.length && parts.length ? `${parts.length > 1 ? 'for' : 'in'} ${names}` : names,
     )

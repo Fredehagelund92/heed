@@ -5,7 +5,10 @@ import * as z from 'zod/mini'
   the API's contract, which the web app loads first, carries the shape and not the patterns.
 */
 
-/** The seven questions Records answers, by a stable id. A usage count keeps only these ids. */
+/**
+ * The questions Records answers, by a stable id. A usage count keeps only these ids. The last two
+ * are about the vocabulary itself: its metrics and dimensions (`terms`), and a dimension's values.
+ */
 export const recordsIntents = [
   'created',
   'changed',
@@ -14,6 +17,8 @@ export const recordsIntents = [
   'owner',
   'count',
   'asked_nothing',
+  'terms',
+  'values',
 ] as const
 export type RecordsIntent = (typeof recordsIntents)[number]
 
@@ -57,6 +62,16 @@ const rowSchema = z.union([
     title: z.string(),
     cells: z.array(z.string()),
     gap: z.nullable(z.object({ card: z.string(), draft: z.nullable(z.string()) })),
+  }),
+  /** A metric, a dimension or a dimension's value; it opens its page in Definitions (`page`). */
+  z.object({
+    type: z.literal('term'),
+    key: z.string(),
+    kind: z.enum(['metric', 'dimension', 'value']),
+    name: z.string(),
+    /** The name of the Definitions page it opens: its own, or its dimension's for a value. */
+    page: z.string(),
+    cells: z.array(z.string()),
   }),
   /** A kind's counts, or all kinds together (`kind` null). */
   z.object({
@@ -103,6 +118,8 @@ export const recordsAnswerSchema = z.union([
         to: z.enum(['context', 'definitions', 'domain']),
         domain: z.nullable(z.string()),
         status: z.nullable(z.enum(['due', 'archived'])),
+        /** One Definitions page by its name, such as a dimension with all its values. */
+        page: z.optional(z.string()),
       }),
     ),
     /** What a word in the answer means, when it needs saying: "Created means first published." */

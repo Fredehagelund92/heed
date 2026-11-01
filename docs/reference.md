@@ -727,7 +727,10 @@ could not run; `missing` when nothing was given or the question could not be rea
 when given items disagree; `partial` when an asked metric or value has no item that covers it in
 full (`uncovered` names them) or the dates were assumed; `stale` when a given item may be out of
 date; else `grounded`. Ask shows an answer whose status is `need_more_detail` with no state at all:
-"Nothing was looked up" and the reason its `say` gives, never Not found.
+"Nothing was looked up" and the reason its `say` gives, never Not found. When the question named
+nothing at all, Ask says so in its own words and offers the metrics and markets whose names are
+closest to the question's words (`suggestTerms`), never reading them as asked; agents get `say`
+and `next` as before.
 
 - `POST /ask/lookup` (Ask): a question (1 to 2,000 characters) and the names a person picked
   beside it (`metrics`, `dimension_filters`, `window`, as Try it), on the live edition. It answers
@@ -735,7 +738,13 @@ date; else `grounded`. Ask shows an answer whose status is `need_more_detail` wi
   `get_related` follows from its items, as an agent would (`on` is its switch): one step from
   each, to another item or a term it did not get already, with what the agent read there (an
   item's summary, a term's meaning), and the retired or replaced ones listed apart, never
-  followed. It never changes which items the answer has. With real models
+  followed. It never changes which items the answer has. For a question about what a metric means
+  (`asksDefinition`), `definitions` gives what the definition source says about each metric asked
+  (its words, at most 500 characters, the tool, the source and the ref), as `get_context` gives an
+  agent; a term an agent may not see, or one whose definition is limited to groups, has none. For a
+  question that names values and no metric and finds nothing, `valueMetrics` names the metrics the
+  context about those values is written for, most items first, at most three. Neither changes the
+  state or the items, and agents never get them. With real models
   (`MODELS=live`), a `words` event follows an answer that gives items: the words of
   `models.assistant`, written from those items only, each sentence that uses one ending with its
   number. The model decides nothing: the state, the items and what agents are told are the
@@ -752,12 +761,15 @@ date; else `grounded`. Ask shows an answer whose status is `need_more_detail` wi
 - A question about the context's own records (FR-718, `src/domain/records.ts`), asked as words with
   no `metrics`, `dimension_filters` or `window`, is not looked up: `POST /ask/lookup` answers with
   one `records` event. It has the intent (`created`, `changed`, `due`, `archived`, `owner`,
-  `count` or `asked_nothing`), what it was understood as, the period (ISO instants, and its words
-  in UTC), what was read, the sentence, at most five `rows` (a context item, a domain, a topic or
-  a kind's counts) with `columns`, the exact `total`, and where the full list lives (`more`). A
+  `count`, `asked_nothing`, `terms` for the metrics and dimensions Definitions lists, or `values`
+  for a dimension's values), what it was understood as, the period (ISO instants, and its words
+  in UTC), what was read, the sentence, at most five `rows` (a context item, a domain, a topic, a
+  term with the Definitions page it opens, or a kind's counts) with `columns`, the exact `total`,
+  and where the full list lives (`more`, with `page` for one Definitions page). A
   question about one person's work gets `refused: true` with its sentence and what to ask
   instead. Everything is counted in the request's own transaction from the items `GET /library`
-  lists for the person, their editions' times, the domains and their owners and, for
+  lists for the person, their editions' times, the domains and their owners, the live vocabulary
+  without a term whose definition the person's groups may not see (CON-509) and, for
   `asked_nothing`, Asked this week. `records_asked_weekly` counts which intent was asked each week
   (or `refused`), and nothing else.
 - `GET /ask/asked` (Asked this week): the topics agents asked about in the week of today (Monday

@@ -54,7 +54,10 @@ function KindGlyph({ kind }: { kind: RecordsKind }) {
   )
 }
 
-/** Where a row leads: a context item, a domain's page, or the Not found card open on a topic. */
+/**
+ * Where a row leads: a context item, a domain's page, a term's page in Definitions, or the Not
+ * found card open on a topic.
+ */
 function RowName({ row }: { row: RecordsRow }) {
   const { href, cn } = useParts()
   if (row.type === 'item')
@@ -67,6 +70,15 @@ function RowName({ row }: { row: RecordsRow }) {
   if (row.type === 'area')
     return (
       <a href={`/settings/domains/${row.id}`} className={cn(link, 'text-foreground')}>
+        {row.name}
+      </a>
+    )
+  if (row.type === 'term')
+    return (
+      <a
+        href={`/definitions/${encodeURIComponent(row.page)}`}
+        className={cn(link, 'text-foreground')}
+      >
         {row.name}
       </a>
     )
@@ -95,9 +107,11 @@ function RowName({ row }: { row: RecordsRow }) {
 const rowKey = (row: RecordsRow) =>
   row.type === 'item' || row.type === 'area'
     ? row.id
-    : row.type === 'topic'
-      ? row.title
-      : (row.kind ?? 'all')
+    : row.type === 'term'
+      ? row.key
+      : row.type === 'topic'
+        ? row.title
+        : (row.kind ?? 'all')
 
 /**
  * The rows: a small table where there is room, and on a narrow screen or in the right panel each
@@ -192,7 +206,9 @@ function More({ found }: { found: RecordsFound }) {
           status: more.status === 'archived' ? 'archived' : undefined,
         })
       : more.to === 'definitions'
-        ? href('/definitions', { domain: more.domain ?? undefined })
+        ? more.page
+          ? `/definitions/${encodeURIComponent(more.page)}`
+          : href('/definitions', { domain: more.domain ?? undefined })
         : `/settings/domains/${more.domain}`
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">

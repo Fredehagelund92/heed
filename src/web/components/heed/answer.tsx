@@ -20,7 +20,7 @@ import { TypeGlyph } from '@/components/heed/definition'
 import { ComingSoon, PersonAvatar } from '@/components/heed/bits'
 import { StateHelp } from '@/components/heed/state-help'
 import { ShareButton } from '@/components/heed/share-answer'
-import { Suggestions } from '@/components/heed/suggestions'
+import { Answering, Suggestions, suggestionClass } from '@/components/heed/suggestions'
 import { recordsParts } from '@/components/heed/records-parts'
 import { ReadingLine } from '@/components/heed/reading'
 import { answerKey, keepShown } from '@/lib/shown-answers'
@@ -36,14 +36,27 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { scopeText, type Answer, type AnswerLinks, type QuestionPart } from '@/model/ask'
+import {
+  scopeText,
+  type Answer,
+  type AnswerLinks,
+  type AskedDefinition,
+  type QuestionPart,
+} from '@/model/ask'
 import { MentionChip } from '@/components/heed/mention-chip'
 import type { Fact } from '@/model/items'
 import { openDock, useDock } from '@/lib/dock'
 import { href, useRoute } from '@/lib/router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ConflictPairCompact } from '@/components/heed/conflict-pair'
-import { conflictQuery, figureQuery, myReportsQuery, useAskExamples, useWrite } from '@/api/queries'
+import {
+  conflictQuery,
+  definitionsPageQuery,
+  figureQuery,
+  myReportsQuery,
+  useAskExamples,
+  useWrite,
+} from '@/api/queries'
 import { useDomains, useFacts, useMe } from '@/lib/workspace'
 import { SaveQuestion } from '@/components/obs/save-question'
 import { agentReply } from '@/lib/agent-reply'
@@ -813,10 +826,7 @@ function SomethingWrong({
   )
 }
 
-/**
- * A question that looked nothing up: what Ask answers today, with two questions from the workspace
- * to try, and what comes later. Nothing here says whether anything is written down.
- */
+/** Questions from the workspace to try instead, other than the one asked. */
 function useInsteadExamples(answer: Answer) {
   const asked = answer.question.toLowerCase()
   return useAskExamples()
@@ -825,26 +835,107 @@ function useInsteadExamples(answer: Answer) {
     .slice(0, 2)
 }
 
+/**
+ * A question that looked nothing up: the three kinds of question Ask answers, each with one to
+ * try, the one about a metric or a market made from the names closest to the words (else from the
+ * workspace), and where every definition is listed. Nothing here says whether anything is written
+ * down.
+ */
 function AskableKinds({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
-  const examples = useInsteadExamples(answer)
+  const answering = React.use(Answering)
+  const workspace = useInsteadExamples(answer)[0]
+  const close = answer.closest?.[0]
+  const kinds = [
+    {
+      kind: 'About a metric or a market',
+      question: close ? `What should I know about ${close}?` : workspace,
+    },
+    { kind: 'About the records', question: 'What changed this week?' },
+    { kind: 'About what Definitions lists', question: 'What dimensions are there?' },
+  ].filter((k): k is { kind: string; question: string } => !!k.question)
+  const definitions = useQuery(definitionsPageQuery()).data?.filter(
+    (d) => !d.sameAs && (d.type === 'metric' || d.type === 'dimension'),
+  )
+  const metrics = definitions?.filter((d) => d.type === 'metric').length ?? 0
+  const many = (n: number, one: string) =>
+    `${n.toLocaleString('en-GB')} ${one}${n === 1 ? '' : 's'}`
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        Ask answers questions about a metric or a market, or type @ to scope the question.
-        {onAsk && examples.length > 0 && ' For example:'}
+        Ask answers three kinds of question. Type @ to scope one to a metric or a market.
       </p>
-      {onAsk && <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />}
-      <p className="text-xs text-muted-foreground">
-        Ask also answers questions about the records, such as what is new, what is due for a check
-        or who owns a domain.
-      </p>
+      {onAsk && (
+        <ul aria-label="Questions Ask can answer" className="flex flex-col gap-2">
+          {kinds.map((k) => (
+            <li key={k.kind} className="flex flex-col items-start gap-1">
+              <span className="text-xs text-muted-foreground">{k.kind}</span>
+              <button
+                type="button"
+                aria-disabled={answering || undefined}
+                onClick={() => !answering && onAsk(k.question)}
+                className={suggestionClass}
+              >
+                {k.question}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {definitions && definitions.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          <a
+            href="/definitions"
+            className="rounded-sm font-medium text-foreground underline underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            Definitions
+          </a>{' '}
+          lists {many(definitions.length, 'definition')}: {many(metrics, 'metric')} and{' '}
+          {many(definitions.length - metrics, 'dimension')}.
+        </p>
+      )}
     </div>
   )
 }
 
-/** Two questions from the workspace to try after a Not found answer. */
+/**
+ * What the definition source says a metric means, beside the answer, as agents get it with theirs
+ * (FR-703). The source's own words, labelled as its; the state stays the context's.
+ */
+function AnswerDefinitions({ definitions }: { definitions: AskedDefinition[] }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {definitions.map((d) => (
+        <figure
+          key={d.name}
+          className="flex flex-col gap-1 rounded-surface border bg-background px-3 py-2.5 text-sm"
+        >
+          <figcaption className="text-xs text-muted-foreground">
+            <a
+              href={`/definitions/${encodeURIComponent(d.name)}`}
+              className="rounded-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {d.name}
+            </a>
+            , as {d.tool} defines it
+          </figcaption>
+          {d.words ? (
+            <blockquote className="text-pretty">{d.words}</blockquote>
+          ) : (
+            <p className="text-muted-foreground">{d.tool} gives no description of it.</p>
+          )}
+        </figure>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Questions to try after a Not found answer: for a market on its own, the same market with the
+ * metrics its context is written for; otherwise two from the workspace.
+ */
 function TryInstead({ answer, onAsk }: { answer: Answer; onAsk?: (q: string) => void }) {
-  const examples = useInsteadExamples(answer)
+  const workspace = useInsteadExamples(answer)
+  const examples = answer.instead?.length ? answer.instead : workspace
   if (!onAsk || examples.length === 0) return null
   return <Suggestions items={examples} onPick={onAsk} label="Questions Ask can answer" />
 }
@@ -1160,6 +1251,12 @@ function ContextAnswerBody({
             {/* The line opens a small card: what it means and what to do, from the list Help shares. */}
             {answer.state && <StateHelp state={answer.state} draft={!!draft} />}
             {note && <p className="-mt-1 text-sm text-muted-foreground">{note}</p>}
+          </div>
+        )}
+        {/* What the metric means, from its source: first, since that is what was asked. */}
+        {(writing || finished) && answer.definitions && (
+          <div className="animate-in duration-(--dur-3) fade-in-0">
+            <AnswerDefinitions definitions={answer.definitions} />
           </div>
         )}
         {/* The words arrive as they are written; a screen reader hears them once, when they are done or stopped. */}
