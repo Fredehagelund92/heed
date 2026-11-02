@@ -1,8 +1,8 @@
 /**
  * What Observability's Summary says in words (FR-620): fixed templates over its counts, never
- * written by a model, and a sentence shows only when its count is shown. The web app says them on
- * the page; the service says them once when it takes a monthly snapshot and keeps them with its
- * counts, so a digest printed from the snapshot later reads as it did that day. Pure: the counts
+ * written by a model, and a sentence shows only when its count is shown. The service says them
+ * once when it takes a monthly snapshot and keeps them with its counts, so the snapshot read later
+ * says what it did that day. Pure: the counts
  * come already through the disclosure pass (src/domain/obs-summary.ts), a hidden one as null.
  */
 import { ACT_DAYS, caughtTriggers, type CaughtTrigger, type CaughtView } from './obs-summary.ts'

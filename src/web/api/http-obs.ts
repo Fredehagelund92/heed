@@ -4,17 +4,7 @@
  * nothing here adds a count up into one the service did not give.
  */
 import type { Replay as ServiceReplay } from '@contract/answer'
-import type {
-  ObsAgents,
-  ObsFeedback,
-  ObsSnapshot,
-  ObsSnapshotItem,
-  ObsSnapshotTake,
-  ObsSummary,
-  ObsTopic,
-  ObsUsage,
-  ObsView,
-} from '@contract/observability'
+import type { ObsAgents, ObsFeedback, ObsTopic, ObsUsage, ObsView } from '@contract/observability'
 import { appFamilies, appFamilyNames, type AppFamily } from '@domain/app-family'
 import type { Answer } from '@/model/ask'
 import { stateLabel } from '@/model/ask'
@@ -29,7 +19,6 @@ import {
   type Report,
   type Topic,
 } from '@/model/observability'
-import type { Snapshot, SnapshotItem, SummaryData } from '@/model/obs-summary'
 import { NEXT, type Replay, type ReplayStep } from '@/model/replay'
 
 const none = { grounded: null, partial: null, conflict: null, stale: null, missing: null }
@@ -71,92 +60,6 @@ function gapOf(gap: ObsTopic['gap']): Topic['gap'] {
     return { label: 'A suggestion waits', href: `/inbox/${gap.proposalId}/review` }
   return { label: 'No draft yet', href: `/inbox?card=gap:${gap.id}` }
 }
-
-/**
- * Summary's page from the service's read: days as UTC timestamps, where an open spot waits. A
- * snapshot taken before what was caught was counted has none.
- */
-export function obsSummaryOf(
-  s: Omit<ObsSummary, 'caught'> & { caught?: ObsSummary['caught'] | undefined },
-): SummaryData {
-  const period = (p: ObsSummary['now']) => ({ start: atOf(p.start), end: atOf(p.end) })
-  return {
-    state: s.state,
-    period: s.period,
-    last: atOf(s.last),
-    now: period(s.now),
-    before: period(s.before),
-    since: s.since ? atOf(s.since) : null,
-    complete: s.complete,
-    numbers: s.numbers,
-    previous: s.previous,
-    notCompared: s.notCompared,
-    weeks: s.weeks.map((w) => ({
-      at: atOf(w.start),
-      counted: w.counted,
-      checked: w.checked,
-    })),
-    open: {
-      total: s.open.total,
-      spots: s.open.spots.map((o) => {
-        const gap = gapOf({ id: o.id, state: o.state, proposalId: o.proposalId })!
-        return {
-          id: o.id,
-          title: o.title,
-          ...(o.areaId ? { domain: o.areaId } : {}),
-          since: atOf(o.firstSeen),
-          missing: o.missing,
-          label: gap.label,
-          href: gap.href,
-        }
-      }),
-    },
-    changes: {
-      total: s.changes.total,
-      before: s.changes.before,
-      latest: s.changes.latest.map((c) => ({
-        at: Date.parse(c.at),
-        title: c.title,
-        ...(c.areaId ? { domain: c.areaId } : {}),
-        by: c.by ?? 'Someone',
-        href: `/context/${c.itemId}`,
-      })),
-    },
-    ...(s.caught ? { caught: s.caught } : {}),
-    hidden: s.hidden,
-  }
-}
-
-/** A monthly snapshot as a list shows it. */
-export function obsSnapshotItemOf(s: ObsSnapshotItem): SnapshotItem {
-  return {
-    id: s.id,
-    ...(s.areaId ? { domain: s.areaId } : {}),
-    now: { start: atOf(s.now.start), end: atOf(s.now.end) },
-    takenOn: atOf(s.takenOn),
-    state: s.state,
-  }
-}
-
-/** A snapshot as its digest reads it: the Summary's counts, with no list kept, and its words. */
-export function obsSnapshotOf(s: ObsSnapshot): Snapshot {
-  const { open, changes } = s.summary
-  return {
-    ...obsSnapshotItemOf(s),
-    data: obsSummaryOf({
-      ...s.summary,
-      open: { total: open.total, spots: [] },
-      changes: { ...changes, latest: [] },
-    }),
-    words: s.words,
-  }
-}
-
-/** The month a snapshot was taken of, and how many scopes it was taken for. */
-export const obsSnapshotTakeOf = (t: ObsSnapshotTake) => ({
-  now: { start: atOf(t.now.start), end: atOf(t.now.end) },
-  taken: t.taken,
-})
 
 export function topicOf(t: ObsTopic): Topic {
   return {

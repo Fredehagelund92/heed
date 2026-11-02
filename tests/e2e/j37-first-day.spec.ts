@@ -30,9 +30,9 @@ test("each page's tab and heading say its name alone", async ({ page }) => {
   await go(page, '/context')
   await expect(page).toHaveTitle(/^Context - /)
   // A page under a trail of links: the heading is where it ends, never the trail run together.
-  await go(page, '/observability/summary')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Summary')
-  await expect(page).toHaveTitle(/^Summary - /)
+  await go(page, '/observability/overview')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Overview')
+  await expect(page).toHaveTitle(/^Overview - /)
   await go(page, '/settings/people')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('People')
   await expect(page).toHaveTitle(/^People - /)

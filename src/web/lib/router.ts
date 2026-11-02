@@ -14,10 +14,15 @@ export function bindRouter(r: AnyRouter) {
   router = r
 }
 
+/** Observability's Summary, or one of its monthly digests. */
+const SUMMARY = /^\/observability\/summary(\/[^/]*)?\/?$/
+
 /**
  * Old addresses keep working: a #/ link from the hash router, the Library that became Context and
  * Definitions, the Definitions tab that became the Cube integration, About our business that became
- * General, and a peek's `fact` that became `context`. Returns where to go instead, or null.
+ * General, a peek's `fact` that became `context`, and Observability's Summary and its monthly
+ * digests, which went: they land on Overview, without the Summary's own `period`. Returns where to
+ * go instead, or null.
  */
 export function redirectFrom(
   location: Pick<ParsedLocation, 'pathname' | 'searchStr' | 'hash'>,
@@ -26,13 +31,21 @@ export function redirectFrom(
     ? (location.hash.split('?') as [string, string?])
     : [location.pathname, location.searchStr.replace(/^\?/, '')]
   const search = fromSearch ?? ''
+  const summary = SUMMARY.test(fromPath)
   const path = fromPath
     .replace(/^\/library\/(definitions|metrics)(?=\/|$)/, '/definitions')
     .replace(/^\/library\/fact\/([^/]+)/, '/context/$1')
     .replace(/^\/library(?=\/|$)/, '/context')
     .replace(/^\/settings\/definitions(?=\/|$)/, '/settings/integrations/cube')
     .replace(/^\/settings\/about(?=\/|$)/, '/settings/general')
-  const query = search.replace(/(^|&)dock=fact\./, '$1dock=context.')
+    .replace(SUMMARY, '/observability/overview')
+  const kept = summary
+    ? search
+        .split('&')
+        .filter((p) => p && !/^(period|snapshot)=/.test(p))
+        .join('&')
+    : search
+  const query = kept.replace(/(^|&)dock=fact\./, '$1dock=context.')
   if (!location.hash.startsWith('/') && path === fromPath && query === search) return null
   return `${path}${query ? `?${query}` : ''}`
 }

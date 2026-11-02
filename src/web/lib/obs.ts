@@ -1,6 +1,5 @@
 import {
   BellIcon,
-  FileTextIcon,
   GaugeIcon,
   LayoutGridIcon,
   ListChecksIcon,
@@ -24,14 +23,10 @@ import type { DomainId } from '@/model/items'
 import { useRoute } from '@/lib/router'
 import { useDomains, useMe } from '@/lib/workspace'
 
-// Observability's map: seven pages in four small groups, who sees them, and what each is for.
-// Summary comes first: the page to pass on, over fixed calendar periods.
+// Observability's map: six pages in three small groups, who sees them, and what each is for.
+// Overview comes first, and is where Observability opens.
 
 export const OBS_SECTIONS = [
-  {
-    group: 'At a glance',
-    items: [{ id: 'summary', title: 'Summary', icon: FileTextIcon }],
-  },
   {
     group: 'Agents',
     items: [
@@ -63,8 +58,6 @@ export const seesObservability = (me: { admin: boolean; owns: string[] }) =>
 
 /** What each page is for, in a line under its title. */
 export const OBS_PURPOSE: Record<ObsSection, string> = {
-  summary:
-    'How answers went over the last whole month or quarter, in a page to pass on. Counts only: never the words of a question or who asked.',
   overview:
     'What agents asked and what they got. Counts only: the words of a question are never kept.',
   questions:
@@ -125,7 +118,7 @@ export const useObsPageQuery = (section: ObsSection) =>
 /** The page in the address, which its own read loaded before anything under it draws. */
 function useObsData(): ObsData {
   const { parts } = useRoute()
-  const section = (parts[1] && parts[1] in OBS_PURPOSE ? parts[1] : 'summary') as ObsSection
+  const section = (parts[1] && parts[1] in OBS_PURPOSE ? parts[1] : 'overview') as ObsSection
   return useSuspenseQuery(observabilityPageQuery(obsPageInput(section, useObsAddress()))).data
 }
 

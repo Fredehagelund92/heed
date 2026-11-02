@@ -45,7 +45,6 @@ const places = [
   '/context/conflicts/itm_france_switch_12.itm_france_switch_21',
   '/settings/integrations?state=failed',
   '/settings/integrations?state=reauth',
-  '/observability/summary',
   '/observability/overview',
   '/observability/questions',
   '/observability/questions?sort=name&dir=desc',
