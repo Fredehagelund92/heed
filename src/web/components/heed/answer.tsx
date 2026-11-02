@@ -724,7 +724,7 @@ function SourceChip({
   const label = (
     <>
       <span className="text-muted-foreground tabular-nums">{n}</span>
-      <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />{' '}
       <span className="truncate">{fact.title}</span>
     </>
   )
