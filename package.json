@@ -1,6 +1,6 @@
 {
   "name": "heed",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "A governed library of checked facts that AI agents read before they answer",
