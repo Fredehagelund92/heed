@@ -11,7 +11,7 @@ A suggestion waits in its owner's Inbox. The quick view says what changes; the r
 
 ## The quick view
 
-Select a suggestion in the Inbox to see what changes, who sent it, and anything that needs care, such as claims to check. Review opens the full screen.
+Select a suggestion in the Inbox to see what changes, who sent it, and anything that needs care, such as claims to check. The button at the foot opens the full screen and says what you decide there: Review, Decide how they relate for a suggestion that clashes with live context, or Check the draft for a draft of what agents could not answer. The words beside it say what follows.
 
 ## The review
 

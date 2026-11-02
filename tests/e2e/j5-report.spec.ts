@@ -8,8 +8,8 @@ test('an owner answers a report', async ({ page }) => {
   await expect(
     page.getByText(
       mode === 'http'
-        ? /By Maria Lindqvist, from Ask\./
-        : /By Maria Lindqvist, from a chat with an agent/,
+        ? /Reported by Maria Lindqvist from Ask,/
+        : /Reported by Maria Lindqvist from a chat with an agent,/,
     ),
   ).toBeVisible()
   await page.getByRole('button', { name: 'Not a problem' }).click()

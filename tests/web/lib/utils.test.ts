@@ -9,5 +9,7 @@ describe('a time label inside a sentence', () => {
     expect(midSentence('Since 2 Oct')).toBe('since 2 Oct')
     expect(midSentence('23 Oct')).toBe('23 Oct')
     expect(midSentence('21 Oct 2025')).toBe('21 Oct 2025')
+    expect(midSentence('Tue 20 Oct')).toBe('Tue 20 Oct')
+    expect(midSentence('October 2026')).toBe('October 2026')
   })
 })

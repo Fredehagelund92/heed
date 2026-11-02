@@ -494,7 +494,7 @@ test('Alerts: rules as sentences that raise Inbox cards, thresholds for admins, 
   await go(page, '/observability/alerts')
   await page.getByRole('link', { name: alert.title }).first().click()
   await expect(page).toHaveURL(/\/inbox\?card=alert/)
-  await expect(page.getByText(`From the alert rule ${alert.rule}.`)).toBeVisible()
+  await expect(page.getByText(`Raised by the alert rule ${alert.rule},`)).toBeVisible()
   await page.getByRole('button', { name: alert.open }).click()
   await expect(page).toHaveURL(alert.to)
 

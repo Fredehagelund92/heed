@@ -1,37 +1,33 @@
 import * as React from 'react'
 import {
-  ArchiveIcon,
   ArrowLeftIcon,
   ArrowLeftRightIcon,
   AtSignIcon,
-  BanIcon,
   MessageSquareTextIcon,
-  CalendarClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   CircleCheckIcon,
-  CircleDashedIcon,
   ClockIcon,
-  FlagIcon,
-  GitPullRequestArrowIcon,
+  type FlagIcon,
   InboxIcon,
   MailOpenIcon,
   MessageSquareIcon,
-  PencilIcon,
   SearchIcon,
   TriangleAlertIcon,
-  BellIcon,
 } from '@/components/icons'
 import { toast } from 'sonner'
 import { cn, midSentence } from '@/lib/utils'
-import { DomainBadge, FieldDiff } from '@/components/heed/bits'
+import { FieldDiff } from '@/components/heed/bits'
 import { Mark } from '@/components/heed/mark'
 import { marksExceptions } from '@/lib/marks'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { pairOfKey } from '@/model/conflicts'
 import { connectorById } from '@/model/integrations'
 import { careLine, countWord, type Review } from '@/model/review'
-import { QuickReview, Sender } from '@/pages/review'
+import { QuickHead, QuickReview } from '@/pages/review'
+import { cardIcon, PaneFoot, PaneHead, PrimaryAction } from '@/components/heed/inbox-pane'
+import { Panel } from '@/components/heed/panel'
+import { follows, paneState, primaryLabel } from '@/model/inbox-pane'
 import { TOUCH } from '@/lib/touch'
 import { SiteHeader } from '@/components/site-header'
 import { Button } from '@/components/ui/button'
@@ -58,7 +54,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/componen
 import { TextSwitch } from '@/components/heed/switches'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { scopeText } from '@/model/ask'
-import { cardTypeLabel, type CardType, type InboxCard, type Waiting } from '@/model/inbox'
+import type { InboxCard, Waiting } from '@/model/inbox'
 import type { DomainId, Fact } from '@/model/items'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { openDock, useDock } from '@/lib/dock'
@@ -116,15 +112,6 @@ function Cell({ className, ...props }: React.ComponentProps<typeof Card>) {
   return (
     <Card className={cn('rounded-none bg-background shadow-none ring-0', className)} {...props} />
   )
-}
-
-const typeIcon: Record<CardType, typeof FlagIcon> = {
-  suggestion: GitPullRequestArrowIcon,
-  gap: CircleDashedIcon,
-  flag: FlagIcon,
-  check: CalendarClockIcon,
-  look: TriangleAlertIcon,
-  alert: BellIcon,
 }
 
 /* ---------- the list ---------- */
@@ -284,7 +271,7 @@ function InboxList({
         const Icon = review
           ? suggestionIcon(review)
           : row.kind === 'card'
-            ? typeIcon[row.card.type]
+            ? cardIcon[row.card.type]
             : row.kind === 'mention' || row.note
               ? AtSignIcon
               : ClockIcon
@@ -436,7 +423,7 @@ function IconAction({
   return (
     <Tooltip>
       <TooltipTrigger
-        render={<Button variant="outline" size="icon-sm" disabled={disabled} onClick={onClick} />}
+        render={<Button variant="ghost" size="icon" disabled={disabled} onClick={onClick} />}
       >
         <Icon />
         <span className="sr-only">{label}</span>
@@ -446,6 +433,60 @@ function IconAction({
         {shortcut && <Kbd className="ml-1">{shortcut}</Kbd>}
       </TooltipContent>
     </Tooltip>
+  )
+}
+
+/** How the pane moves: J and K through the list, back to it on a phone, and where in it you are. */
+type PaneNav = {
+  onStep: (d: 1 | -1) => void
+  onBack?: () => void
+  /** "3 of 20 in Needs me". */
+  position?: string
+}
+
+/**
+ * The pane's frame, the shared panel anatomy: a quiet 48 px bar with where you are in the list and
+ * the arrows, one scrolling body that opens on the card's head, and the foot with the decision.
+ */
+function InboxPanel({
+  label,
+  nav: { onStep, onBack, position },
+  foot,
+  children,
+}: {
+  label: string
+  nav: PaneNav
+  foot?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <Panel
+      label={label}
+      title={position ?? label}
+      quietTitle
+      className="group/pane"
+      leading={
+        onBack && (
+          <Button variant="ghost" size="icon" aria-label="Back to the list" onClick={onBack}>
+            <ArrowLeftIcon />
+          </Button>
+        )
+      }
+      actions={
+        <>
+          <IconAction
+            label="Previous"
+            shortcut="K"
+            icon={ChevronUpIcon}
+            onClick={() => onStep(-1)}
+          />
+          <IconAction label="Next" shortcut="J" icon={ChevronDownIcon} onClick={() => onStep(1)} />
+        </>
+      }
+      footer={foot}
+    >
+      {children}
+    </Panel>
   )
 }
 
@@ -521,66 +562,37 @@ function useActions(card: InboxCard) {
 type Decision = { outcome: string; message: string; description?: string; patch?: Partial<Fact> }
 const Decide = React.createContext<(card: InboxCard, d: Decision) => void>(() => {})
 
-const secondaryIcon: Record<string, typeof FlagIcon> = {
-  'Not something we write down': BanIcon,
-  'Not a problem': BanIcon,
-  Edit: PencilIcon,
-  Archive: ArchiveIcon,
-}
-
+/**
+ * Where a card came from, in one short line after its summary: who or what raised it, and when.
+ * A suggestion's line is its sender's (Sender), so it is not here.
+ */
 function from(card: InboxCard) {
-  if (card.source)
-    return `From ${card.source.tool}, ${card.source.folder}: created by a read, not by a person.`
+  const when = midSentence(card.when)
   const s = card.suggestion
+  if (card.source) return `From ${card.source.tool}, ${card.source.folder}, ${when}`
   if (s)
-    return s.agent
-      ? `From ${s.agent}, sent with ${s.from}'s OK.`
-      : `From ${s.from}, ${s.via === 'editor' ? 'written in the editor' : `from ${s.via}`}.`
+    return s.agent ? `From ${s.agent}, with ${s.from}'s OK, ${when}` : `From ${s.from}, ${when}`
   if (card.flag)
     return card.flag.by
-      ? `By ${card.flag.by}, from ${card.flag.via === 'Ask' ? 'Ask' : 'a chat with an agent'}. Only what was sent is kept: the words and the question.`
-      : 'From a chat with an agent. Only the words that were sent are kept, not who sent them.'
-  if (card.look) return 'From an alert, after the check that runs after every change.'
-  if (card.alert) return `From the alert rule ${card.alert.name}.`
-  return 'From an automatic check.'
-}
-
-function Toolbar({
-  children,
-  onStep,
-  onBack,
-}: {
-  children?: React.ReactNode
-  onStep: (d: 1 | -1) => void
-  onBack?: () => void
-}) {
-  return (
-    <CardAction className="flex items-center gap-2">
-      {onBack && (
-        <Button variant="outline" size="icon-sm" aria-label="Back to the list" onClick={onBack}>
-          <ArrowLeftIcon />
-        </Button>
-      )}
-      {children}
-      <IconAction label="Previous" shortcut="K" icon={ChevronUpIcon} onClick={() => onStep(-1)} />
-      <IconAction label="Next" shortcut="J" icon={ChevronDownIcon} onClick={() => onStep(1)} />
-    </CardAction>
-  )
+      ? `Reported by ${card.flag.by} from ${card.flag.via === 'Ask' ? 'Ask' : 'a chat with an agent'}, ${when}`
+      : `Reported from a chat with an agent, ${when}`
+  if (card.gap) return `From what agents asked ${when}`
+  if (card.look || card.alert)
+    return `Raised by ${card.alert ? `the alert rule ${card.alert.name}` : 'an alert'}, ${when}`
+  return `Due ${when}, from an automatic check`
 }
 
 function CardDetail({
   card,
   done,
   note,
-  onStep,
-  onBack,
+  nav,
   next,
 }: {
   card: InboxCard
   done?: Outcome
   note?: MentionNote
-  onStep: (d: 1 | -1) => void
-  onBack?: () => void
+  nav: PaneNav
   next: () => void
 }) {
   const { primary, secondary, online, writes } = useActions(card)
@@ -597,52 +609,75 @@ function CardDetail({
   const fact = card.factId ? facts.find((f) => f.id === card.factId) : undefined
   const s = card.suggestion
   const changed = s?.changes.filter((c) => c.before !== c.after) ?? []
-  // A suggestion's pane is the quick view: what changes, and Review to open the full screen.
+  // A suggestion's pane is the quick view: what changes, and the decision that opens the full screen.
   const review = reviews.find((r) => r.id === card.id)
+  const offline = !online && (writes || card.secondary.some((l) => l !== 'Edit'))
+
+  const foot = done ? (
+    <div className="flex h-bar items-center gap-3 px-4 @md:pl-7">
+      <p className="flex flex-1 items-center gap-2 text-sm text-muted-foreground">
+        <CircleCheckIcon className="size-4" aria-hidden /> {done.label}, {midSentence(done.at)}.
+      </p>
+      {note && <MentionDone subject={note.subject} next={next} />}
+    </div>
+  ) : (
+    <PaneFoot
+      follows={offline ? "Offline: changes wait until you're back." : follows(card, review)}
+    >
+      {card.secondary.map((label) => (
+        <Button
+          key={label}
+          variant="outline"
+          size="lg"
+          disabled={label !== 'Edit' && waits}
+          onClick={secondary[label]}
+        >
+          {label}
+        </Button>
+      ))}
+      <PrimaryAction disabled={writes && !online} onClick={primary}>
+        {primaryLabel(card, review)}
+      </PrimaryAction>
+    </PaneFoot>
+  )
 
   return (
-    <Cell className="group/pane h-full gap-0 py-0">
-      <CardHeader className="border-b px-4 py-4">
-        <CardTitle className="text-base">{card.title}</CardTitle>
-        {review ? (
-          // One author line with the time; the summary below is the only other heading-like text.
-          <CardDescription>
-            <Sender r={review} when={midSentence(card.when)} />
-          </CardDescription>
-        ) : (
-          <CardDescription>
-            {cardTypeLabel[card.type]}, {midSentence(card.when)}. {from(card)}
-          </CardDescription>
-        )}
-        <Toolbar onStep={onStep} onBack={onBack}>
-          {card.secondary.map((label) => (
-            <IconAction
-              key={label}
-              label={label}
-              icon={secondaryIcon[label]!}
-              disabled={!!done || (label !== 'Edit' && waits)}
-              onClick={secondary[label]!}
-            />
-          ))}
-        </Toolbar>
-      </CardHeader>
+    <InboxPanel label={card.title} nav={nav} foot={foot}>
+      {review ? (
+        <QuickHead
+          r={review}
+          state={paneState(card, review)}
+          title={card.title}
+          domain={card.domain}
+          when={midSentence(card.when)}
+        />
+      ) : (
+        <PaneHead
+          state={paneState(card)}
+          domain={card.domain}
+          title={card.title}
+          summary={card.line}
+          from={from(card)}
+        />
+      )}
       {/* J and K move between cards often: the next card is there at once. */}
-      <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5">
+      <div className="max-w-2xl px-4 pb-6 @md:px-7">
         {review ? (
-          <div className="max-w-2xl">
+          <>
             {note && <MentionBlock note={note} href={`/inbox/${card.id}/review`} />}
             <NewReply id={card.id} />
-            <QuickReview r={review} sender={false} />
-          </div>
+            <QuickReview r={review} />
+          </>
         ) : (
-          <div className="flex max-w-2xl flex-col gap-4 text-sm leading-relaxed">
-            {card.domain && (
-              <div>
-                <DomainBadge id={card.domain} />
-              </div>
-            )}
-            <p>{card.line}</p>
+          <div className="flex flex-col gap-4 text-sm leading-relaxed">
             <p className="text-muted-foreground">{card.detail}</p>
+            {card.flag && (
+              <p className="text-muted-foreground">
+                {card.flag.by
+                  ? 'Only what was sent is kept: their words and the question.'
+                  : 'Only the words that were sent are kept, not who sent them.'}
+              </p>
+            )}
             {s?.note && (
               <blockquote className="border-l-2 pl-3 text-muted-foreground italic">
                 “{s.note}”
@@ -683,40 +718,8 @@ function CardDetail({
             )}
           </div>
         )}
-      </CardContent>
-      <CardFooter className="h-bar shrink-0 gap-3 rounded-none border-t bg-background px-4">
-        {done ? (
-          <>
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CircleCheckIcon className="size-4" aria-hidden /> {done.label},{' '}
-              {midSentence(done.at)}.
-            </p>
-            {note && <MentionDone subject={note.subject} next={next} />}
-          </>
-        ) : (
-          <>
-            {!online && (writes || card.secondary.some((l) => l !== 'Edit')) ? (
-              <p className="truncate text-sm text-muted-foreground">
-                Offline: changes wait until you're back.
-              </p>
-            ) : null}
-            {/* The key, only while the pointer is on the pane: it is for people who already work with the keyboard. */}
-            <span className="hidden text-xs text-muted-foreground opacity-0 transition-opacity group-hover/pane:opacity-100 md:inline pointer-coarse:hidden">
-              <Kbd>Enter</Kbd> to {card.primary.toLowerCase()}
-            </span>
-            <Button
-              size="sm"
-              className="ml-auto max-sm:flex-1"
-              data-primary
-              disabled={writes && !online}
-              onClick={primary}
-            >
-              {card.primary}
-            </Button>
-          </>
-        )}
-      </CardFooter>
-    </Cell>
+      </div>
+    </InboxPanel>
   )
 }
 
@@ -769,10 +772,7 @@ function MentionBlock({
 function MentionDone({ subject, next }: { subject: Subject; next: () => void }) {
   const commentActions = useCommentActions()
   return (
-    <Button
-      size="sm"
-      className="ml-auto max-sm:flex-1"
-      data-primary
+    <PrimaryAction
       onClick={() => {
         void commentActions.seenMention(subject)
         toast('Done', { description: 'The comment stays in the thread.' })
@@ -780,7 +780,7 @@ function MentionDone({ subject, next }: { subject: Subject; next: () => void }) 
       }}
     >
       Done
-    </Button>
+    </PrimaryAction>
   )
 }
 
@@ -807,43 +807,38 @@ function Thread({ subject, domain }: { subject: Subject; domain: DomainId }) {
 function WaitingDetail({
   item,
   note,
-  onStep,
-  onBack,
+  nav,
   next,
 }: {
   item: Waiting
   note?: MentionNote
-  onStep: (d: 1 | -1) => void
-  onBack?: () => void
+  nav: PaneNav
   next: () => void
 }) {
   return (
-    <Cell className="h-full gap-0 py-0">
-      <CardHeader className="border-b px-4 py-4">
-        <CardTitle className="text-base">{item.title}</CardTitle>
-        <CardDescription>
-          Your suggestion, sent {item.sent.toLowerCase() === 'today' ? 'today' : `on ${item.sent}`}.
-        </CardDescription>
-        <Toolbar onStep={onStep} onBack={onBack} />
-      </CardHeader>
-      <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5 text-sm">
-        <div className="flex max-w-2xl flex-col gap-4">
-          {note && <MentionBlock note={note} />}
-          <div>
-            <DomainBadge id={item.domain} />
-          </div>
-          <p className="text-muted-foreground">
-            Waiting for {item.waitingFor}. You'll see here when it is published or returned.
-          </p>
-          <Thread subject={`review:${item.card}`} domain={item.domain} />
-        </div>
-      </CardContent>
-      {note && (
-        <CardFooter className="h-bar shrink-0 gap-3 rounded-none border-t bg-background px-4">
-          <MentionDone subject={note.subject} next={next} />
-        </CardFooter>
-      )}
-    </Cell>
+    <InboxPanel
+      label={item.title}
+      nav={nav}
+      foot={
+        note && (
+          <PaneFoot>
+            <MentionDone subject={note.subject} next={next} />
+          </PaneFoot>
+        )
+      }
+    >
+      <PaneHead
+        state={{ label: 'Waiting on others', icon: 'waiting', tone: 'neutral' }}
+        domain={item.domain}
+        title={item.title}
+        summary={`Waiting for ${item.waitingFor}. You'll see here when it is published or returned.`}
+        from={`Your suggestion, sent ${item.sent.toLowerCase() === 'today' ? 'today' : `on ${item.sent}`}`}
+      />
+      <div className="flex max-w-2xl flex-col gap-4 px-4 pb-6 text-sm @md:px-7">
+        {note && <MentionBlock note={note} />}
+        <Thread subject={`review:${item.card}`} domain={item.domain} />
+      </div>
+    </InboxPanel>
   )
 }
 
@@ -852,15 +847,13 @@ function MentionDetail({
   subject,
   title,
   note,
-  onStep,
-  onBack,
+  nav,
   next,
 }: {
   subject: Subject
   title: string
   note: MentionNote
-  onStep: (d: 1 | -1) => void
-  onBack?: () => void
+  nav: PaneNav
   next: () => void
 }) {
   const [kind, id] = subject.split(':')
@@ -871,32 +864,30 @@ function MentionDetail({
   const card = kind === 'review' ? cards.find((c) => c.id === id) : undefined
   const domain = fact?.domain ?? card?.domain ?? 'sales'
   return (
-    <Cell className="h-full gap-0 py-0">
-      <CardHeader className="border-b px-4 py-4">
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription>
-          A comment on {fact ? 'a context item' : 'a suggestion'} in {domains[domain]?.name}.
-          Comments are not part of what agents get.
-        </CardDescription>
-        <Toolbar onStep={onStep} onBack={onBack} />
-      </CardHeader>
-      <CardContent className="@container min-h-0 flex-1 overflow-y-auto px-4 py-5 text-sm">
-        <div className="flex max-w-2xl flex-col gap-4">
-          <MentionBlock
-            note={note}
-            href={fact ? `/context/${fact.id}` : undefined}
-            link="Open the context item"
-          />
-          <Thread subject={subject} domain={domain} />
-        </div>
-      </CardContent>
-      <CardFooter className="h-bar shrink-0 gap-3 rounded-none border-t bg-background px-4">
-        <span className="hidden text-xs text-muted-foreground md:inline">
-          Reply in the thread, or mark it done.
-        </span>
-        <MentionDone subject={note.subject} next={next} />
-      </CardFooter>
-    </Cell>
+    <InboxPanel
+      label={title}
+      nav={nav}
+      foot={
+        <PaneFoot follows="Reply in the thread, or mark it done">
+          <MentionDone subject={note.subject} next={next} />
+        </PaneFoot>
+      }
+    >
+      <PaneHead
+        state={{ label: 'Mentioned you', icon: 'mention', tone: 'neutral' }}
+        domain={domain}
+        title={title}
+        from={`A comment on ${fact ? 'a context item' : 'a suggestion'} in ${domains[domain]?.name}`}
+      />
+      <div className="flex max-w-2xl flex-col gap-4 px-4 pb-6 text-sm @md:px-7">
+        <MentionBlock
+          note={note}
+          href={fact ? `/context/${fact.id}` : undefined}
+          link="Open the context item"
+        />
+        <Thread subject={subject} domain={domain} />
+      </div>
+    </InboxPanel>
   )
 }
 
@@ -1209,6 +1200,13 @@ export function InboxPage() {
   const allDone = tab === 'needs' && needing.length === 0
 
   const back = isMobile ? () => select(undefined) : undefined
+  const at = ids.indexOf(selectedId ?? '')
+  const nav: PaneNav = {
+    onStep: step,
+    onBack: back,
+    position:
+      at < 0 ? undefined : `${at + 1} of ${ids.length} in ${tab === 'all' ? 'All' : 'Needs me'}`,
+  }
   const detail = selected ? (
     selected.kind === 'card' ? (
       <CardDetail
@@ -1216,18 +1214,16 @@ export function InboxPage() {
         card={selected.card}
         done={selected.done}
         note={selected.note}
-        onStep={step}
+        nav={nav}
         next={next}
-        onBack={back}
       />
     ) : selected.kind === 'waiting' ? (
       <WaitingDetail
         key={selected.item.id}
         item={selected.item}
         note={selected.note}
-        onStep={step}
+        nav={nav}
         next={next}
-        onBack={back}
       />
     ) : (
       <MentionDetail
@@ -1235,9 +1231,8 @@ export function InboxPage() {
         subject={selected.subject}
         title={selected.title}
         note={selected.note}
-        onStep={step}
+        nav={nav}
         next={next}
-        onBack={back}
       />
     )
   ) : (
@@ -1355,11 +1350,20 @@ export function InboxPage() {
           <MessageSquareIcon />
         </Button>
       </SiteHeader>
+      {/* On a phone an open card is a screen of its own, edge to edge, not a box inside the frame. */}
       <div
-        className="@container/main flex min-h-0 flex-1 flex-col px-4 pt-4 md:px-6 md:pt-6"
+        className={cn(
+          '@container/main flex min-h-0 flex-1 flex-col',
+          !(isMobile && selected) && 'px-4 pt-4 md:px-6 md:pt-6',
+        )}
         ref={frameRef}
       >
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-wide flex-col gap-px bg-border p-px">
+        <div
+          className={cn(
+            'mx-auto flex h-full min-h-0 w-full max-w-wide flex-col gap-px',
+            !(isMobile && selected) && 'bg-border p-px',
+          )}
+        >
           <div className="min-h-0 flex-1 bg-background">
             <Loadable what="the Inbox" skeleton={<ListSkeleton />} query={load}>
               <Decide.Provider value={decide}>{panes}</Decide.Provider>

@@ -167,6 +167,7 @@ Unused primitives in the mockup (about seven) are not imported.
 | -------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | Inbox          | `pages/inbox.tsx`, `lib/inbox-rows.ts`, `data/inbox.ts`                           | List, groups, cards, quick view, setup checklist        |
 | Review         | `pages/review-page.tsx`, `pages/review.tsx`, `data/review.ts`                     | The full-screen review and the quick view               |
+| Inbox pane     | `components/heed/inbox-pane.tsx`, `model/inbox-pane.ts`                           | A card's head (state chip, title, summary) and decision |
 | Review parts   | `components/heed/review-parts.tsx`, `change-icons.ts`, `review-page-parts.tsx`    | Change blocks, marks, the Ready line (the Preview)      |
 | Source review  | `components/heed/source-review.tsx`, `lib/line-diff.ts`, `model/review-fields.ts` | Fields table and Text diff, each fed two sides          |
 | Source threads | `components/heed/source-threads.tsx`, `model/source-places.ts`                    | Threads on a line or a field, and the rail's summary    |

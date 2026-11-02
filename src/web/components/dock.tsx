@@ -14,6 +14,7 @@ export function DockFrame({
   quietTitle,
   actions,
   footer,
+  foot,
   children,
 }: {
   title: ReactNode
@@ -21,6 +22,8 @@ export function DockFrame({
   quietTitle?: boolean
   actions?: ReactNode
   footer?: ReactNode
+  /** A footer that lays itself out, such as the review quick view's decision and what follows. */
+  foot?: ReactNode
   children: ReactNode
 }) {
   const isMobile = useIsMobile()
@@ -41,10 +44,12 @@ export function DockFrame({
       footer={
         // One footer language for every dock: the bar's height, actions on the right at the header's
         // button size, full width on a phone.
-        footer && (
+        footer ? (
           <div className="flex h-bar items-center justify-end gap-2 px-4 md:px-5 max-sm:[&>*]:flex-1">
             {footer}
           </div>
+        ) : (
+          foot
         )
       }
     >

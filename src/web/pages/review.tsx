@@ -6,11 +6,13 @@ import { AgentAvatar, PersonAvatar } from '@/components/heed/bits'
 import { ChangeBlock, KindLabel } from '@/components/heed/review-parts'
 import { ToolLogo } from '@/components/heed/tool-logo'
 import { connectorById } from '@/model/integrations'
-import { Button } from '@/components/ui/button'
 import { careLine, type Review } from '@/model/review'
 import { Mark } from '@/components/heed/mark'
 import { navigate } from '@/lib/router'
 import { useInbox, useReviews } from '@/api/queries'
+import { PaneFoot, PaneHead, PrimaryAction } from '@/components/heed/inbox-pane'
+import { paneState, reviewAction, reviewFollows, type PaneState } from '@/model/inbox-pane'
+import type { DomainId } from '@/model/items'
 
 // Reviewing a suggestion, in two places. The quick view (in the Inbox pane and the dock) says what
 // changes and opens the review; it never publishes. The full-screen review is where you work: the
@@ -19,7 +21,18 @@ import { useInbox, useReviews } from '@/api/queries'
 
 /* ---------- the summary, shared by both ---------- */
 
-export function Sender({ r, when }: { r: Review; when?: string }) {
+/**
+ * Who sent a suggestion, and when. `short` is the quick view's line under the summary: who and
+ * where it came from, without the review's longer account of a draft or a read.
+ */
+export function Sender({ r, when, short }: { r: Review; when?: string; short?: boolean }) {
+  if (r.drafted && short)
+    return (
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
+        <span>A draft from what agents asked and {r.drafted.from}</span>
+      </p>
+    )
   if (r.drafted)
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -41,8 +54,8 @@ export function Sender({ r, when }: { r: Review; when?: string }) {
         <ToolLogo c={connectorById('google-drive')!} size="sm" />
         <span>
           From <span className="font-medium text-foreground">{r.synced.tool}</span>,{' '}
-          {r.synced.folder}, read {midSentence(when ?? r.synced.read)}. Created by the read, not by
-          a person.
+          {r.synced.folder}, read {midSentence(when ?? r.synced.read)}
+          {short ? '' : '. Created by the read, not by a person.'}
         </span>
       </p>
     )
@@ -155,16 +168,15 @@ const overlapsWords = (items: { title: string }[]) =>
   `${items[0]?.title ?? ''}${items.length > 1 ? ` and ${items.length - 1} more` : ''}`
 
 /**
- * What the Inbox pane and the dock show: the change, the note and Review. One title (the pane's),
- * one author line, the values that moved, the note and the first change. No counts row and no
- * reach line: those belong to the review and its Try it.
+ * What the Inbox pane and the dock show under the card's head (which says the title, the summary
+ * and who sent it): what needs care, the values that moved, the note and the first change. No
+ * counts row: those belong to the review.
  */
-export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean }) {
+export function QuickReview({ r }: { r: Review }) {
   const first = r.blocks[0]
   const care = careLine(r)
   return (
     <div className="flex flex-col gap-4">
-      {sender && <Sender r={r} />}
       {/* What needs care shows before Review, never only inside it. */}
       {care && (
         <p className="flex items-start gap-2 text-sm">
@@ -180,7 +192,6 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
           </span>
         </p>
       )}
-      <p className="text-reading leading-relaxed text-pretty">{r.summary}</p>
       {r.formattingOnly && (
         <p className="rounded-frame border border-dashed bg-muted/40 px-3 py-2 text-sm">
           <span className="font-medium">Formatting only. The words are the same.</span>
@@ -207,7 +218,34 @@ export function QuickReview({ r, sender = true }: { r: Review; sender?: boolean 
   )
 }
 
-/** The review in the dock: the quick view, and Review to open the full screen. No publishing here. */
+/** The head of a suggestion's quick view: its state, title, summary and a short line on who sent it. */
+export function QuickHead({
+  r,
+  state = paneState({ type: r.drafted ? 'gap' : 'suggestion' }, r),
+  title = r.title,
+  domain,
+  when,
+}: {
+  r: Review
+  /** The card's state, when the card is known; otherwise the review's own. */
+  state?: PaneState
+  /** The card's title, which names what agents asked for a draft; otherwise the review's own. */
+  title?: string
+  domain?: DomainId
+  when?: string
+}) {
+  return (
+    <PaneHead
+      state={state}
+      domain={domain}
+      title={title}
+      summary={r.summary}
+      from={<Sender r={r} when={when} short />}
+    />
+  )
+}
+
+/** The review in the dock: the quick view, and the decision it opens. No publishing here. */
 export function ReviewSheet({ cardId }: { cardId: string }) {
   const r = useReviews().find((x) => x.id === cardId)
   const state = useInbox()
@@ -218,20 +256,27 @@ export function ReviewSheet({ cardId }: { cardId: string }) {
       </DockFrame>
     )
   const done = state.done[r.id]
+  const domain = state.cards.find((c) => c.id === r.id)?.domain
   return (
     <DockFrame
       title={r.title}
-      footer={
+      quietTitle
+      foot={
         done ? (
-          <p className="text-sm text-muted-foreground">{done.label}.</p>
+          <p className="flex h-bar items-center px-4 text-sm text-muted-foreground @md:px-7">
+            {done.label}.
+          </p>
         ) : (
-          <Button size="sm" onClick={() => navigate(`/inbox/${r.id}/review`)}>
-            Review
-          </Button>
+          <PaneFoot follows={reviewFollows(r)}>
+            <PrimaryAction keyHint={false} onClick={() => navigate(`/inbox/${r.id}/review`)}>
+              {reviewAction(r)}
+            </PrimaryAction>
+          </PaneFoot>
         )
       }
     >
-      <div className="@container p-4 md:p-5">
+      <QuickHead r={r} domain={domain} />
+      <div className="px-4 pb-6 @md:px-7">
         <QuickReview r={r} />
       </div>
     </DockFrame>
