@@ -74,7 +74,7 @@ async function main(): Promise<void> {
   // The pickers let anyone who reaches the service in as anyone, administrators included.
   if (config.auth !== 'oidc')
     logger.warn(
-      `Sign-in is the people picker (CL_AUTH=${config.auth}): anyone who can reach this service can sign in as any person, an administrator included. Only for trying it out on this computer; for real people, set NODE_ENV=production and sign people in with your OpenID Connect provider (docs/operations.md).`,
+      `Sign-in is the people picker (HEED_AUTH=${config.auth}): anyone who can reach this service can sign in as any person, an administrator included. Only for trying it out on this computer; for real people, set NODE_ENV=production and sign people in with your OpenID Connect provider (docs/operations.md).`,
     )
 
   const clock = systemClock(config.fixedToday)
@@ -141,7 +141,7 @@ async function main(): Promise<void> {
       retry.unref()
     }
   }
-  // How people sign in (CL_AUTH): the picker from a local file, or the company's OIDC provider.
+  // How people sign in (HEED_AUTH): the picker from a local file, or the company's OIDC provider.
   let signIn: SignIn
   if (config.oidc) {
     let clientSecret: string | null = null

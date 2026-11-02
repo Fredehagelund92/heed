@@ -12,7 +12,7 @@
 #      starts, signs a person in and serves an agent's MCP call (tests/image/production-check.ts).
 #   3. Behind nginx, each caller before sign-in has a request limit of its own, and an address a
 #      caller makes up is dropped (tests/image/limit-probe.ts). The service trusts every private
-#      address (CL_TRUSTED_PROXIES=uniquelocal, as compose.yaml does), so a made-up address that
+#      address (HEED_TRUSTED_PROXIES=uniquelocal, as compose.yaml does), so a made-up address that
 #      nginx passed on would win and fail the probe.
 #
 # Everything it makes is named heed-boot-<pid> and removed at the end. HEED_SERVICE_IMAGE and
@@ -81,7 +81,7 @@ fi
 if [ "$(docker inspect -f '{{.State.ExitCode}}' "$run-refuse")" = 0 ]; then
   fail "the image refuses to start without company sign-in"$'\n'"$output"
 fi
-grep -q 'CL_OIDC_ISSUER: Required when CL_AUTH=oidc' <<< "$output" ||
+grep -q 'HEED_OIDC_ISSUER: Required when HEED_AUTH=oidc' <<< "$output" ||
   fail "the refusal names the sign-in settings"$'\n'"$output"
 grep -q 'set NODE_ENV=development, as compose.yaml does' <<< "$output" ||
   fail "the refusal says how to get the demo instead"$'\n'"$output"
@@ -93,11 +93,11 @@ docker run --rm -v "$run-keys:/var/lib/heed" "$service_image" node src/server/cr
 docker run -d --name "$run-service" --network "$run" "${database[@]}" \
   -v "$run-keys:/var/lib/heed" \
   -e "MCP_RESOURCE_URL=$public_origin/mcp" \
-  -e "CL_WEB_ORIGINS=$public_origin" \
-  -e CL_OIDC_ISSUER=http://127.0.0.1:9400 \
-  -e CL_OIDC_CLIENT_ID=heed-test \
-  -e CL_OIDC_ADMIN_GROUPS=heed-admins \
-  -e CL_TRUSTED_PROXIES=uniquelocal \
+  -e "HEED_WEB_ORIGINS=$public_origin" \
+  -e HEED_OIDC_ISSUER=http://127.0.0.1:9400 \
+  -e HEED_OIDC_CLIENT_ID=heed-test \
+  -e HEED_OIDC_ADMIN_GROUPS=heed-admins \
+  -e HEED_TRUSTED_PROXIES=uniquelocal \
   "$service_image" > /dev/null
 docker run -d --name "$run-web" --network "$run" --ip "$web_ip" \
   -e "HEED_API_URL=http://$run-service:3000" "$web_image" > /dev/null

@@ -37,7 +37,7 @@ it('creates an owner-only key outside production and reads the same key again', 
 it('refuses to start in production without a key, and names no key material', async () => {
   const file = join(dir, 'missing.pem')
   await expect(loadKeyRing({ file, previousFiles: [], nodeEnv: 'production' })).rejects.toThrow(
-    /CL_OAUTH_SIGNING_KEY_FILE .*openssl genpkey -algorithm ed25519/,
+    /HEED_OAUTH_SIGNING_KEY_FILE .*openssl genpkey -algorithm ed25519/,
   )
 })
 

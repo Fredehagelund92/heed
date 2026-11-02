@@ -20,7 +20,7 @@ import { workerLimits } from './worker.ts'
   the server's model"): a Cube model folder on the server (`CUBE_MODEL_DIR`), read by the same
   Cube connector an administrator adds a repository of, which gets the folder as `ctx.folder`.
   What only whoever runs the server can say is applied here, the same for any definitions
-  connector: the domains of views the model names none for (`CL_DOMAIN_OVERRIDES`), and the
+  connector: the domains of views the model names none for (`HEED_DOMAIN_OVERRIDES`), and the
   members renamed (`CUBE_RENAMES_FILE`, CON-512).
 */
 
@@ -137,7 +137,7 @@ export function createCubeSource(options: CubeSourceOptions): DefinitionSource {
       { key: 'model_folder', variable: 'CUBE_MODEL_DIR', value: options.modelDir },
       {
         key: 'domain_overrides',
-        variable: 'CL_DOMAIN_OVERRIDES',
+        variable: 'HEED_DOMAIN_OVERRIDES',
         value: options.domainOverridesFile ?? null,
       },
       { key: 'renames', variable: 'CUBE_RENAMES_FILE', value: options.renamesFile ?? null },

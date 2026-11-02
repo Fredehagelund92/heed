@@ -221,7 +221,7 @@ export function createWorkspaceSources({
         problems.push({
           field: key,
           message:
-            "There's no secret store, so we can't keep a secret. The data team sets one up with CL_SECRETS_DIR.",
+            "There's no secret store, so we can't keep a secret. The data team sets one up with HEED_SECRETS_DIR.",
         })
     // A secret pasted into another field would be kept in plain text and in the history log.
     const plain = JSON.stringify([input.name, input.config, input.reason])

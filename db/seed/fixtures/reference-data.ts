@@ -1,14 +1,16 @@
 import type { Area, Person, Vocabulary } from '../../../src/domain/item.ts'
 import { productNameFrom } from '../../../src/domain/brand.ts'
+import { withRenamedSettings } from '../../../src/domain/renamed-settings.ts'
 
 /**
- * The product's name (src/domain/brand.ts) from `CL_PRODUCT_NAME`: the process's environment when
- * the seed runs, the build's when a web build bundles these fixtures.
+ * The product's name (src/domain/brand.ts) from `HEED_PRODUCT_NAME`: the process's environment when
+ * the seed runs (its old name too, src/domain/renamed-settings.ts), the build's when a web build
+ * bundles these fixtures.
  */
+const running = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
 const productName = productNameFrom(
-  (import.meta as { env?: { CL_PRODUCT_NAME?: string } }).env?.CL_PRODUCT_NAME ??
-    (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env
-      .CL_PRODUCT_NAME,
+  (import.meta as { env?: { HEED_PRODUCT_NAME?: string } }).env?.HEED_PRODUCT_NAME ??
+    (running && withRenamedSettings(running.env).environment.HEED_PRODUCT_NAME),
 )
 
 /** The date every fixture treats as "today". Fixed so screenshots and tests never drift. */

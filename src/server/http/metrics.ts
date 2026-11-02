@@ -6,7 +6,7 @@ import type { Metrics, Sample } from '../observability/metrics.ts'
 
 export interface MetricsSources {
   metrics: Metrics
-  /** `CL_METRICS_TOKEN`. Without one the endpoint is off and answers 404. */
+  /** `HEED_METRICS_TOKEN`. Without one the endpoint is off and answers 404. */
   token: string | undefined
   database: Database
   jobs: Pick<JobRunner, 'overview'>
@@ -16,7 +16,7 @@ const queueStates = ['queued', 'active', 'deferred', 'failed'] as const
 const digest = (text: string) => createHash('sha256').update(text).digest()
 
 /**
- * `GET /metrics` for a scraper that presents `Authorization: Bearer <CL_METRICS_TOKEN>`. The
+ * `GET /metrics` for a scraper that presents `Authorization: Bearer <HEED_METRICS_TOKEN>`. The
  * counters live in the process; the job, connector, spend, edition and pool numbers are read at
  * scrape time from the same sources as the operations view, summed over people.
  */

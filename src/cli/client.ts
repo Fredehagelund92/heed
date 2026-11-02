@@ -14,7 +14,7 @@ export type HeedClient = ContractRouterClient<Contract>
 export type Connection = {
   /** The service, for example http://127.0.0.1:3000. */
   url: string
-  /** The origin the service accepts for changes (CL_WEB_ORIGINS). */
+  /** The origin the service accepts for changes (HEED_WEB_ORIGINS). */
   origin: string
   fetch?: typeof globalThis.fetch
 }

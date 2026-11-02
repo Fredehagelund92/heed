@@ -23,12 +23,12 @@ export class SecretStoreError extends Error {
   override name = 'SecretStoreError'
 }
 
-/** A server without a secret store (`CL_SECRETS_DIR` unset). */
+/** A server without a secret store (`HEED_SECRETS_DIR` unset). */
 export const noSecretStore: SecretStore = {
   available: false,
   read: () => Promise.resolve(null),
   write: () =>
-    Promise.reject(new SecretStoreError('This server has no secret store: set CL_SECRETS_DIR')),
+    Promise.reject(new SecretStoreError('This server has no secret store: set HEED_SECRETS_DIR')),
   remove: () => Promise.resolve(),
 }
 

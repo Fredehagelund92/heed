@@ -549,7 +549,7 @@ describe('the operator invite (heed invite)', () => {
     const code = await run(args, {
       stdout: (text) => void (stdout += text),
       stderr: (text) => void (stderr += text),
-      env: { DATABASE_URL_MIGRATE: url, CL_WEB_ORIGINS: web, ...env },
+      env: { DATABASE_URL_MIGRATE: url, HEED_WEB_ORIGINS: web, ...env },
     })
     return { code, stdout, stderr }
   }

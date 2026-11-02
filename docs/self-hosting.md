@@ -67,7 +67,7 @@ logs that the demo's present is missing. The demo is not retried: run `docker co
 | ------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | The database                          | the volume `db`                              | Everything people wrote and decided, the history log, agents' access and the settings. Back it up with `pg_dump`, never by copying the volume's files while it runs.                                                                                                                   |
 | The keys                              | the volume `keys`, `/var/lib/heed` in `heed` | The keys the service made on its first start: `oauth-key.pem` signs agents' access, `mcp-state.key` seals the questions an agent's draft carries, `mcp-dev-key.pem` signs local MCP tokens. Without them every connected agent must sign in again, and sealed drafts cannot be opened. |
-| The secret store, when it is set      | the folder `CL_SECRETS_DIR` names            | The tokens of the sources added in Settings ([connector security](connectors/security.md)). `compose.yaml` sets none, so in containers no source with a token can be added; running from source, back this folder up with the database.                                                |
+| The secret store, when it is set      | the folder `HEED_SECRETS_DIR` names          | The tokens of the sources added in Settings ([connector security](connectors/security.md)). `compose.yaml` sets none, so in containers no source with a token can be added; running from source, back this folder up with the database.                                                |
 | Your own Cube model, when you use one | the folder `CUBE_MODEL_DIR` names            | Heed only reads it. It is yours and lives wherever you keep it.                                                                                                                                                                                                                        |
 
 The keys and the secret store are secrets: keep their backups where only you can read them.
@@ -164,10 +164,10 @@ same parts live elsewhere:
 - the database is the one `DATABASE_URL_MIGRATE` in `.env.local` names. Back it up with
   `pg_dump --format=custom --dbname="$DATABASE_URL_MIGRATE" > heed.dump` and prove it with
   `npm run db:restore-drill` (both need PostgreSQL 18's `pg_dump` and `pg_restore` on `PATH`);
-- the keys are the files `MCP_DEV_KEY_FILE`, `CL_MCP_STATE_KEY_FILE` and
-  `CL_OAUTH_SIGNING_KEY_FILE` name, `.heed-*.pem` and `.heed-mcp-state.key` in the clone by
+- the keys are the files `MCP_DEV_KEY_FILE`, `HEED_MCP_STATE_KEY_FILE` and
+  `HEED_OAUTH_SIGNING_KEY_FILE` name, `.heed-*.pem` and `.heed-mcp-state.key` in the clone by
   default;
-- the secret store is the folder `CL_SECRETS_DIR` names, when it is set.
+- the secret store is the folder `HEED_SECRETS_DIR` names, when it is set.
 
 ## The web image
 

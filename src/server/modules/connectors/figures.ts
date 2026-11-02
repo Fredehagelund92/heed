@@ -255,7 +255,7 @@ export function createFigureSources({
           if (!secrets.available)
             invalid(
               'token',
-              "There's no secret store, so we can't keep a token. The data team sets one up with CL_SECRETS_DIR.",
+              "There's no secret store, so we can't keep a token. The data team sets one up with HEED_SECRETS_DIR.",
             )
           const ref = await secrets.write({ token: input.token })
           hooks.onRollback(() => secrets.remove(ref))

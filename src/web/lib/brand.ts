@@ -6,13 +6,13 @@
 import { productNameFrom } from '../../domain/brand.ts'
 
 /**
- * From `CL_PRODUCT_NAME` when the app was built, the setting the service reads too
+ * From `HEED_PRODUCT_NAME` when the app was built, the setting the service reads too
  * (src/domain/brand.ts). Outside a Vite build (the Vite config, unit tests) the process's own
  * environment says it.
  */
-const built = (import.meta as { env?: { CL_PRODUCT_NAME?: string } }).env?.CL_PRODUCT_NAME
+const built = (import.meta as { env?: { HEED_PRODUCT_NAME?: string } }).env?.HEED_PRODUCT_NAME
 const running = (globalThis as { process?: { env: Record<string, string | undefined> } }).process
-  ?.env.CL_PRODUCT_NAME
+  ?.env.HEED_PRODUCT_NAME
 export const PRODUCT = productNameFrom(built ?? running)
 /** How a side area (Settings, and later Observability) leads back: to the app, not to a workspace's name. */
 export const BACK_TO_APP = 'Back to app'

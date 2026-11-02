@@ -138,7 +138,7 @@ it('refreshes from the operations view and shows the health of the source', asyn
     server: {
       settings: [
         { key: 'model_folder', variable: 'CUBE_MODEL_DIR', value: modelDir },
-        { key: 'domain_overrides', variable: 'CL_DOMAIN_OVERRIDES', value: null },
+        { key: 'domain_overrides', variable: 'HEED_DOMAIN_OVERRIDES', value: null },
         { key: 'renames', variable: 'CUBE_RENAMES_FILE', value: null },
       ],
     },

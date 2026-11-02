@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadStateKey } from '../../../src/server/mcp/state-key.ts'
 
-/* The key that seals draft_context's question rounds (CL_MCP_STATE_KEY_FILE). */
+/* The key that seals draft_context's question rounds (HEED_MCP_STATE_KEY_FILE). */
 
 let dir: string
 beforeEach(async () => {

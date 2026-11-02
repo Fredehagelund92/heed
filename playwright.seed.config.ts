@@ -50,11 +50,11 @@ export default defineConfig({
         ...(process.env.E2E_DATABASE_SERVE_URL
           ? { DATABASE_URL_SERVE: process.env.E2E_DATABASE_SERVE_URL }
           : {}),
-        CL_WEB_ORIGINS: `http://localhost:${webPort}`,
+        HEED_WEB_ORIGINS: `http://localhost:${webPort}`,
         MCP_RESOURCE_URL: `http://localhost:${apiPort}/mcp`,
         // As compose.yaml runs it: the demo Cube model, and the demo people's sign-in.
         CUBE_MODEL_DIR: 'db/seed/cube',
-        CL_DEV_PEOPLE_FILE: 'db/seed/people.local.yml',
+        HEED_DEV_PEOPLE_FILE: 'db/seed/people.local.yml',
       },
     },
     {

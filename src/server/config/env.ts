@@ -2,6 +2,11 @@ import { isIP } from 'node:net'
 import * as z from 'zod'
 import { DEFAULT_WEB_ORIGINS } from '../../contract/limits.ts'
 import { productNameProblem } from '../../domain/brand.ts'
+import {
+  renamedSettingsWarning,
+  withRenamedSettings,
+  type Environment,
+} from '../../domain/renamed-settings.ts'
 import { modelProviders } from '../modules/models/index.ts'
 
 /**
@@ -27,62 +32,62 @@ const envSchema = z
     // The HMAC key (hex, 32 bytes or more, owner-only) that seals draft_context's questions in a
     // person's agent (FR-121). Every instance needs the same file. Outside production a missing
     // file is created; in production a missing one turns those questions off.
-    CL_MCP_STATE_KEY_FILE: z.string().default('.heed-mcp-state.key'),
+    HEED_MCP_STATE_KEY_FILE: z.string().default('.heed-mcp-state.key'),
     // The login server for a person's own AI client (FR-403, FR-404, docs/ai-sign-in.md).
     // `builtin` runs it in this service; `external` trusts another login server's tokens, read
     // by issuer and key set address; `off` leaves only dev tokens. Tools and items never change.
-    CL_LOGIN_SERVER: z.enum(['builtin', 'external', 'off']).default('builtin'),
+    HEED_LOGIN_SERVER: z.enum(['builtin', 'external', 'off']).default('builtin'),
     // The issuer (`iss`) of the built-in login server's tokens. Default: the MCP address's origin.
-    CL_OAUTH_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
+    HEED_OAUTH_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
     // The web page where a person approves a client. Default: the first web origin's
     // /connect/approve. It must be on an allowed web origin, on the issuer's host.
-    CL_OAUTH_CONSENT_URL: z.url({ protocol: /^https?$/ }).optional(),
+    HEED_OAUTH_CONSENT_URL: z.url({ protocol: /^https?$/ }).optional(),
     // The Ed25519 key that signs access tokens (PKCS #8 PEM, owner-only). Outside production a
     // missing file is created; in production it must exist. Earlier keys, listed after a
     // rotation, keep verifying the tokens they signed until those expire.
-    CL_OAUTH_SIGNING_KEY_FILE: z.string().default('.heed-oauth-key.pem'),
-    CL_OAUTH_PREVIOUS_KEY_FILES: z.string().optional(),
+    HEED_OAUTH_SIGNING_KEY_FILE: z.string().default('.heed-oauth-key.pem'),
+    HEED_OAUTH_PREVIOUS_KEY_FILES: z.string().optional(),
     // Dynamic client registration (RFC 7591), the fallback to client ID metadata documents.
     // Defaults on outside production; production requires an explicit opt-in.
-    CL_OAUTH_DYNAMIC_REGISTRATION: z.enum(['on', 'off']).optional(),
+    HEED_OAUTH_DYNAMIC_REGISTRATION: z.enum(['on', 'off']).optional(),
     // A refresh token unused this long expires; a connection ends this many days after sign-in.
-    CL_OAUTH_REFRESH_IDLE_HOURS: z.coerce.number().int().min(1).max(2160).default(168),
-    CL_OAUTH_CONNECTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
-    // CL_LOGIN_SERVER=external: whose tokens the MCP server accepts, and where their keys are.
+    HEED_OAUTH_REFRESH_IDLE_HOURS: z.coerce.number().int().min(1).max(2160).default(168),
+    HEED_OAUTH_CONNECTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
+    // HEED_LOGIN_SERVER=external: whose tokens the MCP server accepts, and where their keys are.
     MCP_AUTH_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
     MCP_AUTH_JWKS_URL: z.url({ protocol: /^https?$/ }).optional(),
     // Sign-in (FR-416). `oidc` signs people in with the company's OpenID Connect provider and is
     // the default in production. `dev` and `demo` pick a person from a local file (`demo` for
     // demos); production refuses both. Unset: `oidc` in production, `dev` elsewhere.
-    CL_AUTH: z.enum(['dev', 'demo', 'oidc']).optional(),
-    CL_DEV_PEOPLE_FILE: z.string().default('db/seed/people.local.yml'),
-    // CL_AUTH=oidc: the provider's issuer (its discovery document is read from
+    HEED_AUTH: z.enum(['dev', 'demo', 'oidc']).optional(),
+    HEED_DEV_PEOPLE_FILE: z.string().default('db/seed/people.local.yml'),
+    // HEED_AUTH=oidc: the provider's issuer (its discovery document is read from
     // <issuer>/.well-known/openid-configuration) and this app's client id there.
-    CL_OIDC_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
-    CL_OIDC_CLIENT_ID: z
+    HEED_OIDC_ISSUER: z.url({ protocol: /^https?$/ }).optional(),
+    HEED_OIDC_CLIENT_ID: z
       .string()
       .regex(/^\S{1,255}$/, 'Expected the client id, without spaces')
       .optional(),
     // A confidential client's secret, read from an owner-only file (mode 0600), never from the
     // environment. Unset: a public client, with PKCE and no secret.
-    CL_OIDC_CLIENT_SECRET_FILE: z.string().optional(),
+    HEED_OIDC_CLIENT_SECRET_FILE: z.string().optional(),
     // Where the provider sends the browser back. Default: this service's address (the origin of
     // MCP_RESOURCE_URL) at /api/v1/auth/oidc/callback. Register exactly this address there.
-    CL_OIDC_REDIRECT_URL: z.url({ protocol: /^https?$/ }).optional(),
-    CL_OIDC_SCOPES: z.string().default('openid email profile'),
+    HEED_OIDC_REDIRECT_URL: z.url({ protocol: /^https?$/ }).optional(),
+    HEED_OIDC_SCOPES: z.string().default('openid email profile'),
     // The claim of the ID token that lists the person's groups, and the groups that let a person
     // in without an invite: as an Admin, or as a Member. Comma-separated; unset maps none.
-    CL_OIDC_GROUPS_CLAIM: z.string().default('groups'),
-    CL_OIDC_ADMIN_GROUPS: z.string().optional(),
-    CL_OIDC_MEMBER_GROUPS: z.string().optional(),
+    HEED_OIDC_GROUPS_CLAIM: z.string().default('groups'),
+    HEED_OIDC_ADMIN_GROUPS: z.string().optional(),
+    HEED_OIDC_MEMBER_GROUPS: z.string().optional(),
     // The sign-in button's name for the provider, such as "Okta". Default: "your company account".
-    CL_OIDC_NAME: z.string().max(40).optional(),
+    HEED_OIDC_NAME: z.string().max(40).optional(),
     // A browser session ends after this many hours unused, and this many days after sign-in.
-    CL_SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(12),
-    CL_SESSION_MAX_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+    HEED_SESSION_IDLE_HOURS: z.coerce.number().int().min(1).max(720).default(12),
+    HEED_SESSION_MAX_DAYS: z.coerce.number().int().min(1).max(90).default(7),
     // The web app's origins, which may send changes. The first is its public address: links to a
     // draft and to each item an agent is given go there (FR-121, FR-347).
-    CL_WEB_ORIGINS: z
+    HEED_WEB_ORIGINS: z
       .string()
       .default(DEFAULT_WEB_ORIGINS.join(','))
       .transform((value) => value.split(',').map((origin) => origin.trim()))
@@ -99,7 +104,7 @@ const envSchema = z
     // The proxies in front of this service whose X-Forwarded-For and X-Forwarded-Proto it believes:
     // addresses, ranges (10.0.0.0/8) or loopback, linklocal and uniquelocal, comma-separated.
     // Unset believes none, and a caller's address is the connection's peer.
-    CL_TRUSTED_PROXIES: z
+    HEED_TRUSTED_PROXIES: z
       .string()
       .transform((value) =>
         value
@@ -113,7 +118,7 @@ const envSchema = z
       )
       .optional(),
     // Pins the service's "today" (a UTC day) so demo data and end-to-end screenshots stay stable.
-    CL_FIXED_TODAY: z.iso.date().optional(),
+    HEED_FIXED_TODAY: z.iso.date().optional(),
     // Language models for the assistant, judges and evals. `get_facts` never calls a model.
     // `mock` scripts every role; `live` uses each role's provider and model from the settings
     // (`models.<role>`), with the provider's key from this environment.
@@ -121,7 +126,7 @@ const envSchema = z
     MODEL_PROVIDER: z.string().optional(),
     // A folder of Cube model files, read offline. Unset selects the demo connector.
     CUBE_MODEL_DIR: z.string().optional(),
-    CL_DOMAIN_OVERRIDES: z.string().optional(),
+    HEED_DOMAIN_OVERRIDES: z.string().optional(),
     // A JSON file of renamed Cube members, old id to new id (CON-512).
     CUBE_RENAMES_FILE: z.string().optional(),
     // How long Cube's compiler may take on the model, and the memory it may use; a large model
@@ -131,18 +136,18 @@ const envSchema = z
     // The local secret store: a folder outside the repository, only the server's user may open
     // (mode 0700). Sources an administrator adds keep their tokens there (CON-105). Unset, the
     // server keeps no secret, so a source that needs one cannot be added.
-    CL_SECRETS_DIR: z.string().optional(),
+    HEED_SECRETS_DIR: z.string().optional(),
     // `on` lets the assistant's read_source open plain http pages on this machine, where the
     // end-to-end tests serve theirs. Never another private address; refused in production.
-    CL_WEB_READ_LOOPBACK: z.enum(['on', 'off']).default('off'),
+    HEED_WEB_READ_LOOPBACK: z.enum(['on', 'off']).default('off'),
     // The bearer token a scraper presents at /metrics. Unset turns the endpoint off.
-    CL_METRICS_TOKEN: z
+    HEED_METRICS_TOKEN: z
       .string()
       .regex(/^\S{32,}$/, 'Expected at least 32 characters without spaces (openssl rand -hex 32)')
       .optional(),
     // The product's name in what people and agents read. Checked here so a bad value stops the
     // start; src/server/brand.ts reads it (and the web build reads the same variable).
-    CL_PRODUCT_NAME: z
+    HEED_PRODUCT_NAME: z
       .string()
       .superRefine((value, context) => {
         const problem = productNameProblem(value)
@@ -151,54 +156,58 @@ const envSchema = z
       .optional(),
   })
   .superRefine((env, context) => {
-    if (env.NODE_ENV === 'production' && (env.CL_AUTH === 'dev' || env.CL_AUTH === 'demo')) {
+    if (env.NODE_ENV === 'production' && (env.HEED_AUTH === 'dev' || env.HEED_AUTH === 'demo')) {
       context.addIssue({
         code: 'custom',
-        path: ['CL_AUTH'],
-        message: `${env.CL_AUTH === 'dev' ? 'Dev' : 'Demo'} sign-in is refused when NODE_ENV=production; use CL_AUTH=oidc`,
+        path: ['HEED_AUTH'],
+        message: `${env.HEED_AUTH === 'dev' ? 'Dev' : 'Demo'} sign-in is refused when NODE_ENV=production; use HEED_AUTH=oidc`,
       })
     }
-    const auth = env.CL_AUTH ?? (env.NODE_ENV === 'production' ? 'oidc' : 'dev')
+    const auth = env.HEED_AUTH ?? (env.NODE_ENV === 'production' ? 'oidc' : 'dev')
     if (auth === 'oidc')
-      for (const name of ['CL_OIDC_ISSUER', 'CL_OIDC_CLIENT_ID'] as const)
+      for (const name of ['HEED_OIDC_ISSUER', 'HEED_OIDC_CLIENT_ID'] as const)
         if (env[name] === undefined)
-          context.addIssue({ code: 'custom', path: [name], message: 'Required when CL_AUTH=oidc' })
-    if (env.CL_SESSION_IDLE_HOURS > env.CL_SESSION_MAX_DAYS * 24)
+          context.addIssue({
+            code: 'custom',
+            path: [name],
+            message: 'Required when HEED_AUTH=oidc',
+          })
+    if (env.HEED_SESSION_IDLE_HOURS > env.HEED_SESSION_MAX_DAYS * 24)
       context.addIssue({
         code: 'custom',
-        path: ['CL_SESSION_IDLE_HOURS'],
-        message: 'Expected no more hours than CL_SESSION_MAX_DAYS allows',
+        path: ['HEED_SESSION_IDLE_HOURS'],
+        message: 'Expected no more hours than HEED_SESSION_MAX_DAYS allows',
       })
-    if (env.NODE_ENV === 'production' && env.CL_WEB_READ_LOOPBACK === 'on') {
+    if (env.NODE_ENV === 'production' && env.HEED_WEB_READ_LOOPBACK === 'on') {
       context.addIssue({
         code: 'custom',
-        path: ['CL_WEB_READ_LOOPBACK'],
+        path: ['HEED_WEB_READ_LOOPBACK'],
         message: 'Reading pages on this machine is refused when NODE_ENV=production',
       })
     }
-    if (env.NODE_ENV === 'production' && env.CL_FIXED_TODAY !== undefined) {
+    if (env.NODE_ENV === 'production' && env.HEED_FIXED_TODAY !== undefined) {
       context.addIssue({
         code: 'custom',
-        path: ['CL_FIXED_TODAY'],
+        path: ['HEED_FIXED_TODAY'],
         message: 'A fixed date is refused when NODE_ENV=production',
       })
     }
-    if (env.CL_LOGIN_SERVER === 'external') {
+    if (env.HEED_LOGIN_SERVER === 'external') {
       for (const name of ['MCP_AUTH_ISSUER', 'MCP_AUTH_JWKS_URL'] as const)
         if (env[name] === undefined)
           context.addIssue({
             code: 'custom',
             path: [name],
-            message: 'Required when CL_LOGIN_SERVER=external',
+            message: 'Required when HEED_LOGIN_SERVER=external',
           })
     }
     for (const name of [
-      'CL_OAUTH_ISSUER',
-      'CL_OAUTH_CONSENT_URL',
+      'HEED_OAUTH_ISSUER',
+      'HEED_OAUTH_CONSENT_URL',
       'MCP_AUTH_ISSUER',
       'MCP_AUTH_JWKS_URL',
-      'CL_OIDC_ISSUER',
-      'CL_OIDC_REDIRECT_URL',
+      'HEED_OIDC_ISSUER',
+      'HEED_OIDC_REDIRECT_URL',
     ] as const) {
       const value = env[name]
       if (value === undefined) continue
@@ -269,12 +278,12 @@ export interface Config {
   mcpStateKeyFile: string
   loginServer: LoginServerConfig
   auth: 'dev' | 'demo' | 'oidc'
-  /** CL_AUTH=oidc: the provider and this app's client there. */
+  /** HEED_AUTH=oidc: the provider and this app's client there. */
   oidc: OidcConfig | null
   sessions: SessionLifetime
   devPeopleFile: string
   webOrigins: string[]
-  /** CL_TRUSTED_PROXIES: the proxies whose forwarded address the service believes; empty for none. */
+  /** HEED_TRUSTED_PROXIES: the proxies whose forwarded address the service believes; empty for none. */
   trustedProxies: string[]
   fixedToday: string | undefined
   models: 'mock' | 'live'
@@ -300,10 +309,28 @@ export class ConfigError extends Error {
   override name = 'ConfigError'
 }
 
+let warnedOfOldNames = false
+
+/**
+ * The environment with each setting's old `CL_` name read as its `HEED_` name when only the old
+ * one is set (src/domain/renamed-settings.ts). The first time a process meets old names, it warns
+ * once, naming each and its new name, never a value.
+ */
+export function withNewSettingNames(environment: Environment): Environment {
+  const { environment: renamed, oldNames } = withRenamedSettings(environment)
+  if (oldNames.length && !warnedOfOldNames) {
+    warnedOfOldNames = true
+    console.warn(renamedSettingsWarning(oldNames))
+  }
+  return renamed
+}
+
 /** Parses the environment. An empty value counts as unset, as `.env` files write them. */
 export function loadConfig(environment: Record<string, string | undefined>): Config {
   const present = Object.fromEntries(
-    Object.entries(environment).filter(([, value]) => value !== undefined && value !== ''),
+    Object.entries(withNewSettingNames(environment)).filter(
+      ([, value]) => value !== undefined && value !== '',
+    ),
   )
   const result = envSchema.safeParse(present)
   if (!result.success) {
@@ -312,13 +339,13 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     // around is told how to get the demo's picker instead.
     const noSignIn =
       present.NODE_ENV === 'production' &&
-      present.CL_AUTH === undefined &&
-      result.error.issues.some((issue) => issue.message === 'Required when CL_AUTH=oidc')
+      present.HEED_AUTH === undefined &&
+      result.error.issues.some((issue) => issue.message === 'Required when HEED_AUTH=oidc')
     if (noSignIn) lines.push('', productionSignInHint)
     throw new ConfigError(`Invalid configuration:\n${lines.join('\n')}`)
   }
   const env = result.data
-  const auth = env.CL_AUTH ?? (env.NODE_ENV === 'production' ? 'oidc' : 'dev')
+  const auth = env.HEED_AUTH ?? (env.NODE_ENV === 'production' ? 'oidc' : 'dev')
   const loginServer = loginServerConfig(env)
   return {
     nodeEnv: env.NODE_ENV,
@@ -329,15 +356,15 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
     databaseServeUrl: env.DATABASE_URL_SERVE ?? servingUrl(env.DATABASE_URL),
     mcpResourceUrl: env.MCP_RESOURCE_URL,
     mcpDevKeyFile: env.MCP_DEV_KEY_FILE,
-    mcpStateKeyFile: env.CL_MCP_STATE_KEY_FILE,
+    mcpStateKeyFile: env.HEED_MCP_STATE_KEY_FILE,
     loginServer,
     auth,
     oidc: auth === 'oidc' ? oidcConfig(env) : null,
-    sessions: { idleHours: env.CL_SESSION_IDLE_HOURS, maxDays: env.CL_SESSION_MAX_DAYS },
-    devPeopleFile: env.CL_DEV_PEOPLE_FILE,
-    webOrigins: env.CL_WEB_ORIGINS,
-    trustedProxies: env.CL_TRUSTED_PROXIES ?? [],
-    fixedToday: env.CL_FIXED_TODAY,
+    sessions: { idleHours: env.HEED_SESSION_IDLE_HOURS, maxDays: env.HEED_SESSION_MAX_DAYS },
+    devPeopleFile: env.HEED_DEV_PEOPLE_FILE,
+    webOrigins: env.HEED_WEB_ORIGINS,
+    trustedProxies: env.HEED_TRUSTED_PROXIES ?? [],
+    fixedToday: env.HEED_FIXED_TODAY,
     models: env.MODELS,
     modelEnv: Object.fromEntries(
       modelProviders
@@ -345,7 +372,7 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
         .flatMap((name) => (present[name] === undefined ? [] : [[name, present[name]]])),
     ),
     cubeModelDir: env.CUBE_MODEL_DIR,
-    domainOverridesFile: env.CL_DOMAIN_OVERRIDES,
+    domainOverridesFile: env.HEED_DOMAIN_OVERRIDES,
     renamesFile: env.CUBE_RENAMES_FILE,
     cubeCompile: {
       ...(env.CUBE_COMPILE_TIMEOUT_SECONDS === undefined
@@ -353,19 +380,19 @@ export function loadConfig(environment: Record<string, string | undefined>): Con
         : { timeoutMs: env.CUBE_COMPILE_TIMEOUT_SECONDS * 1000 }),
       ...(env.CUBE_COMPILE_MEMORY_MB === undefined ? {} : { memoryMb: env.CUBE_COMPILE_MEMORY_MB }),
     },
-    secretsDir: env.CL_SECRETS_DIR,
-    metricsToken: env.CL_METRICS_TOKEN,
-    webReadLoopback: env.CL_WEB_READ_LOOPBACK === 'on',
+    secretsDir: env.HEED_SECRETS_DIR,
+    metricsToken: env.HEED_METRICS_TOKEN,
+    webReadLoopback: env.HEED_WEB_READ_LOOPBACK === 'on',
   }
 }
 
-/** How long a browser session lasts: unused, and at most (CL_SESSION_IDLE_HOURS, CL_SESSION_MAX_DAYS). */
+/** How long a browser session lasts: unused, and at most (HEED_SESSION_IDLE_HOURS, HEED_SESSION_MAX_DAYS). */
 export interface SessionLifetime {
   idleHours: number
   maxDays: number
 }
 
-/** Company sign-in with OpenID Connect (CL_AUTH=oidc, FR-416, docs/ai-sign-in.md). */
+/** Company sign-in with OpenID Connect (HEED_AUTH=oidc, FR-416, docs/ai-sign-in.md). */
 export interface OidcConfig {
   issuer: string
   clientId: string
@@ -387,24 +414,24 @@ const list = (value: string | undefined) =>
     .filter(Boolean)
 
 function oidcConfig(env: z.infer<typeof envSchema>): OidcConfig {
-  const scopes = env.CL_OIDC_SCOPES.split(/\s+/).filter(Boolean)
+  const scopes = env.HEED_OIDC_SCOPES.split(/\s+/).filter(Boolean)
   if (!scopes.includes('openid'))
     throw new ConfigError(
-      'Invalid configuration:\n  CL_OIDC_SCOPES: Expected openid among the scopes',
+      'Invalid configuration:\n  HEED_OIDC_SCOPES: Expected openid among the scopes',
     )
   return {
     // An issuer is compared exactly (OpenID Connect Discovery 1.0, section 4.3), as configured.
-    issuer: env.CL_OIDC_ISSUER!,
-    clientId: env.CL_OIDC_CLIENT_ID!,
-    clientSecretFile: env.CL_OIDC_CLIENT_SECRET_FILE ?? null,
+    issuer: env.HEED_OIDC_ISSUER!,
+    clientId: env.HEED_OIDC_CLIENT_ID!,
+    clientSecretFile: env.HEED_OIDC_CLIENT_SECRET_FILE ?? null,
     redirectUrl:
-      env.CL_OIDC_REDIRECT_URL ??
+      env.HEED_OIDC_REDIRECT_URL ??
       `${new URL(env.MCP_RESOURCE_URL).origin}/api/v1/auth/oidc/callback`,
     scopes: scopes.join(' '),
-    groupsClaim: env.CL_OIDC_GROUPS_CLAIM,
-    adminGroups: list(env.CL_OIDC_ADMIN_GROUPS),
-    memberGroups: list(env.CL_OIDC_MEMBER_GROUPS),
-    name: env.CL_OIDC_NAME?.trim() || null,
+    groupsClaim: env.HEED_OIDC_GROUPS_CLAIM,
+    adminGroups: list(env.HEED_OIDC_ADMIN_GROUPS),
+    memberGroups: list(env.HEED_OIDC_MEMBER_GROUPS),
+    name: env.HEED_OIDC_NAME?.trim() || null,
   }
 }
 
@@ -417,43 +444,45 @@ export function dynamicRegistrationEnabled(
 }
 
 function loginServerConfig(env: z.infer<typeof envSchema>): LoginServerConfig {
-  if (env.CL_LOGIN_SERVER === 'off') return { kind: 'off' }
-  if (env.CL_LOGIN_SERVER === 'external')
+  if (env.HEED_LOGIN_SERVER === 'off') return { kind: 'off' }
+  if (env.HEED_LOGIN_SERVER === 'external')
     return { kind: 'external', issuer: env.MCP_AUTH_ISSUER!, jwksUrl: env.MCP_AUTH_JWKS_URL! }
   // An issuer is compared as a string (RFC 8414): the origin, without a trailing slash.
-  const issuer = (env.CL_OAUTH_ISSUER ?? new URL(env.MCP_RESOURCE_URL).origin).replace(/\/$/, '')
+  const issuer = (env.HEED_OAUTH_ISSUER ?? new URL(env.MCP_RESOURCE_URL).origin).replace(/\/$/, '')
   // By default the consent page is on the first web origin on the issuer's host: the browser
   // that starts a sign-in keeps a cookie the consent page must send back, and a cookie belongs
   // to a host, whatever its port.
-  const sameHost = env.CL_WEB_ORIGINS.find((o) => new URL(o).hostname === new URL(issuer).hostname)
+  const sameHost = env.HEED_WEB_ORIGINS.find(
+    (o) => new URL(o).hostname === new URL(issuer).hostname,
+  )
   const consentUrl =
-    env.CL_OAUTH_CONSENT_URL ?? `${sameHost ?? env.CL_WEB_ORIGINS[0]}/connect/approve`
+    env.HEED_OAUTH_CONSENT_URL ?? `${sameHost ?? env.HEED_WEB_ORIGINS[0]}/connect/approve`
   const consent = new URL(consentUrl)
   const problems: string[] = []
-  if (!env.CL_WEB_ORIGINS.includes(consent.origin))
-    problems.push(`  CL_OAUTH_CONSENT_URL: Expected an address on one of CL_WEB_ORIGINS`)
+  if (!env.HEED_WEB_ORIGINS.includes(consent.origin))
+    problems.push(`  HEED_OAUTH_CONSENT_URL: Expected an address on one of HEED_WEB_ORIGINS`)
   if (consent.hostname !== new URL(issuer).hostname)
     problems.push(
-      `  CL_OAUTH_CONSENT_URL: Expected a web origin on the issuer's host (${issuer}), or CL_LOGIN_SERVER=off`,
+      `  HEED_OAUTH_CONSENT_URL: Expected a web origin on the issuer's host (${issuer}), or HEED_LOGIN_SERVER=off`,
     )
   if (new URL(env.MCP_RESOURCE_URL).origin !== issuer)
-    problems.push(`  CL_OAUTH_ISSUER: Expected the origin of MCP_RESOURCE_URL, which serves it`)
+    problems.push(`  HEED_OAUTH_ISSUER: Expected the origin of MCP_RESOURCE_URL, which serves it`)
   if (problems.length) throw new ConfigError(`Invalid configuration:\n${problems.join('\n')}`)
   return {
     kind: 'builtin',
     issuer,
     consentUrl: consent.href,
-    signingKeyFile: env.CL_OAUTH_SIGNING_KEY_FILE,
-    previousKeyFiles: (env.CL_OAUTH_PREVIOUS_KEY_FILES ?? '')
+    signingKeyFile: env.HEED_OAUTH_SIGNING_KEY_FILE,
+    previousKeyFiles: (env.HEED_OAUTH_PREVIOUS_KEY_FILES ?? '')
       .split(',')
       .map((file) => file.trim())
       .filter(Boolean),
     dynamicRegistration: dynamicRegistrationEnabled(
       env.NODE_ENV,
-      env.CL_OAUTH_DYNAMIC_REGISTRATION,
+      env.HEED_OAUTH_DYNAMIC_REGISTRATION,
     ),
-    refreshIdleHours: env.CL_OAUTH_REFRESH_IDLE_HOURS,
-    connectionDays: env.CL_OAUTH_CONNECTION_DAYS,
+    refreshIdleHours: env.HEED_OAUTH_REFRESH_IDLE_HOURS,
+    connectionDays: env.HEED_OAUTH_CONNECTION_DAYS,
   }
 }
 

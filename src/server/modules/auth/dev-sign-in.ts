@@ -34,7 +34,7 @@ export async function readDevPeople(path: string): Promise<DevPerson[]> {
   return peopleSchema.parse(parse(await readFile(path, 'utf8')))
 }
 export interface SignIn {
-  /** How this install signs people in (CL_AUTH). */
+  /** How this install signs people in (HEED_AUTH). */
   readonly method: SessionMethod
   readonly lifetime: SessionLifetime
   people: readonly DevPerson[]
@@ -60,7 +60,7 @@ export interface SignIn {
   groups(tx: Queryable, personId: string): Promise<readonly string[]>
 }
 /**
- * The picker (CL_AUTH=dev, or demo for demos): a person chooses whom to be from a local file.
+ * The picker (HEED_AUTH=dev, or demo for demos): a person chooses whom to be from a local file.
  * Refused in production, where people sign in with their company's provider.
  */
 export function createDevSignIn(

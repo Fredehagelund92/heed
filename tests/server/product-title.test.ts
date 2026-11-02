@@ -5,7 +5,7 @@ import { productTitle } from '../../vite.config.ts'
 function titleFor(name: string | undefined): string {
   const plugin: Plugin = productTitle()
   const configResolved = plugin.configResolved as (config: ResolvedConfig) => void
-  configResolved({ env: { CL_PRODUCT_NAME: name } } as unknown as ResolvedConfig)
+  configResolved({ env: { HEED_PRODUCT_NAME: name } } as unknown as ResolvedConfig)
   const transform = plugin.transformIndexHtml as (html: string) => string
   return transform('<title>%PRODUCT_NAME%</title>')
 }

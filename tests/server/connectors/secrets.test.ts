@@ -72,6 +72,6 @@ describe('the local secret store', () => {
   it('without a store, keeps nothing and says how to get one', async () => {
     expect(noSecretStore.available).toBe(false)
     expect(await noSecretStore.read('local:00000000-0000-0000-0000-000000000000')).toBeNull()
-    await expect(noSecretStore.write({ token: 'x' })).rejects.toThrow(/CL_SECRETS_DIR/)
+    await expect(noSecretStore.write({ token: 'x' })).rejects.toThrow(/HEED_SECRETS_DIR/)
   })
 })

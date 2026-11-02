@@ -113,13 +113,13 @@ const random = () => randomBytes(32).toString('base64url')
  */
 export async function readClientSecret(file: string): Promise<string> {
   const info = await stat(file)
-  if (!info.isFile()) throw new Error(`CL_OIDC_CLIENT_SECRET_FILE: ${file} is not a file`)
+  if (!info.isFile()) throw new Error(`HEED_OIDC_CLIENT_SECRET_FILE: ${file} is not a file`)
   if ((info.mode & 0o077) !== 0)
     throw new Error(
-      `CL_OIDC_CLIENT_SECRET_FILE: ${file} may be read by others; make it readable by its owner only (chmod 600)`,
+      `HEED_OIDC_CLIENT_SECRET_FILE: ${file} may be read by others; make it readable by its owner only (chmod 600)`,
     )
   const secret = (await readFile(file, 'utf8')).trim()
-  if (!secret) throw new Error(`CL_OIDC_CLIENT_SECRET_FILE: ${file} is empty`)
+  if (!secret) throw new Error(`HEED_OIDC_CLIENT_SECRET_FILE: ${file} is empty`)
   return secret
 }
 

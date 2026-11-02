@@ -65,7 +65,7 @@ export type PageReaderOptions = {
   /**
    * Also reads plain http on this machine (127.0.0.1, ::1, localhost): the tests and the
    * end-to-end suite serve their pages there. Never another private address. Refused in
-   * production by the configuration (CL_WEB_READ_LOOPBACK).
+   * production by the configuration (HEED_WEB_READ_LOOPBACK).
    */
   loopback?: boolean
 }
