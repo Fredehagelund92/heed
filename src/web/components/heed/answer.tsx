@@ -1286,6 +1286,8 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
   // by word; the words on screen are read once finished.
   const whole = sentences.filter((_, i) => ends[i]! <= revealed)
 
+  // The words, which the state's card goes beside when the thread has room.
+  const wordsRef = React.useRef<HTMLDivElement>(null)
   // The two items that disagree, as the answer numbers them: named in the state's card.
   const disagree =
     answer.state === 'conflict'
@@ -1302,7 +1304,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
           <ScopeLine answer={answer} />
           {/* The badge alone; what it means is its card, on hover, focus or a tap. */}
           {answer.state && (
-            <StateHelp state={answer.state} draft={!!draft}>
+            <StateHelp state={answer.state} draft={!!draft} words={wordsRef}>
               {disagree.length > 0 && (
                 <div className="flex flex-col gap-1.5">
                   <p className="text-sm font-medium">These two disagree</p>
@@ -1335,6 +1337,7 @@ function ContextAnswerBody({ turn, draft, onRetry, docked, onRevealing, latest }
       )}
       {revealed > 0 && (
         <div
+          ref={wordsRef}
           data-answer-words
           aria-hidden={revealing || undefined}
           aria-live="off"

@@ -49,6 +49,29 @@ const states = [
 const badgeName = new RegExp(`^(${states.map((s) => s.label).join('|')})$`)
 
 /** Asks, and waits until the answer is finished: its badge in, Stop gone and the row settled. */
+type Box = { x: number; y: number; width: number; height: number }
+
+/** Two boxes share no pixel. */
+const apart = (a: Box, b: Box) =>
+  a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y
+
+/** The card, wherever it opened, covers neither the badge nor the words it explains. */
+async function coversNothing(page: Page, turn: number, label: string) {
+  const log = page.getByRole('log')
+  const badge = log
+    .locator(`[data-turn="${turn}"]`)
+    .getByRole('button', { name: label, exact: true })
+  const card = page.getByRole('dialog', { name: `What ${label} means` })
+  await expect(card).toBeVisible()
+  // Settled where it goes: in, and no longer moving.
+  await expect.poll(() => card.evaluate((el) => getComputedStyle(el).opacity)).toBe('1')
+  const words = log.locator(`[data-turn="${turn}"] [data-answer-words]`)
+  const [b, c] = [(await badge.boundingBox())!, (await card.boundingBox())!]
+  expect(apart(b, c)).toBe(true)
+  if (await words.count()) expect(apart((await words.boundingBox())!, c)).toBe(true)
+  return { badge: b, card: c }
+}
+
 async function ask(page: Page, question: string) {
   const turns = page.locator('[data-turn]')
   const n = await turns.count()
@@ -87,9 +110,8 @@ for (const s of states)
     await expect(card).toBeVisible()
     await expect(card).toContainText(s.sentence.charAt(0).toLowerCase() + s.sentence.slice(1))
     await expect(badge).toHaveAttribute('aria-expanded', 'true')
-    const [b, c] = [(await badge.boundingBox())!, (await card.boundingBox())!]
-    // Above when there is room, below when not; never over the badge.
-    expect(c.y + c.height <= b.y - 7 || c.y >= b.y + b.height + 7).toBe(true)
+    // Wherever there is room for it, never over the badge or the words.
+    await coversNothing(page, 0, s.label)
     // Gone soon after the pointer leaves.
     await page.mouse.move(0, 0)
     await expect(card).toBeHidden()
@@ -182,6 +204,34 @@ test('The badge card by keyboard: it opens on focus, Tab goes into it, Escape cl
   await expect(badge).toBeFocused()
 })
 
+test('At the very top of the view the card moves the words down, and with room above it opens there', async ({
+  page,
+}) => {
+  await go(page, `/ask?n=${Date.now()}`)
+  await ask(page, 'Do Norway orders include gift-card money?')
+  const log = page.getByRole('log')
+  // A new question goes to the top of the view: no room above the badge for the card.
+  const words = log.locator('[data-turn="0"] [data-answer-words]')
+  const before = (await words.boundingBox())!.y
+  await log.getByRole('button', { name: 'Conflict', exact: true }).hover()
+  const { badge, card } = await coversNothing(page, 0, 'Conflict')
+  expect(card.y).toBeGreaterThanOrEqual(badge.y + badge.height)
+  expect((await words.boundingBox())!.y).toBeGreaterThan(before + card.height)
+  await page.mouse.move(0, 0)
+  await expect(page.getByRole('dialog')).toBeHidden()
+  await expect.poll(async () => (await words.boundingBox())!.y).toBe(before)
+
+  // A later answer, with the earlier one above it on screen: the card opens above its badge.
+  await ask(page, 'How did orders in Spain change in October 2026?')
+  await page.locator('[data-thread]').evaluate((el) => el.scrollBy(0, -400))
+  await log
+    .locator('[data-turn="1"]')
+    .getByRole('button', { name: 'Not found', exact: true })
+    .hover()
+  const above = await coversNothing(page, 1, 'Not found')
+  expect(above.card.y + above.card.height).toBeLessThanOrEqual(above.badge.y)
+})
+
 test.describe('on a phone', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true })
 
@@ -194,7 +244,9 @@ test.describe('on a phone', () => {
     await badge.tap()
     const card = page.getByRole('dialog', { name: 'What Conflict means' })
     await expect(card).toBeVisible()
-    const box = (await card.boundingBox())!
+    // No room beside the words on a phone: it opens under the badge and moves the words down.
+    const { badge: b, card: box } = await coversNothing(page, 0, 'Conflict')
+    expect(box.y).toBeGreaterThanOrEqual(b.y + b.height)
     expect(box.x).toBeGreaterThanOrEqual(0)
     expect(box.x + box.width).toBeLessThanOrEqual(390)
     await page.getByRole('textbox', { name: 'Ask a question' }).tap()

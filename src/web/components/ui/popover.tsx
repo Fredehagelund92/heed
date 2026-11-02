@@ -19,21 +19,26 @@ function PopoverContent({
   side = 'bottom',
   sideOffset = 4,
   anchor,
+  collisionAvoidance,
+  container,
+  positionerClassName,
   ...props
 }: PopoverPrimitive.Popup.Props &
   Pick<
     PopoverPrimitive.Positioner.Props,
-    'align' | 'alignOffset' | 'side' | 'sideOffset' | 'anchor'
-  >) {
+    'align' | 'alignOffset' | 'side' | 'sideOffset' | 'anchor' | 'collisionAvoidance'
+  > &
+  Pick<PopoverPrimitive.Portal.Props, 'container'> & { positionerClassName?: string }) {
   return (
-    <PopoverPrimitive.Portal>
+    <PopoverPrimitive.Portal container={container}>
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
         anchor={anchor}
-        className="isolate z-overlay"
+        collisionAvoidance={collisionAvoidance}
+        className={cn('isolate z-overlay', positionerClassName)}
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
