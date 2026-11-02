@@ -168,14 +168,14 @@ The chart tokens are the same in light and dark. One value differs from the mock
 - Charts: blue for checked context, amber for what to look at, greys for the rest, a hatch for Not found, so every state also differs by shape.
 - Marked text uses one component (`components/heed/mark.tsx`) and four roles. The colour rides on the ink, the weight and an underline, never on a fill:
 
-  | Role               | Used for                            | Looks                                                   |
-  | ------------------ | ----------------------------------- | ------------------------------------------------------- |
-  | Needs you          | The one thing to do or look at      | Amber ink (`--caution-text`), a triangle, semibold      |
-  | Differs or changed | Words that differ between two texts | Semibold with a 2 px amber underline (`--caution-icon`) |
+  | Role               | Used for                                  | Looks                                                   |
+  | ------------------ | ----------------------------------------- | ------------------------------------------------------- |
+  | Needs you          | The one thing to do or look at            | Amber ink (`--caution-text`), a triangle, semibold      |
+  | Differs or changed | Words that differ between two texts       | Semibold with a 2 px amber underline (`--caution-icon`) |
+  | Wrong              | Something that failed                     | Destructive ink, an icon, and the word Failed           |
+  | Good               | Something that worked, where that is news | A check and the word, in `--good-ink`                   |
 
   In an Ask answer, the sentences from two items that disagree are not marked word by word: they sit together behind a 2 px amber rule (`--caution-icon`) at their start, the words plain. The rule says nothing alone: the answer's Conflict badge names the two items in its card, and a screen reader hears that each sentence says something different from another item.
-  | Wrong | Something that failed | Destructive ink, an icon, and the word Failed |
-  | Good | Something that worked, where that is news | A check and the word, in `--good-ink` |
 
   A name or a term is a chip, not a mark. Edits in a review keep their own marks (added, removed, formatting). Mark only text the app wrote from a known place, never words found by searching a person's text; never a document body or anything agents read; never kinds, domains, counts or badges. Mark the exceptions: one Needs you per card or row, about three marks in a block at most, and none when every row of a list would carry the same one. A number's move says its direction with an arrow and words; amber there means "look here", not "worse".
 
